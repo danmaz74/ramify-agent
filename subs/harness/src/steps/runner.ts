@@ -788,8 +788,11 @@ export class InvocationRunner<R extends RunnerRun> {
         accept: async (input, signal) => {
           await request.beforeSubmission?.(input, signal);
           signal.throwIfAborted();
-          const verdict = await judge.judge(input);
-          transcript.note(verdictNote(recorder.callId(request.toolName), request.toolName, verdict));
+          // The call's ID keys its rejection observation to the call the
+          // transcript and the tool-start observation name.
+          const callId = recorder.callId(request.toolName);
+          const verdict = await judge.judge(input, callId);
+          transcript.note(verdictNote(callId, request.toolName, verdict));
           progress({ type: 'submission', input, accepted: verdict.accepted, answer: verdict.accepted ? verdict.text ?? '' : verdict.errors.join('\n') });
           return verdict;
         },

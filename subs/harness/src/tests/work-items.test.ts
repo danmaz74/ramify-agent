@@ -319,6 +319,39 @@ describe('a work-item gate that does not pass', () => {
     expect(local[1]!.spec.prompt).toContain('The gate did not pass');
     expect(local[1]!.spec.prompt).toContain('- `tests`: failed');
   }, 300_000);
+
+  test('a later completion request that omits its outline stands on the last committed revision', async () => {
+    const project = await target();
+    const submitted = analysis([entry('reviewer-note', reviews)]);
+    let turn = 0;
+    const { outline: _omitted, ...withoutOutline } = requestCompletion();
+    const { service } = await openRuns(project, {
+      checkScript: ({ check, context }) => context.checkpoint === 'work-item' && check.kind === 'tests'
+        ? { outcome: { kind: 'completed', exitCode: 1 } }
+        : {},
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-001', 'wi-001', 'wi-001'],
+      script: (spec: SessionSpec) => {
+        if (spec.role === 'catalog-extractor') return [];
+        if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: submitted }];
+        turn += 1;
+        return [{ kind: 'submit' as const, input: turn === 1 ? requestCompletion() : withoutOutline }];
+      },
+    });
+    cleanups.push(() => service.close());
+
+    const receipt = await service.execute(startRun('review-notes'));
+    await service.settled('review-notes', receipt.jobId);
+    const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
+    // Each omission was accepted at once: no rejection, and every turn's completion is recorded.
+    expect(events.filter(event => event.type === 'outline-revised').map(event => event.data.revision)).toEqual([1, 2, 3, 4]);
+    const read = async (revision: number) => JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', revision)), 'utf8')) as Record<string, unknown>;
+    const first = await read(1);
+    const second = await read(2);
+    // The plan of the revision stands; only the reason names the revision it stands on.
+    for (const field of ['changes', 'decomposition', 'reuse', 'breakingChanges', 'stages']) expect(second[field]).toEqual(first[field]);
+    expect(second.revisionReason).toBe('Unchanged: the completion request carried no outline, so revision 1 stands.');
+    expect((await read(3)).revisionReason).toBe('Unchanged: the completion request carried no outline, so revision 2 stands.');
+  }, 300_000);
 });
 
 describe('a local architect that cannot meet the request', () => {

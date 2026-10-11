@@ -29,9 +29,12 @@ import {
  * `request-completion` commits a `WorkItemOutline` and runs the `work-item`
  * gate. Requesting completion with no iteration is a legitimate outcome: the
  * goal is already satisfied by existing behavior, which is verified reuse,
- * and the outline records why. A request that leaves an obligation this
- * architect is responsible for without a `done` report is rejected, naming
- * the IDs, like any other invalid submission.
+ * and the outline records why. Its `outline` may be omitted where the work
+ * item has a committed outline: that revision stands, and the accepted
+ * submission carries its body with a revision reason that names it. A work
+ * item with no outline yet needs one. A request that leaves an obligation
+ * this architect is responsible for without a `done` report is rejected,
+ * naming the IDs, like any other invalid submission.
  *
  * `request-placement` asks the global architect where a capability belongs,
  * when the choice is not the local architect's to make. It records the
@@ -91,53 +94,78 @@ export const outlineBodySchema = z.object({
 }).strict();
 export type OutlineBody = z.infer<typeof outlineBodySchema>;
 
+const assignMemberSchema = z.object({
+  kind: z.literal('assign'),
+  /** A new outline revision, where this assignment revises the plan for the work item. */
+  outline: outlineBodySchema.optional(),
+  /** Placement this architect decided within its own authority, with what it registers. */
+  localDecisions: z.array(localDecisionSchema),
+  assignment: assignmentBodySchema,
+  ...obligationSubmissionFields,
+}).strict();
+const placementMemberSchema = z.object({
+  kind: z.literal('request-placement'),
+  request: placementRequestBodySchema,
+  ...obligationSubmissionFields,
+}).strict();
+const completionFields = {
+  kind: z.literal('request-completion'),
+  summary: text,
+  outline: outlineBodySchema,
+  ...obligationSubmissionFields,
+};
+const yieldMemberSchema = z.object({
+  kind: z.literal('yield-for-providers'),
+  /** The open requirements of this work item this yield waits for. */
+  requirements: z.array(text).min(1),
+  summary: text,
+}).strict();
+const unresolvedMemberSchema = z.object({
+  kind: z.literal('unresolved'),
+  conflict: text,
+  evidence: z.array(text),
+  ...obligationSubmissionFields,
+}).strict();
+
+/**
+ * An accepted local architect submission, as `submission.json` records it:
+ * a completion request always carries the outline it stands on.
+ */
 export const localArchitectSubmissionSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('assign'),
-    /** A new outline revision, where this assignment revises the plan for the work item. */
-    outline: outlineBodySchema.optional(),
-    /** Placement this architect decided within its own authority, with what it registers. */
-    localDecisions: z.array(localDecisionSchema),
-    assignment: assignmentBodySchema,
-    ...obligationSubmissionFields,
-  }).strict(),
-  z.object({
-    kind: z.literal('request-placement'),
-    request: placementRequestBodySchema,
-    ...obligationSubmissionFields,
-  }).strict(),
-  z.object({
-    kind: z.literal('request-completion'),
-    summary: text,
-    outline: outlineBodySchema,
-    ...obligationSubmissionFields,
-  }).strict(),
-  z.object({
-    kind: z.literal('yield-for-providers'),
-    /** The open requirements of this work item this yield waits for. */
-    requirements: z.array(text).min(1),
-    summary: text,
-  }).strict(),
-  z.object({
-    kind: z.literal('unresolved'),
-    conflict: text,
-    evidence: z.array(text),
-    ...obligationSubmissionFields,
-  }).strict(),
+  assignMemberSchema, placementMemberSchema, z.object(completionFields).strict(), yieldMemberSchema, unresolvedMemberSchema,
 ]);
 export type LocalArchitectSubmission = z.infer<typeof localArchitectSubmissionSchema>;
+
+/**
+ * What a local architect may write: the accepted shape, except that a
+ * completion request may omit its outline, meaning the last committed
+ * revision stands. Validation resolves the omission against the records.
+ */
+export const localArchitectInputSchema = z.discriminatedUnion('kind', [
+  assignMemberSchema, placementMemberSchema,
+  z.object({
+    ...completionFields,
+    /** A new outline revision; omitted, the work item's last committed revision stands. */
+    outline: outlineBodySchema.optional(),
+  }).strict(),
+  yieldMemberSchema, unresolvedMemberSchema,
+]);
 /** A submission as an agent writes it, before the defaults apply. */
-export type LocalArchitectSubmissionInput = z.input<typeof localArchitectSubmissionSchema>;
+export type LocalArchitectSubmissionInput = z.input<typeof localArchitectInputSchema>;
+type LocalArchitectInput = z.infer<typeof localArchitectInputSchema>;
 
 /** The members this iteration's package offers the role. */
 export const localArchitectSubmissionKinds = ['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved'] as const;
 
-/** The schema the agent's tool is given, taken from the same definition that validates. */
+/**
+ * The schema the historical package's tool is given. It keeps the outline
+ * required on a completion request, as that package's procedure states.
+ */
 export const localArchitectJsonSchema = z.toJSONSchema(localArchitectSubmissionSchema) as JsonSchema;
-/** New-run tool surface excludes the historical provider-yield action. */
+/** New-run tool surface: the input shape, without the historical provider-yield action. */
 export const capabilityLocalArchitectJsonSchema = z.toJSONSchema(z.discriminatedUnion('kind', [
-  localArchitectSubmissionSchema.options[0]!, localArchitectSubmissionSchema.options[1]!,
-  localArchitectSubmissionSchema.options[2]!, localArchitectSubmissionSchema.options[4]!,
+  localArchitectInputSchema.options[0]!, localArchitectInputSchema.options[1]!,
+  localArchitectInputSchema.options[2]!, localArchitectInputSchema.options[4]!,
 ])) as JsonSchema;
 
 export const localArchitectToolName = 'submit_work_item_result';
@@ -148,8 +176,12 @@ export interface WorkEvidence {
   readonly index: ArchitectIndex | null;
   /** The registry as committed so far, by capability. */
   readonly registry: ReadonlyMap<string, RegistryEntry>;
-  /** The outline last committed for this work item, which a submission of its own replaces. */
-  readonly outline?: Pick<OutlineBody, 'decomposition' | 'stages' | 'breakingChanges'> | null | undefined;
+  /**
+   * The outline last committed for this work item, which a submission of its
+   * own replaces. A completion request that omits its outline stands on it,
+   * so there it is the whole record: its body and its revision.
+   */
+  readonly outline?: CommittedOutline | null | undefined;
   /** Every hypothesis at its highest committed revision; empty where the run has none. */
   readonly hypotheses?: ReadonlyMap<string, Hypothesis> | undefined;
   /** Every decision committed so far, by its identifier. */
@@ -174,6 +206,11 @@ export interface WorkEvidence {
   readonly obligations?: ObligationContext | undefined;
 }
 
+/** The committed outline the rules read; the full record carries its revision and every body field. */
+export type CommittedOutline = Pick<OutlineBody, 'decomposition' | 'stages' | 'breakingChanges'>
+  & Partial<Omit<OutlineBody, 'decomposition' | 'stages' | 'breakingChanges'>>
+  & { readonly revision?: number | undefined };
+
 /** The same evidence, as the placement rules read it. */
 function placementEvidence(evidence: WorkEvidence): PlacementEvidence {
   return {
@@ -191,14 +228,48 @@ function placementEvidence(evidence: WorkEvidence): PlacementEvidence {
  * error names its path.
  */
 export function validateLocalArchitect(input: unknown, evidence: WorkEvidence): SubmissionValidation<LocalArchitectSubmission> {
-  const shape = validateAgainst(localArchitectSubmissionSchema, input);
+  const shape = validateAgainst(localArchitectInputSchema, input);
   if (!shape.ok) return shape;
-  const checked = validateKind(shape.value, evidence);
+  const resolved = resolveOutline(shape.value, evidence.outline);
+  const checked: SubmissionValidation<LocalArchitectSubmission> = 'error' in resolved
+    ? { ok: false, errors: [resolved.error] }
+    : validateKind(resolved.value, evidence, resolved.reused);
   const reporting = shape.value.kind === 'yield-for-providers' ? [] : obligationErrors(shape.value, evidence);
   const outstanding = reporting.length === 0 ? unreportedBy(shape.value, evidence.obligations) : [];
   const incomplete = outstanding.length === 0 ? [] : [incompleteRequestError(outstanding, 'completion')];
   if (reporting.length === 0 && incomplete.length === 0) return checked;
   return { ok: false, errors: [...(checked.ok ? [] : checked.errors), ...reporting, ...incomplete] };
+}
+
+/** The revision reason an accepted completion records when it stands on the committed outline. */
+export function unchangedOutlineReason(revision: number | undefined): string {
+  return revision === undefined
+    ? 'Unchanged: the completion request carried no outline, so the last committed revision stands.'
+    : `Unchanged: the completion request carried no outline, so revision ${revision} stands.`;
+}
+
+/**
+ * A completion request without an outline stands on the last committed
+ * revision: its body, with a revision reason naming that revision. A work
+ * item with no committed outline has nothing to stand on, which is an error
+ * at `outline`. Every other submission is its own resolution.
+ */
+function resolveOutline(value: LocalArchitectInput, committed: CommittedOutline | null | undefined):
+  { readonly value: LocalArchitectSubmission; readonly reused: boolean } | { readonly error: SubmissionError } {
+  if (value.kind !== 'request-completion') return { value, reused: false };
+  if (value.outline !== undefined) return { value: { ...value, outline: value.outline }, reused: false };
+  const body = committed == null ? undefined : outlineBodySchema.safeParse({
+    changes: committed.changes, decomposition: committed.decomposition, reuse: committed.reuse,
+    breakingChanges: committed.breakingChanges, stages: committed.stages, revisionReason: unchangedOutlineReason(committed.revision),
+  });
+  if (body?.success !== true) {
+    return { error: {
+      path: 'outline',
+      message: 'This work item has no committed outline, so its completion request carries one',
+      expected: 'an outline for this work item',
+    } };
+  }
+  return { value: { ...value, outline: body.data }, reused: true };
 }
 
 /**
@@ -208,13 +279,13 @@ export function validateLocalArchitect(input: unknown, evidence: WorkEvidence): 
  * context. The rejection and the exhausted turn's failure both name these.
  */
 export function unreportedByCompletion(input: unknown, obligations: ObligationContext | undefined): string[] {
-  const shape = localArchitectSubmissionSchema.safeParse(input);
+  const shape = localArchitectInputSchema.safeParse(input);
   if (!shape.success || shape.data.kind === 'yield-for-providers') return [];
   if (obligations === undefined || obligationSubmissionErrors(shape.data, obligations).length > 0) return [];
   return unreportedBy(shape.data, obligations);
 }
 
-function unreportedBy(value: LocalArchitectSubmission, obligations: ObligationContext | undefined): string[] {
+function unreportedBy(value: LocalArchitectInput, obligations: ObligationContext | undefined): string[] {
   return value.kind === 'request-completion' && obligations !== undefined ? outstandingReports(value, obligations) : [];
 }
 
@@ -224,7 +295,7 @@ function unreportedBy(value: LocalArchitectSubmission, obligations: ObligationCo
  * an unknown context never licenses a report.
  */
 function obligationErrors(
-  value: Exclude<LocalArchitectSubmission, { kind: 'yield-for-providers' }>, evidence: WorkEvidence,
+  value: Exclude<LocalArchitectInput, { kind: 'yield-for-providers' }>, evidence: WorkEvidence,
 ): SubmissionError[] {
   if (value.registrations.length === 0 && value.reports.length === 0) return [];
   if (evidence.obligations === undefined) {
@@ -233,7 +304,7 @@ function obligationErrors(
   return obligationSubmissionErrors(value, evidence.obligations);
 }
 
-function validateKind(value: LocalArchitectSubmission, evidence: WorkEvidence): SubmissionValidation<LocalArchitectSubmission> {
+function validateKind(value: LocalArchitectSubmission, evidence: WorkEvidence, reused: boolean): SubmissionValidation<LocalArchitectSubmission> {
   const shape = { ok: true as const, value };
   if (shape.value.kind === 'unresolved') return shape;
   if (shape.value.kind === 'request-placement') {
@@ -241,7 +312,9 @@ function validateKind(value: LocalArchitectSubmission, evidence: WorkEvidence): 
     return errors.length === 0 ? shape : { ok: false, errors };
   }
   if (shape.value.kind === 'request-completion') {
-    const errors = outlineErrors(shape.value.outline, evidence);
+    // A committed outline was judged when it was committed, as an
+    // assignment that reuses it is not judged again.
+    const errors = reused ? [] : outlineErrors(shape.value.outline, evidence);
     return errors.length === 0 ? shape : { ok: false, errors };
   }
   if (shape.value.kind === 'yield-for-providers') {
