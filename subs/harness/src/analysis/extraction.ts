@@ -251,12 +251,29 @@ function capturedFile(inputs: ExtractionInputs, id: string): string {
   return `${document.id} (${document.kind}): ${document.path}; captured file ${join(inputs.runDirectory, document.storedAt)}`;
 }
 
+/**
+ * The root plan reaches every extraction turn whole, in the plan block of
+ * its task; every other captured document is read at its captured file.
+ */
+function delivered(inputs: ExtractionInputs, id: string): boolean {
+  return id === inputs.manifest.root;
+}
+
+/** Where a delivered document is: `subject` names it in the sentence. */
+function inPlanBlock(inputs: ExtractionInputs, id: string, subject: string): string {
+  const document = inputs.manifest.documents.find(item => item.id === id)!;
+  return `${subject}, ${document.id} (${document.kind}) at \`${document.path}\`, is in the plan block of this message, verbatim as captured. Read it there in full; no file read is needed.`;
+}
+
 export function intakeMessage(inputs: ExtractionInputs): string {
   const plans = inputs.manifest.documents.filter(document => document.kind === 'plan');
   return [
     `# Intake of plan "${inputs.planId}"`, '',
-    'Read each captured plan document in full at its captured file:', '',
-    ...plans.map(document => `- ${capturedFile(inputs, document.id)}`), '',
+    ...plans.flatMap(document => delivered(inputs, document.id)
+      ? [inPlanBlock(inputs, document.id, 'The root plan document'), '']
+      : []),
+    ...(plans.some(document => !delivered(inputs, document.id)) ? ['Read each other captured plan document in full at its captured file:', '',
+      ...plans.filter(document => !delivered(inputs, document.id)).map(document => `- ${capturedFile(inputs, document.id)}`), ''] : []),
     'Scenario blocks the harness found in each plan document:', '',
     ...plans.map(document => {
       const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(inputs.bytes.get(document.id)!);
@@ -290,8 +307,9 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
   const scenarios = state.analysis.scenarios.filter(scenario => (scenario.refs ?? []).some(id => cited.has(id)));
   return [
     `# Check the reading of ${document}`, '',
-    'Read the document in full at its captured file:', '',
-    `- ${capturedFile(inputs, document)}`, '',
+    ...(delivered(inputs, document)
+      ? [inPlanBlock(inputs, document, 'The document'), '']
+      : ['Read the document in full at its captured file:', '', `- ${capturedFile(inputs, document)}`, '']),
     ids.length === 0 ? 'No element was read from it.' : `The ${ids.length === 1 ? 'element' : `${ids.length} elements`} read from it, as every later reader receives them:`, '',
     ...(ids.length === 0 ? [] : [rendered.text]),
     ...(plan ? ['', '# The entries and scenarios that cite them', '',

@@ -8,7 +8,7 @@ import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/
 import { elementCatalogSchema, openElementCatalog, serializeElementCatalog } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { RunQueries } from '../projections/queries.js';
 import { validateInitialAnalysis } from '../analysis/submission.js';
-import { acceptIntake, intakeToolName, type IntakeSubmission } from '../analysis/extraction.js';
+import { acceptIntake, checkMessage, intakeMessage, intakeToolName, type CheckState, type IntakeSubmission } from '../analysis/extraction.js';
 import { readCapturedDocuments } from '../run/document-inputs.js';
 import { runRecordSchema } from '../run/records.js';
 import { extractDocumentScenarios } from '../../subs/scenarios/src/extraction.js';
@@ -23,10 +23,30 @@ const companionText = '# Constraints\n\nThe service must preserve a 30 second ti
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 
+/** The frozen root plan's absolute path, from the plan block and the project root a task names. */
+function frozenPlan(spec: SessionSpec): string {
+  const root = /"projectRoot": "([^"]+)"/u.exec(spec.prompt)?.[1];
+  const at = /it is at `([^`]+\/input\/plan\.md)`/u.exec(spec.prompt)?.[1];
+  if (!root || !at) throw new Error('No frozen plan path in the intake prompt');
+  return join(root, at);
+}
+
+/**
+ * The intake a scripted extractor submits, after the message says where each
+ * plan document is: the root in the plan block, the companion at its
+ * captured file.
+ */
+function intakeOf(spec: SessionSpec): IntakeSubmission {
+  const capturedRoot = frozenPlan(spec);
+  expect(spec.prompt).toContain('The root plan document, doc-001 (plan) at `plans/review-notes/plan.md`, is in the plan block of this message, verbatim as captured. Read it there in full; no file read is needed.');
+  expect(spec.prompt).toContain('<plan>\n# Evidence plan\n');
+  expect(spec.prompt).toMatch(/Read each other captured plan document in full at its captured file:\n\n- doc-\d+ \(plan\): plans\/review-notes\/constraints\.md; captured file \//u);
+  expect(spec.prompt).not.toContain(`captured file ${capturedRoot}`);
+  return intake(capturedRoot);
+}
+
 /** The intake of the captured root and companion: one requirement, one recommendation, and an unclear gap. */
-function intake(spec: SessionSpec): IntakeSubmission {
-  const capturedRoot = /captured file (.+\/input\/plan\.md)/u.exec(spec.prompt)?.[1];
-  if (!capturedRoot) throw new Error('No captured root path in the intake prompt');
+function intake(capturedRoot: string): IntakeSubmission {
   const directory = dirname(dirname(capturedRoot));
   const manifest = documentManifestSchema.parse(JSON.parse(readFileSync(join(directory, 'input/documents.json'), 'utf8')));
   const root = manifest.documents.find(item => item.id === manifest.root)!;
@@ -54,7 +74,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   await writeFile(join(fixture.root, 'plans', planId, 'plan.md'), rootText);
   await writeFile(join(fixture.root, 'plans', planId, 'constraints.md'), companionText);
   const { service } = await openRuns(fixture.root, {
-    script: spec => spec.submission.name === intakeToolName ? [{ kind: 'submit', input: intake(spec) }]
+    script: spec => spec.submission.name === intakeToolName ? [{ kind: 'submit', input: intakeOf(spec) }]
       : spec.role === 'initial-architect' ? [{ kind: 'submit', input: emptyAnalysis() }] : [],
     git: unchangedGit(fixture.root, []),
   });
@@ -102,7 +122,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   const record = runRecordSchema.parse(JSON.parse(await readFile(runPath(fixture.root, planId, receipt.jobId, 'job.json'), 'utf8')));
   const captured = await readCapturedDocuments(runPath(fixture.root, planId, receipt.jobId), record.manifest);
   const open = openElementCatalog(record.manifest.documentManifest!.hash, captured.manifest);
-  const valid = intake({ prompt: `captured file ${runPath(fixture.root, planId, receipt.jobId, 'input/plan.md')}` } as SessionSpec);
+  const valid = intake(runPath(fixture.root, planId, receipt.jobId, 'input/plan.md'));
   const fixed = acceptIntake(open, captured.manifest, { ...valid, elements: [{ ...valid.elements[1]!, kind: 'fixed' }] });
   expect(fixed.ok).toBe(false);
   if (!fixed.ok) expect(fixed.errors.map(item => item.path)).toEqual(['elements.0.kind']);
@@ -167,4 +187,23 @@ test('incorporation selects a companion scenario while a linked example stays ou
     errors: expect.arrayContaining([expect.objectContaining({ path: 'incorporation.missing.0' })]) });
   expect(intake({ ...incorporation, documents: [...incorporation.documents, incorporation.documents[0]!] })).toMatchObject({ ok: false,
     errors: expect.arrayContaining([expect.objectContaining({ path: 'incorporation.documents.3.document' })]) });
+});
+
+test('the check of the root plan reads it in the plan block; any other document is read at its captured file', () => {
+  const texts = ['# Root\n[Companion](companion.md)\n', '# Companion\n\nKeep it short.\n'];
+  const documents = texts.map((text, index) => ({ id: `doc-00${index + 1}`, path: `plans/example/${['plan', 'companion'][index]}.md`, kind: 'plan' as const,
+    sha256: hash(text), bytes: Buffer.byteLength(text), storedAt: index === 0 ? 'input/plan.md' : `input/documents/doc-00${index + 1}.bin`,
+    revision: { commit: null, dirty: null } }));
+  const manifest = documentManifestSchema.parse({ schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents, missing: [],
+    principlesScan: { status: 'empty', unreadable: [] } });
+  const inputs = { planId: 'example', manifest, bytes: new Map(documents.map((document, index) => [document.id, Buffer.from(texts[index]!)])), runDirectory: '/p/plans/example/.harness/jobs/run-1' };
+  const state = { catalog: openElementCatalog(hash('manifest'), manifest), analysis: { entries: [], scenarios: [] } } as unknown as CheckState;
+  const root = checkMessage(inputs, 'doc-001', state);
+  expect(root).toContain('The document, doc-001 (plan) at `plans/example/plan.md`, is in the plan block of this message, verbatim as captured. Read it there in full; no file read is needed.');
+  expect(root).not.toContain('captured file');
+  expect(checkMessage(inputs, 'doc-002', state)).toContain('Read the document in full at its captured file:\n\n- doc-002 (plan): plans/example/companion.md; captured file /p/plans/example/.harness/jobs/run-1/input/documents/doc-002.bin');
+  // An intake of a plan without companions names no captured file at all.
+  const alone = intakeMessage({ ...inputs, manifest: documentManifestSchema.parse({ ...manifest, documents: [documents[0]] }) });
+  expect(alone).toContain('The root plan document, doc-001 (plan) at `plans/example/plan.md`, is in the plan block of this message');
+  expect(alone).not.toContain('captured file');
 });

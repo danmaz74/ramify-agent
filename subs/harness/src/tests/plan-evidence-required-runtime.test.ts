@@ -19,8 +19,11 @@ test('a required missing companion cannot produce accepted analysis', async () =
   await writeFile(join(fixture.root, 'plans/review-notes/plan.md'), '# Request\n\n[Required guide](must-exist.md)\n');
   const opened = await openRuns(fixture.root, { git: unchangedGit(fixture.root, []), script: spec => {
     if (spec.submission.name !== intakeToolName) return [];
-    const captured = /captured file (.+\/input\/plan\.md)/u.exec(spec.prompt)?.[1];
-    if (!captured) throw new Error('Captured plan missing');
+    // The root plan is delivered in the plan block, which names the frozen file project-relative.
+    const project = /"projectRoot": "([^"]+)"/u.exec(spec.prompt)?.[1];
+    const at = /it is at `([^`]+\/input\/plan\.md)`/u.exec(spec.prompt)?.[1];
+    if (!project || !at) throw new Error('Captured plan missing');
+    const captured = join(project, at);
     const directory = dirname(dirname(captured));
     const manifest = documentManifestSchema.parse(JSON.parse(readFileSync(join(directory, 'input/documents.json'), 'utf8')));
     const root = manifest.documents.find(item => item.id === manifest.root)!;
