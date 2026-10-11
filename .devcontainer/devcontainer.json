@@ -1,9 +1,9 @@
 {
-  "name": "ramify-agent workspace",
+  "name": "ramify-agent",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  // The agent checkout. Open development.code-workspace from it to see the
-  // ramify and ramify-audit companions as well.
+  // The agent checkout: the editor, terminals and agent CLIs start here.
+  // Open development.code-workspace only to change a companion.
   "workspaceFolder": "/workspaces/ramify-agent",
 
   "remoteEnv": {

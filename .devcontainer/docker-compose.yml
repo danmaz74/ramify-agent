@@ -10,6 +10,9 @@
 # project name.
 services:
   app:
+    # Names this container in the shell prompt (app@ramify-agent), beside the
+    # toolkit container on the same host.
+    hostname: ramify-agent
     build:
       # The agent repository only, never the workspace parent.
       context: ..

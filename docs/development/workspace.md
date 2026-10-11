@@ -1,7 +1,7 @@
 # The development workspace
 
-ramify-agent's devcontainer gives one environment with three independent
-repositories: this project and editable checkouts of the
+ramify-agent's devcontainer is the ramify-agent checkout's environment. Beside
+it, the container holds editable checkouts of two independent companions, the
 [Ramify toolkit](https://github.com/danmaz74/ramify) and
 [ramify-audit](https://github.com/danmaz74/ramify-audit). Source, Git metadata,
 worktrees and evidence live on the Docker host and survive container
@@ -66,8 +66,19 @@ failed step and exits nonzero. Rerunning is safe: completed clones are kept, an
 interrupted clone is started again from `.setup-staging/`, and existing
 checkouts are never changed.
 
-Then open `development.code-workspace` (**File > Open Workspace from File**)
-to see the three repositories in one window.
+## Working on ramify-agent
+
+The container opens the ramify-agent checkout, `/workspaces/ramify-agent`, and
+that window is the default for daily work. Terminals, `docker exec` and the
+agent CLIs start there, so Claude Code and Codex read this repository's
+instructions and key their per-project state by that path. The shell
+prompt reads `app@ramify-agent`, which tells this container apart from the
+toolkit's on the same host.
+
+To change a companion, open `development.code-workspace` (**File > Open
+Workspace from File**). It shows the three repositories in one window, with
+ramify-agent first; in that window, choose the repository each new terminal
+starts in.
 
 ## Starting and reconnecting
 

@@ -89,11 +89,12 @@ results. They were carried from the toolkit's instructions at
 
 ## Development
 
-- The devcontainer mounts the workspace parent at `/workspaces`, beside
-  independent `ramify` and `ramify-audit` checkouts that setup clones when
-  absent. Rerun `bash .devcontainer/setup.sh` after a lockfile changes;
-  `bash .devcontainer/status.sh` reports each repository and the installed
-  provider pins. See [the development workspace](docs/development/workspace.md).
+- The devcontainer opens this checkout, `/workspaces/ramify-agent`, the
+  default for daily work. It mounts the workspace parent at `/workspaces`,
+  which also holds independent `ramify` and `ramify-audit` checkouts that
+  setup clones when absent. Rerun `bash .devcontainer/setup.sh` after a
+  lockfile changes; `bash .devcontainer/status.sh` reports each repository
+  and the installed provider pins. See [the development workspace](docs/development/workspace.md).
 - Prepare a checkout with `npm ci` at its root. `.npmrc` names the registry
   that serves the pinned releases. Check `node_modules/.bin/ramify --version`
   against the `ramify.ts` pin.
