@@ -21,6 +21,29 @@ export function OperationFacts({ operation, invocation }: { readonly operation: 
   </dl>;
 }
 
+type SearchCounts = NonNullable<NonNullable<InvocationEvaluation['efficiency']>['exploration']['searches']>;
+
+/** One search count as published: its known value where measured, else its state and the share of searches whose status is known. */
+function searchCount(count: SearchCounts['broad']): string {
+  const known = `status known for ${count.coverage.covered} of ${count.coverage.total}`;
+  switch (count.state) {
+    case 'measured': return String(count.known);
+    case 'partial': return `${count.known} known (partial; ${known})`;
+    case 'unavailable': return `unavailable (${known})`;
+    case 'not-applicable': return 'not applicable';
+  }
+}
+
+/** The searches row: the published counts with their states where they exist, the bare counts of an older projection otherwise. */
+function searchesText(exploration: NonNullable<InvocationEvaluation['efficiency']>['exploration']): string {
+  const searches = exploration.searches;
+  if (searches === undefined) {
+    const metrics = exploration.metrics;
+    return `${metrics.searches}; broad ${metrics.broadSearches}; outside declared scope ${metrics.outsideScopeSearches}; zero matches ${exploration.zeroMatchSearches}`;
+  }
+  return `${searches.completed} completed; ${searches.failed} failed; broad ${searchCount(searches.broad)}; outside declared scope ${searchCount(searches.outsideScope)}; zero matches ${searchCount(searches.zeroMatch)}`;
+}
+
 function Coverage({ items }: { readonly items: readonly string[] }) {
   return items.length > 0 ? <details className="warn"><summary>Coverage limits ({items.length})</summary><ul>{items.map((item, index) => <li key={index}>{item}</li>)}</ul></details> : null;
 }
@@ -79,7 +102,7 @@ export function SessionMetrics({ evaluation, operation, invocation }: { readonly
         <dl className="facts">
           <div><dt>Reads</dt><dd>{efficiency.exploration.metrics.reads}; unique files {efficiency.exploration.metrics.uniqueFilesRead}; repeated reads {efficiency.exploration.metrics.repeatedReads}</dd></div>
           <div><dt>Returned output</dt><dd>{efficiency.exploration.metrics.returnedBytes} {efficiency.units.returned}{efficiency.exploration.metrics.coverage.length > 0 ? ' (known subtotal; coverage incomplete)' : ''}</dd></div>
-          <div><dt>Searches</dt><dd>{efficiency.exploration.metrics.searches}; broad {efficiency.exploration.metrics.broadSearches}; outside declared scope {efficiency.exploration.metrics.outsideScopeSearches}; zero matches {efficiency.exploration.zeroMatchSearches}</dd></div>
+          <div><dt>Searches</dt><dd>{searchesText(efficiency.exploration)}</dd></div>
           <div><dt>Observed tool duration sum</dt><dd>{efficiency.exploration.metrics.toolElapsedMs} {efficiency.units.duration}{efficiency.exploration.metrics.coverage.length > 0 ? ' (known subtotal; coverage incomplete)' : ''}</dd></div>
         </dl>
         <Coverage items={efficiency.exploration.metrics.coverage} />
