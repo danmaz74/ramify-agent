@@ -176,3 +176,9 @@ migration path; changing their lifecycle warrants a separate experiment.
 This pair of runs is evidence for a specific procedural weakness and a useful
 prompt effect. It does not establish a production fix or prove that the proposed
 compatible interface can satisfy the feature plan.
+
+The subsequent [acceptance analysis](2026-09-26-contract-engineer-acceptance.md)
+refines the proposed next step: shorten the complete prompt, return repairable
+incomplete work to the same session, and make the harness verify that passing
+consumer tests actually exercise the fake. The earlier replay tested discovery
+only and stopped before any contract checkpoint.

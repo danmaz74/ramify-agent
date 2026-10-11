@@ -55,3 +55,21 @@ external Git, CLI, audit and command answers; the configured runner refuses all
 process launches automatically. Actual tool/kernel claims require an exact
 reviewed entry in `src/tests/test-boundaries.json`. Full audits retain every
 configured project.
+
+## Plans for harness execution
+
+Use [ramify-agent-plan](.claude/skills/ramify-agent-plan/SKILL.md) to write,
+review or convert a plan that ramify-agent will execute on a target project.
+It defines outcomes, constraints and acceptance; the harness's architects
+derive the execution breakdown. This is separate from authoring roadmap plans
+with prescribed iterations. The shared Claude skill is linked from
+`.agents/skills/` for Codex.
+
+## Real-plan dogfooding
+
+Use [ramify-agent-dogfooding](.claude/skills/ramify-agent-dogfooding/SKILL.md)
+when a Claude Code or Codex agent applies a real plan with the harness and
+improves it as problems surface. The shared skill lives in `.claude/skills/`
+and is linked from `.agents/skills/` for Codex. When the target project is
+elsewhere, load this skill from the harness checkout; the target project's
+own instructions still govern its worktree and implementation.

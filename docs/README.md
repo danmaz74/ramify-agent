@@ -7,6 +7,19 @@ Design documents for the separate agent harness:
   engineer breakpoint from the Plan page, then read the prepared input,
   message the paused engineer and resume from a Debugger area on the Run page,
   over Plan 34's controls
+- [Plan 34: execution breakpoints](plans/34-execution-breakpoints/main-plan.md),
+  proposed: four serial iterations for before-engineer inspection, same-session
+  conversation and CLI resume; whole-run suspension with a live server
+- [Plan 33: consult architect](plans/33-consult-architect/main-plan.md), proposed:
+  four serial iterations for advisory architect forks, one-level nesting and
+  inspectable consultation logs, including capability-assigned engineers
+- [Consult architect](analysis/2026-10-10-consult-architect.md), initial analysis:
+  advisory questions from engineers to local architects and local architects
+  to the global architect, using forks of their delegation context
+- [Plan 32: independent repository and persistent development workspace](plans/32-repository-extraction/main-plan.md),
+  proposed: preserve history and local work, extract the agent, provide one
+  devcontainer with persistent sibling Ramify and ramify-audit checkouts,
+  qualify the new workspace and complete the repository cutover
 - [Plan 30: harness steps as a library and a CLI](plans/30-harness-steps/main-plan.md),
   implemented; the real-plan exercise awaits the user's go-ahead: step
   inputs and constructors the run itself uses, and `ramify-agent step` to
@@ -22,6 +35,10 @@ Design documents for the separate agent harness:
   answer, and the three layers
 - [Plan 28 self-run](analysis/2026-10-10-plan28-self-run.md), the real-run
   failures that motivated them
+- [Context budgets and compaction](analysis/2026-10-10-context-budgets-and-compaction.md),
+  why sessions end at a budget instead of compacting: the mechanism's
+  provenance, pi's own compaction, what Plan 23 switched off, and the
+  decisions to restore autocompaction
 - [Plan 25: discovery handoffs and instruction delivery](plans/25-carry-discovery-forward/main-plan.md),
   consolidated delivery of effective named blocks, optional recorded source
   pointers and candidate-bound NFR comparisons; [session observations](metrics/session-observations.md)
@@ -248,3 +265,13 @@ project to Ramify only; agent activity and KPIs are measured here.
 Replaced designs are kept in the hidden `.superseded/` directory for
 comparison. They are not current and are read only on request; its
 [index](.superseded/README.md) notes what may be reused.
+- [Plan 29: common prompt passages and direct task prose](plans/29-common-prompt-passages/main-plan.md),
+  proposed bounded prompt composition: substantial reusable passages, complete
+  replacement of environment JSON, and existing delivery/authority contracts;
+  based on the [candidate inventory](analysis/2026-10-09-common-prompt-block-candidates.md)
+- [Plan 27: extract the harness query and projection module](plans/27-projections-extraction/main-plan.md),
+  proposed ownership refactor executed by ramify-agent itself, with selected
+  reading contracts and acceptance scenarios rather than authored iterations
+- [Declared task blocks](analysis/2026-10-09-declared-task-blocks.md),
+  proposed rule that each task declares its prompt blocks and receives only
+  those its session does not already hold; evidence from the Plan 25 run

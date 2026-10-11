@@ -62,10 +62,11 @@ passing through on `RAMIFY_AUDIT_TEST_LOCK_HELD`. It applies to commands
 ramify-audit's command runner spawns. ramify-agent spawns none of its test
 commands that way, so upgrading alone serializes nothing:
 
-1. **Gates run as registered executors.** Every gate check, setup included,
+1. **Gates run as registered executors.** Every non-setup gate check
    goes through the bridge in `subs/harness/subs/audit/src/check-execution.ts:124`,
    which calls ramify-agent's own `runCommand` (`:165`) or `runScenarioCheck`
-   (`:141`). ramify-audit's Plan 3 decision 2 exempts registered executors.
+   (`:141`). Setup runs separately through ramify-audit's workspace preparation.
+   ramify-audit's Plan 3 decision 2 exempts registered executors.
 2. **Other test runs never reach ramify-audit.** `inPlaceCheckExecution`
    (`subs/harness/src/checks/execution.ts:114`) serves single sessions
    (`subs/harness/src/sessions/single.ts:524`) and readiness
@@ -106,8 +107,10 @@ Work in `/ramify-audit` on `feat/module-scoped-audits`.
 - **Location and project.** `<projectRoot>/ramify-audit.json`. The CLI's
   project is the directory of the nearest `ramify-audit.json` at or above the
   working directory, within the repository; `--project-root` overrides it.
-  The request's `projectRoot` is that directory, so a configuration can no
-  longer be run as another project.
+  An explicit `--project-root` must contain its own configuration; it never
+  falls back to an ancestor's. The CLI converts that directory to the
+  repository-relative `projectRoot` (`.` at the repository root), so a
+  configuration can no longer be run as another project.
 - **Contents.** A JSON object with these keys, and no others:
   - `checks` (required for a project that is audited): the check list in the
     existing check shape (id, executor with commands, timeouts, parser,
@@ -181,6 +184,12 @@ Decision D1. Both are ramify-audit changes that ramify-agent's gates need.
   returns; ramify-audit reads the summary with the same failure-list and
   completeness rules. An executor that does not accept the narrowing runs
   whole, and the record says so. Scenario checks of other runners stay whole.
+  Before release, specify and test the public declaration, request and result
+  fields: the current registered-executor shape has neither commands nor a
+  parser field. Define acceptance of narrowing before selection, the base
+  directory for each path and ownership of summary files. Carry these fields
+  through direct and worker/socket execution. A missing or malformed summary
+  must not become an empty failure list or a pass.
 - **A wait for the machine test lock is capped** (decision D3). Plan 3's lock
   waits without limit; a run that never releases it, or a nested run that
   lost `RAMIFY_AUDIT_TEST_LOCK_HELD`, would hang forever. `withMachineTestLock`
@@ -188,6 +197,10 @@ Decision D1. Both are ramify-audit changes that ramify-agent's gates need.
   not run and fails as `test-lock-wait-exceeded`, naming the holder when it is
   known. In an audit the check fails and its failure list is `indeterminate`;
   it is never a test failure. The cap is fixed, like the other limits.
+  The public lock outcome must distinguish wait expiry from cancellation
+  and unavailability. Expiry terminates and reaps the waiting holder before
+  returning; it must never acquire later or run unlocked. Clear the wait
+  timer on acquisition and every terminal path.
 
 ### A4. Release 0.3.0
 
@@ -254,7 +267,15 @@ that must be preserved.
 - `auditOverall` reads `result.composition.verdict` instead of
   `result.summary.overall` (`check-execution.ts:287`); ramify-audit 0.3.0
   makes the composed verdict the one consumers gate on. For a full audit the
-  two are equal.
+  two are equal. Preserve `indeterminate` as a distinct, non-passing
+  verdict through the harness result, persisted audit outcome and its
+  readers; today's `auditOverall` types admit only `pass` and `fail`.
+- Adapt the bridge's required-record checks to partial execution: an
+  explicitly unselected check or a link requiring no execution is not a
+  missing executor result. Preserve the audit's selection and evidence
+  without inventing a command run or a local pass. Missing records for
+  checks the audit says it executed remain infrastructure failures; apply
+  the same distinction to workspace preparation records.
 - Suite audits use B2's configuration:
   `ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --json`.
 
@@ -276,7 +297,14 @@ export function testLockedRunner(runner: CommandRunner, owner: TestLockOwner, ho
 - It calls `withMachineTestLock`, merges the environment it receives into the
   request's `env`, and returns the run with `lockWaitMs` set.
 - `lock: 'unavailable'` prefixes the run's output with ramify-audit's `note`;
-  `cancelled` returns ramify-agent's ordinary cancelled run.
+  `cancelled` returns ramify-agent's ordinary cancelled run. Wait expiry
+  returns a runner error named `test-lock-wait-exceeded`, with zero running
+  time and the measured wait, never a test failure or command timeout.
+- The wrapper closes the wait lifecycle in `finally`, including cancellation,
+  expiry and callback or runner errors. Acquisition-only hooks are insufficient:
+  the harness must resume paused bounds on every exit from waiting.
+  Waiting and running notifications are distinct; `started` is emitted only
+  when execution begins, not before lock acquisition.
 - It takes a test-only lock override of ramify-agent's own type; ramify-audit's
   override type does not cross the boundary.
 
@@ -305,7 +333,9 @@ other `shell` commands do not wait.
 - A command run under the lock receives it from the wrapper as well; the
   command record names it like any other variable the child received.
 - A Vitest setup file sets it for ramify-agent's suite, so no test takes the
-  real lock. Lock behavior is tested with the injected override.
+  real lock. Wire the setup into both Vitest projects (`node` and `web`);
+  verify inheritance in child processes. Lock behavior is tested with the
+  injected override.
 
 ### C5. Bounds
 
@@ -314,9 +344,14 @@ other `shell` commands do not wait.
 - **Idle bound:** unchanged. An engineer's own commands never wait for the
   lock, so today's hold for the command's timeout plus the margin stays.
 - **Audited gate bound:** replaced by a deadline that pauses for every wait
-  of the gate's commands, so `request.context.timeoutMs` bounds running time.
+  of the gate's commands. Only machine-test-lock waits are excluded; lease
+  acquisition, preparation and all other work retain their existing bounds.
 - **Invocation absolute bound:** pauses while a command waits for the lock,
   like the gate bound (decision D3). A3's 30-minute cap bounds each wait.
+- Explicit cancellation remains active while timers are paused. Resume with
+  the remaining budget, never a fresh timeout; overlapping waits exclude
+  their union, not the sum of their durations. Dispose timers and wait hooks
+  on every terminal path. Test the invocation bound as well as the gate bound.
 
 ### C6. Records and visibility
 
@@ -326,7 +361,13 @@ other `shell` commands do not wait.
   line; the transcript, the execution map's gate card and the failure
   analyst's digest show it, so a slow attempt is not ascribed to its command.
 
-### C8. Whole-suite test runs are refused in `shell`; focused runs are allowed and locked
+### C7. The flaky timeline test
+
+`subs/web/…/session-timeline.test.tsx`'s live-timeline case failed 2 of 4
+runs under load in the manual test (MT-R4). Re-run it after C3–C5, when suites
+no longer overlap; fix the test if it still fails.
+
+### C8. Whole-suite test runs are refused in `shell`; focused runs never wait
 
 Decision D4. `tools/shell.ts` runs `bash -c <command>` uninspected, and the
 engineer prompts even suggest a timeout "such as a whole test suite".
@@ -344,19 +385,22 @@ engineer prompts even suggest a timeout "such as a whole test suite".
   - **Whole suite:** a run with no positional filter (a file or directory;
     `-t`, `--project`, `--reporter`, `--shard` and other options do not
     focus a run, and the values of value-taking options are skipped), and
-    watch mode, which never ends on its own.
+    watch mode, which never ends on its own. Runner subcommands such as
+    `run` are not positional filters; watch mode wins even with a file filter.
   - **Focused:** at least one positional filter, `vitest related <files>`,
     or `--changed`.
   - **Not classified:** other scripts, `bash -c`, `eval`, `$(...)` and
     wrapper scripts are allowed as today. The rule is a nudge, not a guard.
 - **Refusal.** A whole-suite run is not spawned; the tool returns an error
   with the explanation below and records an observation, so refusals are
-  countable:
+  countable. Classify the complete shell input before spawning it: if any
+  recognized segment is whole-suite, refuse the entire call so earlier
+  segments cannot already have run. Quoted separators remain arguments:
 
   > Refused, nothing ran: `<segment>` runs the project's whole test suite
   > (`<reason>`). The whole suite is not run from `shell`: it runs through
   > ramify-audit at the gates, a full run takes minutes and waits behind every
-  > other test run on this machine, and it verifies far more than this
+  > other suite runs on this machine, and it verifies far more than this
   > iteration is judged on. Call `run_scope_tests` to run the tests this
   > iteration is judged on. To run particular tests, name their files:
   > `npx vitest run <path/to/file.test.ts> …` or `npm test -- <path/to/file.test.ts>`.
@@ -364,17 +408,12 @@ engineer prompts even suggest a timeout "such as a whole test suite".
 - **Focused runs run at once,** without the lock (decision D4).
 - **Where.** `createShellTool.execute`, after `options.judge` and before the
   call is counted; `ShellOptions` gains the project's test commands from
-  `RunPolicy.commands` and the locked runner, wired in
+  `RunPolicy.commands` and package-script facts resolved outside the pure
+  classifier, wired in
   `work/engineer-equipment.ts`. `CheckCommandKind` is unchanged.
 - **Prompts and description.** `engineer.system.md` and
   `contract-engineer.system.md` drop "such as a whole test suite" and state
   the rule; the tool description and `shell.ts`'s header say it.
-
-### C7. The flaky timeline test
-
-`subs/web/…/session-timeline.test.tsx`'s live-timeline case failed 2 of 4
-runs under load in the manual test (MT-R4). Re-run it after C3–C5, when suites
-no longer overlap; fix the test if it still fails.
 
 ## Failure cases the design must prevent
 
@@ -391,7 +430,7 @@ no longer overlap; fix the test if it still fails.
 | ramify-audit types leak into the parent | The audit module's own wrapper types (C2) |
 | A gate reads a partial link's run-local pass as a pass | `composition.verdict` (C1) |
 | The final gate passes on a partial audit | The final gate requests `mode: 'full'` (C1) |
-| A fail/fix loop is forced into full audits | The drift cap counts distinct changed files, not links (A3) |
+| Repeated edits to the same files prematurely exceed the drift cap | The drift cap counts distinct changed files; the separate chain cap still applies (A3) |
 
 ## Implementation order and evidence
 
@@ -400,14 +439,23 @@ self-check; never a full suite by hand. Commit before each audit.
 
 | Iteration | Repository | Delivers | Evidence |
 | --- | --- | --- | --- |
-| 1. Configuration, fixes and partial gates | ramify-audit | A1–A3 | Focused tests: the drift cap widens at 26 distinct changed files and not for repeated edits of the same files; the chain cap at 25; a registered executor that accepts the narrowing receives the paths and reporter arguments and its summary yields the failure list, and one that does not runs whole; the CLI finds the nearest configuration and its project; unknown keys and a missing `checks` refused; a nested file with `enclosingProject` opts out, one without does not; a branch named after a directory in `check-branch`; the declared `ramify` bin answers in an isolated worktree with the commit's own build; MT-D3's arguments recorded; MT-U1/MT-U2 output. Audit with 0.2.1 from outside the repository (`repo=$(pwd); (cd "$(mktemp -d)" && npm exec --yes --registry https://npm.braimax.com --package ramify-audit@0.2.1 -- ramify-audit audit --request "$repo/audit/ramify-audit-suite.request.json" --cwd "$repo" --json)`). |
+| 1. Configuration, fixes and partial gates | ramify-audit | A1–A3 | Focused tests: the drift cap widens at 26 distinct changed files and not for repeated edits of the same files; the chain cap at 25; a registered executor that accepts the narrowing receives the paths and reporter arguments and its summary yields the failure list, and one that does not runs whole; the CLI finds the nearest configuration and its project; unknown keys and a missing `checks` refused; a nested file with `enclosingProject` opts out, one without does not; a branch named after a directory in `check-branch`; the declared `ramify` bin answers in an isolated worktree with the commit's own build; MT-D3's arguments recorded; MT-U1/MT-U2 output; wait expiry at 30 minutes runs nothing, cleans up the waiter and remains distinct from cancellation, with acquisition/expiry races covered. Audit with 0.2.1 from outside the repository (`repo=$(pwd); (cd "$(mktemp -d)" && npm exec --yes --registry https://npm.braimax.com --package ramify-audit@0.2.1 -- ramify-audit audit --request "$repo/audit/ramify-audit-suite.request.json" --cwd "$repo" --json)`). |
 | 2. Release | ramify-audit | A4 | The release commit's 0.2.1 audit passes; `npm view ramify-audit@0.3.0 --registry https://npm.braimax.com` names it; `main` fast-forwarded. |
 | 3. Toolkit and ramify-agent configurations | toolkit | B1, B2 | With 0.3.0: a full audit of the toolkit (first on its chain) and one partial link after an `explorer` change; `check-branch ramify-agent` succeeds; a full audit of ramify-agent under its own refs; no daemon survives an audit. |
-| 4. Upgrade and partial gates | ramify-agent | C1 | The audit module's existing tests pass on 0.3.0; gate requests have no `selector`, the final gate's has `mode: 'full'` and the others none; an iteration gate's test check is narrowed to Ramify's selection, including a dependent module the old `owned-by-scope` selection missed; a gate after a failed gate reruns its failed file; a composed `fail` with a run-local `pass` fails the gate; the suite audit passes. |
+| 4. Upgrade and partial gates | ramify-agent | C1 | The audit module's existing tests pass on 0.3.0; gate requests have no `selector`, the final gate's has `mode: 'full'` and the others none; an iteration gate's test check is narrowed to Ramify's selection, including a dependent module the old `owned-by-scope` selection missed; a gate after a failed gate reruns its failed file; composed `fail` and `indeterminate` with a run-local `pass` both block the gate and retain their verdicts; a no-execution partial link and an unselected test check preserve evidence without missing-record errors or fabricated runs; an actually missing executor record still fails; the suite audit passes. |
 | 5. Lock and shell rule | ramify-agent | C2–C4, C8 | `classifyShellTestRun` cases: `npm test`, `npx vitest run`, watch mode and `-t` alone refused with the explanation; `npm test -- <file>`, `npx vitest run <dir>`, two files and `vitest related <f>` allowed without the lock; chained and env-prefixed commands classified per segment; `bash -c` and other scripts allowed. Injected-lock tests: a `tests` and a `scenarios` gate command wait while the lock is held and run after release with the variable in their environment; `run_scope_tests`, focused `shell` runs, `setup`, `type-check` and `conformance` commands do not wait; a nested process under the variable does not wait; `unavailable` prefixes the note; cancelling a waiting gate records `interrupted` and runs nothing; the parent imports no ramify-audit type (`check:self` passes). |
-| 6. Bounds, records and the flaky test | ramify-agent | C5–C7 | Injected-lock tests with fake time: a gate whose command waits longer than its bound completes; `lockWaitMs` and the waiting observation are recorded and projected; `elapsedMs` excludes the wait. The timeline test re-measured. Final suite audit passes. A manual check, reported separately: two gates on two clones of the same project run their suites one after the other. |
+| 6. Bounds, records and the flaky test | ramify-agent | C5–C7 | Injected-lock tests with fake time: a gate whose command waits longer than its bound completes; `lockWaitMs` and the waiting observation are recorded and projected; `elapsedMs` excludes the wait. Cancellation and wait expiry restore all paused bounds; repeated waits preserve the remaining budget, overlapping waits are not double-counted, and an invocation waiting beyond its absolute bound survives the wait but expires after its remaining running budget. The timeline test re-measured. Final suite audit passes. A manual check, reported separately: two gates on two clones of the same project run their suites one after the other. |
 
-## Decisions to confirm before coding
+## Open review decision
+
+- **Configuration revision.** A1 fixes project identity but does not yet say
+  whether checks, ignore rules and preparation come from the caller's working
+  copy or the audited commit. Suggested: use the working copy to locate the
+  project, then read its configuration from the resolved source commit and
+  record that revision. This needs a decision before A1 is implemented,
+  including the behavior when that commit has no configuration.
+
+## Confirmed decisions
 
 - **D1. Gates run partial audits; the final gate runs full** (*decided
   2026-09-29 by Dan*). Most gates do not need a full audit. A chain goes full
