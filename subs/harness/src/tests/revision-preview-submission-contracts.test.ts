@@ -33,8 +33,12 @@ describe('Plan 36 prospective caller ownership', () => {
     const usage = { path: callerPath, use: 'Observe preview', prospective: true };
     expect(validateEngineer(request([usage]), { capabilityWorkflow: true })).toMatchObject({ ok: false,
       errors: expect.arrayContaining([expect.objectContaining({ path: 'request.usage.0.module' })]) });
-    expect(validateEngineer(request([{ ...usage, module: reviews }]), { capabilityWorkflow: true }).ok).toBe(true);
-    expect(validateEngineer(request([{ ...usage, prospective: false }]), { capabilityWorkflow: true }).ok).toBe(true);
+    expect(validateEngineer(request([{ ...usage, module: reviews }]), { capabilityWorkflow: true })).toMatchObject({
+      ok: true, value: { kind: 'capability-needed', request: { usage: [{ ...usage, module: reviews }] } },
+    });
+    expect(validateEngineer(request([{ ...usage, prospective: false }]), { capabilityWorkflow: true })).toMatchObject({
+      ok: true, value: { kind: 'capability-needed', request: { usage: [{ ...usage, prospective: false }] } },
+    });
     const schema = z.toJSONSchema(capabilityNeedInputSchema) as any;
     expect(schema.properties.usage.items.oneOf[1].required).toContain('module');
     expect(schema.properties.usage.items.oneOf[0].required).not.toContain('module');

@@ -25,15 +25,19 @@ const outcome = invocationOutcomeSchema.parse({ schema: 'ramify-agent.invocation
   ended: 'submitted', rejectedSubmissions: 0, disposition: 'applied', submission: null,
   settled: { confirmed: true, at, groupsKilled: 0, lateWrites: [] }, outsideScope: paths, usage: { unavailable: 'scripted' }, elapsedMs: 1,
 });
+const attributedTool: Observation = { ...snapshot, n: 257, data: { ...snapshot.data,
+  callId: 'write-1', observedBy: 'tool', attributable: true,
+} };
+const projectionObservations = [snapshot, attributedTool];
 const directories: string[] = [];
 afterEach(async () => { for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true }); });
 
-test('inherited candidate differences preserve recorded provenance across metrics and work projections without changing settlement', async () => {
+test.each(projectionObservations)('candidate differences preserve recorded provenance across metrics and work projections without changing settlement (%j)', async observation => {
   const directory = await mkdtemp(join(tmpdir(), 'plan36-attribution-'));
   directories.push(directory);
   const observationsPath = join(directory, runLayout.observations(invocation.id));
   await mkdir(dirname(observationsPath), { recursive: true });
-  const bytes = `${JSON.stringify(snapshot)}\n`;
+  const bytes = `${JSON.stringify(observation)}\n`;
   await writeFile(observationsPath, bytes);
   const assignment = iterationAssignmentSchema.parse({ schema: 'ramify-agent.iteration-assignment/1', id: 'wi-001.i01', workItem: 'wi-001',
     outline: { id: 'wi-001', revision: 1, hash }, stage: 0, kind: 'ordinary', goal: 'Settle provider work.', approach: 'Implement provider.',
@@ -61,8 +65,9 @@ test('inherited candidate differences preserve recorded provenance across metric
   const view = runView(run);
   const metrics = metricsResponseSchema.parse(await metricsOf(view));
   const work = workItemResponseSchema.parse(await workItemOf(view, 'wi-001'));
-  const evidence = paths.map(path => ({ path, attributable: false,
-    observations: [{ number: 258, callId: null, observedBy: 'snapshot', attributable: false }], uncertainty: null,
+  const evidence = paths.map(path => ({ path, attributable: observation.data.attributable,
+    observations: [{ number: observation.n, callId: observation.data.callId, observedBy: observation.data.observedBy,
+      attributable: observation.data.attributable }], uncertainty: null,
   }));
   expect(metrics.evaluation.invocations[0]!.outsideScope).toEqual(paths);
   expect(metrics.evaluation.invocations[0]!.outsideScopeEvidence).toEqual(evidence);

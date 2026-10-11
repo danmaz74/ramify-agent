@@ -572,6 +572,8 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
  * becoming a second copy of the test that owns them.
  */
 const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly file: string; readonly test: string }> = [
+  { union: 'submission engineer[capability-needed].request.usage[].prospective', values: ['false', 'true'], file: 'subs/harness/src/tests/revision-preview-submission-contracts.test.ts', test: 'prospective caller module is required structurally; actual usage may omit it' },
+  { union: 'query work-item.iterations[].invocations[].outsideScopeEvidence[].observations[].observedBy', values: ['tool'], file: 'subs/harness/src/tests/plan36-mutation-attribution.test.ts', test: 'candidate differences preserve recorded provenance across metrics and work projections without changing settlement (%j)' },
   { union: 'run log.type', values: ['consultation-started', 'consultation-finished'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'start and outcome commit exact content references and completed replay is one exchange' },
   { union: 'run log.type', values: ['consultation-delivery-recorded'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'answer acceptance and later caller-result observation preserve immutable outcome revisions' },
   { union: 'run log[session-opened].data.fork.reason', values: ['architect-consultation'], file: 'subs/harness/src/tests/consultation-workflows.test.ts', test: 'C06/C07/C08: engineer → local → global → local → engineer, with distinct isolated identities and unchanged architect parents' },
