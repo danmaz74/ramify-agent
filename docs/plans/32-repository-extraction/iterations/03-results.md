@@ -226,6 +226,73 @@ dc bash -lc 'cd /workspaces/ramify-agent && cp -r subs/harness/fixtures/collecti
 dc bash -lc 'cd /workspaces/ramify-agent && npm run type-check && cd ../ramify && npm run type-check && cd ../ramify-audit && npm run type-check'
 ```
 
+### E17: recreation persistence (iteration 4)
+
+Run in the same witness, with `H`, `COMPOSE_PROJECT_NAME` and `dc` as above,
+before removing it. Every repository change is made inside the container, so
+linked worktrees record their `/workspaces/...` common directories. The
+fingerprint is iteration 3's `tool-fingerprint.sh.txt`.
+
+```sh
+cp <ramify>/.plan32-migration/evidence/iteration3/tool-fingerprint.sh.txt "$H/evidence/fingerprint.sh"
+cat > "$H/evidence/e17-place.sh" <<'EOF'
+set -euo pipefail
+for r in ramify-agent ramify ramify-audit; do
+  cd "/workspaces/$r"
+  git switch -c "witness/e17-$r"
+  echo "e17 committed $r" > E17-COMMITTED.txt
+  git add E17-COMMITTED.txt && git commit -qm "witness: E17 local commit"
+  echo "e17 staged" >> README.md && git add README.md                 # staged edit
+  echo "e17 unstaged" >> E17-COMMITTED.txt                            # unstaged edit
+  echo "e17 untracked $r" > E17-UNTRACKED.txt                         # untracked file
+  git worktree add -q "/workspaces/worktrees/e17-$r" -b "witness/e17-wt-$r"
+  echo "e17 worktree edit" >> "/workspaces/worktrees/e17-$r/README.md"
+  echo "e17 worktree untracked" > "/workspaces/worktrees/e17-$r/E17-WT-UNTRACKED.txt"
+done
+date -u +%FT%TZ > /workspaces/evidence/e17-artifact.txt
+EOF
+cat > "$H/evidence/e17-fingerprint.sh" <<'EOF'
+set -uo pipefail
+bash /workspaces/evidence/fingerprint.sh /workspaces/ramify-agent /workspaces/ramify /workspaces/ramify-audit \
+  /workspaces/worktrees/e17-ramify-agent /workspaces/worktrees/e17-ramify /workspaces/worktrees/e17-ramify-audit
+for r in ramify-agent ramify ramify-audit; do
+  echo "## $r worktrees"; git -C "/workspaces/$r" worktree list --porcelain
+  echo "gitfile $(cat "/workspaces/worktrees/e17-$r/.git")"
+  echo "remote branches containing witness/e17-$r: $(git -C "/workspaces/$r" branch -r --contains "witness/e17-$r" | wc -l)"
+  echo "FETCH_HEAD mtime $(stat -c %Y "/workspaces/$r/.git/FETCH_HEAD" 2>/dev/null || echo none)"
+done
+sha256sum /workspaces/evidence/e17-artifact.txt
+EOF
+dc bash /workspaces/evidence/e17-place.sh
+dc bash /workspaces/evidence/e17-fingerprint.sh > "$H/evidence/e17-before.txt"
+docker ps -a --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME --format '{{.ID}} {{.Image}} {{.CreatedAt}}' | tee "$H/evidence/e17-container-before.txt"
+
+docker compose -p "$COMPOSE_PROJECT_NAME" down          # not -v: the dependency volumes stay
+docker ps -a --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME   # expect no container
+devcontainer up --workspace-folder "$H/ramify-agent" 2>&1 | tee "$H/evidence/e17-up.log"
+#   creation runs setup again: expect "ramify: existing checkout on witness/e17-ramify ...; left as it is"
+#   and the same for ramify-audit, and no clone
+docker ps -a --filter label=com.docker.compose.project=$COMPOSE_PROJECT_NAME --format '{{.ID}} {{.Image}} {{.CreatedAt}}' | tee "$H/evidence/e17-container-after.txt"   # a new container ID
+dc bash /workspaces/evidence/e17-fingerprint.sh > "$H/evidence/e17-after.txt"
+diff "$H/evidence/e17-before.txt" "$H/evidence/e17-after.txt" && echo IDENTICAL   # expect IDENTICAL
+
+# Worktree Git operations reach the mounted common directories.
+dc bash -lc 'set -e; for r in ramify-agent ramify ramify-audit; do
+  git -C /workspaces/$r worktree list
+  git -C /workspaces/worktrees/e17-$r status --short --branch
+  git -C /workspaces/worktrees/e17-$r add README.md E17-WT-UNTRACKED.txt
+  git -C /workspaces/worktrees/e17-$r commit -qm "witness: E17 commit after recreation"
+  git -C /workspaces/$r log -1 --format="%H %s" witness/e17-wt-$r      # the new commit, seen from the main checkout
+  git -C /workspaces/$r worktree prune --dry-run --verbose                # expect nothing to prune
+done' 2>&1 | tee "$H/evidence/e17-worktree-ops.log"
+```
+
+E17 passes when the diff is empty (including each `FETCH_HEAD` mtime, so
+nothing was fetched or recloned), the container ID changed, setup reported
+both companions as existing checkouts left as they are, and each worktree
+commit is visible from its main checkout. Copy `$H/evidence/e17-*` to the
+migration evidence before removing the witness.
+
 With VS Code, also: open `development.code-workspace` and confirm three Git
 repositories in Source Control; forward 4180 and 5181 from the Ports panel and
 load the client; close the window and confirm `docker ps` still lists the

@@ -1,6 +1,6 @@
 {
   "plan": "../main-plan.md",
-  "status": "in implementation; iterations 1 and 2 complete; iteration 3 complete (container witnesses pending host Docker)",
+  "status": "in implementation; iterations 1 and 2 complete; iteration 3 complete (container witnesses pending host Docker); iteration 4 complete (E17 pending host Docker)",
   "execution": "serial in dependency order",
   "iterations": [
     {
@@ -35,8 +35,9 @@
       "file": "04-qualify-workspace.md",
       "dependsOn": ["3"],
       "cases": ["E17", "E18", "E19", "E20"],
-      "status": "proposed",
-      "writeBoundary": "Qualification receipts and disposable persistence/isolation witnesses; migration-induced fixes within prior iteration boundaries followed by renewed affected qualification."
+      "status": "complete (E17 pending host Docker)",
+      "writeBoundary": "Qualification receipts and disposable persistence/isolation witnesses; migration-induced fixes within prior iteration boundaries followed by renewed affected qualification.",
+      "results": "04-results.md"
     },
     {
       "id": "5",

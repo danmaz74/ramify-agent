@@ -1,7 +1,9 @@
 # Plan 32: independent repository and persistent development workspace
 
 **Date:** 2026-10-10. **Status:** in implementation; iterations 1 and 2 complete;
-iteration 3 complete with its container witnesses pending host Docker.
+iteration 3 complete with its container witnesses pending host Docker;
+iteration 4 complete with E17 pending host Docker (candidate `a6d8e02b` passes
+its full nested audit).
 **Execution:** five serial iterations, each with its own implementation handoff.
 **Source inspected:** `/ramify`, branch `ramify-agent`, commit
 `0656317adb32b91f9069e104b482d011eddeabed`, with existing modified and
