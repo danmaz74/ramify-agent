@@ -78,7 +78,7 @@ describe('Plan 36 catalog-only delivery and stable selection contracts', () => {
       expect(delivered.roleInstructions).toContain('Intake extracts the plan\'s non-functional requirements');
       expect(delivered.roleInstructions).toContain('initial analysis reads the captured plan documents');
       expect(delivered.roleInstructions).toContain('Catalog checking compares each captured');
-      expect(delivered.roleInstructions).toContain('Later implementation engineers, reviewers and assessors');
+      expect(delivered.roleInstructions).toContain('Later implementation module engineers, reviewers and assessors');
       expect(delivered.message).toContain('"workingDirectory": "/project"');
     }
     expect(cases[0][1]).toContain('doc-002 (plan): plans/example/companion.md; captured file /project/plans/example/.harness/jobs/run-1/input/documents/doc-002.bin');

@@ -440,7 +440,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     const result = await readJson<IterationResult>(root, runId, iterationLayout.result('wi-001', 2));
     expect(result.outcome).toBe('partial');
     expect(result.findings).toContain(
-      `the contract engineer of wi-001.i02 ended without a result (failed: the provider refused the request; invocation ${result.invocations[0]}); nothing was registered`,
+      `the module engineer (contract) of wi-001.i02 ended without a result (failed: the provider refused the request; invocation ${result.invocations[0]}); nothing was registered`,
     );
     // Its module architect is briefed with the digest and the analysis, as for a module engineer.
     expect(result.failure?.digest).toMatchObject({ invocation: result.invocations[0], role: 'contract-engineer', ended: 'failed' });

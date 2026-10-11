@@ -201,7 +201,7 @@ test('V01: actual Run Measurements renders immutable accepted projection facts t
   client.runs.set(runId, { snapshot, events: [], metrics: metricsResponseSchema.parse({ policyVersion: 'kpi/1', measurementPolicy: 'scope-size/2', baseline: { state: 'measured', bytes: 200, snapshot: 'baseline-original' }, metrics: [], lineage: { policyVersion: 'lineage/1', metrics: [] }, evaluation: { guarding: e.guarding, outsideScope: [], invocations: [e] } }) });
   render(<RunPage client={client} planId={planId} runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Measurements' }));
-  fireEvent.click(await screen.findByText('inv-1 (engineer) · submitted'));
+  fireEvent.click(await screen.findByText('inv-1 (Module engineer) · submitted'));
   const evidence = screen.getByLabelText('Efficiency of inv-1');
   expect(evidence.textContent).toContain('Turn 2 in original-session');
   expect(evidence.textContent).toContain('12 UTF-8 output bytes');
