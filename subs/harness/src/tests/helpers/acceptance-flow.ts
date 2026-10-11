@@ -75,6 +75,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   let resuming = false;
   let suspendedContinuationStarted = false;
   let originalRequest = '';
+  let handbackMaterialized = false;
   const scripted: Script = spec => {
     // Callback perception includes inherited packets. Route only by the newest
     // renderer-owned objective and the actual current working directory.
@@ -273,6 +274,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         return checkpoint === 'work-item' && external === undefined ? failingCombinedChecks.run(input) : realChecks.run(input);
       } } : realChecks,
     afterWrite: async (write: string, runId: string) => {
+      // The event is committed before its body is materialized; this callback follows both.
+      if (write === 'capability-handed-back') handbackMaterialized = true;
       const event = activeService?.events('need', runId)?.at(-1);
       const gate = activeService?.events('need', runId)?.filter(entry => entry.type === 'gate-attempted').at(-1);
       if (mode === 'revision' && write === 'capability-assigned' && event?.type === 'capability-assigned' && event.data.sequence === 4) {
@@ -422,7 +425,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     const reopened = await openCapabilityRuns(fixture.root, options);
     cleanups.push(() => reopened.service.close());
     await until(() => (reopened.service.events('need', receipt.jobId) ?? []).some(event =>
-      event.type === 'capability-handed-back' || event.type === 'job-failed'), 60_000).catch(async error => {
+      event.type === 'capability-handed-back' && handbackMaterialized || event.type === 'job-failed'), 60_000).catch(async error => {
       const current = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
       throw new Error(`${String(error)}; architect ${architect}, reviewer ${reviewer}; warnings ${JSON.stringify(reopened.warnings)}; tail ${JSON.stringify(current.slice(-18))}`);
     });
@@ -500,7 +503,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     return;
   }
   await until(() => mode === 'drift' ? driftFeedback.length > 0 : (opened.service.events('need', receipt.jobId) ?? []).some(event =>
-    event.type === 'capability-handed-back' || event.type === 'job-failed'), 120_000).catch(async error => {
+    event.type === 'capability-handed-back' && handbackMaterialized || event.type === 'job-failed'), 120_000).catch(async error => {
     const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
     const gate = events.filter(event => event.type === 'gate-attempted').at(-1);
     const body = gate?.type === 'gate-attempted' ? JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,

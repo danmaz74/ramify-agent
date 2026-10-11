@@ -123,13 +123,15 @@ it('binds the F2 configured discovery reports and rejects partial or mismatched 
     expect(sourceFiles).toContain('src/tests/new-root.check.ts');
     expect(sourceFiles).not.toContain('src/tests/excluded.check.ts');
     expect(sourceFiles).not.toContain('src/tests/excluded.test.ts');
-    expect(configuredFullResultMatches(full, captured)).toBe(true); // A same-definition earlier full may be reused.
+    // These retained provider receipts are schema 4; the current gate requires schema 5.
+    expect(full.summary.evidenceSchemaVersion).toBe(4);
+    expect(configuredFullResultMatches(full, captured)).toBe(false);
     expect(configuredFullResultMatches(partial, captured)).toBe(false);
     const fullCaptured = await readCommittedAuditConfiguration(root, full.summary.sourceCommit);
-    expect(configuredFullResultMatches(full, fullCaptured)).toBe(true);
+    expect(configuredFullResultMatches(full, fullCaptured)).toBe(false);
     const widened = structuredClone(full);
     widened.summary.mode.requestedMode = 'ramify-partial';
-    expect(configuredFullResultMatches(widened, fullCaptured)).toBe(true);
+    expect(configuredFullResultMatches(widened, fullCaptured)).toBe(false);
     expect(configuredFullResultMatches(full, { ...fullCaptured, blob: 'wrong-definition' })).toBe(false);
   } finally { await rm(parent, { recursive: true, force: true }); }
 }, 30_000);
