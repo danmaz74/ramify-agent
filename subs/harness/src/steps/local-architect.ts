@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { consultArchitectDeclaration } from '../consultations/submissions.js';
 import { consultationAvailability, consultationContext } from '../consultations/targets.js';
 import { contextSelectorMessage, workOrientationMessage } from '../context-selection/prompts.js';
@@ -11,7 +12,7 @@ import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { deliveredSupportPaths, type TaskKind } from '../prompts/tasks.js';
 import { renderContextSelectorPrompt, renderLocalArchitectPrompt, renderWorkOrientationPrompt } from '../prompts/packages.js';
 import { invocationLimits } from '../run/policy.js';
-import { runDirectory, type ContinueReason, type ForkRelation } from '../run/records.js';
+import { runDirectory, runLayout, type ContinueReason, type ForkRelation } from '../run/records.js';
 import { validateAgainst, type SubmissionValidation } from '../run/submissions.js';
 import { composeTaskBrief } from '../run/task-brief.js';
 import { creationAuthority, type AssignmentBody } from '../work/assignment.js';
@@ -138,7 +139,9 @@ export function constructSelectorStep(value: unknown, environment: StepEnvironme
   const loaded = loadedPackage(environment, 'context-selector');
   const forked = inputs.start.kind === 'fork';
   const workingDirectory = runLocation(environment, inputs.run, inputs.workspace);
-  const prompt = contextSelectorMessage(forked ? inputs.update : inputs.packet, inputs.catalog);
+  // The selector's workspace is empty: the captured plan is named by its absolute path.
+  const capturedPlan = join(runDirectory(projectRoot, inputs.run.planId, inputs.run.runId), runLayout.capturedPlan);
+  const prompt = contextSelectorMessage(forked ? inputs.update : inputs.packet, inputs.catalog, capturedPlan);
   const limits = invocationLimits(inputs.limits, {});
   const submission = {
     toolName: contextSelectorToolName, description: 'Select, by ID, the elements an engineer working this work item must keep in view.',
@@ -157,7 +160,7 @@ export function constructSelectorStep(value: unknown, environment: StepEnvironme
   const start = inputs.start;
   return {
     role: 'context-selector', inputs, work: inputs.work, attempt: inputs.attempt, loaded,
-    systemPrompt: renderContextSelectorPrompt(loaded, projectRoot), prompt, freshPrompt: contextSelectorMessage(inputs.packet, inputs.catalog),
+    systemPrompt: renderContextSelectorPrompt(loaded, projectRoot), prompt, freshPrompt: contextSelectorMessage(inputs.packet, inputs.catalog, capturedPlan),
     brief, submission, limits, context: inputs.context,
     start: start.kind === 'fork' ? { mode: 'fork', ref: start.point, session: start.session, invocation: start.invocation }
       : { mode: 'fresh', ...(start.degraded === undefined ? {} : { degraded: start.degraded }) },

@@ -156,6 +156,12 @@ describe('S08: local architect and reviewer inputs from a run', () => {
       // The imported turn delivers the complete briefing, whatever the original start delivered.
       expect(rendered.rendered).toBe('fresh');
       expect(rendered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(true);
+      if (recorded.role === 'context-selector') {
+        // The selector's workspace is empty, so the captured plan is named by its absolute path.
+        const captured = `the captured file is \`${join(directory, runLayout.capturedPlan)}\``;
+        expect(constructed.prompt).toContain(captured);
+        expect((constructed as { freshPrompt?: string }).freshPrompt).toContain(captured);
+      }
       if (recorded.role === 'context-selector' && recorded.start.kind === 'fork') {
         // A fork's imported start is briefed from the complete packet, not the fork's update.
         expect(constructed.brief.retainInheritedSections).toBeUndefined();
