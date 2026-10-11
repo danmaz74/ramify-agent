@@ -140,9 +140,10 @@ export async function runDependencyScheduling(): Promise<void> {
     await commitCapabilityTransition(log, { type: 'capability-verification-started', data: { task: child.id, invocation: basis } }, []);
     const handback = { schema: 'ramify-agent.capability-handback/1' as const, task: child.id, request: request.id,
       plan: refOf(child.id, 2, revised), sourceRevision: 'projection-source', returnedTree: child.source.tree,
-      deltaFromSuspension: [], summary: 'C normalization returned to B',
+      deltaFromSuspension: [], summary: 'C normalization returned to B; delivered B caller subs/b/src/fact.ts and its test subs/b/src/tests/fact.test.ts.',
       interfaces: [{ path: 'subs/c/src/source.ts', symbols: ['normalizeSource'], use: 'B normalizes the source' }],
-      compatibility: [], checks: [refOf('projection-gate', 1, { kind: 'projection' })], reviews: [], limitations: [] };
+      compatibility: [], checks: [refOf('projection-gate', 1, { kind: 'projection' })], reviews: [],
+      limitations: ['Synthetic dispatch witness only; A display remains with parent cap-001 and its architect.'] };
     await commitCapabilityTransition(log, { type: 'capability-handed-back', data: {
       task: child.id, handback: child.id, invocation: basis,
     } }, [{ path: capabilityLayout.handback(child.id), id: child.id, revision: 1, body: handback }]);
@@ -158,6 +159,9 @@ export async function runDependencyScheduling(): Promise<void> {
     expect(returnedEvents.filter(event => event.type === 'capability-assignment-settled' && event.data.assignment === 'cap-001.i01')).toHaveLength(1);
     expect(resumedBPrompt).toContain('Nested capability cap-002 handed back');
     expect(resumedBPrompt).toContain('Continue cap-001.i01');
+    expect(resumedBPrompt).toContain('delivered B caller subs/b/src/fact.ts');
+    expect(resumedBPrompt).toContain('Synthetic dispatch witness only; A display remains with parent cap-001');
+    expect(resumedBPrompt).toContain('capabilities/cap-002/plan/2.json');
     expect(resumedScratchObserved).toBe('resumed parent scratch\n');
     await expect(readFile(join(fixture.root, 'subs/b/src/tmp/parent.txt'))).rejects.toMatchObject({ code: 'ENOENT' });
     for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -330,6 +334,8 @@ export async function runDependencyGate(restartAfterHandback: boolean, realBound
     let childTurns = 0;
     let parentTurns = 0;
     let returnedPrompt = '';
+    const narrowerSummary = 'Delivered B caller subs/b/src/fact.ts and test subs/b/src/tests/fact.test.ts using the real C normalizeSource; accepted B iteration verifies normalized B source. The cap-002 boundary is C normalization integrated into B, not the parent A display goal.';
+    const remainingParent = 'Parent cap-001 architect retains A display source behavior and requesting A consumer acceptance; no parent or consumer obligation is reported complete.';
     let childClosureScratch: { parent: string; childRemoved: boolean } | null = null;
     let frozenHandback = false;
     let service: Awaited<ReturnType<typeof openCapabilityRuns>>['service'] | undefined;
@@ -394,11 +400,14 @@ export async function runDependencyGate(restartAfterHandback: boolean, realBound
           interfaces: [{ path: 'subs/c/src/source.ts', symbols: ['normalizeSource'], use: 'Call from B' }], limitations: [] }),
         { kind: 'tool', tool: 'update_capability_plan', input: { task: basis.task,
           basedOn: basis.planRevision, invocation: basis.invocation, reason: 'The real B caller states the original case',
-          changes: { useCases: [{ id: 'need-002.ex01', expectedBehavior: 'B uses normalized C source', derivedFrom: ['need-002.ex01'] }] } } },
+          changes: { useCases: [{ id: 'need-002.ex01', expectedBehavior: 'B uses normalized C source', derivedFrom: ['need-002.ex01'] }],
+            decisions: [{ decision: 'need-002.ex01 requires real C/B composition; A display remains with parent cap-001',
+              reason: 'The nested need supplies normalized source to B. Its parent still owes the A display that requested B.',
+              evidence: ['subs/c/src/source.ts', 'subs/b/src/fact.ts', 'subs/b/src/tests/fact.test.ts'] }] } } },
           { kind: 'submit', input: { ...basis, planRevision: basis.planRevision + 1, kind: 'request-handback',
-            summary: 'C normalization is used by B; the original example now reads B',
+            summary: narrowerSummary,
             reports: [{ id: basis.task, judgment: 'done', basedOnRevision: 0 }],
-            interfaces: [{ path: 'subs/c/src/source.ts', symbols: ['normalizeSource'], use: 'Call from B' }], limitations: [] } }];
+            interfaces: [{ path: 'subs/c/src/source.ts', symbols: ['normalizeSource'], use: 'Call from B' }], limitations: [remainingParent] } }];
       }
       if (spec.role === 'reviewer') {
         const paths = [...spec.prompt.matchAll(/Changed paths: ([^\n]+)/gu)].at(-1)?.[1]?.split(', ') ?? [];
@@ -482,6 +491,10 @@ export async function runDependencyGate(restartAfterHandback: boolean, realBound
     expect(originalSettlement[0]).toMatchObject({ data: { outcome: 'accepted' } });
     expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
     expect(returnedPrompt, JSON.stringify({ engineerTurns, events: events.slice(-30).map(event => ({ type: event.type, data: event.data })) })).toMatch(/(?:Nested capability cap-002 handed back|Capability cap-002 accepted at)/u);
+    expect(returnedPrompt).toContain(narrowerSummary);
+    expect(returnedPrompt).toContain(remainingParent);
+    expect(returnedPrompt).toContain('capabilities/cap-002/plan/2.json');
+    expect(returnedPrompt).toContain('Inspect and reuse the delivered caller source and tests');
     const passed = events.filter(event => event.type === 'gate-attempted' && event.data.verdict === 'passed');
     expect(passed.length).toBeGreaterThan(0);
     expect(events.filter(event => event.type === 'review-request-recorded' && event.data.workItem === 'cap-002').length,

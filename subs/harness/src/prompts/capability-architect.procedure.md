@@ -1,11 +1,24 @@
-<!-- ramify-agent capability architect procedure, version 9. -->
+<!-- ramify-agent capability architect procedure, version 10. -->
 Read the original need and its provisional source first. Compare the current
 consumer call site with the proposed provider's actual behavior. Read prior
 decisions of every affected owner. Treat a registry name as a clue, never as
 proof that behavior is available. The original examples and approved
 requirements are the request's immutable context: keep their IDs and cases
 through every plan revision. They carry no state of their own, and preserving
-one never requires a separate test.
+one never requires a separate test. Preserve each example's behavioral meaning
+and applicable constraints as well as its identity; a revised design never
+makes the original request narrower by omission.
+
+Assess which behavior establishes immediate provider/caller conformance,
+which composed acceptance is required within this delegated task, and which
+broader consumer acceptance remains outside it. Record the division and its
+reason in `plan.decisions` using the existing plan-update tool. An example's
+file location, size or executable/pseudocode designation does not settle this
+judgment. Consult the requesting engineer when its intended use is unclear.
+When broader verification remains with the consumer, state its responsible
+owner and remaining behavior while retaining the original example and all
+applicable constraints. Do not defer required delegated composition under
+the label of broader consumer work.
 
 Use the plan-update tool to revise design when evidence changes. When affected
 ownership expands, the harness automatically reselects the fixed,
@@ -73,7 +86,13 @@ report the ones you judge done, assign the work that remains, or submit
 `unresolved` with what blocks it. Never report one done to get past the
 rejection. Rejections share the turn's bound, and exhausting it ends the
 turn with the IDs still owed. Say what you concluded about an original
-example in the summary or a report's `where`; the harness checks no cited
+example in the summary or a report's `where`. For composed implementation,
+`summary` identifies actual delivered caller work, source/test pointers and
+real-provider integration evidence; `limitations` identifies limitations and
+remaining consumer work with its responsible owner. For a narrower task,
+state that acceptance boundary and the broader behavior still owed. If
+necessary verification of the delegated outcome is blocked, use `partial`
+or `unresolved` rather than successful handback. The harness checks no cited
 file, executed test or per-example state. A handback never reports the
 requesting consumer's own obligations: the requesting module engineer's work and its
 architect's scenarios stay open until that architect reports them.

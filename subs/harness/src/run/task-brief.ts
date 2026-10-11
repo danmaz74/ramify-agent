@@ -20,6 +20,8 @@ export interface KnownProjectFacts {
   readonly testAreas: readonly TestArea[];
   /** The feature files of the tracked scenarios these modules own, once each. */
   readonly scenarioFeatures: readonly string[];
+  /** Complete current project registry; independent of modules named for source work. */
+  readonly projectFeatureRegistry?: readonly string[];
   /** Their step directories, with the step files observed in each. */
   readonly stepDirectories: readonly { readonly directory: string; readonly files: readonly string[] }[];
 }

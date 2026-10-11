@@ -8,6 +8,7 @@ import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.j
 import { assign, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { forkDeviation, unresolved } from './helpers/placement.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
+import { commandResult } from './helpers/command-result.js';
 
 const a = 'capability-coordination/a', b = 'capability-coordination/b';
 const conflict = 'sc-001 matches globally loaded review-passes support; its World state contract is unavailable to A.';
@@ -20,6 +21,10 @@ const points = [{ path: 'subs/a/src/caller.ts', note: 'Retained implementation; 
 const corrected = ['Scenario: A person reviews the stored record locally',
   '  Given the project as the plan finds it', '  When the person uses richer-a-fact',
   '  Then the selected stored record review passes without findings'];
+const feature = 'subs/a/src/tests/features/need/richer-a-fact.feature';
+const featureSelection = { files: [feature], reason: 'Verify the corrected pending stored-record assertion without adding an obligation' };
+const effectiveConfiguration = { paths: ['subs/**/src/tests/features/**/*.feature'], tags: 'not @ramify-pending', name: [], dryRun: false,
+  import: ['support/world.mjs', 'support/global-review.steps.mjs'], require: [], requireModule: [], loader: [], worldParameters: { store: 'selected-record' } };
 const cleanups: Array<() => Promise<void>> = [];
 const answers: ReturnType<typeof capabilityFlowBoundaries>[] = [];
 afterEach(async () => {
@@ -31,10 +36,15 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   await mkdir(join(fixture.root, 'src/tests'), { recursive: true });
   await writeFile(join(fixture.root, 'src/tests/stale.test.ts'), "expect('old');\n");
+  await writeFile(join(fixture.root, 'cucumber.json'), JSON.stringify({ default: effectiveConfiguration }));
+  await mkdir(join(fixture.root, 'support'), { recursive: true });
+  await writeFile(join(fixture.root, 'support/world.mjs'), "import { setWorldConstructor } from '@cucumber/cucumber'; class ReviewWorld {} setWorldConstructor(ReviewWorld);\n");
+  await writeFile(join(fixture.root, 'support/global-review.steps.mjs'), "Then('the review passes with no findings', function () { return this.review.findings.length === 0; });\n");
   const boundary = capabilityFlowBoundaries(fixture.root, coordinator === 'local' ? 'local-correction' : 'correction'); answers.push(boundary);
   let engineer = 0, architect = 0;
   let originalAssignment = '', originalResult = '', capturedPlan = '', frozenCatalog = '';
   let replacementReceived = false;
+  let prepared = 0;
   // This verifies workflow and immutable evidence; audit/Cucumber answers are scripted, not native binding execution.
   const script: Script = spec => {
     if (spec.role === 'initial-architect') {
@@ -61,6 +71,7 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       } }, edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'), write('extra.ts', "export const sourceHint = 'B';\n"),
       edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')"));
       if (engineer === (coordinator === 'local' ? 1 : 2)) return submit({ kind: 'partial', done: [progress], unfinished: [remaining], findings: [conflict], startingPoints: points },
+        { kind: 'tool', tool: 'read', input: { path: join(fixture.root, 'support/global-review.steps.mjs') } },
         ...(coordinator === 'local' ? [write('extra.ts', "export const sourceHint = 'B';\n"), edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')")] : []),
         write('caller.ts', retainedSource));
       expect(spec.prompt).toContain(progress);
@@ -69,6 +80,12 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       expect(spec.prompt).toContain(points[0]!.path);
       expect(spec.prompt).toContain(corrected.at(-1)!);
       expect(spec.prompt).toContain('pd-001');
+      expect(spec.prompt).toContain(featureSelection.reason);
+      expect(spec.prompt).toContain('support/global-review.steps.mjs');
+      expect(spec.prompt).toContain('support/world.mjs');
+      expect(spec.prompt).toContain('globally loaded support');
+      expect(spec.prompt).toContain('ramify-focused');
+      expect(spec.prompt).toContain('ramify-pending');
       replacementReceived = true;
       return submit({ kind: 'completion-proposed', summary: 'Continued the retained implementation and verified corrected stored-record assertion', findings: [] },
         { kind: 'await', until: async () => { expect(await readFile(join(fixture.root, 'subs/a/src/caller.ts'), 'utf8')).toBe(retainedSource); } },
@@ -79,7 +96,7 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       architect += 1;
       const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1);
       const basis = ids ? { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] } : {};
-      if (architect === 1) { const choice = assign(a, { goal: 'Implement the existing stored-record review assertion' }, coordinator === 'local' ? outline() : undefined); return submit(coordinator === 'local' ? choice : { ...basis, kind: 'assign', assignment: choice.assignment }); }
+      if (architect === 1) { const choice = assign(a, { goal: 'Implement the existing stored-record review assertion', featureSelection }, coordinator === 'local' ? outline() : undefined); return submit(coordinator === 'local' ? choice : { ...basis, kind: 'assign', assignment: choice.assignment }); }
       if (architect === 2) {
         expect(spec.prompt).toContain(conflict);
         return [{ kind: 'await', until: async () => {
@@ -97,14 +114,27 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
         expect(spec.prompt).toContain('pd-001');
         expect(spec.prompt).toContain(corrected.at(-1)!);
         const assignment = assign(a, { goal: 'Continue retained work and verify the corrected stored-record assertion',
-          approach: 'Reuse retained implementation; assert the same behavior with the authorized local expression.', startingPoints: points });
+          approach: 'Reuse retained implementation; assert the same behavior with the authorized local expression.', startingPoints: points, featureSelection });
         return submit(coordinator === 'local' ? assignment : { ...basis, kind: 'assign', assignment: assignment.assignment });
       }
       return [{ kind: 'wait', ms: 60_000 }];
     }
     return [];
   };
-  const opened = await openCapabilityRuns(fixture.root, { ...boundary.options, inputs: treeInputs(), script: boundary.script(script) });
+  const declaredCheck = { id: 'focused-scenarios', executor: { kind: 'command', commands: [{ cmd: 'cucumber-js', args: ['--config', 'cucumber.json'], parser: 'cucumber' }] } };
+  const configuredAudit = { ...boundary.options.configuredAudit,
+    async read(root: string, commit: string) { const captured = await boundary.options.configuredAudit.read(root, commit); return { ...captured, checks: [...captured.checks, declaredCheck] }; },
+    async run(input: Parameters<typeof boundary.options.configuredAudit.run>[0]) {
+      return boundary.options.configuredAudit.run({ ...input, configuration: { ...input.configuration,
+        checks: input.configuration.checks.filter(check => (check as { id: string }).id !== declaredCheck.id) } });
+    },
+  };
+  const opened = await openCapabilityRuns(fixture.root, { ...boundary.options, configuredAudit, inputs: treeInputs(), script: boundary.script(script),
+    commandExecution: async request => {
+      prepared += 1;
+      expect(request.stdin).toContain('cucumber.json');
+      return commandResult(request, { stdout: `RAMIFY_CUCUMBER_CONFIGURATION=${JSON.stringify({ schema: 'ramify-agent.cucumber-configuration/1', apiPath: join(fixture.root, 'node_modules/@cucumber/cucumber/lib/api/index.js'), configuration: effectiveConfiguration })}` });
+    } });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('need'));
   await until(() => {
@@ -114,6 +144,7 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   expect(events.filter(event => event.type === 'job-failed'), JSON.stringify(events.slice(-8))).toEqual([]);
   expect(replacementReceived).toBe(true);
+  expect(prepared).toBe(2);
   expect(events.filter(event => event.type === 'plan-deviation-recorded')).toHaveLength(1);
   const deviation = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'deviations/pd-001.json'), 'utf8'));
   expect(deviation).toMatchObject({ checkFinding: 'cf-0001', held: false, scenarios: [{ scenario: 'sc-001', after: corrected }] });
@@ -128,6 +159,9 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   expect(events.find(event => event.type === 'invocation-ended' && event.data.invocation === partialStart.data.invocation)?.data).toMatchObject({ kept: false, finished: 'work-closed' });
   const work = coordinator === 'local' ? 'wi-001' : 'cap-001';
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, `work-items/${work}/iterations/01/assignment.json`), 'utf8')).toBe(originalAssignment);
+  const assignment = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, `work-items/${work}/iterations/02/assignment.json`), 'utf8'));
+  expect(assignment.featureSelection).toEqual(featureSelection);
+  expect(assignment.scope.base.module).toBe(a);
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, `work-items/${work}/iterations/01/result.json`), 'utf8')).toBe(originalResult);
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'input/plan.md'), 'utf8')).toBe(capturedPlan);
   const accepted = events.find(event => event.type === 'analysis-accepted')!;

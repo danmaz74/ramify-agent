@@ -14,7 +14,7 @@ import type { PlacementDecision } from '../architecture/records.js';
 import type { EnvironmentProblem } from '../deviations/records.js';
 import type { IterationApiViews } from './engineer.js';
 import type { IntegrationBriefing } from './integration.js';
-import type { BriefedScenario } from './scenario-briefing.js';
+import { scenarioBodyLines, type BriefedScenario } from './scenario-briefing.js';
 import type { WorkItem, WorkItemOutline } from './records.js';
 import type { EngineerBounds } from '../run/policy.js';
 import { analysisLines, boundOf, digestLines } from './failure.js';
@@ -312,7 +312,7 @@ export function apiCoverageStatement(coverage: number): string {
  * stays the same from turn to turn and so reaches a session once, and their
  * states, which a later turn delivers alone when only they changed.
  */
-export function architectScenarioSections(scenarios: readonly BriefedScenario[]): string[] {
+export function architectScenarioSections(scenarios: readonly BriefedScenario[], packages: readonly string[] = []): string[] {
   if (scenarios.length === 0) return [];
   const lines: string[] = ['## The scenarios of this work item', '',
     `Its entry has ${scenarios.length} scenario${scenarios.length === 1 ? '' : 's'}. The harness wrote each into its feature file,`,
@@ -320,7 +320,7 @@ export function architectScenarioSections(scenarios: readonly BriefedScenario[])
   for (const scenario of scenarios) {
     lines.push(`### ${scenario.id}: ${scenario.name}`, '', `- Feature file: \`${scenario.file}\`.`,
       ...(scenario.partOf === null ? [] : [`- A sub-scenario of the integration scenario \`${scenario.partOf}\`, whose integration work item is due once every sub-scenario is reported done.`]),
-      '', '```gherkin', ...scenario.source, '```', '');
+      '', ...scenarioBodyLines(scenario, packages), '');
   }
   lines.push(
     'A scenario is bound by step definitions, which a module engineer writes in `src/tests/steps/` of the owner (a testing',
@@ -341,7 +341,7 @@ export function architectScenarioSections(scenarios: readonly BriefedScenario[])
 }
 
 /** The first user message of one module architect invocation. */
-export function workItemMessage(briefing: WorkItemBriefing): string {
+export function workItemMessage(briefing: WorkItemBriefing, packages: readonly string[] = []): string {
   const { item } = briefing;
   // Paths are project-relative: the task's environment states the project root once.
   const working = briefing.workingDirectory === undefined || briefing.projectRoot === undefined
@@ -367,7 +367,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     '',
     ...deviationSection(briefing.deviations, briefing.deviationRecorded),
     ...(briefing.integration === undefined ? [] : integrationSection(briefing.integration)),
-    ...architectScenarioSections(briefing.scenarios ?? []),
+    ...architectScenarioSections(briefing.scenarios ?? [], packages),
     '## Your module',
     '',
     `- Declared name: \`${item.module}\`.`,
@@ -723,6 +723,17 @@ export async function prepareAssignedCucumber(input: { readonly projectRoot: str
   const inside = relative(root, cwd);
   if (inside === '..' || inside.startsWith(`..${sep}`)) return unavailable('Declared Cucumber cwd is outside the project');
   const extraSources: Record<string, string> = {};
+  for (const feature of input.featurePaths) {
+    const path = resolve(root, feature);
+    const target = await realpath(path).catch(() => null);
+    if (target === null) return unavailable(`Selected generated feature is unavailable: ${feature}`);
+    const contained = relative(root, target);
+    if (contained === '..' || contained.startsWith(`..${sep}`)) return unavailable(`Selected generated feature is outside project authority: ${feature}`);
+    const bytes = await readFile(path).catch(() => null);
+    if (bytes === null) return unavailable(`Selected generated feature cannot be read: ${feature}`);
+    // Authenticate selected bytes at the lexical path; dispatch also revalidates containment.
+    extraSources[path] = createHash('sha256').update(bytes).digest('hex');
+  }
   if (basename(command.cmd ?? '') === 'npm' && command.args?.[0] === 'run' && command.args.length === 2) {
     const packagePath = await realpath(resolve(cwd, 'package.json')).catch(() => null);
     if (packagePath === null || relative(root, packagePath).startsWith(`..${sep}`)) return unavailable('Declared package source is outside the project or unavailable');

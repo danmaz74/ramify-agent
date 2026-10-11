@@ -73,6 +73,7 @@ export function knownFacts(known: KnownFactsInputs): KnownProjectFacts {
     modules: known.modules.map(module => ({ module: module.module, directory: relative(module.directory), apiPaths: module.apiPaths.map(relative) })),
     testAreas: known.testAreas.map(area => ({ module: area.module, area: relative(area.area) })),
     scenarioFeatures: known.scenarioFeatures.map(relative),
+    ...(known.projectFeatureRegistry === undefined ? {} : { projectFeatureRegistry: known.projectFeatureRegistry.map(relative) }),
     stepDirectories: known.stepDirectories.map(entry => ({ directory: relative(entry.directory), files: entry.files.map(relative) })),
   };
 }
@@ -84,6 +85,7 @@ export function knownFactsInputs(known: KnownProjectFacts): KnownFactsInputs {
     modules: known.modules.map(module => ({ module: module.module, directory: projectPath(module.directory), apiPaths: module.apiPaths.map(projectPath) })),
     testAreas: known.testAreas.map(area => ({ module: area.module, area: projectPath(area.area) })),
     scenarioFeatures: known.scenarioFeatures.map(projectPath),
+    ...(known.projectFeatureRegistry === undefined ? {} : { projectFeatureRegistry: known.projectFeatureRegistry.map(projectPath) }),
     stepDirectories: known.stepDirectories.map(entry => ({ directory: projectPath(entry.directory), files: entry.files.map(projectPath) })),
   };
 }

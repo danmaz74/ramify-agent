@@ -113,7 +113,9 @@ export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAc
     entries: submission.entries.map(entry => ({ capability: entry.capability, owner: entry.owner })),
     modules: scenarioModulesOf(submission, context.index),
   });
-  const scenarios = assigned.records.map(record => scenarioRecordSchema.parse(record));
+  const scenarios = assigned.records.map((record, index) => scenarioRecordSchema.parse({ ...record,
+    ...(record.kind === 'entry' ? { citedElements: submission.scenarios[index]!.refs ?? [] } : {}),
+  }));
   const warnings = form.warnings.map(warning => scenarioWarningSchema.parse({
     kind: warning.kind,
     scenarios: warning.scenarios.map(key => assigned.idsByKey.get(key)!),

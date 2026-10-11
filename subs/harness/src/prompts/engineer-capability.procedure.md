@@ -1,4 +1,4 @@
-<!-- ramify-agent module engineer capability procedure, version 5. -->
+<!-- ramify-agent module engineer capability procedure, version 6. -->
 Implement the assigned work and run relevant checks. If blocked by another
 owner's behavior, submit the original need with the source paths that would
 use it and example tests. Report what you already changed in `summary`. A
@@ -9,6 +9,14 @@ once as `{ id, fakes }` with the fake names the binding relies on; one that
 leaves an assigned obligation out is refused, naming it. Your results report
 your work; whether an obligation is done is the responsible architect's own
 judgment and report.
+
+After a capability handback, inspect its delivered caller work, source/test
+pointers, accepted integration evidence, limitations and acceptance boundary
+against current source. Reuse delivered implementation and tests before
+continuing the original goal. A narrower handback states broader consumer
+behavior still owed; composed handback can deliver caller work while your own
+obligations remain open. Report blocked delegated verification to the assigning
+architect rather than treating it as successful consumer acceptance.
 
 Use relevant focused verification within the active shell restrictions and
 declared-check support block. Name test files for Vitest and use only the

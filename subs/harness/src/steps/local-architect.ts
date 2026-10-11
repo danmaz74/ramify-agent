@@ -92,7 +92,7 @@ export function constructOrientationStep(value: unknown, environment: StepEnviro
   const loaded = loadedPackage(environment, 'local-architect');
   const workingDirectory = projectLocation(environment, inputs.workingDirectory);
   const goal = inputs.briefing.item.goal;
-  const briefingText = [workItemMessage(workBriefing(environment, inputs)), '# Goal', goal, '# Requirements', ...inputs.requirements].join('\n\n');
+  const briefingText = [workItemMessage(workBriefing(environment, inputs), inputs.requirements), '# Goal', goal, '# Requirements', ...inputs.requirements].join('\n\n');
   const prompt = workOrientationMessage(briefingText) + consultationContext(inputs.consultation, inputs.role);
   const limits = invocationLimits(inputs.limits, {});
   const submission = {
@@ -214,7 +214,7 @@ export function constructWorkTurnStep(value: unknown, environment: StepEnvironme
   let prompt = workItemMessage({ ...briefing, ...(selected === undefined ? {} : {
     package: { hash: selected.hash, elements: selected.elements },
     ...(inputs.deviations === undefined ? {} : { deviations: inputs.deviations }),
-  }) });
+  }) }, selected === undefined ? inputs.requirements : [selected.text]);
   // The package is in the session once: carried by the first prompt of a session that lacks it.
   if (selected !== undefined && inputs.packageInPrompt) prompt = `${prompt}\n\n# Your work-item package\n\n${selected.text}`;
   if (inputs.obligationLines.length > 0) prompt = `${prompt}\n\n${inputs.obligationLines.join('\n')}`;
@@ -291,6 +291,7 @@ export function workEvidenceOf(step: Pick<ConstructedWorkTurnStep, 'inputs'>, in
     contracts: new Set(validation.contracts),
     guardedPaths: new Set(validation.guardedPaths),
     harnessOnly: new Set(validation.harnessOnly),
+    registeredFeatureFiles: new Set((inputs.known.projectFeatureRegistry ?? inputs.known.scenarioFeatures).map(path => path.project)),
     ...(integration === undefined ? {} : { integration: integration.scope }),
     bounds: briefing.bounds as unknown as WorkEvidence['bounds'],
     ...(inputs.package === undefined ? {} : { package: new Set(inputs.package.elements) }),

@@ -182,6 +182,8 @@ const effectiveConfiguration = { paths: ['features/**/*.feature'], tags: 'not @r
   import: ['support/world.mjs', 'support/steps.mjs'], require: [], requireModule: ['target-register'], loader: ['target-loader.mjs'], worldParameters: { marker: 'world' } };
 test('declared focused Cucumber config/environment excludes U and defaults, survives quoted cwd, and stale config is refused with zero new dispatch', async () => {
   const path = await root(); await writeFile(join(path, 'cucumber.json'), '{}'); let loads = 0;
+  await mkdir(join(path, 'features'), { recursive: true });
+  for (const name of ['A', 'B']) await writeFile(join(path, `features/${name}.feature`), `@ramify-pending\nFeature: ${name}\n Scenario: selected ${name}\n  Given selection\n`);
   const prepared = await prepareAssignedCucumber({ projectRoot: path, scratchDirectory: join(path, "plans/.harness/focused 'quote'"), featurePaths: ['features/A.feature', 'features/B.feature'],
     checks: [{ executor: { kind: 'command', commands: [{ cmd: join(path, 'node_modules/.bin/cucumber-js'), args: ['--config', 'cucumber.json', '--profile', 'declared'], parser: 'cucumber', env: { WORLD: 'declared', NODE_OPTIONS: '--import target-loader' } }] } }],
     runner: async request => { loads++; expect(request.env.WORLD).toBe('declared'); expect(JSON.parse(request.stdin!).profiles).toEqual(['declared']); return commandResult(request, { stdout: `RAMIFY_CUCUMBER_CONFIGURATION=${JSON.stringify({ schema: 'ramify-agent.cucumber-configuration/1', apiPath: join(path, 'node_modules/@cucumber/cucumber/lib/api/index.js'), configuration: effectiveConfiguration })}` }); } });
@@ -198,7 +200,15 @@ test('declared focused Cucumber config/environment excludes U and defaults, surv
     focusedCommands: [{ shellCommand: command.shellCommand, selection: command.selection, environment: command.environment, sourceFiles: prepared.sourceFiles }],
     commandExecution: async request => { dispatches++; expect(request.env.WORLD).toBe('declared'); expect(request.env.NODE_OPTIONS).toBe('--import target-loader'); return commandResult(request, { stdout: 'A/B' }); } });
   expect(await shell.definition.execute({ command: command.shellCommand }, new AbortController().signal)).not.toHaveProperty('isError', true); expect(dispatches).toBe(1);
+  await writeFile(join(path, 'features/A.feature'), 'Feature: changed after preparation\n');
+  expect(await shell.definition.execute({ command: command.shellCommand }, new AbortController().signal)).toMatchObject({ isError: true, text: expect.stringContaining('unverified') });
+  await writeFile(join(path, 'features/A.feature'), '@ramify-pending\nFeature: A\n Scenario: selected A\n  Given selection\n');
   await writeFile(command.configPath, '{"default":{"paths":["features/U.feature"]}}');
+  expect(await shell.definition.execute({ command: command.shellCommand }, new AbortController().signal)).toMatchObject({ isError: true, text: expect.stringContaining('unverified') });
+  await writeFile(command.configPath, command.configText);
+  const outside = await mkdtemp(join(tmpdir(), 'plan38-outside-')); cleanup.push(() => rm(outside, { recursive: true, force: true }));
+  await writeFile(join(outside, 'A.feature'), '@ramify-pending\nFeature: A\n Scenario: selected A\n  Given selection\n');
+  await rm(join(path, 'features/A.feature')); await symlink(join(outside, 'A.feature'), join(path, 'features/A.feature'));
   expect(await shell.definition.execute({ command: command.shellCommand }, new AbortController().signal)).toMatchObject({ isError: true, text: expect.stringContaining('unverified') });
   expect(await shell.definition.execute({ command: 'cucumber-js features/A.feature' }, new AbortController().signal)).toMatchObject({ isError: true }); expect(dispatches).toBe(1); await shell.settle();
 });

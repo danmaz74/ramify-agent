@@ -3,6 +3,7 @@ import { posix } from 'node:path';
 import { z } from 'zod';
 import { elementCatalogSchema, packageDeviationSchema } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { scenarioStateSchema } from '../../subs/scenarios/src/states.js';
+import { scenarioRecordSchema } from '../../subs/scenarios/src/records.js';
 import { apiViewEvidenceSchema } from '../interfaces/protocol/jobs.js';
 import { reviewRequestSchema } from '../reviews/records.js';
 import { viewIdentitySchema } from '../interfaces/protocol/evidence.js';
@@ -55,6 +56,7 @@ const pointReferenceSchema = z.string().refine(ref => readSessionPointReference(
 /** One scenario as a module engineer's briefing carries it. */
 const briefedScenarioSchema = z.object({
   id: text, name: text, state: scenarioStateSchema, file: relativePath, source: z.array(z.string()), partOf: z.string().nullable(),
+  origin: scenarioRecordSchema.shape.origin.optional(), citedElements: scenarioRecordSchema.shape.citedElements,
 }).strict();
 
 const engineerScenariosSchema = z.discriminatedUnion('kind', [
@@ -107,6 +109,7 @@ export const knownFactsSchema = z.object({
   modules: z.array(z.object({ module: text, directory: projectPathSchema, apiPaths: z.array(projectPathSchema) }).strict()),
   testAreas: z.array(z.object({ module: text, area: projectPathSchema }).strict()),
   scenarioFeatures: z.array(projectPathSchema),
+  projectFeatureRegistry: z.array(projectPathSchema).optional(),
   stepDirectories: z.array(z.object({ directory: projectPathSchema, files: z.array(projectPathSchema) }).strict()),
 }).strict();
 

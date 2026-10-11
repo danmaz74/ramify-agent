@@ -1,3 +1,4 @@
+import { featureSelectionErrors } from '../work/feature-selection.js';
 import { consultArchitectDeclaration } from '../consultations/submissions.js';
 import { consultationAvailability, consultationContext, type ConsultationInputs } from '../consultations/targets.js';
 import { join } from 'node:path';
@@ -122,6 +123,27 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
   const loaded = environment.packages.get('engineer');
   if (loaded === undefined) throw new Error('No prompt package is loaded for the module engineer');
   const { assignment } = inputs;
+  const selectionErrors = featureSelectionErrors(assignment.featureSelection, new Set((inputs.known.projectFeatureRegistry ?? inputs.known.scenarioFeatures).map(path => path.project)));
+  if (selectionErrors.length > 0) throw new Error(selectionErrors.map(error => `${error.path}: ${error.message}`).join('; '));
+  if (assignment.featureSelection?.files.some(file => !inputs.focused.featurePaths.some(path => path.project === file))) {
+    throw new Error('Captured focused paths omit an explicitly selected generated feature; import the assignment inputs again');
+  }
+  if (assignment.featureSelection !== undefined) {
+    const obligated = inputs.scenarios?.kind === 'entry'
+      ? inputs.scenarios.scenarios.filter(scenario => assignment.obligations?.includes(scenario.id)).map(scenario => scenario.file)
+      : inputs.scenarios?.kind === 'integration' && assignment.obligations?.includes(inputs.scenarios.integration.scenario.id)
+        ? [inputs.scenarios.integration.scenario.file] : [];
+    const selected = new Set([...assignment.featureSelection.files, ...obligated]);
+    if (inputs.focused.featurePaths.some(path => !selected.has(path.project))) {
+      throw new Error('Captured focused paths include a feature not selected by the assignment; import the assignment inputs again');
+    }
+  }
+  if (inputs.focused.command.kind === 'available') {
+    const selected = inputs.focused.featurePaths.map(file => path(projectRoot, file)).sort();
+    if (JSON.stringify([...inputs.focused.command.selection.paths].sort()) !== JSON.stringify(selected)) {
+      throw new Error('Captured Cucumber command paths differ from the exact assigned feature paths; import the assignment inputs again');
+    }
+  }
   const workingDirectory = path(projectRoot, inputs.workingDirectory);
   const capability = inputs.capabilityWorkflow;
   const start: EngineerStepStart = inputs.start.kind === 'fresh'
@@ -146,7 +168,7 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
     ...(inputs.scenarios === undefined ? {} : { scenarios: inputs.scenarios }),
     ...(inputs.obligations.length === 0 ? {} : { obligations: inputs.obligations }),
     ...(inputs.assignmentPackage === undefined ? {} : { package: inputs.assignmentPackage }),
-  })}${focused.featurePaths.length === 0 ? '' : focused.command.kind === 'available' ? `\n\n# Exact focused scenario command\n\n${focused.command.shellCommand}\nSupport/world/loader: ${JSON.stringify(focused.command.support)}\nEnvironment names: ${Object.keys(focused.command.environment).sort().join(', ')}. Config SHA-256 ${focused.command.configurationIdentity}; current generated and source bytes are revalidated at dispatch.\n${focusedCommandPendingNote}` : `\n\nFocused scenario command unavailable: ${focused.command.reason}. Do not combine CLI feature paths with the broad default profile.`}${inputs.guidance === undefined ? '' : `\n\n# Qualified existing behavior\n\n${inputs.guidance}`}${consultationContext(inputs.consultation, inputs.role)}`;
+  })}${focused.command.kind === 'available' ? `\n\n# Exact focused scenario command\n\n${focused.command.shellCommand}\nSupport/world/loader: ${JSON.stringify(focused.command.support)}\nEnvironment names: ${Object.keys(focused.command.environment).sort().join(', ')}. Config SHA-256 ${focused.command.configurationIdentity}; current generated and source bytes are revalidated at dispatch.\n${focusedCommandPendingNote}` : `\n\nFocused scenario command unavailable: ${focused.command.reason}. Do not combine CLI feature paths with the broad default profile.`}${inputs.guidance === undefined ? '' : `\n\n# Qualified existing behavior\n\n${inputs.guidance}`}${consultationContext(inputs.consultation, inputs.role)}`;
   const bounds = { idleMs: inputs.bounds.idleMs, absoluteMs: inputs.bounds.absoluteMs, commandTimeoutMs: inputs.bounds.commandTimeoutMs };
   const limits = invocationLimits(inputs.limits, { bounds });
   const consultation = consultationAvailability(inputs.consultation ?? undefined, inputs.role);

@@ -16,7 +16,7 @@ import { workOrientationToolName, contextSelectorToolName } from '../context-sel
 import { coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorAssessmentToolName,
   coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
 import { buildDeliveredManifest, exactInputHash, type DeliveredInput, type DeliveredManifest } from './delivered-manifest.js';
-import { deliveredBefore, effectiveBlocks, renderBlockSet, renderBlockRemoval, resolveBlockAdditions } from './blocks.js';
+import { deliveredBefore, effectiveBlocks, renderBlockSet, renderBlockRemoval, resolveBlockAdditions, setsBody } from './blocks.js';
 import { taskBriefingRevision, type BriefingDelivery } from './briefings.js';
 
 export type TaskKind = 'initial-analysis' | ExtractionTurn | 'placement' | 'orientation' | 'assignment' | 'completion' | 'repair'
@@ -250,29 +250,41 @@ export function buildTaskPacket(input: {
       body: key in selected ? environmentBody(key, selected[key]) : JSON.stringify({ [key]: canonicalJson(environment[key]) }, null, 2), source: null, revision: null })),
   ], withdraw: withdrawnEnvironment.filter(key => inheritedBlocks.has(`environment:${key}`)).map(key => `environment:${key}`) });
   const procedureHash = exactInputHash((reusable.find(item => item.key === procedureKey) ?? inheritedBlocks.get(procedureKey))!.text);
-  // Interpret recognizable legacy sections without inventing physical field deliveries.
-  // A framing migration delivers the current canonical representation once.
   const briefing = input.briefing;
-  const upgrades = briefing.currentSections.filter(section =>
-    !briefing.additions.some(item => item.key === `brief:${section.key}`) &&
-    !input.inherited.some(item => item.block?.key === `brief:${section.key}`))
-    .map(section => ({ key: `brief:${section.key}`, kind: 'brief' as const, text: section.text, source: section.source ?? null, revision: briefing.revision,
-      block: { key: `brief:${section.key}`, effect: section.effect ?? 'set' } }));
   // A brief that retains its inherited sections withdraws none of them: a
   // fork keeps what its source read.
   const delivered: DeliveredInput[] = [...input.inherited];
-  const briefingAdditions = [...input.briefing.additions, ...upgrades]
-    .filter(item => !(input.retainInheritedSections === true && item.block?.effect === 'remove'))
-    .map(item => {
-      const addition = { ...item,
-        text: item.block?.effect === 'remove' ? renderBlockRemoval(item.key) : renderBlockSet(item.key, item.text, deliveredBefore(delivered, item.key)),
-        block: item.block ?? { key: item.key, effect: 'set' as const } };
-      delivered.push(addition);
-      return addition;
-    });
+  const briefingAdditions: DeliveredInput[] = [];
+  const deliverBrief = (item: DeliveredInput): void => {
+    if (input.retainInheritedSections === true && item.block?.effect === 'remove') return;
+    const prior = effectiveBlocks(delivered).get(item.key);
+    if (item.block?.effect === 'remove' ? prior === undefined
+      : prior !== undefined && prior.source === item.source && setsBody(prior.text, item.key, item.text)) return;
+    const addition = { ...item,
+      text: item.block?.effect === 'remove' ? renderBlockRemoval(item.key) : renderBlockSet(item.key, item.text, deliveredBefore(delivered, item.key)),
+      block: item.block ?? { key: item.key, effect: 'set' as const } };
+    delivered.push(addition);
+    briefingAdditions.push(addition);
+  };
+  for (const item of briefing.additions) deliverBrief(item);
+  // Revision ancestry alone does not prove that a body survived replacement,
+  // withdrawal or incomplete inheritance. Reconcile against the exact effective
+  // deliveries, including legacy packets that lack block framing.
+  for (const section of briefing.currentSections) deliverBrief({
+    key: `brief:${section.key}`, kind: 'brief', text: section.text, source: section.source ?? null, revision: briefing.revision,
+    block: { key: `brief:${section.key}`, effect: section.effect ?? 'set' },
+  });
+  const retained = briefing.currentSections.flatMap(section => {
+    const key = `brief:${section.key}`;
+    const prior = inheritedBlocks.get(key);
+    return (section.effect ?? 'set') === 'set' && prior && prior.source === (section.source ?? null)
+      && setsBody(prior.text, key, section.text) && !briefingAdditions.some(item => item.key === key)
+      ? [`- ${key}: original delivery revision ${prior.revision ?? '(unrecorded)'}, source ${prior.source ?? '(task input)'}, SHA-256 ${exactInputHash(prior.text)}; original input ${prior.key}.`] : [];
+  });
   const revisionText = `Briefing revision: ${input.briefing.revision}; based on: ${input.briefing.basedOnRevision ?? 'none'} (${input.briefing.mode})`;
   const taskText = [`# Current task: ${input.kind}`, 'This selection supersedes every prior task selection.', `Active role: ${loaded.role}`, `Selected procedure: ${procedureKey}; SHA-256: ${procedureHash}`, input.objective,
     ...(input.changedPaths === undefined ? [] : ['', '# Canonical changed paths', ...input.changedPaths.map(item => `- ${item.path}${item.annotation ? ` (${item.annotation})` : ''}`)]),
+    ...(retained.length === 0 ? [] : ['', '# Retained task inputs', `Complete unchanged bodies remain effective in inherited point ${input.inheritedPoint}:`, ...retained]),
     '', `Submit only through \`${task.tool}\`. Only an accepted submission completes this task.`].join('\n');
   const additions: DeliveredInput[] = [
     ...(input.supplyRoleInstructions && previousRole.length === 0 ? [{ key: `role:${loaded.role}`, kind: 'role-instructions' as const, text: roleInstructions,

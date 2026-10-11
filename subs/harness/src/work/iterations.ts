@@ -1,3 +1,4 @@
+import { featureSelectionSchema } from './feature-selection.js';
 import { startingPointsSchema } from './starting-points.js';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -129,6 +130,8 @@ export const iterationAssignmentSchema = z.object({
    * every one; absent, none was named.
    */
   obligations: z.array(text).optional(),
+  /** Explicit evidence selection; never completion or write authority. */
+  featureSelection: featureSelectionSchema.optional(),
   /** The bounds the module architect raised for this iteration's engineers; absent, the policy's. */
   bounds: assignedBoundsSchema.optional(),
 }).strict();

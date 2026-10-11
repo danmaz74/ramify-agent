@@ -45,6 +45,17 @@ describe('assigning scenario IDs', () => {
     for (const record of assigned.records) expect(scenarioRecordSchema.parse(record)).toEqual(record);
   });
 
+  test('historical records retain original bytes; additive accepted citations keep their distinct identities', () => {
+    const legacy = assigned.records[0]!;
+    const bytes = JSON.stringify(legacy);
+    expect(scenarioRecordSchema.parse(JSON.parse(bytes))).toEqual(legacy);
+    expect(JSON.stringify(scenarioRecordSchema.parse(legacy))).toBe(bytes);
+    expect(legacy).not.toHaveProperty('citedElements');
+    const current = { ...legacy, citedElements: ['fr-001', 'fr-002'] };
+    expect(scenarioRecordSchema.parse(current).citedElements).toEqual(['fr-001', 'fr-002']);
+    expect(JSON.stringify(legacy)).toBe(bytes);
+  });
+
   test('an entry scenario\'s owner is its entry\'s, and its file is in the owner\'s test area', () => {
     const [mail, history, audit] = assigned.records;
     expect(mail).toMatchObject({ owner: 'shop/customers/mail', file: 'subs/customers/subs/mail/src/tests/features/send-customer-email/send-customer-email.feature' });

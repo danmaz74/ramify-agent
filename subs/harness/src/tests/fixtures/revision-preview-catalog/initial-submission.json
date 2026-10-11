@@ -1,0 +1,604 @@
+{
+  "schema": "ramify-agent.initial-analysis/3",
+  "elements": [
+    {
+      "kind": "context",
+      "document": "doc-001",
+      "text": "A caller can review a stored record, but cannot check a proposed revision chain before using it.",
+      "conditions": [],
+      "uncertainty": "",
+      "locator": "Preview a proposed revision chain",
+      "key": "preview-gap"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Add the tRPC mutation `reviews.preview`, taking `{ chain: RevisionChain }` and returning `{ status: ReviewStatus, findings: Finding[] }`. These are the existing shared vocabulary shapes. No record ID is needed.",
+      "conditions": [],
+      "uncertainty": "",
+      "locator": "Required behavior, first bullet",
+      "key": "preview-operation"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Apply the existing missing-predecessor and duplicate-revision rules, with their existing finding codes, messages, revision IDs and ordering. A chain passes exactly when it has no findings. An empty chain passes.",
+      "conditions": [],
+      "uncertainty": "",
+      "locator": "Required behavior, second bullet",
+      "key": "preview-rules"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "A predecessor absent from the supplied chain produces a `missing-predecessor` finding and a failed preview. It is never treated as an empty successful result. Resolve references only within the supplied chain.",
+      "conditions": [
+        {
+          "text": "A predecessor is absent from the supplied chain.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Required behavior, third bullet",
+      "key": "preview-local-resolution"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Use the existing revision-chain schema to reject absent or malformed `chain` input with tRPC `BAD_REQUEST`. Absence is distinct from an explicit empty array. This is argument validation, not a review finding.",
+      "conditions": [
+        {
+          "text": "The `chain` input is absent or malformed.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Required behavior, fourth bullet",
+      "key": "preview-input-validation"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "A caller should also be able to edit a catalog inspection's returned chain as a working copy without changing the catalog.",
+      "conditions": [],
+      "uncertainty": "This delivered working-copy behavior is an entry at the existing direct inspection API; the separately recorded independent-snapshot constraint specifies its isolation and verification obligations.",
+      "locator": "Preview a proposed revision chain, opening paragraph",
+      "key": "editable-inspection"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Scenario: Preview an intact proposed chain\n  Given a proposed chain containing revision \"rev-1\" with no predecessor\n  And revision \"rev-2\" following \"rev-1\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"passed\"\n  And the preview has no findings",
+      "conditions": [
+        {
+          "text": "The supplied chain contains rev-1 without a predecessor and rev-2 following rev-1.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Acceptance, lines 71–76",
+      "key": "accept-intact"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Scenario: Preview an explicitly empty chain\n  Given an explicitly empty proposed chain\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"passed\"\n  And the preview has no findings",
+      "conditions": [
+        {
+          "text": "The supplied chain is explicitly empty.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Acceptance, lines 78–82",
+      "key": "accept-empty"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Scenario: A missing predecessor survives the provider boundary\n  Given a proposed chain containing only revision \"rev-2\" following \"rev-0\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"failed\"\n  And its only finding has code \"missing-predecessor\" and revision ID \"rev-2\"\n  And that finding says \"Revision rev-2 follows rev-0, which is not a revision of the inspected chain.\"",
+      "conditions": [
+        {
+          "text": "The supplied chain contains only rev-2 following rev-0.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Acceptance, lines 84–89",
+      "key": "accept-missing-predecessor"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Scenario: Preview retains the existing rules and their ordering\n  Given a proposed chain containing revision \"rev-1\" with no predecessor\n  And a second revision also named \"rev-1\" following \"rev-0\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"failed\"\n  And its finding codes in order are \"missing-predecessor\", \"duplicate-revision\"\n  And both findings identify revision \"rev-1\"",
+      "conditions": [
+        {
+          "text": "A second revision repeats rev-1 and follows the absent rev-0.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Acceptance, lines 91–97",
+      "key": "accept-rule-order"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Scenario: Missing input is not an empty chain\n  Given an untyped preview request with no chain field\n  When I submit that request through tRPC\n  Then the request fails with code \"BAD_REQUEST\"",
+      "conditions": [
+        {
+          "text": "An untyped preview request has no chain field.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Acceptance, lines 99–102",
+      "key": "accept-absent-input"
+    },
+    {
+      "kind": "functional",
+      "document": "doc-001",
+      "text": "Scenario: Existing stored-record reviews keep their behavior\n  Given the catalog's original \"rec-valid\" and \"rec-broken\" records\n  When I review \"rec-valid\" through the existing tRPC operation with all revisions\n  Then the review passes with no findings\n  When I review \"rec-broken\" through the existing tRPC operation with all revisions\n  Then the review fails with a \"missing-predecessor\" finding for \"rev-2\"\n  When I review \"rec-valid\" through the existing tRPC operation with only its latest revision\n  Then the review fails with a \"missing-predecessor\" finding for \"rev-2\"",
+      "conditions": [
+        {
+          "text": "The catalog retains its original rec-valid and rec-broken records.",
+          "source": "stated"
+        }
+      ],
+      "uncertainty": "",
+      "locator": "Acceptance, lines 104–111",
+      "key": "accept-stored-reviews"
+    }
+  ],
+  "entries": [
+    {
+      "capability": "preview-proposed-revision-chain",
+      "description": "Publish reviews.preview as one new tRPC mutation using the existing chain schema and vocabulary. Consume protocol-independent preview behavior from Review Validation, preserve all existing reviews, and establish the composed result through the assembled typed client with real providers, including invalid untyped input. Review declarations and actual imports for resolver reuse, update affected module descriptions and READMEs, and retain all declared project checks.",
+      "owner": "collection-review/workspace/reviews",
+      "requirementRefs": [
+        "preview-operation",
+        "preview-rules",
+        "preview-local-resolution",
+        "preview-input-validation"
+      ],
+      "acceptanceRefs": [
+        "accept-intact",
+        "accept-empty",
+        "accept-missing-predecessor",
+        "accept-rule-order",
+        "accept-absent-input",
+        "accept-stored-reviews",
+        "preview-input-validation",
+        "preview-local-resolution",
+        "preview-rules",
+        "preview-operation"
+      ],
+      "contextRefs": [
+        "preview-gap"
+      ],
+      "citations": [
+        {
+          "module": "collection-review/workspace/reviews",
+          "file": ".ramify-architect/workspace/reviews/module.json",
+          "note": "Purpose assigns tRPC feature adaptation to this existing dispatch owner."
+        },
+        {
+          "module": "collection-review/workspace/reviews",
+          "file": "subs/workspace/subs/reviews/src/router.ts",
+          "symbol": "createReviewsRouter",
+          "note": "Owns the existing run mutation; preview belongs beside it without putting review rules into the adapter."
+        },
+        {
+          "module": "collection-review/workspace/reviews",
+          "file": "subs/workspace/subs/reviews/src/tests/router.test.ts",
+          "note": "Existing tests use the root's assembled createTestSystem client, rather than a substituted validator or inspection provider."
+        },
+        {
+          "module": "collection-review/workspace/contracts",
+          "file": "subs/workspace/subs/contracts/src/interfaces/vocabulary.ts",
+          "symbol": "revisionChainSchema",
+          "note": "Existing shared schema accepts an empty array, requires nonempty revision IDs, and requires a nullable predecessor field."
+        }
+      ]
+    },
+    {
+      "capability": "inspect-editable-revision-snapshot",
+      "description": "Make every successful direct catalog inspection an independently mutable working report for both all and latest scopes. Detach the returned chain array and revision objects from stored records and other reports, isolate predecessor and finding arrays, and verify this directly without serialization while preserving inspection facts, observations and mutable public types.",
+      "owner": "collection-review/workspace/catalog/core",
+      "requirementRefs": [
+        "editable-inspection"
+      ],
+      "acceptanceRefs": [
+        "editable-inspection"
+      ],
+      "contextRefs": [
+        "preview-gap"
+      ],
+      "citations": [
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": ".ramify-architect/workspace/catalog/core/module.json",
+          "note": "Existing owner holds the fixed records and neutral inspections; no new module is needed for report detachment."
+        },
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": "subs/workspace/subs/catalog/subs/core/src/catalog.ts",
+          "symbol": "inspect",
+          "note": "The all scope currently returns the stored chain array; latest slices the array but retains revision-object aliases. Snapshot ownership must be fixed here, not in serialization."
+        },
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": "subs/workspace/subs/catalog/subs/core/src/catalog.ts",
+          "symbol": "getRecord",
+          "note": "Summary observations provide an additional direct check that mutating a report did not change stored record counts or latest identity."
+        },
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": "subs/workspace/subs/catalog/subs/core/src/tests/catalog.test.ts",
+          "note": "Existing direct API tests verify values and observations but do not retain and mutate two inspection reports."
+        }
+      ]
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "reuse-catalog-history-contract",
+      "capability": "resolve-chain-predecessors",
+      "change": "reuse",
+      "changesExistingSymbols": true,
+      "suggestedOwner": "collection-review/workspace/catalog/core",
+      "anticipatedConsumers": [
+        "collection-review/workspace/reviews/validation",
+        "collection-review/workspace/catalog/core"
+      ],
+      "involvedModules": [
+        "collection-review/workspace/catalog/core",
+        "collection-review/workspace/catalog",
+        "collection-review/workspace",
+        "collection-review/workspace/reviews/validation"
+      ],
+      "dependsOn": [],
+      "confidence": "high",
+      "rationale": "The existing pure resolver already splits predecessor references using only the supplied chain, retaining encounter order and repeated references. Reuse it in place, with only the necessary type companion exposed. Proposed declarations: Catalog Core adds `expose-src resolvePredecessors, PredecessorResolution from \"history.ts\" to parent`; Catalog adds `expose-sub resolvePredecessors, PredecessorResolution from core to parent`; Workspace adds `expose-sub resolvePredecessors, PredecessorResolution from catalog to descendants`. These re-exposing owners do not implement the helper. This changes an existing production symbol's contract visibility and descriptions, not its algorithm. Establish this contract before Validation consumes it.",
+      "assumptions": [
+        "PredecessorResolution is the only owner-local type companion needed; RevisionChain already comes from Contracts.",
+        "Retain the existing tree and untagged helper ownership; relaying through dispatch/browser owners must not add their coupling to the original.",
+        "Keep findRecord, listRecords and CatalogRecord private."
+      ],
+      "uncertainties": [
+        "No requester ordinary API view is supplied, so the proposed import availability is not verified here. The declaration/import consistency must be established by the structure gate.",
+        "Workspace's descendant exposure is the existing style for cross-feature contracts; narrower recipient selection has not been requested."
+      ],
+      "citations": [
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": ".ramify-architect/workspace/catalog/core/behavior.jsonl",
+          "note": "The retained resolvePredecessors record is internal and source-exported; it is not currently an exposed production contract."
+        },
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": "subs/workspace/subs/catalog/subs/core/src/history.ts",
+          "symbol": "resolvePredecessors",
+          "note": "Uses a set of supplied revision IDs and pushes references in chain order without deduplicating reference arrays; contains no record lookup."
+        },
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": "subs/workspace/subs/catalog/subs/core/module.ramify",
+          "note": "Current production exposure contains getRecord, inspect and CatalogSummary, not the history helper."
+        },
+        {
+          "module": "collection-review/workspace/catalog",
+          "file": "subs/workspace/subs/catalog/module.ramify",
+          "note": "Existing inspection and fixture re-exposures establish the path from Core to Workspace."
+        },
+        {
+          "module": "collection-review/workspace",
+          "file": "subs/workspace/module.ramify",
+          "note": "Common ancestor already re-exposes neutral contracts and fixtures to descendants."
+        }
+      ]
+    },
+    {
+      "id": "reuse-report-review-rules",
+      "capability": "judge-inspection-report",
+      "change": "reuse",
+      "changesExistingSymbols": false,
+      "suggestedOwner": "collection-review/workspace/reviews/validation",
+      "anticipatedConsumers": [
+        "collection-review/workspace/reviews/validation proposed-chain preview",
+        "collection-review/workspace/reviews/core existing runtime"
+      ],
+      "involvedModules": [
+        "collection-review/workspace/reviews/validation",
+        "collection-review/workspace/reviews/core"
+      ],
+      "dependsOn": [],
+      "confidence": "high",
+      "rationale": "validateRevisionChain already returns missing-predecessor findings before duplicate-revision findings, with the required messages and revision IDs. It judges report.unresolvedPredecessors rather than recomputing resolution. Reusing this existing rule entry with preview-specific facts preserves scoped existing callers and avoids copying rules into Reviews.",
+      "assumptions": [
+        "Keep validateRevisionChain(report) intact and share its rules rather than replacing its input semantics.",
+        "A report-shaped preview value is a permitted implementation choice, not an obligation.",
+        "Add direct provider regression checks using supplied resolution facts that deliberately differ from what a bare-chain recomputation would infer."
+      ],
+      "uncertainties": [
+        "An engineer may choose a small internal shared-rule abstraction instead of constructing a report-shaped value; that could touch existing symbols and requires renewed break analysis."
+      ],
+      "citations": [
+        {
+          "module": "collection-review/workspace/reviews/validation",
+          "file": "subs/workspace/subs/reviews/subs/validation/src/validate.ts",
+          "symbol": "validateRevisionChain",
+          "note": "Concatenates missingPredecessors(report) and duplicateRevisions(report); missing findings are based on the supplied unresolvedPredecessors facts."
+        },
+        {
+          "module": "collection-review/workspace/reviews/validation",
+          "file": ".ramify-architect/workspace/reviews/validation/tests.jsonl",
+          "note": "Existing tests include scoped predecessor facts, empty chains and duplicate ordering."
+        }
+      ]
+    },
+    {
+      "id": "create-neutral-chain-preview",
+      "capability": "evaluate-proposed-revision-chain",
+      "change": "create",
+      "changesExistingSymbols": false,
+      "suggestedOwner": "collection-review/workspace/reviews/validation",
+      "anticipatedConsumers": [
+        "collection-review/workspace/reviews"
+      ],
+      "involvedModules": [
+        "collection-review/workspace/reviews/validation",
+        "collection-review/workspace/catalog/core",
+        "collection-review/workspace/reviews",
+        "collection-review/workspace/contracts"
+      ],
+      "dependsOn": [
+        "reuse-catalog-history-contract",
+        "reuse-report-review-rules"
+      ],
+      "confidence": "high",
+      "rationale": "Validation already owns review judgment but accepts reports, not proposed chains. Add a new pure provider behavior there to obtain resolution facts from Core, share existing rules and return a passed/failed judgment. Reviews should adapt it, not implement it. Preserving the current tree wins: placing it in Catalog Core would mix facts with judgment; placing it in Reviews or the runtime would add protocol/lifecycle coupling without hiding useful complexity. Expose the new provider from Validation to its parent using an expose-src declaration; its name, file and result shape remain implementation choices. Sequence this provider after the helper contract and before the tRPC adapter.",
+      "assumptions": [
+        "No new module, protocol dependency, runtime dependency or package dependency is needed.",
+        "The provider can be added without changing the existing validator's signature or meaning.",
+        "Direct provider tests should retain the supplied chain and revision objects and confirm they are not mutated; assembled-client tests alone cannot prove reference-level purity.",
+        "Status is passed exactly when the shared rules produce zero findings, including an explicitly empty chain."
+      ],
+      "uncertainties": [
+        "The internal API name and whether it returns findings or the complete neutral outcome are deliberately unspecified.",
+        "If report-shaped reuse is selected, any synthetic report identity must remain an internal implementation detail and must not cause record access or appear in the public preview response."
+      ],
+      "citations": [
+        {
+          "module": "collection-review/workspace/reviews/validation",
+          "file": ".ramify-architect/workspace/reviews/validation/module.json",
+          "note": "Purpose assigns deterministic chain judgment to this untagged module; currently it depends only on vocabulary."
+        },
+        {
+          "module": "collection-review/workspace/reviews/validation",
+          "file": "subs/workspace/subs/reviews/subs/validation/module.ramify",
+          "note": "Existing validator is exposed to the parent; the new preview provider needs its own parent exposure."
+        },
+        {
+          "module": "collection-review/workspace/reviews/validation",
+          "file": "subs/workspace/subs/reviews/subs/validation/src/validate.ts",
+          "symbol": "validateRevisionChain",
+          "note": "Existing reusable rules take an inspection report, establishing why a new supplied-chain behavior is needed."
+        },
+        {
+          "module": "collection-review/workspace/reviews",
+          "file": "subs/workspace/subs/reviews/src/router.ts",
+          "symbol": "createReviewsRouter",
+          "note": "Existing adapter consumes child-owned behavior rather than owning judgment."
+        },
+        {
+          "module": "collection-review/workspace/catalog/core",
+          "file": ".ramify-architect/workspace/catalog/core/module.json",
+          "note": "Catalog Core's purpose explicitly leaves turning unresolved references into findings to Validation."
+        }
+      ]
+    },
+    {
+      "id": "reuse-shared-preview-vocabulary",
+      "capability": "parse-revision-chain-arguments",
+      "change": "reuse",
+      "changesExistingSymbols": false,
+      "suggestedOwner": "collection-review/workspace/contracts",
+      "anticipatedConsumers": [
+        "collection-review/workspace/reviews",
+        "collection-review/workspace/reviews/validation"
+      ],
+      "involvedModules": [
+        "collection-review/workspace/contracts",
+        "collection-review/workspace",
+        "collection-review/workspace/reviews",
+        "collection-review/workspace/reviews/validation"
+      ],
+      "dependsOn": [],
+      "confidence": "high",
+      "rationale": "Contracts already owns RevisionChain, ReviewStatus, Finding and revisionChainSchema. Workspace's wildcard descendant re-exposure is declared. The adapter can compose a required chain field around that existing schema rather than inventing new domain validation or defaulting absent input to an empty chain. No vocabulary changes appear necessary.",
+      "assumptions": [
+        "Reuse revisionChainSchema in required object input, with no optional/default fallback for chain.",
+        "Use an intentionally untyped or miscast assembled-client request for absent/malformed input acceptance tests."
+      ],
+      "uncertainties": [
+        "Current import availability is not independently checked against an ordinary requester API view, which is not supplied."
+      ],
+      "citations": [
+        {
+          "module": "collection-review/workspace/contracts",
+          "file": "subs/workspace/subs/contracts/src/interfaces/vocabulary.ts",
+          "symbol": "revisionChainSchema",
+          "note": "Existing chain schema is an array of the shared revision schema."
+        },
+        {
+          "module": "collection-review/workspace/contracts",
+          "file": ".ramify-architect/workspace/contracts/supporting.jsonl",
+          "symbol": "ReviewStatus",
+          "note": "Existing passed/failed shared status, re-exposed to Workspace descendants."
+        },
+        {
+          "module": "collection-review/workspace/contracts",
+          "file": ".ramify-architect/workspace/contracts/supporting.jsonl",
+          "symbol": "Finding",
+          "note": "Existing shared finding shape."
+        },
+        {
+          "module": "collection-review/workspace",
+          "file": "subs/workspace/module.ramify",
+          "note": "Declares expose-sub * from contracts to descendants."
+        }
+      ]
+    }
+  ],
+  "coverageLimits": [
+    "Evidence identity: architect revision rev/1:a1e8a16d-de13-4ba2-baee-8e91eaf0cfac:1; input input/1:bcce6c846a0d35c39a5e9417b9c5205a1a3d505d8dd13ee0c8950660457a2f7e; supplied source commit bb63445b54cd01915b15bb4dd845892a7aa82709; briefing revision c643856c25365f807d21821cfb02660f9d77befa645da71d979b36979af4359c.",
+    ".ramify-architect/_meta.json reports 15 modules; dependencies measured with production scope, testReferences measured, metrics measured, cut 11 and detailsUnavailable 4. It supplies no unknownShapes field; do not infer completeness beyond those recorded states.",
+    "Retained truncated detail: src/assembly.ts#assembleRouter (signature); src/tests/setup.ts#startServedTestSystem (documentation); src/protocol.ts#createMcpServer (signature); src/interfaces/protocol.ts#McpToolContribution (signature); subs/integration-tests/src/support/world.ts#CollectionReviewWorld (signature); subs/workspace/src/client.ts#createClient (signature); subs/workspace/src/app.tsx#loadShell (signature); subs/workspace/subs/catalog/subs/core/src/catalog.ts#inspect (signature); subs/workspace/subs/contracts/src/interfaces/vocabulary.ts#inspectionReportSchema (signature and documentation); subs/workspace/subs/reviews/subs/ui/src/review-panel.tsx#loadReview (signature); subs/workspace/subs/reviews/subs/validation/src/validate.ts#validateRevisionChain (signature). Focused source reads clarified inspect, vocabulary and validate, but do not erase these retained view limits.",
+    "Retained unavailable detail: vite.config.ts#default, vitest.config.ts#default, subs/workspace/subs/catalog/subs/ui/src/catalog-card.module.css#default and subs/workspace/subs/reviews/subs/ui/subs/pure-ui/src/review-result.module.css#default, each unsupported-declaration. No absence conclusion is drawn from them.",
+    "Discovery found existing report rules and history resolution but no supplied-chain preview in the focused Reviews, Validation and Catalog Core records. This is not proof of absence across unavailable or truncated evidence.",
+    "Only the supplied architect view was used. No ordinary or testing requester API view was supplied for current access verification; exposure proposals are derived from actual declarations, not a claim of established import availability. The structure gate must validate resulting declarations and imports.",
+    "Read-only role: no files changed, commands run, checks executed or scratch-worktree validation performed. Retain fixture-type-check, fixture-tests, fixture-scenarios and fixture-structure as declared; their results are unknown here. Structural review must establish real resolver reuse and privacy, and affected module descriptions and READMEs must describe the new pure-history-helper contract.",
+    "Source files read: subs/workspace/subs/reviews/src/router.ts; subs/workspace/subs/reviews/src/tests/router.test.ts; subs/workspace/subs/reviews/subs/validation/src/validate.ts; subs/workspace/subs/catalog/subs/core/src/catalog.ts; subs/workspace/subs/catalog/subs/core/src/history.ts; subs/workspace/subs/catalog/subs/core/src/tests/catalog.test.ts; subs/workspace/subs/contracts/src/interfaces/vocabulary.ts. Declarations read: subs/workspace/module.ramify; subs/workspace/subs/catalog/module.ramify; subs/workspace/subs/catalog/subs/core/module.ramify; subs/workspace/subs/reviews/module.ramify; subs/workspace/subs/reviews/subs/validation/module.ramify.",
+    "The plan is the frozen doc-001 supplied in the briefing; the live plan file was not treated as input. Accepted intake non-functional elements and recommendations are retained, not reclassified.",
+    "Provider-level purity and preservation of supplied report-resolution facts need direct tests in addition to composed tRPC scenarios; transport serialization cannot establish alias isolation. Internal preview API naming and report-shaped versus shared-rule composition remain implementation choices."
+  ],
+  "scenarios": [
+    {
+      "key": "preview-intact",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "plan",
+        "planScenario": "ps-01"
+      },
+      "refs": [
+        "accept-intact",
+        "preview-operation",
+        "preview-rules"
+      ],
+      "gherkin": "Scenario: Preview an intact proposed chain\n  Given a proposed chain containing revision \"rev-1\" with no predecessor\n  And revision \"rev-2\" following \"rev-1\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"passed\"\n  And the preview has no findings"
+    },
+    {
+      "key": "preview-empty",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "plan",
+        "planScenario": "ps-02"
+      },
+      "refs": [
+        "accept-empty",
+        "preview-rules"
+      ],
+      "gherkin": "Scenario: Preview an explicitly empty chain\n  Given an explicitly empty proposed chain\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"passed\"\n  And the preview has no findings"
+    },
+    {
+      "key": "preview-missing-predecessor",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "plan",
+        "planScenario": "ps-03"
+      },
+      "refs": [
+        "accept-missing-predecessor",
+        "preview-local-resolution",
+        "preview-rules"
+      ],
+      "gherkin": "Scenario: A missing predecessor survives the provider boundary\n  Given a proposed chain containing only revision \"rev-2\" following \"rev-0\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"failed\"\n  And its only finding has code \"missing-predecessor\" and revision ID \"rev-2\"\n  And that finding says \"Revision rev-2 follows rev-0, which is not a revision of the inspected chain.\""
+    },
+    {
+      "key": "preview-rule-order",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "plan",
+        "planScenario": "ps-04"
+      },
+      "refs": [
+        "accept-rule-order",
+        "preview-rules"
+      ],
+      "gherkin": "Scenario: Preview retains the existing rules and their ordering\n  Given a proposed chain containing revision \"rev-1\" with no predecessor\n  And a second revision also named \"rev-1\" following \"rev-0\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"failed\"\n  And its finding codes in order are \"missing-predecessor\", \"duplicate-revision\"\n  And both findings identify revision \"rev-1\""
+    },
+    {
+      "key": "preview-absent-input",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "plan",
+        "planScenario": "ps-05"
+      },
+      "refs": [
+        "accept-absent-input",
+        "preview-input-validation"
+      ],
+      "gherkin": "Scenario: Missing input is not an empty chain\n  Given an untyped preview request with no chain field\n  When I submit that request through tRPC\n  Then the request fails with code \"BAD_REQUEST\""
+    },
+    {
+      "key": "stored-review-regression",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "plan",
+        "planScenario": "ps-06"
+      },
+      "refs": [
+        "accept-stored-reviews"
+      ],
+      "gherkin": "Scenario: Existing stored-record reviews keep their behavior\n  Given the catalog's original \"rec-valid\" and \"rec-broken\" records\n  When I review \"rec-valid\" through the existing tRPC operation with all revisions\n  Then the review passes with no findings\n  When I review \"rec-broken\" through the existing tRPC operation with all revisions\n  Then the review fails with a \"missing-predecessor\" finding for \"rev-2\"\n  When I review \"rec-valid\" through the existing tRPC operation with only its latest revision\n  Then the review fails with a \"missing-predecessor\" finding for \"rev-2\""
+    },
+    {
+      "key": "preview-malformed-input",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "architect"
+      },
+      "refs": [
+        "preview-input-validation"
+      ],
+      "gherkin": "Scenario Outline: Malformed proposed chains are argument errors\n  Given an untyped preview request with chain value <chain>\n  When I submit that request through tRPC\n  Then the request fails with code \"BAD_REQUEST\"\n  And no preview judgment is returned\n\n  Examples:\n    | chain                                  |\n    | null                                   |\n    | {}                                     |\n    | [{\"id\":\"rev-1\"}]                       |\n    | [{\"id\":\"\",\"predecessor\":null}]         |\n    | [{\"id\":\"rev-1\",\"predecessor\":7}]        |\n    | [{\"id\":\"rev-1\",\"predecessor\":\"\"}]       |"
+    },
+    {
+      "key": "preview-no-catalog-resolution",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "architect"
+      },
+      "refs": [
+        "preview-local-resolution",
+        "preview-operation"
+      ],
+      "gherkin": "Scenario: Preview does not resolve a predecessor from stored history\n  Given the catalog's original \"rec-valid\" record contains revision \"rev-1\"\n  And a proposed chain contains only revision \"rev-2\" following \"rev-1\"\n  When I preview the proposed chain through tRPC without a record ID\n  Then the preview status is \"failed\"\n  And its only finding has code \"missing-predecessor\" and revision ID \"rev-2\"\n  And that finding says \"Revision rev-2 follows rev-1, which is not a revision of the inspected chain.\"\n  And the response contains only status and findings"
+    },
+    {
+      "key": "preview-repeated-rule-findings",
+      "entry": "preview-proposed-revision-chain",
+      "origin": {
+        "kind": "architect"
+      },
+      "refs": [
+        "preview-rules"
+      ],
+      "gherkin": "Scenario: Preview keeps repeated missing references and duplicate messages\n  Given a proposed chain contains revision \"rev-1\" with no predecessor\n  And revision \"rev-2\" following \"rev-0\"\n  And a second revision named \"rev-2\" following \"rev-0\"\n  When I preview the proposed chain through tRPC\n  Then the preview status is \"failed\"\n  And its finding codes in order are \"missing-predecessor\", \"missing-predecessor\", \"duplicate-revision\"\n  And every finding identifies revision \"rev-2\"\n  And both missing-predecessor findings say \"Revision rev-2 follows rev-0, which is not a revision of the inspected chain.\"\n  And the duplicate-revision finding says \"The chain records more than one revision under the id rev-2.\""
+    },
+    {
+      "key": "snapshot-all-scope",
+      "entry": "inspect-editable-revision-snapshot",
+      "origin": {
+        "kind": "architect"
+      },
+      "refs": [
+        "editable-inspection"
+      ],
+      "gherkin": "Scenario: Full inspections are independent editable working copies\n  Given the original \"rec-valid\" record has revision \"rev-1\" with no predecessor and revision \"rev-2\" following \"rev-1\"\n  And I retain two successful direct inspections of all its revisions without serialization\n  When I change the first report's last revision ID to \"edited\" and its predecessor to \"absent\"\n  And I remove a revision from its chain and append revision \"rev-3\" following \"edited\"\n  And I replace entries in its resolved and unresolved predecessor arrays\n  And I append a finding and edit that finding's fields\n  Then every edit succeeds without a frozen or readonly result\n  And the second report and a fresh direct inspection still contain the original two revisions\n  And both reports still have resolved predecessors [\"rev-1\"], unresolved predecessors [] and findings []\n  And the record summary still has revision count 2 and latest revision ID \"rev-2\"\n  And the fresh inspection still emits \"inspection-started\" then \"inspection-finished\" with the original messages"
+    },
+    {
+      "key": "snapshot-latest-scope",
+      "entry": "inspect-editable-revision-snapshot",
+      "origin": {
+        "kind": "architect"
+      },
+      "refs": [
+        "editable-inspection"
+      ],
+      "gherkin": "Scenario: Latest inspections detach revision objects and all mutable arrays\n  Given the original \"rec-valid\" record has revision \"rev-1\" with no predecessor and revision \"rev-2\" following \"rev-1\"\n  And I retain two successful direct inspections of only its latest revision without serialization\n  When I change the first report's revision ID to \"edited\" and its predecessor to \"absent\"\n  And I remove that revision from its chain and append revision \"rev-3\" following \"edited\"\n  And I replace entries in its resolved and unresolved predecessor arrays\n  And I append a finding and edit that finding's fields\n  Then every edit succeeds without a frozen or readonly result\n  And the second report and a fresh direct latest inspection still contain only revision \"rev-2\" following \"rev-1\"\n  And both reports still have resolved predecessors [], unresolved predecessors [\"rev-1\"] and findings []\n  And a fresh direct inspection of all revisions still contains the original two revisions\n  And the record summary still has revision count 2 and latest revision ID \"rev-2\"\n  And the fresh latest inspection still emits \"inspection-started\" then \"inspection-finished\" with the original messages"
+    }
+  ],
+  "integrationScenarios": []
+}

@@ -467,6 +467,14 @@ export function iterationMessage(briefing: IterationBriefing): string {
   }
 
   lines.push('## Completion evidence', '', assignment.completionEvidence, '');
+  if (assignment.featureSelection !== undefined) lines.push(
+    '## Explicit feature evidence', '',
+    `Selected generated files: ${assignment.featureSelection.files.map(file => `\`${file}\``).join(', ')}.`,
+    `Reason: ${assignment.featureSelection.reason}`,
+    `Assignment authority: ${JSON.stringify(assignment.coordination ?? { kind: 'work-item', id: assignment.workItem })}; design record ${assignment.outline.id} revision ${assignment.outline.revision}.`,
+    'This selection supplies evidence independently of completion obligations. It changes no write scope or acceptance authority; generated feature files remain protected.',
+    'A successful exit with zero executed cases establishes no scenario acceptance. Preserve ambiguous, undefined, failed and unrun results and their limitations for the assigning architect.', '',
+  );
   const owners = [...assignment.gate.tests.exactOwners, ...assignment.gate.tests.subtrees.map(subtree => `${subtree} (subtree)`)];
   lines.push(
     `The gate commits a candidate and asks for the project's committed audit of it at the \`${assignment.gate.checkpoint}\` checkpoint:`,
@@ -484,7 +492,7 @@ export function iterationMessage(briefing: IterationBriefing): string {
     '',
   );
   lines.push(...obligationsToBindSection(briefing.obligations ?? (assignment.obligations ?? []).map(id => ({ id, text: null }))));
-  lines.push(...engineerScenarioSection(briefing.scenarios, assignment.obligations ?? []));
+  lines.push(...engineerScenarioSection(briefing.scenarios, assignment.obligations ?? [], briefing.package === undefined ? [] : [briefing.package]));
 
   if (assignment.externalCapabilities.length > 0) {
     lines.push('## Capabilities other modules own', '');

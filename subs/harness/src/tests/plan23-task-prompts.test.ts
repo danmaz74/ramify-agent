@@ -392,7 +392,8 @@ describe('P04: manifests reflect supplied/inherited instructions and truthful re
     expect(ordinary.get('local-architect')!.procedure).toContain('is imported only when the evidence records that import');
     expect(ordinary.get('local-architect')!.procedure).toContain('provenance is unavailable');
     expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('requirementRefs names functional');
-    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Never copy Gherkin');
+    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Copying Gherkin alone warrants no correction');
+    expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('Correct omitted');
     expect(current.get('catalog-extractor')!.extraction!.check.procedure).toContain('without adding any');
     const repair = repairPrompt('Fix status', { tree: 'a'.repeat(40), head: 'head', preparedAt: '2026-10-08T00:00:00Z' },
       'Requirement text', 'status', { evidence: [], uncertainty: '' });

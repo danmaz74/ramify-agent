@@ -84,7 +84,7 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
       if (mode === 'partial-blocker' && owner === p) return submit({
         kind: 'completion-proposed', summary: 'Root updated its stale assertion', findings: [], startingPoints: engineerPoints,
       }, edit('tests/stale.test.ts', "expect('old')", "expect('readable denial')"));
-      if (owner === b) return submit({ kind: 'completion-proposed', summary: 'B extended', findings: [], startingPoints: engineerPoints },
+      if (owner === b) return submit({ kind: 'completion-proposed', summary: 'B extended', findings: [], startingPoints: engineerPoints, bindings: [{ id: 'cap-001', fakes: [] }] },
         write('fact.ts', "export const readFact = () => 'old from B';\n"),
         write('../../a/src/caller.ts', 'export const escaped = true;\n'));
       if (owner === d) return submit({ kind: 'completion-proposed', summary: 'D migrated', findings: [], startingPoints: engineerPoints },
@@ -103,7 +103,8 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
       const basis = { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] };
       if (mode === 'partial-blocker') return architect <= 2
         ? submit({ ...basis, kind: 'assign', assignment: assign(architect === 1 ? a : p, { startingPoints: assignmentPoints, goal: architect === 1 ? 'Render A denial' : 'Repair root-owned stale assertion', approach: 'Change only owned source or tests', completionEvidence: 'Owned source diff' }).assignment })
-        : [{ kind: 'wait', ms: 60_000 }];
+        : architect === 3 ? submit({ ...basis, kind: 'partial', progress: 'Readable denial and stale assertion repaired; real-provider composition remains blocked',
+          unfinished: ['Verify required real B/A integration; A architect retains the person-review consumer goal'] }) : [{ kind: 'wait', ms: 60_000 }];
       if (mode === 'boundary' && architect === 1) return submit({ ...basis, kind: 'request-placement',
         problem: 'Should another owner take the source fact?', evidence: ['B currently owns it'] });
       if (mode === 'boundary' && architect === 2) return submit({ ...basis, kind: 'consult-consumer',
@@ -124,6 +125,7 @@ function script(root: string, seen: string[], mode: 'assignments' | 'boundary' |
       const owners = [b, d, p, a];
       if (architect >= 2 && architect <= 5) return submit({ ...basis, kind: 'assign', assignment: assign(owners[architect - 2]!, {
         startingPoints: assignmentPoints, goal: `Update ${owners[architect - 2]}`, approach: 'Change owned source', completionEvidence: 'Owned source diff',
+        ...(architect === 2 ? { obligations: ['cap-001'], featureSelection: { files: ['subs/a/src/tests/features/need/richer-a-fact.feature'], reason: 'Pending consumer preview is exact capability evidence' } } : {}),
         scope: { base: { module: owners[architect - 2]!, included: owners[architect - 2] === p ? [{ directory: 'subs/b', reason: 'Fixture child', instructions: 'Implement fixture behavior' }] : [] },
           extra: [], read: [], rationale: 'Scoped compatibility change' },
       }).assignment });
@@ -173,6 +175,12 @@ test('an explicit partial capability result returns its cross-owner blocker to t
   expect(prompts.some(prompt => prompt.includes('unfinished: Root-owned stale assertion in src/tests/stale.test.ts')))
     .toBe(true);
   expect(await readFile(join(fixture.root, 'src/tests/stale.test.ts'), 'utf8')).toContain("expect('readable denial')");
+  await until(() => prompts.some(prompt => prompt.includes('Progress from the last turn: Readable denial and stale assertion repaired; real-provider composition remains blocked')));
+  const blocked = opened.service.events('need', receipt.jobId)!;
+  expect(blocked.some(event => event.type === 'capability-handed-back')).toBe(false);
+  expect(blocked.some(event => event.type === 'obligation-reported' && event.data.id === 'cap-001' && event.data.judgment === 'done')).toBe(false);
+  expect(blocked.some(event => event.type === 'work-item-completed' && event.data.workItem === 'wi-001')).toBe(false);
+  expect(prompts.at(-1)).toContain('Verify required real B/A integration; A architect retains the person-review consumer goal');
   await stopAfterArchitectYield(opened.service, receipt.jobId);
   await opened.service.settled('need', receipt.jobId);
 }, 60_000);
@@ -244,6 +252,15 @@ test('CA06–CA10 CA28–CA30: consultation stays read-only and B, D, P, A recei
   const assignments = await Promise.all([1, 2, 3, 4].map(async number => JSON.parse(await readFile(
     runPath(fixture.root, 'need', receipt.jobId, `work-items/cap-001/iterations/0${number}/assignment.json`), 'utf8')) as IterationAssignment));
   expect(assignments.map(assignment => assignment.startingPoints)).toEqual([assignmentPoints, assignmentPoints, assignmentPoints, assignmentPoints]);
+  expect(assignments[0]?.featureSelection).toEqual({ files: ['subs/a/src/tests/features/need/richer-a-fact.feature'], reason: 'Pending consumer preview is exact capability evidence' });
+  expect(assignments[0]?.obligations).toEqual(['cap-001']);
+  const captured = parseStepInputs(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.stepInputs(bInvocation.data.invocation)), 'utf8'));
+  if (captured.role !== 'engineer') throw new Error('Expected capability engineer input');
+  expect(captured.focused.featurePaths).toEqual([{ project: 'subs/a/src/tests/features/need/richer-a-fact.feature' }]);
+  expect(captured.assignment.featureSelection).toEqual(assignments[0]?.featureSelection);
+  expect(captured.scenarios).toBeUndefined();
+  expect(discoveryPrompts.some(prompt => prompt.includes('## Explicit feature evidence') && prompt.includes('capability evidence'))).toBe(true);
+
   await until(() => discoveryPrompts.some(prompt => prompt.includes('"producer":"engineer accepted result"')
     && prompt.includes('"iteration":"cap-001.i04"') && prompt.includes(engineerPoints[0]!.note)), 20_000);
   for (const number of [1, 2, 3, 4]) {

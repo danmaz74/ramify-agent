@@ -67,8 +67,30 @@ describe('S03: inputs from a run', () => {
       expect(discovery?.text).toContain('Configuration/support discovery evidence unavailable: No exact assigned feature files were selected');
       expect(discovery?.text).toContain('declared check/configuration pointers');
       expect(JSON.parse(step.brief.environment.cucumberConfiguration!)).toEqual({ kind: 'unavailable', reason: 'No exact assigned feature files were selected' });
+      expect(step.prompt).toContain('Focused scenario command unavailable: No exact assigned feature files were selected');
       expect(step.start.mode).toBe(invocation === freshId ? 'fresh' : 'continue');
     }
+  });
+
+  test('captured exact feature selection retains provenance and meaning when rendered standalone', async () => {
+    const result = await imported(freshId);
+    if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected engineer inputs');
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
+    const file = 'src/tests/features/entry-preview.feature';
+    const featureSelection = { files: [file], reason: 'Pending preview capability evidence' };
+    const inputs = { ...result.recorded, capabilityWorkflow: true,
+      assignment: { ...result.recorded.assignment, featureSelection, obligations: ['cap-001'] },
+      known: { ...result.recorded.known, projectFeatureRegistry: [{ project: file }], scenarioFeatures: [{ project: file }] },
+      focused: { featurePaths: [{ project: file }], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'Unsupported declared wrapper' } } };
+    const step = constructEngineerStep(parseStepInputs(serializeStepInputs(inputs)), { projectRoot: run.root, packages });
+    expect(step.inputs.assignment.featureSelection).toEqual(featureSelection);
+    expect(step.prompt).toContain(featureSelection.reason);
+    expect(step.prompt).toContain('Assignment authority:');
+    expect(step.prompt).toContain('Unsupported declared wrapper');
+    expect(step.prompt).toContain('zero executed cases establishes no scenario acceptance');
+    expect(() => constructEngineerStep({ ...inputs, known: { ...inputs.known, projectFeatureRegistry: [], scenarioFeatures: [] } }, { projectRoot: run.root, packages })).toThrow('unknown or stale');
+    expect(() => constructEngineerStep({ ...inputs, focused: { ...inputs.focused, featurePaths: [] } }, { projectRoot: run.root, packages })).toThrow('omit an explicitly selected');
+    expect(() => constructEngineerStep({ ...inputs, focused: { ...inputs.focused, featurePaths: [{ project: file }, { project: 'src/tests/features/unselected.feature' }] } }, { projectRoot: run.root, packages })).toThrow('not selected by the assignment');
   });
 
   test('capability binding discovery exposes known global support through the existing current configuration facts', async () => {

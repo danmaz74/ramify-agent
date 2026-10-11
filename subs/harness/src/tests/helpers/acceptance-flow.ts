@@ -22,6 +22,13 @@ const a = 'capability-coordination/a';
 const b = 'capability-coordination/b';
 const d = 'capability-coordination/d';
 const p = 'capability-coordination';
+const composedSummary = 'Delivered A caller subs/a/src/caller.ts and test subs/a/src/tests/caller.test.ts using actual B readFact, with independent literal Fresh fact: old from B. Provider integration evidence: accepted A iteration and combined configured tests for A and B; D compatibility is retained. need-001.ex01 is required delegated composition; need-001.ex02 states immediate B conformance.';
+const remainingConsumer = 'The requesting A module architect retains sc-001 and the broader person-review goal in need-001.ex03; those consumer obligations remain open.';
+const acceptanceDivision = [
+  { decision: 'need-001.ex02 establishes immediate provider/caller conformance', reason: 'The returned fact and source define the B interface used by A.', evidence: ['subs/b/src/fact.ts', 'subs/b/src/tests/fact.test.ts'] },
+  { decision: 'need-001.ex01 requires delegated composed A/B acceptance', reason: 'The requested result must render the actual B source through A; provider-only evidence is insufficient.', evidence: ['subs/a/src/caller.ts', 'subs/a/src/tests/caller.test.ts'] },
+  { decision: 'need-001.ex03 remains broader consumer acceptance with A module architect', reason: 'The delegated render capability supports the person-review flow, whose registered sc-001 remains A responsibility.', evidence: ['sc-001'] },
+];
 
 export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift' | 'restart' | 'verify-restart' |
   'gate-restart' | 'gate-intent-restart' | 'gate-committing-restart' |
@@ -67,6 +74,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   let planCorrected = false;
   let resuming = false;
   let suspendedContinuationStarted = false;
+  let originalRequest = '';
   const scripted: Script = spec => {
     // Callback perception includes inherited packets. Route only by the newest
     // renderer-owned objective and the actual current working directory.
@@ -94,7 +102,9 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         return submit({ kind: 'capability-needed', summary: 'A has an unfinished caller', request: {
           need: 'Render a fact with its source', usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render B fact', prospective: false }],
           constraints: ['D retains the old label'], knownInterface: { kind: 'none-known' },
-          examples: [{ title: 'shows source', code: "expect(renderA()).toBe('Fresh fact: old from B')", designation: 'pseudocode' }],
+          examples: [{ title: 'shows source', code: "expect(renderA()).toBe('Fresh fact: old from B')", designation: 'pseudocode' },
+            { title: 'provider returns source', code: "expect(readFact()).toEqual({text:'old', source:'B'})", designation: 'pseudocode' },
+            { title: 'person reviews source', code: "expect(personReviewsSource()).toBe('B')", designation: 'pseudocode' }],
         } }, edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'),
         write('extra.ts', "export const sourceHint = 'B';\n"),
         edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('unfinished')"));
@@ -114,6 +124,13 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       if (owner === a) { external?.stage('integrated'); return submit({ kind: 'completion-proposed', summary: 'A integrated the real B result', findings: [] },
         write('caller.ts', "import { readFact } from '../../b/src/fact.js';\nexport function renderA(): string { const fact = readFact(); return `Fresh fact: ${fact.text} from ${fact.source}`; }\n"),
         write('tests/caller.test.ts', "import { expect, test } from 'vitest';\nimport { renderA } from '../caller.js';\ntest('A renders the source', () => expect(renderA()).toBe(renderA()));\n")); }
+      expect(spec.prompt).toContain(composedSummary);
+      expect(spec.prompt).toContain(remainingConsumer);
+      expect(spec.prompt).toContain('Inspect and reuse the delivered caller source and tests');
+      expect(spec.prompt).toMatch(/capabilities\/cap-001\/plan\/3.json/u);
+      expect(spec.prompt).toMatch(/gates\/ga-\d+\/attempt.json/u);
+      expect(readFileSync(join(fixture.root, 'subs/a/src/caller.ts'), 'utf8')).toContain("import { readFact } from '../../b/src/fact.js'");
+      expect(readFileSync(join(fixture.root, 'subs/a/src/tests/caller.test.ts'), 'utf8')).toContain("toBe('Fresh fact: old from B')");
       suspendedContinuationStarted = true;
       if (mode === 'restart' || mode === 'verify-restart' || mode === 'gate-restart' ||
         mode === 'gate-intent-restart' || mode === 'gate-committing-restart' ||
@@ -175,7 +192,12 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         driftFeedback = spec.prompt;
         return [{ kind: 'wait', ms: 60_000 }];
       }
-      if (architect === 1) return assignOwner(b, 'Add the source field');
+      if (architect === 1) return [{ kind: 'await', until: async () => {
+        const runId = activeService!.listRuns('need')[0]!.jobId;
+        originalRequest = await readFile(runPath(fixture.root, 'need', runId, 'capabilities/requests/need-001.json'), 'utf8');
+      } }, ...assignOwner(b, 'Add the source field')];
+      if (architect === 2) return submit({ ...basis, kind: 'partial', progress: 'B source field delivered; required real A/B composition is not yet implemented',
+        unfinished: ['Migrate compatibility callers, expose the companion and integrate the real B result in A'] });
       if (architect === 3) return assignOwner(d, 'Migrate D typed use');
       if (architect === 4) return assignOwner(p, 'Expose the companion');
       if (architect === 5) return assignOwner(a, 'Integrate A');
@@ -186,15 +208,19 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       const outcome = latest(outcomePattern);
       if (outcome === undefined) throw new Error(`The capability briefing lacks ${task}'s obligation line`);
       const handback = (atRevision: number) => ({ ...basis, planRevision: atRevision, kind: 'request-handback',
-        summary: 'B result is integrated in A and compatible with D; the original example renders the B fact with its source',
-        interfaces: [{ path: 'subs/b/src/fact.ts', symbols: ['readFact', 'FactResult'], use: 'Call readFact and render its source' }], limitations: [],
+        summary: composedSummary,
+        interfaces: [{ path: 'subs/b/src/fact.ts', symbols: ['readFact', 'FactResult'], use: 'Call readFact and render its source' }], limitations: [remainingConsumer],
         reports: outcome[1] === 'done' ? [] : [{ id: task, judgment: 'done', basedOnRevision: Number(outcome[2]), where: 'subs/a/src/tests/caller.test.ts' }] });
       if (architect >= 6 && !planExercised) {
         planExercised = true;
         return [
           { kind: 'tool', tool: 'update_capability_plan', input: { task, basedOn: Number(revision), invocation,
             reason: 'State the A example as the consumer renders it while ordinary review judges its oracle',
-            changes: { useCases: [{ id: 'need-001.ex01', expectedBehavior: 'Fresh fact: old from B', derivedFrom: ['need-001.ex01'] }] } } },
+            changes: { decisions: acceptanceDivision, useCases: [
+              { id: 'need-001.ex01', expectedBehavior: 'Fresh fact: old from B', derivedFrom: ['need-001.ex01'] },
+              { id: 'need-001.ex02', expectedBehavior: 'B returns old fact with source B', derivedFrom: ['need-001.ex02'] },
+              { id: 'need-001.ex03', expectedBehavior: 'Person reviews the source B', derivedFrom: ['need-001.ex03'] },
+            ] } } },
           { kind: 'submit', input: handback(Number(revision) + 1) },
         ];
       }
@@ -203,7 +229,11 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       return [
         { kind: 'tool', tool: 'update_capability_plan', input: { task, basedOn: Number(revision), invocation,
           reason: 'The earlier oracle compared the value to itself; the A test now asserts the independent literal from the original request',
-          changes: { useCases: [{ id: 'need-001.ex01', expectedBehavior: 'Renders the independent literal Fresh fact: old from B', derivedFrom: ['need-001.ex01'] }] } } },
+          changes: { decisions: acceptanceDivision, useCases: [
+            { id: 'need-001.ex01', expectedBehavior: 'Renders the independent literal Fresh fact: old from B', derivedFrom: ['need-001.ex01'] },
+            { id: 'need-001.ex02', expectedBehavior: 'B returns old fact with source B', derivedFrom: ['need-001.ex02'] },
+            { id: 'need-001.ex03', expectedBehavior: 'Person reviews the source B', derivedFrom: ['need-001.ex03'] },
+          ] } } },
         { kind: 'submit', input: handback(Number(revision) + 1) },
       ];
     }
@@ -283,6 +313,12 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       // write observer runs. Identify the submitted reviewer by its invocation,
       // while its request still has no combined completion record.
       const current = activeService?.events('need', runId) ?? [];
+      if (write === 'capability-assignment-settled' && event?.type === 'capability-assignment-settled' && event.data.assignment === 'cap-001.i03') {
+        // Provider and compatibility edits alone have not implemented required
+        // A/B composition; the coordinator must still assign the real A caller.
+        expect(current.some(entry => entry.type === 'capability-handed-back')).toBe(false);
+        expect(current.some(entry => entry.type === 'obligation-reported' && entry.data.id === 'cap-001' && entry.data.judgment === 'done')).toBe(false);
+      }
       const pendingReview = current.filter(entry => entry.type === 'review-request-recorded').at(-1);
       const latestReviewer = current.filter(entry => entry.type === 'invocation-started' && entry.data.role === 'reviewer').at(-1);
       const pendingSubmission = latestReviewer?.type === 'invocation-started' && current.some(entry =>
@@ -407,11 +443,14 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       expect(replacementEnd?.data).toMatchObject({ degraded: { requested: 'continue', actual: 'fresh' } });
       const restoredPrompt = reopened.agent!.sessions.find(session => session.spec.role === 'capability-architect')!.spec.prompt;
       const planStart = restoredPrompt.indexOf('Current plan: ');
-      const planEnd = restoredPrompt.indexOf('\n\nProvider entry decisions: ', planStart);
+      const planEnd = restoredPrompt.indexOf('\n\n# Block ', planStart);
       expect(planStart).toBeGreaterThanOrEqual(0); expect(planEnd).toBeGreaterThan(planStart);
       expect(JSON.parse(restoredPrompt.slice(planStart + 'Current plan: '.length, planEnd))).toMatchObject({
         schema: 'ramify-agent.capability-plan/1', task: 'cap-001', revision: 2, basedOn: 1,
-        useCases: [{ id: 'need-001.ex01', expectedBehavior: 'Fresh fact: old from B' }],
+        decisions: acceptanceDivision,
+        useCases: [{ id: 'need-001.ex01', expectedBehavior: 'Fresh fact: old from B' },
+          { id: 'need-001.ex02', expectedBehavior: 'B returns old fact with source B' },
+          { id: 'need-001.ex03', expectedBehavior: 'Person reviews the source B' }],
       });
     }
     const alreadyPassedTaskGate = before.some(event => event.type === 'gate-attempted' &&
@@ -450,6 +489,12 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         expect(finished[0]?.data.checkFindings.filter(finding => finding.type === 'check-finding-opened')).toHaveLength(1);
       }
     }
+    await until(() => suspendedContinuationStarted || (reopened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 30_000);
+    expect(suspendedContinuationStarted).toBe(true);
+    expect((reopened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'job-failed')).toHaveLength(0);
+    expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/need-001.json'), 'utf8')).toBe(originalRequest);
+    const recoveredHandback = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/cap-001/handback.json'), 'utf8'));
+    expect(recoveredHandback).toMatchObject({ summary: composedSummary, limitations: [remainingConsumer], plan: { revision: 3 } });
     await stopStable(reopened.service, receipt.jobId);
     await reopened.service.settled('need', receipt.jobId);
     return;
@@ -527,8 +572,10 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   expect(events.some(event => event.type === 'obligation-reported' && event.data.id === 'sc-001')).toBe(false);
   expect(events.some(event => event.type === 'work-item-completed' && event.data.workItem === 'wi-001')).toBe(false);
   const plans = await Promise.all([1, 2, 3].map(async revision => JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
-    `capabilities/cap-001/plan/${revision}.json`), 'utf8')) as { originalExamples: string[]; useCases: Array<Record<string, unknown>> }));
-  expect(plans.map(plan => plan.originalExamples)).toEqual([['need-001.ex01'], ['need-001.ex01'], ['need-001.ex01']]);
+    `capabilities/cap-001/plan/${revision}.json`), 'utf8')) as { originalExamples: string[]; useCases: Array<Record<string, unknown>>; decisions: typeof acceptanceDivision; compatibility: string[] }));
+  expect(plans.map(plan => plan.originalExamples)).toEqual(Array.from({ length: 3 }, () => ['need-001.ex01', 'need-001.ex02', 'need-001.ex03']));
+  expect(plans.slice(1).map(plan => plan.decisions)).toEqual([acceptanceDivision, acceptanceDivision]);
+  expect(plans.every(plan => plan.compatibility.includes('D retains the old label'))).toBe(true);
   expect(plans.flatMap(plan => plan.useCases).every(useCase => !('coverage' in useCase))).toBe(true);
   const taskSettlements = events.filter((event): event is Extract<typeof event, { type: 'capability-assignment-settled' }> =>
     event.type === 'capability-assignment-settled' && event.data.task === 'cap-001');
@@ -555,8 +602,18 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   expect(handback.deltaFromSuspension).toContain('subs/b/src/fact.ts');
   expect(handback.deltaFromSuspension).toContain('subs/a/src/tests/caller.test.ts');
   expect(handback.deltaFromSuspension).not.toContain('subs/a/src/extra.ts');
+  expect(handback).toMatchObject({ summary: composedSummary, limitations: [remainingConsumer] });
+  const acceptedCaller = events.find(event => event.type === 'capability-assignment-settled' && event.data.assignment === 'cap-001.i05' && event.data.outcome === 'accepted');
+  expect(acceptedCaller).toBeDefined();
+  expect(acceptedCaller!.sequence).toBeLessThan(handedBack.sequence);
   const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
     'capabilities/requests/need-001.json'), 'utf8')) as { source: { tree: string } };
+  expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/need-001.json'), 'utf8')).toBe(originalRequest);
+  expect(JSON.parse(originalRequest).original).toMatchObject({ constraints: ['D retains the old label'], examples: [
+    { id: 'need-001.ex01', code: "expect(renderA()).toBe('Fresh fact: old from B')" },
+    { id: 'need-001.ex02', code: "expect(readFact()).toEqual({text:'old', source:'B'})" },
+    { id: 'need-001.ex03', code: "expect(personReviewsSource()).toBe('B')" },
+  ] });
   if (realBoundary) expect(execFileSync('git', ['cat-file', '-t', request.source.tree], { cwd: fixture.root, encoding: 'utf8' }).trim()).toBe('tree');
   expect(events.filter(event => event.type === 'work-item-completed' && event.data.workItem === 'wi-002')).toHaveLength(0);
   const handbackEvent = events.find(event => event.type === 'capability-handed-back')!;
@@ -608,6 +665,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     expect(deferredBriefing).toContain('Task cap-001 returned tree');
     expect(deferredBriefing).toContain('Plan cap-001');
     expect(deferredBriefing).toContain('readFact, FactResult at subs/b/src/fact.ts');
+    expect(deferredBriefing).toContain(composedSummary);
+    expect(deferredBriefing).toContain(remainingConsumer);
     expect(deferredBriefing).toContain('Reassess its prior outline, decisions and any unexecuted assignment against the current source before assigning it.');
     const current = opened.service.events('need', receipt.jobId)!;
     expect(current.filter(event => event.type === 'iteration-assigned' && event.sequence > handbackEvent.sequence)).toHaveLength(0);

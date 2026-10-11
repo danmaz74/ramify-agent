@@ -212,6 +212,7 @@ async function authoredAssignment(value: unknown, inputs: Extract<StepInputs, { 
     ['scope.extra', body.scope.extra, recorded.scope.extra],
     ['citedElements', [...body.citedElements].sort(), [...recorded.source?.elements ?? []].sort()],
     ['obligations', body.obligations ?? [], recorded.obligations ?? []],
+    ['featureSelection', body.featureSelection ?? null, recorded.featureSelection ?? null],
     ['authorizations', (body.authorizations ?? []).map(entry => entry.path).sort(), recorded.authorizations.map(entry => entry.path).sort()],
     ['bounds', body.bounds ?? {}, recorded.bounds ?? {}],
   ];

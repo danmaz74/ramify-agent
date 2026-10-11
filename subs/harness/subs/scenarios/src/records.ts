@@ -28,6 +28,8 @@ export const scenarioRecordSchema = z.object({
     z.object({ kind: z.literal('plan'), planScenario: z.string().regex(/^ps-\d{2,}$/), ref: z.object({ document: z.string().regex(/^doc-\d{3,}$/).optional(), lines: lineRangeSchema }).strict() }).strict(),
     z.object({ kind: z.literal('architect'), refs: z.array(scenarioElementRefSchema) }).strict(),
   ]),
+  /** Accepted catalog citations; absent on historical records. */
+  citedElements: z.array(scenarioElementRefSchema).optional(),
   /** The integration scenario this one is a sub-scenario of. */
   partOf: scenarioIdSchema.nullable(),
   /** An integration scenario's sub-scenarios; empty for an entry scenario. */

@@ -200,6 +200,7 @@ export interface WorkEvidence {
   readonly guardedPaths?: ReadonlySet<string> | undefined;
   /** The files only the harness writes: its configuration for the project and the tracked feature files. */
   readonly harnessOnly?: ReadonlySet<string> | undefined;
+  readonly registeredFeatureFiles?: ReadonlySet<string> | undefined;
   /** For an integration work item: the scope its engineer must be given. */
   readonly integration?: IntegrationScope | undefined;
   /** The policy's engineer bounds and their ceilings, which an assignment's `bounds` is judged against. */
@@ -353,6 +354,7 @@ function validateKind(value: LocalArchitectSubmission, evidence: WorkEvidence, r
     ...localDecisionErrors(shape.value.localDecisions, placementEvidence(evidence), 'localDecisions'),
     ...assignmentErrors(shape.value.assignment, {
       index: evidence.index,
+      registeredFeatureFiles: evidence.registeredFeatureFiles,
       registry: evidence.registry,
       registryReferences,
       outline: outline ?? evidence.outline ?? null,

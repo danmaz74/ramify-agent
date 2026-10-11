@@ -2,9 +2,9 @@ import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { z } from 'zod';
 import type { JsonSchema, ToolDefinition, ToolResult } from '../../subs/agent/src/interfaces/port.js';
 import { childEnvironment, runCommand, type CommandOutcome } from '../../subs/evidence/src/run-command.js';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { classifyShellTestRun, shellTestDirectories, type FocusedCucumberSelection } from './shell-tests.js';
 import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type MutationOrder, type MutationSnapshot } from '../hooks/mutation-order.js';
 
@@ -360,6 +360,11 @@ function describeOutcome(outcome: CommandOutcome, timeoutMs: number): string {
 /** Current bytes authenticate both generated selection and its authored source inputs. */
 async function focusedFilesMatch(selection: FocusedCucumberSelection, sourceFiles: Readonly<Record<string, string>>): Promise<boolean> {
   try {
+    const root = await realpath(selection.cwd);
+    for (const path of selection.paths) {
+      const contained = relative(root, await realpath(path));
+      if (contained === '..' || contained.startsWith(`..${sep}`)) return false;
+    }
     for (const [path, identity] of Object.entries({ ...sourceFiles, [selection.config]: selection.configurationIdentity })) {
       if (createHash('sha256').update(await readFile(path)).digest('hex') !== identity) return false;
     }

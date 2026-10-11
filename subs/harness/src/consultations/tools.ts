@@ -79,7 +79,7 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
       if (loaded === undefined) return await outcome('failed', 'unavailable-role', `No package for ${inputs.target.role}`);
       signal.throwIfAborted();
       const limits = invocationLimits(run.policy.limits, {});
-      const prompt = `# Advisory architect consultation\n\nCaller: ${inputs.caller.role}, session ${inputs.caller.session}.\nPinned source: ${JSON.stringify(inputs.target.point)}.\nInherited observations may be stale; the known generated-view paths/revisions/limits describe available current evidence. No source snapshot or view refresh is performed.\nKnown views: ${JSON.stringify(inputs.views)}\n\n# Exact caller question\n\n${parsed.data.message}`;
+      const prompt = `# Advisory architect consultation\n\nCaller: ${inputs.caller.role}, session ${inputs.caller.session}.\nPinned source: ${JSON.stringify(inputs.target.point)}.\nInherited observations may be stale; the effective environment:views block states the known generated-view paths/revisions/limits for available current evidence. No source snapshot or view refresh is performed.\n\nThe exact caller question is supplied once in the current goal block.`;
       const nestedTarget = inputs.target.role === 'local-architect' ? inputs.global : null;
       const brief = composeTaskBrief(inputs.projectRoot, { kind: 'architect-consultation', work: { ...work, request: id },
         goal: parsed.data.message, requirements: ['Provide advisory explanation or research only; change no source, assignment or decision.'],

@@ -87,7 +87,7 @@ export async function knownProjectFactsOf(projectRoot: string, index: ArchitectI
   const scenarios = tracked.filter(record => names.includes(record.owner));
   const directories = [...new Set(scenarios.map(record => stepDirectoryOf(record.file)))];
   const stepDirectories = scenarios.length === 0 ? [] : await Promise.all(directories.map(async directory => ({ directory, files: await stepFilesIn(projectRoot, directory) })));
-  return { declaredChecks, modules, testAreas, scenarioFeatures: [...new Set(scenarios.map(record => record.file))], stepDirectories };
+  return { declaredChecks, modules, testAreas, projectFeatureRegistry: [...new Set(tracked.map(record => record.file))], scenarioFeatures: [...new Set(scenarios.map(record => record.file))], stepDirectories };
 }
 
 /**
@@ -145,6 +145,7 @@ export async function iterationAssignmentOf(projectRoot: string, input: {
     authorizations,
     ...(revisesContract === undefined ? {} : { revisesContract }),
     ...(body.obligations === undefined || body.obligations.length === 0 ? {} : { obligations: [...body.obligations] }),
+    ...(body.featureSelection === undefined ? {} : { featureSelection: body.featureSelection }),
     ...(body.bounds === undefined || Object.keys(body.bounds).length === 0 ? {} : { bounds: body.bounds }),
   });
 }

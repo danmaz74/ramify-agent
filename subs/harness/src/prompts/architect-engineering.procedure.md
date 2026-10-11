@@ -1,4 +1,4 @@
-<!-- ramify-agent architect implementation guidance, version 2. -->
+<!-- ramify-agent architect implementation guidance, version 3. -->
 ## Exposure, paths and module engineer verification
 
 Use the installed pinned Ramify provider's supported declarations. For the
@@ -49,3 +49,15 @@ project and required check. Reconcile contradictory check instructions in the
 assignment instead of asking a module engineer to bypass tool restrictions. If a
 module engineer receives such a contradiction, it follows the active restrictions and
 returns the conflict to its architect for a revised assignment.
+
+When exact generated-feature evidence is part of the delegated task, state
+`assignment.featureSelection: { files, reason }`. Name exact project-relative
+current registered `.feature` files and explain their purpose, even when the
+only completion obligation is a delegated outcome such as `cap-001`. Consumer
+features may lie beyond the provider's write scope; selecting evidence widens
+no writes and permits no generated-feature edits. A background pointer or a
+filename in prose selects nothing. Scenario obligations continue to select
+their generated files. Assess actual case results: zero cases on a successful
+exit establishes no acceptance; ambiguous, undefined, failed and unrun results
+retain their limitations. Feature execution completes no consumer obligation
+and delegates no acceptance authority.

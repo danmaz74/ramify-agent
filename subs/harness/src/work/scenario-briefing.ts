@@ -24,6 +24,9 @@ export interface BriefedScenario {
   readonly source: readonly string[];
   /** For a sub-scenario: the integration scenario it was derived from. */
   readonly partOf: string | null;
+  /** Exact accepted origin and catalog citations, absent on historical step inputs. */
+  readonly origin?: ScenarioRecord['origin'];
+  readonly citedElements?: readonly string[];
 }
 
 /** The entry scenarios of one entry, in their order, with their states; none for a work item without an entry. */
@@ -36,7 +39,32 @@ export function entryScenariosOf(records: readonly ScenarioRecord[], states: Sce
 
 /** One record as a briefing carries it. */
 export function briefed(record: ScenarioRecord, state: ScenarioState): BriefedScenario {
-  return { id: record.id, name: record.name, state, file: record.file, source: record.source, partOf: record.partOf };
+  return { id: record.id, name: record.name, state, file: record.file, source: record.source, partOf: record.partOf,
+    origin: record.origin, ...(record.citedElements === undefined ? {} : { citedElements: record.citedElements }) };
+}
+
+/**
+ * Relate a registered scenario to its accepted citations in a complete supplied
+ * catalog package. Exact equality only chooses a delivery location; it never
+ * judges faithfulness or merges requirements that happen to share wording.
+ */
+export function scenarioBodyLines(scenario: BriefedScenario, packages: readonly string[] = []): string[] {
+  const quoted = scenario.source.map(line => line === '' ? '>' : `> ${line}`).join('\n');
+  const supplied = (scenario.citedElements ?? []).filter(id => packages.some(pkg => {
+    if (!/^fr-\d{3,}$/u.test(id)) return false;
+    const heading = new RegExp(`^### ${id}: [^\\n]*\\n`, 'mu').exec(pkg);
+    if (!heading) return false;
+    const start = heading.index + heading[0].length;
+    const next = /^#{1,3} /mu.exec(pkg.slice(start));
+    const body = pkg.slice(start, next === null ? undefined : start + next.index);
+    return body.trimStart().split('\n\n').includes(quoted);
+  }));
+  return [
+    ...(scenario.origin === undefined || (scenario.citedElements?.length ?? 0) === 0 ? [] : [`- Accepted origin: ${JSON.stringify(scenario.origin)}.`]),
+    ...((scenario.citedElements?.length ?? 0) === 0 ? [] : [`- Catalog citations: ${scenario.citedElements!.join(', ')}.`]),
+    ...(supplied.length === 0 ? ['```gherkin', ...scenario.source, '```']
+      : [`Complete current scenario body, including examples, is supplied once in cited element${supplied.length === 1 ? '' : 's'} ${supplied.join(', ')} of the complete current catalog package. Each element keeps its own conditions, uncertainty and provenance.`]),
+  ];
 }
 
 /** What a module engineer is told of its work item's scenarios. */
@@ -53,16 +81,14 @@ export type EngineerScenarios =
   };
 
 /** The lines of one scenario: its heading, its file, its origin and its text. */
-export function scenarioLines(scenario: BriefedScenario, level = '###'): string[] {
+export function scenarioLines(scenario: BriefedScenario, level = '###', packages: readonly string[] = []): string[] {
   return [
     `${level} ${scenario.id} (${scenario.state}): ${scenario.name}`,
     '',
     `- Feature file: \`${scenario.file}\`.`,
     ...(scenario.partOf === null ? [] : [`- A sub-scenario of the integration scenario \`${scenario.partOf}\`, whose integration work item is due once every sub-scenario is reported done.`]),
     '',
-    '```gherkin',
-    ...scenario.source,
-    '```',
+    ...scenarioBodyLines(scenario, packages),
     '',
   ];
 }
@@ -97,7 +123,7 @@ export function architectScenarioSection(scenarios: readonly BriefedScenario[]):
  * bind", the rest of the entry's ones that are not done, and the rules of
  * binding. Nothing for a work item without scenarios.
  */
-export function engineerScenarioSection(scenarios: EngineerScenarios | undefined, assigned: readonly string[] = []): string[] {
+export function engineerScenarioSection(scenarios: EngineerScenarios | undefined, assigned: readonly string[] = [], packages: readonly string[] = []): string[] {
   if (scenarios === undefined) return [];
   if (scenarios.kind === 'integration') return integrationEngineerSection(scenarios.integration, scenarios.state);
   if (scenarios.scenarios.length === 0) return [];
@@ -110,14 +136,14 @@ export function engineerScenarioSection(scenarios: EngineerScenarios | undefined
 
   if (toBind.length > 0) {
     lines.push('## Scenarios to bind', '', 'The architect expects this iteration to bind these:', '');
-    for (const scenario of toBind) lines.push(...scenarioLines(scenario));
+    for (const scenario of toBind) lines.push(...scenarioLines(scenario, '###', packages));
   }
   if (others.length > 0) {
     lines.push(toBind.length > 0 ? '## The entry\'s other scenarios' : '## The scenarios of this work item', '');
     lines.push(toBind.length > 0
       ? 'Not done yet either, and not assigned to this iteration, so not yours to bind:'
       : 'Each scenario of its entry that is not done yet:', '');
-    for (const scenario of others) lines.push(...scenarioLines(scenario));
+    for (const scenario of others) lines.push(...scenarioLines(scenario, '###', packages));
   }
   if (toBind.length === 0 && others.length === 0) {
     lines.push('## The scenarios of this work item', '', `Every scenario of its entry is reported done (${done}). The gates run them, and a change that fails one fails the gate.`, '');

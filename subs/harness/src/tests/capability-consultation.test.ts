@@ -36,18 +36,26 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'consultation', 'a'); answers.push(boundaryAnswers);
 
+  const architectPrompts: string[] = [];
   let architectTurns = 0; let agent!: ScriptedAgent;
   const script: Script = spec => {
     if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a)]));
     if (spec.submission.name === 'submit_work_item_result') return submit(assign(a, {}, outline()));
     if (spec.submission.name === 'submit_capability_qualification') {
+      // Full immutable request is delivered once, including example code and identity.
+      expect(spec.prompt.match(/expect\(renderA\(\)\)\.toContain/g)).toHaveLength(1);
+      expect(spec.prompt).toContain('need-001.ex01');
       const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
         placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
     }
     if (spec.submission.name === 'answer_capability_consultation') {
       expect(spec.session.mode).toBe(lostParent ? 'fresh' : 'fork');
-      if (lostParent) expect(spec.prompt).toContain('Original request and suspended source:');
+      if (lostParent) {
+        expect(spec.prompt).toContain('# Block brief:support:capability-request');
+        expect(spec.prompt).toContain('expect(renderA()).toContain');
+        expect(spec.prompt.match(/expect\(renderA\(\)\)\.toContain/g)).toHaveLength(1);
+      }
       expect(spec.tools.map(tool => tool.name)).toEqual(expect.arrayContaining(['read', 'grep', 'ls']));
       return submit({ answer: 'A needs the B source beside the value', objections: [] },
         write('caller.ts', 'export const disallowed = true;\n'));
@@ -59,6 +67,7 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
     } });
     if (spec.role === 'capability-architect') {
       architectTurns += 1;
+      architectPrompts.push(spec.prompt.slice(spec.prompt.lastIndexOf('Briefing revision:')));
       const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       const basis = { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] };
       if (architectTurns === 1) {
@@ -110,6 +119,11 @@ test.each([false, true])('CA04 CA06 CA16: original A request consultation preser
     event.type === 'invocation-ended' && (opened.service.events('need', receipt.jobId) ?? []).some(start =>
       start.type === 'invocation-started' && start.data.invocation === event.data.invocation &&
       start.data.role === 'capability-architect')).length >= (lostParent ? 2 : 3));
+  expect(architectPrompts[0]!.match(/expect\(renderA\(\)\)\.toContain/g)).toHaveLength(1);
+  for (const prompt of architectPrompts.slice(1)) {
+    expect(prompt).not.toContain('expect(renderA()).toContain');
+    expect(prompt).toContain('brief:support:capability-request: original delivery revision');
+  }
   if (!lostParent) {
     const request = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'capabilities/requests/need-001.json'), 'utf8'));
     const source = readSessionPointReference(request.continuation.point)!;

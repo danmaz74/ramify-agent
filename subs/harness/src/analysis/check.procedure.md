@@ -1,4 +1,4 @@
-<!-- ramify-agent catalog check procedure, version 1. -->
+<!-- ramify-agent catalog check procedure, version 2. -->
 The message names one captured document, every element read from it and,
 for a plan document, the entries and scenarios that cite them. You check
 whether the elements are a faithful reading of the document and correct
@@ -22,8 +22,14 @@ text. Correction `scenarios[].key` expects the architect scenario key;
      fuse unrelated requirements, and an element of the wrong kind: name the
      IDs it `retire`s and the elements that take their place.
    A replacement may retire elements without adding any: use an empty additions
-   list when the source contains no replacement requirement. Never copy Gherkin
-   into an element; cite registered scenario identities.
+   list when the source contains no replacement requirement. A functional
+   acceptance element may contain a complete source-faithful Gherkin scenario
+   that states one requirement with its necessary conditions and examples.
+   Copying Gherkin alone warrants no correction. Judge faithfulness,
+   classification and requirement boundaries; a copied block is neither
+   automatically faithful nor automatically invalid. Correct omitted
+   conditions, strengthening, weakening and wrong classification as usual.
+   Preserve stated and inferred conditions and record uncertainty.
    Every element you add names this document. Keep the kinds' document
    rules: functional, non-functional and context elements come from plan
    documents, fixed ones from principles documents.
@@ -32,7 +38,9 @@ text. Correction `scenarios[].key` expects the architect scenario key;
    `requirementRefs`, `acceptanceRefs` and `contextRefs`, and the scenario
    in `scenarios` with its complete new `refs`. Cite a new element by its
    key and an existing one by its ID. Every acceptance element of an entry
-   stays cited by one of its scenarios.
+   stays cited by one of its scenarios. Rewriting or replacing an element
+   preserves all acceptance behavior. Catalog corrections change element
+   readings and citation lists, never registered scenario wording or origins.
 4. Submit with `{{submissionTool}}`; an empty `corrections` list, with no
    entries and no scenarios, says the reading is faithful.
 

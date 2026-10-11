@@ -158,7 +158,9 @@ describe('plan capture', () => {
     expect(prompt).toContain('# The plan\'s scenarios');
     expect(prompt).toContain(`## ps-01: A reviewer attaches a note\n\nLines ${attach!.lines[0]}–${attach!.lines[1]} of doc-001.`);
     expect(prompt).toContain(`## ps-02: The panel shows an attached note\n\nLines ${panel!.lines[0]}–${panel!.lines[1]} of doc-001.`);
-    expect(prompt).toContain(['```gherkin', ...attach!.source, '```'].join('\n'));
+    expect(prompt).toContain('Complete scenario body, including examples, is in the captured plan block above');
+    expect(prompt).toContain('include every applicable Feature/Rule Background condition');
+    expect(prompt.split('When the reviewer attaches the note \"Looks right\"')).toHaveLength(2);
     expect(prompt).toContain('  Given a completed review run of the record "rec-1"');
     expect(prompt).toContain(`- Plan lines ${limitation!.lines[0]}–${limitation!.lines[1]}: `);
     expect(prompt).toContain('this line is not a step');

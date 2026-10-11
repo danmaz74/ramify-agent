@@ -1,4 +1,4 @@
-<!-- ramify-agent initial analysis procedure, version 6. -->
+<!-- ramify-agent initial analysis procedure, version 7. -->
 The analysis has four parts. Record no hypothesis that restates an entry.
 Entry assignments and hypotheses never merge.
 
@@ -65,6 +65,12 @@ Do this, in order:
    as practical, name the captured plan document it comes from, record each
    condition as `stated` or `inferred`, and state your uncertainty. Give
    each a `key` unique in the submission; the harness assigns its ID.
+   A functional acceptance element may retain a complete source-faithful
+   Gherkin scenario when it states one requirement with its necessary
+   conditions and examples. Judge faithfulness, classification and requirement
+   boundaries as usual; copying alone neither proves nor invalidates a reading.
+   The element is still cited by the entry and by the scenario that verifies
+   it; its key never substitutes for a registered plan origin or a scenario key.
 3. Submit the plan's `context` elements: the passages that explain the
    situation the plan starts from or why it exists, which a reader of an
    entry needs to understand it. One element is one whole explanation. A

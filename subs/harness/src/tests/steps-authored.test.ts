@@ -245,6 +245,18 @@ describe('S07: engineer inputs authored with no run', () => {
     expect(inputs.work).toEqual({ workItem: 'state-note-limit', iteration: 'state-note-limit.i02' });
   });
 
+  test('standalone authored feature selection without a run registry is explicitly refused', async () => {
+    const result = await runStepCommandWith({
+      command: 'inputs', role: 'engineer', fromRun: undefined, invocation: undefined, projectRoot: project,
+      authored: { workItem: await file(item), assignment: await file(assign(notes, {
+        featureSelection: { files: ['src/tests/features/preview.feature'], reason: 'Preview evidence' },
+      }, outline())) },
+    }, ports());
+    expect(result).toMatchObject({ exitStatus: 2, stdout: '' });
+    expect(result.stderr).toContain('assignment.featureSelection.files.0');
+    expect(result.stderr).toContain('current project scenario registry');
+  });
+
   test('a recorded outline from --outline is the assignment\'s basis when the envelope carries none', async () => {
     const recorded = { schema: 'ramify-agent.work-item-outline/1', workItem: item.id, revision: 1, invocation: 'authored', ...outline(), hypothesesSeen: [] };
     const result = await runStepCommandWith({

@@ -2,6 +2,11 @@
 
 Design documents for the separate agent harness:
 
+- [Plan 38: Cucumber acceptance and delivery](plans/38-cucumber-acceptance-and-delivery/main-plan.md),
+  implemented with focused verification; committed qualification pending:
+  explicit capability-feature evidence,
+  faithful Gherkin acceptance elements, retained context and delegated
+  acceptance; preserves and qualifies Plan 37's committed correction workflow
 - [Plan 37: correction at the responsible decision authority](plans/37-correction-at-decision-authority/main-plan.md),
   implemented with focused verification; committed qualification pending:
   Cucumber binding discovery and returning

@@ -35,7 +35,10 @@ describe('Plan 33 C05-C12 advisory tools', () => {
       expect(history.join('\n')).not.toContain('Exact answer');
       expect(child.session.activeTools).toEqual(['read', 'grep', 'ls', 'answer_architect_consultation']);
       expect(child.task.message).toContain('advisory'); expect(child.task.message).toContain('No source snapshot or view refresh');
-      expect(child.task.message + child.session.additions.map(item => item.text).join('\n')).toContain('Fixture view may be stale');
+      expect(history.join('\n') + child.task.message + child.session.additions.map(item => item.text).join('\n')).toContain('Fixture view may be stale');
+      expect(child.task.message).not.toContain('Known views:');
+      expect(child.task.message).toContain('effective environment:views block');
+      expect(child.task.message.match(/  Exact question\nNew facts\.  /g)).toHaveLength(1);
       const callerTranscript = await readTranscript(fixture.run.path(runLayout.transcript(caller.session)));
       const delivered = callerTranscript.entries.find(entry => entry.n === record.result!.entry)!;
       expect(delivered).toMatchObject({ type: 'message', role: 'tool-result', callId: 'ask', isError: false });

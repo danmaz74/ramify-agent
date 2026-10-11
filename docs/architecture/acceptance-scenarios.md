@@ -301,6 +301,15 @@ architect writes every scenario.
 
 ### 2. Initial analysis
 
+Functional acceptance elements may retain complete source-faithful Gherkin
+scenarios as one requirement with the conditions and examples that define it.
+The [catalog fidelity contract](plan-context-catalog.spec.md) applies during
+extraction and review. This does not replace scenario registration: entries
+still cite acceptance elements, scenarios still cover those citations, and
+registered plan origins remain distinct from architect scenario keys and
+catalog element IDs. Catalog correction may repair an element reading and its
+citations; it never rewrites registered scenario text.
+
 `InitialAnalysisSubmission` becomes `initial-architect/2` and gains one array:
 
 ```yaml

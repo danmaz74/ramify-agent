@@ -1,4 +1,4 @@
-<!-- ramify-agent module engineer procedure, version 12. -->
+<!-- ramify-agent module engineer procedure, version 13. -->
 Do this, in order:
 
 1. Read the goal, the approach and the completion evidence in the message
@@ -28,8 +28,11 @@ definitions that bind them; you never write or change a feature file.
 
 - Write step definitions in `tests/steps/` from the assigned module's `src/`
   (a testing module uses `steps/` from its `src/`). Use the corresponding
-  location for another module within your write scope. A module's run loads
-  that module's step files and what they import, and nothing else.
+  location for another module within your write scope. Inspect the effective
+  declared configuration's globally loaded support and matching expressions
+  before adding a binding; the configured run may load support beyond this
+  module's step files and their imports. Missing discovery evidence remains
+  an explicit limitation to report to the assigning architect.
 - Never edit a feature file. A write to one is refused.
 - A scenario you bind loses its pending tag at the next commit, and the
   configured checks run it from then on: an undefined, pending or ambiguous

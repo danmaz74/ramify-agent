@@ -42,9 +42,9 @@ import {
 import { reconciliationMessage, type PacketRequest, type ReconciliationPacket } from '../reviews/reconciliation-message.js';
 import { outsideScope, recordSettledSnapshot } from './mutations.js';
 import { captureProvisionalSource } from '../capability/source.js';
-import { capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../capability/delivery.js';
+import { capabilityHandbackGuidance, capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../capability/delivery.js';
 import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, capabilityLayout,
-  type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange,
+  type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange, type CapabilityHandback,
 } from '../capability/records.js';
 import { capabilityRunPolicyVersion, captureCapabilityLimits } from '../capability/policy.js';
 import { createCapabilityWorkflow } from '../capability/workflow.js';
@@ -171,6 +171,7 @@ import {
 } from '../contracts/submission.js';
 import { remainingInjections } from '../contracts/verification.js';
 import type { Hypothesis, RegistryEntry } from '../analysis/records.js';
+import { assignedFeaturePaths } from '../work/feature-selection.js';
 import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from '../work/assignment.js';
 import {
   engineerEquipment, type EngineerEquipment, type EngineerEquipmentInputs, type EquipContext, type Equipment, type ShellCallRecord,
@@ -1928,7 +1929,9 @@ export class RunService {
     let bound: BoundReconciliation | undefined;
     const result = await this.runInvocation<ReconciliationSubmission>(run, agent, {
       role: owner.role,
-      task: { kind: 'reconciliation', goal: item.goal, requirements: [JSON.stringify(basis), (await this.currentSelection(run, item.id))?.packageText ?? this.planPackage(run, await this.frozenCatalog(run), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])], modules: [item.module] },
+      task: { kind: 'reconciliation', goal: item.goal, requirements: [JSON.stringify(basis)], modules: [item.module],
+        literalSections: [{ key: 'support:work-item-package', text: (await this.currentSelection(run, item.id))?.packageText
+          ?? this.planPackage(run, await this.frozenCatalog(run), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs]) }] },
       work: owner.role === 'capability-architect' ? { capabilityTask: owner.id, request: owner.request } : { workItem: owner.id },
       attempt: basis.round,
       loaded,
@@ -4769,6 +4772,7 @@ export class RunService {
           completionEvidence: assignment.completionEvidence,
           authorizations: assignment.authorizations.map(({ path, rationale }) => ({ path, rationale })),
           ...(assignment.obligations === undefined ? {} : { obligations: assignment.obligations }),
+          ...(assignment.featureSelection === undefined ? {} : { featureSelection: assignment.featureSelection }),
           ...(assignment.bounds === undefined ? {} : { bounds: assignment.bounds }),
         }),
       };
@@ -5472,8 +5476,7 @@ export class RunService {
         lastAssignment = assignment;
         const guidance = [
           `Capability ${handback.task} handed back at ${handback.returnedTree}.`,
-          `Accepted source ${handback.sourceRevision}; changes since your suspension: ${handback.deltaFromSuspension.join(', ') || '(none)'}.`,
-          `Interface use: ${handback.interfaces.map(entry => `${entry.symbols.join(', ')} at ${entry.path}: ${entry.use}`).join('; ')}.`,
+          capabilityHandbackGuidance(run.path('.'), handback),
           `Continue ${assignment.id} from its current candidate. Its original goal remains unfinished.`,
         ].join('\n');
         let resumed = await this.takeIteration(run, agent, packages, baseline, item, assignment, await this.refreshIndex(run), {
@@ -5648,8 +5651,7 @@ export class RunService {
         });
         if (tasks.length > 0) intervening = tasks.map(({ task, handback }) =>
           `Task ${task.id} returned tree ${handback.returnedTree} at ${handback.sourceRevision}. ` +
-          `Plan ${handback.plan.id} revision ${handback.plan.revision}; changed since A suspension: ${handback.deltaFromSuspension.join(', ') || '(none)'}. ` +
-          `Interface use: ${handback.interfaces.map(entry => `${entry.symbols.join(', ')} at ${entry.path}: ${entry.use}`).join('; ')}. ` +
+          `${capabilityHandbackGuidance(run.path('.'), handback)}\n` +
           `This task did not complete ${item.id}. Reassess its prior outline, decisions and any unexecuted assignment against the current source before assigning it.`
         ).join('\n\n');
       }
@@ -7393,14 +7395,19 @@ export class RunService {
     for (let count = priorTurns - (recovered === undefined ? 0 : 1);
       count < run.record.policy.limits.maxIterationsPerWorkItem; count += 1) {
       qualification ??= await this.runInvocation<QualificationAction>(run, agent, {
-      role: 'local-architect', task: { kind: 'capability-qualification', goal: request.original.need, requirements: [JSON.stringify(request), (contextPackage?.text ?? (await this.currentSelection(run, item.id))?.packageText ?? this.planPackage(run, await this.frozenCatalog(run), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs]))], modules: [item.module] }, work: { workItem: item.id, request: request.id },
+      role: 'local-architect', task: { kind: 'capability-qualification', goal: request.original.need,
+        requirements: [`Qualify capability request ${request.id} under its complete original constraints, usage and example identities and the current work-item package.`], modules: [item.module],
+        literalSections: [
+          { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` },
+          { key: 'support:work-item-package', text: contextPackage?.text ?? (await this.currentSelection(run, item.id))?.packageText
+            ?? this.planPackage(run, await this.frozenCatalog(run), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs]) },
+        ] }, work: { workItem: item.id, request: request.id },
       attempt: run.log.all('invocation-started').filter(event => event.data.work.workItem === item.id && event.data.work.request === request.id).length + 1,
       loaded: local, systemPrompt: renderLocalArchitectPrompt(local, this.projectRoot, parent.workingDirectory),
       prompt: [
         `# Qualify capability request ${request.id}`,
         `The module engineer of ${assignment.id} retained its source and session. Its invocation is ${request.invocation}.`,
-        `Original request: ${JSON.stringify(request.original, null, 2)}`,
-        `Provisional source: ${JSON.stringify(request.source, null, 2)}`,
+        `Complete request ${request.id}, including provisional source and original examples, is in support:capability-request.`,
         ...(point === undefined ? [`Current assignment: ${JSON.stringify(assignment)}`] : []),
         `Registry clues: ${JSON.stringify(registry.map(entry => ({ capability: entry.capability, owner: entry.owner })))}`,
         'Read the actual exposed API and use sites. A matching name is not proof of sufficient behavior, and a missing name is not proof of absence.',
@@ -7626,6 +7633,7 @@ export class RunService {
       const problems = [...capabilityAuthorizationErrors(body.authorizations, capabilityGuardedPolicy(this.requiredArtifacts(records))), ...assignmentErrors(body, {
         index: run.index, registry: new Map(records.registry.map(entry => [entry.capability, entry])),
         outline: null, capabilityCompatibility: plan.compatibility,
+        registeredFeatureFiles: new Set(trackedScenarios(run.log.ledger.replay()).records.map(record => record.file)),
         package: packageElements,
         guardedPaths: capabilityGuardedPolicy(this.requiredArtifacts(records)),
         revising: true, bounds: engineerBoundsOf(run.record.policy.limits),
@@ -7675,25 +7683,29 @@ export class RunService {
     ];
     let unreported: string[] = [];
     const action = pendingAction ?? await this.runInvocation<CapabilityAction>(run, agent, {
-      role: 'capability-architect', task: { kind: 'capability', goal: request.original.need, requirements: [JSON.stringify(request.original)], modules: [task.provider, task.consumer, ...task.authority.map(entry => entry.owner)],
+      role: 'capability-architect', task: { kind: 'capability', goal: request.original.need, requirements: [`Fulfil capability request ${request.id}, preserving its complete original usage, constraints and examples in support:capability-request.`], modules: [task.provider, task.consumer, ...task.authority.map(entry => entry.owner)],
         startingPointGroups: await Promise.all([...committedRecords(run.log.ledger.replay()).results.values()]
           .filter(result => result.coordination?.kind === 'capability-task' && result.coordination.id === task.id)
           .flatMap(result => {
             const assignment = committedRecords(run.log.ledger.replay()).assignments.get(result.iteration);
             return assignment === undefined ? [] : [this.engineerStartingPoints(run, assignment, result)];
           })),
-        omit: [`# Selected plan package ${selectedHash}\n\n${selected}`], literalSections: [{ key: 'support:selected-plan-package', text: `# Selected plan package ${selectedHash}\n\n${selected}` }, { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` }] }, work: { capabilityTask: task.id, request: request.id }, attempt,
+        omit: [`# Selected plan package ${selectedHash}\n\n${selected}`], literalSections: [
+          { key: 'support:work-item-package', text: selected },
+          { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` },
+          { key: 'support:capability-plan', text: `Current plan: ${JSON.stringify(plan, null, 2)}` },
+        ] }, work: { capabilityTask: task.id, request: request.id }, attempt,
       loaded, systemPrompt: renderCapabilityArchitectPrompt(loaded, this.projectRoot),
       prompt: [
         `# Capability task ${task.id}`, `Use task ${task.id}, planRevision ${plan.revision} and invocation ${coordinatorBasis} as your action basis.`,
         ...[
-          `Current plan: ${JSON.stringify(plan, null, 2)}`,
+          `Current plan ${plan.task} revision ${plan.revision} is in support:capability-plan.`,
           `Provider entry decisions: ${JSON.stringify(providerDecisions, null, 2)}`,
           `Provider entry outlines: ${JSON.stringify(providerItems.map(entry => ({ item: entry.id, outline: records.outlines.get(entry.id) ?? [] })), null, 2)}`,
           ...[defaultWriteScopeSection(await this.defaultWriteScopes(run.index,
             [task.provider, task.consumer, ...task.authority.map(entry => entry.owner)], [...capabilityGuardedPolicy(this.requiredArtifacts(records))])).join('\n').trim()]
             .filter(section => section !== ''),
-          `# Selected plan package ${selectedHash}\n\n${selected}`,
+          `# Selected plan package ${selectedHash}\n\nComplete current body is in support:work-item-package.`,
           ...(progress === '' ? [] : [`Progress from the last turn: ${progress}`]),
         ],
         ...[this.obligationBriefing(run, { kind: 'capability-task', id: task.id }).join('\n')].filter(section => section !== ''),
@@ -7894,13 +7906,17 @@ export class RunService {
     }
     const reconstructed = source.point === null || !await (await this.operations(agent)).hasPoint(run.record.jobId, source.point);
     const response = await this.runInvocation(run, agent, {
-      role: 'engineer', task: { kind: 'consultation', modules: [task.consumer], goal: action.question, requirements: [JSON.stringify(plan)], consultationSubmissionSchema: JSON.stringify(z.toJSONSchema(responseSchema)) }, work: { capabilityTask: task.id, request: request.id },
+      role: 'engineer', task: { kind: 'consultation', modules: [task.consumer], goal: action.question,
+        requirements: [`Answer the exact question using complete request ${request.id} and current plan ${plan.task} revision ${plan.revision}; preserve the advisory boundary.`],
+        literalSections: [
+          { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` },
+          { key: 'support:capability-plan', text: `Current plan: ${JSON.stringify(plan, null, 2)}` },
+        ], consultationSubmissionSchema: JSON.stringify(z.toJSONSchema(responseSchema)) }, work: { capabilityTask: task.id, request: request.id },
       attempt: run.log.all('invocation-started').filter(event => event.data.role === 'engineer' &&
         event.data.work.capabilityTask === task.id && event.data.work.request === request.id).length + 1,
       loaded, systemPrompt: renderEngineerPrompt(loaded, this.projectRoot, run.record.policy.limits.commandTimeoutMs, this.projectRoot),
       prompt: [`# Read-only consumer consultation ${id}`, `Question: ${action.question}`,
-        `Current plan revision ${plan.revision}: ${JSON.stringify(plan)}`,
-        `Original request and suspended source: ${JSON.stringify(request)}`,
+        `Current plan revision ${plan.revision} is in support:capability-plan; original request and suspended source are in support:capability-request.`,
         `References: ${action.references.join(', ')}`, 'Answer directly; source edits require a separate A-scoped assignment.'].join('\n\n'),
       workingDirectory: this.projectRoot,
       start: reconstructed ? { mode: 'fresh' } : { mode: 'fork', from: source.point! },
@@ -8032,14 +8048,14 @@ export class RunService {
     await this.write(run, { type: 'capability-verification-started', data: { task: task.id, invocation, gate: gate.id } });
     await this.afterWrite('capability-verification-started', run.record.jobId);
     if (this.ignoring(run)) return null;
-    await this.finishCapabilityHandback(run, task, request, plan, action, invocation, gate, currentTree, reviewStates);
-    return { handedBack: true, guidance: `Capability ${task.id} accepted at ${currentTree}. ${action.summary}. Use ${action.interfaces.map(entry => `${entry.symbols.join(', ')} at ${entry.path}: ${entry.use}`).join('; ')}. Continue the original assignment from the current candidate; its remaining goal stays open.` };
+    const handback = await this.finishCapabilityHandback(run, task, request, plan, action, invocation, gate, currentTree, reviewStates);
+    return { handedBack: true, guidance: `${capabilityHandbackGuidance(run.path('.'), handback)}\nContinue the original assignment from the current candidate; its remaining goal stays open.` };
   }
 
   private async finishCapabilityHandback(run: Run, task: CapabilityTask, request: CapabilityRequest,
     plan: CapabilityPlan, action: Extract<CapabilityAction, { kind: 'request-handback' }>, invocation: string,
     gate: GateAttempt, tree: string, reviews: ReturnType<typeof reviewStateOf> extends ReadonlyMap<string, infer R> ? R[] : never,
-  ): Promise<void> {
+  ): Promise<CapabilityHandback> {
     if (gate.audited === null) throw new Error(`Gate ${gate.id} has no audited commit`);
     const state = replayCapabilityState(run.log.events).tasks.get(task.id);
     if (state === undefined || capabilityHandbackReadiness(task, request, plan, state).length > 0) {
@@ -8064,6 +8080,7 @@ export class RunService {
       task: task.id, handback: task.id, invocation,
     } }, [{ path: capabilityLayout.handback(task.id), id: task.id, revision: 1, body: handback }]));
     await this.afterWrite('capability-handed-back', run.record.jobId);
+    return handback;
   }
 
   /** A completed task gate is never rerun during recovery. The retained gate
@@ -8164,13 +8181,17 @@ export class RunService {
     if (appended.outcome === 'conflict') throw new Error(`The capability architect did not take its note: ${appended.reason}`);
     const lost = appended.outcome === 'session-lost' || session === undefined;
     qualification ??= await this.runInvocation<QualificationAction>(run, agent, {
-      role: 'capability-architect', task: { kind: 'capability-qualification', goal: request.original.need, requirements: [JSON.stringify(request), JSON.stringify(parentPlan)], modules: [parentTask.provider, parentTask.consumer] }, work: { capabilityTask: parentTask.id, request: request.id },
+      role: 'capability-architect', task: { kind: 'capability-qualification', goal: request.original.need,
+        requirements: [`Qualify nested request ${request.id} against its complete original constraints and examples and current parent plan ${parentPlan.task} revision ${parentPlan.revision}.`],
+        modules: [parentTask.provider, parentTask.consumer], literalSections: [
+          { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` },
+          { key: 'support:capability-plan', text: `Current plan: ${JSON.stringify(parentPlan, null, 2)}` },
+        ] }, work: { capabilityTask: parentTask.id, request: request.id },
       attempt: run.log.all('invocation-started').filter(event => event.data.work.capabilityTask === parentTask.id &&
         event.data.work.request === request.id).length + 1,
       loaded, systemPrompt: renderCapabilityArchitectPrompt(loaded, this.projectRoot),
       prompt: [`# Qualify nested request ${request.id}`, `Parent task ${parentTask.id} waits with ${assignment.id} unfinished.`,
-        `Original need and source: ${JSON.stringify(request, null, 2)}`,
-        `Current parent plan: ${JSON.stringify(parentPlan, null, 2)}`,
+        `Complete request ${request.id} is in support:capability-request; current parent plan is in support:capability-plan.`,
         `Use request ${request.id} and invocation ${suspended.id} in the action.`,
         'Inspect the actual API and use. Satisfy with existing behavior or delegate a fresh child; matching module names do not establish reuse.',
         ...(returned === '' ? [] : [`# Boundary decision\n\n${returned}`])].join('\n\n'),
@@ -8299,6 +8320,7 @@ export class RunService {
       const problems = [...capabilityAuthorizationErrors(body.authorizations, capabilityGuardedPolicy(this.requiredArtifacts(records))), ...assignmentErrors(body, {
         index, registry: new Map(records.registry.map(entry => [entry.capability, entry])),
         outline: null, capabilityCompatibility: plan.compatibility,
+        registeredFeatureFiles: new Set(trackedScenarios(run.log.ledger.replay()).records.map(record => record.file)),
         package: packageElements,
         guardedPaths: capabilityGuardedPolicy(this.requiredArtifacts(records)),
         revising: true, bounds: engineerBoundsOf(run.record.policy.limits),
@@ -8382,7 +8404,7 @@ export class RunService {
         const handback = childId === null || childId === undefined ? undefined : committed.capabilityHandbacks.get(childId);
         let guidance: string;
         if (handback !== undefined) {
-          guidance = `Nested capability ${childId} handed back at ${handback.returnedTree}. Accepted source ${handback.sourceRevision}; changes since suspension: ${handback.deltaFromSuspension.join(', ') || '(none)'}. Interface use: ${handback.interfaces.map(entry => `${entry.symbols.join(', ')} at ${entry.path}: ${entry.use}`).join('; ')}. Continue ${id} from its current candidate; its assigned goal remains unfinished.`;
+          guidance = `Nested capability ${childId} handed back at ${handback.returnedTree}.\n${capabilityHandbackGuidance(run.path('.'), handback)}\nContinue ${id} from its current candidate; its assigned goal remains unfinished.`;
         } else {
           const nested = await this.coordinateNestedCapability(run, agent, packages, baseline, item, task, plan,
             assignment, suspended, coordinator, pending);
@@ -8598,10 +8620,7 @@ export class RunService {
         await this.fail(run, 'inputs-changed', `The assignment package of ${assignment.id} cannot be delivered: ${message(error)}`);
         return null;
       }
-      const featurePaths = briefedScenarios?.kind === 'entry'
-        ? briefedScenarios.scenarios.filter(scenario => (assignment.obligations ?? []).includes(scenario.id)).map(scenario => scenario.file)
-        : briefedScenarios?.kind === 'integration' && (assignment.obligations ?? []).includes(briefedScenarios.integration.scenario.id)
-          ? [briefedScenarios.integration.scenario.file] : [];
+      const featurePaths = assignedFeaturePaths(assignment, trackedScenarios(run.log.ledger.replay()).records);
       const focused = await prepareAssignedCucumber({ projectRoot: this.projectRoot, scratchDirectory: join(workingDirectory, 'tmp', 'ramify-focused', assignment.id),
         featurePaths, checks: run.record.auditConfiguration && 'config' in run.record.auditConfiguration ? run.record.auditConfiguration.config.checks : [],
         runner: this.options.commandExecution ?? runCommand });
@@ -11325,7 +11344,7 @@ function analysisMessage(record: RunRecord, plan: string, capturedPath: string, 
       'Read each in full at its captured file; its functional and context elements are yours to submit as well:', '',
       ...accompanying.map(document => `- ${document.id}: ${document.path}; captured file ${join(inputs.runDirectory, document.storedAt)}`), '',
     ]),
-    ...planScenariosSection(planScenarios),
+    ...planScenariosSection(planScenarios, new Set([inputs.manifest.root])),
     '# This run\'s evidence',
     '',
     view.status === 'materialized'
@@ -11345,7 +11364,7 @@ function analysisMessage(record: RunRecord, plan: string, capturedPath: string, 
  * lines, and every `gherkin` block that did not parse. A plan without
  * blocks is said to have none in one line.
  */
-function planScenariosSection(extraction: PlanScenarioExtraction): string[] {
+export function planScenariosSection(extraction: PlanScenarioExtraction, suppliedDocuments: ReadonlySet<string> = new Set()): string[] {
   const lines = ['# The plan\'s scenarios', ''];
   if (extraction.scenarios.length === 0 && extraction.limitations.length === 0) {
     return [...lines, 'The plan has no `gherkin` block, so it states no scenario: write every entry\'s scenarios yourself.', ''];
@@ -11354,7 +11373,7 @@ function planScenariosSection(extraction: PlanScenarioExtraction): string[] {
     lines.push('The plan states no scenario that could be extracted: write every entry\'s scenarios yourself.', '');
   } else {
     lines.push(
-      `The harness extracted ${extraction.scenarios.length === 1 ? 'one scenario' : `${extraction.scenarios.length} scenarios`} from the \`gherkin\` blocks of the plan documents the intake incorporated. Each appears exactly once in your submission. Use one as the origin of an entry scenario, restating its text as written here, or as an integration scenario with its sub-scenarios.`,
+      `The harness extracted ${extraction.scenarios.length === 1 ? 'one scenario' : `${extraction.scenarios.length} scenarios`} from the \`gherkin\` blocks of the plan documents the intake incorporated. Each appears exactly once in your submission. Use one as the origin of an entry scenario, restating its exact captured source text, or as an integration scenario with its sub-scenarios.`,
       '',
     );
     for (const scenario of extraction.scenarios) {
@@ -11363,9 +11382,9 @@ function planScenariosSection(extraction: PlanScenarioExtraction): string[] {
         '',
         `Lines ${scenario.lines[0]}–${scenario.lines[1]} of ${scenario.document ?? "the plan"}${scenario.outline ? ', a Scenario Outline with its examples' : ''}.`,
         '',
-        '```gherkin',
-        ...scenario.source,
-        '```',
+        ...(scenario.document !== undefined && suppliedDocuments.has(scenario.document)
+          ? ['Complete scenario body, including examples, is in the captured plan block above. The scenario lines are identified here; include every applicable Feature/Rule Background condition when restating this origin.']
+          : ['```gherkin', ...scenario.source, '```']),
         '',
       );
     }

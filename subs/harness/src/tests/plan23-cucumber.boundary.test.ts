@@ -7,6 +7,7 @@ import { afterEach, expect, it } from 'vitest';
 import { loadCucumberConfiguration } from '../../subs/evidence/src/cucumber-configuration.js';
 import { childEnvironment, runCommand } from '../../subs/evidence/src/run-command.js';
 import { classifyShellTestRun } from '../tools/shell-tests.js';
+import { assignedFeaturePaths } from '../work/feature-selection.js';
 import { buildFocusedScenarioCommand } from '../work/focused-scenarios.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
@@ -27,7 +28,7 @@ async function fixture() {
   const text = JSON.stringify(config); await writeFile(join(cwd, 'cucumber.json'), text);
   const effective = await loadCucumberConfiguration({ cwd, file: 'cucumber.json', profiles: ['default', 'declared'], provided: {}, environment: childEnvironment({ PLAN23_CUCUMBER_MARKER: 'declared-env' }), configurationIdentity: createHash('sha256').update(text).digest('hex'), nodeExecutable: process.execPath });
   expect(effective.kind).toBe('available');
-  const focused = buildFocusedScenarioCommand({ effective, featurePaths: ['features/A.feature', 'features/B.feature'], scratchDirectory: join(cwd, 'scratch'), cucumberExecutable: join(cwd, 'node_modules/.bin/cucumber-js') });
+  const focused = buildFocusedScenarioCommand({ effective, featurePaths: assignedFeaturePaths({ obligations: ['cap-001'], featureSelection: { files: ['features/A.feature', 'features/B.feature'], reason: 'Capability evidence for pending preview' } }, [{ id: 'sc-001', file: 'features/A.feature' }, { id: 'sc-002', file: 'features/B.feature' }]), scratchDirectory: join(cwd, 'scratch'), cucumberExecutable: join(cwd, 'node_modules/.bin/cucumber-js') });
   if (focused.kind !== 'available') throw new Error(focused.reason);
   await writeFile(focused.configPath, focused.configText);
   const execute = (argv: readonly string[] = focused.argv) => runCommand({ argv, cwd: focused.cwd, env: focused.environment, timeoutMs: 30_000 });
@@ -39,6 +40,22 @@ it('installed Cucumber executes only assigned pending A and B with declared supp
   expect(await f.observed()).toEqual([{ label: 'A', world: 'declared-world', environment: 'declared-env', support: 'profile-support' }, { label: 'B', world: 'declared-world', environment: 'declared-env', support: 'profile-support' }]);
   expect(await readFile(join(f.cwd, 'loader.log'), 'utf8')).toContain('support-loaded');
   expect(createHash('sha256').update(await readFile(f.focused.configPath)).digest('hex')).toBe(f.focused.configurationIdentity);
+  // Successful process completion says nothing about acceptance when no cases execute.
+  for (const name of ['A', 'B']) await writeFile(join(f.cwd, `features/${name}.feature`), `Feature: ${name}\n`);
+  const zero = await f.execute(); expect(zero.outcome).toEqual({ kind: 'completed', exitCode: 0 });
+  expect(zero.stdout).toContain('0 scenarios');
+  await writeFile(join(f.cwd, 'features/A.feature'), '@ramify-pending\nFeature: A\n Scenario: missing\n  When a missing binding\n  Then an unrun assertion\n');
+  const undefinedRun = await f.execute(); expect(undefinedRun.outcome).toEqual({ kind: 'completed', exitCode: 1 });
+  expect(undefinedRun.stdout).toContain('undefined');
+  await writeFile(join(f.cwd, 'features/A.feature'), '@ramify-pending\nFeature: A\n Scenario: collision\n  When record "A"\n  Then an unrun assertion\n');
+  await writeFile(join(f.cwd, 'support/additional.mjs'), `import {When} from '@cucumber/cucumber'; When('record {string}', function(){});\n`);
+  const ambiguous = await f.execute(); expect(ambiguous.outcome).toEqual({ kind: 'completed', exitCode: 1 });
+  expect(ambiguous.stdout).toContain('ambiguous');
+  await writeFile(join(f.cwd, 'support/additional.mjs'), '');
+  await writeFile(join(f.cwd, 'support/steps.mjs'), `import {When,Then} from '@cucumber/cucumber'; When('record {string}', function(label){throw new Error('assertion failed');}); Then('an unrun assertion',function(){});\n`);
+  const failed = await f.execute(); expect(failed.outcome).toEqual({ kind: 'completed', exitCode: 1 });
+  expect(failed.stdout).toContain('failed');
+  expect(failed.stdout).toContain('skipped');
 }, 30_000);
 it('installed Cucumber default profile merges broad paths while dedicated profile remains exact', async () => {
   const f = await fixture(); const baseline = await f.execute([f.focused.argv[0]!, '--config', 'cucumber.json']); expect(baseline.outcome).toEqual({ kind: 'completed', exitCode: 0 }); expect((await f.observed()).map(item => item.label)).toEqual(['U']); await rm(f.output); const broad = await f.execute([f.focused.argv[0]!, '--config', 'cucumber.json', 'features/A.feature']); expect(broad.outcome).toEqual({ kind: 'completed', exitCode: 0 });

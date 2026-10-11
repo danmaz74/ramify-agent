@@ -19,6 +19,7 @@ import { integrationBriefing } from '../work/integration.js';
 import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
 import { integrationScenarioOf, type WorkItem } from '../work/records.js';
 import { entryScenariosOf, type EngineerScenarios } from '../work/scenario-briefing.js';
+import { assignedFeaturePaths } from '../work/feature-selection.js';
 import { iterationApiViews, prepareAssignedCucumber } from '../work/session.js';
 import { localArchitectSubmissionSchema } from '../work/submission.js';
 import { existingViews, type AuthoringPorts } from './authoring.js';
@@ -88,6 +89,7 @@ export async function engineerInputsFromAssignment(options: {
     ...(assignment.kind === submission.assignment.kind ? [] : [`its kind is ${assignment.kind}, and the submission's ${submission.assignment.kind}`]),
     ...(assignment.goal === submission.assignment.goal ? [] : ['its goal is not the submission\'s']),
     ...(assignment.approach === submission.assignment.approach ? [] : ['its approach is not the submission\'s']),
+    ...(JSON.stringify(assignment.featureSelection) === JSON.stringify(submission.assignment.featureSelection) ? [] : ['its feature selection is not the submission\'s']),
   ];
   if (mismatch.length > 0) return refused(`the assignment record of ${assignment.id} does not match the accepted submission of ${invocation}: ${mismatch.join('; ')}`);
   if (assignment.source !== undefined) return refused(`${assignment.id} cites an assignment package, which a manual run holds no catalog to deliver`);
@@ -150,9 +152,7 @@ async function collect(run: ManualRun, projectRoot: string, subject: {
     if (obligation.kind === 'outcome') return { id, text: obligation.case === null ? 'delegated outcome' : `registered case ${obligation.case}` };
     return { id, text: obligation.description === null ? 'registered test' : `registered test: ${obligation.description}` };
   });
-  const featurePaths = scenarios?.kind === 'entry'
-    ? scenarios.scenarios.filter(scenario => assignedIds.includes(scenario.id)).map(scenario => scenario.file)
-    : scenarios?.kind === 'integration' && assignedIds.includes(scenarios.integration.scenario.id) ? [scenarios.integration.scenario.file] : [];
+  const featurePaths = assignedFeaturePaths(assignment, tracked.records);
 
   const source = await assignedSourceDirectory(projectRoot, assignment.scope, index);
   const workingDirectory = relative(projectRoot, source.path).split(sep).join('/');

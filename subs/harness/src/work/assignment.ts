@@ -10,13 +10,14 @@ import { assignedObligationErrors, type ObligationContext, type ObligationRegist
 import type { IntegrationScope } from './integration.js';
 import type { OutlineBody } from './submission.js';
 import type { EngineerBounds } from '../run/policy.js';
+import { featureSelectionSchema, featureSelectionErrors } from './feature-selection.js';
 import { startingPointsSchema } from './starting-points.js';
 
 /*
  * The assignment a module architect submits, and the rules the schema cannot
  * hold.
  *
- * It carries no test selection, no gate and no guarded hashes: those are
+ * It carries no gate test policy, no gate and no guarded hashes: those are
  * derived by the harness from the kind, the scope and the required evidence,
  * and frozen on the assignment it commits. It carries no identifier either,
  * because the harness assigns one.
@@ -165,6 +166,8 @@ export const assignmentBodySchema = z.object({
    * each binding relies on, or reports partial.
    */
   obligations: z.array(text).optional(),
+  /** Explicit evidence selection; never completion or write authority. */
+  featureSelection: featureSelectionSchema.optional(),
   /**
    * Bounds this iteration's engineers need beyond the policy's, each with
    * its reason: the longest one shell command may run, the idle bound and
@@ -185,6 +188,8 @@ export type AssignmentBody = z.infer<typeof assignmentBodySchema>;
 
 /** What an assignment's rules are checked against. */
 export interface AssignmentEvidence {
+  /** Current project registry authority for explicitly selected evidence. */
+  readonly registeredFeatureFiles?: ReadonlySet<string> | undefined;
   /** The architect view, refreshed before the assignment is judged. */
   readonly index: ArchitectIndex | null;
   /** The registry as committed so far, by capability. */
@@ -236,7 +241,7 @@ export function creationAuthority(
  * and each error names its path.
  */
 export function assignmentErrors(body: AssignmentBody, evidence: AssignmentEvidence): SubmissionError[] {
-  const errors: SubmissionError[] = [];
+  const errors: SubmissionError[] = featureSelectionErrors(body.featureSelection, evidence.registeredFeatureFiles);
   const cited = new Set<string>();
   body.citedElements.forEach((id, position) => {
     if (evidence.package !== undefined && !evidence.package.has(id)) errors.push({

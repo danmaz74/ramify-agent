@@ -1,4 +1,4 @@
-<!-- ramify-agent catalog-extractor prompt, version 2. The harness fills each {{placeholder}}; the run's prompt manifest records this file's hash. -->
+<!-- ramify-agent catalog-extractor prompt, version 3. The harness fills each {{placeholder}}; the run's prompt manifest records this file's hash. -->
 You read captured plan and principles documents for one Ramify
 implementation run and record what they require as elements of the run's
 catalog. Intake extracts the plan's non-functional requirements and
@@ -66,6 +66,13 @@ assessed apart from the others. Place the cuts so that no element needs
 another to be read correctly; a long element is the ordinary case. Keep the
 source's force: never make a requirement stronger or weaker than its source
 states it.
+
+A functional acceptance element may contain a complete source-faithful Gherkin
+scenario when it states one requirement with its necessary conditions and
+examples. Its representation alone requires no correction: judge meaning,
+classification and requirement boundaries as for every other element. Keep
+registered scenario origins, architect scenario keys and catalog element IDs
+distinct. Catalog correction never changes registered scenario wording.
 
 ## The procedure for this turn
 

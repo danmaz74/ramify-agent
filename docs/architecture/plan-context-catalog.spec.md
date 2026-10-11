@@ -38,6 +38,26 @@ the others. Extraction places the cuts so that no element needs another to
 be read correctly, and a long element is the ordinary case, not an
 exception.
 
+A functional acceptance element may contain a complete source-faithful Gherkin
+scenario when it states one requirement with its necessary conditions and
+examples. The scenario is element `text`; no separate `gherkin` field or new
+element kind is introduced. Extraction and catalog review judge faithfulness,
+classification and requirement boundaries as usual. Copying alone neither proves faithfulness nor
+warrants correction. Correct real omissions, wrong conditions, strengthening,
+weakening and wrong classification before the catalog freezes; preserve stated
+and inferred conditions and the reader's uncertainty.
+
+Registered plan origins, architect scenario keys and catalog element IDs remain
+distinct. An entry cites acceptance elements, and its scenarios cite every
+acceptance element they verify. Catalog correction preserves all acceptance
+behavior and updates each affected entry's complete citation lists and each
+affected scenario's complete `refs`. Correction `scenarios[].key` names the
+architect scenario key, never a registered plan origin (`ps-NN`). Correction
+changes catalog readings and citations, never registered scenario wording or
+origins. The frozen catalog and captured documents keep their original text;
+the [scenario deviation contract](acceptance-scenarios.md) governs any later
+authorized change to pending scenarios.
+
 ## Specifications inform the reviewed plan
 
 At the beginning, review the plan against applicable specifications for
@@ -216,6 +236,23 @@ skipped step and never a clean result. Because the catalog is the bounded
 view, a consumer that finds the elements insufficient records that as a gap
 or asks through the run's ordinary channels; it does not go back to the
 source documents to complete the reading on its own.
+
+The current task delivers each complete request and selected package in one
+stable block. A continued or forked task may retain an unchanged body only
+when the exact body and source remain in effective inherited deliveries. Its
+task selection identifies the retained block, original delivery revision and
+hash. Replaced, withdrawn, missing or unframed historical deliveries receive
+the complete current body again. Earlier admitted packets remain historical
+evidence; current design changes replace their own block.
+
+A registered scenario may identify its complete body in an explicitly cited
+element of the current complete package when their bodies are exactly equal.
+The briefing preserves scenario identity, accepted origin, citations, file and
+state; every element retains its own conditions, uncertainty and provenance.
+This shares a delivery location, never judges faithfulness or combines distinct
+requirements with equal wording. Changed or uncited scenario text is supplied
+whole. A catalog comparison still supplies both complete captured source and
+complete reading.
 
 ## Open
 

@@ -55,9 +55,11 @@ describe('Plan 23 C01/C02 catalog local-key validation', () => {
       'entries.cap-a.requirementRefs.0: reference "req-a" is functional; expected no element kinds',
     ]);
   });
-  test('scenario identities stay references, with Gherkin refused as an element field', () => {
+  test('Gherkin remains valid element text, while a separate gherkin field is refused', () => {
     const catalog = openElementCatalog(hash, manifest);
-    const rejected = acceptElements(catalog, [{ ...element('req-a'), gherkin: 'Scenario: duplicate\n Given something' }]);
+    const text = 'Scenario: A caller receives a result\n Given a valid request\n When the caller submits it\n Then the result is returned';
+    expect(acceptElements(catalog, [{ ...element('req-a'), text }])).toMatchObject({ ok: true, catalog: { elements: [{ id: 'fr-001', text }] } });
+    const rejected = acceptElements(catalog, [{ ...element('req-a'), gherkin: text }]);
     expect(rejected.ok).toBe(false); if (rejected.ok) return;
     expect(rejected.errors.join(' ')).toContain('gherkin'); expect(rejected.errors.join(' ')).toContain('req-a');
   });
