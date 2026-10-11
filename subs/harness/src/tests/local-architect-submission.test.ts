@@ -651,7 +651,7 @@ describe('a rejected submission in a run', () => {
     expect(local.verdicts[0]).toMatchObject({ accepted: false });
     const answer = JSON.parse((local.verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string; message: string }> };
     expect(answer.errors.map(error => error.path)).toEqual(['assignment.citedElements.1', 'assignment.citedElements.2']);
-    expect(answer.errors[0]!.message).toBe('"Every note is kept" is not an element of this work item\'s package');
+    expect(answer.errors[0]!.message).toBe('"Every note is kept" is not an allowed plan-catalog element for this assignment; capability examples and use cases are separate request context');
     expect(local.verdicts[1]).toEqual({ accepted: true });
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     expect(agent!.sessions.some(session => session.spec.role === 'engineer')).toBe(false);

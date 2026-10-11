@@ -58,12 +58,17 @@ Run commands from the repository root:
 | `node_modules/.bin/vitest list --filesOnly --json` | Authoritative configured file discovery |
 
 The committed `agent-tests` audit check executes the complete configuration with
-four workers. It never selects quick tests alone. For full qualification, start
-from a clean committed candidate at the repository root and run:
+four workers. It never selects quick tests alone. Start from a clean committed
+candidate at the repository root and run the audit in default mode:
 
 ```sh
-node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
+node_modules/.bin/ramify-audit audit --cwd . --json
 ```
+
+Let the auditor determine scope. Use `--full`, `--nested` or other scope
+overrides only for a concrete reason, such as an explicit request for full
+qualification or investigating omitted coverage, and explain the reason before
+running. A request to commit and audit does not itself justify overrides.
 
 Do not run another direct whole suite where audit discipline applies. Skipped,
 failed, missing and unrun checks retain their status. Existing opt-in fixture

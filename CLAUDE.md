@@ -5,6 +5,10 @@ this repository, including its writing conventions and development workflow.
 The Ramify toolkit's instructions, roadmap, plans and cucumber-viz workflow do
 not apply here.
 
+Run `ramify-audit` in default mode unless a concrete reason justifies scope
+overrides; explain that reason before running. See the audit rule in
+[AGENTS.md](AGENTS.md).
+
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:1105d646 -->
 ## Beads Issue Tracker

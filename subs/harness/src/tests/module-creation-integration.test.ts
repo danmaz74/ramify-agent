@@ -129,8 +129,8 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
     expect(onlyRun(opened.service, 'review-notes').state).toBe('completed');
     expect(architectScopes.map(scope => scope.directory)).toEqual([root, root]);
     expect(architectScopes[0]!.prompt).toContain('This session remains at the project root even if an engineer creates the module.');
-    expect(architectScopes[0]!.prompt).toContain(`- Assigned module declaration: \`${join(root, notesDirectory, 'module.ramify')}\` (read it if present).`);
-    expect(architectScopes[0]!.prompt).toContain(`- Onboarding: \`${join(root, notesDirectory, 'README.md')}\` gives none:`);
+    expect(architectScopes[0]!.prompt).toContain(`- Assigned module declaration: \`${notesDirectory}/module.ramify\` (read it if present).`);
+    expect(architectScopes[0]!.prompt).toContain(`- Onboarding: \`${notesDirectory}/README.md\` gives none:`);
     // Every refresh answered, so nothing below rests on evidence the
     // harness could not obtain.
     expect(unavailable).toEqual([]);

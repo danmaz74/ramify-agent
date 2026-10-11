@@ -43,8 +43,12 @@ toolkit repository's `ramify-agent/` directory until Plan 32 extracted it.
   and receives only those contracts.
 - Its audit checks live in committed `ramify-audit.json`. From a clean
   committed checkout, run `node_modules/.bin/ramify-audit audit --cwd . --json`;
-  add `--full --nested` for qualification. The CLI reads the configuration
-  from the audited commit and publishes evidence under this repository's refs.
+  use default mode and let the auditor determine scope. Add scope overrides
+  such as `--full` or `--nested` only for a concrete reason, such as an explicit
+  request for full qualification or investigating omitted coverage. Explain
+  that reason before running. A request to commit and audit does not by itself
+  justify overrides. The CLI reads the configuration from the audited commit
+  and publishes evidence under this repository's refs.
 - `.ramify-architect/` and every `src/.ramify/` are generated, gitignored
   views. Never edit or import them; refresh them with
   `node_modules/.bin/ramify materialize --view architect`.

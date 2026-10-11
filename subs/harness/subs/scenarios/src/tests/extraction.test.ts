@@ -154,11 +154,11 @@ describe('extracting plan scenarios', () => {
 describe('the collection-review plans', () => {
   const plans = readdirSync(collectionReview);
 
-  test('are all read; status-badge-tone states its first two acceptance bullets as scenarios, the others state none', () => {
+  test('are all read; badge and preview plans state scenarios, the others state none', () => {
     expect(plans.length).toBeGreaterThan(0);
     for (const name of plans) {
       const extraction = extractPlanScenarios(readFileSync(join(collectionReview, name, 'plan.md'), 'utf8'));
-      if (name === 'status-badge-tone') continue;
+      if (name === 'status-badge-tone' || name === 'revision-preview') continue;
       expect(extraction, name).toEqual({ scenarios: [], limitations: [] });
     }
     const badge = extractPlanScenarios(readFileSync(join(collectionReview, 'status-badge-tone', 'plan.md'), 'utf8'));
@@ -172,6 +172,16 @@ describe('the collection-review plans', () => {
       '  Given a badge for a failed review with no tone',
       '  When the badge is rendered',
       '  Then its markup carries the tone "neutral"',
+    ]);
+    const preview = extractPlanScenarios(readFileSync(join(collectionReview, 'revision-preview', 'plan.md'), 'utf8'));
+    expect(preview.limitations).toEqual([]);
+    expect(preview.scenarios.map(scenario => [scenario.id, scenario.name, scenario.lines, scenario.anchors])).toEqual([
+      ['ps-01', 'Preview an intact proposed chain', [71, 76], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['ps-02', 'Preview an explicitly empty chain', [78, 82], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['ps-03', 'A missing predecessor survives the provider boundary', [84, 89], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['ps-04', 'Preview retains the existing rules and their ordering', [91, 97], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['ps-05', 'Missing input is not an empty chain', [99, 102], ['preview-a-proposed-revision-chain', 'acceptance']],
+      ['ps-06', 'Existing stored-record reviews keep their behavior', [104, 111], ['preview-a-proposed-revision-chain', 'acceptance']],
     ]);
   });
 
