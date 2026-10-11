@@ -14,7 +14,7 @@ import type { PlacementDecision } from '../architecture/records.js';
 import type { EnvironmentProblem } from '../deviations/records.js';
 import type { IterationApiViews } from './engineer.js';
 import type { IntegrationBriefing } from './integration.js';
-import { architectScenarioSection, type BriefedScenario } from './scenario-briefing.js';
+import type { BriefedScenario } from './scenario-briefing.js';
 import type { WorkItem, WorkItemOutline } from './records.js';
 import type { EngineerBounds } from '../run/policy.js';
 import { analysisLines, boundOf, digestLines } from './failure.js';
@@ -293,6 +293,39 @@ export function apiCoverageStatement(coverage: number): string {
   return `${coverage === 1 ? 'one source-analysis limit' : `${coverage} source-analysis limits`} that may have left a received API out of this view, so absence is not proof of unavailability`;
 }
 
+/**
+ * The scenarios of an entry's work item, as two sections: their text, which
+ * stays the same from turn to turn and so reaches a session once, and their
+ * states, which a later turn delivers alone when only they changed.
+ */
+export function architectScenarioSections(scenarios: readonly BriefedScenario[]): string[] {
+  if (scenarios.length === 0) return [];
+  const lines: string[] = ['## The scenarios of this work item', '',
+    `Its entry has ${scenarios.length} scenario${scenarios.length === 1 ? '' : 's'}. The harness wrote each into its feature file,`,
+    'and no agent edits a feature file. The work item completes only when you have reported every one `done`.', ''];
+  for (const scenario of scenarios) {
+    lines.push(`### ${scenario.id}: ${scenario.name}`, '', `- Feature file: \`${scenario.file}\`.`,
+      ...(scenario.partOf === null ? [] : [`- A sub-scenario of the integration scenario \`${scenario.partOf}\`, whose integration work item is due once every sub-scenario is reported done.`]),
+      '', '```gherkin', ...scenario.source, '```', '');
+  }
+  lines.push(
+    'A scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing',
+    'module\'s `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer\'s',
+    'accepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its',
+    'pending tag at the next commit, so the gates\' configured checks run it. A passing gate is evidence, never your',
+    'report: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,',
+    'whatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.',
+    '',
+    '## The states of these scenarios',
+    '',
+    ...scenarios.map(scenario => `- \`${scenario.id}\`: ${scenario.state}.`),
+    '',
+    'Their text is in "The scenarios of this work item"; only these states change from turn to turn.',
+    '',
+  );
+  return lines;
+}
+
 /** The first user message of one local architect invocation. */
 export function workItemMessage(briefing: WorkItemBriefing): string {
   const { item } = briefing;
@@ -320,7 +353,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     '',
     ...deviationSection(briefing.deviations, briefing.deviationRecorded),
     ...(briefing.integration === undefined ? [] : integrationSection(briefing.integration)),
-    ...architectScenarioSection(briefing.scenarios ?? []),
+    ...architectScenarioSections(briefing.scenarios ?? []),
     '## Your module',
     '',
     `- Declared name: \`${item.module}\`.`,
@@ -509,7 +542,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     lines.push(...briefing.failedGate.summary);
     lines.push('', 'Revise your outline and say in `revisionReason` what you changed and why, or answer `unresolved`.', '');
   } else if (briefing.outlines.length > 0) {
-    lines.push(`## Earlier outlines`, '', `This work item already has ${briefing.outlines.length} outline revision(s).`, '');
+    lines.push('## Your outline', '', `Revision ${briefing.outlines.at(-1)!.revision} is this work item's current outline, and it stands. Include \`outline\` only to revise it.`, '');
   }
 
   return lines.join('\n');

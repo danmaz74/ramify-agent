@@ -203,7 +203,8 @@ import { capabilityOf, frontierOrder, hypothesesFor } from '../work/frontier.js'
 import { integrationScenarioOf, originKindOf, workLayout, workItemId, type WorkItem } from '../work/records.js';
 import { apiCoverageStatement, apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
 import { localArchitectToolName, type LocalArchitectSubmission } from '../work/submission.js';
-import { gateDiagnostics, passedScenarioLines, type GateAudience } from '../checks/diagnostics.js';
+import { gateDiagnostics, type GateAudience } from '../checks/diagnostics.js';
+import { scenarioResultsOf, type ScenarioResult } from '../checks/scenario-results.js';
 import { concernBindings, finishReview, requestedStartOf, reviewOutcome, sameWorkItem, type ConcernBinding } from './review-finish.js';
 import { AfterHandling, assignedCount, completionBlockers, authorizedScope, evidenceFor, requiredArtifacts, bindingsOf, capabilityBlockersOf, integrationItemsDue, obligationOwedBy, obligationProjection, openRequirementsOf, pendingCorrection, verifiedRequirements, type HandlingHost } from './after-handling.js';
 import { CandidateDriftError, CommittingGates, readinessAuditOutcome, writeScopePaths, type GateHost } from './committing-gate.js';
@@ -10847,7 +10848,7 @@ export class RunService {
     const gate = await this.readGate(run, result.gate);
     if (gate === null) return [];
     const { records } = trackedScenarios(run.log.ledger.replay());
-    return passedScenarioLines(gate, new Map(records.map(record => [record.id, record.name])));
+    return groupedPassedScenarioLines(scenarioResultsOf(gate), new Map(records.map(record => [record.id, record.name])));
   }
 
   private async readGate(run: Run, id: string): Promise<GateAttempt | null> {
@@ -11169,6 +11170,33 @@ export function withSelectionReasons(text: string, selected: ContextSelection['s
     index = end;
   }
   return `${out.join('\n')}\n`;
+}
+
+/**
+ * The tracked scenarios a passed gate ran, each with the step definitions
+ * that bound it. A Scenario Outline's examples that one check ran in one
+ * file and that the same definitions bound are listed once, with every
+ * example's line: their bindings differ only in the example values.
+ */
+export function groupedPassedScenarioLines(results: readonly ScenarioResult[], names: ReadonlyMap<string, string> = new Map()): string[] {
+  const title = (id: string) => (names.has(id) ? `\`${id}\` "${names.get(id)}"` : `\`${id}\``);
+  const groups = new Map<string, ScenarioResult[]>();
+  for (const result of results.filter(entry => entry.status === 'passed')) {
+    const key = JSON.stringify([result.id, result.check, result.file, result.binding.map(binding => binding.definition)]);
+    groups.set(key, [...groups.get(key) ?? [], result]);
+  }
+  return [...groups.values()].flatMap(group => {
+    const [first] = group as [ScenarioResult, ...ScenarioResult[]];
+    const bound = first.binding.length === 0 ? ', with no step bound.' : ', bound by:';
+    const where = group.length === 1
+      ? `at \`${first.file}:${first.line}\``
+      : `${group.length} examples, at \`${first.file}\` lines ${group.map(entry => entry.line).join(', ')}`;
+    return [
+      `- ${title(first.id)} passed in \`${first.check}\`, ${where}${bound}`,
+      ...first.binding.map(binding => `  - \`${binding.step}\` → \`${binding.definition}\``),
+      ...(group.length > 1 && first.binding.length > 0 ? [`  The step texts are line ${first.line}'s; the other examples differ only in their example values.`] : []),
+    ];
+  });
 }
 
 /** The one requirement of a task the plan block carries whole. */

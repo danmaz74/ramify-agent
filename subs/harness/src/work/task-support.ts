@@ -26,7 +26,9 @@ export function taskSupportSections(prompt: string, separatelyDelivered: readonl
   const counts = new Map<string, number>();
   const flush = () => {
     const headingOnly = (lines[0]?.startsWith('# ') || lines[0]?.startsWith('## ')) && lines.slice(1).every(line => line.trim() === '');
-    const text = lines.join('\n'); lines = [];
+    // Blank lines that only separate a section from the next one are not
+    // its content: an unchanged section keeps its bytes whatever follows it.
+    const text = lines.join('\n').replace(/\n\s*$/u, ''); lines = [];
     if (!text.trim() || headingOnly) return;
     const count = counts.get(heading) ?? 0; counts.set(heading, count + 1);
     sections.push({ key: `support:${heading}:${count}`, text });
