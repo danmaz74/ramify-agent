@@ -1,6 +1,6 @@
 {
   "plan": "../main-plan.md",
-  "status": "in implementation; iterations 1 and 2 complete",
+  "status": "in implementation; iterations 1 and 2 complete; iteration 3 complete (container witnesses pending host Docker)",
   "execution": "serial in dependency order",
   "iterations": [
     {
@@ -26,8 +26,9 @@
       "file": "03-persistent-devcontainer.md",
       "dependsOn": ["2"],
       "cases": ["E10", "E11", "E12", "E13", "E14", "E15", "E16"],
-      "status": "proposed",
-      "writeBoundary": "Extracted agent devcontainer, fixed two-companion bootstrap/status scripts, editor workspace and environment instructions. Isolated container witnesses may create disposable companions."
+      "status": "complete (container witnesses pending host Docker)",
+      "writeBoundary": "Extracted agent devcontainer, fixed two-companion bootstrap/status scripts, editor workspace and environment instructions. Isolated container witnesses may create disposable companions.",
+      "results": "03-results.md"
     },
     {
       "id": "4",
