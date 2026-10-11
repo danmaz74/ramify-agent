@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "ramify_agent",
+  "project_id": "ea748a6c-6a7e-4098-9760-7b703f0d259f"
+}
