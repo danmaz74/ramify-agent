@@ -38,7 +38,7 @@ export interface PiAgentOptions {
   readonly sessionStore?: SessionStore | undefined;
   /**
    * The model as pi's `--model` accepts it, such as `anthropic/claude-opus-4-5`,
-   * optionally with a thinking level, such as `openai-codex/gpt-5.6-sol:high`.
+   * optionally with a thinking level, such as `openai-codex/gpt-6.1-sol:high`.
    * Default: the first model pi has credentials for, at pi's default level.
    */
   readonly model?: string | undefined;

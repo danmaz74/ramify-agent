@@ -3,6 +3,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { AgentSession as PiSession } from '@earendil-works/pi-coding-agent';
 
+/** Preservation serializes the native prefix with pi's own serializer for this API; the model id does not change the shape. */
+const PRESERVING_PROVIDER = 'openai-codex';
+const PRESERVING_API = 'openai-codex-responses';
 export type PiTranscriptMessage = PiSession['agent']['state']['messages'][number];
 export type PiChosenModel = NonNullable<PiSession['model']>;
 export type PiTranscriptTool = { name: string; description: string; parameters: Record<string, unknown> };
@@ -19,7 +22,8 @@ export interface PiNativeRequestArtifact {
   readonly packageVersion: string;
   readonly transport: string;
   readonly maxRetries: number;
-  readonly model: 'openai-codex/gpt-5.6-sol';
+  /** The chosen model as `provider/id`, such as `openai-codex/gpt-6.1-sol`. */
+  readonly model: string;
   readonly instructions: string;
   readonly tools: readonly unknown[];
   readonly input: readonly unknown[];
@@ -33,7 +37,7 @@ export interface RecordedStreamOptions { readonly transport: string; readonly ma
  * version, the validated native prefix and the complete final body.
  */
 export function nativeRequestArtifact(options: RecordedStreamOptions, packageVersion: string, model: string, native: NativePrefix, body: unknown): PiNativeRequestArtifact {
-  return { schema: 'ramify.pi-native-request/1', packageVersion, transport: options.transport, maxRetries: options.maxRetries, model: model as PiNativeRequestArtifact['model'], ...native, request: copy(body) as Record<string, unknown> };
+  return { schema: 'ramify.pi-native-request/1', packageVersion, transport: options.transport, maxRetries: options.maxRetries, model, ...native, request: copy(body) as Record<string, unknown> };
 }
 
 /** Reads only this owner's final-request artifact. Other JSON artifacts,
@@ -49,9 +53,10 @@ export function readPiNativeRequestArtifact(bytes: Uint8Array): PiNativeRequestA
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const artifact = parsed as Record<string, unknown>;
   if (typeof artifact['schema'] !== 'string' || !artifact['schema'].startsWith('ramify.pi-native-request')) return null;
-  if (artifact['schema'] !== 'ramify.pi-native-request/1' || artifact['model'] !== 'openai-codex/gpt-5.6-sol') {
+  if (artifact['schema'] !== 'ramify.pi-native-request/1' || typeof artifact['model'] !== 'string' || !artifact['model'].startsWith(`${PRESERVING_PROVIDER}/`)) {
     throw new Error('Unsupported pi native request artifact identity');
   }
+  const modelId = artifact['model'].slice(PRESERVING_PROVIDER.length + 1);
   const body = artifact['request'];
   if (typeof artifact['packageVersion'] !== 'string' || artifact['packageVersion'].length === 0 ||
     typeof artifact['transport'] !== 'string' || artifact['transport'].length === 0 ||
@@ -62,7 +67,7 @@ export function readPiNativeRequestArtifact(bytes: Uint8Array): PiNativeRequestA
     throw new Error('Malformed pi native request artifact body');
   }
   const request = body as Record<string, unknown>;
-  if (request['model'] !== 'gpt-5.6-sol' || request['instructions'] !== artifact['instructions'] ||
+  if (request['model'] !== modelId || request['instructions'] !== artifact['instructions'] ||
     !Array.isArray(request['input']) ||
     (request['tools'] !== undefined && !Array.isArray(request['tools'])) ||
     !sameNative(request['tools'] ?? [], artifact['tools']) || !sameNative(request['input'], artifact['input'])) {
@@ -133,7 +138,7 @@ export function installedPiSerialization() {
   return serialization;
 }
 export function supportedPreservingModel(model: PiChosenModel): string | null {
-  if (model.provider !== 'openai-codex' || model.id !== 'gpt-5.6-sol' || model.api !== 'openai-codex-responses') return 'Session preservation supports only openai-codex/gpt-5.6-sol on openai-codex-responses';
+  if (model.provider !== PRESERVING_PROVIDER || model.api !== PRESERVING_API) return `Session preservation supports only ${PRESERVING_PROVIDER} models on ${PRESERVING_API}`;
   const compat = model.compat as { supportsAdditionalTools?: boolean; supportsMidConvoSystemMessages?: boolean } | undefined;
   if (compat?.supportsAdditionalTools !== true || compat.supportsMidConvoSystemMessages !== true) return 'Model does not declare native appended tools and later system messages';
   return null;

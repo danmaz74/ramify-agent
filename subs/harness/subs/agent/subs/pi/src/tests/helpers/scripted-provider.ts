@@ -215,6 +215,7 @@ export async function nativeCodexRuntime(outputs: readonly (readonly Record<stri
   const runtime = await ModelRuntime.create({ authPath: join(agentDirectory, 'auth.json'), modelsPath: null, modelsStorePath: join(agentDirectory, 'models-store.json'), allowModelNetwork: false, refreshOnCreate: false });
   const model = runtime.getModel('openai-codex', 'gpt-5.6-sol');
   if (!model) throw new Error('Installed pi catalog lacks the qualified model');
+  // A second model under the same credentials but on another API: preservation refuses it, so tests can see that refusal rather than a credentials error.
   const native = await import(await installedPiPublicExport('./api/openai-codex-responses')) as { streamSimple: StreamFunction; stream: StreamFunction };
   const queue = [...outputs]; const requests: Record<string, unknown>[] = []; const wireRequests: Record<string, unknown>[] = []; const transports: unknown[] = []; const wireHeaders: NativeCodexRuntime['wireHeaders'] = []; let dispatches = 0; let exhausted = false;
   const token = `fixture.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-account' } })).toString('base64')}.fixture`;
@@ -247,7 +248,7 @@ export async function nativeCodexRuntime(outputs: readonly (readonly Record<stri
       return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
     },
   } as StreamOptions); };
-  runtime.registerNativeProvider({ id: 'openai-codex', name: 'Intercepted installed Codex', auth: { apiKey: { name: 'Fixture', resolve: async () => ({ auth: { apiKey: token } }) } }, getModels: () => [model], stream: intercept, streamSimple: intercept } as Provider);
+  runtime.registerNativeProvider({ id: 'openai-codex', name: 'Intercepted installed Codex', auth: { apiKey: { name: 'Fixture', resolve: async () => ({ auth: { apiKey: token } }) } }, getModels: () => [model, { ...model, id: 'gpt-5.4', name: 'Fixture model on another API', api: 'openai-responses' } as Model], stream: intercept, streamSimple: intercept } as Provider);
   return { runtime, model, agentDirectory, requests, wireRequests, transports, wireHeaders, dispatches: () => dispatches, push: (...items: Array<readonly Record<string, unknown>[]>) => queue.push(...items),
     verify: () => { if (exhausted || queue.length || JSON.stringify(wireRequests) !== JSON.stringify(requests)) throw new Error(`Native script exhaustion=${exhausted}, unused=${queue.length}, final payload/wire equality=${JSON.stringify(wireRequests) === JSON.stringify(requests)}`); },
     remove: () => rm(agentDirectory, { recursive: true, force: true }) };

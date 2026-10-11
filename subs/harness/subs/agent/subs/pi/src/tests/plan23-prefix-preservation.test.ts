@@ -424,7 +424,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const unsupported = createPiAgentOn({ ...f.source, model: 'openai-codex/gpt-5.4' }).bindSessionStore!(f.store);
     const receipt = await (await unsupported.retry({ runId: 'run-A', operationId: 'interrupted', bindings: f.bindings })).receipt;
     expect(receipt.contextUnavailable).not.toBe(true);
-    expect(receipt).toEqual({ runId: 'run-A', operationId: 'interrupted', sessionId: f.P.sessionId, turn: null, point: null, status: 'unavailable', outcome: null, reason: 'Session preservation supports only openai-codex/gpt-5.6-sol on openai-codex-responses' });
+    expect(receipt).toEqual({ runId: 'run-A', operationId: 'interrupted', sessionId: f.P.sessionId, turn: null, point: null, status: 'unavailable', outcome: null, reason: 'Session preservation supports only openai-codex models on openai-codex-responses' });
     expect(f.native.dispatches()).toBe(1);
     // Not recorded: the operation record is unchanged, so a supported adapter still completes the same Retry.
     expect(await f.store.read('run-A', 'operation:interrupted')).toEqual(interrupted);

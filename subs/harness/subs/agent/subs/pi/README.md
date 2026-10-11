@@ -7,8 +7,8 @@ rebinds current tools, policy, validators and destinations for each operation.
 
 ## Supported preservation
 
-The preserving driver qualifies Pi `0.87.1`,
-`openai-codex/gpt-5.6-sol` on `openai-codex-responses`, SSE and zero provider
+The preserving driver qualifies Pi `0.87.1`, `openai-codex` models on
+`openai-codex-responses` (qualified with `gpt-5.6-sol`), SSE and zero provider
 retries. Unsupported models/transports are explicit unavailable or failed
 operations without a replacement start. Initial instructions, tool definitions
 and every inherited serialized input item retain their order and original
