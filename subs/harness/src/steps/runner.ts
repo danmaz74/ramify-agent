@@ -6,7 +6,7 @@ import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-oper
 import { effectiveBlocks } from '../prompts/blocks.js';
 import type { DebugInspection } from '../interfaces/protocol/runs.js';
 import { mkdir, readFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, resolve as resolvePath } from 'node:path';
 import type { AgentPort, AgentSession, JsonSchema, SessionSpec, SessionStart } from '../../subs/agent/src/interfaces/port.js';
 import type { GitService } from '../../subs/evidence/src/git.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
@@ -17,6 +17,7 @@ import { canonicalJson } from '../jobs/commands.js';
 import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import type { Mutex, PriorityMutex } from '../jobs/mutex.js';
 import { deliveredScopeInputs, invocationScope, scopeSize, type DeclaredScope } from '../kpi/capture.js';
+import { declaredRoots } from '../kpi/exploration.js';
 import { inputsHash, sha256, type LoadedPackage } from '../prompts/packages.js';
 import type { TaskEnvironment, TaskKind, TaskPacket } from '../prompts/tasks.js';
 import { ExcursionWatcher } from '../run/excursions.js';
@@ -728,7 +729,11 @@ export class InvocationRunner<R extends RunnerRun> {
     const context = request.context ?? contextPolicyOf(run.policy, request.role);
     const recorder = new PortEventRecorder({
       projectRoot: this.projectRoot, workingDirectory: request.workingDirectory ?? this.projectRoot, observations, judge, excursions, context, transcript,
-      invocation: { id, role: request.role, startedAt: invocationSchema.parse(committedBody(run, runLayout.invocation(id))).startedAt, submissionTool: request.toolName, declaredPaths: request.guarded?.roots ?? [] },
+      invocation: { id, role: request.role, startedAt: invocationSchema.parse(committedBody(run, runLayout.invocation(id))).startedAt, submissionTool: request.toolName,
+        // A writer's searches are judged against its guarded roots, a
+        // reader's against the modules its declared scope selects.
+        declaredPaths: request.guarded?.roots
+          ?? declaredRoots(run.index, request.measured?.readScope ?? request.measured?.scope).map(path => resolvePath(this.projectRoot, path)) },
     });
     // Every port event is activity; `touch` is what the idle bound resets.
     // A command the equipment runs for the session holds it instead. An
@@ -788,8 +793,11 @@ export class InvocationRunner<R extends RunnerRun> {
         accept: async (input, signal) => {
           await request.beforeSubmission?.(input, signal);
           signal.throwIfAborted();
-          const verdict = await judge.judge(input);
-          transcript.note(verdictNote(recorder.callId(request.toolName), request.toolName, verdict));
+          // The call's ID keys its rejection observation to the call the
+          // transcript and the tool-start observation name.
+          const callId = recorder.callId(request.toolName);
+          const verdict = await judge.judge(input, callId);
+          transcript.note(verdictNote(callId, request.toolName, verdict));
           progress({ type: 'submission', input, accepted: verdict.accepted, answer: verdict.accepted ? verdict.text ?? '' : verdict.errors.join('\n') });
           return verdict;
         },

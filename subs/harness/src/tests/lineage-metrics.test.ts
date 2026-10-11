@@ -180,7 +180,7 @@ describe('ST13: the lineage measurements of a scripted run', () => {
 
   test('a fork\'s inherited context and cost by generation, beside the global forks that started fresh', async () => {
     const { lineage } = await run(lines, logs);
-    expect(lineage.policyVersion).toBe('lineage/1');
+    expect(lineage.policyVersion).toBe('lineage/2');
     expect(find(lineage.metrics, 'fork.generation-1.start-context')).toMatchObject({
       state: 'measured', value: 25_000, numerator: 50_000, denominator: 2, coverage: { covered: 2, total: 2 },
       evidence: ['inv-0002 (ses-0002): 24000', 'inv-0003 (ses-0003): 26000'],
@@ -274,17 +274,40 @@ describe('ST13: the lineage measurements of a scripted run', () => {
     });
   });
 
-  test('the measurements come in the glossary\'s order, and every one is valid under lineage/1', async () => {
+  test('the measurements come in the glossary\'s order, and every one is valid under lineage/2', async () => {
     const { lineage } = await run(lines, logs);
     const profile = (prefix: string) => ['start-context', 'input', 'cache-read', 'cache-write', 'output'].map(name => `${prefix}.${name}`);
     expect(lineage.metrics.map(metric => metric.id)).toEqual([
-      ...profile('fork.generation-1'), ...profile('fork.generation-2'), ...profile('fresh-fork'),
+      ...profile('fork.generation-1'), ...profile('fork.generation-2'), ...profile('fork.local'), ...profile('fresh-fork'),
       'continuation-growth', ...profile('repair'), ...profile('fresh-engineer'),
       'degraded-starts', 'degraded-starts.continue', 'degraded-starts.fork',
       'replacements.reconstructed', 'replacements.context-rebuilt',
-      'forks-served.generation-1', 'forks-served.generation-2',
+      'forks-served.generation-1', 'forks-served.generation-2', 'forks-served.local',
     ]);
-    expect(lineage.metrics.every(metric => metric.policyVersion === 'lineage/1' && metric.measurementPolicy === null)).toBe(true);
+    expect(lineage.metrics.every(metric => metric.policyVersion === 'lineage/2' && metric.measurementPolicy === null)).toBe(true);
+    // This run forked no local session: the group is listed and not applicable, and its count a measured zero.
+    expect(find(lineage.metrics, 'fork.local.start-context')).toMatchObject({ state: 'not-applicable', note: 'No fork of a local session ended' });
+    expect(find(lineage.metrics, 'forks-served.local')).toMatchObject({ state: 'measured', value: 0 });
+  });
+
+  test('a fork of a local session is measured in the local group, not in any generation\'s', async () => {
+    // A scope review forked from the local architect's assignment point.
+    const { lineage } = await run([
+      ...open({ id: 'inv-0001', session: 'ses-0001', role: 'initial-architect', usage: use(1000, 0, 5000, 2000), kept: false }),
+      ...open({ id: 'inv-0002', session: 'ses-0002', role: 'local-architect', usage: use(900, 0, 4000, 700), kept: true }),
+      ...open({ id: 'inv-0003', session: 'ses-0003', role: 'reviewer', usage: use(150, 12_000, 400, 300), kept: false },
+        { fork: { from: point('ses-0002', 'inv-0002'), reason: 'scope-review', briefs: [] } }),
+    ], { 'inv-0001': [context(20_000)], 'inv-0002': [context(8000)], 'inv-0003': [context(13_000)] });
+    expect(find(lineage.metrics, 'fork.local.start-context')).toMatchObject({
+      state: 'measured', value: 13_000, numerator: 13_000, denominator: 1, coverage: { covered: 1, total: 1 }, evidence: ['inv-0003 (ses-0003): 13000'],
+    });
+    expect(find(lineage.metrics, 'fork.local.input')).toMatchObject({ state: 'measured', value: 150 });
+    expect(find(lineage.metrics, 'fork.local.cache-read')).toMatchObject({ state: 'measured', value: 12_000 });
+    expect(find(lineage.metrics, 'fork.local.cache-write')).toMatchObject({ state: 'measured', value: 400 });
+    expect(find(lineage.metrics, 'fork.local.output')).toMatchObject({ state: 'measured', value: 300 });
+    expect(find(lineage.metrics, 'forks-served.local')).toMatchObject({ state: 'measured', value: 1, evidence: ['ses-0003 (inv-0003) from ses-0002'] });
+    expect(find(lineage.metrics, 'fork.generation-1.start-context')).toMatchObject({ state: 'not-applicable' });
+    expect(find(lineage.metrics, 'forks-served.generation-1')).toMatchObject({ state: 'measured', value: 0 });
   });
 });
 

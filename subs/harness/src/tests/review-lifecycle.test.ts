@@ -5,6 +5,7 @@ import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.j
 import type { RunEvent } from '../run/log.js';
 import { runLayout } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
+import { RunQueries } from '../projections/queries.js';
 import { reviewLayout } from '../reviews/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
@@ -163,6 +164,13 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     // No session of the run is left live or suspended.
     expect([...reduceSessions(events).values()].filter(session => session.state !== 'finished')).toEqual([]);
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 2, partial: 0, notVerified: 1, pending: 0 });
+    // Each reviewer's evaluation names the review request it served.
+    const metrics = await new RunQueries(service).metrics(plan, runId);
+    const served = new Map(eventsOf(events, 'review-attempt-started').map(event => [event.data.invocation, event.data.request]));
+    const reviewers = metrics.evaluation.invocations.filter(evaluation => evaluation.role === 'reviewer');
+    expect(reviewers).toHaveLength(3);
+    expect(reviewers.map(evaluation => evaluation.request).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
+    for (const evaluation of reviewers) expect(evaluation.request).toBe(served.get(evaluation.invocation));
     run.git.assertComplete();
   }, 60_000);
 });

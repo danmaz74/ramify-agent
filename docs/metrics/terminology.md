@@ -120,7 +120,7 @@ a more complete measurement.
 | Segment cost profile | `outcome.json` usage and the starting context size | Categories stay separate; no total or price. |
 | Degraded start | `degraded` on `invocation-ended`, and `outcome.session.degradedReason` | The executor's answer; a reconstruction is a replacement, decided by the harness, not a degraded start. |
 
-The [lineage policy](lineage.md) names the `lineage/1` measurement IDs.
+The [lineage policy](lineage.md) names the `lineage/2` measurement IDs.
 
 ## Cohesion and coupling
 

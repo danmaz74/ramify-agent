@@ -234,37 +234,60 @@ The model context usage of a segment's first context observation, in tokens.
 A segment's starting context size and its input, cache-read, cache-write and
 output tokens.
 
+## Local fork
+
+A fork whose source session is not one of the global architect's: a scope
+review, design review, context selection or reconciliation forked from a local
+architect's session.
+
 ## Fork cost against a fresh start
 
-The mean segment cost profile of the forks of one context generation, beside
-the mean profile of the global forks whose actual start was fresh, under
-`lineage/1`. Its starting context size is the fork's inherited context.
+The mean segment cost profile of the forks of one context generation, and of
+the local forks, beside the mean profile of the global forks whose actual
+start was fresh, under `lineage/2`. Its starting context size is the fork's
+inherited context.
 
 ## Continuation growth
 
 The mean, over continued segments, of a segment's starting context size less
-that of the segment before it in its session, under `lineage/1`.
+that of the segment before it in its session, under `lineage/2`.
 
 ## Repair segment cost
 
 The mean segment cost profile of the segments continued for a repair, beside
 the mean profile of the engineer segments whose actual start was fresh, under
-`lineage/1`.
+`lineage/2`.
 
 ## Degraded-start rate
 
 Degraded starts per requested continuation or fork, overall and by the
-relation requested, under `lineage/1`.
+relation requested, under `lineage/2`.
 
 ## Replacement rate
 
 Sessions opened in place of another for one reason, `reconstructed` or
-`context-rebuilt`, per session of the run, under `lineage/1`.
+`context-rebuilt`, per session of the run, under `lineage/2`.
 
 ## Forks served by a context generation
 
 The number of forks of one context generation whose actual start was a fork,
-under `lineage/1`.
+under `lineage/2`.
+
+## Local forks served
+
+The number of local forks whose actual start was a fork, under `lineage/2`.
+
+## Search count coverage
+
+The searches whose status a search count needs is known, of the searches it
+counts over. A count with an unknown status is `partial` or `unavailable`
+with its known subtotal, never zero.
+
+## Failed search
+
+A search whose tool ran and answered with an error, such as a path that does
+not exist. It is counted apart from completed searches and is not a
+zero-match search.
 
 ## Scope exclusions
 

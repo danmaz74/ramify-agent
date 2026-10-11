@@ -10,7 +10,9 @@ import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import type { RegistryEntry } from '../analysis/records.js';
 import { workLayout } from '../work/records.js';
-import { localArchitectJsonSchema, localArchitectToolName, unreportedByCompletion, validateLocalArchitect } from '../work/submission.js';
+import {
+  capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unchangedOutlineReason, unreportedByCompletion, validateLocalArchitect,
+} from '../work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 import { runLayout, type InvocationOutcome } from '../run/records.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -85,6 +87,43 @@ describe('the schema', () => {
     expect(missing.ok).toBe(false);
     if (missing.ok) return;
     expect(missing.errors[0]!.path).toBe('outline');
+  });
+});
+
+describe('the outline of a completion request', () => {
+  const committed = { ...outline({ changes: 'The note is stated.', revisionReason: '' }), revision: 2 };
+  const { outline: _omitted, ...withoutOutline } = requestCompletion();
+
+  test('omitted, the last committed revision stands and the accepted value names it', () => {
+    const result = validateLocalArchitect(withoutOutline, { ...evidence, outline: committed });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.kind !== 'request-completion') return;
+    const { revision: _revision, revisionReason: _reason, ...body } = committed;
+    expect(result.value.outline).toEqual({ ...body, revisionReason: unchangedOutlineReason(2) });
+    expect(result.value.outline.revisionReason).toContain('revision 2 stands');
+  });
+
+  test('omitted where the work item has no outline yet, it is rejected at `outline`', () => {
+    const result = validateLocalArchitect(withoutOutline, evidence);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([expect.objectContaining({ path: 'outline', expected: 'an outline for this work item' })]);
+  });
+
+  test('present, it is the new revision as written', () => {
+    const revised = requestCompletion({ changes: 'The note moves.', revisionReason: 'The gate found the note misplaced.' });
+    const result = validateLocalArchitect(revised, { ...evidence, outline: committed });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.kind !== 'request-completion') return;
+    expect(result.value.outline).toEqual(revised.outline);
+  });
+
+  test('the capability tool lets it be omitted, while the historical one requires it', () => {
+    const completion = (schema: unknown) => ((schema as { oneOf?: unknown[]; anyOf?: unknown[] }).oneOf ?? (schema as { anyOf: unknown[] }).anyOf)
+      .map(member => member as { properties: { kind: { const: string } }; required?: string[] })
+      .find(member => member.properties.kind.const === 'request-completion')!;
+    expect(completion(capabilityLocalArchitectJsonSchema).required ?? []).not.toContain('outline');
+    expect(completion(localArchitectJsonSchema).required).toContain('outline');
   });
 });
 
@@ -590,11 +629,16 @@ describe('a rejected submission in a run', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const organizing = events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect').at(-1)!;
     const observations = await readFile(runPath(root, 'review-notes', runId, runLayout.observations((organizing.data as { invocation: string }).invocation)), 'utf8');
-    const rejections = observations.split('\n').filter(Boolean)
-      .map(line => JSON.parse(line) as { type: string; data: { target?: string; errors?: unknown[] } })
-      .filter(line => line.type === 'rejection');
+    const rows = observations.split('\n').filter(Boolean)
+      .map(line => JSON.parse(line) as { type: string; data: { target?: string; errors?: unknown[]; callId?: string; tool?: string } });
+    const rejections = rows.filter(line => line.type === 'rejection');
     expect(rejections).toHaveLength(1);
     expect(rejections[0]!.data.target).toBe(localArchitectToolName);
+    // The rejection names the call it answered, as its tool-start does.
+    const submissions = rows.filter(line => line.type === 'tool-start' && line.data.tool === localArchitectToolName).map(line => line.data.callId);
+    expect(submissions).toHaveLength(2);
+    expect(rejections[0]!.data.callId).toBe(submissions[0]);
+    expect(rejections[0]!.data.callId).not.toBe('');
   }, 300_000);
 
   test('an assignment citing an ID outside its work-item package is rejected at submission, with the path of the ID', async () => {

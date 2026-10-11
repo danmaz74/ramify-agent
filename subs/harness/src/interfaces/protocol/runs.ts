@@ -248,8 +248,12 @@ export const runQueryLimits = {
 export const measurementPolicySchema = z.literal('scope-size/2');
 /** The version of the KPI projection, versioned apart from the measurement policy. */
 export const kpiPolicySchema = z.literal('kpi/1');
-/** The version of the lineage measurements, versioned apart from the KPIs. */
-export const lineagePolicySchema = z.literal('lineage/1');
+/**
+ * The version of the lineage measurements, versioned apart from the KPIs.
+ * A run is measured under `lineage/2`; `lineage/1`, which had no local-fork
+ * group, stays readable in a response kept from before.
+ */
+export const lineagePolicySchema = z.literal(['lineage/1', 'lineage/2']);
 
 const moduleNotice = <K extends 'module-created' | 'module-removed'>(kind: K) => z.object({
   kind: z.literal(kind),
@@ -1443,7 +1447,7 @@ export const metricSchema = measurementSchema(kpiPolicySchema);
 export type Metric = z.infer<typeof metricSchema>;
 
 /**
- * One lineage measurement, under `lineage/1`: a comparison of segments by
+ * One lineage measurement, under `lineage/2`: a comparison of segments by
  * the start each one made, or a count of lineage relations. It reads no
  * scope size, so its `measurementPolicy` is null.
  */
@@ -1497,6 +1501,11 @@ export const explorationObservationSchema = z.object({ id: text, invocationId: t
 export type ExplorationObservationView = z.infer<typeof explorationObservationSchema>;
 export const explorationMetricsSchema = z.object({ reads: count, uniqueFilesRead: count, repeatedReads: count, returnedBytes: count, searches: count, broadSearches: count, outsideScopeSearches: count, toolElapsedMs: z.number().nonnegative(), coverage: z.array(z.string()) }).strict();
 export type ExplorationMetricsView = z.infer<typeof explorationMetricsSchema>;
+/** One search count with the coverage of the statuses it is over; `known` is a subtotal unless `measured`. */
+const searchCountSchema = z.object({ state: metricStateSchema, known: count, coverage: z.object({ covered: count, total: count }).strict() }).strict();
+/** The search calls by outcome, and the search counts with their coverage. */
+export const searchCountsSchema = z.object({ completed: count, failed: count, broad: searchCountSchema, outsideScope: searchCountSchema, zeroMatch: searchCountSchema }).strict();
+export type SearchCountsView = z.infer<typeof searchCountsSchema>;
 export const invocationTimingSchema = z.object({ startedAt: z.string(), endedAt: z.string().nullable(), milestone: z.enum(['first-designated-submission', 'first-engineering-action']).nullable(), milestoneAt: z.string().nullable(),
   elapsedMs: z.number().nonnegative().nullable(), toMilestoneMs: z.number().nonnegative().nullable(), modelElapsedMs: z.number().nonnegative().nullable(), toolElapsedMs: z.number().nonnegative().nullable(), checkElapsedMs: z.number().nonnegative().nullable(),
   modelSubtotalMs: z.number().nonnegative().optional(), toolSubtotalMs: z.number().nonnegative().optional(), checkSubtotalMs: z.number().nonnegative().optional(), coverage: z.array(z.string()) }).strict();
@@ -1510,7 +1519,7 @@ export const recordedChargeSchema = z.object({ model: text, currency: z.literal(
 export type RecordedChargeView = z.infer<typeof recordedChargeSchema>;
 export const invocationEfficiencySchema = z.object({ operation: operationIdentitySchema.nullable(), manifest: deliveredManifestViewSchema.nullable(),
   declared: scopeSizeViewSchema.nullable(), readScope: scopeSizeViewSchema.nullable(),
-  exploration: z.object({ metrics: explorationMetricsSchema, zeroMatchSearches: count, observations: z.array(explorationObservationSchema) }).strict(),
+  exploration: z.object({ metrics: explorationMetricsSchema, zeroMatchSearches: count, searches: searchCountsSchema.optional(), observations: z.array(explorationObservationSchema) }).strict(),
   timing: invocationTimingSchema, charges: z.array(recordedChargeSchema), chargeTotal: amount, chargeSubtotal: z.number().nonnegative(), coverage: z.array(z.string()),
   units: z.object({ scope: z.literal('bytes'), returned: z.literal('UTF-8 output bytes'), duration: z.literal('ms'), charge: z.literal('USD') }).strict(),
 }).strict();
