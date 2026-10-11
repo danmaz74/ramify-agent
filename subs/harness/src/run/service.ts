@@ -5630,6 +5630,7 @@ export class RunService {
           }),
           packageInPrompt, obligationLines: owned, ...(intervening === undefined ? {} : { intervening }),
           requirements, known: knownFactsInputs(await this.knownProjectFacts(run, [item.module])),
+          architectView: await this.localViewInputs(run, item.module),
           startingPoints: lastResult === undefined || lastAssignment === undefined ? [] : [plain(await this.engineerStartingPoints(run, lastAssignment, lastResult))],
           ...(oriented === undefined ? {} : { orientation: { group: plain(oriented.group),
             session: (orientedEvent === undefined ? undefined : run.log.all('invocation-started').find(event => event.data.invocation === orientedEvent.data.invocation)?.data.session) ?? null } }),

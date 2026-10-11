@@ -40,9 +40,9 @@ The task's views block lists the API view directories your module has; search
 them for received interfaces, naming the hidden directory explicitly in
 `grep`'s `path`, then read the matching pages. Broad searches skip these
 ignored directories. Each page mirrors one source file, with `.md` added, and
-lists the symbols that file receives; reading a page answers more than
-grepping the view. Each view applies to its own source area; do not combine
-them. The briefing names any unavailable views or coverage limits.
+lists the symbols your module receives from that file; reading a page answers
+more than grepping the view. Each view applies to its own source area; do not
+combine them. The briefing names any unavailable views or coverage limits.
 
 Use those interfaces to understand what your module can already receive
 before proposing new contracts. The views are generated documentation:
