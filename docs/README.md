@@ -17,8 +17,10 @@ Design documents for the separate agent harness:
   advisory questions from engineers to local architects and local architects
   to the global architect, using forks of their delegation context
 - [Plan 32: independent repository and persistent development workspace](plans/32-repository-extraction/main-plan.md),
-  in implementation, iterations 1–3 complete (container witnesses pending host
-  Docker): preserve history and local work, extract the agent, provide one
+  in implementation, published here; the host cutover, container witnesses,
+  toolkit cleanup landing and pending branches remain, as listed in the
+  [iteration 5 handoff](plans/32-repository-extraction/iterations/05-results.md):
+  preserve history and local work, extract the agent, provide one
   devcontainer with persistent sibling Ramify and ramify-audit checkouts,
   qualify the new workspace and complete the repository cutover
 - [The development workspace](development/workspace.md): the devcontainer,
