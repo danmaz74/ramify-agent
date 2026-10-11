@@ -1,2 +1,47 @@
+# ramify-agent's complete ignore list. It no longer inherits rules from a
+# containing repository: the dependency, editor and generated-view rules below
+# were carried from the Ramify toolkit's root .gitignore at
+# 1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5, when this project was its
+# ramify-agent/ directory.
+
+# Dependency directories at any depth, and dependency symlinks a worktree
+# setup may create.
+node_modules
+
+# Build output, including the web client's production build in dist/web/.
 dist/
+
+# Owner scratch directories.
 **/src/tmp/
+
+# Editor and agent-tool artifacts written into the project root, and an
+# agent tool's personal local settings.
+.history/
+.playwright-mcp/
+.claude/settings.local.json
+
+# Materialized API-view catalogs, the materialized architect view and the
+# publisher's reserved transient staging/rollback siblings of each, with the
+# sibling marker file, `<sibling>.marker.json`, that a failed or interrupted
+# publication can leave beside a sibling (defense against commits and
+# project-wide searches; the generated-path predicate that isolates them at
+# every runtime boundary is authoritative, not this file). Matches the closed
+# enumeration only, at any depth: `.ramify`, `.ramify.tmp-<suffix>`,
+# `.ramify.old-<suffix>`, `.ramify-architect`, `.ramify-architect.tmp-<suffix>`
+# and `.ramify-architect.old-<suffix>`, and the four marker forms. Near-miss
+# names such as `.ramify-other`, `.ramify-architects`, `.ramify.tmp` or
+# `.ramify-architect.tmp` (no suffix) are ordinary and intentionally left
+# tracked.
+.ramify/
+.ramify.tmp-*/
+.ramify.old-*/
+.ramify.tmp-*.marker.json
+.ramify.old-*.marker.json
+.ramify-architect/
+.ramify-architect.tmp-*/
+.ramify-architect.old-*/
+.ramify-architect.tmp-*.marker.json
+.ramify-architect.old-*.marker.json
+
+# A harness run's records under plans/<plan>/.harness/ are ignored by the
+# .gitignore the harness writes inside that directory, not by this file.
