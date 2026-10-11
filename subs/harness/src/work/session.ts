@@ -288,6 +288,11 @@ export function defaultWriteScopeSection(scopes: readonly DefaultWriteScope[]): 
   return lines;
 }
 
+/** What an API view's coverage count means: the source-analysis limits that may have left a received API out. */
+export function apiCoverageStatement(coverage: number): string {
+  return `${coverage === 1 ? 'one source-analysis limit' : `${coverage} source-analysis limits`} that may have left a received API out of this view, so absence is not proof of unavailability`;
+}
+
 /** The first user message of one local architect invocation. */
 export function workItemMessage(briefing: WorkItemBriefing): string {
   const { item } = briefing;
@@ -343,7 +348,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     for (const view of briefing.views.evidence.views) {
       lines.push(`- API view (${view.area}): \`${rooted(view.path)}/\`, revision \`${view.revision}\`; ${view.coverage === null
         ? 'coverage complete, so absence means unavailable'
-        : `coverage limits: ${view.coverage}, so absence is not proof of unavailability`}.`);
+        : `coverage limits: ${apiCoverageStatement(view.coverage)}`}.`);
     }
   }
   lines.push(`- The architect view is at \`${rooted(architectViewDirectory)}/\`.`, '');

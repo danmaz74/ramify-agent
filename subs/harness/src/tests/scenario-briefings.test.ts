@@ -10,7 +10,7 @@ import type { IterationAssignment } from '../work/iterations.js';
 import { obligationsOf } from '../work/obligations.js';
 import type { WorkItem } from '../work/records.js';
 import { entryScenariosOf } from '../work/scenario-briefing.js';
-import { workItemMessage, type WorkItemBriefing } from '../work/session.js';
+import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../work/session.js';
 import { validateLocalArchitect } from '../work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 
@@ -138,6 +138,11 @@ describe('the local architect\'s briefing', () => {
     expect(text).toContain('A passing gate is evidence, never your\nreport');
     expect(text).toContain('report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.');
     expect(text).not.toContain('`request-completion.scenarios`');
+  });
+
+  test('an API view\'s coverage count says what it means', () => {
+    expect(apiCoverageStatement(1)).toBe('one source-analysis limit that may have left a received API out of this view, so absence is not proof of unavailability');
+    expect(apiCoverageStatement(3)).toBe('3 source-analysis limits that may have left a received API out of this view, so absence is not proof of unavailability');
   });
 
   test('a provider work item\'s briefing says nothing about scenarios, and the completion refusal names what still blocks it', () => {

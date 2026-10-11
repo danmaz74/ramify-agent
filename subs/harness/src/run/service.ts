@@ -13,7 +13,7 @@ import type { AgentPort, AgentSession, JsonSchema, SessionSpec, SessionStart, To
 import { gitCandidateSource, gitChangeHistory, gitService, type CandidateSource, type ChangeHistory, type GitService } from '../../subs/evidence/src/git.js';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { projectConfigurationFile } from '../../subs/evidence/src/project-configuration.js';
-import { findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
+import { apiViewDirectoriesOf, coverageRecordsOf, describeCoverageLimits, findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { GateAttempt, GateRuleRecord, TestSelectionPolicy } from '../checks/records.js';
 import { acceptedCommit } from '../checks/accepted.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
@@ -201,7 +201,7 @@ import {
 } from '../work/obligations.js';
 import { capabilityOf, frontierOrder, hypothesesFor } from '../work/frontier.js';
 import { integrationScenarioOf, originKindOf, workLayout, workItemId, type WorkItem } from '../work/records.js';
-import { apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
+import { apiCoverageStatement, apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
 import { localArchitectToolName, type LocalArchitectSubmission } from '../work/submission.js';
 import { gateDiagnostics, passedScenarioLines, type GateAudience } from '../checks/diagnostics.js';
 import { concernBindings, finishReview, requestedStartOf, reviewOutcome, sameWorkItem, type ConcernBinding } from './review-finish.js';
@@ -4849,13 +4849,14 @@ export class RunService {
     }
     const orientationRequirements = [this.planPackage(run, evidence.catalog,
       [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])];
+    const orientationViews = await this.localViewInputs(run, item.module);
     // The orientation is built from its inputs by the local architect's own
     // constructor, which `step render` uses too.
     const orientationInputs = (attempt: number, known: KnownFactsInputs): OrientationStepInputs => ({
       schema: stepInputsSchemaId, role: 'local-architect', phase: 'orientation', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
       work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits,
       context: contextPolicyOf(run.record.policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
-      briefing: workBriefingInputs(briefing), requirements: orientationRequirements, known, architectView: this.architectViewInputs(run),
+      briefing: workBriefingInputs(briefing), requirements: orientationRequirements, known, architectView: orientationViews,
       start: { kind: 'fresh' },
     });
     const orientationStep = async (attempt: number) => constructOrientationStep(
@@ -5084,7 +5085,7 @@ export class RunService {
         orientation: { invocation: from.orientationInvocation, point: from.point }, workspace: { run: workspace },
         known: knownFactsInputs(await this.knownProjectFacts(run, [item.module])),
         startingPoints: oriented === undefined ? [] : [JSON.parse(JSON.stringify(oriented.group)) as unknown],
-        architectView: this.architectViewInputs(run),
+        architectView: await this.localViewInputs(run, item.module),
         start: forked ? { kind: 'fork', session: from.session!, invocation: from.orientationInvocation, point: from.point! }
           : { kind: 'fresh', degraded: { requested: 'fork', reason: 'the recorded orientation has no retained session point' } },
       });
@@ -9937,6 +9938,23 @@ export class RunService {
     return view.status === 'materialized'
       ? [{ path: projectPath('.ramify-architect'), revision: view.revision, modules: [...(run.index?.modules.keys() ?? [])], coverage: [...view.coverageLimits] }]
       : [];
+  }
+
+  /**
+   * The views a local architect's orientation and its selector are told of:
+   * the API view directories its module has, each project-relative, and
+   * the architect view's coverage limits named, with whether any lies in the
+   * module. A module with no readable API view is told of the architect view.
+   */
+  private async localViewInputs(run: Run, module: string): Promise<OrientationStepInputs['architectView']> {
+    const entry = run.index === null ? undefined : findModule(run.index, module);
+    const directories = entry === undefined ? [] : await apiViewDirectoriesOf(this.projectRoot, entry).catch(() => []);
+    if (directories.length === 0) return this.architectViewInputs(run);
+    const named = run.record.manifest.architectView.status === 'materialized' && run.index !== null
+      ? describeCoverageLimits(run.record.manifest.architectView.coverageLimits, coverageRecordsOf(run.index), [entry!.module]) : [];
+    // The architect view's limits are stated once, with the first directory.
+    return directories.map((directory, index) => ({ path: projectPath(directory.path), revision: directory.revision, modules: [entry!.module],
+      coverage: [...directory.coverage === null ? [] : [apiCoverageStatement(directory.coverage)], ...index === 0 ? named : []] }));
   }
 
   /** The bounds one iteration's engineers run under: the policy's, and what its assignment raised. */
