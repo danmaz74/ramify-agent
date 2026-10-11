@@ -357,6 +357,12 @@ const workTurnFields = {
   startingPoints: z.array(startingPointGroupSchema),
   orientation: z.object({ session: sessionIdSchema.nullable(), group: startingPointGroupSchema }).strict().optional(),
   /**
+   * The views the turn is told of, as the orientation and the selector are:
+   * the module's existing API view directories, with the coverage limits
+   * named. Inputs without them list the briefing's API views.
+   */
+  architectView: z.array(environmentViewSchema).optional(),
+  /**
    * What a submission is judged against besides the briefing: the run's
    * committed hypotheses, decisions, work items and agreements, this work
    * item's open requirements, the guarded and harness-only paths, the

@@ -208,3 +208,16 @@ test('V01: actual Run Measurements renders immutable accepted projection facts t
   expect(evidence.textContent).toContain('known subtotal 0.00033 USD');
   expect(client.calls).toContain(`getMetrics:${runId}`);
 });
+
+test('V01: published search counts show failed searches and each count\'s state instead of a bare number', () => {
+  const original = fixture();
+  show(fixture({ exploration: { ...original.exploration, searches: {
+    completed: 3, failed: 1,
+    broad: { state: 'measured', known: 1, coverage: { covered: 3, total: 3 } },
+    outsideScope: { state: 'partial', known: 1, coverage: { covered: 2, total: 3 } },
+    zeroMatch: { state: 'unavailable', known: 0, coverage: { covered: 0, total: 3 } },
+  } } }));
+  const exploration = screen.getByRole('region', { name: 'Observed exploration' });
+  expect(exploration.textContent).toContain('3 completed; 1 failed; broad 1; outside declared scope 1 known (partial; status known for 2 of 3); zero matches unavailable (status known for 0 of 3)');
+  expect(exploration.textContent).not.toContain('outside declared scope 1;');
+});

@@ -156,6 +156,12 @@ describe('S08: local architect and reviewer inputs from a run', () => {
       // The imported turn delivers the complete briefing, whatever the original start delivered.
       expect(rendered.rendered).toBe('fresh');
       expect(rendered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(true);
+      if (recorded.role === 'context-selector') {
+        // The selector's workspace is empty, so the captured plan is named by its absolute path.
+        const captured = `the captured file is \`${join(directory, runLayout.capturedPlan)}\``;
+        expect(constructed.prompt).toContain(captured);
+        expect((constructed as { freshPrompt?: string }).freshPrompt).toContain(captured);
+      }
       if (recorded.role === 'context-selector' && recorded.start.kind === 'fork') {
         // A fork's imported start is briefed from the complete packet, not the fork's update.
         expect(constructed.brief.retainInheritedSections).toBeUndefined();
@@ -163,6 +169,31 @@ describe('S08: local architect and reviewer inputs from a run', () => {
       }
     }
     expect(starts).toEqual(expect.arrayContaining(['local-architect/orientation/fresh', 'context-selector/selection/fork', 'local-architect/work-turn/continued']));
+  });
+
+  test('a work turn given its orientation\'s views lists them as the orientation does', async () => {
+    const started = (await runEventsOnDisk(run.root, run.planId, run.runId)).flatMap(event => event.type === 'invocation-started' ? [event.data] : []);
+    const inputs: StepInputs[] = [];
+    for (const { invocation } of started.filter(item => item.role === 'local-architect')) {
+      const result = await imported(invocation, { role: 'local-architect' });
+      if (result.status !== 'imported') throw new Error(result.reason);
+      inputs.push(result.inputs);
+    }
+    const orientation = inputs.find(item => 'phase' in item && item.phase === 'orientation') as Extract<StepInputs, { phase: 'orientation' }>;
+    const turn = inputs.find(item => 'phase' in item && item.phase === 'work-turn') as Extract<StepInputs, { phase: 'work-turn' }>;
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: turn.capabilityWorkflow });
+    const environment = { projectRoot: run.root, packages };
+    const views = [{ path: { project: 'subs/reviews/src/.ramify/external' }, revision: 'rev/1:r:2', modules: ['app/reviews'],
+      coverage: ['one source-analysis limit that may have left a received API out of this view, so absence is not proof of unavailability', 'cut: 1, one record with truncated detail: `a.ts#A` (signature)'] }];
+    const oriented = constructStep({ ...orientation, architectView: views }, environment);
+    const given = constructStep({ ...turn, architectView: views }, environment);
+    expect(given.brief.environment.views).toEqual(oriented.brief.environment.views);
+    expect(given.brief.environment.views[0]!.path).toBe(join(run.root, 'subs/reviews/src/.ramify/external'));
+    // Inputs without the listing keep the briefing's views, each coverage count stated as what it means.
+    const briefed = constructStep(turn, environment);
+    const evidence = turn.briefing.views.evidence as { views: { path: string; coverage: number | null }[] } | null;
+    expect(briefed.brief.environment.views.map(view => view.path)).toEqual((evidence?.views ?? []).map(view => view.path));
+    for (const view of briefed.brief.environment.views) expect(view.coverage.every(line => !/^\d+ coverage limits$/u.test(line))).toBe(true);
   });
 
   test('a role or a start outside the first set is refused with its reason', async () => {

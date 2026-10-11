@@ -246,16 +246,24 @@ export interface ExtractionInputs {
   readonly runDirectory: string;
 }
 
+/**
+ * Where one captured document is read. The root plan reaches every
+ * extraction turn whole, in the plan block of its task, so it needs no read;
+ * every other document is read at its captured file.
+ */
 function capturedFile(inputs: ExtractionInputs, id: string): string {
   const document = inputs.manifest.documents.find(item => item.id === id)!;
-  return `${document.id} (${document.kind}): ${document.path}; captured file ${join(inputs.runDirectory, document.storedAt)}`;
+  const where = document.id === inputs.manifest.root
+    ? 'in the plan block of this message, verbatim as captured, so no file read is needed'
+    : `captured file ${join(inputs.runDirectory, document.storedAt)}`;
+  return `${document.id} (${document.kind}): ${document.path}; ${where}`;
 }
 
 export function intakeMessage(inputs: ExtractionInputs): string {
   const plans = inputs.manifest.documents.filter(document => document.kind === 'plan');
   return [
     `# Intake of plan "${inputs.planId}"`, '',
-    'Read each captured plan document in full at its captured file:', '',
+    'Read each captured plan document in full:', '',
     ...plans.map(document => `- ${capturedFile(inputs, document.id)}`), '',
     'Scenario blocks the harness found in each plan document:', '',
     ...plans.map(document => {
@@ -290,7 +298,7 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
   const scenarios = state.analysis.scenarios.filter(scenario => (scenario.refs ?? []).some(id => cited.has(id)));
   return [
     `# Check the reading of ${document}`, '',
-    'Read the document in full at its captured file:', '',
+    'Read the document in full:', '',
     `- ${capturedFile(inputs, document)}`, '',
     ids.length === 0 ? 'No element was read from it.' : `The ${ids.length === 1 ? 'element' : `${ids.length} elements`} read from it, as every later reader receives them:`, '',
     ...(ids.length === 0 ? [] : [rendered.text]),

@@ -158,15 +158,15 @@ export interface PromptPackageOptions {
 export const initialArchitectPackage = 'initial-architect/3';
 export const catalogExtractorPackage = 'catalog-extractor/1';
 export const globalForkPackage = 'global-fork/4';
-export const localArchitectPackage = 'local-architect/11';
-export const contextSelectorPackage = 'context-selector/2';
-export const engineerPackage = 'engineer/9';
-export const capabilityEngineerPackage = 'engineer/8';
+export const localArchitectPackage = 'local-architect/13';
+export const contextSelectorPackage = 'context-selector/3';
+export const engineerPackage = 'engineer/11';
+export const capabilityEngineerPackage = 'engineer/10';
 export const capabilityArchitectPackage = 'capability-architect/3';
 export const contractEngineerPackage = 'contract-engineer/3';
 export const reviewerPackage = 'reviewer/4';
 export const failureAnalystPackage = 'failure-analyst/1';
-export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/2';
+export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/3';
 
 /**
  * Loads every package a run offers. A role with no package yet has no entry:
@@ -283,7 +283,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: options.capabilityWorkflow === false ? 'local-architect/12' : localArchitectPackage,
+    name: options.capabilityWorkflow === false ? 'local-architect/14' : localArchitectPackage,
     systemFile: localSystemFile,
     procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
     schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,

@@ -65,8 +65,17 @@ describe('what an engineer is told about the Ramify project it works in', () => 
     expect(prompt).toContain('## This is a Ramify project');
     expect(prompt).toContain('only the symbols your module\n  *receives*');
     expect(prompt).toContain('`import type` is checked exactly as a value import is');
-    expect(prompt).toContain('`.ramify/external` and `.ramify/children`');
-    expect(prompt).toContain('`tests/.ramify/external` and `tests/.ramify/children`');
+    // The views block lists the directories a module has; the role text names none as always present.
+    expect(prompt).toContain('The task\'s views block lists the API views of\nthe modules you work in');
+    expect(prompt).toContain('`.ramify` for ordinary source and `tests/.ramify` for code under `tests/`');
+    expect(prompt).toContain('exists only where it receives something from them');
+    expect(prompt).toContain('`external/<path>.ts.md` lists what your module receives from `<path>.ts`');
+    expect(prompt).toContain('Reading a page answers more than grepping the view.');
+    expect(prompt).not.toContain('.ramify/children');
+    expect(prompt).not.toContain('{external,children}');
+    const legacy = renderEngineerPrompt((await loadPromptPackages({ capabilityWorkflow: false })).packages.get('engineer')!, '/p');
+    expect(legacy).toContain('Reading a page answers more than grepping the view.');
+    expect(legacy).not.toContain('.ramify/children');
     expect(prompt).toContain('Foreign source never establishes importability');
     expect(prompt).toContain('`RAMIFY MODULE VIOLATION`');
     expect(prompt).toContain('the harness\nchecks your whole write scope once more before it accepts');
@@ -88,6 +97,16 @@ describe('what an engineer is told about the Ramify project it works in', () => 
     expect(text).toContain('## What you may import');
     expect(text).toContain('- `app/reviews` (ordinary): `subs/reviews/src/.ramify/` (project-relative; open `/p/subs/reviews/src/.ramify/` from this cwd); revision `rev/1:current:2`; coverage complete, so a symbol it does not list is not importable.');
     expect(text).toContain('reported with `unsuitable`, reason `scope`');
+  });
+
+  test('a view with coverage limits says what its count means', () => {
+    const text = iterationMessage({
+      assignment: assignment(),
+      projectRoot: '/p',
+      base: 'abc',
+      views: [{ module: 'app/reviews', views: [{ area: 'src', path: 'subs/reviews/src/.ramify', revision: 'rev/1:current:2', coverage: 2 }], unavailable: null }],
+    });
+    expect(text).toContain('revision `rev/1:current:2`; coverage limits: 2 source-analysis limits that may have left a received API out of this view, so absence is not proof of unavailability.');
   });
 
   test('a module without a view is told that absence is not permission', () => {
