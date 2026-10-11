@@ -386,13 +386,16 @@ export const runEventSchema = z.discriminatedUnion('type', [
    * `request-completion` submission: the local architect's pinned point
    * after it, which reconciliation forks, or null where none was kept. A
    * revision committed with an assignment, and one of an earlier run, has
-   * none.
+   * none. A completion request that changes nothing in the committed
+   * outline commits no revision: its event carries `unchanged`, names the
+   * committed revision it stands on in `revision`, and writes no record.
    */
   event('outline-revised', z.object({
     workItem: text,
     revision: z.int().positive(),
     invocation: text,
     architectRef: architectRefSchema.nullable().optional(),
+    unchanged: z.literal(true).optional(),
   }).strict()),
   /**
    * Commits one `IterationAssignment` with its captured `WriteScope`, its

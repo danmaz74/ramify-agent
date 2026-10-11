@@ -333,9 +333,12 @@ async function afterCompletionRequest(handling: Handling, item: WorkItem,
     item, invocation, outline: submission.outline, hypothesesSeen: hypothesesSeen(run, item.id), architectRef: architectRefOf(run, invocation),
   });
   if (revised === null) throw new Error('The completion outline could not be recorded');
-  handling.applied(revised.written
-    ? `the completion outline, revision ${revised.outline.revision} of ${item.id}`
-    : `nothing more: the completion outline revision ${revised.outline.revision} of ${item.id} was already recorded for ${invocation}`);
+  const { revision } = revised.outline;
+  handling.applied(revised.unchanged
+    ? `${revised.written ? '' : 'nothing more: '}the completion request standing on outline revision ${revision} of ${item.id}${revised.written ? '' : ` was already recorded for ${invocation}`}`
+    : revised.written
+      ? `the completion outline, revision ${revision} of ${item.id}`
+      : `nothing more: the completion outline revision ${revision} of ${item.id} was already recorded for ${invocation}`);
   handling.notRun(`settling ${item.id}'s reviews, reconciliation, its work-item gate and its completion; \`step gate --checkpoint work-item --invocation ${invocation}\` runs the gate once its reviews are settled`);
 }
 

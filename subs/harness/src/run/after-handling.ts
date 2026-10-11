@@ -9,6 +9,7 @@ import { type ConsumerRequirement, type ContractRecord, type ProviderObligation 
 import { bindingKey, conformanceKey, openRequirements, verificationKey } from '../contracts/schedule.js';
 import { isContained, resolveRealTarget } from '../guard/resolve-contained-path.js';
 import type { RunFailureReason } from '../interfaces/protocol/runs.js';
+import { canonicalJson } from '../jobs/commands.js';
 import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import { sha256 } from '../prompts/packages.js';
 import { pendingBindingEvidence } from '../reviews/binding-evidence.js';
@@ -27,7 +28,7 @@ import {
   type ObligationActor, type ObligationBinding, type ObligationProjection, type ObligationRegistration, type ObligationReport,
 } from '../work/obligations.js';
 import { workItemOutlineSchema, workLayout, type WorkItem, type WorkItemOutline } from '../work/records.js';
-import type { OutlineBody } from '../work/submission.js';
+import { unchangedOutlineReason, type OutlineBody } from '../work/submission.js';
 import { releasableScratchModules, removeScratchDirectories } from '../work/scratch.js';
 import type { CommittingGates, GateRun } from './committing-gate.js';
 import { expectedFeatureFiles, trackedScenarios, writtenScenarios } from './feature-files.js';
@@ -47,6 +48,20 @@ import type { RunWrite } from './service.js';
  */
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/**
+ * Whether a completion's outline changes nothing in the committed revision:
+ * the plan is the same, and the reason is the committed one or the one the
+ * harness gives a completion that carried no outline. A new reason states a
+ * revision.
+ */
+function standsOn(outline: OutlineBody, committed: WorkItemOutline): boolean {
+  const plan = (body: OutlineBody | WorkItemOutline) => canonicalJson({
+    changes: body.changes, decomposition: body.decomposition, reuse: body.reuse, breakingChanges: body.breakingChanges, stages: body.stages,
+  });
+  return plan(outline) === plan(committed)
+    && (outline.revisionReason === committed.revisionReason || outline.revisionReason === unchangedOutlineReason(committed.revision));
+}
 
 /** What one review question binds besides the candidate. */
 export type ReviewInputs = Pick<ReviewRequest, 'guidance' | 'forkPoint'> & Partial<Pick<ReviewRequest, 'inputsUnavailable' | 'source'>>;
@@ -355,8 +370,11 @@ export class AfterHandling<R extends GateRun> {
   /**
    * The outline revision an accepted local architect submission carries,
    * written once for its invocation: a repeated handling of the same
-   * invocation answers the revision it already wrote. Null once the run
-   * accepts nothing more.
+   * invocation answers the revision it already wrote. A completion request
+   * that changes nothing in the committed outline, because it carried none
+   * or carried the committed body as it stands, writes no revision: its
+   * `outline-revised` names the committed revision it stands on, marked
+   * `unchanged`, with no record. Null once the run accepts nothing more.
    */
   async reviseOutline(run: R, input: {
     readonly item: WorkItem;
@@ -365,15 +383,24 @@ export class AfterHandling<R extends GateRun> {
     readonly hypothesesSeen: readonly RecordRef[];
     /** The architect's pinned point a completion request records with its revision; absent for an assignment's. */
     readonly architectRef?: ArchitectRef | null | undefined;
-  }): Promise<{ readonly outline: WorkItemOutline; readonly written: boolean } | null> {
+  }): Promise<{ readonly outline: WorkItemOutline; readonly written: boolean; readonly unchanged: boolean } | null> {
     const { item, invocation } = input;
     const prior = run.log.all('outline-revised').find(event => event.data.workItem === item.id && event.data.invocation === invocation);
     if (prior !== undefined) {
       const outline = workItemOutlineSchema.parse(committedBody(run, workLayout.outline(item.id, prior.data.revision)));
-      if (outline.invocation !== invocation) throw new Error(`The outline revision ${prior.data.revision} of ${item.id} no longer names ${invocation}`);
-      return { outline, written: false };
+      const unchanged = prior.data.unchanged === true;
+      if (!unchanged && outline.invocation !== invocation) throw new Error(`The outline revision ${prior.data.revision} of ${item.id} no longer names ${invocation}`);
+      return { outline, written: false, unchanged };
     }
-    const revision = (committedRecords(run.log.ledger.replay()).outlines.get(item.id) ?? []).length + 1;
+    const committed = committedRecords(run.log.ledger.replay()).outlines.get(item.id) ?? [];
+    const standing = committed.at(-1);
+    if (input.architectRef !== undefined && standing !== undefined && standsOn(input.outline, standing)) {
+      await this.host.write(run, { type: 'outline-revised', data: { workItem: item.id, revision: standing.revision, invocation,
+        architectRef: input.architectRef, unchanged: true } });
+      await this.host.afterWrite('outline-revised', run.jobId);
+      return this.host.ignoring(run) ? null : { outline: standing, written: true, unchanged: true };
+    }
+    const revision = committed.length + 1;
     const outline = workItemOutlineSchema.parse({
       schema: 'ramify-agent.work-item-outline/1', workItem: item.id, revision, invocation, ...input.outline,
       hypothesesSeen: input.hypothesesSeen.map(ref => ({ ...ref })),
@@ -383,7 +410,7 @@ export class AfterHandling<R extends GateRun> {
       { path: workLayout.outline(item.id, revision), id: item.id, revision, body: outline },
     ]);
     await this.host.afterWrite('outline-revised', run.jobId);
-    return this.host.ignoring(run) ? null : { outline, written: true };
+    return this.host.ignoring(run) ? null : { outline, written: true, unchanged: false };
   }
 
   /**

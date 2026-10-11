@@ -320,11 +320,15 @@ describe('a work-item gate that does not pass', () => {
     expect(local[1]!.spec.prompt).toContain('- `tests`: failed');
   }, 300_000);
 
-  test('a later completion request that omits its outline stands on the last committed revision', async () => {
+  test('a later completion request that changes nothing in its outline stands on the committed revision; a changed one revises', async () => {
     const project = await target();
     const submitted = analysis([entry('reviewer-note', reviews)]);
     let turn = 0;
     const { outline: _omitted, ...withoutOutline } = requestCompletion();
+    // The first turn commits revision 1; the second omits the outline, the
+    // third repeats it as committed, and the fourth changes the plan.
+    const turns = [requestCompletion(), withoutOutline, requestCompletion(),
+      requestCompletion({ changes: 'The module needs one more check.', revisionReason: 'The gate found a missing check.' })];
     const { service } = await openRuns(project, {
       checkScript: ({ check, context }) => context.checkpoint === 'work-item' && check.kind === 'tests'
         ? { outcome: { kind: 'completed', exitCode: 1 } }
@@ -334,7 +338,7 @@ describe('a work-item gate that does not pass', () => {
         if (spec.role === 'catalog-extractor') return [];
         if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: submitted }];
         turn += 1;
-        return [{ kind: 'submit' as const, input: turn === 1 ? requestCompletion() : withoutOutline }];
+        return [{ kind: 'submit' as const, input: turns[turn - 1]! }];
       },
     });
     cleanups.push(() => service.close());
@@ -342,15 +346,17 @@ describe('a work-item gate that does not pass', () => {
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
     const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
-    // Each omission was accepted at once: no rejection, and every turn's completion is recorded.
-    expect(events.filter(event => event.type === 'outline-revised').map(event => event.data.revision)).toEqual([1, 2, 3, 4]);
-    const read = async (revision: number) => JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', revision)), 'utf8')) as Record<string, unknown>;
-    const first = await read(1);
-    const second = await read(2);
-    // The plan of the revision stands; only the reason names the revision it stands on.
-    for (const field of ['changes', 'decomposition', 'reuse', 'breakingChanges', 'stages']) expect(second[field]).toEqual(first[field]);
-    expect(second.revisionReason).toBe('Unchanged: the completion request carried no outline, so revision 1 stands.');
-    expect((await read(3)).revisionReason).toBe('Unchanged: the completion request carried no outline, so revision 2 stands.');
+    // Each turn's completion is recorded at once, with no rejection, naming
+    // the revision it stands on; only the changed plan commits a revision.
+    const completions = events.filter(event => event.type === 'outline-revised').map(event => event.data as Record<string, unknown>);
+    expect(completions.map(data => [data.revision, data.unchanged])).toEqual([[1, undefined], [1, true], [1, true], [2, undefined]]);
+    expect(completions.every(data => data.architectRef !== undefined)).toBe(true);
+    const outline = (revision: number) => runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', revision));
+    expect(existsSync(outline(3))).toBe(false);
+    const second = JSON.parse(await readFile(outline(2), 'utf8')) as Record<string, unknown>;
+    expect(second).toMatchObject({ revision: 2, changes: 'The module needs one more check.', revisionReason: 'The gate found a missing check.' });
+    // Every completion still reaches its work-item gate.
+    expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'work-item')).toHaveLength(4);
   }, 300_000);
 });
 

@@ -156,7 +156,9 @@ function describe(event: RunEvent): [string, Ref[]] {
     case 'decision-delivered':
       return [`Decision ${event.data.decision} was delivered to ${event.data.workItem}`, [...ref('decision', event.data.decision), ...ref('work-item', event.data.workItem)]];
     case 'outline-revised':
-      return [`${event.data.workItem}'s outline reached revision ${event.data.revision}`, ref('work-item', event.data.workItem)];
+      return [event.data.unchanged === true
+        ? `${event.data.workItem}'s completion request stands on outline revision ${event.data.revision}`
+        : `${event.data.workItem}'s outline reached revision ${event.data.revision}`, ref('work-item', event.data.workItem)];
     case 'iteration-assigned':
       return [
         `Iteration ${event.data.iteration} (${event.data.kind}) was assigned`,
