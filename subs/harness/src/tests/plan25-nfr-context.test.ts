@@ -227,8 +227,10 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
 
   if (repair) {
     const repairSession = active.agent!.sessions.find(session => session.spec.submission.name === nonfunctionalRepairToolName)!;
-    expect(repairSession.spec.prompt).toContain(join(project, caller));
-    expect(repairSession.spec.prompt).toContain('Paths below resolve from the project root');
+    // Starting points are project-relative; the environment states the root once.
+    expect(repairSession.spec.prompt).toContain(`{"path":"${caller}"`);
+    expect(repairSession.spec.prompt).not.toContain(`{"path":"${join(project, caller)}"`);
+    expect(repairSession.spec.prompt).toContain('Paths are relative to the project root.');
     expect(repairSession.spec.prompt).not.toContain('use snapshot tools');
     expect(repairSession.spec.tools.some(tool => tool.name.startsWith('snapshot_'))).toBe(false);
     expect(repairSession.spec.prompt).toContain(`"candidate": "${C}"`);

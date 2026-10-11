@@ -16,6 +16,17 @@ export interface StartingPointGroup {
   readonly points: readonly StartingPoint[] | undefined;
 }
 
+/**
+ * A path as a message states it: relative to the project root, which the
+ * environment states once, or absolute where it lies outside the project.
+ */
+function projectPath(projectRoot: string, value: string): string {
+  const absolute = resolve(projectRoot, value);
+  const within = relative(projectRoot, absolute);
+  if (within === '') return '.';
+  return within === '..' || within.startsWith(`..${sep}`) || isAbsolute(within) ? absolute : within.split(sep).join('/');
+}
+
 /** One caller-owned section; exact pairs share all origins in stable declaration order. */
 export function startingPointsSection(groups: readonly StartingPointGroup[], input: {
   readonly projectRoot: string;
@@ -36,8 +47,8 @@ export function startingPointsSection(groups: readonly StartingPointGroup[], inp
     '## Recorded starting points', '',
     'Optional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.',
     input.snapshot ? `Paths are relative to the pinned candidate ${input.snapshot.commit} (tree ${input.snapshot.tree}); use snapshot tools.`
-      : 'Paths below resolve from the project root; structured submissions keep project-relative paths.', '',
-    ...[...pairs.values()].map(({ point, origins }) => `- ${JSON.stringify({ path: input.snapshot ? point.path : resolve(input.projectRoot, point.path), note: point.note, origins })}`),
+      : 'Paths are relative to the project root.', '',
+    ...[...pairs.values()].map(({ point, origins }) => `- ${JSON.stringify({ path: input.snapshot ? point.path : projectPath(input.projectRoot, point.path), note: point.note, origins })}`),
   ].join('\n') };
 }
 
@@ -53,10 +64,7 @@ export function declaredCheckInputs(input: {
   readonly paths?: readonly string[];
   readonly snapshot?: boolean;
 }): string {
-  const path = (value: string) => {
-    const within = relative(input.projectRoot, resolve(input.projectRoot, value));
-    return within === '' ? '.' : within === '..' || within.startsWith(`..${sep}`) || isAbsolute(within) ? resolve(input.projectRoot, value) : within;
-  };
+  const path = (value: string) => projectPath(input.projectRoot, value);
   const word = (value: string) => /^[\w@%+=:,./-]+$/u.test(value) ? value : JSON.stringify(value);
   const lines: string[] = [];
   let located = (input.paths ?? []).length > 0;

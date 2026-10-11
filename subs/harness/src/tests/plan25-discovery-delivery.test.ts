@@ -200,6 +200,11 @@ test('D11: snapshot hints use captured existence/access and exact pairs coalesce
   expect(section.text).not.toContain('/workspace'); expect(section.text).toContain('pinned candidate reviewed-candidate (tree pinned-tree)');
   expect(section.text).toContain('not verified current facts');
   expect(startingPointsSection([{ ...group('A'), points: undefined }], { projectRoot: '/workspace' })).toBeUndefined();
+  // Without a snapshot, paths are project-relative; one outside the project stays absolute.
+  const local = startingPointsSection([{ ...group('A'), points: [{ path: 'src/caller.ts', note: 'Inside' }, { path: '/workspace/src/abs.ts', note: 'Absolute inside' }, { path: '../elsewhere/x.ts', note: 'Outside' }] }],
+    { projectRoot: '/workspace' })!.text;
+  expect(local.split('\n').filter(line => line.startsWith('- ')).map(line => (JSON.parse(line.slice(2)) as { path: string }).path)).toEqual(['src/caller.ts', 'src/abs.ts', '/elsewhere/x.ts']);
+  expect(local).toContain('Paths are relative to the project root.');
 });
 
 test('D4/D5/D11: actual engineer, architect, code/scope/design tasks carry only the exact iteration/candidate discoveries', async () => {
@@ -231,7 +236,7 @@ test('D4/D5/D11: actual engineer, architect, code/scope/design tasks carry only 
   for (const [number, started] of starts.filter(event => event.data.role === 'engineer').entries()) {
     const packet = await packetAt(root, run.runId, started.data.invocation);
     const discovery = packet.additions.find(item => item.block?.key === blockKey)!;
-    for (const point of assignmentPoints[number]!) expect(discovery.text).toContain(JSON.stringify({ path: join(root, point.path), note: point.note }).slice(1, -1));
+    for (const point of assignmentPoints[number]!) expect(discovery.text).toContain(JSON.stringify({ path: point.path, note: point.note }).slice(1, -1));
     expect(discovery.text).toContain(`"iteration":"wi-001.i0${number + 1}"`);
     expect(discovery.text).toContain('"producer":"architect assignment"');
     expect(packet.message.split('## Recorded starting points')).toHaveLength(2);
@@ -280,7 +285,7 @@ test('D5: an actual partial engineer result is navigation help labeled partial f
   expect(onlyRun(opened.service, plan).state).toBe('completed');
   const returned = agent.sessions.find(session => session.spec.prompt.includes('"producer":"engineer partial result"'))!;
   expect(returned).toBeDefined(); expect(returned.spec.role).toBe('local-architect');
-  expect(returned.spec.prompt).toContain(join(fixture.root, point.path)); expect(returned.spec.prompt).toContain(point.note);
+  expect(returned.spec.prompt).toContain(`"path":"${point.path}"`); expect(returned.spec.prompt).toContain(point.note);
   expect(returned.spec.prompt).toContain('unfinished: Implement behavior');
   expect(agent.sessions.filter(session => session.spec.role === 'reviewer')).toHaveLength(0);
 }, 120_000);
@@ -321,7 +326,8 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
     if (consumer.start.mode === 'fresh' && !mode.startsWith('legacy')) {
       expect(consumer.spec.prompt).toContain('## Recorded starting points');
       expect(consumer.spec.prompt.split(point.note)).toHaveLength(2);
-      expect(consumer.spec.prompt).toContain(join(fixture.root, point.path));
+      expect(consumer.spec.prompt).toContain(`"path":"${point.path}"`);
+      expect(consumer.spec.prompt).not.toContain(join(fixture.root, point.path));
       expect(consumer.spec.prompt).toContain('"producer":"local architect orientation"');
       expect(consumer.spec.prompt).toContain('"boundary":"scenarios-of-revision-diff"');
     } else {
