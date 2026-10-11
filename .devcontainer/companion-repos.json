@@ -1,0 +1,10 @@
+{
+  "ramify": {
+    "url": "https://github.com/danmaz74/ramify.git",
+    "commit": "1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5"
+  },
+  "ramify-audit": {
+    "url": "https://github.com/danmaz74/ramify-audit.git",
+    "commit": "43ca23e08a776df580655e945bbe4aff370e131a"
+  }
+}

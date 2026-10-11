@@ -1,0 +1,3 @@
+# The image copies nothing from its build context (the agent repository), so
+# no file is sent to the builder: not dependencies, run state or credentials.
+*

@@ -1,0 +1,82 @@
+{
+  "name": "ramify-agent workspace",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  // The agent checkout. Open development.code-workspace from it to see the
+  // ramify and ramify-audit companions as well.
+  "workspaceFolder": "/workspaces/ramify-agent",
+
+  "remoteEnv": {
+    "NODE_ENV": "development",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "350000"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.vscode-typescript-next",
+        "alexkrechik.cucumberautocomplete",
+        "mhutchie.git-graph",
+        "ms-azuretools.vscode-docker",
+        "streetsidesoftware.code-spell-checker",
+        "editorconfig.editorconfig",
+        "xyz.local-history",
+        "renanbs.git-context-menu",
+        "anthropic.claude-code",
+        "openai.chatgpt"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/bin/zsh"
+          }
+        },
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true,
+        "remote.autoForwardPorts": false
+      }
+    }
+  },
+
+  // Ports are chosen not to collide with the Ramify toolkit devcontainer
+  // (4080, 4300, 4301, 5180, 8787) or a cucumber-viz devcontainer (3000-3002,
+  // 3100-3102, 5173-5174, 8080, 8090, 9000, 9222) on the same host, so all
+  // can be forwarded to one editor. Nothing auto-forwards; use the Ports panel.
+  "portsAttributes": {
+    "4180": {
+      "label": "ramify-agent server (npm run serve)",
+      "onAutoForward": "ignore"
+    },
+    "5181": {
+      "label": "ramify-agent web dev server (npm run dev:web -- --port 5181 --strictPort)",
+      "onAutoForward": "ignore"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "ignore"
+  },
+
+  "remoteUser": "app",
+
+  // Closing the editor must not stop the container: work keeps running and
+  // every reconnect finds it. A host reboot is covered by the opt-in restart
+  // policy in docker-compose.yml.
+  "shutdownAction": "none",
+
+  // Creation prepares the workspace; every start only checks it.
+  "postCreateCommand": "/bin/bash /workspaces/ramify-agent/.devcontainer/setup.sh",
+  "postStartCommand": "/bin/bash /workspaces/ramify-agent/.devcontainer/post-start.sh",
+
+  // Host state: Git identity, SSH keys, and the Claude Code, Codex and Pi
+  // directories with their logins, sessions and memories. Each source must
+  // exist on the Docker host before the container is created; see
+  // docs/development/workspace.md. Nothing is copied into the image.
+  "mounts": [
+    "source=${localEnv:HOME}/.gitconfig,target=/home/app/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.ssh,target=/home/app/.ssh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude,target=/home/app/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.codex,target=/home/app/.codex,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.pi,target=/home/app/.pi,type=bind,consistency=cached"
+  ]
+}

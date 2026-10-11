@@ -45,3 +45,6 @@ dist/
 
 # A harness run's records under plans/<plan>/.harness/ are ignored by the
 # .gitignore the harness writes inside that directory, not by this file.
+
+# Host-specific devcontainer Compose values (.devcontainer/.env.example lists them).
+.devcontainer/.env

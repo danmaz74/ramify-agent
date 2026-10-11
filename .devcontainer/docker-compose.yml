@@ -1,0 +1,56 @@
+# The ramify-agent devcontainer. The workspace parent (the directory holding
+# ramify-agent/, ramify/, ramify-audit/, worktrees/ and evidence/) is
+# bind-mounted at /workspaces, so source, Git metadata, worktrees and evidence
+# live on the host and survive container recreation.
+#
+# Compose reads the git-ignored .devcontainer/.env for host-specific values;
+# .env.example lists them. Volumes are scoped to the Compose project, whose
+# name the Dev Containers tooling derives from the folder (or takes from
+# COMPOSE_PROJECT_NAME), so a second workspace on the same host needs its own
+# project name.
+services:
+  app:
+    build:
+      # The agent repository only, never the workspace parent.
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        USER_UID: ${RAMIFY_UID:-1000}
+        USER_GID: ${RAMIFY_GID:-1000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Carried from the toolkit devcontainer.
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    # Shared memory and seccomp for headless Chromium.
+    shm_size: '2gb'
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - ../..:/workspaces:cached
+      # One named volume per package, so installs stay out of the host tree.
+      # .devcontainer/lib.sh lists the same directories.
+      - agent_node_modules:/workspaces/ramify-agent/node_modules
+      - ramify_node_modules:/workspaces/ramify/node_modules
+      - ramify_site_node_modules:/workspaces/ramify/site/node_modules
+      - ramify_example_node_modules:/workspaces/ramify/examples/collection-review/node_modules
+      - ramify_audit_node_modules:/workspaces/ramify-audit/node_modules
+    environment:
+      NODE_ENV: development
+    # Opt-in restart after a host reboot: set RESTART_POLICY=unless-stopped in
+    # .devcontainer/.env on a host that should bring the container back. The
+    # default is no restart. Development servers inside are not restarted;
+    # start them again after reconnecting.
+    restart: ${RESTART_POLICY:-no}
+    # tini as PID 1 reaps exited processes.
+    init: true
+    stdin_open: true
+    tty: true
+
+volumes:
+  agent_node_modules:
+  ramify_node_modules:
+  ramify_site_node_modules:
+  ramify_example_node_modules:
+  ramify_audit_node_modules:

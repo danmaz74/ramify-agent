@@ -1,0 +1,13 @@
+{
+  // Three independent repositories in one editor window. Each folder is its
+  // own Git repository with its own package, lockfile and commands; the
+  // workspace parent has none.
+  "folders": [
+    { "name": "ramify-agent", "path": "." },
+    { "name": "ramify (toolkit companion)", "path": "../ramify" },
+    { "name": "ramify-audit (audit companion)", "path": "../ramify-audit" }
+  ],
+  "settings": {
+    "remote.autoForwardPorts": false
+  }
+}
