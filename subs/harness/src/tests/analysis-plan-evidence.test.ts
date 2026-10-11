@@ -38,9 +38,9 @@ function frozenPlan(spec: SessionSpec): string {
  */
 function intakeOf(spec: SessionSpec): IntakeSubmission {
   const capturedRoot = frozenPlan(spec);
-  expect(spec.prompt).toContain('The root plan document, doc-001 (plan) at `plans/review-notes/plan.md`, is in the plan block of this message, verbatim as captured. Read it there in full; no file read is needed.');
+  expect(spec.prompt).toContain('Read each captured plan document in full:\n\n- doc-001 (plan): plans/review-notes/plan.md; in the plan block of this message, verbatim as captured, so no file read is needed\n');
   expect(spec.prompt).toContain('<plan>\n# Evidence plan\n');
-  expect(spec.prompt).toMatch(/Read each other captured plan document in full at its captured file:\n\n- doc-\d+ \(plan\): plans\/review-notes\/constraints\.md; captured file \//u);
+  expect(spec.prompt).toMatch(/\n- doc-\d+ \(plan\): plans\/review-notes\/constraints\.md; captured file \//u);
   expect(spec.prompt).not.toContain(`captured file ${capturedRoot}`);
   return intake(capturedRoot);
 }
@@ -199,11 +199,11 @@ test('the check of the root plan reads it in the plan block; any other document 
   const inputs = { planId: 'example', manifest, bytes: new Map(documents.map((document, index) => [document.id, Buffer.from(texts[index]!)])), runDirectory: '/p/plans/example/.harness/jobs/run-1' };
   const state = { catalog: openElementCatalog(hash('manifest'), manifest), analysis: { entries: [], scenarios: [] } } as unknown as CheckState;
   const root = checkMessage(inputs, 'doc-001', state);
-  expect(root).toContain('The document, doc-001 (plan) at `plans/example/plan.md`, is in the plan block of this message, verbatim as captured. Read it there in full; no file read is needed.');
+  expect(root).toContain('Read the document in full:\n\n- doc-001 (plan): plans/example/plan.md; in the plan block of this message, verbatim as captured, so no file read is needed\n');
   expect(root).not.toContain('captured file');
-  expect(checkMessage(inputs, 'doc-002', state)).toContain('Read the document in full at its captured file:\n\n- doc-002 (plan): plans/example/companion.md; captured file /p/plans/example/.harness/jobs/run-1/input/documents/doc-002.bin');
+  expect(checkMessage(inputs, 'doc-002', state)).toContain('Read the document in full:\n\n- doc-002 (plan): plans/example/companion.md; captured file /p/plans/example/.harness/jobs/run-1/input/documents/doc-002.bin');
   // An intake of a plan without companions names no captured file at all.
   const alone = intakeMessage({ ...inputs, manifest: documentManifestSchema.parse({ ...manifest, documents: [documents[0]] }) });
-  expect(alone).toContain('The root plan document, doc-001 (plan) at `plans/example/plan.md`, is in the plan block of this message');
+  expect(alone).toContain('- doc-001 (plan): plans/example/plan.md; in the plan block of this message');
   expect(alone).not.toContain('captured file');
 });
