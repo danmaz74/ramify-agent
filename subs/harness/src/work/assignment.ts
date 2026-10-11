@@ -136,7 +136,10 @@ export const assignmentBodySchema = z.object({
     capability: slugSchema,
     owner: modulePathSchema,
     role: z.enum(['use', 'request']),
-  }).strict()),
+  }).strict()).describe(
+    'Capabilities and owners from the committed registry or any localDecisions registration in this complete submission, '
+    + 'regardless of order. The owner must match the resulting registry entry.',
+  ),
   completionEvidence: text,
   /**
    * Guarded paths this iteration is allowed to change, each with the reason
@@ -186,6 +189,8 @@ export interface AssignmentEvidence {
   readonly index: ArchitectIndex | null;
   /** The registry as committed so far, by capability. */
   readonly registry: ReadonlyMap<string, RegistryEntry>;
+  /** Reference lookup including this submission's registrations; never supplies creation authority. */
+  readonly registryReferences?: ReadonlyMap<string, Pick<RegistryEntry, 'owner'>> | undefined;
   /** The outline in force: the one this submission carries, or the last committed revision. */
   readonly outline: Pick<OutlineBody, 'decomposition' | 'stages' | 'breakingChanges'> | null;
   /** Capability tasks use their own plan as the design basis. */
@@ -382,7 +387,7 @@ export function assignmentErrors(body: AssignmentBody, evidence: AssignmentEvide
   });
 
   body.externalCapabilities.forEach((capability, position) => {
-    const registered = evidence.registry.get(capability.capability);
+    const registered = (evidence.registryReferences ?? evidence.registry).get(capability.capability);
     if (registered === undefined) {
       errors.push({
         path: `assignment.externalCapabilities.${position}.capability`,

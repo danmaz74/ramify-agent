@@ -75,7 +75,10 @@ export const registryChangeSchema = z.object({
   owner: modulePathSchema,
   proposed: moduleProposalSchema.optional(),
   /** Confirmed consumer-to-dependency links this revision adds. */
-  consumers: z.array(z.object({ capability: slugSchema, workItem: text }).strict()),
+  consumers: z.array(z.object({ capability: slugSchema, workItem: text }).strict()).describe(
+    'Consumer capabilities may be committed or registered anywhere in this complete submission, regardless of order. '
+    + 'Each workItem must already be committed.',
+  ),
 }).strict();
 export type RegistryChange = z.infer<typeof registryChangeSchema>;
 
@@ -325,9 +328,11 @@ export function localDecisionErrors(
   evidence: PlacementEvidence,
   prefix: string,
 ): SubmissionError[] {
+  const references = new Set([...evidence.registry.keys(), ...decisions.flatMap(entry => entry.registry.map(change => change.capability))]);
+  const seen = new Set<string>();
   return decisions.flatMap((entry, index) => [
     ...decisionErrors(entry.decision, entry.registry, evidence, `${prefix}.${index}.decision`),
-    ...registryErrors(entry.registry, evidence, `${prefix}.${index}.registry`),
+    ...registryErrors(entry.registry, evidence, `${prefix}.${index}.registry`, references, seen),
   ]);
 }
 
@@ -591,9 +596,12 @@ export function proposalErrors(
   return errors;
 }
 
-function registryErrors(changes: readonly RegistryChange[], evidence: PlacementEvidence, prefix: string): SubmissionError[] {
+function registryErrors(
+  changes: readonly RegistryChange[], evidence: PlacementEvidence, prefix: string,
+  references: ReadonlySet<string> = new Set([...evidence.registry.keys(), ...changes.map(change => change.capability)]),
+  seen = new Set<string>(),
+): SubmissionError[] {
   const errors: SubmissionError[] = [];
-  const seen = new Set<string>();
   changes.forEach((change, index) => {
     const path = `${prefix}.${index}`;
     if (seen.has(change.capability)) {
@@ -631,7 +639,7 @@ function registryErrors(changes: readonly RegistryChange[], evidence: PlacementE
           expected: 'a work item of this run',
         });
       }
-      if (!evidence.registry.has(consumer.capability) && !seen.has(consumer.capability)) {
+      if (!references.has(consumer.capability)) {
         errors.push({
           path: `${path}.consumers.${position}.capability`,
           message: `No capability "${consumer.capability}" is in the registry`,

@@ -99,7 +99,11 @@ const assignMemberSchema = z.object({
   /** A new outline revision, where this assignment revises the plan for the work item. */
   outline: outlineBodySchema.optional(),
   /** Placement this architect decided within its own authority, with what it registers. */
-  localDecisions: z.array(localDecisionSchema),
+  localDecisions: z.array(localDecisionSchema).describe(
+    'Decisions committed together with this assignment. Register each capability at most once across all decisions. '
+    + 'Registry consumer links, outline reuse and assignment externalCapabilities may reference any registration '
+    + 'in this complete submission, regardless of order. Ownership and revision authority still use committed evidence.',
+  ),
   assignment: assignmentBodySchema,
   ...obligationSubmissionFields,
 }).strict();
@@ -333,17 +337,24 @@ function validateKind(value: LocalArchitectSubmission, evidence: WorkEvidence, r
     return errors.length === 0 ? shape : { ok: false, errors };
   }
   const outline = shape.value.outline;
+  // References see the complete submission. Authority checks retain the
+  // committed registry so a proposed move cannot hide the owner it replaces.
+  const registryReferences = new Map<string, Pick<RegistryEntry, 'owner'>>(evidence.registry);
+  for (const entry of shape.value.localDecisions) {
+    for (const change of entry.registry) registryReferences.set(change.capability, change);
+  }
   const errors = [
     ...(outline === undefined && evidence.outline == null ? [{
       path: 'outline',
       message: 'The first assignment needs an outline; there is no committed outline to reuse',
       expected: 'an outline for this work item',
     }] : []),
-    ...(outline === undefined ? [] : outlineErrors(outline, evidence)),
+    ...(outline === undefined ? [] : outlineErrors(outline, evidence, registryReferences)),
     ...localDecisionErrors(shape.value.localDecisions, placementEvidence(evidence), 'localDecisions'),
     ...assignmentErrors(shape.value.assignment, {
       index: evidence.index,
       registry: evidence.registry,
+      registryReferences,
       outline: outline ?? evidence.outline ?? null,
       revising: outline !== undefined,
       ...(evidence.contracts === undefined ? {} : { contracts: evidence.contracts }),
@@ -361,7 +372,10 @@ function validateKind(value: LocalArchitectSubmission, evidence: WorkEvidence, r
 /** The assignment one accepted `assign` submission carries. */
 export type { AssignmentBody };
 
-function outlineErrors(outline: OutlineBody, evidence: WorkEvidence): SubmissionError[] {
+function outlineErrors(
+  outline: OutlineBody, evidence: WorkEvidence,
+  registryReferences: ReadonlyMap<string, Pick<RegistryEntry, 'owner'>> = evidence.registry,
+): SubmissionError[] {
   const errors: SubmissionError[] = [];
   const known = (module: string, path: string) => {
     if (evidence.index === null || evidence.index.modules.has(module)) return;
@@ -370,7 +384,7 @@ function outlineErrors(outline: OutlineBody, evidence: WorkEvidence): Submission
 
   outline.reuse.forEach((entry, index) => {
     known(entry.owner, `outline.reuse.${index}.owner`);
-    const registered = evidence.registry.get(entry.capability);
+    const registered = registryReferences.get(entry.capability);
     if (registered !== undefined && registered.owner !== entry.owner) {
       errors.push({
         path: `outline.reuse.${index}.owner`,

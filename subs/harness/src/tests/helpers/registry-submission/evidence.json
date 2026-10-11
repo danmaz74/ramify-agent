@@ -1,0 +1,296 @@
+{
+  "registry": [
+    {
+      "schema": "ramify-agent.capability/1",
+      "capability": "preview-proposed-revision-chain",
+      "revision": 1,
+      "behavior": "Publish reviews.preview as one new tRPC mutation using the existing chain schema and vocabulary. Consume protocol-independent preview behavior from Review Validation, preserve all existing reviews, and establish the composed result through the assembled typed client with real providers, including invalid untyped input. Review declarations and actual imports for resolver reuse, update affected module descriptions and READMEs, and retain all declared project checks.",
+      "owner": "collection-review/workspace/reviews",
+      "origin": "entry",
+      "decision": null,
+      "consumers": []
+    },
+    {
+      "schema": "ramify-agent.capability/1",
+      "capability": "inspect-editable-revision-snapshot",
+      "revision": 1,
+      "behavior": "Make every successful direct catalog inspection an independently mutable working report for both all and latest scopes. Detach the returned chain array and revision objects from stored records and other reports, isolate predecessor and finding arrays, and verify this directly without serialization while preserving inspection facts, observations and mutable public types.",
+      "owner": "collection-review/workspace/catalog/core",
+      "origin": "entry",
+      "decision": null,
+      "consumers": []
+    }
+  ],
+  "bounds": {
+    "defaults": {
+      "commandTimeoutMs": 600000,
+      "idleMs": 300000,
+      "absoluteMs": 3600000
+    },
+    "ceilings": {
+      "commandTimeoutMs": 1800000,
+      "idleMs": 1800000,
+      "absoluteMs": 10800000
+    }
+  },
+  "package": [
+    "fr-001",
+    "fr-002",
+    "fr-003",
+    "fr-004",
+    "fr-006",
+    "fr-007",
+    "fr-008",
+    "fr-009",
+    "fr-010",
+    "fr-011",
+    "ctx-001",
+    "nfr-001",
+    "nfr-002",
+    "nfr-003",
+    "nfr-004",
+    "nfr-005",
+    "nfr-006",
+    "nfr-007",
+    "nfr-008",
+    "nfr-009",
+    "nfr-010",
+    "nfr-011",
+    "nfr-012",
+    "nfr-013",
+    "rec-001",
+    "rec-002"
+  ],
+  "workItems": [
+    "wi-001",
+    "wi-002"
+  ],
+  "guardedPaths": [
+    ".gitignore",
+    "cucumber.cjs",
+    "cucumber.js",
+    "cucumber.json",
+    "cucumber.mjs",
+    "cucumber.yaml",
+    "cucumber.yml",
+    "npm-shrinkwrap.json",
+    "package-lock.json",
+    "package.json",
+    "ramify-audit.json",
+    "tsconfig.json",
+    "vite.config.js",
+    "vite.config.mts",
+    "vite.config.ts",
+    "vitest.config.js",
+    "vitest.config.mts",
+    "vitest.config.ts"
+  ],
+  "harnessOnly": [
+    "ramify-agent.json",
+    "subs/workspace/subs/catalog/subs/core/src/tests/features/revision-preview/inspect-editable-revision-snapshot.feature",
+    "subs/workspace/subs/reviews/src/tests/features/revision-preview/preview-proposed-revision-chain.feature"
+  ],
+  "obligations": {
+    "entries": [
+      [
+        "sc-001",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-001",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-002",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-002",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-003",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-003",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-004",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-004",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-005",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-005",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-006",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-006",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-007",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-007",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-008",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-008",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-009",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-009",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-001"
+          }
+        }
+      ],
+      [
+        "sc-010",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-010",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-002"
+          }
+        }
+      ],
+      [
+        "sc-011",
+        {
+          "status": "pending",
+          "revision": 0,
+          "case": null,
+          "description": null,
+          "registeredBy": null,
+          "binding": null,
+          "report": null,
+          "id": "sc-011",
+          "kind": "scenario",
+          "responsible": {
+            "kind": "work-item",
+            "id": "wi-002"
+          }
+        }
+      ]
+    ],
+    "tests": 0
+  }
+}

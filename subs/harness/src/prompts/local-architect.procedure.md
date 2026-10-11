@@ -1,4 +1,4 @@
-<!-- ramify-agent local architect procedure, version 13. -->
+<!-- ramify-agent local architect procedure, version 14. -->
 Do this, in order:
 
 1. Read the goal, the requirement references and the acceptance references in
@@ -52,14 +52,18 @@ write.
 - `assignment.scope` is the iteration's write scope, under "Write scope"
   below.
 - `assignment.externalCapabilities` names behavior other modules own that
-  this iteration uses or requests. Each must be in the registry, with the
-  owner the registry gives it.
+  this iteration uses or requests. Each must be committed or registered in
+  this submission, with the owner the resulting registry gives it.
 - Include `outline` on the first assignment so the work item has a plan. On a
   later assignment, include it to revise the plan or leave it out to keep the
   last committed revision.
 - `localDecisions` records the placement you decided yourself, with what
   each one registers. It is `[]` when you decided none. See below for what
-  is yours to decide.
+  is yours to decide. Registrations and the assignment commit together. Registry
+  consumer links, outline reuse and `assignment.externalCapabilities` may name
+  registrations from any decision in this submission, regardless of order.
+  Register each capability once across all decisions. Ownership and revision
+  authority still depend on committed evidence.
 
 - `assignment.obligations` is optional: the obligations of this work item
   the iteration must bind, by ID — its scenarios and the required tests you

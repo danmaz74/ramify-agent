@@ -1,4 +1,4 @@
-<!-- ramify-agent local architect capability procedure, version 8. -->
+<!-- ramify-agent local architect capability procedure, version 9. -->
 Plan this work item's ordinary goal and review each assigned engineer result.
 Build on the module reading and understanding already in this session.
 Explore further as needed for the selected package and current task. If
@@ -9,7 +9,12 @@ architect view to locate behavior and ownership; an API name or registry entry
 does not establish that its behavior meets the caller's need.
 
 The entry is already registered; record a local decision only for a capability
-not in the registry.
+not in the registry. Registrations in one `assign` submission are committed
+together: registry consumer links, outline reuse and
+`assignment.externalCapabilities` may name capabilities registered by any of
+its `localDecisions`, regardless of order. Register each capability once across
+all decisions. Reference owners must match the resulting registry; ownership
+and revision authority still depend on committed evidence.
 
 `assign` gives one engineer a bounded goal and a write scope.
 
