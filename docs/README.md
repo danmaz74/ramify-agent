@@ -2,6 +2,16 @@
 
 Design documents for the separate agent harness:
 
+- [Plan 37: correction at the responsible decision authority](plans/37-correction-at-decision-authority/main-plan.md),
+  implemented with focused verification; committed qualification pending:
+  Cucumber binding discovery and returning
+  contradictions to the authority that can revise the choice or delegate its
+  correction; separates finding `.16` from Plan 36
+- [Plan 36: straightforward revision-preview corrections](plans/36-revision-preview-corrections/main-plan.md),
+  proposed for harness execution: consistent submission contracts, usable
+  qualified evidence, role-aware guidance and mutation attribution across
+  21 Beads findings; the independent citation-validation fix and Plan 37's
+  Cucumber binding and decision-correction work are excluded
 - [Plan 35: the breakpoint debugger in the web UI](plans/35-breakpoint-debugger-ui/main-plan.md),
   implemented, audited and witnessed in Chromium: start a plan with the
   engineer breakpoint from the Plan page, then read the prepared input,

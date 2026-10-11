@@ -51,3 +51,37 @@ already encountered, each with a short note about what to inspect. Paths
 are literal and project-relative. These hints authorize no writes and
 establish no completion or obligation. No extra discovery turn is required;
 you may omit them.
+
+## Existing Cucumber bindings and assignment conflicts
+
+On every fresh or continued step-writing task, inspect the effective Cucumber
+configuration and its globally loaded support files and expressions before
+adding a binding. Use the current declared-check support and configuration
+pointers supplied with the task; unavailable configuration evidence is a
+limitation to report, not a guessed profile or proof that no binding exists.
+The feature's directory alone does not identify all loaded bindings. Repeated
+wording in scenarios is valid; multiple loaded definitions matching one step
+create ambiguity. Ambiguity or zero executed scenarios is not passing acceptance.
+
+Determine whether an existing binding asserts the intended behavior, what
+World state it consumes and which exposed testing contracts supply that state.
+Discovery alone does not establish that you can integrate the binding. Never
+substitute getter assignment, private-shape casts, copied provider logic or
+unauthorized cross-module edits for a supported contract.
+
+If you cannot reconcile the assignment, bindings and available contracts within
+your authority, use advisory consultation for clarification. If a decision
+needs revision, return `partial` through the current submission tool: identify
+the scenario, assignment or design choice, the observed conflict and behavior
+that must be preserved. Include known binding and state-provider locations,
+evidence, completed work and what remains; separate verified facts from
+suspected causes. Do not force an inappropriate `unsuitable` reason or invent a
+submission kind. The assigning architect assesses reuse, a supported shared-state
+contract and authorized behavior-preserving rewording; neither a helper nor a
+renamed step is prescribed. You cannot edit acceptance on advisory authority.
+
+A partial result ends this engineer session. Retain candidate edits and report
+progress for a fresh engineer's new assignment after an accepted correction.
+If you receive that assignment, inspect the retained files, earlier report,
+accepted correction and current acceptance and scope before continuing; the
+earlier assignment and report remain historical evidence.

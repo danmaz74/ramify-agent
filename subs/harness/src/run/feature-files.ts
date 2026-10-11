@@ -227,6 +227,7 @@ export async function commitForScenarios(
   git: Pick<GitService, 'findCommitByTrailers' | 'commitAccepted'>,
   verifyRecovered: (commit: string) => Promise<void>,
   prepareCommit?: () => Promise<void>,
+  paths?: readonly string[],
 ): Promise<string | null> {
   if (recovering) {
     const existing = await git.findCommitByTrailers(projectRoot, [
@@ -236,7 +237,8 @@ export async function commitForScenarios(
     if (existing !== null) { await verifyRecovered(existing); return existing; }
   }
   await prepareCommit?.();
-  return git.commitAccepted(projectRoot, message);
+  return paths === undefined ? git.commitAccepted(projectRoot, message)
+    : git.commitAccepted(projectRoot, message, undefined, paths);
 }
 
 /** The trailer value of a run's nth rewording commit. */

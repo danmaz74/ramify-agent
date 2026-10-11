@@ -6832,7 +6832,7 @@ export class RunService {
         const expected = expectedFeatureFiles(tracked, { planId: run.record.planId, runId: run.record.jobId });
         const message = rewordingMessage({ runId: run.record.jobId, rewording: data.rewording, deviation: data.deviation, scenarios: data.scenarios, files: data.files });
         await assertScratchSafe(this.projectRoot, await declaredModuleDirectories(this.projectRoot), this.git);
-        const commit = await commitForScenarios(this.projectRoot, run.record.jobId, rewordedTrailerValue(data.rewording), message, recovering, this.git, commit => this.verifyProducerCommit(expected, commit), () => this.renderProducerFeatures(run, expected));
+        const commit = await commitForScenarios(this.projectRoot, run.record.jobId, rewordedTrailerValue(data.rewording), message, recovering, this.git, commit => this.verifyProducerCommit(expected, commit), () => this.renderProducerFeatures(run, expected, true), expected.map(file => file.path));
         return { commit: commit ?? await this.git.currentHead(this.projectRoot) };
       },
       complete: result => ({ event: run.log.next({ type: 'scenarios-reworded', data: { deviation: data.deviation, commit: result.commit } }), records: [] }),
@@ -8770,7 +8770,7 @@ export class RunService {
       }
 
       if (result.value.kind === 'partial') {
-        findings.push(...result.value.findings, ...result.value.unfinished.map(entry => `unfinished: ${entry}`));
+        findings.push(...result.value.done.map(entry => `done: ${entry}`), ...result.value.findings, ...result.value.unfinished.map(entry => `unfinished: ${entry}`));
         return close('partial');
       }
       if (result.value.kind === 'unsuitable') {
@@ -10022,8 +10022,36 @@ export class RunService {
     const { assignment } = collected;
     const record = committedRecords(run.log.ledger.replay()).assignments.get(assignment.id);
     const known = await this.knownProjectFacts(run, 'module' in assignment.scope.base ? [assignment.scope.base.module] : assignment.scope.base.modules);
+    const records = committedRecords(run.log.ledger.replay());
+    const priorResult = [...records.results.values()].filter(result => {
+      if (result.iteration === assignment.id) return false;
+      const prior = records.assignments.get(result.iteration);
+      return prior !== undefined && (assignment.coordination?.kind === 'capability-task'
+        ? prior.coordination?.kind === 'capability-task' && prior.coordination.id === assignment.coordination.id
+        : prior.coordination?.kind !== 'capability-task' && prior.workItem === assignment.workItem);
+    }).at(-1);
+    const priorPartials = priorResult?.outcome === 'partial' ? [priorResult] : [];
+    const retainedWork = priorPartials.length === 0 ? undefined : [
+      '## Retained partial work', '',
+      'Earlier reports retain their original assignment basis. Inspect the retained candidate edits and these source/test pointers; the current assignment and acceptance determine what remains authorized.',
+      ...priorPartials.flatMap(result => {
+        const prior = records.assignments.get(result.iteration)!;
+        const owner = prior.coordination?.kind === 'capability-task' ? prior.coordination.id : prior.workItem;
+        const sequence = prior.coordination?.kind === 'capability-task' ? prior.coordination.sequence
+          : Number.parseInt(prior.id.slice(prior.id.lastIndexOf('.i') + 2), 10);
+        return [
+          `- Earlier assignment: ${result.iteration}; engineer invocations: ${result.invocations.join(', ')}.`,
+          `- Durable assignment: ${run.path(iterationLayout.assignment(owner, sequence))}; result: ${run.path(iterationLayout.result(owner, sequence))}.`,
+          ...result.invocations.filter(invocation => records.outcomes.get(invocation)?.submission != null)
+            .map(invocation => `- Durable engineer report: ${run.path(runLayout.submission(invocation))}.`),
+          ...result.findings.map(finding => `- ${finding}`),
+          ...(result.startingPoints ?? []).map(point => `- Source/test pointer: ${JSON.stringify(point)}.`),
+        ];
+      }),
+    ].join('\n');
     return engineerStepInputsOf({
       ...collected,
+      guidance: [collected.guidance, retainedWork].filter(text => text !== undefined).join('\n\n') || undefined,
       consultation: engineerConsultationInputs(run.log.events, { planId: run.record.planId, runId: run.record.jobId }, assignment.id),
       run: { planId: run.record.planId, runId: run.record.jobId },
       base: this.accepted(run),
@@ -10706,8 +10734,8 @@ export class RunService {
     }
   }
 
-  /** Standalone producer effects refuse all dirt except their exact rendered files. */
-  private async renderProducerFeatures(run: Run, expected: readonly RenderedFeatureFile[]): Promise<void> {
+  /** Materialization refuses unrelated dirt; isolated revisions preserve settled candidate edits. */
+  private async renderProducerFeatures(run: Run, expected: readonly RenderedFeatureFile[], isolated = false): Promise<void> {
     const answer = await this.gates.validateFeatureTargets(expected);
     await rerenderFeatureFiles(this.projectRoot, [...expected]);
     const changed = await this.git.changedPaths(this.projectRoot, await this.git.currentHead(this.projectRoot));
@@ -10715,6 +10743,7 @@ export class RunService {
     const unrelated: string[] = [];
     for (const path of changed) {
       const hash = hashes.get(path);
+      if (isolated && hash === undefined) continue;
       if (hash === undefined || !await this.gates.renderedFeatureAllowed(path, hash, answer)) unrelated.push(path);
     }
     if (unrelated.length > 0) throw new Error(`Scenario producer commit refuses unrelated candidate changes: ${unrelated.join('; ')}`);

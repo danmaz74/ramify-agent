@@ -35,8 +35,11 @@ has at least one. A plan scenario is one the plan itself writes in a
 them as `ps-01`, `ps-02` and so on. Its authority is the plan's, so you
 assign it and never rewrite it. An architect scenario is one you write for an
 entry; its authority is the person's review. When the analysis is accepted,
-every scenario's text is frozen for the rest of the run: nobody adds, changes
-or removes one afterwards, and engineers bind them with step definitions.
+every scenario's text is frozen. Engineers bind them with step definitions
+and never rewrite acceptance. The existing global architect plan-deviation
+process may reword only pending scenarios; bound or completed scenarios remain
+protected. The harness records old/new text and writes the revised feature,
+while the captured plan and frozen catalog retain their original text.
 
 **Hypotheses** forecast what the plan will need deeper in the tree: a
 capability that could be reused, created, or created by extracting what

@@ -164,7 +164,14 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
     requirements: [assignment.completionEvidence],
     cucumberConfiguration: focusedScenarioFacts(prepared),
     omit: inputs.assignmentPackage === undefined ? [] : [inputs.assignmentPackage],
-    literalSections: inputs.assignmentPackage === undefined ? [] : [{ key: 'support:assignment-package', text: inputs.assignmentPackage }],
+    literalSections: [
+      ...(inputs.assignmentPackage === undefined ? [] : [{ key: 'support:assignment-package', text: inputs.assignmentPackage }]),
+      { key: 'support:cucumber-discovery', text: ['## Globally loaded Cucumber support', '',
+        focused.command.kind === 'available'
+          ? 'The task environment\'s cucumberConfiguration supplies the effective configuration, source configuration bytes and globally loaded support/world/loader pointers for binding discovery.'
+          : `Configuration/support discovery evidence unavailable: ${focused.command.reason}. Inspect the declared check/configuration pointers; observed step files alone do not establish what is loaded.`,
+      ].join('\n') },
+    ],
     views: views.flatMap(entry => entry.views.map(view => ({ path: view.path, revision: view.revision, modules: [entry.module],
       coverage: view.coverage === null ? [] : [`${view.coverage} coverage limits`] }))),
   };

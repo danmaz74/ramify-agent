@@ -13,7 +13,9 @@
         "the real Git adapter > reads path and line changes relative to the accepted revision even after a failed attempt commits",
         "the real Git adapter > serves a committed candidate from Git objects, whatever the working tree holds afterwards",
         "the real Git adapter > names the commit that delivered each changed line, and the one that removed each deleted line, over the direct diff",
-        "the real Git adapter > reports an unavailable head and a typed status error outside a repository"
+        "the real Git adapter > reports an unavailable head and a typed status error outside a repository",
+        "the real Git adapter > commits exact feature paths while preserving unrelated staged, unstaged and untracked work in a nested project",
+        "the real Git adapter > refuses isolated commits outside run branches and refuses traversal or directory path selections"
       ]
     },
     {

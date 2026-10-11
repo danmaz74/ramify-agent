@@ -55,6 +55,40 @@ async function tree(root: string): Promise<string[]> {
 }
 
 describe('S03: inputs from a run', () => {
+  test('fresh and continued capability engineers retain explicit binding-discovery limitations even without assigned features', async () => {
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
+    for (const invocation of [freshId, repairId]) {
+      const result = await imported(invocation);
+      if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected recorded engineer inputs');
+      const inputs = { ...result.recorded, capabilityWorkflow: true,
+        focused: { featurePaths: [], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'No exact assigned feature files were selected' } } };
+      const step = constructEngineerStep(inputs, { projectRoot: run.root, packages });
+      const discovery = step.brief.sections.find(section => section.key === 'support:cucumber-discovery');
+      expect(discovery?.text).toContain('Configuration/support discovery evidence unavailable: No exact assigned feature files were selected');
+      expect(discovery?.text).toContain('declared check/configuration pointers');
+      expect(JSON.parse(step.brief.environment.cucumberConfiguration!)).toEqual({ kind: 'unavailable', reason: 'No exact assigned feature files were selected' });
+      expect(step.start.mode).toBe(invocation === freshId ? 'fresh' : 'continue');
+    }
+  });
+
+  test('capability binding discovery exposes known global support through the existing current configuration facts', async () => {
+    const result = await imported(freshId);
+    if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected recorded engineer inputs');
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
+    const configurationIdentity = 'a'.repeat(64);
+    const step = constructEngineerStep({ ...result.recorded, capabilityWorkflow: true, focused: {
+      featurePaths: [], sourceFiles: { 'cucumber.json': '{"default":{"import":["src/tests/support/**/*.ts"]}}' },
+      command: { kind: 'available', cwd: run.root, environment: {}, argv: ['cucumber-js'], shellCommand: 'cucumber-js',
+        configPath: join(run.root, 'focused.json'), configText: '{}', configurationIdentity, sourceIdentity: 'b'.repeat(64),
+        selection: { cwd: run.root, config: join(run.root, 'focused.json'), profile: 'focused', paths: [], configurationIdentity },
+        support: { import: ['src/tests/support/**/*.ts'], loader: ['tsx'], worldParameters: {} } },
+    } }, { projectRoot: run.root, packages });
+    expect(step.brief.sections.find(section => section.key === 'support:cucumber-discovery')?.text).toContain('globally loaded support/world/loader pointers');
+    const facts = JSON.parse(step.brief.environment.cucumberConfiguration!);
+    expect(facts.sourceFiles['cucumber.json']).toContain('src/tests/support/**/*.ts');
+    expect(facts.support).toEqual({ import: ['src/tests/support/**/*.ts'], loader: ['tsx'], worldParameters: {} });
+  });
+
   test('a fresh invocation is imported from its recorded inputs and renders equal', async () => {
     const result = await imported(freshId);
     if (result.status !== 'imported') throw new Error(result.reason);

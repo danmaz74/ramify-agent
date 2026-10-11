@@ -149,6 +149,12 @@ Discovering during work that a task needs something beyond its scope is a
 normal outcome. How the harness handles discoveries matters more than how
 thoroughly it plans.
 
+### Prefer the Simplest Sufficient Correction
+
+Prefer the simplest sufficient correction while preserving required behavior
+and module boundaries. Return a contradiction to the decision's current
+authority, which revises that choice or delegates the correction.
+
 ### Forecast Early; Decide with Current Evidence
 
 Early analysis forecasts needs across the plan for two purposes:
@@ -298,9 +304,11 @@ the build and the audit stay out of it.
 
 A plan's acceptance is a set of Gherkin scenarios: the plan's own, and those
 the initial architect writes for each entry capability. Their text is frozen
-when the analysis is accepted. Agents bind them late, with step definitions,
-and never change them; only the harness writes a feature file or moves a
-scenario's state.
+when the analysis is accepted. Agents bind them late, with step definitions.
+Only the global architect's recorded plan-deviation process may reword a
+pending scenario; bound or completed scenarios remain protected. The captured
+plan and frozen catalog retain their original text. Only the harness writes a
+feature file or moves a scenario's state.
 
 A scenario that passes against a fake is bound, not done; real integration
 and its current gate remain required.

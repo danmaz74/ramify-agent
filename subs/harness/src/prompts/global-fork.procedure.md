@@ -172,3 +172,23 @@ deviation could answer.
 
 As for a placement request: what you established and what is missing. The
 harness retries within its bound; exhaustion ends the run.
+
+## Binding conflicts and plan acceptance
+
+When an assigning architect escalates an engineer's partial conflict, assess
+reuse, a supported shared-state contract and behavior-preserving scenario
+rewording before selecting a correction. A collision alone does not justify a
+deviation. Consider whether authorized local wording avoids a helper while
+asserting the same required behavior; verify the expression avoids
+competing global bindings. Record the evidence and why plausible simpler
+alternatives were rejected, without prescribing a helper or renamed step.
+
+Use the existing `deviation` fields for any accepted scenario rewording: reason,
+amended elements, alternatives, loss and revised text. The harness records old
+and new scenario text and writes the revised feature; the captured plan and
+frozen catalog stay unchanged. Only pending scenarios may be reworded. A bound
+or completed scenario remains protected: return the limitation through existing
+conflict handling, without a state reset or a generated-file edit. Existing
+user-review findings, continuation limits and decision behavior still apply.
+The assigning architect receives the answer and prepares the corrected fresh
+engineer assignment; advisory recommendations alone change no acceptance.

@@ -13,7 +13,7 @@ import { testPolicy } from './runs.js';
 
 const initial = 'a'.repeat(40), scenarios = 'b'.repeat(40);
 const trees = { initial: '1'.repeat(40), a: '2'.repeat(40), b: '3'.repeat(40), d: '4'.repeat(40), p: '5'.repeat(40), integrated: '6'.repeat(40), partial: '7'.repeat(40), root: '8'.repeat(40), unreadable: '9'.repeat(40) };
-export type FlowMode = 'delegation' | 'assignment' | 'partial' | 'boundary' | 'consultation' | 'report' | 'existing' | 'unreadable' | 'policy' | 'scratch';
+export type FlowMode = 'delegation' | 'assignment' | 'partial' | 'boundary' | 'consultation' | 'report' | 'existing' | 'unreadable' | 'policy' | 'scratch' | 'correction' | 'local-correction';
 export const flowInitialHead = initial;
 const commits = { b: 'c'.repeat(40), d: 'd'.repeat(40), p: 'e'.repeat(40), integrated: 'f'.repeat(40), root: '0'.repeat(40) };
 const callerChanges = [{ path: 'subs/a/src/caller.ts', status: 'M' }, { path: 'subs/a/src/extra.ts', status: 'A' }, { path: 'subs/a/src/tests/caller.test.ts', status: 'M' }];
@@ -59,8 +59,11 @@ const owners: Readonly<Record<string, string>> = {
 export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 'a' | 'a+b' = 'a+b') {
   let stage: Stage = 'initial', head = initial, branch: string | undefined, auditRunId: string | undefined;
   const declaredFeatures = mode === 'existing' ? [{ path: 'subs/a/src/tests/features/need/a-reads-b.feature', status: 'A' }] : entries === 'a' ? features.slice(0, 1) : features;
-  const completion = mode === 'assignment' || mode === 'partial';
-  const expectedGates = mode === 'assignment' ? ['ga-0002', 'ga-0003', 'ga-0004', 'ga-0005'] : mode === 'partial' ? ['ga-0002'] : [];
+  const correction = mode === 'correction' || mode === 'local-correction';
+  const reworded = '9a'.repeat(20);
+  const correctedChanges = [{ path: 'subs/a/src/tests/caller.test.ts', status: 'M' }];
+  const completion = mode === 'assignment' || mode === 'partial' || correction;
+  const expectedGates = mode === 'assignment' ? ['ga-0002', 'ga-0003', 'ga-0004', 'ga-0005'] : mode === 'partial' || correction ? ['ga-0002'] : [];
   let scratchUnsafe = false;
   const scratchStates: boolean[] = [], preparationReads: string[] = [];
   const failures: string[] = [], mutations: string[] = [], sourceReads: string[] = [], gateCalls: string[] = [], auditChecks: string[] = [];
@@ -74,15 +77,16 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
       };
     } });
   }
-  function pending(base: string) { expect(base).toBe(head); return head === initial ? declaredFeatures : head === commits[stage as keyof typeof commits] ? [] : stage === 'a' && ['consultation', 'existing'].includes(mode) ? [] : mode === 'report' && stage === 'a' ? [{ path: 'subs/a/src/caller.ts', status: 'M' }] : mode === 'scratch' && stage === 'a' ? [...callerChanges, { path: 'subs/a/src/.gitignore', status: 'A' }] : changes[stage]; }
+  function pending(base: string) { expect(base).toBe(head); return head === initial ? declaredFeatures : head === commits[stage as keyof typeof commits] ? [] : stage === 'a' && ['consultation', 'existing'].includes(mode) ? [] : mode === 'report' && stage === 'a' ? [{ path: 'subs/a/src/caller.ts', status: 'M' }] : mode === 'scratch' && stage === 'a' ? [...callerChanges, { path: 'subs/a/src/.gitignore', status: 'A' }] : correction && stage === 'root' ? correctedChanges : changes[stage]; }
   const git = mockGit({
     async trackedPaths(project, paths) { preparationReads.push('trackedPaths'); expect(project).toBe(root); expect(paths.every(path => scratchDirectories.includes(path))).toBe(true); return []; },
     async ignoreStatus(project, paths) { preparationReads.push(`ignoreStatus:${scratchUnsafe ? 'unsafe' : 'safe'}`); expect(project).toBe(root); expect(paths.every(path => scratchDirectories.some(directory => path.startsWith(`${directory}/`)))).toBe(true); return paths.map(path => ({ path, ignored: !scratchUnsafe, rule: { source: scratchUnsafe ? 'subs/a/src/.gitignore' : '.gitignore', line: 3, pattern: scratchUnsafe ? '!tmp/' : '**/src/tmp/' } })); },
     async currentHead(project) { expect(project).toBe(root); return head; },
     async isCleanRepository(project) { expect(project).toBe(root); expect(head).toBe(initial); expect(stage).toBe('initial'); return true; },
     async createRunBranch(project, runId) { expect(project).toBe(root); expect(branch, 'run branch is created once').toBeUndefined(); if (auditRunId !== undefined) expect(runId).toBe(auditRunId); branch = `ramify-agent-run/${runId}`; mutations.push('branch'); return { branch, created: true }; },
-    async commitAccepted(project, message) {
+    async commitAccepted(project, message, _signal, paths) {
       expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${branch?.slice('ramify-agent-run/'.length)}`);
+      if (message.startsWith('Reword sc-001')) { expect(correction).toBe(true); expect(paths).toEqual(features.map(feature => feature.path)); expect(head).toBe(scenarios); head = reworded; mutations.push('reword'); return head; }
       if (message.includes('Ramify-Scenarios: materialized')) { expect(head).toBe(initial); head = scenarios; mutations.push('scenarios'); return head; }
       const gate = /Ramify-Gate: (ga-\d{4})/u.exec(message)?.[1]; expect(gate).toBe(expectedGates[gateCalls.filter(call => call.startsWith('commit:')).length]);
       expect(gateCalls.at(-1)).toBe(`trailer:${gate}`); expect(completion).toBe(true);
@@ -98,9 +102,10 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
     async worktreeLineChanges(project, base = 'HEAD') { expect(project).toBe(root); pending(base); throw new Error('Capability flow fixture explicitly declares line measurements unavailable'); },
     async worktreePatch(project, base = 'HEAD') { expect(project).toBe(root); pending(base); throw new Error('Capability flow fixture explicitly declares patch measurements unavailable'); },
     async diffNameStatus(project, from, to) {
-      expect(project).toBe(root); const revisions = [initial, scenarios, ...Object.values(trees), ...Object.values(commits)]; expect(revisions).toContain(from); expect(revisions).toContain(to); if (from === to) return [];
+      expect(project).toBe(root); const revisions = [initial, scenarios, reworded, ...Object.values(trees), ...Object.values(commits)]; expect(revisions).toContain(from); expect(revisions).toContain(to); if (from === to) return [];
       const declared: Record<string, readonly { path: string; status: string }[]> = {
         [`${trees.initial}..${trees.a}`]: changes.a,
+        [`${reworded}..${commits.root}`]: changes.partial,
         [`${trees.initial}..${trees.b}`]: changes.b,
         [`${trees.initial}..${trees.partial}`]: changes.partial,
         [`${scenarios}..${commits.b}`]: changes.b,
@@ -114,7 +119,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
         [`${trees.b}..${trees.d}`]: changes.d,
         [`${trees.d}..${trees.p}`]: changes.p,
         [`${trees.p}..${trees.integrated}`]: changes.integrated,
-        [`${trees.partial}..${trees.root}`]: changes.root,
+        [`${trees.partial}..${trees.root}`]: correction ? correctedChanges : changes.root,
         [`${trees.a}..${trees.partial}`]: [{ path: 'subs/a/src/caller.ts', status: 'M' }],
         [`${scenarios}..${commits.root}`]: [...changes.partial, ...changes.root],
         [`${trees.a}..${trees.root}`]: [{ path: 'subs/a/src/caller.ts', status: 'M' }, ...changes.root],
@@ -126,7 +131,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
     },
   });
   const files = {
-    initial: { ...recoveryInitialFiles, ...(mode === 'partial' ? { 'src/tests/stale.test.ts': "expect('old');\n" } : {}) },
+    initial: { ...recoveryInitialFiles, ...(mode === 'partial' || correction ? { 'src/tests/stale.test.ts': "expect('old');\n" } : {}) },
     b: { ...recoveryInitialFiles,
       'subs/a/src/caller.ts': "export function renderA(value: string): string { return `Fresh fact: ${value}`; }\n",
       'subs/a/src/extra.ts': "export const sourceHint = 'B';\n",
@@ -143,7 +148,8 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
     [commits.d]: { tree: trees.d, files: dFiles, base: commits.b, changes: changes.d },
     [commits.p]: { tree: trees.p, files: pFiles, base: commits.d, changes: changes.p },
     [commits.integrated]: { tree: trees.integrated, files: { ...pFiles, 'subs/a/src/caller.ts': "export const renderA = () => 'old from B';\n" }, base: commits.p, changes: changes.integrated },
-    [commits.root]: { tree: trees.root, files: { ...files.b, 'subs/b/src/fact.ts': recoveryInitialFiles['subs/b/src/fact.ts']!, 'subs/a/src/caller.ts': "export const renderA = () => 'readable denial';\n", 'src/tests/stale.test.ts': "expect('readable denial');\n" }, base: scenarios, changes: [...changes.partial, ...changes.root] },
+    [reworded]: { tree: trees.initial, files: files.initial, base: scenarios, changes: [] },
+    [commits.root]: { tree: trees.root, files: { ...files.b, 'subs/b/src/fact.ts': recoveryInitialFiles['subs/b/src/fact.ts']!, 'subs/a/src/caller.ts': correction ? "export const renderA = () => 'readable denial';\nexport const selectedRecord = { review: { findings: [] } };\n" : "export const renderA = () => 'readable denial';\n", [correction ? 'subs/a/src/tests/caller.test.ts' : 'src/tests/stale.test.ts']: correction ? "import { strict as assert } from 'node:assert';\nimport { Then } from '@cucumber/cucumber';\nimport { selectedRecord } from '../caller.js';\nThen('the selected stored record review passes without findings', () => assert.deepEqual(selectedRecord.review.findings, []));\n" : "expect('readable denial');\n" }, base: correction ? reworded : scenarios, changes: correction ? changes.partial : [...changes.partial, ...changes.root] },
   };
   const candidates = retain<CandidateSource>(scriptedCandidates(root, definitions));
   const provisionalSourceGit = retain<ProvisionalSourceGit>({
@@ -196,6 +202,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
           engineers += 1;
           if (mode === 'assignment') stage = (['a', 'b', 'd', 'p', 'integrated'] as const)[engineers - 1] ?? stage;
           else if (mode === 'partial') stage = (['a', 'partial', 'root'] as const)[engineers - 1] ?? stage;
+          else if (correction) stage = (mode === 'correction' ? ['a', 'partial', 'root'] as const : ['partial', 'root'] as const)[engineers - 1] ?? stage;
           else stage = mode === 'consultation' || mode === 'existing' ? 'initial' : 'a';
         }
         if (mode === 'scratch') return steps.flatMap(step => step.kind === 'tool' && (step.tool === 'write' || step.tool === 'edit') && (step.input as { path?: string }).path === '.gitignore'
@@ -209,7 +216,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
     assertAnswered() { expect(git.unexpected, `caught Git failures ${JSON.stringify(git.unexpected)}`).toEqual([]); expect(failures, `caught candidate/source/audit/Ramify failures ${JSON.stringify(failures)}`).toEqual([]); },
     assertComplete() {
       expect(git.unexpected, `caught Git failures ${JSON.stringify(git.unexpected)}`).toEqual([]); expect(failures, `caught candidate/source/audit/Ramify failures ${JSON.stringify(failures)}`).toEqual([]);
-      expect(mutations).toEqual(mode === 'policy' ? [] : ['branch', 'scenarios']);
+      expect(mutations).toEqual(mode === 'policy' ? [] : correction ? ['branch', 'scenarios', 'reword'] : ['branch', 'scenarios']);
       if (mode === 'policy') { expect(sourceReads).toEqual([]); expect(gateCalls).toEqual([]); expect(audits.requests).toEqual([]); expect(ramify.calls).toEqual([]); return; }
       expect(preparationReads).toContain('trackedPaths'); expect(preparationReads).toContain('ignoreStatus:safe');
       expect(scratchStates).toEqual(mode === 'scratch' ? [true, false] : []);
@@ -217,7 +224,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
       for (const operation of ['--version', 'measure']) expect(ramify.calls.some(call => call.operation === 'run' && call.argv[0] === operation), `required ${operation} answer consumed`).toBe(true);
       expect(ramify.calls.some(call => call.operation === 'materialize'), 'required unavailable materialization read').toBe(true);
       const sourcePaths = mode === 'consultation' || mode === 'existing' ? [] : mode === 'report' ? ['subs/a/src/caller.ts'] : mode === 'scratch' ? ['subs/a/src/.gitignore', ...callerChanges.map(change => change.path)] : callerChanges.map(change => change.path);
-      expect(sourceReads).toEqual(Array.from({ length: 1 }, () => ['stagedPaths', ...sourcePaths.map(path => `${scenarios}:${path}`)]).flat());
+      expect(sourceReads).toEqual(mode === 'local-correction' ? [] : Array.from({ length: 1 }, () => ['stagedPaths', ...sourcePaths.map(path => `${scenarios}:${path}`)]).flat());
       expect(gateCalls).toEqual(expectedGates.flatMap(gate => [`trailer:${gate}`, `commit:${gate}`]));
       expect(auditChecks).toEqual(expectedGates.flatMap(() => ['tests', 'type-check', 'ramify-check']));
       expect(audits.requests).toHaveLength(1 + expectedGates.length); audits.assertComplete();

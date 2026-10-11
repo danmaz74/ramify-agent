@@ -92,3 +92,32 @@ note about what to inspect. Paths are literal and project-relative. Select
 useful pointers for the engineer; do not forward your entire exploration.
 These hints authorize no writes and establish no completion or obligation.
 No extra discovery turn is required; you may omit them.
+
+## Correcting an assignment after a conflict
+
+Assess an engineer's partial findings to identify the conflicting choice and
+its current decision authority. Correct your own outline
+and assignment within your authority, delegate implementation to an authorized
+owner, or use existing placement or `unresolved` paths. Compare reuse of an
+existing binding, a supported shared-state contract and authorized rewording
+that preserves the assertion. If local wording may avoid an unnecessary helper,
+verify the proposed expression avoids competing global bindings and preserves
+the original behavior, then ask the plan architect to evaluate it before
+commissioning the helper. Escalation requests assessment, not automatic approval.
+
+For a plan-level correction, the engineer returns `partial`, you submit
+`unresolved` with the conflict, evidence and alternatives, and the global
+architect answers through its existing decision or deviation mechanism. Only
+the global architect's recorded deviation can reword a pending accepted scenario;
+bound or completed scenarios cannot be reworded. Report that restriction through
+conflict handling; never reset state or edit a generated feature. Consultation
+changes no decision. If the design is retained, delegate any needed testing
+contract within authorized scopes and verify provider and consumer integration
+before handback.
+
+After the accepted answer, issue a corrected assignment to a fresh engineer.
+Supply completed and remaining work, the conflict and accepted correction,
+retained candidate and source/test pointers, and current acceptance and scope.
+The earlier partial-result session is closed; same-session suspension is for
+the existing capability-handback path. Preserve the original report and
+assignment as attributable historical evidence.

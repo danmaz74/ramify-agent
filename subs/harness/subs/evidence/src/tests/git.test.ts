@@ -56,6 +56,62 @@ describe('the real Git adapter', { timeout: 30_000 }, () => {
     });
   });
 
+  it('commits exact feature paths while preserving unrelated staged, unstaged and untracked work in a nested project', async () => {
+    await withRepository(async repository => {
+      const root = repository.root;
+      await repository.write('nested/project/features/current.feature', 'old acceptance\n');
+      await repository.write('nested/project/features/removed.feature', 'removed acceptance\n');
+      await repository.write('nested/project/src/partial.ts', 'base\n');
+      await repository.write('outside.ts', 'outside base\n');
+      await repository.git('add', '--all');
+      await repository.git('-c', 'user.name=fixture', '-c', 'user.email=fixture@localhost', 'commit', '-m', 'baseline');
+      await git.createRunBranch(root, 'isolated-scenarios');
+      await repository.write('nested/project/src/partial.ts', 'staged progress\n');
+      await repository.write('outside.ts', 'outside staged\n');
+      await repository.git('add', '--all');
+      await repository.write('nested/project/src/partial.ts', 'unstaged progress\n');
+      await repository.write('outside.ts', 'outside unstaged\n');
+      await repository.write('nested/project/src/untracked.ts', 'retained untracked\n');
+      await repository.write('nested/project/features/current.feature', 'corrected acceptance\n');
+      await repository.write('nested/project/features/literal[1].feature', 'new acceptance\n');
+      await repository.write('nested/project/features/literal1.feature', 'not selected\n');
+      await rm(join(root, 'nested/project/features/removed.feature'));
+      const beforeIndex = await repository.git('diff', '--cached', '--binary');
+      const project = join(root, 'nested/project');
+      const selected = ['features/current.feature', 'features/literal[1].feature', 'features/removed.feature'];
+      const commit = await git.commitAccepted(project, 'correct scenarios', undefined, selected);
+      expect(commit).toMatch(/^[0-9a-f]{40}$/);
+      expect((await repository.git('diff-tree', '--no-commit-id', '--name-only', '-r', commit!)).trim().split('\n')).toEqual([
+        'nested/project/features/current.feature', 'nested/project/features/literal[1].feature', 'nested/project/features/removed.feature',
+      ]);
+      expect(await repository.git('diff', '--cached', '--binary')).toBe(beforeIndex);
+      expect(await readFile(join(root, 'nested/project/src/partial.ts'), 'utf8')).toBe('unstaged progress\n');
+      expect(await readFile(join(root, 'outside.ts'), 'utf8')).toBe('outside unstaged\n');
+      expect(await readFile(join(root, 'nested/project/src/untracked.ts'), 'utf8')).toBe('retained untracked\n');
+      expect(await repository.git('status', '--porcelain')).toContain('?? nested/project/features/literal1.feature');
+      expect(await git.commitAccepted(project, 'unchanged features', undefined, ['features/current.feature'])).toBeNull();
+      expect(await git.commitAccepted(project, 'no selected files', undefined, [])).toBeNull();
+      expect(await git.currentHead(root)).toBe(commit);
+      expect(await repository.git('diff', '--cached', '--binary')).toBe(beforeIndex);
+    });
+  });
+
+  it('refuses isolated commits outside run branches and refuses traversal or directory path selections', async () => {
+    await withRepository(async repository => {
+      await repository.write('features/acceptance.feature', 'acceptance\n');
+      const before = await readFile(join(repository.root, '.git/index'));
+      const head = await git.currentHead(repository.root);
+      await expect(git.commitAccepted(repository.root, 'on main', undefined, ['features/acceptance.feature'])).rejects.toBeInstanceOf(GitError);
+      await git.createRunBranch(repository.root, 'isolated-path-validation');
+      for (const path of ['../outside.feature', '/outside.feature', 'features/../outside.feature', 'features//acceptance.feature', 'features/']) {
+        await expect(git.commitAccepted(repository.root, 'invalid selection', undefined, [path])).rejects.toThrow('project-relative');
+      }
+      await expect(git.commitAccepted(repository.root, 'directory selection', undefined, ['features'])).rejects.toThrow('not a directory');
+      expect(await readFile(join(repository.root, '.git/index'))).toEqual(before);
+      expect(await git.currentHead(repository.root)).toBe(head);
+    });
+  });
+
   it('creates and resumes a run branch, commits with its own policy, and recovers exact commit identities', async () => {
     await withRepository(async repository => {
       const root = repository.root;

@@ -552,7 +552,7 @@ describe('the prompt package', () => {
     const { manifest } = await loadPromptPackages({ capabilityWorkflow: false });
     expect(Object.keys(manifest.packages).sort()).toEqual(['catalog-extractor', 'context-selector', 'contract-engineer', 'engineer', 'failure-analyst', 'global-fork', 'initial-architect', 'local-architect', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer', 'reviewer']);
     const initial = manifest.packages['initial-architect']!;
-    expect(initial.package).toBe('initial-architect/4');
+    expect(initial.package).toBe('initial-architect/5');
     expect(initial.submissionKinds).toEqual(['initial-analysis']);
     expect(initial.files.map(file => file.kind).sort()).toEqual(expect.arrayContaining(['procedure', 'skill', 'submission-schema', 'system']));
     expect(initial.hash).toMatch(/^[0-9a-f]{64}$/);
@@ -568,17 +568,17 @@ describe('the prompt package', () => {
     expect(extractor.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const local = manifest.packages['local-architect']!;
-    expect(local.package).toBe('local-architect/15');
+    expect(local.package).toBe('local-architect/16');
     // The reconciliation fork's submission is the package's second.
     expect(local.submissionKinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved', 'reconciliation', 'work-orientation']);
 
     const fork = manifest.packages['global-fork']!;
-    expect(fork.package).toBe('global-fork/5');
+    expect(fork.package).toBe('global-fork/6');
     expect(fork.submissionKinds).toEqual(['decision', 'partial', 'deviation', 'nothing-possible', 'environment']);
     expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/12');
+    expect(engineer.package).toBe('engineer/13');
     expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
     expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
@@ -612,9 +612,9 @@ describe('the prompt package', () => {
   test('new runs offer capability coordination without the retired contract package', async () => {
     const { manifest } = await loadPromptPackages();
     expect(manifest.packages['contract-engineer']).toBeUndefined();
-    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/4');
+    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/5');
     expect(manifest.packages['context-selector']?.package).toBe('context-selector/3');
-    expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/3');
+    expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/4');
     expect(manifest.packages['engineer']?.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'capability-needed']);
     expect(manifest.packages['local-architect']?.submissionKinds).toEqual([
       'assign', 'request-placement', 'request-completion', 'unresolved', 'reconciliation', 'work-orientation',
@@ -633,8 +633,8 @@ describe('the prompt package', () => {
     expect(current.packages.get('local-architect')!.procedure).not.toContain('Keep source and tests with their owners');
     expect(section).toContain('A directory inside the owner, such as its `src/tests`, is already part of\n  the base and is refused');
     expect(section).toContain('An included child module brings its whole subtree:');
-    expect(current.packages.get('local-architect')!.package).toBe('local-architect/14');
-    expect(current.packages.get('engineer')!.package).toBe('engineer/11');
+    expect(current.packages.get('local-architect')!.package).toBe('local-architect/15');
+    expect(current.packages.get('engineer')!.package).toBe('engineer/12');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
   });
 

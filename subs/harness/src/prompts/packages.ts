@@ -157,18 +157,18 @@ export interface PromptPackageOptions {
 }
 
 /** The versions of the packages this iteration ships. */
-export const initialArchitectPackage = 'initial-architect/4';
+export const initialArchitectPackage = 'initial-architect/5';
 export const catalogExtractorPackage = 'catalog-extractor/1';
-export const globalForkPackage = 'global-fork/5';
-export const localArchitectPackage = 'local-architect/14';
+export const globalForkPackage = 'global-fork/6';
+export const localArchitectPackage = 'local-architect/15';
 export const contextSelectorPackage = 'context-selector/3';
-export const engineerPackage = 'engineer/12';
-export const capabilityEngineerPackage = 'engineer/11';
-export const capabilityArchitectPackage = 'capability-architect/4';
+export const engineerPackage = 'engineer/13';
+export const capabilityEngineerPackage = 'engineer/12';
+export const capabilityArchitectPackage = 'capability-architect/5';
 export const contractEngineerPackage = 'contract-engineer/3';
 export const reviewerPackage = 'reviewer/4';
 export const failureAnalystPackage = 'failure-analyst/1';
-export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/3';
+export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/4';
 
 /**
  * Loads every package a run offers. A role with no package yet has no entry:
@@ -285,7 +285,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: options.capabilityWorkflow === false ? 'local-architect/15' : localArchitectPackage,
+    name: options.capabilityWorkflow === false ? 'local-architect/16' : localArchitectPackage,
     systemFile: localSystemFile,
     procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
     schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,

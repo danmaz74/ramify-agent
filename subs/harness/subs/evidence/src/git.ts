@@ -243,8 +243,23 @@ export async function createRunBranch(root: string, runId: string, signal?: Abor
  * commit the harness has decided to audit. A branch that is not a run
  * branch is refused: the harness commits nowhere else. Nothing to commit is
  * `null`, which is what a passing gate over an unchanged tree records.
+ * Optional exact file paths commit only those working-tree files, preserving
+ * unrelated index entries and dirty or untracked work. Paths are literal and
+ * project-relative; directories and traversal are refused.
  */
-export async function commitAccepted(root: string, message: string, signal?: AbortSignal): Promise<string | null> {
+export async function commitAccepted(root: string, message: string, signal?: AbortSignal, paths?: readonly string[]): Promise<string | null> {
+  const selected = paths === undefined ? undefined : [...new Set(paths)];
+  if (selected !== undefined) {
+    for (const path of selected) {
+      validateProjectPath(path);
+      if (path.split('/').some(part => part === '')) throw new Error(`Git commit path must name an exact project-relative file: ${path}`);
+      const entry = await lstat(join(root, path)).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+        throw error;
+      });
+      if (entry?.isDirectory()) throw new Error(`Git commit path must name an exact file, not a directory: ${path}`);
+    }
+  }
   const head = await gitOk(root, ['rev-parse', '--abbrev-ref', 'HEAD'], signal);
   const branch = head.stdout.trim();
   if (!isRunBranch(branch)) {
@@ -258,8 +273,10 @@ export async function commitAccepted(root: string, message: string, signal?: Abo
   // The project's tree alone, as `previewCandidateTree` previews it: without
   // a pathspec, `git add --all` would stage the whole repository, which a
   // nested project shares with files no rule of the gate has seen.
-  await gitOk(root, ['add', '--all', '--', '.'], signal);
-  const staged = await git(root, ['diff', '--cached', '--quiet'], signal);
+  if (selected?.length === 0) return null;
+  const literal = selected === undefined ? [] : ['--literal-pathspecs'];
+  await gitOk(root, [...literal, 'add', '--all', '--', ...(selected ?? ['.'])], signal);
+  const staged = await git(root, [...literal, 'diff', '--cached', '--quiet', ...(selected === undefined ? [] : ['--', ...selected])], signal);
   if (staged.exitCode === 0) return null;
   if (staged.exitCode !== 1) {
     throw new GitError(`\`git diff --cached --quiet\` exited with ${staged.exitCode}`, {
@@ -270,9 +287,11 @@ export async function commitAccepted(root: string, message: string, signal?: Abo
   }
 
   await gitOk(root, [
+    ...literal,
     '-c', `user.name=${harnessIdentity.name}`,
     '-c', `user.email=${harnessIdentity.email}`,
     'commit', '--no-verify', '--no-gpg-sign', '--message', message,
+    ...(selected === undefined ? [] : ['--only', '--', ...selected]),
   ], signal);
   const committed = await gitOk(root, ['rev-parse', 'HEAD'], signal);
   return committed.stdout.trim();

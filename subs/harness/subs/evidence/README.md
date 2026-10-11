@@ -149,7 +149,10 @@ instead and no line count is invented. `commitAccepted` is `git add -A`
 and `git commit` with `--no-verify`, `--no-gpg-sign` and the harness's own
 identity, so neither the project's hooks nor the person's configuration can
 fail it; it refuses any branch that is not a run branch, and a tree with
-nothing to commit is `null` rather than an empty commit.
+nothing to commit is `null` rather than an empty commit. An optional exact
+project-relative file list stages and commits only those literal paths with
+`--only`, preserving unrelated staged, unstaged and untracked work. Directories
+and traversal are refused; an empty list commits nothing.
 
 `CandidateSource` is a second, read-only boundary over the same Git: one
 committed candidate read from Git's objects, never from a working
