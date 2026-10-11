@@ -1,0 +1,975 @@
+{
+  "schema": "ramify-agent.harness-operation/2",
+  "runId": "20261009T193340Z-51f42e",
+  "operationId": "inv-0013",
+  "session": "ses-0011",
+  "source": null,
+  "requestHash": "87f859dceab3597f02646025f35b3918cb2268856f057e61df61afee3a3a42fd",
+  "mode": "fresh",
+  "packet": {
+    "roleInstructions": "You are the non-functional coordinator for one accepted Ramify plan. Assess every non-functional requirement of the plan and every fixed requirement against the prepared source tree. Preserve their wording and the difference between stated and inferred conditions. Ground each judgment in inspected source or adequate Ramify evidence, and state uncertainty.\n\nYou may request sequential read-only investigation and, when the harness permits it, one explicit repair batch per round. You do not edit source. You do not use functional capability progress or scenario coverage as a substitute for non-functional evidence. Submit judgments and actions through the supplied tool; the harness assigns record IDs and candidate identity and runs the final gate.\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n",
+    "message": "Briefing revision: 8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38; based on: none (full)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nAssess the complete NFR catalog for 4e706c2d97f1d5e4973e905e4331132a30e8e5ec\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 9420af41d23a7174a0f0f89f54ed02753e391e8cee5939dea0fbf75cb6191f43\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nAssess the prepared source tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nStart from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.\nPrepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Git metadata, generated views and run records are excluded from source evidence.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\n# Block brief:support:nonfunctional-source\nCurrent value; replaces any earlier value for this key.\n{\"head\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"defaultComparison\":\"run-start\",\"comparisons\":[{\"name\":\"run-start\",\"base\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[{\"status\":\"M\",\"path\":\".gitignore\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\"}]},{\"name\":\"accepted-boundary\",\"base\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[]}],\"originalSource\":{\"commit\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"dirty\":false},\"comparisonLimit\":\"Named comparisons cover net changes at their recorded Git boundaries, not every intermediate edit or affected caller. An empty diff establishes no historical preservation. Dirty original capture excludes uncommitted starting bytes from the starting commit comparison.\",\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"],\"authority\":\"Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and explore the whole allowed tree as needed.\"}\n\n# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate 4e706c2d97f1d5e4973e905e4331132a30e8e5ec (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/README.md\",\"note\":\"Assigned module collection-review/workspace/shared-ui purpose\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/module.ramify\",\"note\":\"Assigned module collection-review/workspace/shared-ui declaration\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src\",\"note\":\"Assigned module collection-review/workspace/shared-ui source\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests\",\"note\":\"Assigned module collection-review/workspace/shared-ui owned tests\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n\n# Block procedure:nonfunctional-coordinator:assessment\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.\n\n# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:a4552a91-486a-40bb-bbb9-21d19892fe49:1\"\n    }\n  ]\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ]\n}\n\n# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}\n\n# Current task: assessment\nThis selection supersedes every prior task selection.\nActive role: nonfunctional-coordinator\nSelected procedure: procedure:nonfunctional-coordinator:assessment; SHA-256: 52d191a933160b44e464959fabc48510c531c2a7c9fafc91e5b67725646fd525\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_nonfunctional_assessment",
+    "declaration": {
+      "name": "submit_nonfunctional_assessment",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"const\":\"assessment\"},\"results\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"nfr\":{\"type\":\"string\",\"pattern\":\"^(nfr|fix)-\\\\d{3,}$\"},\"result\":{\"type\":\"string\",\"enum\":[\"satisfied\",\"not-satisfied\",\"undetermined\"]},\"inspectedScope\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"evidence\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"uncertainty\":{\"type\":\"string\"}},\"required\":[\"nfr\",\"result\",\"inspectedScope\",\"evidence\",\"uncertainty\"],\"additionalProperties\":false}}},\"required\":[\"kind\",\"results\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "role:nonfunctional-coordinator",
+        "kind": "role-instructions",
+        "text": "You are the non-functional coordinator for one accepted Ramify plan. Assess every non-functional requirement of the plan and every fixed requirement against the prepared source tree. Preserve their wording and the difference between stated and inferred conditions. Ground each judgment in inspected source or adequate Ramify evidence, and state uncertainty.\n\nYou may request sequential read-only investigation and, when the harness permits it, one explicit repair batch per round. You do not edit source. You do not use functional capability progress or scenario coverage as a substitute for non-functional evidence. Submit judgments and actions through the supplied tool; the harness assigns record IDs and candidate identity and runs the final gate.\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n",
+        "source": "subs/harness/src/nonfunctional/coordinator.system.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/coordinator.system.md",
+            "hash": "3fdc182dd9840198aa7b0f308c08bbe00ad9ba2fbf1af1171fefb83b7223eb73",
+            "kind": "system",
+            "bytes": 1044
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_nonfunctional_assessment",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_nonfunctional_assessment\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"assessment\\\"},\\\"results\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"nfr\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^(nfr|fix)-\\\\\\\\d{3,}$\\\"},\\\"result\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"satisfied\\\",\\\"not-satisfied\\\",\\\"undetermined\\\"]},\\\"inspectedScope\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"evidence\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"nfr\\\",\\\"result\\\",\\\"inspectedScope\\\",\\\"evidence\\\",\\\"uncertainty\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"kind\\\",\\\"results\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38; based on: none (full)",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nAssess the complete NFR catalog for 4e706c2d97f1d5e4973e905e4331132a30e8e5ec",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 9420af41d23a7174a0f0f89f54ed02753e391e8cee5939dea0fbf75cb6191f43\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nAssess the prepared source tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nStart from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.\nPrepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Git metadata, generated views and run records are excluded from source evidence.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:support:context:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:nonfunctional-source",
+        "kind": "brief",
+        "text": "# Block brief:support:nonfunctional-source\nCurrent value; replaces any earlier value for this key.\n{\"head\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"defaultComparison\":\"run-start\",\"comparisons\":[{\"name\":\"run-start\",\"base\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[{\"status\":\"M\",\"path\":\".gitignore\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\"}]},{\"name\":\"accepted-boundary\",\"base\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[]}],\"originalSource\":{\"commit\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"dirty\":false},\"comparisonLimit\":\"Named comparisons cover net changes at their recorded Git boundaries, not every intermediate edit or affected caller. An empty diff establishes no historical preservation. Dirty original capture excludes uncommitted starting bytes from the starting commit comparison.\",\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"],\"authority\":\"Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and explore the whole allowed tree as needed.\"}",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:support:nonfunctional-source",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:starting-points",
+        "kind": "brief",
+        "text": "# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate 4e706c2d97f1d5e4973e905e4331132a30e8e5ec (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/README.md\",\"note\":\"Assigned module collection-review/workspace/shared-ui purpose\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/module.ramify\",\"note\":\"Assigned module collection-review/workspace/shared-ui declaration\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src\",\"note\":\"Assigned module collection-review/workspace/shared-ui source\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests\",\"note\":\"Assigned module collection-review/workspace/shared-ui owned tests\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:support:starting-points",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:nonfunctional-coordinator:assessment",
+        "kind": "procedure",
+        "text": "# Block procedure:nonfunctional-coordinator:assessment\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.",
+        "source": "subs/harness/src/nonfunctional/assessment.procedure.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/assessment.procedure.md",
+            "hash": "200e452831da9f65a643132b03e8267fcbfea476b33b769546891d6c6688cda1",
+            "kind": "procedure",
+            "bytes": 862
+          }
+        ],
+        "block": {
+          "key": "procedure:nonfunctional-coordinator:assessment",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:a4552a91-486a-40bb-bbb9-21d19892fe49:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: assessment\nThis selection supersedes every prior task selection.\nActive role: nonfunctional-coordinator\nSelected procedure: procedure:nonfunctional-coordinator:assessment; SHA-256: 52d191a933160b44e464959fabc48510c531c2a7c9fafc91e5b67725646fd525\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/2",
+      "inheritedPoint": null,
+      "entries": [
+        {
+          "key": "role:nonfunctional-coordinator",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/nonfunctional/coordinator.system.md",
+          "revision": "nonfunctional-coordinator/2",
+          "hash": "3fdc182dd9840198aa7b0f308c08bbe00ad9ba2fbf1af1171fefb83b7223eb73",
+          "bytes": 1044,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/nonfunctional/coordinator.system.md",
+              "hash": "3fdc182dd9840198aa7b0f308c08bbe00ad9ba2fbf1af1171fefb83b7223eb73",
+              "kind": "system",
+              "bytes": 1044
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_nonfunctional_assessment",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "39952d0e26559652ffd14a2cf0802c3a031c2767a311ba6e18809171250fdcfd",
+          "bytes": 958,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "d66ab6e1e8a3bea3a5439f5fa671fa65bd3f018e7b0f1de0da6d1ee70114f684",
+          "bytes": 106,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "50c987bfb108bb1f6c46355e1241a39ca2b0c4054f21fddb8b44907176f71e79",
+          "bytes": 158,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:goal",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "b6caa094b82dc202d8a6f5a687c1a4d34a4454994f12b122394ce3be2622c576",
+          "bytes": 1335,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:requirements",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:context:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "a4957944b44454d9aa6567de74a9ae904800f155061cdb6ff312162e051ab2e7",
+          "bytes": 1480,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:context:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:nonfunctional-source",
+          "kind": "brief",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "faa64e45990a9e65cb6820bc0b6946c324f613a4dbed628345700300b28287c2",
+          "bytes": 1740,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:nonfunctional-source",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:starting-points",
+          "kind": "brief",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "8b0e1927bf6bb552edaf98002657c540842dc9740f987662bd7b259f8cf68848",
+          "bytes": 3875,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:starting-points",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "procedure:nonfunctional-coordinator:assessment",
+          "kind": "procedure",
+          "source": "subs/harness/src/nonfunctional/assessment.procedure.md",
+          "revision": "nonfunctional-coordinator/2",
+          "hash": "52d191a933160b44e464959fabc48510c531c2a7c9fafc91e5b67725646fd525",
+          "bytes": 969,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/nonfunctional/assessment.procedure.md",
+              "hash": "200e452831da9f65a643132b03e8267fcbfea476b33b769546891d6c6688cda1",
+              "kind": "procedure",
+              "bytes": 862
+            }
+          ],
+          "block": {
+            "key": "procedure:nonfunctional-coordinator:assessment",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:projectRoot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "a0e0d0f4a9af6942ade407c620b25bb95e59d66626e1502e6233407a665f2c58",
+          "bytes": 207,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:projectRoot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:workingDirectory",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "bd8ac6b7c036cb1e7a791241d39aba84112360cb3a8dd3404fe181d7f6ee19c4",
+          "bytes": 217,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:workingDirectory",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:candidate",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "ae25689153fee9def4591e7598886bcb44f3fa0e47bec1142154ad2dcfed194c",
+          "bytes": 147,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:candidate",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:snapshot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "b185515140488bc6035cea34bfc59e92d6b90edd54df0d22fe4a1c5f580c1085",
+          "bytes": 145,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:snapshot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:limits",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7bd86de0abceae25593619bd3918bca6e01a40ab55e45ecc977e038550c99e84",
+          "bytes": 1074,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:limits",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:availableTools",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "3c898987d3350f5d83aabcf69cc74842a492cf93d4103d1d5f28af1260d0a217",
+          "bytes": 244,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:availableTools",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:views",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "9fe2cdb460cc4cd59cffda78c9ce7491e47c1fd7636b23ebb7c8302e1f0aa1a9",
+          "bytes": 1166,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:views",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:supportPaths",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "3ab9384cb25701a36d58908b167f73fff4b47b300a092a5b57de6b8a239a8625",
+          "bytes": 237,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:supportPaths",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:cucumberConfiguration",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7186289c14ddc7a0db4b771fd2d9545a2e051eb0d752e1c237b7bbd7be96157d",
+          "bytes": 133,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:cucumberConfiguration",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+          "hash": "d7557755512cb103fbe27d7b26a166917cb148edcaa454fcb5e90625b3a4b253",
+          "bytes": 445,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "1facc15fdfb7f4b27722e0bf4278ae90cd94e314d92f225171b8c9655b268a53",
+        "bytes": 13710
+      },
+      "hash": "b86954ab3004ba8b93bc5414d3d03862b81e4aa75d76bb9a002fa13ee3166652"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:nonfunctional-coordinator",
+        "kind": "role-instructions",
+        "text": "You are the non-functional coordinator for one accepted Ramify plan. Assess every non-functional requirement of the plan and every fixed requirement against the prepared source tree. Preserve their wording and the difference between stated and inferred conditions. Ground each judgment in inspected source or adequate Ramify evidence, and state uncertainty.\n\nYou may request sequential read-only investigation and, when the harness permits it, one explicit repair batch per round. You do not edit source. You do not use functional capability progress or scenario coverage as a substitute for non-functional evidence. Submit judgments and actions through the supplied tool; the harness assigns record IDs and candidate identity and runs the final gate.\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n",
+        "source": "subs/harness/src/nonfunctional/coordinator.system.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/coordinator.system.md",
+            "hash": "3fdc182dd9840198aa7b0f308c08bbe00ad9ba2fbf1af1171fefb83b7223eb73",
+            "kind": "system",
+            "bytes": 1044
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_nonfunctional_assessment",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_nonfunctional_assessment\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"assessment\\\"},\\\"results\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"nfr\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^(nfr|fix)-\\\\\\\\d{3,}$\\\"},\\\"result\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"satisfied\\\",\\\"not-satisfied\\\",\\\"undetermined\\\"]},\\\"inspectedScope\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"evidence\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"nfr\\\",\\\"result\\\",\\\"inspectedScope\\\",\\\"evidence\\\",\\\"uncertainty\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"kind\\\",\\\"results\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38; based on: none (full)",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nAssess the complete NFR catalog for 4e706c2d97f1d5e4973e905e4331132a30e8e5ec",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 9420af41d23a7174a0f0f89f54ed02753e391e8cee5939dea0fbf75cb6191f43\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nAssess the prepared source tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nStart from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.\nPrepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Git metadata, generated views and run records are excluded from source evidence.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:support:context:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:nonfunctional-source",
+        "kind": "brief",
+        "text": "# Block brief:support:nonfunctional-source\nCurrent value; replaces any earlier value for this key.\n{\"head\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"defaultComparison\":\"run-start\",\"comparisons\":[{\"name\":\"run-start\",\"base\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[{\"status\":\"M\",\"path\":\".gitignore\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\"}]},{\"name\":\"accepted-boundary\",\"base\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[]}],\"originalSource\":{\"commit\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"dirty\":false},\"comparisonLimit\":\"Named comparisons cover net changes at their recorded Git boundaries, not every intermediate edit or affected caller. An empty diff establishes no historical preservation. Dirty original capture excludes uncommitted starting bytes from the starting commit comparison.\",\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"],\"authority\":\"Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and explore the whole allowed tree as needed.\"}",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:support:nonfunctional-source",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:starting-points",
+        "kind": "brief",
+        "text": "# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate 4e706c2d97f1d5e4973e905e4331132a30e8e5ec (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/README.md\",\"note\":\"Assigned module collection-review/workspace/shared-ui purpose\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/module.ramify\",\"note\":\"Assigned module collection-review/workspace/shared-ui declaration\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src\",\"note\":\"Assigned module collection-review/workspace/shared-ui source\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests\",\"note\":\"Assigned module collection-review/workspace/shared-ui owned tests\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "block": {
+          "key": "brief:support:starting-points",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:nonfunctional-coordinator:assessment",
+        "kind": "procedure",
+        "text": "# Block procedure:nonfunctional-coordinator:assessment\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.",
+        "source": "subs/harness/src/nonfunctional/assessment.procedure.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/assessment.procedure.md",
+            "hash": "200e452831da9f65a643132b03e8267fcbfea476b33b769546891d6c6688cda1",
+            "kind": "procedure",
+            "bytes": 862
+          }
+        ],
+        "block": {
+          "key": "procedure:nonfunctional-coordinator:assessment",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:a4552a91-486a-40bb-bbb9-21d19892fe49:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: assessment\nThis selection supersedes every prior task selection.\nActive role: nonfunctional-coordinator\nSelected procedure: procedure:nonfunctional-coordinator:assessment; SHA-256: 52d191a933160b44e464959fabc48510c531c2a7c9fafc91e5b67725646fd525\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38"
+      }
+    ],
+    "history": [
+      {
+        "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38",
+        "contentHash": "3c42879661d5573e7a043beb21d747512b04c90e5e77d42076c2095b01babf48",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nAssess the complete NFR catalog for 4e706c2d97f1d5e4973e905e4331132a30e8e5ec"
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- # Plan context package\n\nCatalog: 9420af41d23a7174a0f0f89f54ed02753e391e8cee5939dea0fbf75cb6191f43\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n"
+          },
+          {
+            "key": "support:context:0",
+            "text": "Assess the prepared source tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nStart from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.\nPrepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Git metadata, generated views and run records are excluded from source evidence.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n"
+          },
+          {
+            "key": "support:nonfunctional-source",
+            "text": "{\"head\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"defaultComparison\":\"run-start\",\"comparisons\":[{\"name\":\"run-start\",\"base\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[{\"status\":\"M\",\"path\":\".gitignore\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\"}]},{\"name\":\"accepted-boundary\",\"base\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[]}],\"originalSource\":{\"commit\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"dirty\":false},\"comparisonLimit\":\"Named comparisons cover net changes at their recorded Git boundaries, not every intermediate edit or affected caller. An empty diff establishes no historical preservation. Dirty original capture excludes uncommitted starting bytes from the starting commit comparison.\",\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"],\"authority\":\"Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and explore the whole allowed tree as needed.\"}"
+          },
+          {
+            "key": "support:starting-points",
+            "text": "## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate 4e706c2d97f1d5e4973e905e4331132a30e8e5ec (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/README.md\",\"note\":\"Assigned module collection-review/workspace/shared-ui purpose\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/module.ramify\",\"note\":\"Assigned module collection-review/workspace/shared-ui declaration\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src\",\"note\":\"Assigned module collection-review/workspace/shared-ui source\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests\",\"note\":\"Assigned module collection-review/workspace/shared-ui owned tests\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}"
+          }
+        ]
+      }
+    ],
+    "revision": "8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38"
+  },
+  "policy": {
+    "context": {
+      "compaction": "allowed",
+      "budgetTokens": 150000,
+      "budgetFraction": 0.75,
+      "reportReserveTokens": 16000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {}
+    },
+    "validator": {
+      "name": "submit_nonfunctional_assessment",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "assessment"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nfr": {
+                  "type": "string",
+                  "pattern": "^(nfr|fix)-\\d{3,}$"
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "satisfied",
+                    "not-satisfied",
+                    "undetermined"
+                  ]
+                },
+                "inspectedScope": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "uncertainty": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "nfr",
+                "result",
+                "inspectedScope",
+                "evidence",
+                "uncertainty"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "results"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.nonfunctional-assessment-submission/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261009T193340Z-51f42e",
+      "invocation": "inv-0013",
+      "submission": "invocations/inv-0013/submission.json"
+    }
+  },
+  "task": {
+    "role": "nonfunctional-coordinator",
+    "message": "Briefing revision: 8558e3ca8420a6c107629ae45073bc08889d65f63caca4a1ae171b1e625ade38; based on: none (full)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nAssess the complete NFR catalog for 4e706c2d97f1d5e4973e905e4331132a30e8e5ec\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 9420af41d23a7174a0f0f89f54ed02753e391e8cee5939dea0fbf75cb6191f43\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nAssess the prepared source tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nStart from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.\nPrepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Git metadata, generated views and run records are excluded from source evidence.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\n# Block brief:support:nonfunctional-source\nCurrent value; replaces any earlier value for this key.\n{\"head\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"defaultComparison\":\"run-start\",\"comparisons\":[{\"name\":\"run-start\",\"base\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[{\"status\":\"M\",\"path\":\".gitignore\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\"},{\"status\":\"M\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\"},{\"status\":\"A\",\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\"}]},{\"name\":\"accepted-boundary\",\"base\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"target\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"changedPaths\":[]}],\"originalSource\":{\"commit\":\"58ffecdea0e2376e7cf163ca8932676463923174\",\"dirty\":false},\"comparisonLimit\":\"Named comparisons cover net changes at their recorded Git boundaries, not every intermediate edit or affected caller. An empty diff establishes no historical preservation. Dirty original capture excludes uncommitted starting bytes from the starting commit comparison.\",\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"],\"authority\":\"Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and explore the whole allowed tree as needed.\"}\n\n# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate 4e706c2d97f1d5e4973e905e4331132a30e8e5ec (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/README.md\",\"note\":\"Assigned module collection-review/workspace/shared-ui purpose\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/module.ramify\",\"note\":\"Assigned module collection-review/workspace/shared-ui declaration\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src\",\"note\":\"Assigned module collection-review/workspace/shared-ui source\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests\",\"note\":\"Assigned module collection-review/workspace/shared-ui owned tests\",\"origins\":[{\"producer\":\"assigned module/source/test locations\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n\n# Block procedure:nonfunctional-coordinator:assessment\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.\n\n# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:a4552a91-486a-40bb-bbb9-21d19892fe49:1\"\n    }\n  ]\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ]\n}\n\n# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}\n\n# Current task: assessment\nThis selection supersedes every prior task selection.\nActive role: nonfunctional-coordinator\nSelected procedure: procedure:nonfunctional-coordinator:assessment; SHA-256: 52d191a933160b44e464959fabc48510c531c2a7c9fafc91e5b67725646fd525\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_nonfunctional_assessment",
+    "environment": {
+      "workingDirectory": "/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review",
+      "candidate": "4e706c2d97f1d5e4973e905e4331132a30e8e5ec",
+      "snapshot": "4e706c2d97f1d5e4973e905e4331132a30e8e5ec",
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 3600000,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "f1b40f7e367188f32c2d01dd71145e09ad44bf127218822776170dc9f4c82579",
+    "validatorIdentity": "57e1ea9b7f8121f2a583a27186dafeabeefdb5e02292d0d40cc2a517eab7f584",
+    "destinationIdentity": "f6e3871bcde295a3ea6ae0ae1d958cd6596b48fc8f083fb844f3dc46e8c3a60b"
+  },
+  "declarations": [
+    {
+      "name": "snapshot_list",
+      "description": "List the files and directories directly beneath a directory of the audited candidate; the root when no path is given. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_read",
+      "description": "Read one file of the audited candidate, with line numbers. startLine counts from 1. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lineCount": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_search",
+      "description": "Search the audited candidate's text files for an extended regular expression, beneath a path or everywhere. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_diff",
+      "description": "List changed paths or read a per-path patch for a captured named comparison. Default: run-start. Only supplied comparison names are selectable. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "comparison": {
+            "type": "string",
+            "enum": [
+              "run-start",
+              "accepted-boundary"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_nonfunctional_assessment",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"const\":\"assessment\"},\"results\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"nfr\":{\"type\":\"string\",\"pattern\":\"^(nfr|fix)-\\\\d{3,}$\"},\"result\":{\"type\":\"string\",\"enum\":[\"satisfied\",\"not-satisfied\",\"undetermined\"]},\"inspectedScope\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"evidence\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"uncertainty\":{\"type\":\"string\"}},\"required\":[\"nfr\",\"result\",\"inspectedScope\",\"evidence\",\"uncertainty\"],\"additionalProperties\":false}}},\"required\":[\"kind\",\"results\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}

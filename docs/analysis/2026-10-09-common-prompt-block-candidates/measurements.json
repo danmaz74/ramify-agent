@@ -1,0 +1,280 @@
+{
+  "run": "20261009T193340Z-51f42e",
+  "historical_source": "474ffa58",
+  "method": "UTF-8 bytes; inherited state is resolved before this operation's additions at its recorded source point. Only effective current passages over 1,000 bytes absent from additions are counted. This is existing reuse, not predicted incremental savings.",
+  "inputs": [
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0001/packet.json",
+      "sha256": "3b88b15aa357c43de513efed8db03f14ee8d4cb269a8164351a9e77421b51e5e"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0002/packet.json",
+      "sha256": "382a27adb91105aa7010f3487be24eaf62556886361d9c27fbf04d379955b83d"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0003/packet.json",
+      "sha256": "88b841004ddebcceca5b301dc5f0869e4f0b7f9df05cc373b0c5ec23b9db1991"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0004/packet.json",
+      "sha256": "6165c02c3cda25b643f9fb893b8248d2e75b80d085b2bf516fdc5f03ae9c8533"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0005/packet.json",
+      "sha256": "492002fc8ad189cdbe04f22a139ea9cbf17211412e5d72aaff4e21d7a6e40d81"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0006/packet.json",
+      "sha256": "37907871894fbdae6d008d9840ff2274a043a5a610763bdc5609749ea03277d4"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0007/packet.json",
+      "sha256": "eaa26c5acd11ff5ecf962c2753a09e620e79f3e29008fe3f7452d8e46cec6fd9"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0008/packet.json",
+      "sha256": "e8bc3effdcf70bd74b460d515724e6ba0caedf8a956913f6482969d99d51cb27"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0009/packet.json",
+      "sha256": "83dcf2aa621a66b2e2beb9c732f0afe3723324b3acfa7d6b2b369cc60b918066"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0010/packet.json",
+      "sha256": "776a74488bd42d537aca22ca0dd6b7ca53fb0a4b42e60c95976432db5cdb287e"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0011/packet.json",
+      "sha256": "e2ca09153e8202f2de311d12df1fc90d8fe9a00faf19c04163007fb219cba759"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0012/packet.json",
+      "sha256": "2d9768ef4592188513c998da7131bc4ca452c25739a71447f90c083ac241322d"
+    },
+    {
+      "path": "2026-10-09-status-badge-tone-plan25-postmortem/invocations/inv-0013/packet.json",
+      "sha256": "1be12be8459edbefb38d4ae0d045da88adc14551aeb936b0e52e710d24f57a16"
+    }
+  ],
+  "environment_appended": {
+    "environment:projectRoot": {
+      "deliveries": 8,
+      "bytes": 1656
+    },
+    "environment:workingDirectory": {
+      "deliveries": 11,
+      "bytes": 2948
+    },
+    "environment:candidate": {
+      "deliveries": 10,
+      "bytes": 1242
+    },
+    "environment:snapshot": {
+      "deliveries": 10,
+      "bytes": 1222
+    },
+    "environment:limits": {
+      "deliveries": 10,
+      "bytes": 10736
+    },
+    "environment:availableTools": {
+      "deliveries": 12,
+      "bytes": 2400
+    },
+    "environment:views": {
+      "deliveries": 11,
+      "bytes": 8587
+    },
+    "environment:supportPaths": {
+      "deliveries": 12,
+      "bytes": 2896
+    },
+    "environment:cucumberConfiguration": {
+      "deliveries": 8,
+      "bytes": 3686
+    }
+  },
+  "environment_total_bytes": 35373,
+  "substantial_existing_reuse": [
+    {
+      "invocation": "inv-0005",
+      "mode": "fork",
+      "source": {
+        "sessionId": "827b658b-a88d-4367-9d84-6bda2a38c5db",
+        "turn": 1,
+        "kind": "turn",
+        "checkpoint": "24b48587-c169-49ea-b65e-0cbe07aa0288"
+      },
+      "passages": [
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "body_bytes": 1798,
+          "framed_bytes": 1881
+        },
+        {
+          "key": "brief:support:## The scenarios of this work item:0",
+          "kind": "brief",
+          "body_bytes": 1696,
+          "framed_bytes": 1811
+        },
+        {
+          "key": "brief:support:## Your module:0",
+          "kind": "brief",
+          "body_bytes": 2157,
+          "framed_bytes": 2252
+        },
+        {
+          "key": "brief:support:## Declared project checks:0",
+          "kind": "brief",
+          "body_bytes": 1569,
+          "framed_bytes": 1676
+        },
+        {
+          "key": "brief:support:module-pointers",
+          "kind": "brief",
+          "body_bytes": 1203,
+          "framed_bytes": 1297
+        }
+      ],
+      "framed_bytes": 8917
+    },
+    {
+      "invocation": "inv-0006",
+      "mode": "continue",
+      "source": {
+        "sessionId": "827b658b-a88d-4367-9d84-6bda2a38c5db",
+        "turn": 1,
+        "kind": "checkpoint",
+        "checkpoint": "30b8bfaf-b1bf-4a07-83b3-eae2a541bb82"
+      },
+      "passages": [
+        {
+          "key": "brief:support:## The scenarios of this work item:0",
+          "kind": "brief",
+          "body_bytes": 1696,
+          "framed_bytes": 1811
+        },
+        {
+          "key": "brief:support:## Your module:0",
+          "kind": "brief",
+          "body_bytes": 2157,
+          "framed_bytes": 2252
+        },
+        {
+          "key": "brief:support:## Declared project checks:0",
+          "kind": "brief",
+          "body_bytes": 1569,
+          "framed_bytes": 1676
+        },
+        {
+          "key": "brief:support:work-item-package",
+          "kind": "brief",
+          "body_bytes": 2892,
+          "framed_bytes": 2988
+        },
+        {
+          "key": "brief:support:module-pointers",
+          "kind": "brief",
+          "body_bytes": 1203,
+          "framed_bytes": 1297
+        }
+      ],
+      "framed_bytes": 10024
+    },
+    {
+      "invocation": "inv-0011",
+      "mode": "continue",
+      "source": {
+        "sessionId": "827b658b-a88d-4367-9d84-6bda2a38c5db",
+        "turn": 2,
+        "kind": "turn",
+        "checkpoint": "a9cdf8b9-3046-4312-9731-ef2a4f73b52c"
+      },
+      "passages": [
+        {
+          "key": "procedure:local-architect:main",
+          "kind": "procedure",
+          "body_bytes": null,
+          "framed_bytes": 7143
+        },
+        {
+          "key": "brief:support:## Your module:0",
+          "kind": "brief",
+          "body_bytes": 2157,
+          "framed_bytes": 2252
+        },
+        {
+          "key": "brief:support:## Declared project checks:0",
+          "kind": "brief",
+          "body_bytes": 1569,
+          "framed_bytes": 1676
+        },
+        {
+          "key": "brief:support:work-item-package",
+          "kind": "brief",
+          "body_bytes": 2892,
+          "framed_bytes": 2988
+        },
+        {
+          "key": "brief:support:module-pointers",
+          "kind": "brief",
+          "body_bytes": 1203,
+          "framed_bytes": 1297
+        }
+      ],
+      "framed_bytes": 15356
+    }
+  ],
+  "substantial_existing_reuse_framed_bytes": 34297,
+  "review_payloads_for_content_comparison_not_lineage_savings": [
+    {
+      "invocation": "inv-0008",
+      "key": "brief:support:assignment-package",
+      "bytes": 2989,
+      "sha256": "13356d38d6fab80b668d92018ce7741d8d05d9816c41ab54e1660d95e76fde89"
+    },
+    {
+      "invocation": "inv-0008",
+      "key": "brief:support:candidate-diff",
+      "bytes": 7339,
+      "sha256": "09bf5c27a8b2dd55396794bdb7304db0ded7ee9e5b57f90a4b4b84ddb0ef9d4a"
+    },
+    {
+      "invocation": "inv-0008",
+      "key": "brief:support:starting-points",
+      "bytes": 2622,
+      "sha256": "02e87d9a638fda4d061687cbe03809924efc480a3b78f8122c46d17698baa470"
+    },
+    {
+      "invocation": "inv-0009",
+      "key": "brief:support:assignment-package",
+      "bytes": 2989,
+      "sha256": "13356d38d6fab80b668d92018ce7741d8d05d9816c41ab54e1660d95e76fde89"
+    },
+    {
+      "invocation": "inv-0009",
+      "key": "brief:support:candidate-diff",
+      "bytes": 7339,
+      "sha256": "09bf5c27a8b2dd55396794bdb7304db0ded7ee9e5b57f90a4b4b84ddb0ef9d4a"
+    },
+    {
+      "invocation": "inv-0009",
+      "key": "brief:support:starting-points",
+      "bytes": 2622,
+      "sha256": "02e87d9a638fda4d061687cbe03809924efc480a3b78f8122c46d17698baa470"
+    },
+    {
+      "invocation": "inv-0012",
+      "key": "brief:support:candidate-diff",
+      "bytes": 7339,
+      "sha256": "09bf5c27a8b2dd55396794bdb7304db0ded7ee9e5b57f90a4b4b84ddb0ef9d4a"
+    },
+    {
+      "invocation": "inv-0012",
+      "key": "brief:support:starting-points",
+      "bytes": 2622,
+      "sha256": "02e87d9a638fda4d061687cbe03809924efc480a3b78f8122c46d17698baa470"
+    }
+  ]
+}

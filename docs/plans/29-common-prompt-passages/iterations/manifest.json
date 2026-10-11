@@ -1,0 +1,31 @@
+{
+  "plan": "../main-plan.md",
+  "status": "proposed; implementation not started",
+  "execution": "serial in dependency order",
+  "iterations": [
+    {
+      "id": "1",
+      "file": "01-author-passages.md",
+      "dependsOn": [],
+      "cases": ["C01", "C02", "C03", "C04", "C05", "C06"],
+      "status": "proposed",
+      "writeBoundary": "Harness shared prose and pure input-render helpers, focused composition checks and review examples; no dispatch switch."
+    },
+    {
+      "id": "2",
+      "file": "02-integrate-delivery.md",
+      "dependsOn": ["1"],
+      "cases": ["D01", "D02", "D03", "D04", "D05", "D06", "D07", "D08", "D09", "D10"],
+      "status": "proposed",
+      "writeBoundary": "Harness task builders, package rendering, session integration, review child input rendering and focused delivery compatibility checks."
+    },
+    {
+      "id": "3",
+      "file": "03-qualify.md",
+      "dependsOn": ["2"],
+      "cases": ["Q01", "Q02", "Q03"],
+      "status": "proposed",
+      "writeBoundary": "Combined harness verification, current documentation, receipts and exact-candidate configured full audit."
+    }
+  ]
+}

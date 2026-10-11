@@ -1,0 +1,1391 @@
+[
+  {
+    "invocation": "inv-0001",
+    "callId": "call_bb9e1fb1a2944b1b9f9f431702738987|fc_0d44be8f3d148e7f016ac941975c188191b8a2edfa1247d18e",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/input/plan.md"
+    ],
+    "startedAt": "2026-10-09T19:33:43.740Z"
+  },
+  {
+    "invocation": "inv-0001",
+    "callId": "call_zV0gUPlntihi94HbQedPbcq0|fc_0d44be8f3d148e7f016ac9419c54ac8191846b78a9db52bd3d",
+    "tool": "submit_intake",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:33:54.202Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_56fa45fc20c34b0e9b789faebb1fcbe0|fc_0f70bce8aeda8132016ac941a5b8c0819193abca09578e1350",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "plans/status-badge-tone/plan.md"
+    ],
+    "startedAt": "2026-10-09T19:33:58.464Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_78906a98106f49ffb68dcc68571aa1e2|fc_0f70bce8aeda8132016ac941a65cac8191b354c515b2424e55",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/_meta.json"
+    ],
+    "startedAt": "2026-10-09T19:33:58.465Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_f21cfa66eded4dd1b6753a4c22e9703b|fc_0f70bce8aeda8132016ac941a65cac8191bb1b4caa8c003b4b",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      ".ramify-architect"
+    ],
+    "startedAt": "2026-10-09T19:33:58.465Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_c9520c4732d744b581bf232faa2cb46b|fc_0f70bce8aeda8132016ac941a65cac8191a099b551f90efb26",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "../../../../../../../home/app/ramify-status-badge-20261009-latest/ramify-agent/skills/module-architect/references/discovery.md"
+    ],
+    "startedAt": "2026-10-09T19:33:58.465Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_32ac1bf896f9424c8df65f646225987e|fc_0f70bce8aeda8132016ac941a8fe448191a1d2d6b7129f79b6",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/README.md"
+    ],
+    "startedAt": "2026-10-09T19:34:01.450Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_17f309e917fb4ffd97958f4bbd0e8770|fc_0f70bce8aeda8132016ac941a95d488191b612c2922b5b96f8",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      ".ramify-architect"
+    ],
+    "startedAt": "2026-10-09T19:34:01.450Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_27cb8742da444f4dacad2e563dd0ced6|fc_0f70bce8aeda8132016ac941a95d488191bc8d47fff940ee80",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/workspace/shared-ui/module.json"
+    ],
+    "startedAt": "2026-10-09T19:34:01.451Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_7edf939dcb044348afbb25d2cc61cb99|fc_0f70bce8aeda8132016ac941a95d488191a44276c015b314ea",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/workspace/shared-ui/behavior.jsonl"
+    ],
+    "startedAt": "2026-10-09T19:34:01.451Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_8c0ef8abb48449f4b38f32f2f2f48ad9|fc_0f70bce8aeda8132016ac941a95d488191b8bc2dea64352727",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/workspace/shared-ui/tests.jsonl"
+    ],
+    "startedAt": "2026-10-09T19:34:01.451Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_12ee7f3640894481b707b3900dc06e25|fc_0f70bce8aeda8132016ac941a95d488191a8d595580501dc0d",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/workspace/shared-ui/supporting.jsonl"
+    ],
+    "startedAt": "2026-10-09T19:34:01.451Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_Lwt228Yc67D1MCRWaudCpAKX|fc_0f70bce8aeda8132016ac941b65c488191a9b70fb897579f27",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      ".ramify-architect"
+    ],
+    "startedAt": "2026-10-09T19:34:14.566Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_ZkNlbw0G7vrC5VmxX2F7radP|fc_0f70bce8aeda8132016ac941b65c5c8191a399e54f6886e28f",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/workspace/catalog/ui/behavior.jsonl"
+    ],
+    "startedAt": "2026-10-09T19:34:14.566Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_GSXGo1sdLDQFERluL6hklnZB|fc_0f70bce8aeda8132016ac941b65c688191915996fc78eee8bc",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      ".ramify-architect/workspace/reviews/ui/pure-ui/behavior.jsonl"
+    ],
+    "startedAt": "2026-10-09T19:34:14.566Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_MGDRs2EVbD6cbCOfFQNIjdHL|fc_0f70bce8aeda8132016ac941b65c7481919bedb625392980b2",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "package.json"
+    ],
+    "startedAt": "2026-10-09T19:34:14.566Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_vEGMwAZh06PDNdWzq7aiB8E0|fc_0f70bce8aeda8132016ac941b65c7c81918bd38fae2a8d4126",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "ramify-audit.json"
+    ],
+    "startedAt": "2026-10-09T19:34:14.566Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_9NHMnOHBVvU8pKM8kXCKKbmq|fc_0f70bce8aeda8132016ac941b65c848191a45f212f8ecbbe76",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "cucumber.js"
+    ],
+    "startedAt": "2026-10-09T19:34:14.566Z"
+  },
+  {
+    "invocation": "inv-0002",
+    "callId": "call_0f03bf714eac4f91b0bea97495cd87d3|fc_0f70bce8aeda8132016ac941ca8eb0819194e48c566409cf38",
+    "tool": "submit_initial_analysis",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:34:42.132Z"
+  },
+  {
+    "invocation": "inv-0003",
+    "callId": "call_a6e8aaae41954245b7705f90cfb39a5d|fc_024d71f6241ae0ef016ac941d3ee20819185302f4db8447c8f",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/input/plan.md"
+    ],
+    "startedAt": "2026-10-09T19:34:44.422Z"
+  },
+  {
+    "invocation": "inv-0003",
+    "callId": "call_SjarTAQqaDVCvA7cSd5OkRgq|fc_024d71f6241ae0ef016ac941dc451481918b3f2cf59b2571eb",
+    "tool": "submit_catalog_check",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:34:52.525Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_309c31d75bb74dfcb4b56ef2357894fa|fc_018c4f0a3232e021016ac941f47ec88191b05f0f1fe8cc5f4c",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/README.md"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_160bbef66a924f478dbfa2b690ccc420|fc_018c4f0a3232e021016ac941f56e048191ab779e9d46131d30",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/module.ramify"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_9f2fe6ed0d824a0facf81e7ccbd47f57|fc_018c4f0a3232e021016ac941f56e048191be97aa63823ce698",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_d243ad43754a4a76a57be968eebecb98|fc_018c4f0a3232e021016ac941f56e048191951190d92f818eed",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_935ba9adbf824d99a48e18a97ec9afdf|fc_018c4f0a3232e021016ac941f56e048191a70a81f11b3f996c",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_f3a3ab532e794cd3af21e2ec89076520|fc_018c4f0a3232e021016ac941f56e04819185bb9aa8e9a29384",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_c44320a34bef4154859d14453a49c072|fc_018c4f0a3232e021016ac941f56e048191aa9843778bab0694",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "package.json"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_00d719db6f0142b0868087d937f93afb|fc_018c4f0a3232e021016ac941f56e048191a47489c41d625aac",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "cucumber.js"
+    ],
+    "startedAt": "2026-10-09T19:35:17.533Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_7Hh0jXcW1TsYNwJM7AKBUtJM|fc_018c4f0a3232e021016ac941fd3d548191b06b5fd37a86b0e3",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_q76NMfs2HwZoNMNgCm730Hz2|fc_018c4f0a3232e021016ac941fd3d688191b97f70bd9d828b19",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_INV1OkNW4OC1d9I50GAsFPdX|fc_018c4f0a3232e021016ac941fd3d70819195a54a3e4b79d173",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_KBsTCjPC1DAzdS6xDJbtRnMq|fc_018c4f0a3232e021016ac941fd3d788191a3450571b1394b8c",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify/_meta.json"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_oWX6n62CEaQmM8PlEG4aQRiP|fc_018c4f0a3232e021016ac941fd3d808191825cdee43f75cae4",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/_meta.json"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_JhVTKkJuPHCyQyFwaLdfzE1k|fc_018c4f0a3232e021016ac941fd3d888191b7f64ae051334dba",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_Ix8I6Q3MzEHzoJQ4C1sR6emP|fc_018c4f0a3232e021016ac941fd3d8c819194c322c5ec700bf4",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_I1mPHHpjm3kfGyK5vFKtBRik|fc_018c4f0a3232e021016ac941fd3d9481918b32bc7d78f2ef41",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_2YlG4VA8stg5Xxukc2prWwci|fc_018c4f0a3232e021016ac941fd3d9c81918a5e4f33a0e370fe",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:35:26.397Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_8e6355752c2c447cba0a48e5390b0cc9|fc_018c4f0a3232e021016ac9420240f08191bc7553ba2eef9ba2",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify/external/subs/workspace/subs/contracts/src/interfaces/vocabulary.ts.md"
+    ],
+    "startedAt": "2026-10-09T19:35:31.776Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_d24817f93c634f13866b87bd8de7f0f3|fc_018c4f0a3232e021016ac942038e5481918a87b5d47d6a2db0",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external/subs/workspace/subs/contracts/src/interfaces/vocabulary.ts.md"
+    ],
+    "startedAt": "2026-10-09T19:35:31.776Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_c93f8994c9864cd2a1bf6c1147fa5828|fc_018c4f0a3232e021016ac942038e5481919c519da1866f8de9",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      ".",
+      "*.{ts,tsx}"
+    ],
+    "startedAt": "2026-10-09T19:35:31.776Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_b6f3838ece8d4e72925d8b4ec5b59d61|fc_018c4f0a3232e021016ac942038e548191bba2f62e165478ce",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      ".",
+      "*.{css,ts,tsx}"
+    ],
+    "startedAt": "2026-10-09T19:35:31.776Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_ac572d318bf6490080848c14d2ba0be2|fc_018c4f0a3232e021016ac942038e5481919dddc244d00a9e55",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone"
+    ],
+    "startedAt": "2026-10-09T19:35:31.776Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_49093205bdf4492c9308d8b8a7367ffe|fc_018c4f0a3232e021016ac942038e5481918709f00277ef45c7",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps"
+    ],
+    "startedAt": "2026-10-09T19:35:31.776Z"
+  },
+  {
+    "invocation": "inv-0004",
+    "callId": "call_b80d798a10244b11b211edf7ee359026|fc_018c4f0a3232e021016ac9420d98288191bb8b74d104cf77dd",
+    "tool": "submit_work_orientation",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:35:48.008Z"
+  },
+  {
+    "invocation": "inv-0005",
+    "callId": "call_f2ddfdc753ec490ebdae53a77df55cba|fc_018c4f0a3232e021016ac942168a6081918a03256b2dc483c2",
+    "tool": "submit_context_selection",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:35:54.392Z"
+  },
+  {
+    "invocation": "inv-0006",
+    "callId": "call_9c40fb5b35354c93a8fcfe880efede66|fc_018c4f0a3232e021016ac9422328048191bd3c04a756bb692a",
+    "tool": "submit_work_item_result",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:36:12.805Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_Ow9vsFvSvyB4bvQ9TJSUxAlQ|fc_0ab28623e769fee4016ac9423cdf1487d28e636b808f7ba86e",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/README.md"
+    ],
+    "startedAt": "2026-10-09T19:36:29.239Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_7ONpkcWIwktY9tBTgoBHv0FJ|fc_0ab28623e769fee4016ac9423cdf3887d28050888c43cfddef",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/module.ramify"
+    ],
+    "startedAt": "2026-10-09T19:36:29.239Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_LCoGohQgpmZu4c6QaGgMLOv3|fc_0ab28623e769fee4016ac9423cdf4c87d28195fd833b15eb52",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:36:29.239Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_cMyz8N37QAdlbzRO7xn4o5Ee|fc_0ab28623e769fee4016ac9423cdf5887d2a2e2da2c04f3aa02",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:36:29.239Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_V3dUi6c4pQXnkeEQl3e5YeFy|fc_0ab28623e769fee4016ac9423cdf6487d2bc063d7ff0d101f1",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature"
+    ],
+    "startedAt": "2026-10-09T19:36:29.240Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_gT4NSmbkd2ozRw3rvqQH3t6X|fc_0ab28623e769fee4016ac9423cdf7087d2a3b0373344ed32c0",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests"
+    ],
+    "startedAt": "2026-10-09T19:36:29.240Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_sdfumHv2MHZzLWy4TNW2cja3|fc_0ab28623e769fee4016ac9423cdf8087d2b91daf58fa30b6bf",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify"
+    ],
+    "startedAt": "2026-10-09T19:36:29.240Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_1snQnsURcC9Zh68FKecAnxR3|fc_0ab28623e769fee4016ac9423cdf9087d2957a5adfb93b5b27",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify"
+    ],
+    "startedAt": "2026-10-09T19:36:29.240Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_FFyOoh4mLnQRNO7ZhKHYsdMh|fc_0ab28623e769fee4016ac9423cdf9c87d2bb2d306edee9029e",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "package.json"
+    ],
+    "startedAt": "2026-10-09T19:36:29.240Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_202b3019bf204482a2e82e721ae36a89|fc_0ab28623e769fee4016ac9423ff15087d2bfc25c2544ced822",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/_meta.json"
+    ],
+    "startedAt": "2026-10-09T19:36:33.795Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_f235e566a4a54115aa5dd6ebf959604e|fc_0ab28623e769fee4016ac94241aae887d2b901f2dd95146ea9",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:36:33.795Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_2c6873c3cda2492f8e308f1ad75bf14c|fc_0ab28623e769fee4016ac94241aae887d29db68174d34919db",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:36:33.796Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_9de50a32c9874d7a860ac6ee3f66fec9|fc_0ab28623e769fee4016ac94241aae887d2a7d6b71e725c1c52",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs",
+      "**/src/tests/steps/*.{ts,tsx}"
+    ],
+    "startedAt": "2026-10-09T19:36:33.796Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_a8f4c54b1b8f401789ec0d40ce014157|fc_0ab28623e769fee4016ac94241aae887d2bc7be99f422be2c3",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "tsconfig.json"
+    ],
+    "startedAt": "2026-10-09T19:36:33.796Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_7d5fb2891f124013a5316e7396bcd6fa|fc_0ab28623e769fee4016ac94241aae887d2880e4ca55c00b7bc",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "cucumber.js"
+    ],
+    "startedAt": "2026-10-09T19:36:33.796Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_a34fa04619894f2fae614caae0de476f|fc_0ab28623e769fee4016ac942475e1887d298ba484fc06ca80f",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external/subs"
+    ],
+    "startedAt": "2026-10-09T19:36:40.437Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_6a0ff75a7ec0489996246684a7fdcc59|fc_0ab28623e769fee4016ac94248447087d28121edda1b48e9e1",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/integration-tests/src"
+    ],
+    "startedAt": "2026-10-09T19:36:40.437Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_1a7ad1983aa548178063bc4d35157332|fc_0ab28623e769fee4016ac94248447087d297790b031b068937",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs/integration-tests/src"
+    ],
+    "startedAt": "2026-10-09T19:36:40.437Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_16ef56d544314ef0a5c8a06e8697dcce|fc_0ab28623e769fee4016ac94248447087d28af3b05644c00df6",
+    "tool": "grep",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/.ramify/external"
+    ],
+    "startedAt": "2026-10-09T19:36:40.437Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_878ea78c85ea421481013fa462f1ea8d|fc_0ab28623e769fee4016ac94248447087d2a369ac4a0ca0ca6c",
+    "tool": "ls",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify"
+    ],
+    "startedAt": "2026-10-09T19:36:40.437Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_8e9e25c89398420386623a4121fe3fbb|fc_0ab28623e769fee4016ac94248447087d29fff1ca563c05305",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/.ramify/_meta.json"
+    ],
+    "startedAt": "2026-10-09T19:36:40.437Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_7bc654806f9a40e882526155ae195b5e|fc_0ab28623e769fee4016ac9425a01ac87d2b1993026c76eeaf2",
+    "tool": "edit",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:00.475Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_WyBDuocRhgY2T4ZaSkrxg8Ww|fc_0ab28623e769fee4016ac94261e63487d28e5b82027a3621cc",
+    "tool": "edit",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:16.466Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_EBeiTzPWMgEqWVymQqjeCIfQ|fc_0ab28623e769fee4016ac942776b3c87d2b4833673d6626b26",
+    "tool": "write",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:37.926Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_106c5355c2144ce2b34bd95af763288a|fc_0ab28623e769fee4016ac9428a8c2087d2a36a3537acdbba65",
+    "tool": "shell",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:48.018Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_9952e1fa58b740a6a2326cf70b0a2270|fc_0ab28623e769fee4016ac9428bd7e487d286509013b065d997",
+    "tool": "shell",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:48.019Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_583ddd17170845ffb8ab0584e3023338|fc_0ab28623e769fee4016ac9428bd7e487d29f19c527d974956c",
+    "tool": "shell",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:48.019Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_e853afdd9a834a8ebb3ef68a8863da09|fc_0ab28623e769fee4016ac9429213b887d2a582c4941ba7c8c9",
+    "tool": "shell",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:37:54.582Z"
+  },
+  {
+    "invocation": "inv-0007",
+    "callId": "call_b8903cb6a4c1478eaabb4baab44d00a8|fc_0ab28623e769fee4016ac94298980487d2873c81b0eb233217",
+    "tool": "submit_iteration_result",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:02.991Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_6138ac0a1aff4658b8fedc7be33478ee|fc_0aeb1b25d0ebb6ac016ac942b2dc348191a8f04598c716e26b",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:28.178Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_1502f0186c6c4649960b2f72c414d8bc|fc_0aeb1b25d0ebb6ac016ac942b416e88191b40f42ec959554a3",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_77cc79e890fe4f2882077d55bf547b42|fc_0aeb1b25d0ebb6ac016ac942b416e88191a4f90039695e7ec8",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_b3a214663bdd4ce3946a472d9ce9449a|fc_0aeb1b25d0ebb6ac016ac942b416e881918fe7d0db7352df64",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_2d5739d9d13847e1ba1d1d29e86085d4|fc_0aeb1b25d0ebb6ac016ac942b416e88191b8eadfd341ae87ac",
+    "tool": "snapshot_list",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_ffb3db562c0e4ff89d1f15fbe630616d|fc_0aeb1b25d0ebb6ac016ac942b416e881918c7a730ab5397fef",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "package.json"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_2058bc2799c24ac8bff94a3fa46ee9bf|fc_0aeb1b25d0ebb6ac016ac942b416e88191b6c27fcbaba07693",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "cucumber.js"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_200e165fe82b47af9ca5adfa5976e25c|fc_0aeb1b25d0ebb6ac016ac942b416e88191ae7741ba34c6bb47",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "ramify-audit.json"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_8555ff0e11ce4d8d948273d07bc55a27|fc_0aeb1b25d0ebb6ac016ac942b416e88191a92b25ea6d4a0fb5",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "ramify-agent.json"
+    ],
+    "startedAt": "2026-10-09T19:38:28.179Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_e1688b99b7ed4ad789d56bfeed3862ae|fc_0aeb1b25d0ebb6ac016ac942b906888191a6d766cf028668e5",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace"
+    ],
+    "startedAt": "2026-10-09T19:38:33.660Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_4a425b27ae0e49d4b78f29e7a45a7a9d|fc_0aeb1b25d0ebb6ac016ac942b98fa48191a93f600cb084b80f",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "src"
+    ],
+    "startedAt": "2026-10-09T19:38:33.661Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_7ca8535302104e67a9a77f55c028b422|fc_0aeb1b25d0ebb6ac016ac942b98fa48191a35baa464082d19f",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace"
+    ],
+    "startedAt": "2026-10-09T19:38:33.661Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_f24aa70dfba64eff90c58be84952a053|fc_0aeb1b25d0ebb6ac016ac942b98fa4819181f941a9f0444af0",
+    "tool": "snapshot_list",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps"
+    ],
+    "startedAt": "2026-10-09T19:38:33.661Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_bbfb9dbd02594000af5cdb353ac84b32|fc_0aeb1b25d0ebb6ac016ac942b98fa48191a09c209a0969f9ee",
+    "tool": "snapshot_list",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src"
+    ],
+    "startedAt": "2026-10-09T19:38:33.661Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_2c7d976bf54a4ff0b709afb3fcd073dc|fc_0aeb1b25d0ebb6ac016ac942c09d4881919475b6c5d068635c",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "."
+    ],
+    "startedAt": "2026-10-09T19:38:41.227Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_f098eef80407494796ff5d98220f7e65|fc_0aeb1b25d0ebb6ac016ac942c11e8c8191a5e452e94b4e859f",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/catalog/subs/ui/src/catalog-card.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:41.227Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_a97fd6204db64113baaacb7050b63d64|fc_0aeb1b25d0ebb6ac016ac942c11e8c8191a7551eae7274e1bb",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/reviews/subs/ui/subs/pure-ui/src/review-result.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:41.227Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_4605064e982f465e903f492b99f5f46d|fc_0aeb1b25d0ebb6ac016ac942c11e8c8191bb22e61f30f16989",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/src/styles.css"
+    ],
+    "startedAt": "2026-10-09T19:38:41.227Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_deaf868ef5e143dcaf5470c88f7fb211|fc_0aeb1b25d0ebb6ac016ac942c4748c8191a34f54d51003bdc1",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "plans/status-badge-tone/plan.md"
+    ],
+    "startedAt": "2026-10-09T19:38:44.630Z"
+  },
+  {
+    "invocation": "inv-0008",
+    "callId": "call_VNklFJfA3bEILVOdrnGd6knx|fc_0aeb1b25d0ebb6ac016ac942cc1c7c8191b3240df6ab2eae95",
+    "tool": "submit_review",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:53.491Z"
+  },
+  {
+    "invocation": "inv-0009",
+    "callId": "call_490857dc1e5d413681a8111633192193|fc_018c4f0a3232e021016ac942b7e0b881918f741eb08ca62b85",
+    "tool": "submit_review",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:32.315Z"
+  },
+  {
+    "invocation": "inv-0010",
+    "callId": "call_ea78cf5cb6ae4a3aac2a2d3a6ba6d92b|fc_0331676b4a9b4a11016ac942bbbd008191a0859139e4b301bc",
+    "tool": "submit_orientation",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:39.543Z"
+  },
+  {
+    "invocation": "inv-0011",
+    "callId": "call_U2nDTw03H2Funn50yB8YXVsM|fc_018c4f0a3232e021016ac942c12b388191a8ee09de75741f47",
+    "tool": "inspect_git",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:41.449Z"
+  },
+  {
+    "invocation": "inv-0011",
+    "callId": "call_lPaocA7w71QaEqUPveRvS1fg|fc_018c4f0a3232e021016ac942c12b4c8191981f248a2ed0a250",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:41.449Z"
+  },
+  {
+    "invocation": "inv-0011",
+    "callId": "call_SUyDLb5zntOAnzveGoBm6NPs|fc_018c4f0a3232e021016ac942c12b548191bf290602bf8582b7",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:41.449Z"
+  },
+  {
+    "invocation": "inv-0011",
+    "callId": "call_BSApnk4fARqc4ivcO5UzSYdj|fc_018c4f0a3232e021016ac942c12b5c81918e032dd3c36bcb16",
+    "tool": "read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:41.450Z"
+  },
+  {
+    "invocation": "inv-0011",
+    "callId": "call_ruhhlaf5z34vy3Wqbh9lqkkd|fc_018c4f0a3232e021016ac942c12b648191b03c152ca28cf92e",
+    "tool": "inspect_git",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:41.450Z"
+  },
+  {
+    "invocation": "inv-0011",
+    "callId": "call_KZC44H47QldBUoxCaNS0dO8G|fc_018c4f0a3232e021016ac942c63b2c8191a68ba38eaef13709",
+    "tool": "submit_work_item_result",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:53.510Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_52fcc79007c74c08894088b523ed2f73|fc_0331676b4a9b4a11016ac942c2e3f08191b14236219701eb2d",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "README.md"
+    ],
+    "startedAt": "2026-10-09T19:38:44.153Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_2c2e979b9d0b41e994996beca61949b7|fc_0331676b4a9b4a11016ac942c40df881918226739d4f156ff4",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/README.md"
+    ],
+    "startedAt": "2026-10-09T19:38:44.154Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_4d2cc6d48ea342a2ac4a816afbc8d793|fc_0331676b4a9b4a11016ac942c40df88191b5a4dece74689d37",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/README.md"
+    ],
+    "startedAt": "2026-10-09T19:38:44.154Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_09ef177e12a14fefa914d4d65a05b5e9|fc_0331676b4a9b4a11016ac942c40df88191a7245f5ef5b55527",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:44.154Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_0553841ac4054cae8453259ed5c25880|fc_0331676b4a9b4a11016ac942c40df881919cdea26e1ec1bbaa",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:44.154Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_b80939e6d322451b8096a4768c55101c|fc_0331676b4a9b4a11016ac942c40df88191b1049e0dee58609f",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature"
+    ],
+    "startedAt": "2026-10-09T19:38:44.154Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_978e99fe0f0a4a98a7b406efd8c60810|fc_0331676b4a9b4a11016ac942c40df881918ef707ba037678ea",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx"
+    ],
+    "startedAt": "2026-10-09T19:38:44.154Z"
+  },
+  {
+    "invocation": "inv-0012",
+    "callId": "call_7fc5c1e36ad64667828cb617b90ec223|fc_0331676b4a9b4a11016ac942c8ab788191bf42b8894838c656",
+    "tool": "submit_review",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:38:49.017Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_914ac90eb6fd4daa998fd41bce596927|fc_0038b3dbf9038f1a016ac942d5f7248191a1d5b158ce35449b",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:02.849Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_5bfc26c2b9c24e1eb88e9174cf78dbc5|fc_0038b3dbf9038f1a016ac942d6c250819197d7e43cdebcec5b",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:02.849Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_cc88c7b07d1d4ac6a1eae430b8f288b6|fc_0038b3dbf9038f1a016ac942d6c2508191806b8c818e0a4ad8",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature"
+    ],
+    "startedAt": "2026-10-09T19:39:02.849Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_6d1dd7df2c1842359e98786bb176d860|fc_0038b3dbf9038f1a016ac942d6c250819184da0c15fc24eb30",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:02.850Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_26d47c7bb9fa419abaa1148e0c8d119b|fc_0038b3dbf9038f1a016ac942d6c2508191a36c755355753ba5",
+    "tool": "snapshot_diff",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/status-badge.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:02.850Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_0a0d135391fc441fb2fbcaf1b5ba9ab4|fc_0038b3dbf9038f1a016ac942d6c25081919c19ec1617b08b49",
+    "tool": "snapshot_diff",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:02.850Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_ba88bfcefd4d46c789f531caf8b8f142|fc_0038b3dbf9038f1a016ac942d6c2508191ab8587c7b24a8003",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "subs"
+    ],
+    "startedAt": "2026-10-09T19:39:02.850Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_DgJpDtY0x5R7SBK19nEbEkHd|fc_0038b3dbf9038f1a016ac942e25c90819180608de7992732eb",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/catalog/subs/ui/src/catalog-card.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:14.780Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_BBDofZkDexNcKCbEAzUIxt2q|fc_0038b3dbf9038f1a016ac942e25ca481918f2e60a2c663a4cf",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/reviews/subs/ui/subs/pure-ui/src/review-result.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_tyqIzsTprNSwPWDfOZ97PjFh|fc_0038b3dbf9038f1a016ac942e25cac819197b54f3acfa7cb58",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/contracts/src/interfaces/vocabulary.ts"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_ry33ssrPgYeB3qzmVf8UBBEk|fc_0038b3dbf9038f1a016ac942e25cb4819184b8f65e4f0d013e",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/module.ramify"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_zsRN6eOcoFTOS4je025BHmyJ|fc_0038b3dbf9038f1a016ac942e25cc081918c1848931a77704e",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/README.md"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_n6xk8JR6Tk8c6skWl6KJizpo|fc_0038b3dbf9038f1a016ac942e25cc881918ecbfb6a4716c3b3",
+    "tool": "snapshot_diff",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/catalog/subs/ui/src/catalog-card.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_II3omb2MUdk97gCu4MtlATCC|fc_0038b3dbf9038f1a016ac942e25cd081919459d05db62bddd7",
+    "tool": "snapshot_diff",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/reviews/subs/ui/subs/pure-ui/src/review-result.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_sumJJ0Yzfeq72rvh2iuY4mMl|fc_0038b3dbf9038f1a016ac942e25cd88191ae610e09be234e80",
+    "tool": "snapshot_list",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_Z3KATwKvBEE5jsVzwtKN2Q5j|fc_0038b3dbf9038f1a016ac942e25ce08191b5db5f7c38d4e1ca",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace"
+    ],
+    "startedAt": "2026-10-09T19:39:14.781Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_LaU2MvetzfhlB5PZxcOW0j93|fc_0038b3dbf9038f1a016ac942e7dd6481919805b58ec3a94b73",
+    "tool": "snapshot_list",
+    "kind": "search",
+    "requestedScope": [
+      "."
+    ],
+    "startedAt": "2026-10-09T19:39:20.751Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_CjfZ02m75JJMlqfxn0ZGtaJL|fc_0038b3dbf9038f1a016ac942e7dd7c8191a0bee6a973abd559",
+    "tool": "snapshot_list",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src"
+    ],
+    "startedAt": "2026-10-09T19:39:20.751Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_GmQTHku8NorlApDUPlGfk4L0|fc_0038b3dbf9038f1a016ac942e7dd8881919c29b15d30ed9125",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/catalog/subs/ui/src/tests"
+    ],
+    "startedAt": "2026-10-09T19:39:20.751Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_MdcwQ28pTHwaPG9xRRg6XjKh|fc_0038b3dbf9038f1a016ac942e7dd9481918606ffd005af8062",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "subs/workspace/subs/reviews/subs/ui"
+    ],
+    "startedAt": "2026-10-09T19:39:20.751Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_AwRlWV3Kz2oE90YiIngUSicP|fc_0038b3dbf9038f1a016ac942e7dda08191bf91d7acd5497963",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "package.json"
+    ],
+    "startedAt": "2026-10-09T19:39:20.751Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_8tzhpR8IVVEjgOBUvfRS1IgN|fc_0038b3dbf9038f1a016ac942e7dea88191b037b2019be4fbd1",
+    "tool": "snapshot_search",
+    "kind": "search",
+    "requestedScope": [
+      "tsconfig.json"
+    ],
+    "startedAt": "2026-10-09T19:39:20.752Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_f372574f938647acb9d379ca2143fe1e|fc_0038b3dbf9038f1a016ac942eb9d288191b9e422d1454f6bd7",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "package.json"
+    ],
+    "startedAt": "2026-10-09T19:39:24.746Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_00c2b38baaa84ae58af0dba76b49d08e|fc_0038b3dbf9038f1a016ac942ec9d7c8191be0d71f41cb1c80c",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "cucumber.js"
+    ],
+    "startedAt": "2026-10-09T19:39:24.746Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_5df0e709c12e47a5948050e9e6d00fdb|fc_0038b3dbf9038f1a016ac942ec9d7c8191b09c1b251f1d82f9",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "tsconfig.json"
+    ],
+    "startedAt": "2026-10-09T19:39:24.746Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_041b3d808e9c4eba8ddc9da889f317aa|fc_0038b3dbf9038f1a016ac942ec9d7c8191aed82a009c663c8c",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "vitest.config.ts"
+    ],
+    "startedAt": "2026-10-09T19:39:24.746Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_da028ca161054449bdf95924ca319c18|fc_0038b3dbf9038f1a016ac942ec9d7c8191916effb2dbd1f93c",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/catalog/subs/ui/src/tests/catalog-card.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:24.746Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_2081b50a8fc2415484f5bafd044f1cca|fc_0038b3dbf9038f1a016ac942ec9d7c8191832d063a502c2c83",
+    "tool": "snapshot_read",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/reviews/subs/ui/subs/pure-ui/src/tests/review-result.test.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:24.747Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_a0491debec754063b6769f7144066978|fc_0038b3dbf9038f1a016ac942ec9d7c81918437f5cfe958bb65",
+    "tool": "snapshot_diff",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx"
+    ],
+    "startedAt": "2026-10-09T19:39:24.747Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_466f41ca5d3a4987944ed3170179aec8|fc_0038b3dbf9038f1a016ac942ec9d7c81918f39d0b7fe75fd4a",
+    "tool": "snapshot_diff",
+    "kind": "read",
+    "requestedScope": [
+      "subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature"
+    ],
+    "startedAt": "2026-10-09T19:39:24.747Z"
+  },
+  {
+    "invocation": "inv-0013",
+    "callId": "call_SUtfqYXae11RGHzHpEq45Rf9|fc_0038b3dbf9038f1a016ac942fb44cc819189e4d655d2faa03b",
+    "tool": "submit_nonfunctional_assessment",
+    "kind": "other",
+    "requestedScope": [],
+    "startedAt": "2026-10-09T19:40:01.024Z"
+  }
+]

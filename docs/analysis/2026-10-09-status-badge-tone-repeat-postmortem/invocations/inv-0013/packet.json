@@ -1,0 +1,566 @@
+{
+  "schema": "ramify-agent.harness-operation/1",
+  "runId": "20261009T181051Z-4c5bfc",
+  "operationId": "inv-0013",
+  "session": "ses-0011",
+  "source": null,
+  "mode": "fresh",
+  "packet": {
+    "roleInstructions": "You are the non-functional coordinator for one accepted Ramify plan. Assess every non-functional requirement of the plan and every fixed requirement against the prepared source tree. Preserve their wording and the difference between stated and inferred conditions. Ground each judgment in inspected source or adequate Ramify evidence, and state uncertainty.\n\nYou may request sequential read-only investigation and, when the harness permits it, one explicit repair batch per round. You do not edit source. You do not use functional capability progress or scenario coverage as a substitute for non-functional evidence. Submit judgments and actions through the supplied tool; the harness assigns record IDs and candidate identity and runs the final gate.\n\nFollow the procedure in the current task.\n",
+    "message": "Briefing revision: 62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d; based on: none (full)\n\n# Goal\nAssess the complete NFR catalog for 36c77a3a474e60064bbb3efabdd5c0547a92133a\n\n# Requirements\n- # Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\nAssess the prepared source tree 36c77a3a474e60064bbb3efabdd5c0547a92133a in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\nThe snapshot_diff baseline is the current accepted boundary 40155157c0af1fa686ec5b8579755c17a6364613. It covers unaccepted prepared-source changes, excluding earlier accepted implementation. Use current source to judge present behavior; an empty diff establishes no historical preservation. Read the prepared candidate with snapshot_list/read/search/diff. Git metadata and run records are excluded from source inspection.\n\n{\"base\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"head\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"comparison\":\"prepared-source-versus-current-accepted-boundary\",\"comparisonLimit\":\"This diff covers unaccepted prepared-source changes only. An empty diff does not establish that earlier accepted implementation left files unchanged.\",\"changedPaths\":[],\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"]}\n\n# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.\n\n# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}\n\n# Current task: assessment\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_nonfunctional_assessment",
+    "declaration": {
+      "name": "submit_nonfunctional_assessment",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"const\":\"assessment\"},\"results\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"nfr\":{\"type\":\"string\",\"pattern\":\"^(nfr|fix)-\\\\d{3,}$\"},\"result\":{\"type\":\"string\",\"enum\":[\"satisfied\",\"not-satisfied\",\"undetermined\"]},\"inspectedScope\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"evidence\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"uncertainty\":{\"type\":\"string\"}},\"required\":[\"nfr\",\"result\",\"inspectedScope\",\"evidence\",\"uncertainty\"],\"additionalProperties\":false}}},\"required\":[\"kind\",\"results\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "role:nonfunctional-coordinator",
+        "kind": "role-instructions",
+        "text": "You are the non-functional coordinator for one accepted Ramify plan. Assess every non-functional requirement of the plan and every fixed requirement against the prepared source tree. Preserve their wording and the difference between stated and inferred conditions. Ground each judgment in inspected source or adequate Ramify evidence, and state uncertainty.\n\nYou may request sequential read-only investigation and, when the harness permits it, one explicit repair batch per round. You do not edit source. You do not use functional capability progress or scenario coverage as a substitute for non-functional evidence. Submit judgments and actions through the supplied tool; the harness assigns record IDs and candidate identity and runs the final gate.\n\nFollow the procedure in the current task.\n",
+        "source": "subs/harness/src/nonfunctional/coordinator.system.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/coordinator.system.md",
+            "hash": "e37efed48850181da631fe6e2efc103298376e84db54dc308076941231d87e6a",
+            "kind": "system",
+            "bytes": 795
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_nonfunctional_assessment",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_nonfunctional_assessment\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"assessment\\\"},\\\"results\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"nfr\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^(nfr|fix)-\\\\\\\\d{3,}$\\\"},\\\"result\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"satisfied\\\",\\\"not-satisfied\\\",\\\"undetermined\\\"]},\\\"inspectedScope\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"evidence\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"nfr\\\",\\\"result\\\",\\\"inspectedScope\\\",\\\"evidence\\\",\\\"uncertainty\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"kind\\\",\\\"results\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d; based on: none (full)",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Goal\nAssess the complete NFR catalog for 36c77a3a474e60064bbb3efabdd5c0547a92133a",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Requirements\n- # Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "Assess the prepared source tree 36c77a3a474e60064bbb3efabdd5c0547a92133a in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\nThe snapshot_diff baseline is the current accepted boundary 40155157c0af1fa686ec5b8579755c17a6364613. It covers unaccepted prepared-source changes, excluding earlier accepted implementation. Use current source to judge present behavior; an empty diff establishes no historical preservation. Read the prepared candidate with snapshot_list/read/search/diff. Git metadata and run records are excluded from source inspection.",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:support:nonfunctional-source",
+        "kind": "brief",
+        "text": "{\"base\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"head\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"comparison\":\"prepared-source-versus-current-accepted-boundary\",\"comparisonLimit\":\"This diff covers unaccepted prepared-source changes only. An empty diff does not establish that earlier accepted implementation left files unchanged.\",\"changedPaths\":[],\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"]}",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "procedure:assessment",
+        "kind": "procedure",
+        "text": "# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.",
+        "source": "subs/harness/src/nonfunctional/assessment.procedure.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/assessment.procedure.md",
+            "hash": "200e452831da9f65a643132b03e8267fcbfea476b33b769546891d6c6688cda1",
+            "kind": "procedure",
+            "bytes": 862
+          }
+        ]
+      },
+      {
+        "key": "environment",
+        "kind": "environment",
+        "text": "# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: assessment\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/1",
+      "inheritedPoint": null,
+      "entries": [
+        {
+          "key": "role:nonfunctional-coordinator",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/nonfunctional/coordinator.system.md",
+          "revision": "nonfunctional-coordinator/2",
+          "hash": "e37efed48850181da631fe6e2efc103298376e84db54dc308076941231d87e6a",
+          "bytes": 795,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/nonfunctional/coordinator.system.md",
+              "hash": "e37efed48850181da631fe6e2efc103298376e84db54dc308076941231d87e6a",
+              "kind": "system",
+              "bytes": 795
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_nonfunctional_assessment",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "39952d0e26559652ffd14a2cf0802c3a031c2767a311ba6e18809171250fdcfd",
+          "bytes": 958,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+          "hash": "2cfafc20aed5d25b8c40fc4a852c87f0855a42ace501c3e0c00390cc09b90223",
+          "bytes": 106,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+          "hash": "e2685c318172e96281c4f529754ef426c6156df44d659b44b1b85f328f075ff8",
+          "bytes": 83,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+          "hash": "12bbd3203c91ac70c0ec7163e39f57e7eb0a5bdbd015b78b478bfd3802265943",
+          "bytes": 1252,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:context:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+          "hash": "22dded5797e4728e9d8312daea353f72650227cb7f43808c971feb2f1c0b5034",
+          "bytes": 1229,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:nonfunctional-source",
+          "kind": "brief",
+          "source": null,
+          "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+          "hash": "a1bb016fd125f2883059f18f2d68056d404500f0337321cf749f716f2cbf75d0",
+          "bytes": 561,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "procedure:assessment",
+          "kind": "procedure",
+          "source": "subs/harness/src/nonfunctional/assessment.procedure.md",
+          "revision": "nonfunctional-coordinator/2",
+          "hash": "41d7cc3c9f39a00328e6326af38420b14264bf901d9934825eb52873d54d5d31",
+          "bytes": 858,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/nonfunctional/assessment.procedure.md",
+              "hash": "200e452831da9f65a643132b03e8267fcbfea476b33b769546891d6c6688cda1",
+              "kind": "procedure",
+              "bytes": 862
+            }
+          ]
+        },
+        {
+          "key": "environment",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "fe4d804229db4597525447e2f1d9a875c21a8df332d0651a3b5ed040a04aa108",
+          "bytes": 2766,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+          "hash": "240f2639e8ddc661579690098618b69a68c193183915b874c2cd75dc3ace749a",
+          "bytes": 210,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "a0ed6e4cee9867bb4cc961713e809b1b10a8f648629d3895ea4e17f8c76910cd",
+        "bytes": 7079
+      },
+      "hash": "bd4647cce26b684898adfdde2db6c3b7f8a50378a929756e4cc568601083cb6e"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:nonfunctional-coordinator",
+        "kind": "role-instructions",
+        "text": "You are the non-functional coordinator for one accepted Ramify plan. Assess every non-functional requirement of the plan and every fixed requirement against the prepared source tree. Preserve their wording and the difference between stated and inferred conditions. Ground each judgment in inspected source or adequate Ramify evidence, and state uncertainty.\n\nYou may request sequential read-only investigation and, when the harness permits it, one explicit repair batch per round. You do not edit source. You do not use functional capability progress or scenario coverage as a substitute for non-functional evidence. Submit judgments and actions through the supplied tool; the harness assigns record IDs and candidate identity and runs the final gate.\n\nFollow the procedure in the current task.\n",
+        "source": "subs/harness/src/nonfunctional/coordinator.system.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/coordinator.system.md",
+            "hash": "e37efed48850181da631fe6e2efc103298376e84db54dc308076941231d87e6a",
+            "kind": "system",
+            "bytes": 795
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_nonfunctional_assessment",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_nonfunctional_assessment\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"assessment\\\"},\\\"results\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"nfr\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^(nfr|fix)-\\\\\\\\d{3,}$\\\"},\\\"result\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"satisfied\\\",\\\"not-satisfied\\\",\\\"undetermined\\\"]},\\\"inspectedScope\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"evidence\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"nfr\\\",\\\"result\\\",\\\"inspectedScope\\\",\\\"evidence\\\",\\\"uncertainty\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"kind\\\",\\\"results\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d; based on: none (full)",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Goal\nAssess the complete NFR catalog for 36c77a3a474e60064bbb3efabdd5c0547a92133a",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Requirements\n- # Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "Assess the prepared source tree 36c77a3a474e60064bbb3efabdd5c0547a92133a in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\nThe snapshot_diff baseline is the current accepted boundary 40155157c0af1fa686ec5b8579755c17a6364613. It covers unaccepted prepared-source changes, excluding earlier accepted implementation. Use current source to judge present behavior; an empty diff establishes no historical preservation. Read the prepared candidate with snapshot_list/read/search/diff. Git metadata and run records are excluded from source inspection.",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "brief:support:nonfunctional-source",
+        "kind": "brief",
+        "text": "{\"base\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"head\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"comparison\":\"prepared-source-versus-current-accepted-boundary\",\"comparisonLimit\":\"This diff covers unaccepted prepared-source changes only. An empty diff does not establish that earlier accepted implementation left files unchanged.\",\"changedPaths\":[],\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"]}",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      },
+      {
+        "key": "procedure:assessment",
+        "kind": "procedure",
+        "text": "# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.",
+        "source": "subs/harness/src/nonfunctional/assessment.procedure.md",
+        "revision": "nonfunctional-coordinator/2",
+        "sources": [
+          {
+            "path": "subs/harness/src/nonfunctional/assessment.procedure.md",
+            "hash": "200e452831da9f65a643132b03e8267fcbfea476b33b769546891d6c6688cda1",
+            "kind": "procedure",
+            "bytes": 862
+          }
+        ]
+      },
+      {
+        "key": "environment",
+        "kind": "environment",
+        "text": "# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: assessment\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+      }
+    ],
+    "history": [
+      {
+        "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nAssess the complete NFR catalog for 36c77a3a474e60064bbb3efabdd5c0547a92133a"
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- # Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n"
+          },
+          {
+            "key": "support:context:0",
+            "text": "Assess the prepared source tree 36c77a3a474e60064bbb3efabdd5c0547a92133a in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\nThe snapshot_diff baseline is the current accepted boundary 40155157c0af1fa686ec5b8579755c17a6364613. It covers unaccepted prepared-source changes, excluding earlier accepted implementation. Use current source to judge present behavior; an empty diff establishes no historical preservation. Read the prepared candidate with snapshot_list/read/search/diff. Git metadata and run records are excluded from source inspection."
+          },
+          {
+            "key": "support:nonfunctional-source",
+            "text": "{\"base\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"head\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"comparison\":\"prepared-source-versus-current-accepted-boundary\",\"comparisonLimit\":\"This diff covers unaccepted prepared-source changes only. An empty diff does not establish that earlier accepted implementation left files unchanged.\",\"changedPaths\":[],\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"]}"
+          }
+        ]
+      }
+    ],
+    "revision": "62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d"
+  },
+  "policy": {
+    "context": {
+      "compaction": "allowed",
+      "budgetTokens": 150000,
+      "budgetFraction": 0.75,
+      "reportReserveTokens": 16000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {}
+    },
+    "validator": {
+      "name": "submit_nonfunctional_assessment",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "assessment"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nfr": {
+                  "type": "string",
+                  "pattern": "^(nfr|fix)-\\d{3,}$"
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "satisfied",
+                    "not-satisfied",
+                    "undetermined"
+                  ]
+                },
+                "inspectedScope": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "uncertainty": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "nfr",
+                "result",
+                "inspectedScope",
+                "evidence",
+                "uncertainty"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "results"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.nonfunctional-assessment-submission/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261009T181051Z-4c5bfc",
+      "invocation": "inv-0013",
+      "submission": "invocations/inv-0013/submission.json"
+    }
+  },
+  "task": {
+    "role": "nonfunctional-coordinator",
+    "message": "Briefing revision: 62a056ab7ca4b56ac44180d68fdf7d5c4fb09d027dc51c3aa1bbcc05ed504d0d; based on: none (full)\n\n# Goal\nAssess the complete NFR catalog for 36c77a3a474e60064bbb3efabdd5c0547a92133a\n\n# Requirements\n- # Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\nAssess the prepared source tree 36c77a3a474e60064bbb3efabdd5c0547a92133a in round 1 (initial).\nThe package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.\nSubmit exactly one result for every element ID of the package.\nFor each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.\nDo not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.\nSubmit your assessment using `submit_nonfunctional_assessment`.\n\n\nThe snapshot_diff baseline is the current accepted boundary 40155157c0af1fa686ec5b8579755c17a6364613. It covers unaccepted prepared-source changes, excluding earlier accepted implementation. Use current source to judge present behavior; an empty diff establishes no historical preservation. Read the prepared candidate with snapshot_list/read/search/diff. Git metadata and run records are excluded from source inspection.\n\n{\"base\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"head\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"comparison\":\"prepared-source-versus-current-accepted-boundary\",\"comparisonLimit\":\"This diff covers unaccepted prepared-source changes only. An empty diff does not establish that earlier accepted implementation left files unchanged.\",\"changedPaths\":[],\"readScope\":[\".\"],\"excludedDirectories\":[\".git\",\"node_modules\",\".ramify\",\".ramify-architect\"],\"excludedRunOutputs\":[\"plans/.harness\",\"plans/<plan>/.harness\"]}\n\n# Current procedure\nInspect the prepared tree and the assessment package in the message: every non-functional requirement of the plan and every fixed requirement, whole. Use the read-only tools when evidence is needed. Submit one result for every element ID of the package through `submit_nonfunctional_assessment`. Use `undetermined` when the available evidence cannot establish an intermediate or final condition. Preserve the element wording and state inspected scope, evidence, and remaining uncertainty for each result.\n\nWhen asked for an action, use the named action tool to request a sequential investigation, one repair batch, or closure. An investigation reports evidence only for its named element IDs, which it receives whole. The harness assigns all identities and permits repair only after required investigation. Never edit source in this role.\n\n# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_nonfunctional_assessment\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/nonfunctional/coordinator.system.md\",\n    \"subs/harness/src/nonfunctional/assessment.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}\n\n# Current task: assessment\nPerform assessment for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_nonfunctional_assessment`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_nonfunctional_assessment",
+    "environment": {
+      "workingDirectory": "/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review",
+      "candidate": "36c77a3a474e60064bbb3efabdd5c0547a92133a",
+      "snapshot": "36c77a3a474e60064bbb3efabdd5c0547a92133a",
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 3600000,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "068380dcd5b58bd51cfbf1689874e5e6d2c0f167142e305e6dd2c6df60a60c15",
+    "validatorIdentity": "57e1ea9b7f8121f2a583a27186dafeabeefdb5e02292d0d40cc2a517eab7f584",
+    "destinationIdentity": "1bfde9ab8acee8d301a5406c1574f7e108ba6f9d8de31061e53ebe923e3f264e"
+  },
+  "declarations": [
+    {
+      "name": "snapshot_list",
+      "description": "List the files and directories directly beneath a directory of the audited candidate; the root when no path is given. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_read",
+      "description": "Read one file of the audited candidate, with line numbers. startLine counts from 1. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lineCount": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_search",
+      "description": "Search the audited candidate's text files for an extended regular expression, beneath a path or everywhere. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_diff",
+      "description": "Without a path, list every path the candidate changed from the iteration's base. With one, show that path's patch. Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_nonfunctional_assessment",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"const\":\"assessment\"},\"results\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"nfr\":{\"type\":\"string\",\"pattern\":\"^(nfr|fix)-\\\\d{3,}$\"},\"result\":{\"type\":\"string\",\"enum\":[\"satisfied\",\"not-satisfied\",\"undetermined\"]},\"inspectedScope\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"evidence\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"uncertainty\":{\"type\":\"string\"}},\"required\":[\"nfr\",\"result\",\"inspectedScope\",\"evidence\",\"uncertainty\"],\"additionalProperties\":false}}},\"required\":[\"kind\",\"results\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}

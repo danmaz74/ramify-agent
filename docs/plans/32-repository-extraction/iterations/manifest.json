@@ -1,0 +1,47 @@
+{
+  "plan": "../main-plan.md",
+  "status": "proposed; implementation not started",
+  "execution": "serial in dependency order",
+  "iterations": [
+    {
+      "id": "1",
+      "file": "01-preserve-and-extract.md",
+      "dependsOn": [],
+      "cases": ["E01", "E02", "E03", "E04"],
+      "status": "proposed",
+      "writeBoundary": "Isolated migration candidate, persistent original-repository and working-tree archives, disposable filtered repository, commit mapping and migration receipts. No edits to the user's checkout or live worktrees."
+    },
+    {
+      "id": "2",
+      "file": "02-standalone-project.md",
+      "dependsOn": ["1"],
+      "cases": ["E05", "E06", "E07", "E08", "E09"],
+      "status": "proposed",
+      "writeBoundary": "Extracted agent root instructions, ignore/configuration files, complete architect skill snapshot, path adaptations and active documentation; minimal packaging corrections needed for standalone operation."
+    },
+    {
+      "id": "3",
+      "file": "03-persistent-devcontainer.md",
+      "dependsOn": ["2"],
+      "cases": ["E10", "E11", "E12", "E13", "E14", "E15", "E16"],
+      "status": "proposed",
+      "writeBoundary": "Extracted agent devcontainer, fixed two-companion bootstrap/status scripts, editor workspace and environment instructions. Isolated container witnesses may create disposable companions."
+    },
+    {
+      "id": "4",
+      "file": "04-qualify-workspace.md",
+      "dependsOn": ["3"],
+      "cases": ["E17", "E18", "E19", "E20"],
+      "status": "proposed",
+      "writeBoundary": "Qualification receipts and disposable persistence/isolation witnesses; migration-induced fixes within prior iteration boundaries followed by renewed affected qualification."
+    },
+    {
+      "id": "5",
+      "file": "05-publish-and-cut-over.md",
+      "dependsOn": ["4"],
+      "cases": ["E21", "E22", "E23", "E24"],
+      "status": "proposed",
+      "writeBoundary": "New agent remote, persistent host workspace migration, isolated toolkit subtree removal and configuration/document cleanup, exact toolkit qualification and final cutover/rollback receipts."
+    }
+  ]
+}

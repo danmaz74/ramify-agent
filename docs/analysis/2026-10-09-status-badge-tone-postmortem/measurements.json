@@ -1,0 +1,1723 @@
+{
+  "result": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/result.json",
+  "records": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4",
+  "runId": "20261009T132856Z-07ccc4",
+  "sourceCommit": "390eef60abbfb9772969b1fd466204588adef138",
+  "usage": {
+    "input": 234436,
+    "cacheRead": 621056,
+    "cacheWrite": 0,
+    "output": 20335,
+    "total": 875827
+  },
+  "chargeEstimate": 1.5928663999999997,
+  "modelCalls": 55,
+  "nativeRequests": 55,
+  "toolCalls": 165,
+  "toolNames": {
+    "read": 35,
+    "submit_intake": 1,
+    "ls": 20,
+    "grep": 17,
+    "submit_initial_analysis": 1,
+    "submit_catalog_check": 1,
+    "submit_work_orientation": 1,
+    "submit_context_selection": 1,
+    "inspect_git": 3,
+    "submit_work_item_result": 2,
+    "edit": 2,
+    "write": 1,
+    "shell": 4,
+    "submit_iteration_result": 1,
+    "snapshot_diff": 15,
+    "snapshot_read": 42,
+    "snapshot_list": 9,
+    "snapshot_search": 4,
+    "submit_review": 3,
+    "submit_orientation": 1,
+    "submit_nonfunctional_assessment": 1
+  },
+  "inventory": [
+    {
+      "invocation": "inv-0001",
+      "role": "catalog-extractor",
+      "procedures": [
+        "intake"
+      ],
+      "work": {},
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0001",
+        "sessionId": "ae4354ce-dda9-424b-862d-cd52e10b84fc",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "ae4354ce-dda9-424b-862d-cd52e10b84fc",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "0a812c30-7711-4517-969d-c61e5af63c6e"
+        }
+      },
+      "usage": {
+        "input": 3858,
+        "cacheRead": 3072,
+        "cacheWrite": 0,
+        "output": 561,
+        "total": 7491
+      },
+      "firstUsage": {
+        "input": 3241,
+        "output": 75,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 3316
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0001/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 2,
+      "charges": 0.027880799999999997,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:28:56.756Z",
+        "endedAt": "2026-10-09T13:29:11.307Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:29:11.231Z",
+        "elapsedMs": 14551,
+        "toMilestoneMs": 14475,
+        "modelElapsedMs": 14248,
+        "toolElapsedMs": 71,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 14248,
+        "toolSubtotalMs": 71,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 1,
+        "uniqueFilesRead": 1,
+        "repeatedReads": 0,
+        "returnedBytes": 1544,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 22
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 6234,
+      "roleInstructionBytes": 3499,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/86a0967d12009d9996cf2c34a52d34460b58198551d1f3cb43d61cdbd936abea.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0001/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0001.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/90fe68ae96e6923e6faea52ffa8c6b978798a3e21dbb87e52c39085c99027684",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/83550dc57003c8105f283d7010c430ebf7a15b89f7d2f8d8a5e008899b4a2ea4"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:6",
+          "at": "2026-10-09T13:28:56.882Z",
+          "sequence": 6
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:11",
+          "at": "2026-10-09T13:29:01.007Z",
+          "sequence": 11
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0002",
+      "role": "initial-architect",
+      "procedures": [
+        "initial-analysis"
+      ],
+      "work": {},
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0002",
+        "sessionId": "aff30c80-fcc0-4bef-b173-2a21866acbcf",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "aff30c80-fcc0-4bef-b173-2a21866acbcf",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "bea05c5f-02b7-4d70-b9cd-10d39e116049"
+        }
+      },
+      "usage": {
+        "input": 27887,
+        "cacheRead": 21120,
+        "cacheWrite": 0,
+        "output": 4130,
+        "total": 53137
+      },
+      "firstUsage": {
+        "input": 7289,
+        "output": 135,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 7424
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0002/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 4,
+      "charges": 0.202596,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:29:11.319Z",
+        "endedAt": "2026-10-09T13:30:36.844Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:30:36.722Z",
+        "elapsedMs": 85525,
+        "toMilestoneMs": 85403,
+        "modelElapsedMs": 84447,
+        "toolElapsedMs": 2311,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 84447,
+        "toolSubtotalMs": 2311,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 9,
+        "uniqueFilesRead": 8,
+        "repeatedReads": 0,
+        "returnedBytes": 48145,
+        "searches": 7,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 2246
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 18350,
+      "roleInstructionBytes": 5685,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/f8f6ecacb407790fc27ea6537abc875f4490a121aab00cd58f00b6f5f73e1520.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0002/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0002.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/e995da703dfd65e4033b1f5be8d4abf808cf7d7debaaa81066f20ee05c0fa0a6",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/55c4a37a97232665ac6321a9c4716d185778c9c116e200a4eea069abc4bd1103",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/3f2eee89020d375d596e2d5a98eaa791152ac9fb07f03388571573b74c804cd1",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/b3455f8daaec2b3c0959ced4e3443830d5f93e5df7d31e7993d90509cd6aeb6e"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:23",
+          "at": "2026-10-09T13:29:11.392Z",
+          "sequence": 23
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:37",
+          "at": "2026-10-09T13:29:15.013Z",
+          "sequence": 37
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:54",
+          "at": "2026-10-09T13:29:20.599Z",
+          "sequence": 54
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:77",
+          "at": "2026-10-09T13:29:33.912Z",
+          "sequence": 77
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0003",
+      "role": "catalog-extractor",
+      "procedures": [
+        "check"
+      ],
+      "work": {},
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0003",
+        "sessionId": "59c85ecf-47a3-4c94-8d27-e65ff6105b27",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "59c85ecf-47a3-4c94-8d27-e65ff6105b27",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "ef442720-3295-4da0-a9ed-0b92b375b1fe"
+        }
+      },
+      "usage": {
+        "input": 5202,
+        "cacheRead": 4480,
+        "cacheWrite": 0,
+        "output": 620,
+        "total": 10302
+      },
+      "firstUsage": {
+        "input": 4617,
+        "output": 75,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4692
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0003/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 2,
+      "charges": 0.035,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:30:36.852Z",
+        "endedAt": "2026-10-09T13:30:52.598Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:30:52.542Z",
+        "elapsedMs": 15746,
+        "toMilestoneMs": 15690,
+        "modelElapsedMs": 15490,
+        "toolElapsedMs": 56,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 15490,
+        "toolSubtotalMs": 56,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 1,
+        "uniqueFilesRead": 1,
+        "repeatedReads": 0,
+        "returnedBytes": 1544,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 22
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 10538,
+      "roleInstructionBytes": 3499,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/1e7ca486ae381e18c8dbb15ed953f8e99a67bdd2539f514550102b1ea06edd12.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0003/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0003.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/4664ebdac37e3bb9a7ef3ad2a7ffbd9f00546b76253070e61f2209dc3b77ebd3",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/f8a60f8fef235f205a22bb7bf565e4abe121e14ac86335665a30c46e7b6e5422"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:89",
+          "at": "2026-10-09T13:30:36.931Z",
+          "sequence": 89
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:94",
+          "at": "2026-10-09T13:30:39.134Z",
+          "sequence": 94
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0004",
+      "role": "local-architect",
+      "procedures": [
+        "orientation"
+      ],
+      "work": {
+        "workItem": "wi-001"
+      },
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0004",
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "e4556330-267f-4afb-a713-56576164d2e0"
+        }
+      },
+      "usage": {
+        "input": 18945,
+        "cacheRead": 27904,
+        "cacheWrite": 0,
+        "output": 1597,
+        "total": 48446
+      },
+      "firstUsage": {
+        "input": 5079,
+        "output": 172,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 5251
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 6,
+      "charges": 0.11888159999999999,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:31:12.834Z",
+        "endedAt": "2026-10-09T13:31:51.282Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:31:51.200Z",
+        "elapsedMs": 38448,
+        "toMilestoneMs": 38366,
+        "modelElapsedMs": 36868,
+        "toolElapsedMs": 4181,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 36868,
+        "toolSubtotalMs": 4181,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 14,
+        "uniqueFilesRead": 12,
+        "repeatedReads": 0,
+        "returnedBytes": 21361,
+        "searches": 19,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 4137
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 15947,
+      "roleInstructionBytes": 3796,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/1876c073463e00b7c21ee98a88f99ec6185c0f75f48ef0c8d445e9b0f948b18e.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0004.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/777cb7e5fff32d36bbbee06c23c9011a4d98e5cdf5b63b6396f9c8b1578f4369",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/49d03986f8640ad13471b9808f7d68221f1d15445773056a2fd205df9e414527",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/064ff27f803ca6ca3a92b2c0fcfcc48255700538fc40714c744067bc95fef2e2",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/df670d1d757d2e5a83fe1fc228462e611ac6972f6755085193a0fd50c9db246d",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/02d37893bb043fefc6c993b626a0713844aa54a24bf6acd7fd12705e463dc48a",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/0e64a4938840fc49655da84589ca9ff19e8199b8dc63ffbe9d1977e1a46a32ee"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:106",
+          "at": "2026-10-09T13:31:12.918Z",
+          "sequence": 106
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:129",
+          "at": "2026-10-09T13:31:16.809Z",
+          "sequence": 129
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:155",
+          "at": "2026-10-09T13:31:20.772Z",
+          "sequence": 155
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:175",
+          "at": "2026-10-09T13:31:26.658Z",
+          "sequence": 175
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:198",
+          "at": "2026-10-09T13:31:31.430Z",
+          "sequence": 198
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:215",
+          "at": "2026-10-09T13:31:35.622Z",
+          "sequence": 215
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0005",
+      "role": "context-selector",
+      "procedures": [
+        "selection"
+      ],
+      "work": {
+        "workItem": "wi-001"
+      },
+      "requested": "fork",
+      "actual": "fork",
+      "correlationMode": "fork",
+      "sourcePoint": {
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 1,
+        "kind": "turn",
+        "checkpoint": "f771948a-335a-4611-8a73-9b50413d5cce"
+      },
+      "lineage": {
+        "continues": null,
+        "fork": {
+          "from": {
+            "session": "ses-0004",
+            "invocation": "inv-0004"
+          },
+          "reason": "context-selection",
+          "briefs": []
+        }
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0005",
+        "sessionId": "43418ff0-a70a-4b27-a9bf-84599f295a22",
+        "turn": 2,
+        "sourcePoint": {
+          "sessionId": "43418ff0-a70a-4b27-a9bf-84599f295a22",
+          "kind": "checkpoint",
+          "turn": 1,
+          "checkpoint": "0ddcc73e-c101-4441-bb74-f466c40f8a20"
+        }
+      },
+      "usage": {
+        "input": 7398,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "output": 278,
+        "total": 14332
+      },
+      "firstUsage": {
+        "input": 7398,
+        "output": 278,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 14332
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0005/observations.jsonl:2",
+      "firstCacheReadShare": 0.4736018215454675,
+      "callCount": 1,
+      "charges": 0.037814400000000005,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:31:51.301Z",
+        "endedAt": "2026-10-09T13:31:59.228Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:31:59.170Z",
+        "elapsedMs": 7927,
+        "toMilestoneMs": 7869,
+        "modelElapsedMs": 7598,
+        "toolElapsedMs": 26,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 7598,
+        "toolSubtotalMs": 26,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 5267,
+      "roleInstructionBytes": 469,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/ad241c989196f2190b1a80c45a22fad0d1436a0624b056db12e6c7eeb33a2f2a.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0005/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0005.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/cdfb837bcadc1181358b8a57176ea9d79276bee5c370ab0b21bd2b8e274a19ba"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:227",
+          "at": "2026-10-09T13:31:51.527Z",
+          "sequence": 227
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0006",
+      "role": "local-architect",
+      "procedures": [
+        "assignment"
+      ],
+      "work": {
+        "workItem": "wi-001"
+      },
+      "requested": "continued",
+      "actual": "continued",
+      "correlationMode": "continue",
+      "sourcePoint": {
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 1,
+        "kind": "checkpoint",
+        "checkpoint": "3256cc27-15c2-4dce-9d6d-9d1a6c7fe43a"
+      },
+      "lineage": {
+        "continues": {
+          "from": {
+            "session": "ses-0004",
+            "invocation": "inv-0004"
+          },
+          "reason": "context-selected",
+          "briefs": []
+        },
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0006",
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 2,
+        "sourcePoint": {
+          "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+          "kind": "checkpoint",
+          "turn": 1,
+          "checkpoint": "3256cc27-15c2-4dce-9d6d-9d1a6c7fe43a"
+        }
+      },
+      "usage": {
+        "input": 9996,
+        "cacheRead": 31488,
+        "cacheWrite": 0,
+        "output": 2014,
+        "total": 43498
+      },
+      "firstUsage": {
+        "input": 8654,
+        "output": 1121,
+        "cacheRead": 11520,
+        "cacheWrite": 0,
+        "total": 21295
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0006/observations.jsonl:2",
+      "firstCacheReadShare": 0.5710320214137008,
+      "callCount": 2,
+      "charges": 0.0928592,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:31:59.300Z",
+        "endedAt": "2026-10-09T13:32:45.142Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:32:43.105Z",
+        "elapsedMs": 45842,
+        "toMilestoneMs": 43805,
+        "modelElapsedMs": 43247,
+        "toolElapsedMs": 2070,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 43247,
+        "toolSubtotalMs": 2070,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 11080,
+      "roleInstructionBytes": 3796,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/d5c75356538435737e5d68e4d6845bdee85efc4ef1acc1140de34c1b4337e603.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0006/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0004.jsonl:46",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/20115623a350e80aa819d7bdccb27f941f0c40e69fe4cbcb5a6ee434796b895b",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/cc1d698b70408c1545fd171289618d244f5e66948be0287adf44ac90bf1b3795"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:239",
+          "at": "2026-10-09T13:31:59.576Z",
+          "sequence": 239
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:244",
+          "at": "2026-10-09T13:32:24.242Z",
+          "sequence": 244
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0007",
+      "role": "engineer",
+      "procedures": [
+        "engineering"
+      ],
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      },
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0007",
+        "sessionId": "14f28d3d-f49c-4a9e-aad2-303bd901a6d6",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "14f28d3d-f49c-4a9e-aad2-303bd901a6d6",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "f4a4163f-64fc-4fbd-b073-56a0a86121fe"
+        }
+      },
+      "usage": {
+        "input": 48975,
+        "cacheRead": 119936,
+        "cacheWrite": 0,
+        "output": 3829,
+        "total": 172740
+      },
+      "firstUsage": {
+        "input": 9135,
+        "output": 181,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 9316
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 9,
+      "charges": 0.3204544,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:32:53.070Z",
+        "endedAt": "2026-10-09T13:34:34.564Z",
+        "milestone": "first-engineering-action",
+        "milestoneAt": "2026-10-09T13:33:31.836Z",
+        "elapsedMs": 101494,
+        "toMilestoneMs": 38766,
+        "modelElapsedMs": 82206,
+        "toolElapsedMs": 22219,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 82206,
+        "toolSubtotalMs": 22219,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 7,
+        "uniqueFilesRead": 7,
+        "repeatedReads": 0,
+        "returnedBytes": 42397,
+        "searches": 11,
+        "broadSearches": 2,
+        "outsideScopeSearches": 2,
+        "toolElapsedMs": 3749
+      },
+      "gaps": [
+        {
+          "kind": "unguarded-shell",
+          "count": 1
+        }
+      ],
+      "ended": "submitted",
+      "promptMessageBytes": 21275,
+      "roleInstructionBytes": 9513,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/ff1b7f6ee06064f3a0abc80318a2309e1cbf2b38c03c016b7ec0874d7ae816f2.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0006.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/c2dd9d866fbf4b819e7d14dc73257554197cc364371a002d0eaa0b9488ee477d",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/774d21f14e264cf4c1affdeb8579f8fd2ed638b855bbac8f5ff63e7161dde388",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/e71d20f105708c92bfdcad7684c573ceefefb8046c609e312768e27c0b3fc8c4",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/970da23c447566ec0c47f17ecf5f023c3923d23c997f4dc43985f51f353fc583",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/6c1798fda4e19cee4bace7a155c12de73dec0772c34df2ea57819d0dfcb194ac",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/ca5ab8b9dbf9701914baf90f4643e7a942fe813b6a6aded5679b81cfcf325caa",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/5866330fe86b4156175672b5eda0fb52105b0c9cb43ec9fda878a9d5f8ef6104",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/ae62a11d760a740afaa0bbcb813c41edddb50a4410c6932e512d2a371ef06720",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/7849335c93cb8e094180ed5a4853d97028e9588377423549e7f4702cc42d01d2"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:256",
+          "at": "2026-10-09T13:32:53.198Z",
+          "sequence": 256
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:282",
+          "at": "2026-10-09T13:32:57.398Z",
+          "sequence": 282
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:302",
+          "at": "2026-10-09T13:33:01.457Z",
+          "sequence": 302
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:316",
+          "at": "2026-10-09T13:33:12.017Z",
+          "sequence": 316
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:323",
+          "at": "2026-10-09T13:33:34.556Z",
+          "sequence": 323
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:330",
+          "at": "2026-10-09T13:33:41.659Z",
+          "sequence": 330
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:337",
+          "at": "2026-10-09T13:34:02.537Z",
+          "sequence": 337
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:349",
+          "at": "2026-10-09T13:34:11.160Z",
+          "sequence": 349
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:361",
+          "at": "2026-10-09T13:34:21.769Z",
+          "sequence": 361
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0008",
+      "role": "reviewer",
+      "procedures": [
+        "code"
+      ],
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      },
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0008",
+        "sessionId": "4db1f70a-67fc-4be3-b422-2613b94b76aa",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "4db1f70a-67fc-4be3-b422-2613b94b76aa",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "e16787ca-767c-4e66-bb18-8373b2a2cf23"
+        }
+      },
+      "usage": {
+        "input": 19963,
+        "cacheRead": 20736,
+        "cacheWrite": 0,
+        "output": 1835,
+        "total": 42534
+      },
+      "firstUsage": {
+        "input": 4302,
+        "output": 280,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4582
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0008/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 4,
+      "charges": 0.12484640000000002,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:34:52.335Z",
+        "endedAt": "2026-10-09T13:35:36.527Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:35:36.422Z",
+        "elapsedMs": 44192,
+        "toMilestoneMs": 44087,
+        "modelElapsedMs": 42247,
+        "toolElapsedMs": 7287,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 42247,
+        "toolSubtotalMs": 7287,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 11462,
+      "roleInstructionBytes": 2546,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/6354b95d64325a5e901824f8889a66fb5b3b546ab49c86dc4a31c87d5b34bebd.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0008/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0007.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/d08f15c7aacd0e5ab3859f2f7519680449923c26166c18cdd21b5111c45a2635",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/342c048b8d6a4afe54157692fa479c3b4be6b6e6ed4d41237b441030cbec8b44",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/dbf684d1f1a8dc5dc7c1caa851b211720671e058ce495ac7c9fe6bc31fd5f7dd",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/ff1ddbeea6ea90bbd3d2611c05225c602de598c19753e360dec05f1271c4fdf1"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:373",
+          "at": "2026-10-09T13:34:52.519Z",
+          "sequence": 373
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:413",
+          "at": "2026-10-09T13:34:57.657Z",
+          "sequence": 413
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:462",
+          "at": "2026-10-09T13:35:04.144Z",
+          "sequence": 462
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:535",
+          "at": "2026-10-09T13:35:22.820Z",
+          "sequence": 535
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0009",
+      "role": "reviewer",
+      "procedures": [
+        "scope"
+      ],
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      },
+      "requested": "fork",
+      "actual": "fork",
+      "correlationMode": "fork",
+      "sourcePoint": {
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 2,
+        "kind": "turn",
+        "checkpoint": "32f2345f-86f3-4054-931a-1971872678bc"
+      },
+      "lineage": {
+        "continues": null,
+        "fork": {
+          "from": {
+            "session": "ses-0004",
+            "invocation": "inv-0006"
+          },
+          "reason": "scope-review",
+          "briefs": []
+        }
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0009",
+        "sessionId": "94636d11-acf8-4219-932c-3f94fcdace1f",
+        "turn": 3,
+        "sourcePoint": {
+          "sessionId": "94636d11-acf8-4219-932c-3f94fcdace1f",
+          "kind": "checkpoint",
+          "turn": 2,
+          "checkpoint": "e983ed35-b948-4fa1-bada-cf20e765b9f6"
+        }
+      },
+      "usage": {
+        "input": 27061,
+        "cacheRead": 297344,
+        "cacheWrite": 0,
+        "output": 794,
+        "total": 325199
+      },
+      "firstUsage": {
+        "input": 20569,
+        "output": 77,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 27302
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:2",
+      "firstCacheReadShare": 0.2444811753902663,
+      "callCount": 11,
+      "charges": 0.24306159999999996,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:34:52.412Z",
+        "endedAt": "2026-10-09T13:35:29.053Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:35:28.954Z",
+        "elapsedMs": 36641,
+        "toMilestoneMs": 36542,
+        "modelElapsedMs": 34484,
+        "toolElapsedMs": 572,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 34484,
+        "toolSubtotalMs": 572,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 13915,
+      "roleInstructionBytes": 2546,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/00959ba1b4e3c20e9adfea496c9b99c4f3d235e30ab7f97ae02811cfdf2a97f4.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0008.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/d2133c0e53cf03b0e817e1571b74f498f8d404c887ac40224c4aeaa4b27646d3",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/43f7eb860daee55fc8fb94ed5a75c0581a03cff67626eaef47b147ff47586869",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/8ac94c920602bd3f8c90ea61f3f5a369126fad5beca0e4bc8c3f495aa0a01699",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/42352d54037caa5f3bd8b8fc3bb9c41a1fc7c5d7e00ae81f17b4c7132141f02d",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/8465f7ccdc1027de14282b082a0568a3d0a83299dddb3bf645a5f847497664e2",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/847ebba326af714bd98fcb2cc8280ce83795a8e5f2873e33bdb29d208b697e59",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/93e234eb32e9b139f5cfba8ec1d27ff7feedf0097675ad35ab5968fdf42a3e6a",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/ac0212e4c401e2c819bac57804352b1a6d6e77b91932e4466c079ddf5ffaf137",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/b3f3664008795c908dee780dc22a0537357896ac4924238e412fb5c3fb5a2966",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/5d7f7b6616afa383c2d4940c31ebdcd7c0bb8101850f64071a708f45629bb2c5",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/8b61ec648941fb3a2658b557b8251b4d4dba95337eaabef5d5a937a8406a21e6"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:379",
+          "at": "2026-10-09T13:34:52.840Z",
+          "sequence": 379
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:384",
+          "at": "2026-10-09T13:34:55.894Z",
+          "sequence": 384
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:418",
+          "at": "2026-10-09T13:34:58.782Z",
+          "sequence": 418
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:428",
+          "at": "2026-10-09T13:35:01.263Z",
+          "sequence": 428
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:433",
+          "at": "2026-10-09T13:35:03.473Z",
+          "sequence": 433
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:484",
+          "at": "2026-10-09T13:35:05.574Z",
+          "sequence": 484
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:489",
+          "at": "2026-10-09T13:35:12.863Z",
+          "sequence": 489
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:500",
+          "at": "2026-10-09T13:35:14.952Z",
+          "sequence": 500
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:505",
+          "at": "2026-10-09T13:35:17.611Z",
+          "sequence": 505
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:510",
+          "at": "2026-10-09T13:35:19.901Z",
+          "sequence": 510
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:528",
+          "at": "2026-10-09T13:35:22.702Z",
+          "sequence": 528
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0010",
+      "role": "local-architect",
+      "procedures": [
+        "assignment"
+      ],
+      "work": {
+        "workItem": "wi-001"
+      },
+      "requested": "continued",
+      "actual": "continued",
+      "correlationMode": "continue",
+      "sourcePoint": {
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 2,
+        "kind": "turn",
+        "checkpoint": "32f2345f-86f3-4054-931a-1971872678bc"
+      },
+      "lineage": {
+        "continues": {
+          "from": {
+            "session": "ses-0004",
+            "invocation": "inv-0006"
+          },
+          "reason": "iteration-closed",
+          "briefs": []
+        },
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0010",
+        "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+        "turn": 3,
+        "sourcePoint": {
+          "sessionId": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+          "kind": "turn",
+          "turn": 2,
+          "checkpoint": "32f2345f-86f3-4054-931a-1971872678bc"
+        }
+      },
+      "usage": {
+        "input": 22415,
+        "cacheRead": 32256,
+        "cacheWrite": 0,
+        "output": 657,
+        "total": 55328
+      },
+      "firstUsage": {
+        "input": 19027,
+        "output": 170,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 25853
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0010/observations.jsonl:2",
+      "firstCacheReadShare": 0.2591597554802788,
+      "callCount": 2,
+      "charges": 0.11570239999999998,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:35:00.742Z",
+        "endedAt": "2026-10-09T13:35:13.012Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:35:12.897Z",
+        "elapsedMs": 12270,
+        "toMilestoneMs": 12155,
+        "modelElapsedMs": 11377,
+        "toolElapsedMs": 1097,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 11377,
+        "toolSubtotalMs": 1097,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 3,
+        "uniqueFilesRead": 3,
+        "repeatedReads": 0,
+        "returnedBytes": 4941,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 626
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 14498,
+      "roleInstructionBytes": 3796,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/98380d414099d1392eb21af92cdc2f9d2117fe2899ba46edffce7be2d22eeacf.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0010/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0004.jsonl:55",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/0e368bc19bd0a872aaa39ba6d43b83b9f2cb6f356943d1c2ab8e9ccaecb8275b",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/159dc9bfd037e54a82d21deb066413251a83b39d3c6ef2fd92f76daf2f90e5ca"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:423",
+          "at": "2026-10-09T13:35:01.047Z",
+          "sequence": 423
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:479",
+          "at": "2026-10-09T13:35:05.267Z",
+          "sequence": 479
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0011",
+      "role": "reviewer",
+      "procedures": [
+        "design-orientation"
+      ],
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      },
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0011",
+        "sessionId": "bcfbcc72-b344-4baf-b7a2-557b6c6ea023",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "bcfbcc72-b344-4baf-b7a2-557b6c6ea023",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "508a7d91-6a52-4112-9cd6-6957cdcd844c"
+        }
+      },
+      "usage": {
+        "input": 4557,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "output": 183,
+        "total": 4740
+      },
+      "firstUsage": {
+        "input": 4557,
+        "output": 183,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4740
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0011/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 1,
+      "charges": 0.021888,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:35:29.101Z",
+        "endedAt": "2026-10-09T13:35:34.959Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:35:34.876Z",
+        "elapsedMs": 5858,
+        "toMilestoneMs": 5775,
+        "modelElapsedMs": 5588,
+        "toolElapsedMs": 43,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 5588,
+        "toolSubtotalMs": 43,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 16347,
+      "roleInstructionBytes": 2546,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/f6f916d09d7d46411a09529f42b17ff52e0a319ff9b803227c3195c7e026ecdb.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0011/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0009.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/3361161a8c654b96ee5c15d55e1f188cb27b531cae693bbedfc126ce7d09ac88"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:547",
+          "at": "2026-10-09T13:35:29.236Z",
+          "sequence": 547
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0012",
+      "role": "reviewer",
+      "procedures": [
+        "design"
+      ],
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      },
+      "requested": "fork",
+      "actual": "fork",
+      "correlationMode": "fork",
+      "sourcePoint": {
+        "sessionId": "bcfbcc72-b344-4baf-b7a2-557b6c6ea023",
+        "turn": 1,
+        "kind": "turn",
+        "checkpoint": "03205fb1-36a7-4c9b-bc14-1903c907a548"
+      },
+      "lineage": {
+        "continues": null,
+        "fork": {
+          "from": {
+            "session": "ses-0009",
+            "invocation": "inv-0011"
+          },
+          "reason": "design-orientation",
+          "briefs": []
+        }
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0012",
+        "sessionId": "3a5d8c48-0845-4e97-abb0-a45aaa70a74b",
+        "turn": 2,
+        "sourcePoint": {
+          "sessionId": "3a5d8c48-0845-4e97-abb0-a45aaa70a74b",
+          "kind": "checkpoint",
+          "turn": 1,
+          "checkpoint": "0b9ba95e-392c-46b5-998e-0b4272052ce6"
+        }
+      },
+      "usage": {
+        "input": 19857,
+        "cacheRead": 22016,
+        "cacheWrite": 0,
+        "output": 909,
+        "total": 42782
+      },
+      "firstUsage": {
+        "input": 3597,
+        "output": 99,
+        "cacheRead": 4352,
+        "cacheWrite": 0,
+        "total": 8048
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/observations.jsonl:2",
+      "firstCacheReadShare": 0.5474902503459554,
+      "callCount": 4,
+      "charges": 0.10641439999999999,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:35:34.995Z",
+        "endedAt": "2026-10-09T13:36:02.463Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:36:02.368Z",
+        "elapsedMs": 27468,
+        "toMilestoneMs": 27373,
+        "modelElapsedMs": 26207,
+        "toolElapsedMs": 2934,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 26207,
+        "toolSubtotalMs": 2934,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 8392,
+      "roleInstructionBytes": 2546,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/c8f7ef0864f8827dbb3ccde7bcdb1da73044fb16ba2b2049e4403ddacfe47a35.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0010.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/95e1aace435fdede6c27037597a78eb8177c5b0417778ea0f100558060262162",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/ecfae590aa1240219f32dbd7ab4f8ee4dc3ca80690884b6caa2dc4647b599527",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/a1102312e62cc6d75d27c4fe66f9d1f6b9fe7b234d0a720c7f8a98c9239423b1",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/9dbf8b55dc507f7430af18eba78ab19b87426da7be0e7983277c98890ffe3713"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:559",
+          "at": "2026-10-09T13:35:35.136Z",
+          "sequence": 559
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:570",
+          "at": "2026-10-09T13:35:41.582Z",
+          "sequence": 570
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:584",
+          "at": "2026-10-09T13:35:44.817Z",
+          "sequence": 584
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:607",
+          "at": "2026-10-09T13:35:53.252Z",
+          "sequence": 607
+        }
+      ]
+    },
+    {
+      "invocation": "inv-0013",
+      "role": "nonfunctional-coordinator",
+      "procedures": [
+        "assessment"
+      ],
+      "work": {},
+      "requested": "fresh",
+      "actual": "fresh",
+      "correlationMode": "fresh",
+      "sourcePoint": null,
+      "lineage": {
+        "continues": null,
+        "fork": null
+      },
+      "sessionOperation": {
+        "runId": "20261009T132856Z-07ccc4",
+        "operationId": "inv-0013",
+        "sessionId": "28069183-788d-4829-b923-3c1a5a576614",
+        "turn": 1,
+        "sourcePoint": {
+          "sessionId": "28069183-788d-4829-b923-3c1a5a576614",
+          "kind": "checkpoint",
+          "turn": 0,
+          "checkpoint": "6586047b-1ed9-405f-96a1-5722ffe44fdc"
+        }
+      },
+      "usage": {
+        "input": 18322,
+        "cacheRead": 34048,
+        "cacheWrite": 0,
+        "output": 2928,
+        "total": 55298
+      },
+      "firstUsage": {
+        "input": 2335,
+        "output": 27,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 2362
+      },
+      "firstUsageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:2",
+      "firstCacheReadShare": 0.0,
+      "callCount": 7,
+      "charges": 0.14546720000000002,
+      "chargeMatchesProjection": true,
+      "timing": {
+        "startedAt": "2026-10-09T13:36:06.611Z",
+        "endedAt": "2026-10-09T13:37:09.909Z",
+        "milestone": "first-designated-submission",
+        "milestoneAt": "2026-10-09T13:37:09.755Z",
+        "elapsedMs": 63298,
+        "toMilestoneMs": 63144,
+        "modelElapsedMs": 60995,
+        "toolElapsedMs": 6006,
+        "checkElapsedMs": null,
+        "modelSubtotalMs": 60995,
+        "toolSubtotalMs": 6006,
+        "checkSubtotalMs": 0
+      },
+      "exploration": {
+        "reads": 0,
+        "uniqueFilesRead": 0,
+        "repeatedReads": 0,
+        "returnedBytes": 0,
+        "searches": 0,
+        "broadSearches": 0,
+        "outsideScopeSearches": 0,
+        "toolElapsedMs": 0
+      },
+      "gaps": [],
+      "ended": "submitted",
+      "promptMessageBytes": 6597,
+      "roleInstructionBytes": 795,
+      "packet": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/correlations/operations/b7b6b638b65904c5c47e9b28d0d44f10c1887b3eec76da44aede4571ff1bcbf3.json",
+      "invocationSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/invocation.json",
+      "transcriptSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/transcripts/ses-0011.jsonl:1",
+      "nativeRequestSources": [
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/f89abae800040c24f3b52f6e97b681ad68383159d6229af41f5dbd8e689f0f23",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/b098079187f59a1b375e84384bf557da1e0fde9baa18ba8bd78e1659807c9c90",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/9805f84a7678a62ffa9e5d7779ad95f43cdd7e45b33cd682a5dc40bda5a784b2",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/d62347771903ddf7b67f32b5d7a7723a748a0397060ae04ec215537cd275a174",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/143f94a94693ccf8afb6883eb30df6f4541ab3f2ac6eeacb87bb12ed10752591",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/03de550c9803bdcb71fcf575a744dea283d1f9b9eef1441a36b1e7d127cabd38",
+        "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/3170283ad6ee84d6284832da03754029e117135a2f67592d182c555667153734"
+      ],
+      "nativeRequestLedgerSources": [
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:619",
+          "at": "2026-10-09T13:36:06.756Z",
+          "sequence": 619
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:624",
+          "at": "2026-10-09T13:36:08.664Z",
+          "sequence": 624
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:629",
+          "at": "2026-10-09T13:36:12.900Z",
+          "sequence": 629
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:646",
+          "at": "2026-10-09T13:36:16.217Z",
+          "sequence": 646
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:660",
+          "at": "2026-10-09T13:36:19.852Z",
+          "sequence": 660
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:689",
+          "at": "2026-10-09T13:36:29.959Z",
+          "sequence": 689
+        },
+        {
+          "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/session-ledger.jsonl:703",
+          "at": "2026-10-09T13:36:43.966Z",
+          "sequence": 703
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "invocation": "inv-0005",
+      "mode": "fork",
+      "parent": "inv-0004",
+      "firstUsage": {
+        "input": 7398,
+        "output": 278,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 14332
+      },
+      "firstCacheReadShare": 0.4736018215454675,
+      "usageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0005/observations.jsonl:2",
+      "parentNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/0e64a4938840fc49655da84589ca9ff19e8199b8dc63ffbe9d1977e1a46a32ee",
+      "childNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/cdfb837bcadc1181358b8a57176ea9d79276bee5c370ab0b21bd2b8e274a19ba",
+      "instructionsEqual": true,
+      "toolsEqual": true,
+      "parentToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "childToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "parentInputItems": 72,
+      "childInputItems": 79,
+      "equalLeadingInputItems": 72,
+      "parentInputIsChildPrefix": true,
+      "promptCacheKeyEqual": true,
+      "parentPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "childPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "changedRequestFields": [
+        "input"
+      ]
+    },
+    {
+      "invocation": "inv-0006",
+      "mode": "continued",
+      "parent": "inv-0004",
+      "firstUsage": {
+        "input": 8654,
+        "output": 1121,
+        "cacheRead": 11520,
+        "cacheWrite": 0,
+        "total": 21295
+      },
+      "firstCacheReadShare": 0.5710320214137008,
+      "usageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0006/observations.jsonl:2",
+      "parentNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/0e64a4938840fc49655da84589ca9ff19e8199b8dc63ffbe9d1977e1a46a32ee",
+      "childNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/20115623a350e80aa819d7bdccb27f941f0c40e69fe4cbcb5a6ee434796b895b",
+      "instructionsEqual": true,
+      "toolsEqual": true,
+      "parentToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "childToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "parentInputItems": 72,
+      "childInputItems": 79,
+      "equalLeadingInputItems": 72,
+      "parentInputIsChildPrefix": true,
+      "promptCacheKeyEqual": true,
+      "parentPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "childPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "changedRequestFields": [
+        "input"
+      ]
+    },
+    {
+      "invocation": "inv-0009",
+      "mode": "fork",
+      "parent": "inv-0006",
+      "firstUsage": {
+        "input": 20569,
+        "output": 77,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 27302
+      },
+      "firstCacheReadShare": 0.2444811753902663,
+      "usageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:2",
+      "parentNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/cc1d698b70408c1545fd171289618d244f5e66948be0287adf44ac90bf1b3795",
+      "childNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/d2133c0e53cf03b0e817e1571b74f498f8d404c887ac40224c4aeaa4b27646d3",
+      "instructionsEqual": true,
+      "toolsEqual": true,
+      "parentToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "childToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "parentInputItems": 84,
+      "childInputItems": 91,
+      "equalLeadingInputItems": 84,
+      "parentInputIsChildPrefix": true,
+      "promptCacheKeyEqual": true,
+      "parentPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "childPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "changedRequestFields": [
+        "input"
+      ]
+    },
+    {
+      "invocation": "inv-0010",
+      "mode": "continued",
+      "parent": "inv-0006",
+      "firstUsage": {
+        "input": 19027,
+        "output": 170,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 25853
+      },
+      "firstCacheReadShare": 0.2591597554802788,
+      "usageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0010/observations.jsonl:2",
+      "parentNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/cc1d698b70408c1545fd171289618d244f5e66948be0287adf44ac90bf1b3795",
+      "childNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/0e368bc19bd0a872aaa39ba6d43b83b9f2cb6f356943d1c2ab8e9ccaecb8275b",
+      "instructionsEqual": true,
+      "toolsEqual": true,
+      "parentToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "childToolNames": [
+        "read",
+        "grep",
+        "ls",
+        "submit_work_orientation"
+      ],
+      "parentInputItems": 84,
+      "childInputItems": 88,
+      "equalLeadingInputItems": 84,
+      "parentInputIsChildPrefix": true,
+      "promptCacheKeyEqual": true,
+      "parentPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "childPromptCacheKey": "f6dc3e74-3857-443b-886b-e1b9244b9aaf",
+      "changedRequestFields": [
+        "input"
+      ]
+    },
+    {
+      "invocation": "inv-0012",
+      "mode": "fork",
+      "parent": "inv-0011",
+      "firstUsage": {
+        "input": 3597,
+        "output": 99,
+        "cacheRead": 4352,
+        "cacheWrite": 0,
+        "total": 8048
+      },
+      "firstCacheReadShare": 0.5474902503459554,
+      "usageSource": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/observations.jsonl:2",
+      "parentNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/3361161a8c654b96ee5c15d55e1f188cb27b531cae693bbedfc126ce7d09ac88",
+      "childNative": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/.harness/session-operations/store/payloads/95e1aace435fdede6c27037597a78eb8177c5b0417778ea0f100558060262162",
+      "instructionsEqual": true,
+      "toolsEqual": true,
+      "parentToolNames": [
+        "submit_orientation"
+      ],
+      "childToolNames": [
+        "submit_orientation"
+      ],
+      "parentInputItems": 1,
+      "childInputItems": 7,
+      "equalLeadingInputItems": 1,
+      "parentInputIsChildPrefix": true,
+      "promptCacheKeyEqual": true,
+      "parentPromptCacheKey": "bcfbcc72-b344-4baf-b7a2-557b6c6ea023",
+      "childPromptCacheKey": "bcfbcc72-b344-4baf-b7a2-557b6c6ea023",
+      "changedRequestFields": [
+        "input"
+      ]
+    }
+  ],
+  "comparisonMethod": "Exact JSON value equality on ordered native request fields, matched by last delivered message; UTF-8 byte counts, not token estimates."
+}

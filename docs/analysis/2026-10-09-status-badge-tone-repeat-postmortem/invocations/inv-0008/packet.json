@@ -1,0 +1,853 @@
+{
+  "schema": "ramify-agent.harness-operation/1",
+  "runId": "20261009T181051Z-4c5bfc",
+  "operationId": "inv-0008",
+  "session": "ses-0007",
+  "source": null,
+  "mode": "fresh",
+  "packet": {
+    "roleInstructions": "You review iterations of a Ramify project. The current task may prepare\ndesign guidance or review a frozen audited candidate: a commit and its diff\nfrom the source the iteration started from. Review judgments apply only to\nthe candidate identified by the current task.\n\nYou change nothing and decide nothing. You cannot edit a file, run a\ncommand, schedule work or resolve an issue. A local architect later assesses\nwhat you report against the project as it then stands, and an engineer makes\nany change. Nobody reads your messages while you work.\n\nInherited understanding never substitutes for current snapshot evidence.\n\n## Your tools\n\nYou have no access to the working directory. Every path is relative to the\ncandidate's root; an absolute path, a path that climbs out, a symbolic link\nand a generated view such as `.ramify-architect/` are refused.\n\n- `snapshot_diff` without a path lists every path the candidate changed;\n  with a path it shows that path's patch.\n- `snapshot_read` reads one file of the candidate, `snapshot_list` lists a\n  directory and `snapshot_search` searches its text files.\n- the designated submission tool named in the current task ends your review. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Risk and ground\n\nEach concern states its `risk`: the harm if the concern is real. `high`\nmeans the system will not work correctly or will lose or corrupt something;\n`medium` means a real defect or gap with a contained consequence; `low`\nmeans the implementation could be better but works. Propose the level you\nbelieve; the local architect may correct it. It orders the work, and a high\nlevel never asks anyone to stop.\n\nEach concern also names its `ground`: the file that makes it more than your\nopinion, such as a principles document, the plan, a feature file, a README\nor a test, with the words you rely on in `quote`. Name only a file you read\nwith `snapshot_read` in this review; an earlier conversation, a search hit\nor a patch does not count, and the harness rejects any other path. When\nnothing you read grounds the concern, `ground` is null. The harness weighs\na concern by what grounds it, never by how confidently it is worded, so\nname the ground you actually have rather than the strongest one you can\nthink of.\n\nFollow the procedure in the current task.\n\n## The submission\n\nThe submission tool declaration carries the complete schema.\n",
+    "message": "Briefing revision: deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a; based on: none (full)\n\n# Goal\nReview 40155157c0af1fa686ec5b8579755c17a6364613\n\n# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0001\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"kind\":\"code\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"564534ea8e482a1d65b77a247f80577ff5d540d8\",\"gate\":\"ga-0002\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"source\":{\"elements\":[\"ctx-001\",\"fr-001\",\"fr-002\",\"fr-003\",\"fr-004\",\"fr-005\",\"nfr-001\",\"nfr-002\",\"nfr-003\",\"nfr-004\"],\"deviations\":[],\"hash\":\"d5d8a0aa721e59c52f2123797f904d72f39f3eaedf9a400daf77acae9420fd6e\"},\"guidance\":[],\"forkPoint\":{\"kind\":\"none\"}}\n\nCode review rq-0001 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit 40155157c0af1fa686ec5b8579755c17a6364613 (tree 36c77a3a474e60064bbb3efabdd5c0547a92133a); its gate ga-0002 passed. The diff is taken from 564534ea8e482a1d65b77a247f80577ff5d540d8.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n\n\n## The iteration\n\nGoal: Implement the registered toned-status-badge capability and bind both acceptance scenarios in shared-ui.\nApproach: Update StatusBadgeProps with an optional exact tone union and make StatusBadge resolve an omitted tone to neutral before rendering data-tone alongside the unchanged data-status. Keep the primitive dependent only on its props and retain existing label/default-label behavior. Extend the existing static-markup Vitest suite to prove explicit tone propagation, neutral omission, and unchanged wording. Add shared-ui-local TypeScript/TSX Cucumber steps under src/tests/steps that bind the exact generated phrases, render the real StatusBadge with react-dom/server, keep state scenario-local, and use no fakes. Do not edit the generated feature file or require changes from feature callers.\nCompletion evidence: A focused diff shows the optional four-value tone contract, neutral default, and data-tone output without caller or semantic regressions; focused type checking/tests and the bound Cucumber scenarios pass, followed by the required project gate including type-check, Vitest, Cucumber, and structural audit.\n\n\n## What the plan asks of it\n\nThe elements the assignment cites, whole, as its engineer received them.\n\n\n\n## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\n\n## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `.`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `.`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `.`.\n- fixture-structure (none): argv [\"/home/app/ramify-status-badge-trial-20261009/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `.`.\n- Configuration/support pointer: `ramify-audit.json`.\n- Configuration/support pointer: `ramify-agent.json`.\n- Configuration/support pointer: `package.json`.\n- Configuration/support pointer: `cucumber.js`.\n\nRead these project-relative references with snapshot_read/snapshot_list in the audited candidate. Commands describe the declared setup; this reader does not execute them.\n\n\n\n## Candidate test pointers\n\n- `subs/workspace/subs/shared-ui/src/tests/`: inspect with snapshot_list; read named files with snapshot_read.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\n\n# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n### Candidate Review Diff\n\nBase: 564534ea8e482a1d65b77a247f80577ff5d540d8; candidate: 40155157c0af1fa686ec5b8579755c17a6364613.\nChanged paths: 4; collected patch bytes: 5792.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..fb09686 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` carries the status itself and\n+ * `data-tone` carries its presentation tone, so both the stylesheet and a\n+ * test can read them without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\nindex f4bc815..7e8e16f 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n@@ -8,14 +8,14 @@ Feature: render-toned-status-badge\n   critical tone exposed through `data-tone`, using neutral when tone is\n   omitted.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..5a480dc 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -24,4 +24,18 @@ describe('StatusBadge', () => {\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\n+\n+  it('carries an explicit tone without changing its wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n+  });\n+\n+  it('uses the neutral tone when tone is omitted', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(markup).toContain('data-tone=\"neutral\"');\n+    expect(markup).toContain('Failed');\n+  });\n });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..39cc981\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,65 @@\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import type { ReactElement } from 'react';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge } from '../../status-badge.js';\n+\n+interface BadgeScenarioState {\n+  badge?: ReactElement;\n+  markup?: string;\n+}\n+\n+const states = new WeakMap<object, BadgeScenarioState>();\n+\n+function stateFor(world: object): BadgeScenarioState {\n+  let state = states.get(world);\n+  if (!state) {\n+    state = {};\n+    states.set(world, state);\n+  }\n+  return state;\n+}\n+\n+function requireMarkup(world: object): string {\n+  const markup = stateFor(world).markup;\n+  if (markup === undefined) {\n+    throw new Error('The badge has not been rendered');\n+  }\n+  return markup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: object, tone: string) {\n+    if (tone !== 'neutral' && tone !== 'positive' && tone !== 'warning' && tone !== 'critical') {\n+      throw new Error(`Unsupported badge tone: ${tone}`);\n+    }\n+    stateFor(this).badge = <StatusBadge status=\"passed\" tone={tone} />;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: object) {\n+  stateFor(this).badge = <StatusBadge status=\"failed\" />;\n+});\n+\n+When('the badge is rendered', function (this: object) {\n+  const state = stateFor(this);\n+  if (state.badge === undefined) {\n+    throw new Error('No badge was configured');\n+  }\n+  state.markup = renderToStaticMarkup(state.badge);\n+});\n+\n+Then('its markup carries the tone {string}', function (this: object, tone: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`data-tone=\"${tone}\"`)) {\n+    throw new Error(`Expected ${markup} to carry tone ${tone}`);\n+  }\n+});\n+\n+Then('it still reads {string}', function (this: object, label: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`>${label}<`)) {\n+    throw new Error(`Expected ${markup} to read ${label}`);\n+  }\n+});\n\n```\n\n# Current procedure\nDo this, in order:\n\n1. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`.\n2. Read the complete patches supplied in this message. Fetch patches with\n   `snapshot_diff` only for paths whose complete patches were not supplied.\n   Read the surrounding source where a patch alone does not show what the\n   change does.\n3. Ask of each change: does it behave as its iteration's goal says, and can\n   it fail, corrupt data, break a caller or leave a promised case unhandled?\n4. Submit.\n\n## What a concern is\n\nA concern is an actionable defect you can point to: a precise consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy, its risk\nand its ground: a test, the assignment's plan or a README that states the\nbehavior the change breaks, read with `snapshot_read`. The plan elements in\nthe message say what the iteration was asked; a concern about them is\ngrounded in a file the candidate holds, and a departure from a\nrecommendation is not a defect. Style,\nnaming and preferences are not concerns. Report each distinct problem once,\nas its own concern; two problems in one file are two concerns. `suggests`\nmay name a CheckFinding the message below lists when you believe yours is\nthe same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate was reviewed and nothing actionable was found;\nthat is a valid review, and so is an honest partial one.\n\n# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/reviews/rq-0001/attempts/01/workspace\",\n  \"candidate\": \"40155157c0af1fa686ec5b8579755c17a6364613\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 599955,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ],\n  \"views\": [],\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/code-review.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}\n\n# Current task: code\nPerform code for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_review",
+    "declaration": {
+      "name": "submit_review",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"inspected\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"missing\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"reason\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000}},\"required\":[\"path\",\"reason\"],\"additionalProperties\":false}},\"concerns\":{\"maxItems\":20,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"consequence\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"rationale\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"uncertainty\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"remedy\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"locations\":{\"minItems\":1,\"maxItems\":50,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":500},\"startLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]},\"endLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]}},\"required\":[\"path\",\"startLine\",\"endLine\"],\"additionalProperties\":false}},\"suggests\":{\"anyOf\":[{\"type\":\"string\",\"pattern\":\"^cf-\\\\d{4,}$\"},{\"type\":\"null\"}]},\"risk\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"ground\":{\"anyOf\":[{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"quote\":{\"type\":\"string\",\"maxLength\":1000}},\"required\":[\"path\"],\"additionalProperties\":false},{\"type\":\"null\"}]}},\"required\":[\"summary\",\"consequence\",\"rationale\",\"uncertainty\",\"remedy\",\"locations\",\"suggests\",\"risk\",\"ground\"],\"additionalProperties\":false}}},\"required\":[\"inspected\",\"missing\",\"concerns\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "role:reviewer",
+        "kind": "role-instructions",
+        "text": "You review iterations of a Ramify project. The current task may prepare\ndesign guidance or review a frozen audited candidate: a commit and its diff\nfrom the source the iteration started from. Review judgments apply only to\nthe candidate identified by the current task.\n\nYou change nothing and decide nothing. You cannot edit a file, run a\ncommand, schedule work or resolve an issue. A local architect later assesses\nwhat you report against the project as it then stands, and an engineer makes\nany change. Nobody reads your messages while you work.\n\nInherited understanding never substitutes for current snapshot evidence.\n\n## Your tools\n\nYou have no access to the working directory. Every path is relative to the\ncandidate's root; an absolute path, a path that climbs out, a symbolic link\nand a generated view such as `.ramify-architect/` are refused.\n\n- `snapshot_diff` without a path lists every path the candidate changed;\n  with a path it shows that path's patch.\n- `snapshot_read` reads one file of the candidate, `snapshot_list` lists a\n  directory and `snapshot_search` searches its text files.\n- the designated submission tool named in the current task ends your review. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Risk and ground\n\nEach concern states its `risk`: the harm if the concern is real. `high`\nmeans the system will not work correctly or will lose or corrupt something;\n`medium` means a real defect or gap with a contained consequence; `low`\nmeans the implementation could be better but works. Propose the level you\nbelieve; the local architect may correct it. It orders the work, and a high\nlevel never asks anyone to stop.\n\nEach concern also names its `ground`: the file that makes it more than your\nopinion, such as a principles document, the plan, a feature file, a README\nor a test, with the words you rely on in `quote`. Name only a file you read\nwith `snapshot_read` in this review; an earlier conversation, a search hit\nor a patch does not count, and the harness rejects any other path. When\nnothing you read grounds the concern, `ground` is null. The harness weighs\na concern by what grounds it, never by how confidently it is worded, so\nname the ground you actually have rather than the strongest one you can\nthink of.\n\nFollow the procedure in the current task.\n\n## The submission\n\nThe submission tool declaration carries the complete schema.\n",
+        "source": "subs/harness/src/prompts/reviewer.system.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/reviewer.system.md",
+            "hash": "cfcbf80ab940a255c4a4b6027ceba23b8546a43122a3f9587a29276247f853e9",
+            "kind": "system",
+            "bytes": 2688
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_review",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_review\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"inspected\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"missing\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}},\\\"concerns\\\":{\\\"maxItems\\\":20,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"summary\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"consequence\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"rationale\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"remedy\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"locations\\\":{\\\"minItems\\\":1,\\\"maxItems\\\":50,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":500},\\\"startLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]},\\\"endLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"path\\\",\\\"startLine\\\",\\\"endLine\\\"],\\\"additionalProperties\\\":false}},\\\"suggests\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^cf-\\\\\\\\d{4,}$\\\"},{\\\"type\\\":\\\"null\\\"}]},\\\"risk\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"high\\\",\\\"medium\\\",\\\"low\\\"]},\\\"ground\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"quote\\\":{\\\"type\\\":\\\"string\\\",\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"summary\\\",\\\"consequence\\\",\\\"rationale\\\",\\\"uncertainty\\\",\\\"remedy\\\",\\\"locations\\\",\\\"suggests\\\",\\\"risk\\\",\\\"ground\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"inspected\\\",\\\"missing\\\",\\\"concerns\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a; based on: none (full)",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Goal\nReview 40155157c0af1fa686ec5b8579755c17a6364613",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0001\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"kind\":\"code\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"564534ea8e482a1d65b77a247f80577ff5d540d8\",\"gate\":\"ga-0002\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"source\":{\"elements\":[\"ctx-001\",\"fr-001\",\"fr-002\",\"fr-003\",\"fr-004\",\"fr-005\",\"nfr-001\",\"nfr-002\",\"nfr-003\",\"nfr-004\"],\"deviations\":[],\"hash\":\"d5d8a0aa721e59c52f2123797f904d72f39f3eaedf9a400daf77acae9420fd6e\"},\"guidance\":[],\"forkPoint\":{\"kind\":\"none\"}}",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "Code review rq-0001 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit 40155157c0af1fa686ec5b8579755c17a6364613 (tree 36c77a3a474e60064bbb3efabdd5c0547a92133a); its gate ga-0002 passed. The diff is taken from 564534ea8e482a1d65b77a247f80577ff5d540d8.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## The iteration:0",
+        "kind": "brief",
+        "text": "## The iteration\n\nGoal: Implement the registered toned-status-badge capability and bind both acceptance scenarios in shared-ui.\nApproach: Update StatusBadgeProps with an optional exact tone union and make StatusBadge resolve an omitted tone to neutral before rendering data-tone alongside the unchanged data-status. Keep the primitive dependent only on its props and retain existing label/default-label behavior. Extend the existing static-markup Vitest suite to prove explicit tone propagation, neutral omission, and unchanged wording. Add shared-ui-local TypeScript/TSX Cucumber steps under src/tests/steps that bind the exact generated phrases, render the real StatusBadge with react-dom/server, keep state scenario-local, and use no fakes. Do not edit the generated feature file or require changes from feature callers.\nCompletion evidence: A focused diff shows the optional four-value tone contract, neutral default, and data-tone output without caller or semantic regressions; focused type checking/tests and the bound Cucumber scenarios pass, followed by the required project gate including type-check, Vitest, Cucumber, and structural audit.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## What the plan asks of it:0",
+        "kind": "brief",
+        "text": "## What the plan asks of it\n\nThe elements the assignment cites, whole, as its engineer received them.\n\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## The changed paths:0",
+        "kind": "brief",
+        "text": "## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## Declared project checks:0",
+        "kind": "brief",
+        "text": "## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `.`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `.`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `.`.\n- fixture-structure (none): argv [\"/home/app/ramify-status-badge-trial-20261009/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `.`.\n- Configuration/support pointer: `ramify-audit.json`.\n- Configuration/support pointer: `ramify-agent.json`.\n- Configuration/support pointer: `package.json`.\n- Configuration/support pointer: `cucumber.js`.\n\nRead these project-relative references with snapshot_read/snapshot_list in the audited candidate. Commands describe the declared setup; this reader does not execute them.\n\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## Candidate test pointers:0",
+        "kind": "brief",
+        "text": "## Candidate test pointers\n\n- `subs/workspace/subs/shared-ui/src/tests/`: inspect with snapshot_list; read named files with snapshot_read.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:assignment-package",
+        "kind": "brief",
+        "text": "# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:candidate-diff",
+        "kind": "brief",
+        "text": "### Candidate Review Diff\n\nBase: 564534ea8e482a1d65b77a247f80577ff5d540d8; candidate: 40155157c0af1fa686ec5b8579755c17a6364613.\nChanged paths: 4; collected patch bytes: 5792.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..fb09686 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` carries the status itself and\n+ * `data-tone` carries its presentation tone, so both the stylesheet and a\n+ * test can read them without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\nindex f4bc815..7e8e16f 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n@@ -8,14 +8,14 @@ Feature: render-toned-status-badge\n   critical tone exposed through `data-tone`, using neutral when tone is\n   omitted.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..5a480dc 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -24,4 +24,18 @@ describe('StatusBadge', () => {\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\n+\n+  it('carries an explicit tone without changing its wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n+  });\n+\n+  it('uses the neutral tone when tone is omitted', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(markup).toContain('data-tone=\"neutral\"');\n+    expect(markup).toContain('Failed');\n+  });\n });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..39cc981\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,65 @@\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import type { ReactElement } from 'react';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge } from '../../status-badge.js';\n+\n+interface BadgeScenarioState {\n+  badge?: ReactElement;\n+  markup?: string;\n+}\n+\n+const states = new WeakMap<object, BadgeScenarioState>();\n+\n+function stateFor(world: object): BadgeScenarioState {\n+  let state = states.get(world);\n+  if (!state) {\n+    state = {};\n+    states.set(world, state);\n+  }\n+  return state;\n+}\n+\n+function requireMarkup(world: object): string {\n+  const markup = stateFor(world).markup;\n+  if (markup === undefined) {\n+    throw new Error('The badge has not been rendered');\n+  }\n+  return markup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: object, tone: string) {\n+    if (tone !== 'neutral' && tone !== 'positive' && tone !== 'warning' && tone !== 'critical') {\n+      throw new Error(`Unsupported badge tone: ${tone}`);\n+    }\n+    stateFor(this).badge = <StatusBadge status=\"passed\" tone={tone} />;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: object) {\n+  stateFor(this).badge = <StatusBadge status=\"failed\" />;\n+});\n+\n+When('the badge is rendered', function (this: object) {\n+  const state = stateFor(this);\n+  if (state.badge === undefined) {\n+    throw new Error('No badge was configured');\n+  }\n+  state.markup = renderToStaticMarkup(state.badge);\n+});\n+\n+Then('its markup carries the tone {string}', function (this: object, tone: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`data-tone=\"${tone}\"`)) {\n+    throw new Error(`Expected ${markup} to carry tone ${tone}`);\n+  }\n+});\n+\n+Then('it still reads {string}', function (this: object, label: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`>${label}<`)) {\n+    throw new Error(`Expected ${markup} to read ${label}`);\n+  }\n+});\n\n```",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "procedure:code",
+        "kind": "procedure",
+        "text": "# Current procedure\nDo this, in order:\n\n1. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`.\n2. Read the complete patches supplied in this message. Fetch patches with\n   `snapshot_diff` only for paths whose complete patches were not supplied.\n   Read the surrounding source where a patch alone does not show what the\n   change does.\n3. Ask of each change: does it behave as its iteration's goal says, and can\n   it fail, corrupt data, break a caller or leave a promised case unhandled?\n4. Submit.\n\n## What a concern is\n\nA concern is an actionable defect you can point to: a precise consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy, its risk\nand its ground: a test, the assignment's plan or a README that states the\nbehavior the change breaks, read with `snapshot_read`. The plan elements in\nthe message say what the iteration was asked; a concern about them is\ngrounded in a file the candidate holds, and a departure from a\nrecommendation is not a defect. Style,\nnaming and preferences are not concerns. Report each distinct problem once,\nas its own concern; two problems in one file are two concerns. `suggests`\nmay name a CheckFinding the message below lists when you believe yours is\nthe same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate was reviewed and nothing actionable was found;\nthat is a valid review, and so is an honest partial one.",
+        "source": "subs/harness/src/prompts/code-review.procedure.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/code-review.procedure.md",
+            "hash": "22a16370185ddcef56d367e29980cc2e755e3c8bf66958d099a7e167b8d95af3",
+            "kind": "procedure",
+            "bytes": 1843
+          }
+        ]
+      },
+      {
+        "key": "environment",
+        "kind": "environment",
+        "text": "# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/reviews/rq-0001/attempts/01/workspace\",\n  \"candidate\": \"40155157c0af1fa686ec5b8579755c17a6364613\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 599955,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ],\n  \"views\": [],\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/code-review.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: code\nPerform code for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/1",
+      "inheritedPoint": null,
+      "entries": [
+        {
+          "key": "role:reviewer",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/prompts/reviewer.system.md",
+          "revision": "reviewer/4",
+          "hash": "235e45760253afafde654cdcc2f8c38be2e5e906a44896f0a067c1115626ad49",
+          "bytes": 2546,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/prompts/reviewer.system.md",
+              "hash": "cfcbf80ab940a255c4a4b6027ceba23b8546a43122a3f9587a29276247f853e9",
+              "kind": "system",
+              "bytes": 2688
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_review",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "1edf243fddb314b993e34480f2bbfb7061d6a2c6f230b2d9ad7ab089290ef740",
+          "bytes": 2230,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "00c6bd2123c84d78462927d567b6f97c322e03311daa2a0f87c802ee921c12e0",
+          "bytes": 106,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "c2749e891afe366b1607992c545b40d1d5e917d1bbee15ad6e3f6ade42b28f50",
+          "bytes": 54,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "2c040c20cd551a63e0767188522406d6f1315db655c6a91ac9cec2e45eaadce5",
+          "bytes": 654,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:context:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "eabe7513a3e04873f55d6e26260f8df9f16de022d27ded988c6c1f97337010e0",
+          "bytes": 458,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## The iteration:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "60126fb1b3080b95dbd6bd27e3b130b54ef243400c66cd23675bc5e0cde10d73",
+          "bytes": 1150,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## What the plan asks of it:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "4b069abf28cb3f6ec2478746adff15c0e8c84f29d75e94cc31038422f0b4e62f",
+          "bytes": 103,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## The changed paths:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "20c80bf44bc4eeca31c2cf2d166483feca25332a7cadac040475e7ecf1789d73",
+          "bytes": 695,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## Declared project checks:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "13beaac252a5594bc99da329bc5f8bf3b482ecf6541311104ab4375651639404",
+          "bytes": 792,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## Candidate test pointers:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "c1fb1ad87884a640c2401ceafa8a1b320e902e25b64a1f7106395505c838ba49",
+          "bytes": 953,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:assignment-package",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "d5d8a0aa721e59c52f2123797f904d72f39f3eaedf9a400daf77acae9420fd6e",
+          "bytes": 2798,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:candidate-diff",
+          "kind": "brief",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "dc544b727e898a852c82c3d51d0d1ad56c6d6211da02aa544681c3db4bc9d5be",
+          "bytes": 6081,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "procedure:code",
+          "kind": "procedure",
+          "source": "subs/harness/src/prompts/code-review.procedure.md",
+          "revision": "reviewer/4",
+          "hash": "9862b88f6a6bccc46d93f92834c0ca08c717766e3a0f02a0e52bf0f1b137455c",
+          "bytes": 1806,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/prompts/code-review.procedure.md",
+              "hash": "22a16370185ddcef56d367e29980cc2e755e3c8bf66958d099a7e167b8d95af3",
+              "kind": "procedure",
+              "bytes": 1843
+            }
+          ]
+        },
+        {
+          "key": "environment",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "09767afa35470c41a28a402fd0ce4467cc158f1efefa2f4890f3258e7a0cc15e",
+          "bytes": 1771,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+          "hash": "2ddc2c4f77811f917b4fe83c66ef28deb46ef3b894247b9d7422ef8a46ed6934",
+          "bytes": 224,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "3cf12c7052f5060ad532e6e1387efd8235f3ebc93495448b248da1ba5f69134b",
+        "bytes": 17671
+      },
+      "hash": "a6d0003d10dce51eb6c8ea49d19218fdb3acc2bb1f401c9d79396cc937414112"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:reviewer",
+        "kind": "role-instructions",
+        "text": "You review iterations of a Ramify project. The current task may prepare\ndesign guidance or review a frozen audited candidate: a commit and its diff\nfrom the source the iteration started from. Review judgments apply only to\nthe candidate identified by the current task.\n\nYou change nothing and decide nothing. You cannot edit a file, run a\ncommand, schedule work or resolve an issue. A local architect later assesses\nwhat you report against the project as it then stands, and an engineer makes\nany change. Nobody reads your messages while you work.\n\nInherited understanding never substitutes for current snapshot evidence.\n\n## Your tools\n\nYou have no access to the working directory. Every path is relative to the\ncandidate's root; an absolute path, a path that climbs out, a symbolic link\nand a generated view such as `.ramify-architect/` are refused.\n\n- `snapshot_diff` without a path lists every path the candidate changed;\n  with a path it shows that path's patch.\n- `snapshot_read` reads one file of the candidate, `snapshot_list` lists a\n  directory and `snapshot_search` searches its text files.\n- the designated submission tool named in the current task ends your review. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Risk and ground\n\nEach concern states its `risk`: the harm if the concern is real. `high`\nmeans the system will not work correctly or will lose or corrupt something;\n`medium` means a real defect or gap with a contained consequence; `low`\nmeans the implementation could be better but works. Propose the level you\nbelieve; the local architect may correct it. It orders the work, and a high\nlevel never asks anyone to stop.\n\nEach concern also names its `ground`: the file that makes it more than your\nopinion, such as a principles document, the plan, a feature file, a README\nor a test, with the words you rely on in `quote`. Name only a file you read\nwith `snapshot_read` in this review; an earlier conversation, a search hit\nor a patch does not count, and the harness rejects any other path. When\nnothing you read grounds the concern, `ground` is null. The harness weighs\na concern by what grounds it, never by how confidently it is worded, so\nname the ground you actually have rather than the strongest one you can\nthink of.\n\nFollow the procedure in the current task.\n\n## The submission\n\nThe submission tool declaration carries the complete schema.\n",
+        "source": "subs/harness/src/prompts/reviewer.system.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/reviewer.system.md",
+            "hash": "cfcbf80ab940a255c4a4b6027ceba23b8546a43122a3f9587a29276247f853e9",
+            "kind": "system",
+            "bytes": 2688
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_review",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_review\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"inspected\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"missing\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}},\\\"concerns\\\":{\\\"maxItems\\\":20,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"summary\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"consequence\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"rationale\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"remedy\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"locations\\\":{\\\"minItems\\\":1,\\\"maxItems\\\":50,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":500},\\\"startLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]},\\\"endLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"path\\\",\\\"startLine\\\",\\\"endLine\\\"],\\\"additionalProperties\\\":false}},\\\"suggests\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^cf-\\\\\\\\d{4,}$\\\"},{\\\"type\\\":\\\"null\\\"}]},\\\"risk\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"high\\\",\\\"medium\\\",\\\"low\\\"]},\\\"ground\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"quote\\\":{\\\"type\\\":\\\"string\\\",\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"summary\\\",\\\"consequence\\\",\\\"rationale\\\",\\\"uncertainty\\\",\\\"remedy\\\",\\\"locations\\\",\\\"suggests\\\",\\\"risk\\\",\\\"ground\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"inspected\\\",\\\"missing\\\",\\\"concerns\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a; based on: none (full)",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Goal\nReview 40155157c0af1fa686ec5b8579755c17a6364613",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0001\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"kind\":\"code\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"564534ea8e482a1d65b77a247f80577ff5d540d8\",\"gate\":\"ga-0002\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"source\":{\"elements\":[\"ctx-001\",\"fr-001\",\"fr-002\",\"fr-003\",\"fr-004\",\"fr-005\",\"nfr-001\",\"nfr-002\",\"nfr-003\",\"nfr-004\"],\"deviations\":[],\"hash\":\"d5d8a0aa721e59c52f2123797f904d72f39f3eaedf9a400daf77acae9420fd6e\"},\"guidance\":[],\"forkPoint\":{\"kind\":\"none\"}}",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "Code review rq-0001 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit 40155157c0af1fa686ec5b8579755c17a6364613 (tree 36c77a3a474e60064bbb3efabdd5c0547a92133a); its gate ga-0002 passed. The diff is taken from 564534ea8e482a1d65b77a247f80577ff5d540d8.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## The iteration:0",
+        "kind": "brief",
+        "text": "## The iteration\n\nGoal: Implement the registered toned-status-badge capability and bind both acceptance scenarios in shared-ui.\nApproach: Update StatusBadgeProps with an optional exact tone union and make StatusBadge resolve an omitted tone to neutral before rendering data-tone alongside the unchanged data-status. Keep the primitive dependent only on its props and retain existing label/default-label behavior. Extend the existing static-markup Vitest suite to prove explicit tone propagation, neutral omission, and unchanged wording. Add shared-ui-local TypeScript/TSX Cucumber steps under src/tests/steps that bind the exact generated phrases, render the real StatusBadge with react-dom/server, keep state scenario-local, and use no fakes. Do not edit the generated feature file or require changes from feature callers.\nCompletion evidence: A focused diff shows the optional four-value tone contract, neutral default, and data-tone output without caller or semantic regressions; focused type checking/tests and the bound Cucumber scenarios pass, followed by the required project gate including type-check, Vitest, Cucumber, and structural audit.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## What the plan asks of it:0",
+        "kind": "brief",
+        "text": "## What the plan asks of it\n\nThe elements the assignment cites, whole, as its engineer received them.\n\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## The changed paths:0",
+        "kind": "brief",
+        "text": "## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## Declared project checks:0",
+        "kind": "brief",
+        "text": "## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `.`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `.`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `.`.\n- fixture-structure (none): argv [\"/home/app/ramify-status-badge-trial-20261009/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `.`.\n- Configuration/support pointer: `ramify-audit.json`.\n- Configuration/support pointer: `ramify-agent.json`.\n- Configuration/support pointer: `package.json`.\n- Configuration/support pointer: `cucumber.js`.\n\nRead these project-relative references with snapshot_read/snapshot_list in the audited candidate. Commands describe the declared setup; this reader does not execute them.\n\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:## Candidate test pointers:0",
+        "kind": "brief",
+        "text": "## Candidate test pointers\n\n- `subs/workspace/subs/shared-ui/src/tests/`: inspect with snapshot_list; read named files with snapshot_read.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:assignment-package",
+        "kind": "brief",
+        "text": "# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "brief:support:candidate-diff",
+        "kind": "brief",
+        "text": "### Candidate Review Diff\n\nBase: 564534ea8e482a1d65b77a247f80577ff5d540d8; candidate: 40155157c0af1fa686ec5b8579755c17a6364613.\nChanged paths: 4; collected patch bytes: 5792.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..fb09686 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` carries the status itself and\n+ * `data-tone` carries its presentation tone, so both the stylesheet and a\n+ * test can read them without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\nindex f4bc815..7e8e16f 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n@@ -8,14 +8,14 @@ Feature: render-toned-status-badge\n   critical tone exposed through `data-tone`, using neutral when tone is\n   omitted.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..5a480dc 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -24,4 +24,18 @@ describe('StatusBadge', () => {\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\n+\n+  it('carries an explicit tone without changing its wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n+  });\n+\n+  it('uses the neutral tone when tone is omitted', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(markup).toContain('data-tone=\"neutral\"');\n+    expect(markup).toContain('Failed');\n+  });\n });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..39cc981\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,65 @@\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import type { ReactElement } from 'react';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge } from '../../status-badge.js';\n+\n+interface BadgeScenarioState {\n+  badge?: ReactElement;\n+  markup?: string;\n+}\n+\n+const states = new WeakMap<object, BadgeScenarioState>();\n+\n+function stateFor(world: object): BadgeScenarioState {\n+  let state = states.get(world);\n+  if (!state) {\n+    state = {};\n+    states.set(world, state);\n+  }\n+  return state;\n+}\n+\n+function requireMarkup(world: object): string {\n+  const markup = stateFor(world).markup;\n+  if (markup === undefined) {\n+    throw new Error('The badge has not been rendered');\n+  }\n+  return markup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: object, tone: string) {\n+    if (tone !== 'neutral' && tone !== 'positive' && tone !== 'warning' && tone !== 'critical') {\n+      throw new Error(`Unsupported badge tone: ${tone}`);\n+    }\n+    stateFor(this).badge = <StatusBadge status=\"passed\" tone={tone} />;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: object) {\n+  stateFor(this).badge = <StatusBadge status=\"failed\" />;\n+});\n+\n+When('the badge is rendered', function (this: object) {\n+  const state = stateFor(this);\n+  if (state.badge === undefined) {\n+    throw new Error('No badge was configured');\n+  }\n+  state.markup = renderToStaticMarkup(state.badge);\n+});\n+\n+Then('its markup carries the tone {string}', function (this: object, tone: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`data-tone=\"${tone}\"`)) {\n+    throw new Error(`Expected ${markup} to carry tone ${tone}`);\n+  }\n+});\n+\n+Then('it still reads {string}', function (this: object, label: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`>${label}<`)) {\n+    throw new Error(`Expected ${markup} to read ${label}`);\n+  }\n+});\n\n```",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      },
+      {
+        "key": "procedure:code",
+        "kind": "procedure",
+        "text": "# Current procedure\nDo this, in order:\n\n1. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`.\n2. Read the complete patches supplied in this message. Fetch patches with\n   `snapshot_diff` only for paths whose complete patches were not supplied.\n   Read the surrounding source where a patch alone does not show what the\n   change does.\n3. Ask of each change: does it behave as its iteration's goal says, and can\n   it fail, corrupt data, break a caller or leave a promised case unhandled?\n4. Submit.\n\n## What a concern is\n\nA concern is an actionable defect you can point to: a precise consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy, its risk\nand its ground: a test, the assignment's plan or a README that states the\nbehavior the change breaks, read with `snapshot_read`. The plan elements in\nthe message say what the iteration was asked; a concern about them is\ngrounded in a file the candidate holds, and a departure from a\nrecommendation is not a defect. Style,\nnaming and preferences are not concerns. Report each distinct problem once,\nas its own concern; two problems in one file are two concerns. `suggests`\nmay name a CheckFinding the message below lists when you believe yours is\nthe same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate was reviewed and nothing actionable was found;\nthat is a valid review, and so is an honest partial one.",
+        "source": "subs/harness/src/prompts/code-review.procedure.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/code-review.procedure.md",
+            "hash": "22a16370185ddcef56d367e29980cc2e755e3c8bf66958d099a7e167b8d95af3",
+            "kind": "procedure",
+            "bytes": 1843
+          }
+        ]
+      },
+      {
+        "key": "environment",
+        "kind": "environment",
+        "text": "# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/reviews/rq-0001/attempts/01/workspace\",\n  \"candidate\": \"40155157c0af1fa686ec5b8579755c17a6364613\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 599955,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ],\n  \"views\": [],\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/code-review.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: code\nPerform code for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+      }
+    ],
+    "history": [
+      {
+        "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nReview 40155157c0af1fa686ec5b8579755c17a6364613"
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0001\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"kind\":\"code\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"564534ea8e482a1d65b77a247f80577ff5d540d8\",\"gate\":\"ga-0002\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"source\":{\"elements\":[\"ctx-001\",\"fr-001\",\"fr-002\",\"fr-003\",\"fr-004\",\"fr-005\",\"nfr-001\",\"nfr-002\",\"nfr-003\",\"nfr-004\"],\"deviations\":[],\"hash\":\"d5d8a0aa721e59c52f2123797f904d72f39f3eaedf9a400daf77acae9420fd6e\"},\"guidance\":[],\"forkPoint\":{\"kind\":\"none\"}}"
+          },
+          {
+            "key": "support:context:0",
+            "text": "Code review rq-0001 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit 40155157c0af1fa686ec5b8579755c17a6364613 (tree 36c77a3a474e60064bbb3efabdd5c0547a92133a); its gate ga-0002 passed. The diff is taken from 564534ea8e482a1d65b77a247f80577ff5d540d8.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n"
+          },
+          {
+            "key": "support:## The iteration:0",
+            "text": "## The iteration\n\nGoal: Implement the registered toned-status-badge capability and bind both acceptance scenarios in shared-ui.\nApproach: Update StatusBadgeProps with an optional exact tone union and make StatusBadge resolve an omitted tone to neutral before rendering data-tone alongside the unchanged data-status. Keep the primitive dependent only on its props and retain existing label/default-label behavior. Extend the existing static-markup Vitest suite to prove explicit tone propagation, neutral omission, and unchanged wording. Add shared-ui-local TypeScript/TSX Cucumber steps under src/tests/steps that bind the exact generated phrases, render the real StatusBadge with react-dom/server, keep state scenario-local, and use no fakes. Do not edit the generated feature file or require changes from feature callers.\nCompletion evidence: A focused diff shows the optional four-value tone contract, neutral default, and data-tone output without caller or semantic regressions; focused type checking/tests and the bound Cucumber scenarios pass, followed by the required project gate including type-check, Vitest, Cucumber, and structural audit.\n"
+          },
+          {
+            "key": "support:## What the plan asks of it:0",
+            "text": "## What the plan asks of it\n\nThe elements the assignment cites, whole, as its engineer received them.\n\n"
+          },
+          {
+            "key": "support:## The changed paths:0",
+            "text": "## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n"
+          },
+          {
+            "key": "support:## Declared project checks:0",
+            "text": "## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `.`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `.`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `.`.\n- fixture-structure (none): argv [\"/home/app/ramify-status-badge-trial-20261009/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `.`.\n- Configuration/support pointer: `ramify-audit.json`.\n- Configuration/support pointer: `ramify-agent.json`.\n- Configuration/support pointer: `package.json`.\n- Configuration/support pointer: `cucumber.js`.\n\nRead these project-relative references with snapshot_read/snapshot_list in the audited candidate. Commands describe the declared setup; this reader does not execute them.\n\n"
+          },
+          {
+            "key": "support:## Candidate test pointers:0",
+            "text": "## Candidate test pointers\n\n- `subs/workspace/subs/shared-ui/src/tests/`: inspect with snapshot_list; read named files with snapshot_read.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n"
+          },
+          {
+            "key": "support:assignment-package",
+            "text": "# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n"
+          },
+          {
+            "key": "support:candidate-diff",
+            "text": "### Candidate Review Diff\n\nBase: 564534ea8e482a1d65b77a247f80577ff5d540d8; candidate: 40155157c0af1fa686ec5b8579755c17a6364613.\nChanged paths: 4; collected patch bytes: 5792.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..fb09686 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` carries the status itself and\n+ * `data-tone` carries its presentation tone, so both the stylesheet and a\n+ * test can read them without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\nindex f4bc815..7e8e16f 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n@@ -8,14 +8,14 @@ Feature: render-toned-status-badge\n   critical tone exposed through `data-tone`, using neutral when tone is\n   omitted.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..5a480dc 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -24,4 +24,18 @@ describe('StatusBadge', () => {\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\n+\n+  it('carries an explicit tone without changing its wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n+  });\n+\n+  it('uses the neutral tone when tone is omitted', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(markup).toContain('data-tone=\"neutral\"');\n+    expect(markup).toContain('Failed');\n+  });\n });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..39cc981\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,65 @@\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import type { ReactElement } from 'react';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge } from '../../status-badge.js';\n+\n+interface BadgeScenarioState {\n+  badge?: ReactElement;\n+  markup?: string;\n+}\n+\n+const states = new WeakMap<object, BadgeScenarioState>();\n+\n+function stateFor(world: object): BadgeScenarioState {\n+  let state = states.get(world);\n+  if (!state) {\n+    state = {};\n+    states.set(world, state);\n+  }\n+  return state;\n+}\n+\n+function requireMarkup(world: object): string {\n+  const markup = stateFor(world).markup;\n+  if (markup === undefined) {\n+    throw new Error('The badge has not been rendered');\n+  }\n+  return markup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: object, tone: string) {\n+    if (tone !== 'neutral' && tone !== 'positive' && tone !== 'warning' && tone !== 'critical') {\n+      throw new Error(`Unsupported badge tone: ${tone}`);\n+    }\n+    stateFor(this).badge = <StatusBadge status=\"passed\" tone={tone} />;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: object) {\n+  stateFor(this).badge = <StatusBadge status=\"failed\" />;\n+});\n+\n+When('the badge is rendered', function (this: object) {\n+  const state = stateFor(this);\n+  if (state.badge === undefined) {\n+    throw new Error('No badge was configured');\n+  }\n+  state.markup = renderToStaticMarkup(state.badge);\n+});\n+\n+Then('its markup carries the tone {string}', function (this: object, tone: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`data-tone=\"${tone}\"`)) {\n+    throw new Error(`Expected ${markup} to carry tone ${tone}`);\n+  }\n+});\n+\n+Then('it still reads {string}', function (this: object, label: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`>${label}<`)) {\n+    throw new Error(`Expected ${markup} to read ${label}`);\n+  }\n+});\n\n```"
+          }
+        ]
+      }
+    ],
+    "revision": "deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a"
+  },
+  "policy": {
+    "context": {
+      "compaction": "forbidden",
+      "budgetTokens": 120000,
+      "budgetFraction": 0.6,
+      "reportReserveTokens": 8000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      }
+    },
+    "validator": {
+      "name": "submit_review",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inspected": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "missing": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "path",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "concerns": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "consequence": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "uncertainty": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "remedy": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "locations": {
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "startLine": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "endLine": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "startLine",
+                      "endLine"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "suggests": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^cf-\\d{4,}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "risk": {
+                  "type": "string",
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low"
+                  ]
+                },
+                "ground": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "quote": {
+                          "type": "string",
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": [
+                        "path"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "summary",
+                "consequence",
+                "rationale",
+                "uncertainty",
+                "remedy",
+                "locations",
+                "suggests",
+                "risk",
+                "ground"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "inspected",
+          "missing",
+          "concerns"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.review-submission/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261009T181051Z-4c5bfc",
+      "invocation": "inv-0008",
+      "submission": "invocations/inv-0008/submission.json"
+    }
+  },
+  "task": {
+    "role": "reviewer",
+    "message": "Briefing revision: deed2eb4fa0d7ee3894a2cba12a34fcaa77174cbb95baa4f1428d3c91c416c5a; based on: none (full)\n\n# Goal\nReview 40155157c0af1fa686ec5b8579755c17a6364613\n\n# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0001\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"40155157c0af1fa686ec5b8579755c17a6364613\",\"kind\":\"code\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"564534ea8e482a1d65b77a247f80577ff5d540d8\",\"gate\":\"ga-0002\",\"tree\":\"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\"source\":{\"elements\":[\"ctx-001\",\"fr-001\",\"fr-002\",\"fr-003\",\"fr-004\",\"fr-005\",\"nfr-001\",\"nfr-002\",\"nfr-003\",\"nfr-004\"],\"deviations\":[],\"hash\":\"d5d8a0aa721e59c52f2123797f904d72f39f3eaedf9a400daf77acae9420fd6e\"},\"guidance\":[],\"forkPoint\":{\"kind\":\"none\"}}\n\nCode review rq-0001 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit 40155157c0af1fa686ec5b8579755c17a6364613 (tree 36c77a3a474e60064bbb3efabdd5c0547a92133a); its gate ga-0002 passed. The diff is taken from 564534ea8e482a1d65b77a247f80577ff5d540d8.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n\n\n## The iteration\n\nGoal: Implement the registered toned-status-badge capability and bind both acceptance scenarios in shared-ui.\nApproach: Update StatusBadgeProps with an optional exact tone union and make StatusBadge resolve an omitted tone to neutral before rendering data-tone alongside the unchanged data-status. Keep the primitive dependent only on its props and retain existing label/default-label behavior. Extend the existing static-markup Vitest suite to prove explicit tone propagation, neutral omission, and unchanged wording. Add shared-ui-local TypeScript/TSX Cucumber steps under src/tests/steps that bind the exact generated phrases, render the real StatusBadge with react-dom/server, keep state scenario-local, and use no fakes. Do not edit the generated feature file or require changes from feature callers.\nCompletion evidence: A focused diff shows the optional four-value tone contract, neutral default, and data-tone output without caller or semantic regressions; focused type checking/tests and the bound Cucumber scenarios pass, followed by the required project gate including type-check, Vitest, Cucumber, and structural audit.\n\n\n## What the plan asks of it\n\nThe elements the assignment cites, whole, as its engineer received them.\n\n\n\n## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\n\n## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `.`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `.`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `.`.\n- fixture-structure (none): argv [\"/home/app/ramify-status-badge-trial-20261009/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `.`.\n- Configuration/support pointer: `ramify-audit.json`.\n- Configuration/support pointer: `ramify-agent.json`.\n- Configuration/support pointer: `package.json`.\n- Configuration/support pointer: `cucumber.js`.\n\nRead these project-relative references with snapshot_read/snapshot_list in the audited candidate. Commands describe the declared setup; this reader does not execute them.\n\n\n\n## Candidate test pointers\n\n- `subs/workspace/subs/shared-ui/src/tests/`: inspect with snapshot_list; read named files with snapshot_read.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature, exact candidate sha256 de0eb6508736e7c2c2cb91744467c7801cbf261cde45bb37bb7a71293860f197, accepted producer inv-0007, submission 92b9f97afe954f368d576461af3c32a9e479c41cdb82fc5955b2459797147ca4. This attribution supplies provenance; review the actual audited patch.\n\n\n# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n### Candidate Review Diff\n\nBase: 564534ea8e482a1d65b77a247f80577ff5d540d8; candidate: 40155157c0af1fa686ec5b8579755c17a6364613.\nChanged paths: 4; collected patch bytes: 5792.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..fb09686 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` carries the status itself and\n+ * `data-tone` carries its presentation tone, so both the stylesheet and a\n+ * test can read them without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\nindex f4bc815..7e8e16f 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-toned-status-badge.feature\n@@ -8,14 +8,14 @@ Feature: render-toned-status-badge\n   critical tone exposed through `data-tone`, using neutral when tone is\n   omitted.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..5a480dc 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -24,4 +24,18 @@ describe('StatusBadge', () => {\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\n+\n+  it('carries an explicit tone without changing its wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n+  });\n+\n+  it('uses the neutral tone when tone is omitted', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(markup).toContain('data-tone=\"neutral\"');\n+    expect(markup).toContain('Failed');\n+  });\n });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..39cc981\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,65 @@\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import type { ReactElement } from 'react';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge } from '../../status-badge.js';\n+\n+interface BadgeScenarioState {\n+  badge?: ReactElement;\n+  markup?: string;\n+}\n+\n+const states = new WeakMap<object, BadgeScenarioState>();\n+\n+function stateFor(world: object): BadgeScenarioState {\n+  let state = states.get(world);\n+  if (!state) {\n+    state = {};\n+    states.set(world, state);\n+  }\n+  return state;\n+}\n+\n+function requireMarkup(world: object): string {\n+  const markup = stateFor(world).markup;\n+  if (markup === undefined) {\n+    throw new Error('The badge has not been rendered');\n+  }\n+  return markup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: object, tone: string) {\n+    if (tone !== 'neutral' && tone !== 'positive' && tone !== 'warning' && tone !== 'critical') {\n+      throw new Error(`Unsupported badge tone: ${tone}`);\n+    }\n+    stateFor(this).badge = <StatusBadge status=\"passed\" tone={tone} />;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: object) {\n+  stateFor(this).badge = <StatusBadge status=\"failed\" />;\n+});\n+\n+When('the badge is rendered', function (this: object) {\n+  const state = stateFor(this);\n+  if (state.badge === undefined) {\n+    throw new Error('No badge was configured');\n+  }\n+  state.markup = renderToStaticMarkup(state.badge);\n+});\n+\n+Then('its markup carries the tone {string}', function (this: object, tone: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`data-tone=\"${tone}\"`)) {\n+    throw new Error(`Expected ${markup} to carry tone ${tone}`);\n+  }\n+});\n+\n+Then('it still reads {string}', function (this: object, label: string) {\n+  const markup = requireMarkup(this);\n+  if (!markup.includes(`>${label}<`)) {\n+    throw new Error(`Expected ${markup} to read ${label}`);\n+  }\n+});\n\n```\n\n# Current procedure\nDo this, in order:\n\n1. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`.\n2. Read the complete patches supplied in this message. Fetch patches with\n   `snapshot_diff` only for paths whose complete patches were not supplied.\n   Read the surrounding source where a patch alone does not show what the\n   change does.\n3. Ask of each change: does it behave as its iteration's goal says, and can\n   it fail, corrupt data, break a caller or leave a promised case unhandled?\n4. Submit.\n\n## What a concern is\n\nA concern is an actionable defect you can point to: a precise consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy, its risk\nand its ground: a test, the assignment's plan or a README that states the\nbehavior the change breaks, read with `snapshot_read`. The plan elements in\nthe message say what the iteration was asked; a concern about them is\ngrounded in a file the candidate holds, and a departure from a\nrecommendation is not a defect. Style,\nnaming and preferences are not concerns. Report each distinct problem once,\nas its own concern; two problems in one file are two concerns. `suggests`\nmay name a CheckFinding the message below lists when you believe yours is\nthe same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate was reviewed and nothing actionable was found;\nthat is a valid review, and so is an honest partial one.\n\n# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/reviews/rq-0001/attempts/01/workspace\",\n  \"candidate\": \"40155157c0af1fa686ec5b8579755c17a6364613\",\n  \"snapshot\": \"36c77a3a474e60064bbb3efabdd5c0547a92133a\",\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 599955,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ],\n  \"views\": [],\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/code-review.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}\n\n# Current task: code\nPerform code for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_review",
+    "environment": {
+      "workingDirectory": "/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/reviews/rq-0001/attempts/01/workspace",
+      "candidate": "40155157c0af1fa686ec5b8579755c17a6364613",
+      "snapshot": "36c77a3a474e60064bbb3efabdd5c0547a92133a",
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 599955,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "e29ff7ff3e98cf78714e93aff77dbd1b51e962717c7fe5e3b5c704db5542b5a7",
+    "validatorIdentity": "8517b4fd50919e6c5c88d293b728ff89da6cc358795891c9f1ed433645fd70f3",
+    "destinationIdentity": "a21a800ec343ea5e67dcae3784e6de59eb7991a3ceb509267dd354fb4fe78bbf"
+  },
+  "declarations": [
+    {
+      "name": "snapshot_list",
+      "description": "List the files and directories directly beneath a directory of the audited candidate; the root when no path is given.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_read",
+      "description": "Read one file of the audited candidate, with line numbers. startLine counts from 1.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lineCount": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_search",
+      "description": "Search the audited candidate's text files for an extended regular expression, beneath a path or everywhere.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_diff",
+      "description": "Without a path, list every path the candidate changed from the iteration's base. With one, show that path's patch.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_review",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"inspected\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"missing\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"reason\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000}},\"required\":[\"path\",\"reason\"],\"additionalProperties\":false}},\"concerns\":{\"maxItems\":20,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"consequence\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"rationale\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"uncertainty\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"remedy\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"locations\":{\"minItems\":1,\"maxItems\":50,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":500},\"startLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]},\"endLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]}},\"required\":[\"path\",\"startLine\",\"endLine\"],\"additionalProperties\":false}},\"suggests\":{\"anyOf\":[{\"type\":\"string\",\"pattern\":\"^cf-\\\\d{4,}$\"},{\"type\":\"null\"}]},\"risk\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"ground\":{\"anyOf\":[{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"quote\":{\"type\":\"string\",\"maxLength\":1000}},\"required\":[\"path\"],\"additionalProperties\":false},{\"type\":\"null\"}]}},\"required\":[\"summary\",\"consequence\",\"rationale\",\"uncertainty\",\"remedy\",\"locations\",\"suggests\",\"risk\",\"ground\"],\"additionalProperties\":false}}},\"required\":[\"inspected\",\"missing\",\"concerns\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}

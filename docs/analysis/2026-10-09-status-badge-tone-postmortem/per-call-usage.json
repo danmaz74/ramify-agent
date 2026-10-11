@@ -1,0 +1,2202 @@
+[
+  {
+    "invocation": "inv-0001",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0001/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:29:00.976Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 3241,
+        "output": 75,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 3316
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 3241,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 75,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.012964,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.0015,
+        "total": 0.014464,
+        "coverage": []
+      },
+      "modelElapsedMs": 4070
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0001",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0001/observations.jsonl:10",
+    "n": 10,
+    "at": "2026-10-09T13:29:11.253Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 617,
+        "output": 486,
+        "cacheRead": 3072,
+        "cacheWrite": 0,
+        "total": 4175
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 617,
+        "cachedInputTokens": 3072,
+        "cacheWriteTokens": 0,
+        "outputTokens": 486,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.002468,
+        "cachedInput": 0.0012288000000000002,
+        "cacheWrite": 0,
+        "output": 0.00972,
+        "total": 0.0134168,
+        "coverage": []
+      },
+      "modelElapsedMs": 10178
+    },
+    "sourceId": "pi-message:4"
+  },
+  {
+    "invocation": "inv-0002",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0002/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:29:14.904Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 7289,
+        "output": 135,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 7424
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 7289,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 135,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.029156,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.0027,
+        "total": 0.031856,
+        "coverage": []
+      },
+      "modelElapsedMs": 3462
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0002",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0002/observations.jsonl:23",
+    "n": 23,
+    "at": "2026-10-09T13:29:20.425Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 8011,
+        "output": 177,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 8188
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 8011,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 177,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.032044,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00354,
+        "total": 0.035584000000000005,
+        "coverage": []
+      },
+      "modelElapsedMs": 5351
+    },
+    "sourceId": "pi-message:7"
+  },
+  {
+    "invocation": "inv-0002",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0002/observations.jsonl:47",
+    "n": 47,
+    "at": "2026-10-09T13:29:33.601Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 5604,
+        "output": 608,
+        "cacheRead": 7808,
+        "cacheWrite": 0,
+        "total": 14020
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 5604,
+        "cachedInputTokens": 7808,
+        "cacheWriteTokens": 0,
+        "outputTokens": 608,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.022416,
+        "cachedInput": 0.0031232000000000005,
+        "cacheWrite": 0,
+        "output": 0.01216,
+        "total": 0.0376992,
+        "coverage": []
+      },
+      "modelElapsedMs": 12887
+    },
+    "sourceId": "pi-message:13"
+  },
+  {
+    "invocation": "inv-0002",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0002/observations.jsonl:79",
+    "n": 79,
+    "at": "2026-10-09T13:30:36.748Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 6983,
+        "output": 3210,
+        "cacheRead": 13312,
+        "cacheWrite": 0,
+        "total": 23505
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 6983,
+        "cachedInputTokens": 13312,
+        "cacheWriteTokens": 0,
+        "outputTokens": 3210,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.027932,
+        "cachedInput": 0.0053248,
+        "cacheWrite": 0,
+        "output": 0.0642,
+        "total": 0.09745679999999998,
+        "coverage": []
+      },
+      "modelElapsedMs": 62747
+    },
+    "sourceId": "pi-message:21"
+  },
+  {
+    "invocation": "inv-0003",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0003/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:30:39.106Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 4617,
+        "output": 75,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4692
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 4617,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 75,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.018468,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.0015,
+        "total": 0.019968,
+        "coverage": []
+      },
+      "modelElapsedMs": 2124
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0003",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0003/observations.jsonl:10",
+    "n": 10,
+    "at": "2026-10-09T13:30:52.552Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 585,
+        "output": 545,
+        "cacheRead": 4480,
+        "cacheWrite": 0,
+        "total": 5610
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 585,
+        "cachedInputTokens": 4480,
+        "cacheWriteTokens": 0,
+        "outputTokens": 545,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00234,
+        "cachedInput": 0.001792,
+        "cacheWrite": 0,
+        "output": 0.0109,
+        "total": 0.015032,
+        "coverage": []
+      },
+      "modelElapsedMs": 13366
+    },
+    "sourceId": "pi-message:4"
+  },
+  {
+    "invocation": "inv-0004",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:31:16.664Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 5079,
+        "output": 172,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 5251
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 5079,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 172,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.020316,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00344,
+        "total": 0.023756,
+        "coverage": []
+      },
+      "modelElapsedMs": 3638
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0004",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:34",
+    "n": 34,
+    "at": "2026-10-09T13:31:20.592Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 828,
+        "output": 184,
+        "cacheRead": 4992,
+        "cacheWrite": 0,
+        "total": 6004
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 828,
+        "cachedInputTokens": 4992,
+        "cacheWriteTokens": 0,
+        "outputTokens": 184,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.003312,
+        "cachedInput": 0.0019968000000000004,
+        "cacheWrite": 0,
+        "output": 0.00368,
+        "total": 0.008988800000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 3740
+    },
+    "sourceId": "pi-message:10"
+  },
+  {
+    "invocation": "inv-0004",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:71",
+    "n": 71,
+    "at": "2026-10-09T13:31:26.475Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1133,
+        "output": 232,
+        "cacheRead": 5632,
+        "cacheWrite": 0,
+        "total": 6997
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1133,
+        "cachedInputTokens": 5632,
+        "cacheWriteTokens": 0,
+        "outputTokens": 232,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.004532,
+        "cachedInput": 0.0022528,
+        "cacheWrite": 0,
+        "output": 0.00464,
+        "total": 0.011424799999999999,
+        "coverage": []
+      },
+      "modelElapsedMs": 5598
+    },
+    "sourceId": "pi-message:19"
+  },
+  {
+    "invocation": "inv-0004",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:103",
+    "n": 103,
+    "at": "2026-10-09T13:31:31.186Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 7393,
+        "output": 232,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 7625
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 7393,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 232,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.029572,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00464,
+        "total": 0.034212,
+        "coverage": []
+      },
+      "modelElapsedMs": 4441
+    },
+    "sourceId": "pi-message:26"
+  },
+  {
+    "invocation": "inv-0004",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:135",
+    "n": 135,
+    "at": "2026-10-09T13:31:35.409Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 2776,
+        "output": 191,
+        "cacheRead": 7296,
+        "cacheWrite": 0,
+        "total": 10263
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 2776,
+        "cachedInputTokens": 7296,
+        "cacheWriteTokens": 0,
+        "outputTokens": 191,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.011104,
+        "cachedInput": 0.0029184000000000002,
+        "cacheWrite": 0,
+        "output": 0.00382,
+        "total": 0.017842399999999998,
+        "coverage": []
+      },
+      "modelElapsedMs": 3927
+    },
+    "sourceId": "pi-message:34"
+  },
+  {
+    "invocation": "inv-0004",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0004/observations.jsonl:159",
+    "n": 159,
+    "at": "2026-10-09T13:31:51.214Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1736,
+        "output": 586,
+        "cacheRead": 9984,
+        "cacheWrite": 0,
+        "total": 12306
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1736,
+        "cachedInputTokens": 9984,
+        "cacheWriteTokens": 0,
+        "outputTokens": 586,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.006944,
+        "cachedInput": 0.003993600000000001,
+        "cacheWrite": 0,
+        "output": 0.01172,
+        "total": 0.0226576,
+        "coverage": []
+      },
+      "modelElapsedMs": 15524
+    },
+    "sourceId": "pi-message:40"
+  },
+  {
+    "invocation": "inv-0005",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0005/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:31:59.181Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 7398,
+        "output": 278,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 14332
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 7398,
+        "cachedInputTokens": 6656,
+        "cacheWriteTokens": 0,
+        "outputTokens": 278,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.029592,
+        "cachedInput": 0.0026624,
+        "cacheWrite": 0,
+        "output": 0.00556,
+        "total": 0.037814400000000005,
+        "coverage": []
+      },
+      "modelElapsedMs": 7598
+    },
+    "sourceId": "pi-message:46"
+  },
+  {
+    "invocation": "inv-0006",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0006/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:32:24.162Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 8654,
+        "output": 1121,
+        "cacheRead": 11520,
+        "cacheWrite": 0,
+        "total": 21295
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 8654,
+        "cachedInputTokens": 11520,
+        "cacheWriteTokens": 0,
+        "outputTokens": 1121,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.034616,
+        "cachedInput": 0.004608,
+        "cacheWrite": 0,
+        "output": 0.02242,
+        "total": 0.061644000000000004,
+        "coverage": []
+      },
+      "modelElapsedMs": 24437
+    },
+    "sourceId": "pi-message:46"
+  },
+  {
+    "invocation": "inv-0006",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0006/observations.jsonl:9",
+    "n": 9,
+    "at": "2026-10-09T13:32:43.126Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1342,
+        "output": 893,
+        "cacheRead": 19968,
+        "cacheWrite": 0,
+        "total": 22203
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1342,
+        "cachedInputTokens": 19968,
+        "cacheWriteTokens": 0,
+        "outputTokens": 893,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.005368,
+        "cachedInput": 0.007987200000000002,
+        "cacheWrite": 0,
+        "output": 0.01786,
+        "total": 0.031215200000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 18810
+    },
+    "sourceId": "pi-message:48"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:32:57.053Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 9135,
+        "output": 181,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 9316
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 9135,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 181,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.03654,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00362,
+        "total": 0.04016,
+        "coverage": []
+      },
+      "modelElapsedMs": 3711
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:39",
+    "n": 39,
+    "at": "2026-10-09T13:33:01.188Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 2467,
+        "output": 214,
+        "cacheRead": 8960,
+        "cacheWrite": 0,
+        "total": 11641
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 2467,
+        "cachedInputTokens": 8960,
+        "cacheWriteTokens": 0,
+        "outputTokens": 214,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.009868,
+        "cachedInput": 0.003584,
+        "cacheWrite": 0,
+        "output": 0.00428,
+        "total": 0.017732,
+        "coverage": []
+      },
+      "modelElapsedMs": 3699
+    },
+    "sourceId": "pi-message:11"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:67",
+    "n": 67,
+    "at": "2026-10-09T13:33:11.749Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1612,
+        "output": 386,
+        "cacheRead": 11264,
+        "cacheWrite": 0,
+        "total": 13262
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1612,
+        "cachedInputTokens": 11264,
+        "cacheWriteTokens": 0,
+        "outputTokens": 386,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.006448,
+        "cachedInput": 0.0045056,
+        "cacheWrite": 0,
+        "output": 0.00772,
+        "total": 0.018673600000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 10261
+    },
+    "sourceId": "pi-message:18"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:87",
+    "n": 87,
+    "at": "2026-10-09T13:33:31.848Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 7634,
+        "output": 962,
+        "cacheRead": 12672,
+        "cacheWrite": 0,
+        "total": 21268
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 7634,
+        "cachedInputTokens": 12672,
+        "cacheWriteTokens": 0,
+        "outputTokens": 962,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.030536,
+        "cachedInput": 0.0050688,
+        "cacheWrite": 0,
+        "output": 0.01924,
+        "total": 0.0548448,
+        "coverage": []
+      },
+      "modelElapsedMs": 19785
+    },
+    "sourceId": "pi-message:23"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:98",
+    "n": 98,
+    "at": "2026-10-09T13:33:39.546Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 21292,
+        "output": 346,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 21638
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 21292,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 346,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.085168,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00692,
+        "total": 0.09208799999999999,
+        "coverage": []
+      },
+      "modelElapsedMs": 4918
+    },
+    "sourceId": "pi-message:25"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:108",
+    "n": 108,
+    "at": "2026-10-09T13:33:59.132Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1440,
+        "output": 879,
+        "cacheRead": 20224,
+        "cacheWrite": 0,
+        "total": 22543
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1440,
+        "cachedInputTokens": 20224,
+        "cacheWriteTokens": 0,
+        "outputTokens": 879,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00576,
+        "cachedInput": 0.0080896,
+        "cacheWrite": 0,
+        "output": 0.01758,
+        "total": 0.0314296,
+        "coverage": []
+      },
+      "modelElapsedMs": 17399
+    },
+    "sourceId": "pi-message:27"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:118",
+    "n": 118,
+    "at": "2026-10-09T13:34:09.333Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1446,
+        "output": 292,
+        "cacheRead": 21120,
+        "cacheWrite": 0,
+        "total": 22858
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1446,
+        "cachedInputTokens": 21120,
+        "cacheWriteTokens": 0,
+        "outputTokens": 292,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.005784,
+        "cachedInput": 0.008448,
+        "cacheWrite": 0,
+        "output": 0.00584,
+        "total": 0.020072,
+        "coverage": []
+      },
+      "modelElapsedMs": 6741
+    },
+    "sourceId": "pi-message:29"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:131",
+    "n": 131,
+    "at": "2026-10-09T13:34:17.615Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1099,
+        "output": 191,
+        "cacheRead": 22400,
+        "cacheWrite": 0,
+        "total": 23690
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1099,
+        "cachedInputTokens": 22400,
+        "cacheWriteTokens": 0,
+        "outputTokens": 191,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.004396,
+        "cachedInput": 0.00896,
+        "cacheWrite": 0,
+        "output": 0.00382,
+        "total": 0.017176,
+        "coverage": []
+      },
+      "modelElapsedMs": 6371
+    },
+    "sourceId": "pi-message:32"
+  },
+  {
+    "invocation": "inv-0007",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0007/observations.jsonl:143",
+    "n": 143,
+    "at": "2026-10-09T13:34:31.175Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 2850,
+        "output": 378,
+        "cacheRead": 23296,
+        "cacheWrite": 0,
+        "total": 26524
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 2850,
+        "cachedInputTokens": 23296,
+        "cacheWriteTokens": 0,
+        "outputTokens": 378,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.0114,
+        "cachedInput": 0.0093184,
+        "cacheWrite": 0,
+        "output": 0.00756,
+        "total": 0.0282784,
+        "coverage": []
+      },
+      "modelElapsedMs": 9321
+    },
+    "sourceId": "pi-message:35"
+  },
+  {
+    "invocation": "inv-0008",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0008/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:34:57.186Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 4302,
+        "output": 280,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4582
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 4302,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 280,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.017208,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.0056,
+        "total": 0.022808000000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 4630
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0008",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0008/observations.jsonl:33",
+    "n": 33,
+    "at": "2026-10-09T13:35:03.729Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 8446,
+        "output": 339,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 8785
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 8446,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 339,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.033784,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00678,
+        "total": 0.040564,
+        "coverage": []
+      },
+      "modelElapsedMs": 6007
+    },
+    "sourceId": "pi-message:12"
+  },
+  {
+    "invocation": "inv-0008",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0008/observations.jsonl:65",
+    "n": 65,
+    "at": "2026-10-09T13:35:22.286Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 4275,
+        "output": 769,
+        "cacheRead": 8320,
+        "cacheWrite": 0,
+        "total": 13364
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 4275,
+        "cachedInputTokens": 8320,
+        "cacheWriteTokens": 0,
+        "outputTokens": 769,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.0171,
+        "cachedInput": 0.003328,
+        "cacheWrite": 0,
+        "output": 0.01538,
+        "total": 0.035808,
+        "coverage": []
+      },
+      "modelElapsedMs": 18067
+    },
+    "sourceId": "pi-message:22"
+  },
+  {
+    "invocation": "inv-0008",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0008/observations.jsonl:87",
+    "n": 87,
+    "at": "2026-10-09T13:35:36.439Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 2940,
+        "output": 447,
+        "cacheRead": 12416,
+        "cacheWrite": 0,
+        "total": 15803
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 2940,
+        "cachedInputTokens": 12416,
+        "cacheWriteTokens": 0,
+        "outputTokens": 447,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.01176,
+        "cachedInput": 0.0049664,
+        "cacheWrite": 0,
+        "output": 0.00894,
+        "total": 0.0256664,
+        "coverage": []
+      },
+      "modelElapsedMs": 13543
+    },
+    "sourceId": "pi-message:29"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:34:55.835Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 20569,
+        "output": 77,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 27302
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 20569,
+        "cachedInputTokens": 6656,
+        "cacheWriteTokens": 0,
+        "outputTokens": 77,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.082276,
+        "cachedInput": 0.0026624,
+        "cacheWrite": 0,
+        "output": 0.00154,
+        "total": 0.0864784,
+        "coverage": []
+      },
+      "modelElapsedMs": 2959
+    },
+    "sourceId": "pi-message:54"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:9",
+    "n": 9,
+    "at": "2026-10-09T13:34:58.708Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 255,
+        "output": 30,
+        "cacheRead": 27136,
+        "cacheWrite": 0,
+        "total": 27421
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 255,
+        "cachedInputTokens": 27136,
+        "cacheWriteTokens": 0,
+        "outputTokens": 30,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00102,
+        "cachedInput": 0.010854400000000002,
+        "cacheWrite": 0,
+        "output": 0.0006,
+        "total": 0.012474400000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 2782
+    },
+    "sourceId": "pi-message:56"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:16",
+    "n": 16,
+    "at": "2026-10-09T13:35:01.187Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 552,
+        "output": 38,
+        "cacheRead": 27264,
+        "cacheWrite": 0,
+        "total": 27854
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 552,
+        "cachedInputTokens": 27264,
+        "cacheWriteTokens": 0,
+        "outputTokens": 38,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.002208,
+        "cachedInput": 0.0109056,
+        "cacheWrite": 0,
+        "output": 0.00076,
+        "total": 0.0138736,
+        "coverage": []
+      },
+      "modelElapsedMs": 2346
+    },
+    "sourceId": "pi-message:58"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:23",
+    "n": 23,
+    "at": "2026-10-09T13:35:03.399Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 505,
+        "output": 32,
+        "cacheRead": 27648,
+        "cacheWrite": 0,
+        "total": 28185
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 505,
+        "cachedInputTokens": 27648,
+        "cacheWriteTokens": 0,
+        "outputTokens": 32,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00202,
+        "cachedInput": 0.0110592,
+        "cacheWrite": 0,
+        "output": 0.00064,
+        "total": 0.013719199999999999,
+        "coverage": []
+      },
+      "modelElapsedMs": 2071
+    },
+    "sourceId": "pi-message:60"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:30",
+    "n": 30,
+    "at": "2026-10-09T13:35:05.497Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 420,
+        "output": 35,
+        "cacheRead": 28032,
+        "cacheWrite": 0,
+        "total": 28487
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 420,
+        "cachedInputTokens": 28032,
+        "cacheWriteTokens": 0,
+        "outputTokens": 35,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00168,
+        "cachedInput": 0.011212800000000002,
+        "cacheWrite": 0,
+        "output": 0.0007,
+        "total": 0.013592800000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 1955
+    },
+    "sourceId": "pi-message:62"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:37",
+    "n": 37,
+    "at": "2026-10-09T13:35:12.785Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 876,
+        "output": 277,
+        "cacheRead": 28288,
+        "cacheWrite": 0,
+        "total": 29441
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 876,
+        "cachedInputTokens": 28288,
+        "cacheWriteTokens": 0,
+        "outputTokens": 277,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.003504,
+        "cachedInput": 0.011315200000000001,
+        "cacheWrite": 0,
+        "output": 0.00554,
+        "total": 0.0203592,
+        "coverage": []
+      },
+      "modelElapsedMs": 7141
+    },
+    "sourceId": "pi-message:64"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:44",
+    "n": 44,
+    "at": "2026-10-09T13:35:14.872Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 918,
+        "output": 32,
+        "cacheRead": 29056,
+        "cacheWrite": 0,
+        "total": 30006
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 918,
+        "cachedInputTokens": 29056,
+        "cacheWriteTokens": 0,
+        "outputTokens": 32,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.003672,
+        "cachedInput": 0.011622400000000001,
+        "cacheWrite": 0,
+        "output": 0.00064,
+        "total": 0.0159344,
+        "coverage": []
+      },
+      "modelElapsedMs": 1939
+    },
+    "sourceId": "pi-message:66"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:51",
+    "n": 51,
+    "at": "2026-10-09T13:35:17.530Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1248,
+        "output": 31,
+        "cacheRead": 29824,
+        "cacheWrite": 0,
+        "total": 31103
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1248,
+        "cachedInputTokens": 29824,
+        "cacheWriteTokens": 0,
+        "outputTokens": 31,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.004992,
+        "cachedInput": 0.0119296,
+        "cacheWrite": 0,
+        "output": 0.00062,
+        "total": 0.0175416,
+        "coverage": []
+      },
+      "modelElapsedMs": 2506
+    },
+    "sourceId": "pi-message:68"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:58",
+    "n": 58,
+    "at": "2026-10-09T13:35:19.818Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 180,
+        "output": 29,
+        "cacheRead": 30976,
+        "cacheWrite": 0,
+        "total": 31185
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 180,
+        "cachedInputTokens": 30976,
+        "cacheWriteTokens": 0,
+        "outputTokens": 29,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00072,
+        "cachedInput": 0.012390400000000001,
+        "cacheWrite": 0,
+        "output": 0.00058,
+        "total": 0.013690400000000002,
+        "coverage": []
+      },
+      "modelElapsedMs": 2133
+    },
+    "sourceId": "pi-message:70"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:65",
+    "n": 65,
+    "at": "2026-10-09T13:35:22.462Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 710,
+        "output": 30,
+        "cacheRead": 30976,
+        "cacheWrite": 0,
+        "total": 31716
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 710,
+        "cachedInputTokens": 30976,
+        "cacheWriteTokens": 0,
+        "outputTokens": 30,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00284,
+        "cachedInput": 0.012390400000000001,
+        "cacheWrite": 0,
+        "output": 0.0006,
+        "total": 0.0158304,
+        "coverage": []
+      },
+      "modelElapsedMs": 2477
+    },
+    "sourceId": "pi-message:72"
+  },
+  {
+    "invocation": "inv-0009",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0009/observations.jsonl:72",
+    "n": 72,
+    "at": "2026-10-09T13:35:28.971Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 828,
+        "output": 183,
+        "cacheRead": 31488,
+        "cacheWrite": 0,
+        "total": 32499
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 828,
+        "cachedInputTokens": 31488,
+        "cacheWriteTokens": 0,
+        "outputTokens": 183,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.003312,
+        "cachedInput": 0.0125952,
+        "cacheWrite": 0,
+        "output": 0.00366,
+        "total": 0.0195672,
+        "coverage": []
+      },
+      "modelElapsedMs": 6175
+    },
+    "sourceId": "pi-message:74"
+  },
+  {
+    "invocation": "inv-0010",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0010/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:35:04.900Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 19027,
+        "output": 170,
+        "cacheRead": 6656,
+        "cacheWrite": 0,
+        "total": 25853
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 19027,
+        "cachedInputTokens": 6656,
+        "cacheWriteTokens": 0,
+        "outputTokens": 170,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.076108,
+        "cachedInput": 0.0026624,
+        "cacheWrite": 0,
+        "output": 0.0034,
+        "total": 0.08217039999999999,
+        "coverage": []
+      },
+      "modelElapsedMs": 3780
+    },
+    "sourceId": "pi-message:51"
+  },
+  {
+    "invocation": "inv-0010",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0010/observations.jsonl:24",
+    "n": 24,
+    "at": "2026-10-09T13:35:12.914Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 3388,
+        "output": 487,
+        "cacheRead": 25600,
+        "cacheWrite": 0,
+        "total": 29475
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 3388,
+        "cachedInputTokens": 25600,
+        "cacheWriteTokens": 0,
+        "outputTokens": 487,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.013552,
+        "cachedInput": 0.01024,
+        "cacheWrite": 0,
+        "output": 0.00974,
+        "total": 0.033532,
+        "coverage": []
+      },
+      "modelElapsedMs": 7597
+    },
+    "sourceId": "pi-message:57"
+  },
+  {
+    "invocation": "inv-0011",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0011/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:35:34.892Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 4557,
+        "output": 183,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 4740
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 4557,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 183,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.018228,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00366,
+        "total": 0.021888,
+        "coverage": []
+      },
+      "modelElapsedMs": 5588
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0012",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:35:41.533Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 3597,
+        "output": 99,
+        "cacheRead": 4352,
+        "cacheWrite": 0,
+        "total": 8048
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 3597,
+        "cachedInputTokens": 4352,
+        "cacheWriteTokens": 0,
+        "outputTokens": 99,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.014388,
+        "cachedInput": 0.0017408000000000002,
+        "cacheWrite": 0,
+        "output": 0.00198,
+        "total": 0.018108799999999998,
+        "coverage": []
+      },
+      "modelElapsedMs": 6336
+    },
+    "sourceId": "pi-message:7"
+  },
+  {
+    "invocation": "inv-0012",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/observations.jsonl:9",
+    "n": 9,
+    "at": "2026-10-09T13:35:44.534Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 8137,
+        "output": 151,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 8288
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 8137,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 151,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.032548,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00302,
+        "total": 0.035568,
+        "coverage": []
+      },
+      "modelElapsedMs": 2885
+    },
+    "sourceId": "pi-message:9"
+  },
+  {
+    "invocation": "inv-0012",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/observations.jsonl:25",
+    "n": 25,
+    "at": "2026-10-09T13:35:52.774Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1984,
+        "output": 364,
+        "cacheRead": 7936,
+        "cacheWrite": 0,
+        "total": 10284
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1984,
+        "cachedInputTokens": 7936,
+        "cacheWriteTokens": 0,
+        "outputTokens": 364,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.007936,
+        "cachedInput": 0.0031744,
+        "cacheWrite": 0,
+        "output": 0.00728,
+        "total": 0.0183904,
+        "coverage": []
+      },
+      "modelElapsedMs": 7924
+    },
+    "sourceId": "pi-message:14"
+  },
+  {
+    "invocation": "inv-0012",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0012/observations.jsonl:50",
+    "n": 50,
+    "at": "2026-10-09T13:36:02.375Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 6139,
+        "output": 295,
+        "cacheRead": 9728,
+        "cacheWrite": 0,
+        "total": 16162
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 6139,
+        "cachedInputTokens": 9728,
+        "cacheWriteTokens": 0,
+        "outputTokens": 295,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.024556,
+        "cachedInput": 0.0038912000000000005,
+        "cacheWrite": 0,
+        "output": 0.0059,
+        "total": 0.0343472,
+        "coverage": []
+      },
+      "modelElapsedMs": 9062
+    },
+    "sourceId": "pi-message:22"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:2",
+    "n": 2,
+    "at": "2026-10-09T13:36:08.579Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 2335,
+        "output": 27,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 2362
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 2335,
+        "cachedInputTokens": 0,
+        "cacheWriteTokens": 0,
+        "outputTokens": 27,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00934,
+        "cachedInput": 0,
+        "cacheWrite": 0,
+        "output": 0.00054,
+        "total": 0.00988,
+        "coverage": []
+      },
+      "modelElapsedMs": 1762
+    },
+    "sourceId": "pi-message:2"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:9",
+    "n": 9,
+    "at": "2026-10-09T13:36:12.830Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 201,
+        "output": 44,
+        "cacheRead": 2176,
+        "cacheWrite": 0,
+        "total": 2421
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 201,
+        "cachedInputTokens": 2176,
+        "cacheWriteTokens": 0,
+        "outputTokens": 44,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.000804,
+        "cachedInput": 0.0008704000000000001,
+        "cacheWrite": 0,
+        "output": 0.00088,
+        "total": 0.0025544,
+        "coverage": []
+      },
+      "modelElapsedMs": 4099
+    },
+    "sourceId": "pi-message:4"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:16",
+    "n": 16,
+    "at": "2026-10-09T13:36:15.924Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 307,
+        "output": 112,
+        "cacheRead": 2176,
+        "cacheWrite": 0,
+        "total": 2595
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 307,
+        "cachedInputTokens": 2176,
+        "cacheWriteTokens": 0,
+        "outputTokens": 112,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.001228,
+        "cachedInput": 0.0008704000000000001,
+        "cacheWrite": 0,
+        "output": 0.00224,
+        "total": 0.0043384,
+        "coverage": []
+      },
+      "modelElapsedMs": 2961
+    },
+    "sourceId": "pi-message:6"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:35",
+    "n": 35,
+    "at": "2026-10-09T13:36:19.572Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 1370,
+        "output": 118,
+        "cacheRead": 2304,
+        "cacheWrite": 0,
+        "total": 3792
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 1370,
+        "cachedInputTokens": 2304,
+        "cacheWriteTokens": 0,
+        "outputTokens": 118,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.00548,
+        "cachedInput": 0.0009216000000000001,
+        "cacheWrite": 0,
+        "output": 0.00236,
+        "total": 0.0087616,
+        "coverage": []
+      },
+      "modelElapsedMs": 3301
+    },
+    "sourceId": "pi-message:12"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:51",
+    "n": 51,
+    "at": "2026-10-09T13:36:29.410Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 6089,
+        "output": 495,
+        "cacheRead": 3584,
+        "cacheWrite": 0,
+        "total": 10168
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 6089,
+        "cachedInputTokens": 3584,
+        "cacheWriteTokens": 0,
+        "outputTokens": 495,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.024356,
+        "cachedInput": 0.0014336000000000002,
+        "cacheWrite": 0,
+        "output": 0.0099,
+        "total": 0.0356896,
+        "coverage": []
+      },
+      "modelElapsedMs": 9528
+    },
+    "sourceId": "pi-message:17"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:82",
+    "n": 82,
+    "at": "2026-10-09T13:36:43.637Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 4952,
+        "output": 615,
+        "cacheRead": 9472,
+        "cacheWrite": 0,
+        "total": 15039
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 4952,
+        "cachedInputTokens": 9472,
+        "cacheWriteTokens": 0,
+        "outputTokens": 615,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.019808,
+        "cachedInput": 0.0037888,
+        "cacheWrite": 0,
+        "output": 0.0123,
+        "total": 0.0358968,
+        "coverage": []
+      },
+      "modelElapsedMs": 13613
+    },
+    "sourceId": "pi-message:27"
+  },
+  {
+    "invocation": "inv-0013",
+    "source": "/home/app/ramify-trial-evidence/status-badge-tone-20261009/collection-review/plans/status-badge-tone/.harness/jobs/20261009T132856Z-07ccc4/invocations/inv-0013/observations.jsonl:98",
+    "n": 98,
+    "at": "2026-10-09T13:37:09.769Z",
+    "type": "usage",
+    "data": {
+      "usage": {
+        "input": 3068,
+        "output": 1517,
+        "cacheRead": 14336,
+        "cacheWrite": 0,
+        "total": 18921
+      },
+      "charge": {
+        "model": "openai-codex/gpt-5.6-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 3068,
+        "cachedInputTokens": 14336,
+        "cacheWriteTokens": 0,
+        "outputTokens": 1517,
+        "ratesPerMillion": {
+          "newInput": 4,
+          "cachedInput": 0.4,
+          "cacheWrite": 5,
+          "output": 20
+        },
+        "newInput": 0.012272,
+        "cachedInput": 0.005734400000000001,
+        "cacheWrite": 0,
+        "output": 0.03034,
+        "total": 0.0483464,
+        "coverage": []
+      },
+      "modelElapsedMs": 25731
+    },
+    "sourceId": "pi-message:32"
+  }
+]

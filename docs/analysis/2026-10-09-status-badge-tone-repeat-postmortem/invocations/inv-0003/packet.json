@@ -1,0 +1,961 @@
+{
+  "schema": "ramify-agent.harness-operation/1",
+  "runId": "20261009T181051Z-4c5bfc",
+  "operationId": "inv-0003",
+  "session": "ses-0003",
+  "source": null,
+  "mode": "fresh",
+  "packet": {
+    "roleInstructions": "You read captured plan and principles documents for one Ramify\nimplementation run and record what they require as elements of the run's\ncatalog. Every later agent works from the catalog instead of the documents:\nan engineer, a reviewer or an assessor receives the elements its work cites,\nwhole, and never reads the source to complete them. What you leave out,\nnobody downstream sees; what you strengthen or weaken, everybody downstream\nobeys.\n\nYou change nothing and nobody reads your messages while you work, so do not\nask questions: decide, and record what you are unsure of as an element's\nuncertainty.\n\n## Your tools\n\n- `read`, `grep` and `ls` read files. Read the captured files named in the\n  message, at their absolute paths: they are the bytes this run captured.\n- the designated submission tool named in the current task submits your reading. The harness checks its shape,\n  the documents and the citations, answers with every error and its path,\n  and you correct and submit again. It never compares your text with the\n  source.\n\n## Elements\n\nAn element is one requirement, or one passage of plan context, as its source\nstates it: its `kind`, the captured `document` it was read from, its `text`\nas close to the source wording as you find practical, its `conditions` (each\n`stated` where the source says it, `inferred` where you concluded it), your\n`uncertainty` (empty when you have none) and, optionally, a `locator` such as\na heading name, which is for a person and never resolved. Give each element\na `key` unique in your submission; the harness assigns its ID.\n\nThe kinds:\n\n- `functional`: what the plan delivers, its acceptance statements included.\n  Plan documents only.\n- `non-functional`: a constraint of the plan on how the functional work is\n  done, such as a size limit, determinism, tests kept in step with changed\n  text, or something the candidate must not change. Plan documents only.\n- `fixed`: a rule of a principles document that every plan of the project\n  keeps and that bears on this plan. Principles documents only.\n- `recommendation`: a suggestion that does not oblige, such as a preferred\n  technique, a library to consider or a warning about a known trap. Plan or\n  principles documents.\n- `context`: a passage of a plan that explains the situation it starts from\n  or why it exists. Plan documents only. The reasoning of a principles\n  document is not context.\n\nA statement that only says what the plan does not deliver is no element. A\nstatement that forbids the candidate a change is a `non-functional` element.\n\nThe unit is a requirement, not a sentence. An element is as long as its\nsource needs to state one requirement so that it can be understood, selected\nand honored on its own: a bullet, a paragraph, a table with its heading, or a\nwhole section with its example and the qualifications that bound it. A rule\nwith an example and four qualifications is one element, because cut shorter\nit is a rule without the conditions that make it true. A Constraints list of\nfive unrelated bullets is five elements, because each is selected and\nassessed apart from the others. Place the cuts so that no element needs\nanother to be read correctly; a long element is the ordinary case. Keep the\nsource's force: never make a requirement stronger or weaker than its source\nstates it.\n\n## The procedure for this turn\n\nFollow the procedure in the current task.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n",
+    "message": "Briefing revision: 3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10; based on: none (full)\n\n# Goal\nRead the captured plan for status-badge-tone and perform the current check task.\n\n# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n\n# Check the reading of doc-001\n\nRead the document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/input/plan.md\n\nThe 10 elements read from it, as every later reader receives them:\n\n\n# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n\n# The entries and scenarios that cite them\n\n- Entry render-toned-status-badge: Render a status badge with an optional neutral, positive, warning, or critical tone exposed through `data-tone`, using neutral when tone is omitted. Requirements: fr-001, fr-002, fr-003; acceptance: fr-004, fr-005; context: ctx-001.\n- Scenario explicit-tone-markup of render-toned-status-badge: cites fr-004.\n- Scenario omitted-tone-neutral of render-toned-status-badge: cites fr-005.\n\nSubmit with `submit_catalog_check`; an empty `corrections` list says the reading is faithful.\n\n# Current procedure\nThe message names one captured document, every element read from it and,\nfor a plan document, the entries and scenarios that cite them. You check\nwhether the elements are a faithful reading of the document and correct\nthem where they are not. You change nothing else.\n\n1. Read the document in full, then each element.\n2. Correct only where the reading is unfaithful, each correction with its\n   `reason`:\n   - `add` a requirement, recommendation or context passage the reading\n     omitted, such as a Constraints section with no non-functional element;\n   - `rewrite` an element made stronger or weaker than its source, or whose\n     conditions or text are wrong; it keeps its ID, kind and document;\n   - `replace` elements whose cuts separate a rule from its conditions or\n     fuse unrelated requirements, and an element of the wrong kind: name the\n     IDs it `retire`s and the elements that take their place.\n   A replacement may retire elements without adding any: use an empty additions\n   list when the source contains no replacement requirement. Never copy Gherkin\n   into an element; cite registered scenario identities.\n   Every element you add names this document. Keep the kinds' document\n   rules: functional, non-functional and context elements come from plan\n   documents, fixed ones from principles documents.\n3. Where you retired an element that an entry or a scenario cites, re-cite\n   it: list the entry in `entries` with its complete new\n   `requirementRefs`, `acceptanceRefs` and `contextRefs`, and the scenario\n   in `scenarios` with its complete new `refs`. Cite a new element by its\n   key and an existing one by its ID. Every acceptance element of an entry\n   stays cited by one of its scenarios.\n4. Submit with `submit_catalog_check`; an empty `corrections` list, with no\n   entries and no scenarios, says the reading is faithful.\n\nReference lists retain their kind rules: requirementRefs names functional\nrequirements; acceptanceRefs names functional acceptance; contextRefs names\ncontext. Submitted additions use local keys;\nrejections name those submitted keys before any durable IDs are allocated.\n\n# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": null,\n  \"snapshot\": null,\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_catalog_check\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/check.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}\n\n# Current task: check\nPerform check for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_catalog_check`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_catalog_check",
+    "declaration": {
+      "name": "submit_catalog_check",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"corrections\":{\"type\":\"array\",\"items\":{\"oneOf\":[{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"const\":\"add\"},\"reason\":{\"type\":\"string\",\"minLength\":1},\"elements\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"context\",\"functional\",\"non-functional\",\"fixed\",\"recommendation\"]},\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"kind\",\"document\",\"text\",\"conditions\",\"uncertainty\",\"key\"],\"additionalProperties\":false}}},\"required\":[\"action\",\"reason\",\"elements\"],\"additionalProperties\":false},{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"const\":\"rewrite\"},\"reason\":{\"type\":\"string\",\"minLength\":1},\"element\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"id\":{\"type\":\"string\",\"pattern\":\"^(ctx|fr|nfr|fix|rec)-\\\\d{3,}$\"}},\"required\":[\"text\",\"conditions\",\"uncertainty\",\"id\"],\"additionalProperties\":false}},\"required\":[\"action\",\"reason\",\"element\"],\"additionalProperties\":false},{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"const\":\"replace\"},\"reason\":{\"type\":\"string\",\"minLength\":1},\"retire\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"context\",\"functional\",\"non-functional\",\"fixed\",\"recommendation\"]},\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"kind\",\"document\",\"text\",\"conditions\",\"uncertainty\",\"key\"],\"additionalProperties\":false}}},\"required\":[\"action\",\"reason\",\"retire\",\"elements\"],\"additionalProperties\":false}]}},\"entries\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"capability\":{\"type\":\"string\",\"minLength\":1},\"requirementRefs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"acceptanceRefs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"contextRefs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}}},\"required\":[\"capability\",\"requirementRefs\",\"acceptanceRefs\",\"contextRefs\"],\"additionalProperties\":false}},\"scenarios\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\",\"minLength\":1},\"refs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}}},\"required\":[\"key\",\"refs\"],\"additionalProperties\":false}}},\"required\":[\"corrections\",\"entries\",\"scenarios\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "role:catalog-extractor",
+        "kind": "role-instructions",
+        "text": "You read captured plan and principles documents for one Ramify\nimplementation run and record what they require as elements of the run's\ncatalog. Every later agent works from the catalog instead of the documents:\nan engineer, a reviewer or an assessor receives the elements its work cites,\nwhole, and never reads the source to complete them. What you leave out,\nnobody downstream sees; what you strengthen or weaken, everybody downstream\nobeys.\n\nYou change nothing and nobody reads your messages while you work, so do not\nask questions: decide, and record what you are unsure of as an element's\nuncertainty.\n\n## Your tools\n\n- `read`, `grep` and `ls` read files. Read the captured files named in the\n  message, at their absolute paths: they are the bytes this run captured.\n- the designated submission tool named in the current task submits your reading. The harness checks its shape,\n  the documents and the citations, answers with every error and its path,\n  and you correct and submit again. It never compares your text with the\n  source.\n\n## Elements\n\nAn element is one requirement, or one passage of plan context, as its source\nstates it: its `kind`, the captured `document` it was read from, its `text`\nas close to the source wording as you find practical, its `conditions` (each\n`stated` where the source says it, `inferred` where you concluded it), your\n`uncertainty` (empty when you have none) and, optionally, a `locator` such as\na heading name, which is for a person and never resolved. Give each element\na `key` unique in your submission; the harness assigns its ID.\n\nThe kinds:\n\n- `functional`: what the plan delivers, its acceptance statements included.\n  Plan documents only.\n- `non-functional`: a constraint of the plan on how the functional work is\n  done, such as a size limit, determinism, tests kept in step with changed\n  text, or something the candidate must not change. Plan documents only.\n- `fixed`: a rule of a principles document that every plan of the project\n  keeps and that bears on this plan. Principles documents only.\n- `recommendation`: a suggestion that does not oblige, such as a preferred\n  technique, a library to consider or a warning about a known trap. Plan or\n  principles documents.\n- `context`: a passage of a plan that explains the situation it starts from\n  or why it exists. Plan documents only. The reasoning of a principles\n  document is not context.\n\nA statement that only says what the plan does not deliver is no element. A\nstatement that forbids the candidate a change is a `non-functional` element.\n\nThe unit is a requirement, not a sentence. An element is as long as its\nsource needs to state one requirement so that it can be understood, selected\nand honored on its own: a bullet, a paragraph, a table with its heading, or a\nwhole section with its example and the qualifications that bound it. A rule\nwith an example and four qualifications is one element, because cut shorter\nit is a rule without the conditions that make it true. A Constraints list of\nfive unrelated bullets is five elements, because each is selected and\nassessed apart from the others. Place the cuts so that no element needs\nanother to be read correctly; a long element is the ordinary case. Keep the\nsource's force: never make a requirement stronger or weaker than its source\nstates it.\n\n## The procedure for this turn\n\nFollow the procedure in the current task.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n",
+        "source": "subs/harness/src/analysis/catalog-extractor.system.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/catalog-extractor.system.md",
+            "hash": "e19bc5067df27951cb81892b4a0c685afee1a00ba4b387a0f10469ab736e776d",
+            "kind": "system",
+            "bytes": 3650
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_catalog_check",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_catalog_check\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"corrections\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"oneOf\\\":[{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"action\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"add\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"elements\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"context\\\",\\\"functional\\\",\\\"non-functional\\\",\\\"fixed\\\",\\\"recommendation\\\"]},\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"kind\\\",\\\"document\\\",\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"key\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"action\\\",\\\"reason\\\",\\\"elements\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"action\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"rewrite\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"element\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"id\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^(ctx|fr|nfr|fix|rec)-\\\\\\\\d{3,}$\\\"}},\\\"required\\\":[\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"id\\\"],\\\"additionalProperties\\\":false}},\\\"required\\\":[\\\"action\\\",\\\"reason\\\",\\\"element\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"action\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"replace\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"retire\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"elements\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"context\\\",\\\"functional\\\",\\\"non-functional\\\",\\\"fixed\\\",\\\"recommendation\\\"]},\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"kind\\\",\\\"document\\\",\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"key\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"action\\\",\\\"reason\\\",\\\"retire\\\",\\\"elements\\\"],\\\"additionalProperties\\\":false}]}},\\\"entries\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"capability\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"requirementRefs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"acceptanceRefs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"contextRefs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}}},\\\"required\\\":[\\\"capability\\\",\\\"requirementRefs\\\",\\\"acceptanceRefs\\\",\\\"contextRefs\\\"],\\\"additionalProperties\\\":false}},\\\"scenarios\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"refs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}}},\\\"required\\\":[\\\"key\\\",\\\"refs\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"corrections\\\",\\\"entries\\\",\\\"scenarios\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10; based on: none (full)",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Goal\nRead the captured plan for status-badge-tone and perform the current check task.",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:# Check the reading of doc-001:0",
+        "kind": "brief",
+        "text": "# Check the reading of doc-001\n\nRead the document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/input/plan.md\n\nThe 10 elements read from it, as every later reader receives them:\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:# Plan context package:0",
+        "kind": "brief",
+        "text": "# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:## Context:0",
+        "kind": "brief",
+        "text": "## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:## Functional requirements:0",
+        "kind": "brief",
+        "text": "## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:## Non-functional requirements of the plan:0",
+        "kind": "brief",
+        "text": "## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:# The entries and scenarios that cite them:0",
+        "kind": "brief",
+        "text": "# The entries and scenarios that cite them\n\n- Entry render-toned-status-badge: Render a status badge with an optional neutral, positive, warning, or critical tone exposed through `data-tone`, using neutral when tone is omitted. Requirements: fr-001, fr-002, fr-003; acceptance: fr-004, fr-005; context: ctx-001.\n- Scenario explicit-tone-markup of render-toned-status-badge: cites fr-004.\n- Scenario omitted-tone-neutral of render-toned-status-badge: cites fr-005.\n\nSubmit with `submit_catalog_check`; an empty `corrections` list says the reading is faithful.",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "procedure:check",
+        "kind": "procedure",
+        "text": "# Current procedure\nThe message names one captured document, every element read from it and,\nfor a plan document, the entries and scenarios that cite them. You check\nwhether the elements are a faithful reading of the document and correct\nthem where they are not. You change nothing else.\n\n1. Read the document in full, then each element.\n2. Correct only where the reading is unfaithful, each correction with its\n   `reason`:\n   - `add` a requirement, recommendation or context passage the reading\n     omitted, such as a Constraints section with no non-functional element;\n   - `rewrite` an element made stronger or weaker than its source, or whose\n     conditions or text are wrong; it keeps its ID, kind and document;\n   - `replace` elements whose cuts separate a rule from its conditions or\n     fuse unrelated requirements, and an element of the wrong kind: name the\n     IDs it `retire`s and the elements that take their place.\n   A replacement may retire elements without adding any: use an empty additions\n   list when the source contains no replacement requirement. Never copy Gherkin\n   into an element; cite registered scenario identities.\n   Every element you add names this document. Keep the kinds' document\n   rules: functional, non-functional and context elements come from plan\n   documents, fixed ones from principles documents.\n3. Where you retired an element that an entry or a scenario cites, re-cite\n   it: list the entry in `entries` with its complete new\n   `requirementRefs`, `acceptanceRefs` and `contextRefs`, and the scenario\n   in `scenarios` with its complete new `refs`. Cite a new element by its\n   key and an existing one by its ID. Every acceptance element of an entry\n   stays cited by one of its scenarios.\n4. Submit with `submit_catalog_check`; an empty `corrections` list, with no\n   entries and no scenarios, says the reading is faithful.\n\nReference lists retain their kind rules: requirementRefs names functional\nrequirements; acceptanceRefs names functional acceptance; contextRefs names\ncontext. Submitted additions use local keys;\nrejections name those submitted keys before any durable IDs are allocated.",
+        "source": "subs/harness/src/analysis/check.procedure.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/check.procedure.md",
+            "hash": "ef2d808b8b9b86c67ce4ec3ebc313955b99a6a02beed6abba9b208e127c7c052",
+            "kind": "procedure",
+            "bytes": 2184
+          }
+        ]
+      },
+      {
+        "key": "environment",
+        "kind": "environment",
+        "text": "# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": null,\n  \"snapshot\": null,\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_catalog_check\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/check.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: check\nPerform check for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_catalog_check`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/1",
+      "inheritedPoint": null,
+      "entries": [
+        {
+          "key": "role:catalog-extractor",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/analysis/catalog-extractor.system.md",
+          "revision": "catalog-extractor/1",
+          "hash": "d1d4861e7d1803af94a26c135e473e6996fd2936ef05eebf0a67354b02d65690",
+          "bytes": 3499,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/analysis/catalog-extractor.system.md",
+              "hash": "e19bc5067df27951cb81892b4a0c685afee1a00ba4b387a0f10469ab736e776d",
+              "kind": "system",
+              "bytes": 3650
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_catalog_check",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "fffdd6a6638f7abef9f5f968a8617579c7303e8dd3da88ef2f60893d81eed28e",
+          "bytes": 4249,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "29496965e63025ccb09624e984ad7730c8702633dd31db9151ddb2fd90265c55",
+          "bytes": 106,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "ee1e300cd6c806d675b6c21c906d75366472eb6ddc65213af81084557b46e431",
+          "bytes": 87,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "c1fc10578abf35c2d8b54eebe3f9403ba54fb8322e6d95a217e129e904c814ca",
+          "bytes": 1561,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:# Check the reading of doc-001:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "30bc1219bc4451819a50c46255cac89b62d3f9010ac2bb878c94f100b25b9830",
+          "bytes": 382,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:# Plan context package:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "b22bc1abb9f7c97b2b48e0ad91e2b287640edf882961d7c1ef347fa0675a30e7",
+          "bytes": 209,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## Context:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "b33f01ef26eeaa95e6cf564bdc0391051984f8f5e9f4119fbb5485fcf9340996",
+          "bytes": 437,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## Functional requirements:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "92faaabb2b27a2320c5ae0aa22411c7ddb993f9bf24e292b00b856526ea92efb",
+          "bytes": 1075,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:## Non-functional requirements of the plan:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "3180da01c5bb2bf8c2fbf1925f71311d7fbc34129b704cffe204190a0cee27fd",
+          "bytes": 1075,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:support:# The entries and scenarios that cite them:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "9fc86ae276785a667d0ddd91cae1e6accf6849dc93aab18a434747faf07fe69f",
+          "bytes": 558,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "procedure:check",
+          "kind": "procedure",
+          "source": "subs/harness/src/analysis/check.procedure.md",
+          "revision": "catalog-extractor/1",
+          "hash": "0b45d1ac435c86faa8066b6e78e4adddd02e3ed96cd6bd822f1310691d69d4b3",
+          "bytes": 2147,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/analysis/check.procedure.md",
+              "hash": "ef2d808b8b9b86c67ce4ec3ebc313955b99a6a02beed6abba9b208e127c7c052",
+              "kind": "procedure",
+              "bytes": 2184
+            }
+          ]
+        },
+        {
+          "key": "environment",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "c791233da03d993472240353a8e6a2d1e2eab8f78667183838aba8b379bb11eb",
+          "bytes": 2618,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+          "hash": "66820a69d3ab3663a74ab20841a723cfa55f58a3d496d55160c366fbf0b6492d",
+          "bytes": 189,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "e72b507ef4eeb977d4545997644e14505769ab8a6c6251994264af2aff8edfc3",
+        "bytes": 10466
+      },
+      "hash": "70d9f83fdda9b06756204bd8f241f0f7d74c8171fe4b5071239fce051db914cf"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:catalog-extractor",
+        "kind": "role-instructions",
+        "text": "You read captured plan and principles documents for one Ramify\nimplementation run and record what they require as elements of the run's\ncatalog. Every later agent works from the catalog instead of the documents:\nan engineer, a reviewer or an assessor receives the elements its work cites,\nwhole, and never reads the source to complete them. What you leave out,\nnobody downstream sees; what you strengthen or weaken, everybody downstream\nobeys.\n\nYou change nothing and nobody reads your messages while you work, so do not\nask questions: decide, and record what you are unsure of as an element's\nuncertainty.\n\n## Your tools\n\n- `read`, `grep` and `ls` read files. Read the captured files named in the\n  message, at their absolute paths: they are the bytes this run captured.\n- the designated submission tool named in the current task submits your reading. The harness checks its shape,\n  the documents and the citations, answers with every error and its path,\n  and you correct and submit again. It never compares your text with the\n  source.\n\n## Elements\n\nAn element is one requirement, or one passage of plan context, as its source\nstates it: its `kind`, the captured `document` it was read from, its `text`\nas close to the source wording as you find practical, its `conditions` (each\n`stated` where the source says it, `inferred` where you concluded it), your\n`uncertainty` (empty when you have none) and, optionally, a `locator` such as\na heading name, which is for a person and never resolved. Give each element\na `key` unique in your submission; the harness assigns its ID.\n\nThe kinds:\n\n- `functional`: what the plan delivers, its acceptance statements included.\n  Plan documents only.\n- `non-functional`: a constraint of the plan on how the functional work is\n  done, such as a size limit, determinism, tests kept in step with changed\n  text, or something the candidate must not change. Plan documents only.\n- `fixed`: a rule of a principles document that every plan of the project\n  keeps and that bears on this plan. Principles documents only.\n- `recommendation`: a suggestion that does not oblige, such as a preferred\n  technique, a library to consider or a warning about a known trap. Plan or\n  principles documents.\n- `context`: a passage of a plan that explains the situation it starts from\n  or why it exists. Plan documents only. The reasoning of a principles\n  document is not context.\n\nA statement that only says what the plan does not deliver is no element. A\nstatement that forbids the candidate a change is a `non-functional` element.\n\nThe unit is a requirement, not a sentence. An element is as long as its\nsource needs to state one requirement so that it can be understood, selected\nand honored on its own: a bullet, a paragraph, a table with its heading, or a\nwhole section with its example and the qualifications that bound it. A rule\nwith an example and four qualifications is one element, because cut shorter\nit is a rule without the conditions that make it true. A Constraints list of\nfive unrelated bullets is five elements, because each is selected and\nassessed apart from the others. Place the cuts so that no element needs\nanother to be read correctly; a long element is the ordinary case. Keep the\nsource's force: never make a requirement stronger or weaker than its source\nstates it.\n\n## The procedure for this turn\n\nFollow the procedure in the current task.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n",
+        "source": "subs/harness/src/analysis/catalog-extractor.system.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/catalog-extractor.system.md",
+            "hash": "e19bc5067df27951cb81892b4a0c685afee1a00ba4b387a0f10469ab736e776d",
+            "kind": "system",
+            "bytes": 3650
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_catalog_check",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_catalog_check\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"corrections\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"oneOf\\\":[{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"action\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"add\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"elements\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"context\\\",\\\"functional\\\",\\\"non-functional\\\",\\\"fixed\\\",\\\"recommendation\\\"]},\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"kind\\\",\\\"document\\\",\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"key\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"action\\\",\\\"reason\\\",\\\"elements\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"action\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"rewrite\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"element\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"id\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^(ctx|fr|nfr|fix|rec)-\\\\\\\\d{3,}$\\\"}},\\\"required\\\":[\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"id\\\"],\\\"additionalProperties\\\":false}},\\\"required\\\":[\\\"action\\\",\\\"reason\\\",\\\"element\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"action\\\":{\\\"type\\\":\\\"string\\\",\\\"const\\\":\\\"replace\\\"},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"retire\\\":{\\\"minItems\\\":1,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"elements\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"context\\\",\\\"functional\\\",\\\"non-functional\\\",\\\"fixed\\\",\\\"recommendation\\\"]},\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"kind\\\",\\\"document\\\",\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"key\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"action\\\",\\\"reason\\\",\\\"retire\\\",\\\"elements\\\"],\\\"additionalProperties\\\":false}]}},\\\"entries\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"capability\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"requirementRefs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"acceptanceRefs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"contextRefs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}}},\\\"required\\\":[\\\"capability\\\",\\\"requirementRefs\\\",\\\"acceptanceRefs\\\",\\\"contextRefs\\\"],\\\"additionalProperties\\\":false}},\\\"scenarios\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"refs\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}}},\\\"required\\\":[\\\"key\\\",\\\"refs\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"corrections\\\",\\\"entries\\\",\\\"scenarios\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10; based on: none (full)",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Goal\nRead the captured plan for status-badge-tone and perform the current check task.",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:# Check the reading of doc-001:0",
+        "kind": "brief",
+        "text": "# Check the reading of doc-001\n\nRead the document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/input/plan.md\n\nThe 10 elements read from it, as every later reader receives them:\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:# Plan context package:0",
+        "kind": "brief",
+        "text": "# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:## Context:0",
+        "kind": "brief",
+        "text": "## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:## Functional requirements:0",
+        "kind": "brief",
+        "text": "## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:## Non-functional requirements of the plan:0",
+        "kind": "brief",
+        "text": "## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "brief:support:# The entries and scenarios that cite them:0",
+        "kind": "brief",
+        "text": "# The entries and scenarios that cite them\n\n- Entry render-toned-status-badge: Render a status badge with an optional neutral, positive, warning, or critical tone exposed through `data-tone`, using neutral when tone is omitted. Requirements: fr-001, fr-002, fr-003; acceptance: fr-004, fr-005; context: ctx-001.\n- Scenario explicit-tone-markup of render-toned-status-badge: cites fr-004.\n- Scenario omitted-tone-neutral of render-toned-status-badge: cites fr-005.\n\nSubmit with `submit_catalog_check`; an empty `corrections` list says the reading is faithful.",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      },
+      {
+        "key": "procedure:check",
+        "kind": "procedure",
+        "text": "# Current procedure\nThe message names one captured document, every element read from it and,\nfor a plan document, the entries and scenarios that cite them. You check\nwhether the elements are a faithful reading of the document and correct\nthem where they are not. You change nothing else.\n\n1. Read the document in full, then each element.\n2. Correct only where the reading is unfaithful, each correction with its\n   `reason`:\n   - `add` a requirement, recommendation or context passage the reading\n     omitted, such as a Constraints section with no non-functional element;\n   - `rewrite` an element made stronger or weaker than its source, or whose\n     conditions or text are wrong; it keeps its ID, kind and document;\n   - `replace` elements whose cuts separate a rule from its conditions or\n     fuse unrelated requirements, and an element of the wrong kind: name the\n     IDs it `retire`s and the elements that take their place.\n   A replacement may retire elements without adding any: use an empty additions\n   list when the source contains no replacement requirement. Never copy Gherkin\n   into an element; cite registered scenario identities.\n   Every element you add names this document. Keep the kinds' document\n   rules: functional, non-functional and context elements come from plan\n   documents, fixed ones from principles documents.\n3. Where you retired an element that an entry or a scenario cites, re-cite\n   it: list the entry in `entries` with its complete new\n   `requirementRefs`, `acceptanceRefs` and `contextRefs`, and the scenario\n   in `scenarios` with its complete new `refs`. Cite a new element by its\n   key and an existing one by its ID. Every acceptance element of an entry\n   stays cited by one of its scenarios.\n4. Submit with `submit_catalog_check`; an empty `corrections` list, with no\n   entries and no scenarios, says the reading is faithful.\n\nReference lists retain their kind rules: requirementRefs names functional\nrequirements; acceptanceRefs names functional acceptance; contextRefs names\ncontext. Submitted additions use local keys;\nrejections name those submitted keys before any durable IDs are allocated.",
+        "source": "subs/harness/src/analysis/check.procedure.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/check.procedure.md",
+            "hash": "ef2d808b8b9b86c67ce4ec3ebc313955b99a6a02beed6abba9b208e127c7c052",
+            "kind": "procedure",
+            "bytes": 2184
+          }
+        ]
+      },
+      {
+        "key": "environment",
+        "kind": "environment",
+        "text": "# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": null,\n  \"snapshot\": null,\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_catalog_check\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/check.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: check\nPerform check for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_catalog_check`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+      }
+    ],
+    "history": [
+      {
+        "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nRead the captured plan for status-badge-tone and perform the current check task."
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n"
+          },
+          {
+            "key": "support:# Check the reading of doc-001:0",
+            "text": "# Check the reading of doc-001\n\nRead the document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/input/plan.md\n\nThe 10 elements read from it, as every later reader receives them:\n"
+          },
+          {
+            "key": "support:# Plan context package:0",
+            "text": "# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n"
+          },
+          {
+            "key": "support:## Context:0",
+            "text": "## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n"
+          },
+          {
+            "key": "support:## Functional requirements:0",
+            "text": "## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n"
+          },
+          {
+            "key": "support:## Non-functional requirements of the plan:0",
+            "text": "## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n"
+          },
+          {
+            "key": "support:# The entries and scenarios that cite them:0",
+            "text": "# The entries and scenarios that cite them\n\n- Entry render-toned-status-badge: Render a status badge with an optional neutral, positive, warning, or critical tone exposed through `data-tone`, using neutral when tone is omitted. Requirements: fr-001, fr-002, fr-003; acceptance: fr-004, fr-005; context: ctx-001.\n- Scenario explicit-tone-markup of render-toned-status-badge: cites fr-004.\n- Scenario omitted-tone-neutral of render-toned-status-badge: cites fr-005.\n\nSubmit with `submit_catalog_check`; an empty `corrections` list says the reading is faithful."
+          }
+        ]
+      }
+    ],
+    "revision": "3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10"
+  },
+  "policy": {
+    "context": {
+      "compaction": "forbidden",
+      "budgetTokens": 120000,
+      "budgetFraction": 0.6,
+      "reportReserveTokens": 16000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {}
+    },
+    "validator": {
+      "name": "submit_catalog_check",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "corrections": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "const": "add"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "elements": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "context",
+                              "functional",
+                              "non-functional",
+                              "fixed",
+                              "recommendation"
+                            ]
+                          },
+                          "document": {
+                            "type": "string",
+                            "pattern": "^doc-\\d{3,}$"
+                          },
+                          "text": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "conditions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "inferred"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "text",
+                                "source"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "uncertainty": {
+                            "type": "string"
+                          },
+                          "locator": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "key": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "document",
+                          "text",
+                          "conditions",
+                          "uncertainty",
+                          "key"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "reason",
+                    "elements"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "const": "rewrite"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "element": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "conditions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "text": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "stated",
+                                  "inferred"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "text",
+                              "source"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "uncertainty": {
+                          "type": "string"
+                        },
+                        "locator": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "id": {
+                          "type": "string",
+                          "pattern": "^(ctx|fr|nfr|fix|rec)-\\d{3,}$"
+                        }
+                      },
+                      "required": [
+                        "text",
+                        "conditions",
+                        "uncertainty",
+                        "id"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "reason",
+                    "element"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "const": "replace"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "retire": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "elements": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "context",
+                              "functional",
+                              "non-functional",
+                              "fixed",
+                              "recommendation"
+                            ]
+                          },
+                          "document": {
+                            "type": "string",
+                            "pattern": "^doc-\\d{3,}$"
+                          },
+                          "text": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "conditions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "text": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "source": {
+                                  "type": "string",
+                                  "enum": [
+                                    "stated",
+                                    "inferred"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "text",
+                                "source"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "uncertainty": {
+                            "type": "string"
+                          },
+                          "locator": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "key": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "document",
+                          "text",
+                          "conditions",
+                          "uncertainty",
+                          "key"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "reason",
+                    "retire",
+                    "elements"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "requirementRefs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "acceptanceRefs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "contextRefs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "capability",
+                "requirementRefs",
+                "acceptanceRefs",
+                "contextRefs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "refs"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "corrections",
+          "entries",
+          "scenarios"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.catalog-check/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261009T181051Z-4c5bfc",
+      "invocation": "inv-0003",
+      "submission": "invocations/inv-0003/submission.json"
+    }
+  },
+  "task": {
+    "role": "catalog-extractor",
+    "message": "Briefing revision: 3efcae7fae4921d680e815d5b00f39137e661c9182c0c1b2cc091772d2897d10; based on: none (full)\n\n# Goal\nRead the captured plan for status-badge-tone and perform the current check task.\n\n# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n\n# Check the reading of doc-001\n\nRead the document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/plans/status-badge-tone/.harness/jobs/20261009T181051Z-4c5bfc/input/plan.md\n\nThe 10 elements read from it, as every later reader receives them:\n\n\n# Plan context package\n\nCatalog: 20fb9f16cb3fc364d18e53e7664b6fab2b404eeb2617d7e8846b3aacd4e0135d\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005, nfr-001, nfr-002, nfr-003, nfr-004\nDeviations: none\n\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n## Non-functional requirements of the plan\n\n### nfr-001: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge stays a presentation primitive of the shared UI: it learns nothing about records, reviews or protocols, and the tone arrives as a prop like everything else it renders.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-002: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> `status` and `label` keep their meaning. A tone never changes the word the badge shows.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-003: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> No feature view has to change. Existing callers keep rendering the badge as they do today.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### nfr-004: non-functional requirement of the plan from plans/status-badge-tone/plan.md\n\n> The badge's existing tests still pass, and the tone has tests of its own.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n\n\n# The entries and scenarios that cite them\n\n- Entry render-toned-status-badge: Render a status badge with an optional neutral, positive, warning, or critical tone exposed through `data-tone`, using neutral when tone is omitted. Requirements: fr-001, fr-002, fr-003; acceptance: fr-004, fr-005; context: ctx-001.\n- Scenario explicit-tone-markup of render-toned-status-badge: cites fr-004.\n- Scenario omitted-tone-neutral of render-toned-status-badge: cites fr-005.\n\nSubmit with `submit_catalog_check`; an empty `corrections` list says the reading is faithful.\n\n# Current procedure\nThe message names one captured document, every element read from it and,\nfor a plan document, the entries and scenarios that cite them. You check\nwhether the elements are a faithful reading of the document and correct\nthem where they are not. You change nothing else.\n\n1. Read the document in full, then each element.\n2. Correct only where the reading is unfaithful, each correction with its\n   `reason`:\n   - `add` a requirement, recommendation or context passage the reading\n     omitted, such as a Constraints section with no non-functional element;\n   - `rewrite` an element made stronger or weaker than its source, or whose\n     conditions or text are wrong; it keeps its ID, kind and document;\n   - `replace` elements whose cuts separate a rule from its conditions or\n     fuse unrelated requirements, and an element of the wrong kind: name the\n     IDs it `retire`s and the elements that take their place.\n   A replacement may retire elements without adding any: use an empty additions\n   list when the source contains no replacement requirement. Never copy Gherkin\n   into an element; cite registered scenario identities.\n   Every element you add names this document. Keep the kinds' document\n   rules: functional, non-functional and context elements come from plan\n   documents, fixed ones from principles documents.\n3. Where you retired an element that an entry or a scenario cites, re-cite\n   it: list the entry in `entries` with its complete new\n   `requirementRefs`, `acceptanceRefs` and `contextRefs`, and the scenario\n   in `scenarios` with its complete new `refs`. Cite a new element by its\n   key and an existing one by its ID. Every acceptance element of an entry\n   stays cited by one of its scenarios.\n4. Submit with `submit_catalog_check`; an empty `corrections` list, with no\n   entries and no scenarios, says the reading is faithful.\n\nReference lists retain their kind rules: requirementRefs names functional\nrequirements; acceptanceRefs names functional acceptance; contextRefs names\ncontext. Submitted additions use local keys;\nrejections name those submitted keys before any durable IDs are allocated.\n\n# Current environment\n{\n  \"projectRoot\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"workingDirectory\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review\",\n  \"candidate\": null,\n  \"snapshot\": null,\n  \"limits\": {\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"infrastructureRetriesPerGate\": 2,\n    \"forkRetriesPerRequest\": 2,\n    \"budgetReturnsPerIteration\": 6,\n    \"sessionReconstructionsPerWork\": 2,\n    \"cycleReplansPerWorkItem\": 1,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"readinessRecoveries\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000,\n    \"invocationIdleMs\": 300000,\n    \"invocationAbsoluteMs\": 3600000,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxWorkItems\": 64,\n    \"maxPlacementRequests\": 32,\n    \"maxInvocationsPerRun\": 400,\n    \"runAbsoluteMs\": 28800000,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxPlanDeviations\": 5,\n    \"commandTimeoutMs\": 600000,\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"nonfunctionalRoundsPerPlan\": 3\n  },\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_catalog_check\"\n  ],\n  \"views\": [\n    {\n      \"path\": \"/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:4355a82f-aea4-4c86-8563-04c0548fa97b:1\",\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ]\n    }\n  ],\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/check.procedure.md\"\n  ],\n  \"cucumberConfiguration\": null\n}\n\n# Current task: check\nPerform check for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_catalog_check`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_catalog_check",
+    "environment": {
+      "workingDirectory": "/home/app/ramify-trial-evidence/status-badge-tone-repeat-20261009T180737Z/collection-review",
+      "candidate": null,
+      "snapshot": null,
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 3600000,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "66afe6649044bf7013d78b656962699d00da28805b83c5916bc79cd312459cc5",
+    "validatorIdentity": "e655000d60daae4f48dbd58960e838ef728eb6e4f11d3b71f08559aabb6eeeff",
+    "destinationIdentity": "ee831fa092137a847c36bc96d0f3825a91236ff29e089ebf122d49ec410b54c4"
+  },
+  "declarations": [
+    {
+      "name": "read",
+      "description": "Read the contents of a file. Supports text files and images (jpg, png, gif, webp, bmp). Images are sent as attachments. For text files, output is truncated to 2000 lines or 50KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the file to read (relative or absolute)"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Line number to start reading from (1-indexed)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of lines to read"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "grep",
+      "description": "Search file contents for a pattern. Returns matching lines with file paths and line numbers. Respects .gitignore. Output is truncated to 100 matches or 50KB (whichever is hit first). Long lines are truncated to 500 chars.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Search pattern (regex or literal string)"
+          },
+          "path": {
+            "type": "string",
+            "description": "Directory or file to search (default: current directory)"
+          },
+          "glob": {
+            "type": "string",
+            "description": "Filter files by glob pattern, e.g. '*.ts' or '**/*.spec.ts'"
+          },
+          "ignoreCase": {
+            "type": "boolean",
+            "description": "Case-insensitive search (default: false)"
+          },
+          "literal": {
+            "type": "boolean",
+            "description": "Treat pattern as literal string instead of regex (default: false)"
+          },
+          "context": {
+            "type": "number",
+            "description": "Number of lines to show before and after each match (default: 0)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of matches to return (default: 100)"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "ls",
+      "description": "List directory contents. Returns entries sorted alphabetically, with '/' suffix for directories. Includes dotfiles. Output is truncated to 500 entries or 50KB (whichever is hit first).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Directory to list (default: current directory)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of entries to return (default: 500)"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_catalog_check",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"corrections\":{\"type\":\"array\",\"items\":{\"oneOf\":[{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"const\":\"add\"},\"reason\":{\"type\":\"string\",\"minLength\":1},\"elements\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"context\",\"functional\",\"non-functional\",\"fixed\",\"recommendation\"]},\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"kind\",\"document\",\"text\",\"conditions\",\"uncertainty\",\"key\"],\"additionalProperties\":false}}},\"required\":[\"action\",\"reason\",\"elements\"],\"additionalProperties\":false},{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"const\":\"rewrite\"},\"reason\":{\"type\":\"string\",\"minLength\":1},\"element\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"id\":{\"type\":\"string\",\"pattern\":\"^(ctx|fr|nfr|fix|rec)-\\\\d{3,}$\"}},\"required\":[\"text\",\"conditions\",\"uncertainty\",\"id\"],\"additionalProperties\":false}},\"required\":[\"action\",\"reason\",\"element\"],\"additionalProperties\":false},{\"type\":\"object\",\"properties\":{\"action\":{\"type\":\"string\",\"const\":\"replace\"},\"reason\":{\"type\":\"string\",\"minLength\":1},\"retire\":{\"minItems\":1,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"context\",\"functional\",\"non-functional\",\"fixed\",\"recommendation\"]},\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"kind\",\"document\",\"text\",\"conditions\",\"uncertainty\",\"key\"],\"additionalProperties\":false}}},\"required\":[\"action\",\"reason\",\"retire\",\"elements\"],\"additionalProperties\":false}]}},\"entries\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"capability\":{\"type\":\"string\",\"minLength\":1},\"requirementRefs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"acceptanceRefs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"contextRefs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}}},\"required\":[\"capability\",\"requirementRefs\",\"acceptanceRefs\",\"contextRefs\"],\"additionalProperties\":false}},\"scenarios\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\",\"minLength\":1},\"refs\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}}},\"required\":[\"key\",\"refs\"],\"additionalProperties\":false}}},\"required\":[\"corrections\",\"entries\",\"scenarios\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}

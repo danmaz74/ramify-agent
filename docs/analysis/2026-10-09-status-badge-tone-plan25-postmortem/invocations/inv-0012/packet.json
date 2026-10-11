@@ -1,0 +1,1575 @@
+{
+  "schema": "ramify-agent.harness-operation/2",
+  "runId": "20261009T193340Z-51f42e",
+  "operationId": "inv-0012",
+  "session": "ses-0010",
+  "source": {
+    "sessionId": "6c97a9a3-b376-46a3-a90c-b9f8373b7fbb",
+    "turn": 1,
+    "kind": "turn",
+    "checkpoint": "8dcf71ca-e3f0-4bef-8c5b-ac63d1fd42cb"
+  },
+  "requestHash": "47061bcef5159fa9b8f57d0ce34cf2e5947b1565369bcd6f1cfa6078ca44ce79",
+  "mode": "fork",
+  "packet": {
+    "roleInstructions": "You review iterations of a Ramify project. The current task may prepare\ndesign guidance or review a frozen audited candidate: a commit and its diff\nfrom the source the iteration started from. Review judgments apply only to\nthe candidate identified by the current task.\n\nYou change nothing and decide nothing. You cannot edit a file, run a\ncommand, schedule work or resolve an issue. A local architect later assesses\nwhat you report against the project as it then stands, and an engineer makes\nany change. Nobody reads your messages while you work.\n\nInherited understanding never substitutes for current snapshot evidence.\n\n## Your tools\n\nYou have no access to the working directory. Every path is relative to the\ncandidate's root; an absolute path, a path that climbs out, a symbolic link\nand a generated view such as `.ramify-architect/` are refused.\n\n- `snapshot_diff` without a path lists every path the candidate changed;\n  with a path it shows that path's patch.\n- `snapshot_read` reads one file of the candidate, `snapshot_list` lists a\n  directory and `snapshot_search` searches its text files.\n- the designated submission tool named in the current task ends your review. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Risk and ground\n\nEach concern states its `risk`: the harm if the concern is real. `high`\nmeans the system will not work correctly or will lose or corrupt something;\n`medium` means a real defect or gap with a contained consequence; `low`\nmeans the implementation could be better but works. Propose the level you\nbelieve; the local architect may correct it. It orders the work, and a high\nlevel never asks anyone to stop.\n\nEach concern also names its `ground`: the file that makes it more than your\nopinion, such as a principles document, the plan, a feature file, a README\nor a test, with the words you rely on in `quote`. Name only a file you read\nwith `snapshot_read` in this review; an earlier conversation, a search hit\nor a patch does not count, and the harness rejects any other path. When\nnothing you read grounds the concern, `ground` is null. The harness weighs\na concern by what grounds it, never by how confidently it is worded, so\nname the ground you actually have rather than the strongest one you can\nthink of.\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## The submission\n\nThe submission tool declaration carries the complete schema.\n",
+    "message": "Briefing revision: f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168; based on: 882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6 (post-fork)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nReview b999ea9a913557a04d3e2309247093027ad6b9f8\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0003\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"kind\":\"design\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"c76c24eee5847debd467199431e3aa504a90b288\",\"gate\":\"ga-0002\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"guidance\":[{\"ref\":\"README.md\",\"hash\":\"b72856422e9dd390beb6eb5448ddfb30260ac90cbc8b91e014541c97821e2c95\"},{\"ref\":\"subs/workspace/README.md\",\"hash\":\"f5cdda73289e0ff31f3b1d2d5942640a78a4224497474462fc26eef5d7546e56\"},{\"ref\":\"subs/workspace/subs/shared-ui/README.md\",\"hash\":\"8cec99d7e15b169c49a10f3982e551a081e0da714105120442118184bf573435\"}],\"forkPoint\":{\"kind\":\"orientation\",\"key\":\"ec7606cfbaf86b5371d3e3d23a15e8cd0419b9461dd1ab748ec902b6d0f58727\"}}\n\n# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nDesign review rq-0003 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); its gate ga-0002 passed. The diff is taken from c76c24eee5847debd467199431e3aa504a90b288.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n\n\n# Block brief:support:## The iteration:0\nCurrent value; replaces any earlier value for this key.\n## The iteration\n\nGoal: Implement optional StatusBadge tone markup with a neutral default, preserve all existing wording and caller behavior, and bind both status-badge-tone acceptance scenarios.\nApproach: In `status-badge.tsx`, add an optional tone prop constrained to exactly neutral/positive/warning/critical and emit `data-tone` using neutral when omitted, while leaving data-status and label/default-label selection intact. Extend the existing static-markup Vitest suite to cover an explicit tone, the neutral default, and wording preservation. Add TypeScript/TSX Cucumber steps under this module\u2019s `src/tests/steps/` that render StatusBadge to static markup and bind both supplied scenarios; keep scenario state isolated and declare no fake dependency because the real pure presentation primitive is exercised. Do not edit the generated feature file or require changes from existing feature-view callers.\nCompletion evidence: The focused shared-ui unit tests demonstrate the allowed explicit tone in data-tone, neutral on omission, and unchanged status/custom-label wording; both supplied Cucumber scenarios are bound to the real StatusBadge static markup with no fakes and pass; project type-check, tests, scenarios, and structural audit remain green.\n\n\n# Block brief:support:## The guidance this design is judged against:0\nCurrent value; replaces any earlier value for this key.\n## The guidance this design is judged against\n\nEach file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.\n\n- README.md (sha256 b72856422e9d)\n- subs/workspace/README.md (sha256 f5cdda73289e)\n- subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n\n\n# Block brief:support:## The changed paths:0\nCurrent value; replaces any earlier value for this key.\n## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\n\n# Block brief:support:candidate-diff\nCurrent value; replaces any earlier value for this key.\n### Candidate Review Diff\n\nBase: c76c24eee5847debd467199431e3aa504a90b288; candidate: b999ea9a913557a04d3e2309247093027ad6b9f8.\nChanged paths: 4; collected patch bytes: 6957.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..696cc48 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` and `data-tone` carry its\n+ * presentation choices, so both the stylesheet and a test can read them\n+ * without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\nindex c5263a7..c38d3ca 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n@@ -7,14 +7,14 @@ Feature: render-status-badge-with-tone\n   Render a status badge with an optional presentation tone exposed in markup,\n   defaulting to neutral while preserving the displayed status wording.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..93d07a0 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -12,15 +12,30 @@ import { StatusBadge } from '../status-badge.js';\n  */\n \n describe('StatusBadge', () => {\n-  it('reads a status back as its own word when no label is given', () => {\n-    expect(renderToStaticMarkup(<StatusBadge status=\"passed\" />)).toContain('Passed');\n-    expect(renderToStaticMarkup(<StatusBadge status=\"failed\" />)).toContain('Failed');\n+  it('reads a status back as its own word and uses a neutral tone by default', () => {\n+    const passedMarkup = renderToStaticMarkup(<StatusBadge status=\"passed\" />);\n+    const failedMarkup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(passedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(passedMarkup).toContain('Passed');\n+    expect(failedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(failedMarkup).toContain('Failed');\n+  });\n+\n+  it('carries an explicit tone without changing the default status wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n   });\n \n-  it('carries the status as an attribute whatever the label says', () => {\n-    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" label=\"No revisions\" />);\n+  it('carries the status as an attribute without changing a custom label', () => {\n+    const markup = renderToStaticMarkup(\n+      <StatusBadge status=\"failed\" label=\"No revisions\" tone=\"critical\" />,\n+    );\n \n     expect(markup).toContain('data-status=\"failed\"');\n+    expect(markup).toContain('data-tone=\"critical\"');\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..c4824a3\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,60 @@\n+import assert from 'node:assert/strict';\n+\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge, type StatusBadgeProps } from '../../status-badge.js';\n+\n+interface StatusBadgeWorld {\n+  badgeProps?: StatusBadgeProps;\n+  badgeMarkup?: string;\n+}\n+\n+function isStatusBadgeTone(tone: string): tone is NonNullable<StatusBadgeProps['tone']> {\n+  return tone === 'neutral' || tone === 'positive' || tone === 'warning' || tone === 'critical';\n+}\n+\n+function requireBadgeProps(world: StatusBadgeWorld): StatusBadgeProps {\n+  assert.ok(world.badgeProps, 'A badge must be given before it is rendered');\n+  return world.badgeProps;\n+}\n+\n+function requireBadgeMarkup(world: StatusBadgeWorld): string {\n+  assert.ok(world.badgeMarkup, 'The badge must be rendered before its markup is checked');\n+  return world.badgeMarkup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(isStatusBadgeTone(tone), `Unsupported status badge tone: ${tone}`);\n+    this.badgeProps = { status: 'passed', tone };\n+    delete this.badgeMarkup;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: StatusBadgeWorld) {\n+  this.badgeProps = { status: 'failed' };\n+  delete this.badgeMarkup;\n+});\n+\n+When('the badge is rendered', function (this: StatusBadgeWorld) {\n+  this.badgeMarkup = renderToStaticMarkup(<StatusBadge {...requireBadgeProps(this)} />);\n+});\n+\n+Then(\n+  'its markup carries the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(\n+      requireBadgeMarkup(this).includes(`data-tone=\"${tone}\"`),\n+      `Expected rendered badge markup to carry tone \"${tone}\"`,\n+    );\n+  },\n+);\n+\n+Then('it still reads {string}', function (this: StatusBadgeWorld, label: string) {\n+  assert.ok(\n+    requireBadgeMarkup(this).includes(`>${label}</span>`),\n+    `Expected rendered badge markup to read \"${label}\"`,\n+  );\n+});\n\n```\n\n# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n\n# Block brief:support:design-guidance\nWithdrawn; this block no longer applies.\n\n\n# Block procedure:reviewer:design\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nDo this, in order:\n\n1. Reuse earlier understanding of captured guidance with the same known identity.\n   Refresh guidance whose identity changed or cannot be established. Only the\n   listed guidance is the standard; a preference of your own is not. Every\n   reported concern still requires current `snapshot_read` evidence for its ground.\n2. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`. Read the complete patches supplied in this message.\n   Fetch patches with `snapshot_diff` only for paths whose complete patches\n   were not supplied. Read the surrounding source where a patch alone does\n   not show the design.\n3. Ask of each change: does it follow the guidance's principles and the\n   module's stated responsibility, or does it duplicate, entangle or place\n   something where the guidance says it does not belong?\n4. Submit.\n\n## What a concern is\n\nA concern is a design problem the guidance lets you name: the rule or\nresponsibility it departs from, cited by the guidance file, the consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy and its\nrisk. Its ground is that guidance file, read with `snapshot_read` in this\nreview even if an earlier conversation already showed it to you.\nCorrectness defects and scope gaps belong to other reviews. Report each\ndistinct problem once. `suggests` may name a CheckFinding the message below\nlists when you believe yours is the same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate's design follows the listed guidance; that is a\nvalid review, and so is an honest partial one.\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/reviews/rq-0003/attempts/01/workspace\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"b999ea9a913557a04d3e2309247093027ad6b9f8\"\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 599965,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": []\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/design-review.procedure.md\"\n  ]\n}\n\n# Current task: design\nThis selection supersedes every prior task selection.\nActive role: reviewer\nSelected procedure: procedure:reviewer:design; SHA-256: ea711325e08c341d37d30c0fa451f6164710914b825aab9e44f35a41611f7940\nPerform design for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_review",
+    "declaration": {
+      "name": "submit_review",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"inspected\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"missing\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"reason\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000}},\"required\":[\"path\",\"reason\"],\"additionalProperties\":false}},\"concerns\":{\"maxItems\":20,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"consequence\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"rationale\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"uncertainty\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"remedy\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"locations\":{\"minItems\":1,\"maxItems\":50,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":500},\"startLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]},\"endLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]}},\"required\":[\"path\",\"startLine\",\"endLine\"],\"additionalProperties\":false}},\"suggests\":{\"anyOf\":[{\"type\":\"string\",\"pattern\":\"^cf-\\\\d{4,}$\"},{\"type\":\"null\"}]},\"risk\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"ground\":{\"anyOf\":[{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"quote\":{\"type\":\"string\",\"maxLength\":1000}},\"required\":[\"path\"],\"additionalProperties\":false},{\"type\":\"null\"}]}},\"required\":[\"summary\",\"consequence\",\"rationale\",\"uncertainty\",\"remedy\",\"locations\",\"suggests\",\"risk\",\"ground\"],\"additionalProperties\":false}}},\"required\":[\"inspected\",\"missing\",\"concerns\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "tool:submit_review",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_review\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"inspected\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"missing\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}},\\\"concerns\\\":{\\\"maxItems\\\":20,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"summary\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"consequence\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"rationale\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"remedy\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"locations\\\":{\\\"minItems\\\":1,\\\"maxItems\\\":50,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":500},\\\"startLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]},\\\"endLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"path\\\",\\\"startLine\\\",\\\"endLine\\\"],\\\"additionalProperties\\\":false}},\\\"suggests\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^cf-\\\\\\\\d{4,}$\\\"},{\\\"type\\\":\\\"null\\\"}]},\\\"risk\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"high\\\",\\\"medium\\\",\\\"low\\\"]},\\\"ground\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"quote\\\":{\\\"type\\\":\\\"string\\\",\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"summary\\\",\\\"consequence\\\",\\\"rationale\\\",\\\"uncertainty\\\",\\\"remedy\\\",\\\"locations\\\",\\\"suggests\\\",\\\"risk\\\",\\\"ground\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"inspected\\\",\\\"missing\\\",\\\"concerns\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168; based on: 882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6 (post-fork)",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nReview b999ea9a913557a04d3e2309247093027ad6b9f8",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0003\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"kind\":\"design\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"c76c24eee5847debd467199431e3aa504a90b288\",\"gate\":\"ga-0002\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"guidance\":[{\"ref\":\"README.md\",\"hash\":\"b72856422e9dd390beb6eb5448ddfb30260ac90cbc8b91e014541c97821e2c95\"},{\"ref\":\"subs/workspace/README.md\",\"hash\":\"f5cdda73289e0ff31f3b1d2d5942640a78a4224497474462fc26eef5d7546e56\"},{\"ref\":\"subs/workspace/subs/shared-ui/README.md\",\"hash\":\"8cec99d7e15b169c49a10f3982e551a081e0da714105120442118184bf573435\"}],\"forkPoint\":{\"kind\":\"orientation\",\"key\":\"ec7606cfbaf86b5371d3e3d23a15e8cd0419b9461dd1ab748ec902b6d0f58727\"}}",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nDesign review rq-0003 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); its gate ga-0002 passed. The diff is taken from c76c24eee5847debd467199431e3aa504a90b288.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:context:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The iteration:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The iteration:0\nCurrent value; replaces any earlier value for this key.\n## The iteration\n\nGoal: Implement optional StatusBadge tone markup with a neutral default, preserve all existing wording and caller behavior, and bind both status-badge-tone acceptance scenarios.\nApproach: In `status-badge.tsx`, add an optional tone prop constrained to exactly neutral/positive/warning/critical and emit `data-tone` using neutral when omitted, while leaving data-status and label/default-label selection intact. Extend the existing static-markup Vitest suite to cover an explicit tone, the neutral default, and wording preservation. Add TypeScript/TSX Cucumber steps under this module\u2019s `src/tests/steps/` that render StatusBadge to static markup and bind both supplied scenarios; keep scenario state isolated and declare no fake dependency because the real pure presentation primitive is exercised. Do not edit the generated feature file or require changes from existing feature-view callers.\nCompletion evidence: The focused shared-ui unit tests demonstrate the allowed explicit tone in data-tone, neutral on omission, and unchanged status/custom-label wording; both supplied Cucumber scenarios are bound to the real StatusBadge static markup with no fakes and pass; project type-check, tests, scenarios, and structural audit remain green.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:## The iteration:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The guidance this design is judged against:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The guidance this design is judged against:0\nCurrent value; replaces any earlier value for this key.\n## The guidance this design is judged against\n\nEach file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.\n\n- README.md (sha256 b72856422e9d)\n- subs/workspace/README.md (sha256 f5cdda73289e)\n- subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:## The guidance this design is judged against:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The changed paths:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The changed paths:0\nCurrent value; replaces any earlier value for this key.\n## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:## The changed paths:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:candidate-diff",
+        "kind": "brief",
+        "text": "# Block brief:support:candidate-diff\nCurrent value; replaces any earlier value for this key.\n### Candidate Review Diff\n\nBase: c76c24eee5847debd467199431e3aa504a90b288; candidate: b999ea9a913557a04d3e2309247093027ad6b9f8.\nChanged paths: 4; collected patch bytes: 6957.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..696cc48 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` and `data-tone` carry its\n+ * presentation choices, so both the stylesheet and a test can read them\n+ * without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\nindex c5263a7..c38d3ca 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n@@ -7,14 +7,14 @@ Feature: render-status-badge-with-tone\n   Render a status badge with an optional presentation tone exposed in markup,\n   defaulting to neutral while preserving the displayed status wording.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..93d07a0 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -12,15 +12,30 @@ import { StatusBadge } from '../status-badge.js';\n  */\n \n describe('StatusBadge', () => {\n-  it('reads a status back as its own word when no label is given', () => {\n-    expect(renderToStaticMarkup(<StatusBadge status=\"passed\" />)).toContain('Passed');\n-    expect(renderToStaticMarkup(<StatusBadge status=\"failed\" />)).toContain('Failed');\n+  it('reads a status back as its own word and uses a neutral tone by default', () => {\n+    const passedMarkup = renderToStaticMarkup(<StatusBadge status=\"passed\" />);\n+    const failedMarkup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(passedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(passedMarkup).toContain('Passed');\n+    expect(failedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(failedMarkup).toContain('Failed');\n+  });\n+\n+  it('carries an explicit tone without changing the default status wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n   });\n \n-  it('carries the status as an attribute whatever the label says', () => {\n-    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" label=\"No revisions\" />);\n+  it('carries the status as an attribute without changing a custom label', () => {\n+    const markup = renderToStaticMarkup(\n+      <StatusBadge status=\"failed\" label=\"No revisions\" tone=\"critical\" />,\n+    );\n \n     expect(markup).toContain('data-status=\"failed\"');\n+    expect(markup).toContain('data-tone=\"critical\"');\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..c4824a3\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,60 @@\n+import assert from 'node:assert/strict';\n+\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge, type StatusBadgeProps } from '../../status-badge.js';\n+\n+interface StatusBadgeWorld {\n+  badgeProps?: StatusBadgeProps;\n+  badgeMarkup?: string;\n+}\n+\n+function isStatusBadgeTone(tone: string): tone is NonNullable<StatusBadgeProps['tone']> {\n+  return tone === 'neutral' || tone === 'positive' || tone === 'warning' || tone === 'critical';\n+}\n+\n+function requireBadgeProps(world: StatusBadgeWorld): StatusBadgeProps {\n+  assert.ok(world.badgeProps, 'A badge must be given before it is rendered');\n+  return world.badgeProps;\n+}\n+\n+function requireBadgeMarkup(world: StatusBadgeWorld): string {\n+  assert.ok(world.badgeMarkup, 'The badge must be rendered before its markup is checked');\n+  return world.badgeMarkup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(isStatusBadgeTone(tone), `Unsupported status badge tone: ${tone}`);\n+    this.badgeProps = { status: 'passed', tone };\n+    delete this.badgeMarkup;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: StatusBadgeWorld) {\n+  this.badgeProps = { status: 'failed' };\n+  delete this.badgeMarkup;\n+});\n+\n+When('the badge is rendered', function (this: StatusBadgeWorld) {\n+  this.badgeMarkup = renderToStaticMarkup(<StatusBadge {...requireBadgeProps(this)} />);\n+});\n+\n+Then(\n+  'its markup carries the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(\n+      requireBadgeMarkup(this).includes(`data-tone=\"${tone}\"`),\n+      `Expected rendered badge markup to carry tone \"${tone}\"`,\n+    );\n+  },\n+);\n+\n+Then('it still reads {string}', function (this: StatusBadgeWorld, label: string) {\n+  assert.ok(\n+    requireBadgeMarkup(this).includes(`>${label}</span>`),\n+    `Expected rendered badge markup to read \"${label}\"`,\n+  );\n+});\n\n```",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:candidate-diff",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:starting-points",
+        "kind": "brief",
+        "text": "# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:starting-points",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:design-guidance",
+        "kind": "brief",
+        "text": "# Block brief:support:design-guidance\nWithdrawn; this block no longer applies.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:design-guidance",
+          "effect": "remove"
+        }
+      },
+      {
+        "key": "procedure:reviewer:design",
+        "kind": "procedure",
+        "text": "# Block procedure:reviewer:design\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nDo this, in order:\n\n1. Reuse earlier understanding of captured guidance with the same known identity.\n   Refresh guidance whose identity changed or cannot be established. Only the\n   listed guidance is the standard; a preference of your own is not. Every\n   reported concern still requires current `snapshot_read` evidence for its ground.\n2. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`. Read the complete patches supplied in this message.\n   Fetch patches with `snapshot_diff` only for paths whose complete patches\n   were not supplied. Read the surrounding source where a patch alone does\n   not show the design.\n3. Ask of each change: does it follow the guidance's principles and the\n   module's stated responsibility, or does it duplicate, entangle or place\n   something where the guidance says it does not belong?\n4. Submit.\n\n## What a concern is\n\nA concern is a design problem the guidance lets you name: the rule or\nresponsibility it departs from, cited by the guidance file, the consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy and its\nrisk. Its ground is that guidance file, read with `snapshot_read` in this\nreview even if an earlier conversation already showed it to you.\nCorrectness defects and scope gaps belong to other reviews. Report each\ndistinct problem once. `suggests` may name a CheckFinding the message below\nlists when you believe yours is the same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate's design follows the listed guidance; that is a\nvalid review, and so is an honest partial one.",
+        "source": "subs/harness/src/prompts/design-review.procedure.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/design-review.procedure.md",
+            "hash": "b7467ec050ddcbee59d55f26fe9377e84753151e1626a76823217e971a2375bd",
+            "kind": "procedure",
+            "bytes": 2036
+          }
+        ],
+        "block": {
+          "key": "procedure:reviewer:design",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/reviews/rq-0003/attempts/01/workspace\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"b999ea9a913557a04d3e2309247093027ad6b9f8\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 599965,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": []\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/design-review.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: design\nThis selection supersedes every prior task selection.\nActive role: reviewer\nSelected procedure: procedure:reviewer:design; SHA-256: ea711325e08c341d37d30c0fa451f6164710914b825aab9e44f35a41611f7940\nPerform design for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/2",
+      "inheritedPoint": "{\"schema\":\"ramify-agent.session-point/1\",\"runId\":\"20261009T193340Z-51f42e\",\"point\":{\"sessionId\":\"6c97a9a3-b376-46a3-a90c-b9f8373b7fbb\",\"turn\":1,\"kind\":\"turn\",\"checkpoint\":\"8dcf71ca-e3f0-4bef-8c5b-ac63d1fd42cb\"}}",
+      "entries": [
+        {
+          "key": "role:reviewer",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/prompts/reviewer.system.md",
+          "revision": "reviewer/4",
+          "hash": "c620b6c26e9965fad039c4a214ae9bc08a1960cddf7e96288a9b1317084df346",
+          "bytes": 2795,
+          "delivery": "inherited",
+          "sources": [
+            {
+              "path": "subs/harness/src/prompts/reviewer.system.md",
+              "hash": "c600081d670b731028e8e6d8b54621289245fd8ef61a1fc51c03094c67f5ec1d",
+              "kind": "system",
+              "bytes": 2937
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_orientation",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "8fa0936b4849ff0f456a390603528b27c11717f37104c6b101932f60d688f596",
+          "bytes": 488,
+          "delivery": "inherited",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+          "hash": "9600bf38e224b6cb8bfe81aaef8d80671a0fc649561258edbd32eedac6fe3e9a",
+          "bytes": 106,
+          "delivery": "inherited",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+          "hash": "a89cada09492295d39df4dd5eeff3e0956920bcdebbdbcf8654f27f35855bee6",
+          "bytes": 127,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "brief:goal",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+          "hash": "aecef3ecad92a013f6fa866e55be9de1265abef90341b9b11b5e9a199daec26c",
+          "bytes": 175,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "brief:requirements",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:design-guidance",
+          "kind": "brief",
+          "source": null,
+          "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+          "hash": "8d52e5b42aacb8265cab91d20d299518a26b31df8a4203dde7dd3cead1e9e694",
+          "bytes": 12350,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "brief:support:design-guidance",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "procedure:reviewer:orientation",
+          "kind": "procedure",
+          "source": "subs/harness/src/prompts/reviewer-orientation.system.md",
+          "revision": "reviewer/4",
+          "hash": "e1fe7c5dfaedde69e6391e6a632f37e30c333a547ba25c6590e6d82cf67da449",
+          "bytes": 1030,
+          "delivery": "inherited",
+          "sources": [
+            {
+              "path": "subs/harness/src/prompts/reviewer-orientation.system.md",
+              "hash": "f7935d1f700df56c3b5cf6efe58d135848c253a36af75f7164e85390d20f0969",
+              "kind": "system",
+              "bytes": 1069
+            }
+          ],
+          "block": {
+            "key": "procedure:reviewer:orientation",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:projectRoot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "a0e0d0f4a9af6942ade407c620b25bb95e59d66626e1502e6233407a665f2c58",
+          "bytes": 207,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:projectRoot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:workingDirectory",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "48bd955d5837e97049b82a49d349e4473dc390de6df72f61fec4d404d0beda77",
+          "bytes": 317,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:workingDirectory",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:candidate",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "82932bad45e33ff512afcfb2eb0f5e1b7d0c166f32eb8ee6d4894cf96e16ff77",
+          "bytes": 109,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:candidate",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:snapshot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "dd1e81900a3a651c53e408331a53787f6a079d5f90437b98fb4441c8a02170b4",
+          "bytes": 107,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:snapshot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:limits",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "15437af24cfd6e0e9b73c8a84f8386eeebe6171e2a46f5449f42acdb836a0dbf",
+          "bytes": 1073,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:limits",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:availableTools",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "9911e72ce94573b3fe04181c0beef6e35032c2932cd564e9ce959f6b492173b1",
+          "bytes": 145,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:availableTools",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:views",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "9fe2cdb460cc4cd59cffda78c9ce7491e47c1fd7636b23ebb7c8302e1f0aa1a9",
+          "bytes": 1166,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:views",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:supportPaths",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "d7e7e7b8f10dde9af7c0bb16a2ceebb4392b273da697399de2f4d358b9a1e7ea",
+          "bytes": 229,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:supportPaths",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:cucumberConfiguration",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7186289c14ddc7a0db4b771fd2d9545a2e051eb0d752e1c237b7bbd7be96157d",
+          "bytes": 133,
+          "delivery": "inherited",
+          "sources": [],
+          "block": {
+            "key": "environment:cucumberConfiguration",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+          "hash": "b3b8eca60ff06e8399383f30ee83ed7399b7e55d45d2dcb4d4e93c2a1a874019",
+          "bytes": 459,
+          "delivery": "inherited",
+          "sources": []
+        },
+        {
+          "key": "tool:submit_review",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "1edf243fddb314b993e34480f2bbfb7061d6a2c6f230b2d9ad7ab089290ef740",
+          "bytes": 2230,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "e2164101eac73cafc7e8c7fb3a58353a1f92ed97b81b9620f5ce675c4ae5ccde",
+          "bytes": 171,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "fc56ce8d10151b9178cfde961223351af3ce37d3fd566365af574674c867066b",
+          "bytes": 129,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:goal",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "5a9341667b5b76c0b59d318cb62cc9586858e5da193d0609223f8aca0d70e46c",
+          "bytes": 936,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:requirements",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:context:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "9d0aaaa45be323a0c89289f5e2cef3d094e4c1212265528388c130b80734a7e5",
+          "bytes": 548,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:context:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## The iteration:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "ddb8dd6a3f475a692559435a6c7fbd98ef6c83efb99da16ca23c8a0e0e54686e",
+          "bytes": 1358,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## The iteration:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## The guidance this design is judged against:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "9717580b081a6cc19f5a18cdc93297190c1539617d15c9e4eb8d5a29d5d464d8",
+          "bytes": 458,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## The guidance this design is judged against:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## The changed paths:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "2447448fbdef13002dd001fa2241fb78575a6788e1932536e2bd73c49a39bc06",
+          "bytes": 1622,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## The changed paths:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:candidate-diff",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "09bf5c27a8b2dd55396794bdb7304db0ded7ee9e5b57f90a4b4b84ddb0ef9d4a",
+          "bytes": 7339,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:candidate-diff",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:starting-points",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "02e87d9a638fda4d061687cbe03809924efc480a3b78f8122c46d17698baa470",
+          "bytes": 2622,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:starting-points",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:design-guidance",
+          "kind": "brief",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "8caea6d9dd3d96c239e87ba4a94447de2af81d412bc6fd9079cc9e0d9248529f",
+          "bytes": 79,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:design-guidance",
+            "effect": "remove"
+          }
+        },
+        {
+          "key": "procedure:reviewer:design",
+          "kind": "procedure",
+          "source": "subs/harness/src/prompts/design-review.procedure.md",
+          "revision": "reviewer/4",
+          "hash": "ea711325e08c341d37d30c0fa451f6164710914b825aab9e44f35a41611f7940",
+          "bytes": 2087,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/prompts/design-review.procedure.md",
+              "hash": "b7467ec050ddcbee59d55f26fe9377e84753151e1626a76823217e971a2375bd",
+              "kind": "procedure",
+              "bytes": 2036
+            }
+          ],
+          "block": {
+            "key": "procedure:reviewer:design",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:workingDirectory",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "c3734437171ae118c588b34f26c2b2d33a642b52c11b103d39796563617c038c",
+          "bytes": 317,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:workingDirectory",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:candidate",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "c551a5de76d6cb320432139b09b1e4690f74e9e415e2decf5f4656639e13c72d",
+          "bytes": 147,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:candidate",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:snapshot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "b185515140488bc6035cea34bfc59e92d6b90edd54df0d22fe4a1c5f580c1085",
+          "bytes": 145,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:snapshot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:limits",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "56359bab08903464619d8ad5d3cb245c98436e0dbb3c93fcd1cf397039313de3",
+          "bytes": 1073,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:limits",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:availableTools",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "4f95fbaf3b74e6b14be9d7a4cdeb380699bd346687dba4248069a4bdf041785f",
+          "bytes": 226,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:availableTools",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:views",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "47a3213d3bc9989b4487b8737e4a2e80daf250ebfe854294882c37e630d451a9",
+          "bytes": 99,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:views",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:supportPaths",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "8ea3198b16845d94c036e940e1965f8a0c018664d196995af109cc5709529265",
+          "bytes": 225,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:supportPaths",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+          "hash": "244da2d5b34453d2c15d79cbc39909a2825a53768e28421f17f1a08ee073801b",
+          "bytes": 425,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "7de88f779a49ea98e1834bbeaf5f5432b960029583846e197811c3ff49d3cb17",
+        "bytes": 20042
+      },
+      "hash": "7d47b3ab430e65d22245cc4041ca4a67ca0e1cffdf562986f27dd4a13b836420"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:reviewer",
+        "kind": "role-instructions",
+        "text": "You review iterations of a Ramify project. The current task may prepare\ndesign guidance or review a frozen audited candidate: a commit and its diff\nfrom the source the iteration started from. Review judgments apply only to\nthe candidate identified by the current task.\n\nYou change nothing and decide nothing. You cannot edit a file, run a\ncommand, schedule work or resolve an issue. A local architect later assesses\nwhat you report against the project as it then stands, and an engineer makes\nany change. Nobody reads your messages while you work.\n\nInherited understanding never substitutes for current snapshot evidence.\n\n## Your tools\n\nYou have no access to the working directory. Every path is relative to the\ncandidate's root; an absolute path, a path that climbs out, a symbolic link\nand a generated view such as `.ramify-architect/` are refused.\n\n- `snapshot_diff` without a path lists every path the candidate changed;\n  with a path it shows that path's patch.\n- `snapshot_read` reads one file of the candidate, `snapshot_list` lists a\n  directory and `snapshot_search` searches its text files.\n- the designated submission tool named in the current task ends your review. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Risk and ground\n\nEach concern states its `risk`: the harm if the concern is real. `high`\nmeans the system will not work correctly or will lose or corrupt something;\n`medium` means a real defect or gap with a contained consequence; `low`\nmeans the implementation could be better but works. Propose the level you\nbelieve; the local architect may correct it. It orders the work, and a high\nlevel never asks anyone to stop.\n\nEach concern also names its `ground`: the file that makes it more than your\nopinion, such as a principles document, the plan, a feature file, a README\nor a test, with the words you rely on in `quote`. Name only a file you read\nwith `snapshot_read` in this review; an earlier conversation, a search hit\nor a patch does not count, and the harness rejects any other path. When\nnothing you read grounds the concern, `ground` is null. The harness weighs\na concern by what grounds it, never by how confidently it is worded, so\nname the ground you actually have rather than the strongest one you can\nthink of.\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## The submission\n\nThe submission tool declaration carries the complete schema.\n",
+        "source": "subs/harness/src/prompts/reviewer.system.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/reviewer.system.md",
+            "hash": "c600081d670b731028e8e6d8b54621289245fd8ef61a1fc51c03094c67f5ec1d",
+            "kind": "system",
+            "bytes": 2937
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_orientation",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_orientation\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"read\\\":{\\\"minItems\\\":1,\\\"maxItems\\\":50,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"summary\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000}},\\\"required\\\":[\\\"read\\\",\\\"summary\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6; based on: none (full)",
+        "source": null,
+        "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRead the captured design guidance for wi-001.",
+        "source": null,
+        "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- Name every captured guidance path and summarize what it asks of the design.",
+        "source": null,
+        "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:design-guidance",
+        "kind": "brief",
+        "text": "# Block brief:support:design-guidance\nCurrent value; replaces any earlier value for this key.\nDesign orientation. Read the guidance below: it is what the design reviews of this project's iterations are judged against.\nYou review nothing yet. Submit the paths you read and a short account of what the guidance asks of a design.\n\n## README.md (sha256 b72856422e9d)\n\n# Collection Review\n\nCollection Review is a small, complete application used as a reference for\nauthoring Ramify modules. It shows two fixed catalog records \u2014 one with an\nintact two-revision history, one whose chain names a predecessor that resolves\nto no revision \u2014 and runs one deterministic review over them. This root module\nowns the Node entry point, the configured tRPC and MCP runtimes, and the\nassembly that composes the feature adapters its descendants expose upward.\n\nThe same two capabilities are served through two native protocol surfaces and\none browser screen. tRPC answers `catalog.get` and `reviews.run` for a typed\nclient. MCP lists and calls `catalog.inspect` and `reviews.run` behind one\nserver, where a review-session table binds each session to a revision scope and\nevery list and call resolves that binding again. The browser lists both records\nas cards and runs a review from a connected panel. Fifteen Ramify owners share\nthat work; each one has a `module.ramify` and a `README.md` whose first\nparagraph is its purpose. Fourteen keep their own tests under `src/tests/`; the\nfifteenth, `integration-tests`, is a separately declared testing module whose\nordinary `src/` is the Cucumber scenario.\n\nThe package is self-contained: it declares its own dependencies and lockfile and\nits own TypeScript, Vite and Vitest configuration, and it imports no source from\nthe repository around it. No owner is a package, and there is no `index.ts`\nanywhere in the tree.\n\n## Running it\n\n```bash\nnpm install\nnpm run dev:api     # the API listener, http://localhost:8787\nnpm run dev:web     # the browser shell, http://localhost:5180\n```\n\n`dev:web` proxies `/trpc` to the API process, so the browser talks to one\norigin; it never talks to `/mcp`. `PORT` overrides the API port. Both mounts are\nserved by one Node listener: `src/main.ts` chooses the port and `src/server.ts`\nstarts everything else, which is what lets a test start the same program on a\nport the operating system picks.\n\n```bash\nnpm run type-check    # ordinary source, every src/tests/, and the config files\nnpm test              # every owner's tests, under Node\nnpm run test:cucumber # the feature scenarios, through the real runner\nnpm run acceptance:quick # the scenarios in quick mode: the system in process\nnpm run acceptance:full  # the scenarios in full mode: the listener over HTTP\nnpm run build         # the browser bundle, into dist/\n```\n\n**A shell-level `NODE_ENV` reaches `vite build`.** With `NODE_ENV=development`\nexported, the build still reports \"for production\" but emits React's development\nbuild \u2014 about 415 kB here instead of about 216 kB. Unset it to build what you\nwould ship.\n\nTests run under Node with no DOM: components are rendered to static markup, and\nthe protocol tests use real clients over in-process transports, plus one test\nthat starts the listener on an ephemeral port and speaks HTTP to both mounts.\n\nOne scenario also runs under Cucumber. It lives in `subs/integration-tests/src/`,\nthe ordinary source of a separately declared testing module,\n`integration-tests tagged [testing, dispatch]`, and `cucumber.js` beside the\nother runner configurations collects it. Being a separate owner, that module\nhas no private access to the root: it reaches the configured system only\nthrough `createTestSystem`, which the root exposes to its descendants from its\n`src/tests/`, and its header must carry both `testing` and `dispatch` because\nthat symbol does. `.viz.feature` is plain Gherkin here: the\n`# @viz-\u2026` lines at the top are ordinary comments that nothing reads, and the\nfile needs `@cucumber/cucumber` and nothing else. The scenario reviews both\nrecords through the typed client and then through one MCP session bound to part\nof a history, so it exercises the same system the other tests do.\n\nIt is there for reference case K05, which is about how the runner's setup is\nloaded rather than about the review: the hook module is reached through two\nsetup paths in one runtime \u2014 the runner's `import` glob and a symbol-free\n`import '../support/hooks.js'` in the step definitions \u2014 and the shared\ninitialization is a side effect of loading it rather than an exported\ncapability invented to justify the load. The scenario's last step asserts that\nthe initialization was evaluated once and the run-level hook registered once.\nThis is that fixture and not this package's test framework, which is Vitest.\n\n### The scenario harness\n\nThe package's scenarios run in two modes, fixed for one run of the runner by\n`TEST_MODE` and never written into a scenario. `acceptance:quick` drives the\nconfigured system in process, through `createTestSystem`, as every other test\ndoes. `acceptance:full` reaches the same system through the real listener on\na loopback port: the `BeforeAll` hook starts it with `startServedTestSystem`,\nwhich the root also exposes to its descendants, the typed client and the MCP\nsessions speak HTTP to it, and the `AfterAll` hook stops it. Full mode needs\nno browser and no setup command, and a dry run starts nothing. An MCP\nsession's id is the one the listener's transport generated there, which the\nscenario compares against the id the server saw. `test:cucumber` runs quick\nmode under this package's own `cucumber.js` profile.\n\nEngineering tools can execute the project's declared commands. Each gate\nindependently asks for the committed configured audit, whose Cucumber check\nruns the scenarios under its committed profile. The fixture commits no audit\ndefinition, so the tests that drive a run over it answer each gate with a\nscripted configured audit; a trial copy made by `npm run trial -- prepare`\ncommits one in the copy. `cucumber.js` also collects the feature files a run\nwrites and their step definitions, in a module's `src/tests/features/` and\n`src/tests/steps/` or a testing module's `src/features/` and `src/steps/`,\nand leaves out `@ramify-pending` scenarios. `ramify-agent.json` beside\n`package.json` declares only that the type check prints `tsc`'s output, so a\nstandalone diagnosis attributes a failed type check by where its errors lie.\n\nStep definitions and feature files sit in the conventional directories the\nharness writes feature files beneath and briefs engineers to use: a module's `src/tests/steps/` and `src/tests/features/`, or,\nfor a testing module such as `integration-tests`, its `src/steps/` and\n`src/features/`.\n\nScenario support, World and hooks are configured by `cucumber.js`. Their\nmodule declarations and generated API views identify which source areas can\nimport them. New scenarios retain the requirements stated by their plan;\nimplementation choices belong to the assigned engineer and responsible architect.\n\n## The ownership tree\n\nEvery module owns the `src/` beside its `module.ramify`, with children only\nunder `subs/`. A module's header tags classify its ordinary source; its\n`src/tests/` area has the fixed derived profile in the third column: `testing`\nplus the header's required-importer tags, never `browser`.\n\n| Module | Header tags | `src/tests/` profile |\n| --- | --- | --- |\n| `collection-review` (root) | `[dispatch]` | `[testing, dispatch]` |\n| `integration-tests` | `[testing, dispatch]` | `[testing, dispatch]` |\n| `workspace` | `[ui, browser, dispatch]` | `[testing, ui, dispatch]` |\n| `workspace/contracts` | `[]` | `[testing]` |\n| `workspace/shared-ui` | `[ui, browser]` | `[testing, ui]` |\n| `workspace/catalog` | `[dispatch]` | `[testing, dispatch]` |\n| `workspace/catalog/core` | `[]` | `[testing]` |\n| `workspace/catalog/ui` | `[ui, browser]` | `[testing, ui]` |\n| `workspace/reviews` | `[dispatch]` | `[testing, dispatch]` |\n| `workspace/reviews/core` | `[]` | `[testing]` |\n| `workspace/reviews/core/controller` | `[]` | `[testing]` |\n| `workspace/reviews/core/tasks` | `[]` | `[testing]` |\n| `workspace/reviews/validation` | `[]` | `[testing]` |\n| `workspace/reviews/ui` | `[ui, browser, dispatch]` | `[testing, ui, dispatch]` |\n| `workspace/reviews/ui/pure-ui` | `[ui, browser]` | `[testing, ui]` |\n\n`integration-tests` is the one testing module: its header classifies its\nordinary `src/`, where the scenario, its World and its hooks live, and it\nexposes nothing. Every other\nowner keeps its tests in `src/tests/`.\n\n`workspace` is the browser shell and the tree's relay point: feature adapters\ntravel through it to the root, and shared vocabulary travels through it down to\nevery descendant. The two owners named `ui` declare `module \"ui\"`, because `ui`\nis a reserved keyword; their identifiers are still `workspace/catalog/ui` and\n`workspace/reviews/ui`.\n\n## Reading the descriptions\n\nEach `module.ramify` states one module's name, its tags, and what it exposes and\nin which direction. Read them together with each owner's README, which says what\nthe module is for; the comments in the descriptions say why each exposure exists.\n\nThe installed Ramify CLI parses these descriptions and checks source access.\nRun the configured structural check when changing a description and use the\ngenerated source or testing API view for the area that will import a symbol.\nAn analysis limitation records incomplete evidence; it does not supply access\nor establish a scenario's semantic completion.\n\n## Trial records\n\n`plans/` is explicitly owned-unwired in the root description. It holds plan\nrequirements and the harness's durable `plans/<plan>/.harness/` run records;\nsource modules and their configured tests remain analyzed. Trial verification\nreports and retained evidence are written outside the prepared project. The\nproject's existing configured audit obligations still apply to every gate.\n\n## Independence\n\nThis package must keep working outside the repository that contains it. The\nprocedure, to be repeated whenever its dependencies change:\n\n1. Copy the package to a directory outside that repository, excluding\n   `node_modules/`, `dist/` and `.reference-work/`.\n2. `npm ci`, so the copy installs from this lockfile alone.\n3. `npm run type-check`, `npm run build`, `npm test` and `npm run test:cucumber`\n   in the copy, with no ancestor packages and no inherited module-resolution\n   overrides.\n4. Remove the copy.\n\nHistorical standalone evidence from 2026-09-07 with Node v22.23.2 and npm 10.9.8, after the scenario\nmoved into `integration-tests`: `npm ci` installed from the lockfile with no\nvulnerabilities, `type-check` reported nothing, `build` transformed 49 modules\ninto `dist/`, `npm test` passed 77 tests in 20 files, and\n`npm run test:cucumber` passed its one scenario of 12 steps and exited on its\nown. Nothing outside the copy was needed.\n\nThat historical result predates the current fixture-input changes and is not\nqualification of a new prepared copy.\n\n## subs/workspace/README.md (sha256 f5cdda73289e)\n\n# Workspace\n\nWorkspace is the browser shell. It owns the HTML entry, the React mount, the\napplication stylesheet, and the typed client the views are given, and it\ncomposes the screen from the views its feature children expose upward. Because\nthe features are its children, a selected view reaches the shell without\nbecoming available to a sibling feature's UI.\n\nWorkspace is also the tree's relay point. Feature adapters travel through it to\nthe root, which mounts them, and the neutral vocabulary travels through it down\nto every descendant. Those relays are declarations in `module.ramify`, not a\nsource barrel: the shell forwards symbols its own source could not import.\n\n## subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n\n# Shared UI\n\nShared UI owns the presentation primitives that more than one feature view\nneeds, beginning with the status badge that both the catalog card and the\nreview result render. It exists as a separate owner because two vertical\nfeature UIs must use those primitives while their core siblings must not.\n\nIts symbols carry `ui` and `browser` and reach both feature UIs through\nworkspace. The core owners see them and still cannot import them, for values or\nfor types, because their source carries no UI classification.\n",
+        "source": null,
+        "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+        "block": {
+          "key": "brief:support:design-guidance",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:reviewer:orientation",
+        "kind": "procedure",
+        "text": "# Block procedure:reviewer:orientation\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nYou prepare to review the design of a Ramify project's iterations. The\nharness gives you the project's guidance for design: its principles and the\nprose of the modules that are changing. Read it now. Later, each design\nreview of an iteration continues from what you have read here, with the\naudited candidate of that iteration and tools to read it.\n\nYou change nothing and decide nothing, and you have no tool but\nthe designated submission tool named in the current task, which ends this orientation. The harness validates\nit; if it is rejected, it answers with every error and its path, and you\ncorrect the submission and call the tool again.\n\nName in `read` every guidance path the message gives, and in `summary` what\nthat guidance asks of a design, briefly and in your own words. Only an\naccepted submission ends the orientation.\n\n## The submission\n\nThe submission tool declaration carries the complete schema.\n",
+        "source": "subs/harness/src/prompts/reviewer-orientation.system.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/reviewer-orientation.system.md",
+            "hash": "f7935d1f700df56c3b5cf6efe58d135848c253a36af75f7164e85390d20f0969",
+            "kind": "system",
+            "bytes": 1069
+          }
+        ],
+        "block": {
+          "key": "procedure:reviewer:orientation",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/reviews/orientations/ec7606cfbaf86b53\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"submit_orientation\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:a4552a91-486a-40bb-bbb9-21d19892fe49:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/reviewer-orientation.system.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: design-orientation\nThis selection supersedes every prior task selection.\nActive role: reviewer\nSelected procedure: procedure:reviewer:orientation; SHA-256: e1fe7c5dfaedde69e6391e6a632f37e30c333a547ba25c6590e6d82cf67da449\nPerform design-orientation for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_orientation`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6"
+      },
+      {
+        "key": "tool:submit_review",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_review\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"inspected\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"missing\\\":{\\\"maxItems\\\":500,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}},\\\"concerns\\\":{\\\"maxItems\\\":20,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"summary\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"consequence\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"rationale\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"remedy\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":4000},\\\"locations\\\":{\\\"minItems\\\":1,\\\"maxItems\\\":50,\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"maxLength\\\":500},\\\"startLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]},\\\"endLine\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"path\\\",\\\"startLine\\\",\\\"endLine\\\"],\\\"additionalProperties\\\":false}},\\\"suggests\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^cf-\\\\\\\\d{4,}$\\\"},{\\\"type\\\":\\\"null\\\"}]},\\\"risk\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"high\\\",\\\"medium\\\",\\\"low\\\"]},\\\"ground\\\":{\\\"anyOf\\\":[{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"quote\\\":{\\\"type\\\":\\\"string\\\",\\\"maxLength\\\":1000}},\\\"required\\\":[\\\"path\\\"],\\\"additionalProperties\\\":false},{\\\"type\\\":\\\"null\\\"}]}},\\\"required\\\":[\\\"summary\\\",\\\"consequence\\\",\\\"rationale\\\",\\\"uncertainty\\\",\\\"remedy\\\",\\\"locations\\\",\\\"suggests\\\",\\\"risk\\\",\\\"ground\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"inspected\\\",\\\"missing\\\",\\\"concerns\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168; based on: 882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6 (post-fork)",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nReview b999ea9a913557a04d3e2309247093027ad6b9f8",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0003\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"kind\":\"design\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"c76c24eee5847debd467199431e3aa504a90b288\",\"gate\":\"ga-0002\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"guidance\":[{\"ref\":\"README.md\",\"hash\":\"b72856422e9dd390beb6eb5448ddfb30260ac90cbc8b91e014541c97821e2c95\"},{\"ref\":\"subs/workspace/README.md\",\"hash\":\"f5cdda73289e0ff31f3b1d2d5942640a78a4224497474462fc26eef5d7546e56\"},{\"ref\":\"subs/workspace/subs/shared-ui/README.md\",\"hash\":\"8cec99d7e15b169c49a10f3982e551a081e0da714105120442118184bf573435\"}],\"forkPoint\":{\"kind\":\"orientation\",\"key\":\"ec7606cfbaf86b5371d3e3d23a15e8cd0419b9461dd1ab748ec902b6d0f58727\"}}",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:context:0",
+        "kind": "brief",
+        "text": "# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nDesign review rq-0003 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); its gate ga-0002 passed. The diff is taken from c76c24eee5847debd467199431e3aa504a90b288.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:context:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The iteration:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The iteration:0\nCurrent value; replaces any earlier value for this key.\n## The iteration\n\nGoal: Implement optional StatusBadge tone markup with a neutral default, preserve all existing wording and caller behavior, and bind both status-badge-tone acceptance scenarios.\nApproach: In `status-badge.tsx`, add an optional tone prop constrained to exactly neutral/positive/warning/critical and emit `data-tone` using neutral when omitted, while leaving data-status and label/default-label selection intact. Extend the existing static-markup Vitest suite to cover an explicit tone, the neutral default, and wording preservation. Add TypeScript/TSX Cucumber steps under this module\u2019s `src/tests/steps/` that render StatusBadge to static markup and bind both supplied scenarios; keep scenario state isolated and declare no fake dependency because the real pure presentation primitive is exercised. Do not edit the generated feature file or require changes from existing feature-view callers.\nCompletion evidence: The focused shared-ui unit tests demonstrate the allowed explicit tone in data-tone, neutral on omission, and unchanged status/custom-label wording; both supplied Cucumber scenarios are bound to the real StatusBadge static markup with no fakes and pass; project type-check, tests, scenarios, and structural audit remain green.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:## The iteration:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The guidance this design is judged against:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The guidance this design is judged against:0\nCurrent value; replaces any earlier value for this key.\n## The guidance this design is judged against\n\nEach file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.\n\n- README.md (sha256 b72856422e9d)\n- subs/workspace/README.md (sha256 f5cdda73289e)\n- subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:## The guidance this design is judged against:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The changed paths:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The changed paths:0\nCurrent value; replaces any earlier value for this key.\n## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:## The changed paths:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:candidate-diff",
+        "kind": "brief",
+        "text": "# Block brief:support:candidate-diff\nCurrent value; replaces any earlier value for this key.\n### Candidate Review Diff\n\nBase: c76c24eee5847debd467199431e3aa504a90b288; candidate: b999ea9a913557a04d3e2309247093027ad6b9f8.\nChanged paths: 4; collected patch bytes: 6957.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..696cc48 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` and `data-tone` carry its\n+ * presentation choices, so both the stylesheet and a test can read them\n+ * without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\nindex c5263a7..c38d3ca 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n@@ -7,14 +7,14 @@ Feature: render-status-badge-with-tone\n   Render a status badge with an optional presentation tone exposed in markup,\n   defaulting to neutral while preserving the displayed status wording.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..93d07a0 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -12,15 +12,30 @@ import { StatusBadge } from '../status-badge.js';\n  */\n \n describe('StatusBadge', () => {\n-  it('reads a status back as its own word when no label is given', () => {\n-    expect(renderToStaticMarkup(<StatusBadge status=\"passed\" />)).toContain('Passed');\n-    expect(renderToStaticMarkup(<StatusBadge status=\"failed\" />)).toContain('Failed');\n+  it('reads a status back as its own word and uses a neutral tone by default', () => {\n+    const passedMarkup = renderToStaticMarkup(<StatusBadge status=\"passed\" />);\n+    const failedMarkup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(passedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(passedMarkup).toContain('Passed');\n+    expect(failedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(failedMarkup).toContain('Failed');\n+  });\n+\n+  it('carries an explicit tone without changing the default status wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n   });\n \n-  it('carries the status as an attribute whatever the label says', () => {\n-    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" label=\"No revisions\" />);\n+  it('carries the status as an attribute without changing a custom label', () => {\n+    const markup = renderToStaticMarkup(\n+      <StatusBadge status=\"failed\" label=\"No revisions\" tone=\"critical\" />,\n+    );\n \n     expect(markup).toContain('data-status=\"failed\"');\n+    expect(markup).toContain('data-tone=\"critical\"');\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..c4824a3\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,60 @@\n+import assert from 'node:assert/strict';\n+\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge, type StatusBadgeProps } from '../../status-badge.js';\n+\n+interface StatusBadgeWorld {\n+  badgeProps?: StatusBadgeProps;\n+  badgeMarkup?: string;\n+}\n+\n+function isStatusBadgeTone(tone: string): tone is NonNullable<StatusBadgeProps['tone']> {\n+  return tone === 'neutral' || tone === 'positive' || tone === 'warning' || tone === 'critical';\n+}\n+\n+function requireBadgeProps(world: StatusBadgeWorld): StatusBadgeProps {\n+  assert.ok(world.badgeProps, 'A badge must be given before it is rendered');\n+  return world.badgeProps;\n+}\n+\n+function requireBadgeMarkup(world: StatusBadgeWorld): string {\n+  assert.ok(world.badgeMarkup, 'The badge must be rendered before its markup is checked');\n+  return world.badgeMarkup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(isStatusBadgeTone(tone), `Unsupported status badge tone: ${tone}`);\n+    this.badgeProps = { status: 'passed', tone };\n+    delete this.badgeMarkup;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: StatusBadgeWorld) {\n+  this.badgeProps = { status: 'failed' };\n+  delete this.badgeMarkup;\n+});\n+\n+When('the badge is rendered', function (this: StatusBadgeWorld) {\n+  this.badgeMarkup = renderToStaticMarkup(<StatusBadge {...requireBadgeProps(this)} />);\n+});\n+\n+Then(\n+  'its markup carries the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(\n+      requireBadgeMarkup(this).includes(`data-tone=\"${tone}\"`),\n+      `Expected rendered badge markup to carry tone \"${tone}\"`,\n+    );\n+  },\n+);\n+\n+Then('it still reads {string}', function (this: StatusBadgeWorld, label: string) {\n+  assert.ok(\n+    requireBadgeMarkup(this).includes(`>${label}</span>`),\n+    `Expected rendered badge markup to read \"${label}\"`,\n+  );\n+});\n\n```",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:candidate-diff",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:starting-points",
+        "kind": "brief",
+        "text": "# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:starting-points",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:design-guidance",
+        "kind": "brief",
+        "text": "# Block brief:support:design-guidance\nWithdrawn; this block no longer applies.\n",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "block": {
+          "key": "brief:support:design-guidance",
+          "effect": "remove"
+        }
+      },
+      {
+        "key": "procedure:reviewer:design",
+        "kind": "procedure",
+        "text": "# Block procedure:reviewer:design\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nDo this, in order:\n\n1. Reuse earlier understanding of captured guidance with the same known identity.\n   Refresh guidance whose identity changed or cannot be established. Only the\n   listed guidance is the standard; a preference of your own is not. Every\n   reported concern still requires current `snapshot_read` evidence for its ground.\n2. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`. Read the complete patches supplied in this message.\n   Fetch patches with `snapshot_diff` only for paths whose complete patches\n   were not supplied. Read the surrounding source where a patch alone does\n   not show the design.\n3. Ask of each change: does it follow the guidance's principles and the\n   module's stated responsibility, or does it duplicate, entangle or place\n   something where the guidance says it does not belong?\n4. Submit.\n\n## What a concern is\n\nA concern is a design problem the guidance lets you name: the rule or\nresponsibility it departs from, cited by the guidance file, the consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy and its\nrisk. Its ground is that guidance file, read with `snapshot_read` in this\nreview even if an earlier conversation already showed it to you.\nCorrectness defects and scope gaps belong to other reviews. Report each\ndistinct problem once. `suggests` may name a CheckFinding the message below\nlists when you believe yours is the same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate's design follows the listed guidance; that is a\nvalid review, and so is an honest partial one.",
+        "source": "subs/harness/src/prompts/design-review.procedure.md",
+        "revision": "reviewer/4",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/design-review.procedure.md",
+            "hash": "b7467ec050ddcbee59d55f26fe9377e84753151e1626a76823217e971a2375bd",
+            "kind": "procedure",
+            "bytes": 2036
+          }
+        ],
+        "block": {
+          "key": "procedure:reviewer:design",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/reviews/rq-0003/attempts/01/workspace\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"b999ea9a913557a04d3e2309247093027ad6b9f8\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 599965,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": []\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/design-review.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: design\nThis selection supersedes every prior task selection.\nActive role: reviewer\nSelected procedure: procedure:reviewer:design; SHA-256: ea711325e08c341d37d30c0fa451f6164710914b825aab9e44f35a41611f7940\nPerform design for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168"
+      }
+    ],
+    "history": [
+      {
+        "revision": "882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6",
+        "contentHash": "65a1ccccc6267d31c0eaa6e8853b448f88635fac4de49a6e77eb6772addd0813",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nRead the captured design guidance for wi-001."
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- Name every captured guidance path and summarize what it asks of the design."
+          },
+          {
+            "key": "support:design-guidance",
+            "text": "Design orientation. Read the guidance below: it is what the design reviews of this project's iterations are judged against.\nYou review nothing yet. Submit the paths you read and a short account of what the guidance asks of a design.\n\n## README.md (sha256 b72856422e9d)\n\n# Collection Review\n\nCollection Review is a small, complete application used as a reference for\nauthoring Ramify modules. It shows two fixed catalog records \u2014 one with an\nintact two-revision history, one whose chain names a predecessor that resolves\nto no revision \u2014 and runs one deterministic review over them. This root module\nowns the Node entry point, the configured tRPC and MCP runtimes, and the\nassembly that composes the feature adapters its descendants expose upward.\n\nThe same two capabilities are served through two native protocol surfaces and\none browser screen. tRPC answers `catalog.get` and `reviews.run` for a typed\nclient. MCP lists and calls `catalog.inspect` and `reviews.run` behind one\nserver, where a review-session table binds each session to a revision scope and\nevery list and call resolves that binding again. The browser lists both records\nas cards and runs a review from a connected panel. Fifteen Ramify owners share\nthat work; each one has a `module.ramify` and a `README.md` whose first\nparagraph is its purpose. Fourteen keep their own tests under `src/tests/`; the\nfifteenth, `integration-tests`, is a separately declared testing module whose\nordinary `src/` is the Cucumber scenario.\n\nThe package is self-contained: it declares its own dependencies and lockfile and\nits own TypeScript, Vite and Vitest configuration, and it imports no source from\nthe repository around it. No owner is a package, and there is no `index.ts`\nanywhere in the tree.\n\n## Running it\n\n```bash\nnpm install\nnpm run dev:api     # the API listener, http://localhost:8787\nnpm run dev:web     # the browser shell, http://localhost:5180\n```\n\n`dev:web` proxies `/trpc` to the API process, so the browser talks to one\norigin; it never talks to `/mcp`. `PORT` overrides the API port. Both mounts are\nserved by one Node listener: `src/main.ts` chooses the port and `src/server.ts`\nstarts everything else, which is what lets a test start the same program on a\nport the operating system picks.\n\n```bash\nnpm run type-check    # ordinary source, every src/tests/, and the config files\nnpm test              # every owner's tests, under Node\nnpm run test:cucumber # the feature scenarios, through the real runner\nnpm run acceptance:quick # the scenarios in quick mode: the system in process\nnpm run acceptance:full  # the scenarios in full mode: the listener over HTTP\nnpm run build         # the browser bundle, into dist/\n```\n\n**A shell-level `NODE_ENV` reaches `vite build`.** With `NODE_ENV=development`\nexported, the build still reports \"for production\" but emits React's development\nbuild \u2014 about 415 kB here instead of about 216 kB. Unset it to build what you\nwould ship.\n\nTests run under Node with no DOM: components are rendered to static markup, and\nthe protocol tests use real clients over in-process transports, plus one test\nthat starts the listener on an ephemeral port and speaks HTTP to both mounts.\n\nOne scenario also runs under Cucumber. It lives in `subs/integration-tests/src/`,\nthe ordinary source of a separately declared testing module,\n`integration-tests tagged [testing, dispatch]`, and `cucumber.js` beside the\nother runner configurations collects it. Being a separate owner, that module\nhas no private access to the root: it reaches the configured system only\nthrough `createTestSystem`, which the root exposes to its descendants from its\n`src/tests/`, and its header must carry both `testing` and `dispatch` because\nthat symbol does. `.viz.feature` is plain Gherkin here: the\n`# @viz-\u2026` lines at the top are ordinary comments that nothing reads, and the\nfile needs `@cucumber/cucumber` and nothing else. The scenario reviews both\nrecords through the typed client and then through one MCP session bound to part\nof a history, so it exercises the same system the other tests do.\n\nIt is there for reference case K05, which is about how the runner's setup is\nloaded rather than about the review: the hook module is reached through two\nsetup paths in one runtime \u2014 the runner's `import` glob and a symbol-free\n`import '../support/hooks.js'` in the step definitions \u2014 and the shared\ninitialization is a side effect of loading it rather than an exported\ncapability invented to justify the load. The scenario's last step asserts that\nthe initialization was evaluated once and the run-level hook registered once.\nThis is that fixture and not this package's test framework, which is Vitest.\n\n### The scenario harness\n\nThe package's scenarios run in two modes, fixed for one run of the runner by\n`TEST_MODE` and never written into a scenario. `acceptance:quick` drives the\nconfigured system in process, through `createTestSystem`, as every other test\ndoes. `acceptance:full` reaches the same system through the real listener on\na loopback port: the `BeforeAll` hook starts it with `startServedTestSystem`,\nwhich the root also exposes to its descendants, the typed client and the MCP\nsessions speak HTTP to it, and the `AfterAll` hook stops it. Full mode needs\nno browser and no setup command, and a dry run starts nothing. An MCP\nsession's id is the one the listener's transport generated there, which the\nscenario compares against the id the server saw. `test:cucumber` runs quick\nmode under this package's own `cucumber.js` profile.\n\nEngineering tools can execute the project's declared commands. Each gate\nindependently asks for the committed configured audit, whose Cucumber check\nruns the scenarios under its committed profile. The fixture commits no audit\ndefinition, so the tests that drive a run over it answer each gate with a\nscripted configured audit; a trial copy made by `npm run trial -- prepare`\ncommits one in the copy. `cucumber.js` also collects the feature files a run\nwrites and their step definitions, in a module's `src/tests/features/` and\n`src/tests/steps/` or a testing module's `src/features/` and `src/steps/`,\nand leaves out `@ramify-pending` scenarios. `ramify-agent.json` beside\n`package.json` declares only that the type check prints `tsc`'s output, so a\nstandalone diagnosis attributes a failed type check by where its errors lie.\n\nStep definitions and feature files sit in the conventional directories the\nharness writes feature files beneath and briefs engineers to use: a module's `src/tests/steps/` and `src/tests/features/`, or,\nfor a testing module such as `integration-tests`, its `src/steps/` and\n`src/features/`.\n\nScenario support, World and hooks are configured by `cucumber.js`. Their\nmodule declarations and generated API views identify which source areas can\nimport them. New scenarios retain the requirements stated by their plan;\nimplementation choices belong to the assigned engineer and responsible architect.\n\n## The ownership tree\n\nEvery module owns the `src/` beside its `module.ramify`, with children only\nunder `subs/`. A module's header tags classify its ordinary source; its\n`src/tests/` area has the fixed derived profile in the third column: `testing`\nplus the header's required-importer tags, never `browser`.\n\n| Module | Header tags | `src/tests/` profile |\n| --- | --- | --- |\n| `collection-review` (root) | `[dispatch]` | `[testing, dispatch]` |\n| `integration-tests` | `[testing, dispatch]` | `[testing, dispatch]` |\n| `workspace` | `[ui, browser, dispatch]` | `[testing, ui, dispatch]` |\n| `workspace/contracts` | `[]` | `[testing]` |\n| `workspace/shared-ui` | `[ui, browser]` | `[testing, ui]` |\n| `workspace/catalog` | `[dispatch]` | `[testing, dispatch]` |\n| `workspace/catalog/core` | `[]` | `[testing]` |\n| `workspace/catalog/ui` | `[ui, browser]` | `[testing, ui]` |\n| `workspace/reviews` | `[dispatch]` | `[testing, dispatch]` |\n| `workspace/reviews/core` | `[]` | `[testing]` |\n| `workspace/reviews/core/controller` | `[]` | `[testing]` |\n| `workspace/reviews/core/tasks` | `[]` | `[testing]` |\n| `workspace/reviews/validation` | `[]` | `[testing]` |\n| `workspace/reviews/ui` | `[ui, browser, dispatch]` | `[testing, ui, dispatch]` |\n| `workspace/reviews/ui/pure-ui` | `[ui, browser]` | `[testing, ui]` |\n\n`integration-tests` is the one testing module: its header classifies its\nordinary `src/`, where the scenario, its World and its hooks live, and it\nexposes nothing. Every other\nowner keeps its tests in `src/tests/`.\n\n`workspace` is the browser shell and the tree's relay point: feature adapters\ntravel through it to the root, and shared vocabulary travels through it down to\nevery descendant. The two owners named `ui` declare `module \"ui\"`, because `ui`\nis a reserved keyword; their identifiers are still `workspace/catalog/ui` and\n`workspace/reviews/ui`.\n\n## Reading the descriptions\n\nEach `module.ramify` states one module's name, its tags, and what it exposes and\nin which direction. Read them together with each owner's README, which says what\nthe module is for; the comments in the descriptions say why each exposure exists.\n\nThe installed Ramify CLI parses these descriptions and checks source access.\nRun the configured structural check when changing a description and use the\ngenerated source or testing API view for the area that will import a symbol.\nAn analysis limitation records incomplete evidence; it does not supply access\nor establish a scenario's semantic completion.\n\n## Trial records\n\n`plans/` is explicitly owned-unwired in the root description. It holds plan\nrequirements and the harness's durable `plans/<plan>/.harness/` run records;\nsource modules and their configured tests remain analyzed. Trial verification\nreports and retained evidence are written outside the prepared project. The\nproject's existing configured audit obligations still apply to every gate.\n\n## Independence\n\nThis package must keep working outside the repository that contains it. The\nprocedure, to be repeated whenever its dependencies change:\n\n1. Copy the package to a directory outside that repository, excluding\n   `node_modules/`, `dist/` and `.reference-work/`.\n2. `npm ci`, so the copy installs from this lockfile alone.\n3. `npm run type-check`, `npm run build`, `npm test` and `npm run test:cucumber`\n   in the copy, with no ancestor packages and no inherited module-resolution\n   overrides.\n4. Remove the copy.\n\nHistorical standalone evidence from 2026-09-07 with Node v22.23.2 and npm 10.9.8, after the scenario\nmoved into `integration-tests`: `npm ci` installed from the lockfile with no\nvulnerabilities, `type-check` reported nothing, `build` transformed 49 modules\ninto `dist/`, `npm test` passed 77 tests in 20 files, and\n`npm run test:cucumber` passed its one scenario of 12 steps and exited on its\nown. Nothing outside the copy was needed.\n\nThat historical result predates the current fixture-input changes and is not\nqualification of a new prepared copy.\n\n## subs/workspace/README.md (sha256 f5cdda73289e)\n\n# Workspace\n\nWorkspace is the browser shell. It owns the HTML entry, the React mount, the\napplication stylesheet, and the typed client the views are given, and it\ncomposes the screen from the views its feature children expose upward. Because\nthe features are its children, a selected view reaches the shell without\nbecoming available to a sibling feature's UI.\n\nWorkspace is also the tree's relay point. Feature adapters travel through it to\nthe root, which mounts them, and the neutral vocabulary travels through it down\nto every descendant. Those relays are declarations in `module.ramify`, not a\nsource barrel: the shell forwards symbols its own source could not import.\n\n## subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n\n# Shared UI\n\nShared UI owns the presentation primitives that more than one feature view\nneeds, beginning with the status badge that both the catalog card and the\nreview result render. It exists as a separate owner because two vertical\nfeature UIs must use those primitives while their core siblings must not.\n\nIts symbols carry `ui` and `browser` and reach both feature UIs through\nworkspace. The core owners see them and still cannot import them, for values or\nfor types, because their source carries no UI classification.\n"
+          }
+        ]
+      },
+      {
+        "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168",
+        "contentHash": "d6b47b02a134a4b31e5ffde8dcf04229869510872a4ad6dc1042f46fefa4ab32",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nReview b999ea9a913557a04d3e2309247093027ad6b9f8"
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0003\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"kind\":\"design\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"c76c24eee5847debd467199431e3aa504a90b288\",\"gate\":\"ga-0002\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"guidance\":[{\"ref\":\"README.md\",\"hash\":\"b72856422e9dd390beb6eb5448ddfb30260ac90cbc8b91e014541c97821e2c95\"},{\"ref\":\"subs/workspace/README.md\",\"hash\":\"f5cdda73289e0ff31f3b1d2d5942640a78a4224497474462fc26eef5d7546e56\"},{\"ref\":\"subs/workspace/subs/shared-ui/README.md\",\"hash\":\"8cec99d7e15b169c49a10f3982e551a081e0da714105120442118184bf573435\"}],\"forkPoint\":{\"kind\":\"orientation\",\"key\":\"ec7606cfbaf86b5371d3e3d23a15e8cd0419b9461dd1ab748ec902b6d0f58727\"}}"
+          },
+          {
+            "key": "support:context:0",
+            "text": "Design review rq-0003 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); its gate ga-0002 passed. The diff is taken from c76c24eee5847debd467199431e3aa504a90b288.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n"
+          },
+          {
+            "key": "support:## The iteration:0",
+            "text": "## The iteration\n\nGoal: Implement optional StatusBadge tone markup with a neutral default, preserve all existing wording and caller behavior, and bind both status-badge-tone acceptance scenarios.\nApproach: In `status-badge.tsx`, add an optional tone prop constrained to exactly neutral/positive/warning/critical and emit `data-tone` using neutral when omitted, while leaving data-status and label/default-label selection intact. Extend the existing static-markup Vitest suite to cover an explicit tone, the neutral default, and wording preservation. Add TypeScript/TSX Cucumber steps under this module\u2019s `src/tests/steps/` that render StatusBadge to static markup and bind both supplied scenarios; keep scenario state isolated and declare no fake dependency because the real pure presentation primitive is exercised. Do not edit the generated feature file or require changes from existing feature-view callers.\nCompletion evidence: The focused shared-ui unit tests demonstrate the allowed explicit tone in data-tone, neutral on omission, and unchanged status/custom-label wording; both supplied Cucumber scenarios are bound to the real StatusBadge static markup with no fakes and pass; project type-check, tests, scenarios, and structural audit remain green.\n"
+          },
+          {
+            "key": "support:## The guidance this design is judged against:0",
+            "text": "## The guidance this design is judged against\n\nEach file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.\n\n- README.md (sha256 b72856422e9d)\n- subs/workspace/README.md (sha256 f5cdda73289e)\n- subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n"
+          },
+          {
+            "key": "support:## The changed paths:0",
+            "text": "## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n"
+          },
+          {
+            "key": "support:candidate-diff",
+            "text": "### Candidate Review Diff\n\nBase: c76c24eee5847debd467199431e3aa504a90b288; candidate: b999ea9a913557a04d3e2309247093027ad6b9f8.\nChanged paths: 4; collected patch bytes: 6957.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..696cc48 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` and `data-tone` carry its\n+ * presentation choices, so both the stylesheet and a test can read them\n+ * without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\nindex c5263a7..c38d3ca 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n@@ -7,14 +7,14 @@ Feature: render-status-badge-with-tone\n   Render a status badge with an optional presentation tone exposed in markup,\n   defaulting to neutral while preserving the displayed status wording.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..93d07a0 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -12,15 +12,30 @@ import { StatusBadge } from '../status-badge.js';\n  */\n \n describe('StatusBadge', () => {\n-  it('reads a status back as its own word when no label is given', () => {\n-    expect(renderToStaticMarkup(<StatusBadge status=\"passed\" />)).toContain('Passed');\n-    expect(renderToStaticMarkup(<StatusBadge status=\"failed\" />)).toContain('Failed');\n+  it('reads a status back as its own word and uses a neutral tone by default', () => {\n+    const passedMarkup = renderToStaticMarkup(<StatusBadge status=\"passed\" />);\n+    const failedMarkup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(passedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(passedMarkup).toContain('Passed');\n+    expect(failedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(failedMarkup).toContain('Failed');\n+  });\n+\n+  it('carries an explicit tone without changing the default status wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n   });\n \n-  it('carries the status as an attribute whatever the label says', () => {\n-    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" label=\"No revisions\" />);\n+  it('carries the status as an attribute without changing a custom label', () => {\n+    const markup = renderToStaticMarkup(\n+      <StatusBadge status=\"failed\" label=\"No revisions\" tone=\"critical\" />,\n+    );\n \n     expect(markup).toContain('data-status=\"failed\"');\n+    expect(markup).toContain('data-tone=\"critical\"');\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..c4824a3\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,60 @@\n+import assert from 'node:assert/strict';\n+\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge, type StatusBadgeProps } from '../../status-badge.js';\n+\n+interface StatusBadgeWorld {\n+  badgeProps?: StatusBadgeProps;\n+  badgeMarkup?: string;\n+}\n+\n+function isStatusBadgeTone(tone: string): tone is NonNullable<StatusBadgeProps['tone']> {\n+  return tone === 'neutral' || tone === 'positive' || tone === 'warning' || tone === 'critical';\n+}\n+\n+function requireBadgeProps(world: StatusBadgeWorld): StatusBadgeProps {\n+  assert.ok(world.badgeProps, 'A badge must be given before it is rendered');\n+  return world.badgeProps;\n+}\n+\n+function requireBadgeMarkup(world: StatusBadgeWorld): string {\n+  assert.ok(world.badgeMarkup, 'The badge must be rendered before its markup is checked');\n+  return world.badgeMarkup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(isStatusBadgeTone(tone), `Unsupported status badge tone: ${tone}`);\n+    this.badgeProps = { status: 'passed', tone };\n+    delete this.badgeMarkup;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: StatusBadgeWorld) {\n+  this.badgeProps = { status: 'failed' };\n+  delete this.badgeMarkup;\n+});\n+\n+When('the badge is rendered', function (this: StatusBadgeWorld) {\n+  this.badgeMarkup = renderToStaticMarkup(<StatusBadge {...requireBadgeProps(this)} />);\n+});\n+\n+Then(\n+  'its markup carries the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(\n+      requireBadgeMarkup(this).includes(`data-tone=\"${tone}\"`),\n+      `Expected rendered badge markup to carry tone \"${tone}\"`,\n+    );\n+  },\n+);\n+\n+Then('it still reads {string}', function (this: StatusBadgeWorld, label: string) {\n+  assert.ok(\n+    requireBadgeMarkup(this).includes(`>${label}</span>`),\n+    `Expected rendered badge markup to read \"${label}\"`,\n+  );\n+});\n\n```"
+          },
+          {
+            "key": "support:starting-points",
+            "text": "## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}"
+          },
+          {
+            "key": "support:design-guidance",
+            "text": "",
+            "effect": "remove"
+          }
+        ]
+      }
+    ],
+    "revision": "f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168"
+  },
+  "policy": {
+    "context": {
+      "compaction": "forbidden",
+      "budgetTokens": 120000,
+      "budgetFraction": 0.6,
+      "reportReserveTokens": 8000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {
+        "workItem": "wi-001",
+        "iteration": "wi-001.i01"
+      }
+    },
+    "validator": {
+      "name": "submit_review",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "inspected": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "missing": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "path",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "concerns": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "summary": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "consequence": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "rationale": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "uncertainty": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "remedy": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "locations": {
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "startLine": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "endLine": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "path",
+                      "startLine",
+                      "endLine"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "suggests": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^cf-\\d{4,}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "risk": {
+                  "type": "string",
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low"
+                  ]
+                },
+                "ground": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "quote": {
+                          "type": "string",
+                          "maxLength": 1000
+                        }
+                      },
+                      "required": [
+                        "path"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "summary",
+                "consequence",
+                "rationale",
+                "uncertainty",
+                "remedy",
+                "locations",
+                "suggests",
+                "risk",
+                "ground"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "inspected",
+          "missing",
+          "concerns"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.review-submission/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261009T193340Z-51f42e",
+      "invocation": "inv-0012",
+      "submission": "invocations/inv-0012/submission.json"
+    }
+  },
+  "task": {
+    "role": "reviewer",
+    "message": "Briefing revision: f154e073321df1d20162026c88b10ec7695f687868a0bb78e66f78842960f168; based on: 882c6cdba61b7411db40c9829a0c3334e3c9e04b7a5750ff7d1102c425d9a4f6 (post-fork)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nReview b999ea9a913557a04d3e2309247093027ad6b9f8\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- {\"schema\":\"ramify-agent.review-request/1\",\"id\":\"rq-0003\",\"key\":{\"iteration\":\"wi-001.i01\",\"candidate\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\",\"kind\":\"design\",\"policy\":\"review-policy/1\"},\"workItem\":\"wi-001\",\"assignment\":\"work-items/wi-001/iterations/01/assignment.json\",\"base\":\"c76c24eee5847debd467199431e3aa504a90b288\",\"gate\":\"ga-0002\",\"tree\":\"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\",\"guidance\":[{\"ref\":\"README.md\",\"hash\":\"b72856422e9dd390beb6eb5448ddfb30260ac90cbc8b91e014541c97821e2c95\"},{\"ref\":\"subs/workspace/README.md\",\"hash\":\"f5cdda73289e0ff31f3b1d2d5942640a78a4224497474462fc26eef5d7546e56\"},{\"ref\":\"subs/workspace/subs/shared-ui/README.md\",\"hash\":\"8cec99d7e15b169c49a10f3982e551a081e0da714105120442118184bf573435\"}],\"forkPoint\":{\"kind\":\"orientation\",\"key\":\"ec7606cfbaf86b5371d3e3d23a15e8cd0419b9461dd1ab748ec902b6d0f58727\"}}\n\n# Block brief:support:context:0\nCurrent value; replaces any earlier value for this key.\nDesign review rq-0003 of iteration wi-001.i01 of work item wi-001.\n\nThe audited candidate is commit b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); its gate ga-0002 passed. The diff is taken from c76c24eee5847debd467199431e3aa504a90b288.\n\nThe request's assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.\n\n\n# Block brief:support:## The iteration:0\nCurrent value; replaces any earlier value for this key.\n## The iteration\n\nGoal: Implement optional StatusBadge tone markup with a neutral default, preserve all existing wording and caller behavior, and bind both status-badge-tone acceptance scenarios.\nApproach: In `status-badge.tsx`, add an optional tone prop constrained to exactly neutral/positive/warning/critical and emit `data-tone` using neutral when omitted, while leaving data-status and label/default-label selection intact. Extend the existing static-markup Vitest suite to cover an explicit tone, the neutral default, and wording preservation. Add TypeScript/TSX Cucumber steps under this module\u2019s `src/tests/steps/` that render StatusBadge to static markup and bind both supplied scenarios; keep scenario state isolated and declare no fake dependency because the real pure presentation primitive is exercised. Do not edit the generated feature file or require changes from existing feature-view callers.\nCompletion evidence: The focused shared-ui unit tests demonstrate the allowed explicit tone in data-tone, neutral on omission, and unchanged status/custom-label wording; both supplied Cucumber scenarios are bound to the real StatusBadge static markup with no fakes and pass; project type-check, tests, scenarios, and structural audit remain green.\n\n\n# Block brief:support:## The guidance this design is judged against:0\nCurrent value; replaces any earlier value for this key.\n## The guidance this design is judged against\n\nEach file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.\n\n- README.md (sha256 b72856422e9d)\n- subs/workspace/README.md (sha256 f5cdda73289e)\n- subs/workspace/subs/shared-ui/README.md (sha256 8cec99d7e15b)\n\n\n# Block brief:support:## The changed paths:0\nCurrent value; replaces any earlier value for this key.\n## The changed paths\n\n- M subs/workspace/subs/shared-ui/src/status-badge.tsx\n- M subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n- M subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n- A subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n\n\nUse the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.\n\nHarness pending-tag binding: sc-001 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\nHarness pending-tag binding: sc-002 in subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature, exact candidate sha256 508226a39238609158ba9acec42fdf9aa165b882f7ebe263cbfb6df97646659e, accepted producer inv-0007, submission bb01502d79e6ff008ce3f623021af8c05dc4240bc344a6d86de58b04e7dbb681. This attribution supplies provenance; review the actual audited patch.\n\n\n# Block brief:support:candidate-diff\nCurrent value; replaces any earlier value for this key.\n### Candidate Review Diff\n\nBase: c76c24eee5847debd467199431e3aa504a90b288; candidate: b999ea9a913557a04d3e2309247093027ad6b9f8.\nChanged paths: 4; collected patch bytes: 6957.\n\nComplete patches below are supplied as inspection evidence. Request surrounding source when needed.\n\n```diff\ndiff --git a/subs/workspace/subs/shared-ui/src/status-badge.tsx b/subs/workspace/subs/shared-ui/src/status-badge.tsx\nindex 0b4af93..696cc48 100644\n--- a/subs/workspace/subs/shared-ui/src/status-badge.tsx\n+++ b/subs/workspace/subs/shared-ui/src/status-badge.tsx\n@@ -16,6 +16,7 @@ import type { ReviewStatus } from '../../contracts/src/interfaces/vocabulary.js'\n export interface StatusBadgeProps {\n   status: ReviewStatus;\n   label?: string;\n+  tone?: 'neutral' | 'positive' | 'warning' | 'critical';\n }\n \n /** The word each status reads as when the caller supplies no label. */\n@@ -25,13 +26,13 @@ const defaultLabels: Record<ReviewStatus, string> = {\n };\n \n /**\n- * One status, shown as a badge. `data-status` carries the status itself, so\n- * both the stylesheet and a test can read it without matching on the label a\n- * feature chose.\n+ * One status, shown as a badge. `data-status` and `data-tone` carry its\n+ * presentation choices, so both the stylesheet and a test can read them\n+ * without matching on the label a feature chose.\n  */\n-export function StatusBadge({ status, label }: StatusBadgeProps): ReactElement {\n+export function StatusBadge({ status, label, tone = 'neutral' }: StatusBadgeProps): ReactElement {\n   return (\n-    <span className=\"status-badge\" data-status={status}>\n+    <span className=\"status-badge\" data-status={status} data-tone={tone}>\n       {label ?? defaultLabels[status]}\n     </span>\n   );\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\nindex c5263a7..c38d3ca 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n+++ b/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\n@@ -7,14 +7,14 @@ Feature: render-status-badge-with-tone\n   Render a status badge with an optional presentation tone exposed in markup,\n   defaulting to neutral while preserving the displayed status wording.\n \n-  @ramify-sc-001 @ramify-pending\n+  @ramify-sc-001\n   Scenario: A badge given a tone carries that tone in its markup\n     Given a badge for a passed review with the tone \"warning\"\n     When the badge is rendered\n     Then its markup carries the tone \"warning\"\n     And it still reads \"Passed\"\n \n-  @ramify-sc-002 @ramify-pending\n+  @ramify-sc-002\n   Scenario: A badge given no tone carries neutral\n     Given a badge for a failed review with no tone\n     When the badge is rendered\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\nindex 8309488..93d07a0 100644\n--- a/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n+++ b/subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\n@@ -12,15 +12,30 @@ import { StatusBadge } from '../status-badge.js';\n  */\n \n describe('StatusBadge', () => {\n-  it('reads a status back as its own word when no label is given', () => {\n-    expect(renderToStaticMarkup(<StatusBadge status=\"passed\" />)).toContain('Passed');\n-    expect(renderToStaticMarkup(<StatusBadge status=\"failed\" />)).toContain('Failed');\n+  it('reads a status back as its own word and uses a neutral tone by default', () => {\n+    const passedMarkup = renderToStaticMarkup(<StatusBadge status=\"passed\" />);\n+    const failedMarkup = renderToStaticMarkup(<StatusBadge status=\"failed\" />);\n+\n+    expect(passedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(passedMarkup).toContain('Passed');\n+    expect(failedMarkup).toContain('data-tone=\"neutral\"');\n+    expect(failedMarkup).toContain('Failed');\n+  });\n+\n+  it('carries an explicit tone without changing the default status wording', () => {\n+    const markup = renderToStaticMarkup(<StatusBadge status=\"passed\" tone=\"warning\" />);\n+\n+    expect(markup).toContain('data-tone=\"warning\"');\n+    expect(markup).toContain('Passed');\n   });\n \n-  it('carries the status as an attribute whatever the label says', () => {\n-    const markup = renderToStaticMarkup(<StatusBadge status=\"failed\" label=\"No revisions\" />);\n+  it('carries the status as an attribute without changing a custom label', () => {\n+    const markup = renderToStaticMarkup(\n+      <StatusBadge status=\"failed\" label=\"No revisions\" tone=\"critical\" />,\n+    );\n \n     expect(markup).toContain('data-status=\"failed\"');\n+    expect(markup).toContain('data-tone=\"critical\"');\n     expect(markup).toContain('No revisions');\n     expect(markup).not.toContain('Failed');\n   });\ndiff --git a/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\nnew file mode 100644\nindex 0000000..c4824a3\n--- /dev/null\n+++ b/subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\n@@ -0,0 +1,60 @@\n+import assert from 'node:assert/strict';\n+\n+import { Given, Then, When } from '@cucumber/cucumber';\n+import { renderToStaticMarkup } from 'react-dom/server';\n+\n+import { StatusBadge, type StatusBadgeProps } from '../../status-badge.js';\n+\n+interface StatusBadgeWorld {\n+  badgeProps?: StatusBadgeProps;\n+  badgeMarkup?: string;\n+}\n+\n+function isStatusBadgeTone(tone: string): tone is NonNullable<StatusBadgeProps['tone']> {\n+  return tone === 'neutral' || tone === 'positive' || tone === 'warning' || tone === 'critical';\n+}\n+\n+function requireBadgeProps(world: StatusBadgeWorld): StatusBadgeProps {\n+  assert.ok(world.badgeProps, 'A badge must be given before it is rendered');\n+  return world.badgeProps;\n+}\n+\n+function requireBadgeMarkup(world: StatusBadgeWorld): string {\n+  assert.ok(world.badgeMarkup, 'The badge must be rendered before its markup is checked');\n+  return world.badgeMarkup;\n+}\n+\n+Given(\n+  'a badge for a passed review with the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(isStatusBadgeTone(tone), `Unsupported status badge tone: ${tone}`);\n+    this.badgeProps = { status: 'passed', tone };\n+    delete this.badgeMarkup;\n+  },\n+);\n+\n+Given('a badge for a failed review with no tone', function (this: StatusBadgeWorld) {\n+  this.badgeProps = { status: 'failed' };\n+  delete this.badgeMarkup;\n+});\n+\n+When('the badge is rendered', function (this: StatusBadgeWorld) {\n+  this.badgeMarkup = renderToStaticMarkup(<StatusBadge {...requireBadgeProps(this)} />);\n+});\n+\n+Then(\n+  'its markup carries the tone {string}',\n+  function (this: StatusBadgeWorld, tone: string) {\n+    assert.ok(\n+      requireBadgeMarkup(this).includes(`data-tone=\"${tone}\"`),\n+      `Expected rendered badge markup to carry tone \"${tone}\"`,\n+    );\n+  },\n+);\n+\n+Then('it still reads {string}', function (this: StatusBadgeWorld, label: string) {\n+  assert.ok(\n+    requireBadgeMarkup(this).includes(`>${label}</span>`),\n+    `Expected rendered badge markup to read \"${label}\"`,\n+  );\n+});\n\n```\n\n# Block brief:support:starting-points\nCurrent value; replaces any earlier value for this key.\n## Recorded starting points\n\nOptional navigation help. Notes are producer judgments, not verified current facts, completion evidence or read/write authority. Inspect the current source and explore further when a hint is stale or unhelpful. Origin boundaries describe where pointers were recorded; they do not establish unchanged files.\nPaths are relative to the pinned candidate b999ea9a913557a04d3e2309247093027ad6b9f8 (tree 4e706c2d97f1d5e4973e905e4331132a30e8e5ec); use snapshot tools.\n\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"Extend the current props and span markup while preserving defaultLabels and label semantics.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Existing renderToStaticMarkup tests establish the regression style and current guarantees.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature\",\"note\":\"Read-only harness-owned scenarios whose exact steps must be bound from src/tests/steps/.\",\"origins\":[{\"producer\":\"architect assignment\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0006\",\"boundary\":\"c76c24eee5847debd467199431e3aa504a90b288\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/status-badge.tsx\",\"note\":\"StatusBadge tone contract, neutral default, and data-tone rendering.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/status-badge.test.tsx\",\"note\":\"Static-markup coverage for tones and wording preservation.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n- {\"path\":\"subs/workspace/subs/shared-ui/src/tests/steps/status-badge-tone.steps.tsx\",\"note\":\"Real-provider Cucumber bindings with per-scenario World state.\",\"origins\":[{\"producer\":\"engineer accepted result\",\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\",\"invocation\":\"inv-0007\",\"boundary\":\"b999ea9a913557a04d3e2309247093027ad6b9f8\"}]}\n\n# Block brief:support:design-guidance\nWithdrawn; this block no longer applies.\n\n\n# Block procedure:reviewer:design\nCurrent value; replaces any earlier value for this key.\n# Current procedure\nDo this, in order:\n\n1. Reuse earlier understanding of captured guidance with the same known identity.\n   Refresh guidance whose identity changed or cannot be established. Only the\n   listed guidance is the standard; a preference of your own is not. Every\n   reported concern still requires current `snapshot_read` evidence for its ground.\n2. Use the supplied canonical changed-path list; if unavailable, list paths once\n   with `snapshot_diff`. Read the complete patches supplied in this message.\n   Fetch patches with `snapshot_diff` only for paths whose complete patches\n   were not supplied. Read the surrounding source where a patch alone does\n   not show the design.\n3. Ask of each change: does it follow the guidance's principles and the\n   module's stated responsibility, or does it duplicate, entangle or place\n   something where the guidance says it does not belong?\n4. Submit.\n\n## What a concern is\n\nA concern is a design problem the guidance lets you name: the rule or\nresponsibility it departs from, cited by the guidance file, the consequence,\nthe evidence in the candidate, how sure you are, a bounded remedy and its\nrisk. Its ground is that guidance file, read with `snapshot_read` in this\nreview even if an earlier conversation already showed it to you.\nCorrectness defects and scope gaps belong to other reviews. Report each\ndistinct problem once. `suggests` may name a CheckFinding the message below\nlists when you believe yours is the same problem, and is otherwise null.\n\n## Coverage\n\nName every changed path once: in `inspected` when you read its patch or\ncontent, or in `missing` with the reason you could not. The harness checks\n`inspected` against the complete patches delivered in this message and the\nreads its tools answered. A changed-path list, patch summary or omitted patch\nis not inspection evidence. No concern and nothing\nmissing says the candidate's design follows the listed guidance; that is a\nvalid review, and so is an honest partial one.\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/reviews/rq-0003/attempts/01/workspace\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": \"b999ea9a913557a04d3e2309247093027ad6b9f8\"\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": \"4e706c2d97f1d5e4973e905e4331132a30e8e5ec\"\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 599965,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"snapshot_list\",\n    \"snapshot_read\",\n    \"snapshot_search\",\n    \"snapshot_diff\",\n    \"submit_review\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": []\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/reviewer.system.md\",\n    \"subs/harness/src/prompts/design-review.procedure.md\"\n  ]\n}\n\n# Current task: design\nThis selection supersedes every prior task selection.\nActive role: reviewer\nSelected procedure: procedure:reviewer:design; SHA-256: ea711325e08c341d37d30c0fa451f6164710914b825aab9e44f35a41611f7940\nPerform design for {\"workItem\":\"wi-001\",\"iteration\":\"wi-001.i01\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_review`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_review",
+    "environment": {
+      "workingDirectory": "/tmp/claude-1000/-ramify/669eae14-eb15-4a6b-9927-63ba7b876b24/scratchpad/trial/collection-review/plans/status-badge-tone/.harness/jobs/20261009T193340Z-51f42e/reviews/rq-0003/attempts/01/workspace",
+      "candidate": "b999ea9a913557a04d3e2309247093027ad6b9f8",
+      "snapshot": "4e706c2d97f1d5e4973e905e4331132a30e8e5ec",
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 599965,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "6fce710e47fbd1d69dba245e6514178799a8b5c93f14e8b93bc1407cf16ee05c",
+    "validatorIdentity": "8517b4fd50919e6c5c88d293b728ff89da6cc358795891c9f1ed433645fd70f3",
+    "destinationIdentity": "520f480e8f7a55a6a6f0455ed0e30d319fc5bd081583b556988b79e07db4c43a"
+  },
+  "declarations": [
+    {
+      "name": "snapshot_list",
+      "description": "List the files and directories directly beneath a directory of the audited candidate; the root when no path is given.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_read",
+      "description": "Read one file of the audited candidate, with line numbers. startLine counts from 1.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lineCount": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_search",
+      "description": "Search the audited candidate's text files for an extended regular expression, beneath a path or everywhere.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "snapshot_diff",
+      "description": "Without a path, list every path the candidate changed from the iteration's base. With one, show that path's patch.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_review",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"inspected\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"missing\":{\"maxItems\":500,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"reason\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1000}},\"required\":[\"path\",\"reason\"],\"additionalProperties\":false}},\"concerns\":{\"maxItems\":20,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"summary\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"consequence\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"rationale\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"uncertainty\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"remedy\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":4000},\"locations\":{\"minItems\":1,\"maxItems\":50,\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":500},\"startLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]},\"endLine\":{\"anyOf\":[{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991},{\"type\":\"null\"}]}},\"required\":[\"path\",\"startLine\",\"endLine\"],\"additionalProperties\":false}},\"suggests\":{\"anyOf\":[{\"type\":\"string\",\"pattern\":\"^cf-\\\\d{4,}$\"},{\"type\":\"null\"}]},\"risk\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"ground\":{\"anyOf\":[{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1},\"quote\":{\"type\":\"string\",\"maxLength\":1000}},\"required\":[\"path\"],\"additionalProperties\":false},{\"type\":\"null\"}]}},\"required\":[\"summary\",\"consequence\",\"rationale\",\"uncertainty\",\"remedy\",\"locations\",\"suggests\",\"risk\",\"ground\"],\"additionalProperties\":false}}},\"required\":[\"inspected\",\"missing\",\"concerns\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}
