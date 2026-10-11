@@ -1,6 +1,6 @@
 {
   "plan": "../main-plan.md",
-  "status": "in implementation; iterations 1 and 2 complete; iteration 3 complete (container witnesses pending host Docker); iteration 4 complete (E17 pending host Docker)",
+  "status": "in implementation; iterations 1 and 2 complete; iteration 3 complete (container witnesses pending host Docker); iteration 4 complete (E17 pending host Docker); iteration 5 partially complete (E21, E22 done; E23 pending host; E24 handoff written)",
   "execution": "serial in dependency order",
   "iterations": [
     {
@@ -44,8 +44,9 @@
       "file": "05-publish-and-cut-over.md",
       "dependsOn": ["4"],
       "cases": ["E21", "E22", "E23", "E24"],
-      "status": "proposed",
-      "writeBoundary": "New agent remote, persistent host workspace migration, isolated toolkit subtree removal and configuration/document cleanup, exact toolkit qualification and final cutover/rollback receipts."
+      "status": "partially complete: E21, E22 done; E23 pending host; E24 handoff written",
+      "writeBoundary": "New agent remote, persistent host workspace migration, isolated toolkit subtree removal and configuration/document cleanup, exact toolkit qualification and final cutover/rollback receipts.",
+      "results": "05-results.md"
     }
   ]
 }

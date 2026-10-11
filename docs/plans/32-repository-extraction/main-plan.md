@@ -3,7 +3,9 @@
 **Date:** 2026-10-10. **Status:** in implementation; iterations 1 and 2 complete;
 iteration 3 complete with its container witnesses pending host Docker;
 iteration 4 complete with E17 pending host Docker (candidate `a6d8e02b` passes
-its full nested audit).
+its full nested audit); iteration 5 partially complete: published to
+`danmaz74/ramify-agent` and toolkit cleanup qualified (E21, E22), host cutover
+pending (E23), handoff written (E24).
 **Execution:** five serial iterations, each with its own implementation handoff.
 **Source inspected:** `/ramify`, branch `ramify-agent`, commit
 `0656317adb32b91f9069e104b482d011eddeabed`, with existing modified and
