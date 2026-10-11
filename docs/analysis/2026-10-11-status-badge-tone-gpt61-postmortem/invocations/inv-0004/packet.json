@@ -1,0 +1,1341 @@
+{
+  "schema": "ramify-agent.harness-operation/2",
+  "runId": "20261011T104510Z-0e1b47",
+  "operationId": "inv-0004",
+  "session": "ses-0004",
+  "source": null,
+  "requestHash": "d795a94892aa9689df9b4bd06b1662db3f80e0b1cfeefa0c75ec3bcb89d6a3fe",
+  "mode": "fresh",
+  "packet": {
+    "roleInstructions": "You are the local architect of one module of a Ramify project. The harness\nhas given you one work item: a goal the plan asks of your module, with the\nplan references that state its requirement and its acceptance.\n\nYou decide what the work item needs. You change nothing: you write no file\nand run no command, and nobody reads your messages while you work. When\nsomething is uncertain, decide, and record it in the outline.\n\nYour session continues across turns. If the harness returns a failing gate\nto you, you are the same session, with everything you already established.\n\n## Your tools\n\nYour working directory is the working directory named in the current task. Relative paths in your\ntool calls resolve against it. The project root is the project root named in the current task.\n\nFor an existing module with a source directory, you start in its `src/`:\nread `../README.md`, `../module.ramify` and the relevant local source. If\nthat directory does not exist yet, the briefing states the fallback location\nand gives the paths to use. Do not assume fallback paths are module-local.\n\nModule identities and paths in structured submissions retain their existing\nproject-relative format. This includes assignment scope paths and injection\nsites; the tool working directory does not change their meaning.\n\n- `read`, `grep` and `ls` read files and search them. They are your only way\n  to look at the project. You have no shell and cannot run commands.\n- the designated submission tool named in the current task ends your turn. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again. After a few rejected submissions the\n  invocation ends as an invalid submission, so check every claim first.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Evidence already prepared\n\nStart with your module's goal, onboarding, source and received interfaces.\nFor a session in the module's `src/`, search `.ramify/external` and\n`.ramify/children` for ordinary-source interfaces; use\n`tests/.ramify/external` and `tests/.ramify/children` for its testing source.\nName the hidden directory explicitly in `grep`'s `path`, then read the\nmatching pages. Broad searches can skip these ignored directories. Each view\napplies to its own source area; do not combine them. The briefing supplies\nthe actual paths and any unavailable views or coverage limits.\n\nUse those interfaces to understand what your module can already receive\nbefore proposing new contracts. The views are generated documentation:\nnever treat their paths as source imports. Missing evidence or incomplete\ncoverage cannot establish that an interface does not exist.\nThe views cover project modules only. Installed packages and Node built-ins\nare outside Ramify exposure, so their absence from a view says nothing about\nthem. Their manifest and declarations are in `package.json` and\n`node_modules/` at the project root named in the current task, not beneath\nyour working directory.\n\nIf local evidence leaves an ownership, placement or dependency question,\nsearch the `.ramify-architect/` directory beneath the project root named in the\ncurrent task for that question. This global view remains available without\nrequiring an initial survey of the project.\nRead foreign source when a specific question still needs it.\n\nWhether your module may import a symbol is answered by your API view. The\narchitect view says what exists and who owns it.\n\n## The procedure for this work item\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n\nEvery ID the harness assigns is absent from it: the work item, the outline's\nrevision, the invocation and the hypothesis revisions you were given are the\nharness's, and you do not repeat them.\n\nThe current task names the supplied view paths, module identities and coverage.\nUse those paths only. Retain unavailable or incomplete details explicitly; do not\nsearch for missing metadata or infer that an absent symbol cannot exist.\n",
+    "message": "Briefing revision: 37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3; based on: none (full)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRender a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 8b8dc5c51c661b4f4e9ef0bec962c0c61cb80a18ee3e55561754b62ca9617691\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions:\n- stated: The badge is rendered without a tone.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions:\n- stated: The badge is given a tone.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions:\n- stated: The badge is given no tone.\n\nUncertainty: none recorded.\n\n\n# Block brief:support:## What the plan asks:0\nCurrent value; replaces any earlier value for this key.\n## What the plan asks\n\n- Requirement: fr-001, fr-002, fr-003\n- Acceptance: fr-004, fr-005\n- Context: ctx-001\n\nThe requirement, acceptance and context elements are supplied with this task. Non-functional, fixed and recommendation elements are selected after orientation.\n\nTests that state the acceptance are part of the work.\n\n\n# Block brief:support:## The scenarios of this work item:0\nCurrent value; replaces any earlier value for this key.\n## The scenarios of this work item\n\nIts entry has 3 scenarios. The harness wrote each into its feature file,\nand no agent edits a feature file. The work item completes only when you have reported every one `done`.\n\n### sc-001 (pending): A badge given a tone carries that tone in its markup\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n```\n\n### sc-002 (pending): A badge given no tone carries neutral\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n### sc-003 (pending): Every supported tone is readable independently of the label\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario Outline: Every supported tone is readable independently of the label\n  Given a badge with status \"failed\", label \"Needs attention\" and tone \"<tone>\"\n  When the badge is rendered\n  Then the badge's data-tone attribute is \"<tone>\"\n  And the same badge's data-status attribute is \"failed\"\n  And it still reads \"Needs attention\"\n  Examples:\n    | tone     |\n    | neutral  |\n    | positive |\n    | warning  |\n    | critical |\n```\n\nA scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing\nmodule's `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer's\naccepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its\npending tag at the next commit, so the gates' configured checks run it. A passing gate is evidence, never your\nreport: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.\n\n\n# Block brief:support:## Your module:0\nCurrent value; replaces any earlier value for this key.\n## Your module\n\n- Declared name: `collection-review/workspace/shared-ui`.\n- Working directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src`.\n- This is the assigned module's source directory.\n- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.\n- Assigned module declaration: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify` (read it if present).\n- Assigned module source: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/` (read it if present).\n- Test area (collection-review/workspace/shared-ui): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n- Onboarding (`/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`): Shared UI owns the presentation primitives that more than one feature view needs, beginning with the status badge that both the catalog card and the review result render. It exists as a separate owner because two vertical feature UIs must use those primitives while their core siblings must not.\n- API view (src): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 1, so absence is not proof of unavailability.\n- API view (src/tests): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 2, so absence is not proof of unavailability.\n- The architect view is at `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect/`.\n\n\n# Block brief:support:## Declared project checks:0\nCurrent value; replaces any earlier value for this key.\n## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-structure (none): argv [\"/workspaces/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-audit.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-agent.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/package.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/cucumber.js`.\n\nThese are declared checks, not a focused command. Inspect their configuration for how to run particular tests. The gate runs the audit; shell refuses whole suites and watch mode.\n\n\n\n# Block brief:support:## Default write scope:0\nCurrent value; replaces any earlier value for this key.\n## Default write scope\n\n- `collection-review/workspace/shared-ui`: the base gives its engineer `subs/workspace/subs/shared-ui/` whole \u2014 `module.ramify`, `README.md`, all of `src/` with `src/tests/` and `src/interfaces/`, other documentation and auxiliary source \u2014 except the directories below.\n  - Immediate child modules: none.\n  - Owned nested-project roots: none.\n  - Guarded files, writable only with an authorization: none.\n\nThose child and nested-project directories are the only valid `included` values, and `included` is `[]` unless the iteration needs one of them whole. An included child brings its whole subtree, every module beneath it included.\n\n\n# Block brief:support:## Hypotheses you received:0\nCurrent value; replaces any earlier value for this key.\n## Hypotheses you received\n\nNone. The initial analysis forecast nothing that involves your module.\n\n\n# Block brief:support:## The capability registry:0\nCurrent value; replaces any earlier value for this key.\n## The capability registry\n\n- `render-status-badge-with-tone` \u2192 `collection-review/workspace/shared-ui` (entry): Render a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n\n\n# Block brief:support:## Placement decided for this work item:0\nCurrent value; replaces any earlier value for this key.\n## Placement decided for this work item\n\nNone yet. Placement that is yours to decide is recorded with your assignment; placement that is not is asked for.\n\n\n# Block brief:support:## The bounds of an engineer:0\nCurrent value; replaces any earlier value for this key.\n## The bounds of an engineer\n\nUnless an assignment raises them, one shell command may run 600000 ms, a session may go 300000 ms without a sign of activity, and one invocation may run 3600000 ms.\n`assignment.bounds` raises them for one iteration, each with its reason, up to 1800000, 1800000 and 10800000 ms.\n\n\n\n# Block brief:support:# Orientation task:0\nCurrent value; replaces any earlier value for this key.\n# Orientation task\n\nRead the supplied elements and explore your module before organizing this work item. Submit only your orientation: your focus, current understanding and open questions. Do not assign an iteration or decide that a source suggestion is binding. Submit your orientation using `submit_work_orientation`.\n\nConsultation context: global-fork, session ses-0002, point {\"session\":\"ses-0002\",\"invocation\":\"inv-0002\"}. Inherited observations may be stale; current files and generated views can differ.\n\n# Block brief:support:module-pointers\nCurrent value; replaces any earlier value for this key.\n## Module and test pointers\n\n- `collection-review/workspace/shared-ui`: README `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`; declaration `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify`; source `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/`.\n  - Test area: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n\n\n# Block brief:support:scenario-files\nCurrent value; replaces any earlier value for this key.\n## Scenario file pointers\n\n- Feature: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n- Step directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/steps`; observed files: (none).\nObserved files do not establish what the runner loads. Inspect its declared configuration.\n\n\n# Block procedure:local-architect:orientation\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n# Work orientation\n\nRead the supplied goal and the complete requirement, acceptance and context\nelements. Explore your module's README, declaration and relevant source using\nthe briefing's paths. Establish what it already does about the goal. Search\nits hidden API views for needed foreign interfaces; use global discovery only\nfor questions that local evidence cannot answer.\n\nWhen you have explored enough to organize the work, submit your focus, current\nunderstanding and open questions with `submit_work_orientation`. This turn precedes\norganization and assignment; make no assignment here. Preserve uncertainty\nabout source force and scope. Non-functional, fixed and recommendation elements\nwill be selected next.\n\nOptionally include `startingPoints` for a few useful source, test, support,\ncaller or API-view locations encountered while orienting, each with a short\nnote about what to inspect. Paths are literal and project-relative. These\nhints authorize no writes and establish no completion or obligation. Omit\nthem when there are none to share; no extra discovery turn is required.\n\n# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"consult_architect\",\n    \"submit_work_orientation\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/local-architect.system.md\",\n    \"subs/harness/src/context-selection/orientation.procedure.md\"\n  ]\n}\n\n# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}\n\n# Current task: orientation\nThis selection supersedes every prior task selection.\nActive role: local-architect\nSelected procedure: procedure:local-architect:orientation; SHA-256: cdfff59dae3d61f8e00de771e217454f51fc35424ed642df11b06a795fe24744\nPerform orientation for {\"workItem\":\"wi-001\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_work_orientation`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_work_orientation",
+    "declaration": {
+      "name": "submit_work_orientation",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"focus\":{\"type\":\"string\",\"minLength\":1},\"currentUnderstanding\":{\"type\":\"string\",\"minLength\":1},\"questions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"startingPoints\":{\"description\":\"Optional useful locations already encountered, each with a short note. Paths are project-relative navigation hints; they do not authorize writes, bind obligations or establish completion. Omit when there are none to share.\",\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1,\"pattern\":\"^(?!\\\\/|~|[A-Za-z]:)(?!.*[\\\\\\\\*?\\\\[\\\\]{}\\\\x00-\\\\x1f\\\\x7f])(?!.*[!+@]\\\\()(?:\\\\.|(?!(?:\\\\.{1,2})(?:\\\\/|$))[^/]+(?:\\\\/(?!(?:\\\\.{1,2})(?:\\\\/|$))[^/]+)*)$\"},\"note\":{\"type\":\"string\",\"minLength\":1,\"pattern\":\"\\\\S\"}},\"required\":[\"path\",\"note\"],\"additionalProperties\":false}}},\"required\":[\"focus\",\"currentUnderstanding\",\"questions\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "role:local-architect",
+        "kind": "role-instructions",
+        "text": "You are the local architect of one module of a Ramify project. The harness\nhas given you one work item: a goal the plan asks of your module, with the\nplan references that state its requirement and its acceptance.\n\nYou decide what the work item needs. You change nothing: you write no file\nand run no command, and nobody reads your messages while you work. When\nsomething is uncertain, decide, and record it in the outline.\n\nYour session continues across turns. If the harness returns a failing gate\nto you, you are the same session, with everything you already established.\n\n## Your tools\n\nYour working directory is the working directory named in the current task. Relative paths in your\ntool calls resolve against it. The project root is the project root named in the current task.\n\nFor an existing module with a source directory, you start in its `src/`:\nread `../README.md`, `../module.ramify` and the relevant local source. If\nthat directory does not exist yet, the briefing states the fallback location\nand gives the paths to use. Do not assume fallback paths are module-local.\n\nModule identities and paths in structured submissions retain their existing\nproject-relative format. This includes assignment scope paths and injection\nsites; the tool working directory does not change their meaning.\n\n- `read`, `grep` and `ls` read files and search them. They are your only way\n  to look at the project. You have no shell and cannot run commands.\n- the designated submission tool named in the current task ends your turn. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again. After a few rejected submissions the\n  invocation ends as an invalid submission, so check every claim first.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Evidence already prepared\n\nStart with your module's goal, onboarding, source and received interfaces.\nFor a session in the module's `src/`, search `.ramify/external` and\n`.ramify/children` for ordinary-source interfaces; use\n`tests/.ramify/external` and `tests/.ramify/children` for its testing source.\nName the hidden directory explicitly in `grep`'s `path`, then read the\nmatching pages. Broad searches can skip these ignored directories. Each view\napplies to its own source area; do not combine them. The briefing supplies\nthe actual paths and any unavailable views or coverage limits.\n\nUse those interfaces to understand what your module can already receive\nbefore proposing new contracts. The views are generated documentation:\nnever treat their paths as source imports. Missing evidence or incomplete\ncoverage cannot establish that an interface does not exist.\nThe views cover project modules only. Installed packages and Node built-ins\nare outside Ramify exposure, so their absence from a view says nothing about\nthem. Their manifest and declarations are in `package.json` and\n`node_modules/` at the project root named in the current task, not beneath\nyour working directory.\n\nIf local evidence leaves an ownership, placement or dependency question,\nsearch the `.ramify-architect/` directory beneath the project root named in the\ncurrent task for that question. This global view remains available without\nrequiring an initial survey of the project.\nRead foreign source when a specific question still needs it.\n\nWhether your module may import a symbol is answered by your API view. The\narchitect view says what exists and who owns it.\n\n## The procedure for this work item\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n\nEvery ID the harness assigns is absent from it: the work item, the outline's\nrevision, the invocation and the hypothesis revisions you were given are the\nharness's, and you do not repeat them.\n\nThe current task names the supplied view paths, module identities and coverage.\nUse those paths only. Retain unavailable or incomplete details explicitly; do not\nsearch for missing metadata or infer that an absent symbol cannot exist.\n",
+        "source": "subs/harness/src/prompts/local-architect.system.md",
+        "revision": "local-architect/11",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/local-architect.system.md",
+            "hash": "a4f5e8ec5b74d27ed3d9c8cc5d80a6b7956cb40e5a7884c8fc06212b46d03120",
+            "kind": "system",
+            "bytes": 4510
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_work_orientation",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_work_orientation\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"focus\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"currentUnderstanding\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"questions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"startingPoints\\\":{\\\"description\\\":\\\"Optional useful locations already encountered, each with a short note. Paths are project-relative navigation hints; they do not authorize writes, bind obligations or establish completion. Omit when there are none to share.\\\",\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"pattern\\\":\\\"^(?!\\\\\\\\/|~|[A-Za-z]:)(?!.*[\\\\\\\\\\\\\\\\*?\\\\\\\\[\\\\\\\\]{}\\\\\\\\x00-\\\\\\\\x1f\\\\\\\\x7f])(?!.*[!+@]\\\\\\\\()(?:\\\\\\\\.|(?!(?:\\\\\\\\.{1,2})(?:\\\\\\\\/|$))[^/]+(?:\\\\\\\\/(?!(?:\\\\\\\\.{1,2})(?:\\\\\\\\/|$))[^/]+)*)$\\\"},\\\"note\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"pattern\\\":\\\"\\\\\\\\S\\\"}},\\\"required\\\":[\\\"path\\\",\\\"note\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"focus\\\",\\\"currentUnderstanding\\\",\\\"questions\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3; based on: none (full)",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRender a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 8b8dc5c51c661b4f4e9ef0bec962c0c61cb80a18ee3e55561754b62ca9617691\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions:\n- stated: The badge is rendered without a tone.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions:\n- stated: The badge is given a tone.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions:\n- stated: The badge is given no tone.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## What the plan asks:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## What the plan asks:0\nCurrent value; replaces any earlier value for this key.\n## What the plan asks\n\n- Requirement: fr-001, fr-002, fr-003\n- Acceptance: fr-004, fr-005\n- Context: ctx-001\n\nThe requirement, acceptance and context elements are supplied with this task. Non-functional, fixed and recommendation elements are selected after orientation.\n\nTests that state the acceptance are part of the work.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## What the plan asks:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The scenarios of this work item:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The scenarios of this work item:0\nCurrent value; replaces any earlier value for this key.\n## The scenarios of this work item\n\nIts entry has 3 scenarios. The harness wrote each into its feature file,\nand no agent edits a feature file. The work item completes only when you have reported every one `done`.\n\n### sc-001 (pending): A badge given a tone carries that tone in its markup\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n```\n\n### sc-002 (pending): A badge given no tone carries neutral\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n### sc-003 (pending): Every supported tone is readable independently of the label\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario Outline: Every supported tone is readable independently of the label\n  Given a badge with status \"failed\", label \"Needs attention\" and tone \"<tone>\"\n  When the badge is rendered\n  Then the badge's data-tone attribute is \"<tone>\"\n  And the same badge's data-status attribute is \"failed\"\n  And it still reads \"Needs attention\"\n  Examples:\n    | tone     |\n    | neutral  |\n    | positive |\n    | warning  |\n    | critical |\n```\n\nA scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing\nmodule's `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer's\naccepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its\npending tag at the next commit, so the gates' configured checks run it. A passing gate is evidence, never your\nreport: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## The scenarios of this work item:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Your module:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Your module:0\nCurrent value; replaces any earlier value for this key.\n## Your module\n\n- Declared name: `collection-review/workspace/shared-ui`.\n- Working directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src`.\n- This is the assigned module's source directory.\n- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.\n- Assigned module declaration: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify` (read it if present).\n- Assigned module source: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/` (read it if present).\n- Test area (collection-review/workspace/shared-ui): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n- Onboarding (`/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`): Shared UI owns the presentation primitives that more than one feature view needs, beginning with the status badge that both the catalog card and the review result render. It exists as a separate owner because two vertical feature UIs must use those primitives while their core siblings must not.\n- API view (src): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 1, so absence is not proof of unavailability.\n- API view (src/tests): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 2, so absence is not proof of unavailability.\n- The architect view is at `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect/`.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Your module:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Declared project checks:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Declared project checks:0\nCurrent value; replaces any earlier value for this key.\n## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-structure (none): argv [\"/workspaces/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-audit.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-agent.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/package.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/cucumber.js`.\n\nThese are declared checks, not a focused command. Inspect their configuration for how to run particular tests. The gate runs the audit; shell refuses whole suites and watch mode.\n\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Declared project checks:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Default write scope:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Default write scope:0\nCurrent value; replaces any earlier value for this key.\n## Default write scope\n\n- `collection-review/workspace/shared-ui`: the base gives its engineer `subs/workspace/subs/shared-ui/` whole \u2014 `module.ramify`, `README.md`, all of `src/` with `src/tests/` and `src/interfaces/`, other documentation and auxiliary source \u2014 except the directories below.\n  - Immediate child modules: none.\n  - Owned nested-project roots: none.\n  - Guarded files, writable only with an authorization: none.\n\nThose child and nested-project directories are the only valid `included` values, and `included` is `[]` unless the iteration needs one of them whole. An included child brings its whole subtree, every module beneath it included.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Default write scope:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Hypotheses you received:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Hypotheses you received:0\nCurrent value; replaces any earlier value for this key.\n## Hypotheses you received\n\nNone. The initial analysis forecast nothing that involves your module.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Hypotheses you received:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The capability registry:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The capability registry:0\nCurrent value; replaces any earlier value for this key.\n## The capability registry\n\n- `render-status-badge-with-tone` \u2192 `collection-review/workspace/shared-ui` (entry): Render a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## The capability registry:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Placement decided for this work item:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Placement decided for this work item:0\nCurrent value; replaces any earlier value for this key.\n## Placement decided for this work item\n\nNone yet. Placement that is yours to decide is recorded with your assignment; placement that is not is asked for.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Placement decided for this work item:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The bounds of an engineer:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The bounds of an engineer:0\nCurrent value; replaces any earlier value for this key.\n## The bounds of an engineer\n\nUnless an assignment raises them, one shell command may run 600000 ms, a session may go 300000 ms without a sign of activity, and one invocation may run 3600000 ms.\n`assignment.bounds` raises them for one iteration, each with its reason, up to 1800000, 1800000 and 10800000 ms.\n\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## The bounds of an engineer:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:# Orientation task:0",
+        "kind": "brief",
+        "text": "# Block brief:support:# Orientation task:0\nCurrent value; replaces any earlier value for this key.\n# Orientation task\n\nRead the supplied elements and explore your module before organizing this work item. Submit only your orientation: your focus, current understanding and open questions. Do not assign an iteration or decide that a source suggestion is binding. Submit your orientation using `submit_work_orientation`.\n\nConsultation context: global-fork, session ses-0002, point {\"session\":\"ses-0002\",\"invocation\":\"inv-0002\"}. Inherited observations may be stale; current files and generated views can differ.",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:# Orientation task:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:module-pointers",
+        "kind": "brief",
+        "text": "# Block brief:support:module-pointers\nCurrent value; replaces any earlier value for this key.\n## Module and test pointers\n\n- `collection-review/workspace/shared-ui`: README `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`; declaration `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify`; source `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/`.\n  - Test area: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:module-pointers",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:scenario-files",
+        "kind": "brief",
+        "text": "# Block brief:support:scenario-files\nCurrent value; replaces any earlier value for this key.\n## Scenario file pointers\n\n- Feature: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n- Step directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/steps`; observed files: (none).\nObserved files do not establish what the runner loads. Inspect its declared configuration.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:scenario-files",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:local-architect:orientation",
+        "kind": "procedure",
+        "text": "# Block procedure:local-architect:orientation\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n# Work orientation\n\nRead the supplied goal and the complete requirement, acceptance and context\nelements. Explore your module's README, declaration and relevant source using\nthe briefing's paths. Establish what it already does about the goal. Search\nits hidden API views for needed foreign interfaces; use global discovery only\nfor questions that local evidence cannot answer.\n\nWhen you have explored enough to organize the work, submit your focus, current\nunderstanding and open questions with `submit_work_orientation`. This turn precedes\norganization and assignment; make no assignment here. Preserve uncertainty\nabout source force and scope. Non-functional, fixed and recommendation elements\nwill be selected next.\n\nOptionally include `startingPoints` for a few useful source, test, support,\ncaller or API-view locations encountered while orienting, each with a short\nnote about what to inspect. Paths are literal and project-relative. These\nhints authorize no writes and establish no completion or obligation. Omit\nthem when there are none to share; no extra discovery turn is required.",
+        "source": "subs/harness/src/context-selection/orientation.procedure.md",
+        "revision": "local-architect/11",
+        "sources": [
+          {
+            "path": "subs/harness/src/context-selection/orientation.procedure.md",
+            "hash": "e0faf5b86a5ce54bd227fe1462b4dca4f31e25f756801249601ada65b4f014de",
+            "kind": "procedure",
+            "bytes": 1087
+          }
+        ],
+        "block": {
+          "key": "procedure:local-architect:orientation",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"consult_architect\",\n    \"submit_work_orientation\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/local-architect.system.md\",\n    \"subs/harness/src/context-selection/orientation.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: orientation\nThis selection supersedes every prior task selection.\nActive role: local-architect\nSelected procedure: procedure:local-architect:orientation; SHA-256: cdfff59dae3d61f8e00de771e217454f51fc35424ed642df11b06a795fe24744\nPerform orientation for {\"workItem\":\"wi-001\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_work_orientation`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/2",
+      "inheritedPoint": null,
+      "entries": [
+        {
+          "key": "role:local-architect",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/prompts/local-architect.system.md",
+          "revision": "local-architect/11",
+          "hash": "d515fe47f3f3a73f7190bfd54f360319e75c805c1a3018bd32afa83367821911",
+          "bytes": 4361,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/prompts/local-architect.system.md",
+              "hash": "a4f5e8ec5b74d27ed3d9c8cc5d80a6b7956cb40e5a7884c8fc06212b46d03120",
+              "kind": "system",
+              "bytes": 4510
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_work_orientation",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "601d2d3a3438763dd8cb60bc0ed6aa8d138d7b44f68add3013417f9f15e53c1c",
+          "bytes": 1245,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "e6db9714098d7a23fb5ba1ed7121872cc1e9bb46330e4e40603e0463f15e297f",
+          "bytes": 106,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "843d68113789831263977f22dce1dcec5d4e33825f30655e4cf05c183c93f506",
+          "bytes": 302,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:goal",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "cc69cfc8c0e171f359f74e06aaf7c4a66b517c228f180c2f290003be079bc42f",
+          "bytes": 1865,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:requirements",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## What the plan asks:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "22b858ae791744636bfaa9dfd30538c0187a04e9827d7e8c106e922f8cfa5e2e",
+          "bytes": 427,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## What the plan asks:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## The scenarios of this work item:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "c5d7750967f47c2e2a2f5f8a050f7fbe0a175875f94c55baa15f249e270b47cf",
+          "bytes": 2466,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## The scenarios of this work item:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## Your module:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "0aa55870d1561c34ab905eee9db0679407e3a80a3a5ad9f5ff6b26d3e6265f92",
+          "bytes": 2444,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## Your module:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## Declared project checks:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "c5d38327bd732db71b8c2b2949886e6167f6d33b4fac7f890e144ee4a0fcc97c",
+          "bytes": 1834,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## Declared project checks:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## Default write scope:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "bce9835a4f3d21260078508f72445cdec630254c24092576160754636eadca83",
+          "bytes": 765,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## Default write scope:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## Hypotheses you received:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "8ad1dba49cd6b443967eb7c973d483a19e7540c96a0c43166cfbee1a9156ad6d",
+          "bytes": 206,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## Hypotheses you received:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## The capability registry:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "b12dc9fe7f5fcdff8666941db8d17d6b4d4e02c5939489773e5c53cc96df5fbd",
+          "bytes": 443,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## The capability registry:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## Placement decided for this work item:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "f2c1723173e501dd2525a1b4b370b4c5c44453180be2efddfcba8bec57f06840",
+          "bytes": 275,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## Placement decided for this work item:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:## The bounds of an engineer:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "0e36b40b212cb8c0712648f272a4b441beaca191c4389ff6dcb1a1d468f593f8",
+          "bytes": 418,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:## The bounds of an engineer:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:# Orientation task:0",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "5df992ab73963eef85983ea78e164e5966963e5ff9b6da250b45318cfe5de5a9",
+          "bytes": 609,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:# Orientation task:0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:module-pointers",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "ae7f3bed937439f5ecf3adffc2e8603853b1e97ddfeb10472c8eb07d9957ac7c",
+          "bytes": 1441,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:module-pointers",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:scenario-files",
+          "kind": "brief",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "1ba9ea2528e507a8ea9d93bd398df12e7cf23ef7b2a4b4da7e4bed834ee85486",
+          "bytes": 663,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:scenario-files",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "procedure:local-architect:orientation",
+          "kind": "procedure",
+          "source": "subs/harness/src/context-selection/orientation.procedure.md",
+          "revision": "local-architect/11",
+          "hash": "cdfff59dae3d61f8e00de771e217454f51fc35424ed642df11b06a795fe24744",
+          "bytes": 1213,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/context-selection/orientation.procedure.md",
+              "hash": "e0faf5b86a5ce54bd227fe1462b4dca4f31e25f756801249601ada65b4f014de",
+              "kind": "procedure",
+              "bytes": 1087
+            }
+          ],
+          "block": {
+            "key": "procedure:local-architect:orientation",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:projectRoot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "71c7ec3287e3273d7fe4ff5b1a35623b7d4bed24ff79b479832364055b4f8314",
+          "bytes": 231,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:projectRoot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:workingDirectory",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "813b912a9528c76ba56c863823201a0d1c4e010fd86e2d11fd4ac4267342e971",
+          "bytes": 275,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:workingDirectory",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:candidate",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "82932bad45e33ff512afcfb2eb0f5e1b7d0c166f32eb8ee6d4894cf96e16ff77",
+          "bytes": 109,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:candidate",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:snapshot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "dd1e81900a3a651c53e408331a53787f6a079d5f90437b98fb4441c8a02170b4",
+          "bytes": 107,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:snapshot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:limits",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7bd86de0abceae25593619bd3918bca6e01a40ab55e45ecc977e038550c99e84",
+          "bytes": 1074,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:limits",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:availableTools",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "372364a9f323f84c71719459b216bc9854e4a30368eedd60bb6839e0b5f78abf",
+          "bytes": 209,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:availableTools",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:views",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "04eb6782ffd55a7b9af42df0dfaa68256a55c5b4e2a20f93d33465c048568697",
+          "bytes": 1190,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:views",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:supportPaths",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "372f3560ac020050ae491db95541e0c8081c881e64ebc28fba41e836fbe5af58",
+          "bytes": 240,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:supportPaths",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:cucumberConfiguration",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7186289c14ddc7a0db4b771fd2d9545a2e051eb0d752e1c237b7bbd7be96157d",
+          "bytes": 133,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:cucumberConfiguration",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+          "hash": "fabc43f6aaa39585dfbb96467211b0cf87c5b0dbfbf19d925146553d63d68f34",
+          "bytes": 439,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "e6c2a25d7470398ca053b89c81d661e53be9efe952e34174808ee81d5661604d",
+        "bytes": 19534
+      },
+      "hash": "5f0c54f66b442cae503d34a84e9346cc6fe8dbf0523e63a528e59b88a2727756"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:local-architect",
+        "kind": "role-instructions",
+        "text": "You are the local architect of one module of a Ramify project. The harness\nhas given you one work item: a goal the plan asks of your module, with the\nplan references that state its requirement and its acceptance.\n\nYou decide what the work item needs. You change nothing: you write no file\nand run no command, and nobody reads your messages while you work. When\nsomething is uncertain, decide, and record it in the outline.\n\nYour session continues across turns. If the harness returns a failing gate\nto you, you are the same session, with everything you already established.\n\n## Your tools\n\nYour working directory is the working directory named in the current task. Relative paths in your\ntool calls resolve against it. The project root is the project root named in the current task.\n\nFor an existing module with a source directory, you start in its `src/`:\nread `../README.md`, `../module.ramify` and the relevant local source. If\nthat directory does not exist yet, the briefing states the fallback location\nand gives the paths to use. Do not assume fallback paths are module-local.\n\nModule identities and paths in structured submissions retain their existing\nproject-relative format. This includes assignment scope paths and injection\nsites; the tool working directory does not change their meaning.\n\n- `read`, `grep` and `ls` read files and search them. They are your only way\n  to look at the project. You have no shell and cannot run commands.\n- the designated submission tool named in the current task ends your turn. The harness validates it; if it is\n  rejected, it answers with every error and its path, and you correct the\n  submission and call the tool again. After a few rejected submissions the\n  invocation ends as an invalid submission, so check every claim first.\n\nOnly an accepted submission is a result. A closing message is not.\n\n## Evidence already prepared\n\nStart with your module's goal, onboarding, source and received interfaces.\nFor a session in the module's `src/`, search `.ramify/external` and\n`.ramify/children` for ordinary-source interfaces; use\n`tests/.ramify/external` and `tests/.ramify/children` for its testing source.\nName the hidden directory explicitly in `grep`'s `path`, then read the\nmatching pages. Broad searches can skip these ignored directories. Each view\napplies to its own source area; do not combine them. The briefing supplies\nthe actual paths and any unavailable views or coverage limits.\n\nUse those interfaces to understand what your module can already receive\nbefore proposing new contracts. The views are generated documentation:\nnever treat their paths as source imports. Missing evidence or incomplete\ncoverage cannot establish that an interface does not exist.\nThe views cover project modules only. Installed packages and Node built-ins\nare outside Ramify exposure, so their absence from a view says nothing about\nthem. Their manifest and declarations are in `package.json` and\n`node_modules/` at the project root named in the current task, not beneath\nyour working directory.\n\nIf local evidence leaves an ownership, placement or dependency question,\nsearch the `.ramify-architect/` directory beneath the project root named in the\ncurrent task for that question. This global view remains available without\nrequiring an initial survey of the project.\nRead foreign source when a specific question still needs it.\n\nWhether your module may import a symbol is answered by your API view. The\narchitect view says what exists and who owns it.\n\n## The procedure for this work item\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n\nEvery ID the harness assigns is absent from it: the work item, the outline's\nrevision, the invocation and the hypothesis revisions you were given are the\nharness's, and you do not repeat them.\n\nThe current task names the supplied view paths, module identities and coverage.\nUse those paths only. Retain unavailable or incomplete details explicitly; do not\nsearch for missing metadata or infer that an absent symbol cannot exist.\n",
+        "source": "subs/harness/src/prompts/local-architect.system.md",
+        "revision": "local-architect/11",
+        "sources": [
+          {
+            "path": "subs/harness/src/prompts/local-architect.system.md",
+            "hash": "a4f5e8ec5b74d27ed3d9c8cc5d80a6b7956cb40e5a7884c8fc06212b46d03120",
+            "kind": "system",
+            "bytes": 4510
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_work_orientation",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_work_orientation\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"focus\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"currentUnderstanding\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"questions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"startingPoints\\\":{\\\"description\\\":\\\"Optional useful locations already encountered, each with a short note. Paths are project-relative navigation hints; they do not authorize writes, bind obligations or establish completion. Omit when there are none to share.\\\",\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"path\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"pattern\\\":\\\"^(?!\\\\\\\\/|~|[A-Za-z]:)(?!.*[\\\\\\\\\\\\\\\\*?\\\\\\\\[\\\\\\\\]{}\\\\\\\\x00-\\\\\\\\x1f\\\\\\\\x7f])(?!.*[!+@]\\\\\\\\()(?:\\\\\\\\.|(?!(?:\\\\\\\\.{1,2})(?:\\\\\\\\/|$))[^/]+(?:\\\\\\\\/(?!(?:\\\\\\\\.{1,2})(?:\\\\\\\\/|$))[^/]+)*)$\\\"},\\\"note\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1,\\\"pattern\\\":\\\"\\\\\\\\S\\\"}},\\\"required\\\":[\\\"path\\\",\\\"note\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"focus\\\",\\\"currentUnderstanding\\\",\\\"questions\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3; based on: none (full)",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRender a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 8b8dc5c51c661b4f4e9ef0bec962c0c61cb80a18ee3e55561754b62ca9617691\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions:\n- stated: The badge is rendered without a tone.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions:\n- stated: The badge is given a tone.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions:\n- stated: The badge is given no tone.\n\nUncertainty: none recorded.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## What the plan asks:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## What the plan asks:0\nCurrent value; replaces any earlier value for this key.\n## What the plan asks\n\n- Requirement: fr-001, fr-002, fr-003\n- Acceptance: fr-004, fr-005\n- Context: ctx-001\n\nThe requirement, acceptance and context elements are supplied with this task. Non-functional, fixed and recommendation elements are selected after orientation.\n\nTests that state the acceptance are part of the work.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## What the plan asks:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The scenarios of this work item:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The scenarios of this work item:0\nCurrent value; replaces any earlier value for this key.\n## The scenarios of this work item\n\nIts entry has 3 scenarios. The harness wrote each into its feature file,\nand no agent edits a feature file. The work item completes only when you have reported every one `done`.\n\n### sc-001 (pending): A badge given a tone carries that tone in its markup\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n```\n\n### sc-002 (pending): A badge given no tone carries neutral\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n### sc-003 (pending): Every supported tone is readable independently of the label\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario Outline: Every supported tone is readable independently of the label\n  Given a badge with status \"failed\", label \"Needs attention\" and tone \"<tone>\"\n  When the badge is rendered\n  Then the badge's data-tone attribute is \"<tone>\"\n  And the same badge's data-status attribute is \"failed\"\n  And it still reads \"Needs attention\"\n  Examples:\n    | tone     |\n    | neutral  |\n    | positive |\n    | warning  |\n    | critical |\n```\n\nA scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing\nmodule's `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer's\naccepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its\npending tag at the next commit, so the gates' configured checks run it. A passing gate is evidence, never your\nreport: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## The scenarios of this work item:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Your module:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Your module:0\nCurrent value; replaces any earlier value for this key.\n## Your module\n\n- Declared name: `collection-review/workspace/shared-ui`.\n- Working directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src`.\n- This is the assigned module's source directory.\n- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.\n- Assigned module declaration: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify` (read it if present).\n- Assigned module source: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/` (read it if present).\n- Test area (collection-review/workspace/shared-ui): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n- Onboarding (`/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`): Shared UI owns the presentation primitives that more than one feature view needs, beginning with the status badge that both the catalog card and the review result render. It exists as a separate owner because two vertical feature UIs must use those primitives while their core siblings must not.\n- API view (src): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 1, so absence is not proof of unavailability.\n- API view (src/tests): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 2, so absence is not proof of unavailability.\n- The architect view is at `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect/`.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Your module:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Declared project checks:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Declared project checks:0\nCurrent value; replaces any earlier value for this key.\n## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-structure (none): argv [\"/workspaces/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-audit.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-agent.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/package.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/cucumber.js`.\n\nThese are declared checks, not a focused command. Inspect their configuration for how to run particular tests. The gate runs the audit; shell refuses whole suites and watch mode.\n\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Declared project checks:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Default write scope:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Default write scope:0\nCurrent value; replaces any earlier value for this key.\n## Default write scope\n\n- `collection-review/workspace/shared-ui`: the base gives its engineer `subs/workspace/subs/shared-ui/` whole \u2014 `module.ramify`, `README.md`, all of `src/` with `src/tests/` and `src/interfaces/`, other documentation and auxiliary source \u2014 except the directories below.\n  - Immediate child modules: none.\n  - Owned nested-project roots: none.\n  - Guarded files, writable only with an authorization: none.\n\nThose child and nested-project directories are the only valid `included` values, and `included` is `[]` unless the iteration needs one of them whole. An included child brings its whole subtree, every module beneath it included.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Default write scope:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Hypotheses you received:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Hypotheses you received:0\nCurrent value; replaces any earlier value for this key.\n## Hypotheses you received\n\nNone. The initial analysis forecast nothing that involves your module.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Hypotheses you received:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The capability registry:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The capability registry:0\nCurrent value; replaces any earlier value for this key.\n## The capability registry\n\n- `render-status-badge-with-tone` \u2192 `collection-review/workspace/shared-ui` (entry): Render a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## The capability registry:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## Placement decided for this work item:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## Placement decided for this work item:0\nCurrent value; replaces any earlier value for this key.\n## Placement decided for this work item\n\nNone yet. Placement that is yours to decide is recorded with your assignment; placement that is not is asked for.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## Placement decided for this work item:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:## The bounds of an engineer:0",
+        "kind": "brief",
+        "text": "# Block brief:support:## The bounds of an engineer:0\nCurrent value; replaces any earlier value for this key.\n## The bounds of an engineer\n\nUnless an assignment raises them, one shell command may run 600000 ms, a session may go 300000 ms without a sign of activity, and one invocation may run 3600000 ms.\n`assignment.bounds` raises them for one iteration, each with its reason, up to 1800000, 1800000 and 10800000 ms.\n\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:## The bounds of an engineer:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:# Orientation task:0",
+        "kind": "brief",
+        "text": "# Block brief:support:# Orientation task:0\nCurrent value; replaces any earlier value for this key.\n# Orientation task\n\nRead the supplied elements and explore your module before organizing this work item. Submit only your orientation: your focus, current understanding and open questions. Do not assign an iteration or decide that a source suggestion is binding. Submit your orientation using `submit_work_orientation`.\n\nConsultation context: global-fork, session ses-0002, point {\"session\":\"ses-0002\",\"invocation\":\"inv-0002\"}. Inherited observations may be stale; current files and generated views can differ.",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:# Orientation task:0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:module-pointers",
+        "kind": "brief",
+        "text": "# Block brief:support:module-pointers\nCurrent value; replaces any earlier value for this key.\n## Module and test pointers\n\n- `collection-review/workspace/shared-ui`: README `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`; declaration `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify`; source `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/`.\n  - Test area: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:module-pointers",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:scenario-files",
+        "kind": "brief",
+        "text": "# Block brief:support:scenario-files\nCurrent value; replaces any earlier value for this key.\n## Scenario file pointers\n\n- Feature: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n- Step directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/steps`; observed files: (none).\nObserved files do not establish what the runner loads. Inspect its declared configuration.\n",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "block": {
+          "key": "brief:support:scenario-files",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:local-architect:orientation",
+        "kind": "procedure",
+        "text": "# Block procedure:local-architect:orientation\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n# Work orientation\n\nRead the supplied goal and the complete requirement, acceptance and context\nelements. Explore your module's README, declaration and relevant source using\nthe briefing's paths. Establish what it already does about the goal. Search\nits hidden API views for needed foreign interfaces; use global discovery only\nfor questions that local evidence cannot answer.\n\nWhen you have explored enough to organize the work, submit your focus, current\nunderstanding and open questions with `submit_work_orientation`. This turn precedes\norganization and assignment; make no assignment here. Preserve uncertainty\nabout source force and scope. Non-functional, fixed and recommendation elements\nwill be selected next.\n\nOptionally include `startingPoints` for a few useful source, test, support,\ncaller or API-view locations encountered while orienting, each with a short\nnote about what to inspect. Paths are literal and project-relative. These\nhints authorize no writes and establish no completion or obligation. Omit\nthem when there are none to share; no extra discovery turn is required.",
+        "source": "subs/harness/src/context-selection/orientation.procedure.md",
+        "revision": "local-architect/11",
+        "sources": [
+          {
+            "path": "subs/harness/src/context-selection/orientation.procedure.md",
+            "hash": "e0faf5b86a5ce54bd227fe1462b4dca4f31e25f756801249601ada65b4f014de",
+            "kind": "procedure",
+            "bytes": 1087
+          }
+        ],
+        "block": {
+          "key": "procedure:local-architect:orientation",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"consult_architect\",\n    \"submit_work_orientation\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/local-architect.system.md\",\n    \"subs/harness/src/context-selection/orientation.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: orientation\nThis selection supersedes every prior task selection.\nActive role: local-architect\nSelected procedure: procedure:local-architect:orientation; SHA-256: cdfff59dae3d61f8e00de771e217454f51fc35424ed642df11b06a795fe24744\nPerform orientation for {\"workItem\":\"wi-001\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_work_orientation`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3"
+      }
+    ],
+    "history": [
+      {
+        "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3",
+        "contentHash": "1490f8ea1b379efcac6b474e19eb9d079cac66b529b0fbdcb4d6fceac84e1b46",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nRender a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers."
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- # Plan context package\n\nCatalog: 8b8dc5c51c661b4f4e9ef0bec962c0c61cb80a18ee3e55561754b62ca9617691\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions:\n- stated: The badge is rendered without a tone.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions:\n- stated: The badge is given a tone.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions:\n- stated: The badge is given no tone.\n\nUncertainty: none recorded.\n"
+          },
+          {
+            "key": "support:## What the plan asks:0",
+            "text": "## What the plan asks\n\n- Requirement: fr-001, fr-002, fr-003\n- Acceptance: fr-004, fr-005\n- Context: ctx-001\n\nThe requirement, acceptance and context elements are supplied with this task. Non-functional, fixed and recommendation elements are selected after orientation.\n\nTests that state the acceptance are part of the work.\n"
+          },
+          {
+            "key": "support:## The scenarios of this work item:0",
+            "text": "## The scenarios of this work item\n\nIts entry has 3 scenarios. The harness wrote each into its feature file,\nand no agent edits a feature file. The work item completes only when you have reported every one `done`.\n\n### sc-001 (pending): A badge given a tone carries that tone in its markup\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n```\n\n### sc-002 (pending): A badge given no tone carries neutral\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n### sc-003 (pending): Every supported tone is readable independently of the label\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario Outline: Every supported tone is readable independently of the label\n  Given a badge with status \"failed\", label \"Needs attention\" and tone \"<tone>\"\n  When the badge is rendered\n  Then the badge's data-tone attribute is \"<tone>\"\n  And the same badge's data-status attribute is \"failed\"\n  And it still reads \"Needs attention\"\n  Examples:\n    | tone     |\n    | neutral  |\n    | positive |\n    | warning  |\n    | critical |\n```\n\nA scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing\nmodule's `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer's\naccepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its\npending tag at the next commit, so the gates' configured checks run it. A passing gate is evidence, never your\nreport: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.\n"
+          },
+          {
+            "key": "support:## Your module:0",
+            "text": "## Your module\n\n- Declared name: `collection-review/workspace/shared-ui`.\n- Working directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src`.\n- This is the assigned module's source directory.\n- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.\n- Assigned module declaration: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify` (read it if present).\n- Assigned module source: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/` (read it if present).\n- Test area (collection-review/workspace/shared-ui): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n- Onboarding (`/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`): Shared UI owns the presentation primitives that more than one feature view needs, beginning with the status badge that both the catalog card and the review result render. It exists as a separate owner because two vertical feature UIs must use those primitives while their core siblings must not.\n- API view (src): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 1, so absence is not proof of unavailability.\n- API view (src/tests): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 2, so absence is not proof of unavailability.\n- The architect view is at `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect/`.\n"
+          },
+          {
+            "key": "support:## Declared project checks:0",
+            "text": "## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-structure (none): argv [\"/workspaces/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-audit.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-agent.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/package.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/cucumber.js`.\n\nThese are declared checks, not a focused command. Inspect their configuration for how to run particular tests. The gate runs the audit; shell refuses whole suites and watch mode.\n\n"
+          },
+          {
+            "key": "support:## Default write scope:0",
+            "text": "## Default write scope\n\n- `collection-review/workspace/shared-ui`: the base gives its engineer `subs/workspace/subs/shared-ui/` whole \u2014 `module.ramify`, `README.md`, all of `src/` with `src/tests/` and `src/interfaces/`, other documentation and auxiliary source \u2014 except the directories below.\n  - Immediate child modules: none.\n  - Owned nested-project roots: none.\n  - Guarded files, writable only with an authorization: none.\n\nThose child and nested-project directories are the only valid `included` values, and `included` is `[]` unless the iteration needs one of them whole. An included child brings its whole subtree, every module beneath it included.\n"
+          },
+          {
+            "key": "support:## Hypotheses you received:0",
+            "text": "## Hypotheses you received\n\nNone. The initial analysis forecast nothing that involves your module.\n"
+          },
+          {
+            "key": "support:## The capability registry:0",
+            "text": "## The capability registry\n\n- `render-status-badge-with-tone` \u2192 `collection-review/workspace/shared-ui` (entry): Render a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n"
+          },
+          {
+            "key": "support:## Placement decided for this work item:0",
+            "text": "## Placement decided for this work item\n\nNone yet. Placement that is yours to decide is recorded with your assignment; placement that is not is asked for.\n"
+          },
+          {
+            "key": "support:## The bounds of an engineer:0",
+            "text": "## The bounds of an engineer\n\nUnless an assignment raises them, one shell command may run 600000 ms, a session may go 300000 ms without a sign of activity, and one invocation may run 3600000 ms.\n`assignment.bounds` raises them for one iteration, each with its reason, up to 1800000, 1800000 and 10800000 ms.\n\n"
+          },
+          {
+            "key": "support:# Orientation task:0",
+            "text": "# Orientation task\n\nRead the supplied elements and explore your module before organizing this work item. Submit only your orientation: your focus, current understanding and open questions. Do not assign an iteration or decide that a source suggestion is binding. Submit your orientation using `submit_work_orientation`.\n\nConsultation context: global-fork, session ses-0002, point {\"session\":\"ses-0002\",\"invocation\":\"inv-0002\"}. Inherited observations may be stale; current files and generated views can differ."
+          },
+          {
+            "key": "support:module-pointers",
+            "text": "## Module and test pointers\n\n- `collection-review/workspace/shared-ui`: README `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`; declaration `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify`; source `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/`.\n  - Test area: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n"
+          },
+          {
+            "key": "support:scenario-files",
+            "text": "## Scenario file pointers\n\n- Feature: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n- Step directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/steps`; observed files: (none).\nObserved files do not establish what the runner loads. Inspect its declared configuration.\n"
+          }
+        ]
+      }
+    ],
+    "revision": "37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3"
+  },
+  "policy": {
+    "context": {
+      "compaction": "allowed",
+      "budgetTokens": 150000,
+      "budgetFraction": 0.75,
+      "reportReserveTokens": 16000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {
+        "workItem": "wi-001"
+      }
+    },
+    "validator": {
+      "name": "submit_work_orientation",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "focus": {
+            "type": "string",
+            "minLength": 1
+          },
+          "currentUnderstanding": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "startingPoints": {
+            "description": "Optional useful locations already encountered, each with a short note. Paths are project-relative navigation hints; they do not authorize writes, bind obligations or establish completion. Omit when there are none to share.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!\\/|~|[A-Za-z]:)(?!.*[\\\\*?\\[\\]{}\\x00-\\x1f\\x7f])(?!.*[!+@]\\()(?:\\.|(?!(?:\\.{1,2})(?:\\/|$))[^/]+(?:\\/(?!(?:\\.{1,2})(?:\\/|$))[^/]+)*)$"
+                },
+                "note": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                }
+              },
+              "required": [
+                "path",
+                "note"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "focus",
+          "currentUnderstanding",
+          "questions"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.work-orientation/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261011T104510Z-0e1b47",
+      "invocation": "inv-0004",
+      "submission": "invocations/inv-0004/submission.json"
+    }
+  },
+  "task": {
+    "role": "local-architect",
+    "message": "Briefing revision: 37bc5695adb331b5225a80eef8c4947c75e690eaccffbbda3e998f39c02f84d3; based on: none (full)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRender a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # Plan context package\n\nCatalog: 8b8dc5c51c661b4f4e9ef0bec962c0c61cb80a18ee3e55561754b62ca9617691\nElements: ctx-001, fr-001, fr-002, fr-003, fr-004, fr-005\nDeviations: none\n\n## Context\n\nContext describes the situation the plan starts from and why the plan exists. It is not a requirement, and nothing assesses it.\n\n### ctx-001: context from plans/status-badge-tone/plan.md\n\n> The status badge says whether a review passed or failed, but a feature that wants to draw attention to a badge, or to play one down, has no way to say so. Give the badge a tone.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n## Functional requirements\n\n### fr-001: functional requirement from plans/status-badge-tone/plan.md\n\n> `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or `critical`.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-002: functional requirement from plans/status-badge-tone/plan.md\n\n> The badge carries its tone as a `data-tone` attribute beside `data-status`, so the stylesheet and a test can read it without matching on the label.\n\nConditions: none recorded.\n\nUncertainty: none recorded.\n\n### fr-003: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge rendered without a tone reads as `neutral`.\n\nConditions:\n- stated: The badge is rendered without a tone.\n\nUncertainty: none recorded.\n\n### fr-004: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given a tone carries that tone in its markup.\n\nConditions:\n- stated: The badge is given a tone.\n\nUncertainty: none recorded.\n\n### fr-005: functional requirement from plans/status-badge-tone/plan.md\n\n> A badge given no tone carries `neutral`.\n\nConditions:\n- stated: The badge is given no tone.\n\nUncertainty: none recorded.\n\n\n# Block brief:support:## What the plan asks:0\nCurrent value; replaces any earlier value for this key.\n## What the plan asks\n\n- Requirement: fr-001, fr-002, fr-003\n- Acceptance: fr-004, fr-005\n- Context: ctx-001\n\nThe requirement, acceptance and context elements are supplied with this task. Non-functional, fixed and recommendation elements are selected after orientation.\n\nTests that state the acceptance are part of the work.\n\n\n# Block brief:support:## The scenarios of this work item:0\nCurrent value; replaces any earlier value for this key.\n## The scenarios of this work item\n\nIts entry has 3 scenarios. The harness wrote each into its feature file,\nand no agent edits a feature file. The work item completes only when you have reported every one `done`.\n\n### sc-001 (pending): A badge given a tone carries that tone in its markup\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n```\n\n### sc-002 (pending): A badge given no tone carries neutral\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n### sc-003 (pending): Every supported tone is readable independently of the label\n\n- Feature file: `subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n\n```gherkin\nScenario Outline: Every supported tone is readable independently of the label\n  Given a badge with status \"failed\", label \"Needs attention\" and tone \"<tone>\"\n  When the badge is rendered\n  Then the badge's data-tone attribute is \"<tone>\"\n  And the same badge's data-status attribute is \"failed\"\n  And it still reads \"Needs attention\"\n  Examples:\n    | tone     |\n    | neutral  |\n    | positive |\n    | warning  |\n    | critical |\n```\n\nA scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing\nmodule's `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer's\naccepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its\npending tag at the next commit, so the gates' configured checks run it. A passing gate is evidence, never your\nreport: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.\n\n\n# Block brief:support:## Your module:0\nCurrent value; replaces any earlier value for this key.\n## Your module\n\n- Declared name: `collection-review/workspace/shared-ui`.\n- Working directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src`.\n- This is the assigned module's source directory.\n- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.\n- Assigned module declaration: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify` (read it if present).\n- Assigned module source: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/` (read it if present).\n- Test area (collection-review/workspace/shared-ui): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n- Onboarding (`/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`): Shared UI owns the presentation primitives that more than one feature view needs, beginning with the status badge that both the catalog card and the review result render. It exists as a separate owner because two vertical feature UIs must use those primitives while their core siblings must not.\n- API view (src): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 1, so absence is not proof of unavailability.\n- API view (src/tests): `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`, revision `rev/1:703779dd-cce1-490f-843d-1647a6f11987:2`; coverage limits: 2, so absence is not proof of unavailability.\n- The architect view is at `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect/`.\n\n\n# Block brief:support:## Declared project checks:0\nCurrent value; replaces any earlier value for this key.\n## Declared project checks\n\n- fixture-type-check (none): argv [\"npm\",\"run\",\"type-check\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-tests (vitest): argv [\"npm\",\"test\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-scenarios (cucumber): argv [\"npm\",\"run\",\"test:cucumber\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- fixture-structure (none): argv [\"/workspaces/ramify-agent/node_modules/.bin/ramify\",\"check\",\"--batch\",\"--format\",\"json\",\"--no-snapshot\"]; cwd `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-audit.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/ramify-agent.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/package.json`.\n- Configuration/support pointer: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/cucumber.js`.\n\nThese are declared checks, not a focused command. Inspect their configuration for how to run particular tests. The gate runs the audit; shell refuses whole suites and watch mode.\n\n\n\n# Block brief:support:## Default write scope:0\nCurrent value; replaces any earlier value for this key.\n## Default write scope\n\n- `collection-review/workspace/shared-ui`: the base gives its engineer `subs/workspace/subs/shared-ui/` whole \u2014 `module.ramify`, `README.md`, all of `src/` with `src/tests/` and `src/interfaces/`, other documentation and auxiliary source \u2014 except the directories below.\n  - Immediate child modules: none.\n  - Owned nested-project roots: none.\n  - Guarded files, writable only with an authorization: none.\n\nThose child and nested-project directories are the only valid `included` values, and `included` is `[]` unless the iteration needs one of them whole. An included child brings its whole subtree, every module beneath it included.\n\n\n# Block brief:support:## Hypotheses you received:0\nCurrent value; replaces any earlier value for this key.\n## Hypotheses you received\n\nNone. The initial analysis forecast nothing that involves your module.\n\n\n# Block brief:support:## The capability registry:0\nCurrent value; replaces any earlier value for this key.\n## The capability registry\n\n- `render-status-badge-with-tone` \u2192 `collection-review/workspace/shared-ui` (entry): Render a status badge with an optional neutral, positive, warning or critical tone as data-tone beside data-status, defaulting to neutral without changing status or label meaning or requiring changes to existing callers.\n\n\n# Block brief:support:## Placement decided for this work item:0\nCurrent value; replaces any earlier value for this key.\n## Placement decided for this work item\n\nNone yet. Placement that is yours to decide is recorded with your assignment; placement that is not is asked for.\n\n\n# Block brief:support:## The bounds of an engineer:0\nCurrent value; replaces any earlier value for this key.\n## The bounds of an engineer\n\nUnless an assignment raises them, one shell command may run 600000 ms, a session may go 300000 ms without a sign of activity, and one invocation may run 3600000 ms.\n`assignment.bounds` raises them for one iteration, each with its reason, up to 1800000, 1800000 and 10800000 ms.\n\n\n\n# Block brief:support:# Orientation task:0\nCurrent value; replaces any earlier value for this key.\n# Orientation task\n\nRead the supplied elements and explore your module before organizing this work item. Submit only your orientation: your focus, current understanding and open questions. Do not assign an iteration or decide that a source suggestion is binding. Submit your orientation using `submit_work_orientation`.\n\nConsultation context: global-fork, session ses-0002, point {\"session\":\"ses-0002\",\"invocation\":\"inv-0002\"}. Inherited observations may be stale; current files and generated views can differ.\n\n# Block brief:support:module-pointers\nCurrent value; replaces any earlier value for this key.\n## Module and test pointers\n\n- `collection-review/workspace/shared-ui`: README `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/README.md`; declaration `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/module.ramify`; source `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/`.\n  - Test area: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/`.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n  - Observed API view: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/.ramify/`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.\n\n\n# Block brief:support:scenario-files\nCurrent value; replaces any earlier value for this key.\n## Scenario file pointers\n\n- Feature: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/features/status-badge-tone/render-status-badge-with-tone.feature`.\n- Step directory: `/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src/tests/steps`; observed files: (none).\nObserved files do not establish what the runner loads. Inspect its declared configuration.\n\n\n# Block procedure:local-architect:orientation\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n# Work orientation\n\nRead the supplied goal and the complete requirement, acceptance and context\nelements. Explore your module's README, declaration and relevant source using\nthe briefing's paths. Establish what it already does about the goal. Search\nits hidden API views for needed foreign interfaces; use global discovery only\nfor questions that local evidence cannot answer.\n\nWhen you have explored enough to organize the work, submit your focus, current\nunderstanding and open questions with `submit_work_orientation`. This turn precedes\norganization and assignment; make no assignment here. Preserve uncertainty\nabout source force and scope. Non-functional, fixed and recommendation elements\nwill be selected next.\n\nOptionally include `startingPoints` for a few useful source, test, support,\ncaller or API-view locations encountered while orienting, each with a short\nnote about what to inspect. Paths are literal and project-relative. These\nhints authorize no writes and establish no completion or obligation. Omit\nthem when there are none to share; no extra discovery turn is required.\n\n# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"consult_architect\",\n    \"submit_work_orientation\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/prompts/local-architect.system.md\",\n    \"subs/harness/src/context-selection/orientation.procedure.md\"\n  ]\n}\n\n# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}\n\n# Current task: orientation\nThis selection supersedes every prior task selection.\nActive role: local-architect\nSelected procedure: procedure:local-architect:orientation; SHA-256: cdfff59dae3d61f8e00de771e217454f51fc35424ed642df11b06a795fe24744\nPerform orientation for {\"workItem\":\"wi-001\"}; use the current evidence and designated submission.\n\nSubmit only through `submit_work_orientation`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_work_orientation",
+    "environment": {
+      "workingDirectory": "/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/subs/workspace/subs/shared-ui/src",
+      "candidate": null,
+      "snapshot": null,
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 3600000,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "a13aa4187de6a2dd638d0b6514ca211610f3f035710d93f9e3a762a7db07b0c0",
+    "validatorIdentity": "14575541b2ff519a3f533b6b3892848f1cc68973dbdb9704b805776dd705b0ef",
+    "destinationIdentity": "59344a23d74bed3cbeed9415a58e5b7d4f39d910ff431a210d845d256727d9ca"
+  },
+  "declarations": [
+    {
+      "name": "read",
+      "description": "Read the contents of a file. Supports text files and images (jpg, png, gif, webp, bmp). Images are sent as attachments. For text files, output is truncated to 2000 lines or 50KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the file to read (relative or absolute)"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Line number to start reading from (1-indexed)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of lines to read"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "grep",
+      "description": "Search file contents for a pattern. Returns matching lines with file paths and line numbers. Respects .gitignore. Output is truncated to 100 matches or 50KB (whichever is hit first). Long lines are truncated to 500 chars.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Search pattern (regex or literal string)"
+          },
+          "path": {
+            "type": "string",
+            "description": "Directory or file to search (default: current directory)"
+          },
+          "glob": {
+            "type": "string",
+            "description": "Filter files by glob pattern, e.g. '*.ts' or '**/*.spec.ts'"
+          },
+          "ignoreCase": {
+            "type": "boolean",
+            "description": "Case-insensitive search (default: false)"
+          },
+          "literal": {
+            "type": "boolean",
+            "description": "Treat pattern as literal string instead of regex (default: false)"
+          },
+          "context": {
+            "type": "number",
+            "description": "Number of lines to show before and after each match (default: 0)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of matches to return (default: 100)"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "ls",
+      "description": "List directory contents. Returns entries sorted alphabetically, with '/' suffix for directories. Includes dotfiles. Output is truncated to 500 entries or 50KB (whichever is hit first).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Directory to list (default: current directory)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of entries to return (default: 500)"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "consult_architect",
+      "description": "Consult your assigning architect for explanation or research help. Advisory only: advice changes no assignment, scope, permissions, source or architectural decision. Include relevant new facts; inherited context is pinned and may be stale.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_work_orientation",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"focus\":{\"type\":\"string\",\"minLength\":1},\"currentUnderstanding\":{\"type\":\"string\",\"minLength\":1},\"questions\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"minLength\":1}},\"startingPoints\":{\"description\":\"Optional useful locations already encountered, each with a short note. Paths are project-relative navigation hints; they do not authorize writes, bind obligations or establish completion. Omit when there are none to share.\",\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\",\"minLength\":1,\"pattern\":\"^(?!\\\\/|~|[A-Za-z]:)(?!.*[\\\\\\\\*?\\\\[\\\\]{}\\\\x00-\\\\x1f\\\\x7f])(?!.*[!+@]\\\\()(?:\\\\.|(?!(?:\\\\.{1,2})(?:\\\\/|$))[^/]+(?:\\\\/(?!(?:\\\\.{1,2})(?:\\\\/|$))[^/]+)*)$\"},\"note\":{\"type\":\"string\",\"minLength\":1,\"pattern\":\"\\\\S\"}},\"required\":[\"path\",\"note\"],\"additionalProperties\":false}}},\"required\":[\"focus\",\"currentUnderstanding\",\"questions\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}

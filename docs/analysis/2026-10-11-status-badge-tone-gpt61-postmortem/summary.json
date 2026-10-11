@@ -1,0 +1,654 @@
+{
+  "run": "20261011T104510Z-0e1b47",
+  "nativePayloads": 65,
+  "modelCalls": 65,
+  "usageTotals": {
+    "input": 209042,
+    "cacheRead": 915840,
+    "cacheWrite": 0,
+    "output": 14784,
+    "total": 1139666
+  },
+  "callUsageTotals": {
+    "input": 209042,
+    "cacheRead": 915840,
+    "cacheWrite": 0,
+    "output": 14784,
+    "total": 1139666
+  },
+  "usageReconciles": true,
+  "estimatedCostUSD": 0.6575080000000001,
+  "toolCalls": 122,
+  "toolStarts": 122,
+  "toolKinds": {
+    "read": 37,
+    "submit_intake": 1,
+    "ls": 7,
+    "grep": 8,
+    "submit_initial_analysis": 1,
+    "submit_catalog_check": 1,
+    "submit_work_orientation": 1,
+    "submit_context_selection": 1,
+    "submit_work_item_result": 3,
+    "edit": 2,
+    "write": 2,
+    "shell": 2,
+    "submit_iteration_result": 1,
+    "snapshot_read": 37,
+    "snapshot_list": 4,
+    "snapshot_search": 2,
+    "submit_review": 3,
+    "inspect_git": 2,
+    "submit_orientation": 1,
+    "snapshot_diff": 5,
+    "submit_nonfunctional_assessment": 1
+  },
+  "snapshotCalls": 48,
+  "snapshotCallsRecordedExactlyOnce": true,
+  "recordedZeroMatchSearches": 0,
+  "explicitNoMatchResults": [],
+  "snapshotExplorationRows": 48,
+  "boundaries": [
+    {
+      "invocation": "inv-0005",
+      "kind": "context-selector:main",
+      "mode": "fork",
+      "source": {
+        "sessionId": "1e001881-f69a-4184-ab07-b0601168e3d2",
+        "turn": 1,
+        "kind": "turn",
+        "checkpoint": "934882cf-750a-4bb9-bf37-de6e9a8f1434"
+      },
+      "firstUsage": {
+        "input": 5723,
+        "output": 176,
+        "cacheRead": 13824,
+        "cacheWrite": 0,
+        "total": 19723
+      },
+      "firstCharge": {
+        "model": "openai-codex/gpt-6.1-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 5723,
+        "cachedInputTokens": 13824,
+        "cacheWriteTokens": 0,
+        "outputTokens": 176,
+        "ratesPerMillion": {
+          "newInput": 2,
+          "cachedInput": 0.1,
+          "cacheWrite": 2.5,
+          "output": 10
+        },
+        "newInput": 0.011446,
+        "cachedInput": 0.0013824,
+        "cacheWrite": 0,
+        "output": 0.00176,
+        "total": 0.0145884,
+        "coverage": []
+      },
+      "cacheShare": 0.7072184990024044,
+      "prefix": {
+        "parent": "inv-0004",
+        "parentNativeLast": "/home/app/ramify-trial-evidence/status-badge-tone-gpt61-20261011T104510Z/collection-review/plans/.harness/session-operations/store/payloads/a1e05f6017bdd4345edbe6430d99fb1ef068f106711dbd9a8142e990be175321",
+        "instructionsEqual": true,
+        "toolsEqual": true,
+        "parentInputItems": 51,
+        "childInputItems": 58,
+        "parentInputPreservedAsPrefix": true,
+        "requestModelEqual": true,
+        "parentInstructionsBytes": 4361,
+        "childInstructionsBytes": 4361,
+        "providerInstructionsEqual": true,
+        "providerToolsEqual": true,
+        "providerInputPreservedAsPrefix": true,
+        "promptCacheKeyEqual": true,
+        "parentLastUsageAt": "2026-10-11T10:48:28.960Z",
+        "childFirstUsageAt": "2026-10-11T10:48:36.071Z"
+      }
+    },
+    {
+      "invocation": "inv-0006",
+      "kind": "local-architect:main",
+      "mode": "continued",
+      "source": {
+        "sessionId": "1e001881-f69a-4184-ab07-b0601168e3d2",
+        "turn": 1,
+        "kind": "checkpoint",
+        "checkpoint": "9c0cd2f0-02db-4fae-a14e-92771541d02b"
+      },
+      "firstUsage": {
+        "input": 12410,
+        "output": 1086,
+        "cacheRead": 13824,
+        "cacheWrite": 0,
+        "total": 27320
+      },
+      "firstCharge": {
+        "model": "openai-codex/gpt-6.1-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 12410,
+        "cachedInputTokens": 13824,
+        "cacheWriteTokens": 0,
+        "outputTokens": 1086,
+        "ratesPerMillion": {
+          "newInput": 2,
+          "cachedInput": 0.1,
+          "cacheWrite": 2.5,
+          "output": 10
+        },
+        "newInput": 0.02482,
+        "cachedInput": 0.0013824,
+        "cacheWrite": 0,
+        "output": 0.01086,
+        "total": 0.037062399999999995,
+        "coverage": []
+      },
+      "cacheShare": 0.526949759853625,
+      "prefix": {
+        "parent": "inv-0004",
+        "parentNativeLast": "/home/app/ramify-trial-evidence/status-badge-tone-gpt61-20261011T104510Z/collection-review/plans/.harness/session-operations/store/payloads/a1e05f6017bdd4345edbe6430d99fb1ef068f106711dbd9a8142e990be175321",
+        "instructionsEqual": true,
+        "toolsEqual": true,
+        "parentInputItems": 51,
+        "childInputItems": 58,
+        "parentInputPreservedAsPrefix": true,
+        "requestModelEqual": true,
+        "parentInstructionsBytes": 4361,
+        "childInstructionsBytes": 4361,
+        "providerInstructionsEqual": true,
+        "providerToolsEqual": true,
+        "providerInputPreservedAsPrefix": true,
+        "promptCacheKeyEqual": true,
+        "parentLastUsageAt": "2026-10-11T10:48:28.960Z",
+        "childFirstUsageAt": "2026-10-11T10:49:06.804Z"
+      }
+    },
+    {
+      "invocation": "inv-0009",
+      "kind": "reviewer:scope",
+      "mode": "fork",
+      "source": {
+        "sessionId": "1e001881-f69a-4184-ab07-b0601168e3d2",
+        "turn": 2,
+        "kind": "turn",
+        "checkpoint": "defda554-29f4-4d20-b29a-a99333e3dd4a"
+      },
+      "firstUsage": {
+        "input": 10495,
+        "output": 76,
+        "cacheRead": 26112,
+        "cacheWrite": 0,
+        "total": 36683
+      },
+      "firstCharge": {
+        "model": "openai-codex/gpt-6.1-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 10495,
+        "cachedInputTokens": 26112,
+        "cacheWriteTokens": 0,
+        "outputTokens": 76,
+        "ratesPerMillion": {
+          "newInput": 2,
+          "cachedInput": 0.1,
+          "cacheWrite": 2.5,
+          "output": 10
+        },
+        "newInput": 0.02099,
+        "cachedInput": 0.0026112,
+        "cacheWrite": 0,
+        "output": 0.00076,
+        "total": 0.024361200000000003,
+        "coverage": []
+      },
+      "cacheShare": 0.7133061982680908,
+      "prefix": {
+        "parent": "inv-0006",
+        "parentNativeLast": "/home/app/ramify-trial-evidence/status-badge-tone-gpt61-20261011T104510Z/collection-review/plans/.harness/session-operations/store/payloads/24f2a8a2ed33ab5c3a777e33ec646b05796e05ab26e0439dae6811b01997c550",
+        "instructionsEqual": true,
+        "toolsEqual": true,
+        "parentInputItems": 58,
+        "childInputItems": 65,
+        "parentInputPreservedAsPrefix": true,
+        "requestModelEqual": true,
+        "parentInstructionsBytes": 4361,
+        "childInstructionsBytes": 4361,
+        "providerInstructionsEqual": true,
+        "providerToolsEqual": true,
+        "providerInputPreservedAsPrefix": true,
+        "promptCacheKeyEqual": true,
+        "parentLastUsageAt": "2026-10-11T10:49:06.804Z",
+        "childFirstUsageAt": "2026-10-11T10:51:59.510Z"
+      }
+    },
+    {
+      "invocation": "inv-0010",
+      "kind": "assignment (procedure inherited)",
+      "mode": "continued",
+      "source": {
+        "sessionId": "1e001881-f69a-4184-ab07-b0601168e3d2",
+        "turn": 2,
+        "kind": "turn",
+        "checkpoint": "defda554-29f4-4d20-b29a-a99333e3dd4a"
+      },
+      "firstUsage": {
+        "input": 4108,
+        "output": 47,
+        "cacheRead": 26112,
+        "cacheWrite": 0,
+        "total": 30267
+      },
+      "firstCharge": {
+        "model": "openai-codex/gpt-6.1-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 4108,
+        "cachedInputTokens": 26112,
+        "cacheWriteTokens": 0,
+        "outputTokens": 47,
+        "ratesPerMillion": {
+          "newInput": 2,
+          "cachedInput": 0.1,
+          "cacheWrite": 2.5,
+          "output": 10
+        },
+        "newInput": 0.008216,
+        "cachedInput": 0.0026112,
+        "cacheWrite": 0,
+        "output": 0.00047,
+        "total": 0.011297199999999999,
+        "coverage": []
+      },
+      "cacheShare": 0.8640635340833884,
+      "prefix": {
+        "parent": "inv-0006",
+        "parentNativeLast": "/home/app/ramify-trial-evidence/status-badge-tone-gpt61-20261011T104510Z/collection-review/plans/.harness/session-operations/store/payloads/24f2a8a2ed33ab5c3a777e33ec646b05796e05ab26e0439dae6811b01997c550",
+        "instructionsEqual": true,
+        "toolsEqual": true,
+        "parentInputItems": 58,
+        "childInputItems": 62,
+        "parentInputPreservedAsPrefix": true,
+        "requestModelEqual": true,
+        "parentInstructionsBytes": 4361,
+        "childInstructionsBytes": 4361,
+        "providerInstructionsEqual": true,
+        "providerToolsEqual": true,
+        "providerInputPreservedAsPrefix": true,
+        "promptCacheKeyEqual": true,
+        "parentLastUsageAt": "2026-10-11T10:49:06.804Z",
+        "childFirstUsageAt": "2026-10-11T10:52:05.504Z"
+      }
+    },
+    {
+      "invocation": "inv-0012",
+      "kind": "reviewer:design",
+      "mode": "fork",
+      "source": {
+        "sessionId": "ae5ffcc0-c3f1-42f8-b75e-961a9aaf3663",
+        "turn": 1,
+        "kind": "turn",
+        "checkpoint": "44468bab-ea52-4c48-b2b0-affba0167746"
+      },
+      "firstUsage": {
+        "input": 7757,
+        "output": 67,
+        "cacheRead": 4864,
+        "cacheWrite": 0,
+        "total": 12688
+      },
+      "firstCharge": {
+        "model": "openai-codex/gpt-6.1-sol",
+        "currency": "USD",
+        "source": "estimated-from-recorded-rates",
+        "sourceRevision": "pi-ai@0.87.1:model-runtime:tier=-1:cacheWrite1h=0",
+        "newInputTokens": 7757,
+        "cachedInputTokens": 4864,
+        "cacheWriteTokens": 0,
+        "outputTokens": 67,
+        "ratesPerMillion": {
+          "newInput": 2,
+          "cachedInput": 0.1,
+          "cacheWrite": 2.5,
+          "output": 10
+        },
+        "newInput": 0.015514,
+        "cachedInput": 0.00048640000000000006,
+        "cacheWrite": 0,
+        "output": 0.00067,
+        "total": 0.016670400000000002,
+        "coverage": []
+      },
+      "cacheShare": 0.3853894303145551,
+      "prefix": {
+        "parent": "inv-0011",
+        "parentNativeLast": "/home/app/ramify-trial-evidence/status-badge-tone-gpt61-20261011T104510Z/collection-review/plans/.harness/session-operations/store/payloads/94264647f9b23e828fca7aced234559de3953465b212006c26f221c9e121e11c",
+        "instructionsEqual": true,
+        "toolsEqual": true,
+        "parentInputItems": 1,
+        "childInputItems": 6,
+        "parentInputPreservedAsPrefix": true,
+        "requestModelEqual": true,
+        "parentInstructionsBytes": 2795,
+        "childInstructionsBytes": 2795,
+        "providerInstructionsEqual": true,
+        "providerToolsEqual": true,
+        "providerInputPreservedAsPrefix": true,
+        "promptCacheKeyEqual": true,
+        "parentLastUsageAt": "2026-10-11T10:52:27.431Z",
+        "childFirstUsageAt": "2026-10-11T10:52:33.661Z"
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "job-started",
+      "at": "2026-10-11T10:45:10.220Z",
+      "data": {
+        "command": {
+          "commandId": "real-session-1791715504563",
+          "contentHash": "6208a7e7c45e15a42ed9d51188ea9fe12a338693239292292e4dc235b8284857",
+          "receipt": {
+            "commandId": "real-session-1791715504563",
+            "jobId": "20261011T104510Z-0e1b47",
+            "sequence": 1,
+            "acceptedAt": "2026-10-11T10:45:10.220Z"
+          }
+        }
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:45:25.310Z",
+      "data": {
+        "invocation": "inv-0001",
+        "ended": "submitted",
+        "submission": "01545e060d4b9524779822113a2edf93708c9bb7281d06ebaf16beb3936c0d52",
+        "session": "ses-0001",
+        "kept": false,
+        "finished": "not-kept"
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:47:06.308Z",
+      "data": {
+        "invocation": "inv-0002",
+        "ended": "submitted",
+        "submission": "3576fb1cf989cda9f607f3049e7fc4508fc6b23fd28f63b9e157b2bb15bb5bab",
+        "session": "ses-0002",
+        "kept": true
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:47:16.913Z",
+      "data": {
+        "invocation": "inv-0003",
+        "ended": "submitted",
+        "submission": "cc8a06a73beed85db654257a219692abcb37cee37e2a7ee2a6b33708fc8a1790",
+        "session": "ses-0003",
+        "kept": false,
+        "finished": "not-kept"
+      }
+    },
+    {
+      "type": "gate-started",
+      "at": "2026-10-11T10:47:16.953Z",
+      "data": {
+        "gate": "ga-0001",
+        "checkpoint": "readiness"
+      }
+    },
+    {
+      "type": "readiness-passed",
+      "at": "2026-10-11T10:47:26.321Z",
+      "data": {
+        "attempt": 1,
+        "gate": "ga-0001"
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:48:29.063Z",
+      "data": {
+        "invocation": "inv-0004",
+        "ended": "submitted",
+        "submission": "92add881771c79619e6bea1656d06aa8c1ba664f7cab2969a72b3151a1492024",
+        "session": "ses-0004",
+        "kept": true
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:48:36.153Z",
+      "data": {
+        "invocation": "inv-0005",
+        "ended": "submitted",
+        "submission": "cf47b0d266d888255f7cb80f2d8dfc9e1381f5205ed09fb7b8a9ff4359c212dc",
+        "session": "ses-0005",
+        "kept": false,
+        "finished": "not-kept"
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:49:08.751Z",
+      "data": {
+        "invocation": "inv-0006",
+        "ended": "submitted",
+        "submission": "817d919f5039a6577882bd6494c047aec52e1c69492044aec97a97f255734dd9",
+        "session": "ses-0004",
+        "kept": true
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:51:38.383Z",
+      "data": {
+        "invocation": "inv-0007",
+        "ended": "submitted",
+        "submission": "49f9f1d955138dc7ec5a0f04d2b4f49fe420b833106c48a09b0bf8e2c514a71c",
+        "session": "ses-0006",
+        "kept": true
+      }
+    },
+    {
+      "type": "obligation-bound",
+      "at": "2026-10-11T10:51:38.416Z",
+      "data": {
+        "id": "sc-001",
+        "fakes": [],
+        "by": "inv-0007",
+        "submission": "49f9f1d955138dc7ec5a0f04d2b4f49fe420b833106c48a09b0bf8e2c514a71c"
+      }
+    },
+    {
+      "type": "obligation-bound",
+      "at": "2026-10-11T10:51:38.417Z",
+      "data": {
+        "id": "sc-002",
+        "fakes": [],
+        "by": "inv-0007",
+        "submission": "49f9f1d955138dc7ec5a0f04d2b4f49fe420b833106c48a09b0bf8e2c514a71c"
+      }
+    },
+    {
+      "type": "obligation-bound",
+      "at": "2026-10-11T10:51:38.418Z",
+      "data": {
+        "id": "sc-003",
+        "fakes": [],
+        "by": "inv-0007",
+        "submission": "49f9f1d955138dc7ec5a0f04d2b4f49fe420b833106c48a09b0bf8e2c514a71c"
+      }
+    },
+    {
+      "type": "gate-attempted",
+      "at": "2026-10-11T10:51:53.720Z",
+      "data": {
+        "gate": "ga-0002",
+        "checkpoint": "iteration",
+        "verdict": "passed",
+        "next": "accept"
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:52:17.514Z",
+      "data": {
+        "invocation": "inv-0008",
+        "ended": "submitted",
+        "submission": "ca5291ba37fa43cfc3db94f8c73005a78e497ac9a3b4ab2e745d4b3190bde0c7",
+        "session": "ses-0007",
+        "kept": false,
+        "finished": "work-closed"
+      }
+    },
+    {
+      "type": "review-attempt-finished",
+      "at": "2026-10-11T10:52:17.518Z",
+      "data": {
+        "request": "rq-0001",
+        "attempt": "rq-0001.a01",
+        "result": "complete",
+        "reason": null,
+        "settles": true,
+        "checkFindings": []
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:52:19.161Z",
+      "data": {
+        "invocation": "inv-0009",
+        "ended": "submitted",
+        "submission": "ca5291ba37fa43cfc3db94f8c73005a78e497ac9a3b4ab2e745d4b3190bde0c7",
+        "session": "ses-0008",
+        "kept": false,
+        "finished": "work-closed"
+      }
+    },
+    {
+      "type": "review-attempt-finished",
+      "at": "2026-10-11T10:52:19.166Z",
+      "data": {
+        "request": "rq-0002",
+        "attempt": "rq-0002.a01",
+        "result": "complete",
+        "reason": null,
+        "settles": true,
+        "checkFindings": []
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:52:27.497Z",
+      "data": {
+        "invocation": "inv-0011",
+        "ended": "submitted",
+        "submission": "945aa16ae2d031ebbdedb470df0f142f1956bb5f220bac24841cb5f0355f4a76",
+        "session": "ses-0009",
+        "kept": true
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:52:30.681Z",
+      "data": {
+        "invocation": "inv-0010",
+        "ended": "submitted",
+        "submission": "f2987def735d9a23f8582374cf6ebf152f9c262cfed3175ac1bbf292182f7172",
+        "session": "ses-0004",
+        "kept": true
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:52:58.103Z",
+      "data": {
+        "invocation": "inv-0012",
+        "ended": "submitted",
+        "submission": "ca5291ba37fa43cfc3db94f8c73005a78e497ac9a3b4ab2e745d4b3190bde0c7",
+        "session": "ses-0010",
+        "kept": false,
+        "finished": "work-closed"
+      }
+    },
+    {
+      "type": "review-attempt-finished",
+      "at": "2026-10-11T10:52:58.106Z",
+      "data": {
+        "request": "rq-0003",
+        "attempt": "rq-0003.a01",
+        "result": "complete",
+        "reason": null,
+        "settles": true,
+        "checkFindings": []
+      }
+    },
+    {
+      "type": "gate-attempted",
+      "at": "2026-10-11T10:53:00.224Z",
+      "data": {
+        "gate": "ga-0003",
+        "checkpoint": "work-item",
+        "verdict": "passed",
+        "next": "accept"
+      }
+    },
+    {
+      "type": "work-item-completed",
+      "at": "2026-10-11T10:53:00.231Z",
+      "data": {
+        "workItem": "wi-001",
+        "gate": "ga-0003"
+      }
+    },
+    {
+      "type": "invocation-ended",
+      "at": "2026-10-11T10:54:01.614Z",
+      "data": {
+        "invocation": "inv-0013",
+        "ended": "submitted",
+        "submission": "b65bf9fb4a86746191eacad0817a673ecb9250c4fd13a19812c63185fbf4bbed",
+        "session": "ses-0011",
+        "kept": false,
+        "finished": "work-closed"
+      }
+    },
+    {
+      "type": "gate-attempted",
+      "at": "2026-10-11T10:54:12.341Z",
+      "data": {
+        "gate": "ga-0004",
+        "checkpoint": "final",
+        "verdict": "passed",
+        "next": "accept"
+      }
+    },
+    {
+      "type": "job-completed",
+      "at": "2026-10-11T10:54:12.452Z",
+      "data": {
+        "gate": "ga-0004",
+        "commit": "e6356f5d329a6fac66cb412f8688128789b1ca08",
+        "workItems": 1
+      }
+    }
+  ],
+  "explorationTotals": {
+    "reads": 79,
+    "searches": 21,
+    "returnedBytes": 186011,
+    "toolElapsedMs": 15392,
+    "repeatedReads": 2,
+    "broadSearches": 3,
+    "outsideScopeSearches": 0
+  }
+}

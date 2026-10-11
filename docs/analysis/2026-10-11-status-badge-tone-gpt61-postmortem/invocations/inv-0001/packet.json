@@ -1,0 +1,1006 @@
+{
+  "schema": "ramify-agent.harness-operation/2",
+  "runId": "20261011T104510Z-0e1b47",
+  "operationId": "inv-0001",
+  "session": "ses-0001",
+  "source": null,
+  "requestHash": "e69320d633b5d5f4c2943c8f7acfa462086a081d8d3f872757cb472667f40fdf",
+  "mode": "fresh",
+  "packet": {
+    "roleInstructions": "You read captured plan and principles documents for one Ramify\nimplementation run and record what they require as elements of the run's\ncatalog. Every later agent works from the catalog instead of the documents:\nan engineer, a reviewer or an assessor receives the elements its work cites,\nwhole, and never reads the source to complete them. What you leave out,\nnobody downstream sees; what you strengthen or weaken, everybody downstream\nobeys.\n\nYou change nothing and nobody reads your messages while you work, so do not\nask questions: decide, and record what you are unsure of as an element's\nuncertainty.\n\n## Your tools\n\n- `read`, `grep` and `ls` read files. Read the captured files named in the\n  message, at their absolute paths: they are the bytes this run captured.\n- the designated submission tool named in the current task submits your reading. The harness checks its shape,\n  the documents and the citations, answers with every error and its path,\n  and you correct and submit again. It never compares your text with the\n  source.\n\n## Elements\n\nAn element is one requirement, or one passage of plan context, as its source\nstates it: its `kind`, the captured `document` it was read from, its `text`\nas close to the source wording as you find practical, its `conditions` (each\n`stated` where the source says it, `inferred` where you concluded it), your\n`uncertainty` (empty when you have none) and, optionally, a `locator` such as\na heading name, which is for a person and never resolved. Give each element\na `key` unique in your submission; the harness assigns its ID.\n\nThe kinds:\n\n- `functional`: what the plan delivers, its acceptance statements included.\n  Plan documents only.\n- `non-functional`: a constraint of the plan on how the functional work is\n  done, such as a size limit, determinism, tests kept in step with changed\n  text, or something the candidate must not change. Plan documents only.\n- `fixed`: a rule of a principles document that every plan of the project\n  keeps and that bears on this plan. Principles documents only.\n- `recommendation`: a suggestion that does not oblige, such as a preferred\n  technique, a library to consider or a warning about a known trap. Plan or\n  principles documents.\n- `context`: a passage of a plan that explains the situation it starts from\n  or why it exists. Plan documents only. The reasoning of a principles\n  document is not context.\n\nA statement that only says what the plan does not deliver is no element. A\nstatement that forbids the candidate a change is a `non-functional` element.\n\nThe unit is a requirement, not a sentence. An element is as long as its\nsource needs to state one requirement so that it can be understood, selected\nand honored on its own: a bullet, a paragraph, a table with its heading, or a\nwhole section with its example and the qualifications that bound it. A rule\nwith an example and four qualifications is one element, because cut shorter\nit is a rule without the conditions that make it true. A Constraints list of\nfive unrelated bullets is five elements, because each is selected and\nassessed apart from the others. Place the cuts so that no element needs\nanother to be read correctly; a long element is the ordinary case. Keep the\nsource's force: never make a requirement stronger or weaker than its source\nstates it.\n\n## The procedure for this turn\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n",
+    "message": "Briefing revision: 5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e; based on: none (full)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRead the captured plan for status-badge-tone and perform the current intake task.\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n\n# Block brief:support:# Intake of plan \"status-badge-tone\":0\nCurrent value; replaces any earlier value for this key.\n# Intake of plan \"status-badge-tone\"\n\nRead each captured plan document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/plans/status-badge-tone/.harness/jobs/20261011T104510Z-0e1b47/input/plan.md\n\nScenario blocks the harness found in each plan document:\n\n- doc-001: A badge given a tone carries that tone in its markup (lines 34\u201338); A badge given no tone carries neutral (lines 40\u201343)\n\nMissing references to judge: none.\n\nSubmit with `submit_intake`.\n\n# Block procedure:catalog-extractor:intake\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n1. Read every captured plan document in the message in full.\n2. Write the plan's `goal`: a few sentences, close to the plan's own words,\n   that say what the plan delivers and why. The readers of the principles\n   documents use it to judge which of their rules bear on this plan.\n3. Submit the plan's `non-functional` elements and its `recommendation`\n   elements, each from the plan document that states it. Do not submit\n   functional or context elements: the architect reads those. Submit an\n   empty list only when the plan states no constraint and no suggestion.\n4. Judge each captured plan document once in `incorporation.documents`:\n   `scenarios` is true when its `gherkin` blocks are binding acceptance\n   scenarios of this plan, with your uncertainty. A linked example can stay\n   unincorporated.\n5. Judge every missing reference of the message once in\n   `incorporation.missing` as `required`, `unclear` or `advisory`, from the\n   surrounding source text, with your reason. A required missing document\n   cannot be accepted; report it so the run stops before implementation.\n6. Submit with `submit_intake`.\n\n# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_intake\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/intake.procedure.md\"\n  ]\n}\n\n# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}\n\n# Current task: intake\nThis selection supersedes every prior task selection.\nActive role: catalog-extractor\nSelected procedure: procedure:catalog-extractor:intake; SHA-256: 6c5393fb0e1e5ddd1864a58367726246333bd569624c0d1f8ce5eac01c49dc2e\nPerform intake for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_intake`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_intake",
+    "declaration": {
+      "name": "submit_intake",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"goal\":{\"type\":\"string\",\"minLength\":1},\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"context\",\"functional\",\"non-functional\",\"fixed\",\"recommendation\"]},\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"kind\",\"document\",\"text\",\"conditions\",\"uncertainty\",\"key\"],\"additionalProperties\":false}},\"incorporation\":{\"type\":\"object\",\"properties\":{\"documents\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"scenarios\":{\"type\":\"boolean\"},\"uncertainty\":{\"type\":\"string\"}},\"required\":[\"document\",\"scenarios\",\"uncertainty\"],\"additionalProperties\":false}},\"missing\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"from\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"target\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"object\",\"properties\":{\"start\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":9007199254740991},\"end\":{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991}},\"required\":[\"start\",\"end\"],\"additionalProperties\":false},\"judgment\":{\"type\":\"string\",\"enum\":[\"required\",\"unclear\",\"advisory\"]},\"reason\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"from\",\"target\",\"source\",\"judgment\",\"reason\"],\"additionalProperties\":false}}},\"required\":[\"documents\",\"missing\"],\"additionalProperties\":false}},\"required\":[\"goal\",\"elements\",\"incorporation\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    },
+    "additions": [
+      {
+        "key": "role:catalog-extractor",
+        "kind": "role-instructions",
+        "text": "You read captured plan and principles documents for one Ramify\nimplementation run and record what they require as elements of the run's\ncatalog. Every later agent works from the catalog instead of the documents:\nan engineer, a reviewer or an assessor receives the elements its work cites,\nwhole, and never reads the source to complete them. What you leave out,\nnobody downstream sees; what you strengthen or weaken, everybody downstream\nobeys.\n\nYou change nothing and nobody reads your messages while you work, so do not\nask questions: decide, and record what you are unsure of as an element's\nuncertainty.\n\n## Your tools\n\n- `read`, `grep` and `ls` read files. Read the captured files named in the\n  message, at their absolute paths: they are the bytes this run captured.\n- the designated submission tool named in the current task submits your reading. The harness checks its shape,\n  the documents and the citations, answers with every error and its path,\n  and you correct and submit again. It never compares your text with the\n  source.\n\n## Elements\n\nAn element is one requirement, or one passage of plan context, as its source\nstates it: its `kind`, the captured `document` it was read from, its `text`\nas close to the source wording as you find practical, its `conditions` (each\n`stated` where the source says it, `inferred` where you concluded it), your\n`uncertainty` (empty when you have none) and, optionally, a `locator` such as\na heading name, which is for a person and never resolved. Give each element\na `key` unique in your submission; the harness assigns its ID.\n\nThe kinds:\n\n- `functional`: what the plan delivers, its acceptance statements included.\n  Plan documents only.\n- `non-functional`: a constraint of the plan on how the functional work is\n  done, such as a size limit, determinism, tests kept in step with changed\n  text, or something the candidate must not change. Plan documents only.\n- `fixed`: a rule of a principles document that every plan of the project\n  keeps and that bears on this plan. Principles documents only.\n- `recommendation`: a suggestion that does not oblige, such as a preferred\n  technique, a library to consider or a warning about a known trap. Plan or\n  principles documents.\n- `context`: a passage of a plan that explains the situation it starts from\n  or why it exists. Plan documents only. The reasoning of a principles\n  document is not context.\n\nA statement that only says what the plan does not deliver is no element. A\nstatement that forbids the candidate a change is a `non-functional` element.\n\nThe unit is a requirement, not a sentence. An element is as long as its\nsource needs to state one requirement so that it can be understood, selected\nand honored on its own: a bullet, a paragraph, a table with its heading, or a\nwhole section with its example and the qualifications that bound it. A rule\nwith an example and four qualifications is one element, because cut shorter\nit is a rule without the conditions that make it true. A Constraints list of\nfive unrelated bullets is five elements, because each is selected and\nassessed apart from the others. Place the cuts so that no element needs\nanother to be read correctly; a long element is the ordinary case. Keep the\nsource's force: never make a requirement stronger or weaker than its source\nstates it.\n\n## The procedure for this turn\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n",
+        "source": "subs/harness/src/analysis/catalog-extractor.system.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/catalog-extractor.system.md",
+            "hash": "41e331e29876b72186c2a1db822adc8b5b13e7b77b0603dbff0c5b18f3b7d604",
+            "kind": "system",
+            "bytes": 3899
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_intake",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_intake\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"goal\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"elements\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"context\\\",\\\"functional\\\",\\\"non-functional\\\",\\\"fixed\\\",\\\"recommendation\\\"]},\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"kind\\\",\\\"document\\\",\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"key\\\"],\\\"additionalProperties\\\":false}},\\\"incorporation\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"documents\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"scenarios\\\":{\\\"type\\\":\\\"boolean\\\"},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"document\\\",\\\"scenarios\\\",\\\"uncertainty\\\"],\\\"additionalProperties\\\":false}},\\\"missing\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"from\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"target\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"start\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":0,\\\"maximum\\\":9007199254740991},\\\"end\\\":{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991}},\\\"required\\\":[\\\"start\\\",\\\"end\\\"],\\\"additionalProperties\\\":false},\\\"judgment\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"required\\\",\\\"unclear\\\",\\\"advisory\\\"]},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"from\\\",\\\"target\\\",\\\"source\\\",\\\"judgment\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"documents\\\",\\\"missing\\\"],\\\"additionalProperties\\\":false}},\\\"required\\\":[\\\"goal\\\",\\\"elements\\\",\\\"incorporation\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e; based on: none (full)",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRead the captured plan for status-badge-tone and perform the current intake task.",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:# Intake of plan \"status-badge-tone\":0",
+        "kind": "brief",
+        "text": "# Block brief:support:# Intake of plan \"status-badge-tone\":0\nCurrent value; replaces any earlier value for this key.\n# Intake of plan \"status-badge-tone\"\n\nRead each captured plan document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/plans/status-badge-tone/.harness/jobs/20261011T104510Z-0e1b47/input/plan.md\n\nScenario blocks the harness found in each plan document:\n\n- doc-001: A badge given a tone carries that tone in its markup (lines 34\u201338); A badge given no tone carries neutral (lines 40\u201343)\n\nMissing references to judge: none.\n\nSubmit with `submit_intake`.",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "block": {
+          "key": "brief:support:# Intake of plan \"status-badge-tone\":0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:catalog-extractor:intake",
+        "kind": "procedure",
+        "text": "# Block procedure:catalog-extractor:intake\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n1. Read every captured plan document in the message in full.\n2. Write the plan's `goal`: a few sentences, close to the plan's own words,\n   that say what the plan delivers and why. The readers of the principles\n   documents use it to judge which of their rules bear on this plan.\n3. Submit the plan's `non-functional` elements and its `recommendation`\n   elements, each from the plan document that states it. Do not submit\n   functional or context elements: the architect reads those. Submit an\n   empty list only when the plan states no constraint and no suggestion.\n4. Judge each captured plan document once in `incorporation.documents`:\n   `scenarios` is true when its `gherkin` blocks are binding acceptance\n   scenarios of this plan, with your uncertainty. A linked example can stay\n   unincorporated.\n5. Judge every missing reference of the message once in\n   `incorporation.missing` as `required`, `unclear` or `advisory`, from the\n   surrounding source text, with your reason. A required missing document\n   cannot be accepted; report it so the run stops before implementation.\n6. Submit with `submit_intake`.",
+        "source": "subs/harness/src/analysis/intake.procedure.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/intake.procedure.md",
+            "hash": "e44044b165abceea56cc18532fc653927d1efc28bf2ef8013b07a2df5ccede5d",
+            "kind": "procedure",
+            "bytes": 1174
+          }
+        ],
+        "block": {
+          "key": "procedure:catalog-extractor:intake",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_intake\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/intake.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: intake\nThis selection supersedes every prior task selection.\nActive role: catalog-extractor\nSelected procedure: procedure:catalog-extractor:intake; SHA-256: 6c5393fb0e1e5ddd1864a58367726246333bd569624c0d1f8ce5eac01c49dc2e\nPerform intake for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_intake`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e"
+      }
+    ],
+    "manifest": {
+      "schema": "ramify-agent.delivered-inputs/2",
+      "inheritedPoint": null,
+      "entries": [
+        {
+          "key": "role:catalog-extractor",
+          "kind": "role-instructions",
+          "source": "subs/harness/src/analysis/catalog-extractor.system.md",
+          "revision": "catalog-extractor/1",
+          "hash": "588601e87237ff0f5431fd94bf8c310410c7be143c2dfacaa268debc0acdc878",
+          "bytes": 3748,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/analysis/catalog-extractor.system.md",
+              "hash": "41e331e29876b72186c2a1db822adc8b5b13e7b77b0603dbff0c5b18f3b7d604",
+              "kind": "system",
+              "bytes": 3899
+            }
+          ]
+        },
+        {
+          "key": "tool:submit_intake",
+          "kind": "tool-declaration",
+          "source": null,
+          "revision": null,
+          "hash": "8c2e5c6c61dd0cbd07a9a6639cd5dc316c3f2c29f89382cc0d30aa3f2fdeb793",
+          "bytes": 2346,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "briefing-state",
+          "kind": "task",
+          "source": null,
+          "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+          "hash": "630c5be3a76c161ea140df33d1adaff6dd5710a11e8d55fe5f4d047bb18c31c1",
+          "bytes": 106,
+          "delivery": "appended",
+          "sources": []
+        },
+        {
+          "key": "brief:goal",
+          "kind": "brief",
+          "source": null,
+          "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+          "hash": "dc78846f1eea1130ea8162682ef5dbdb88928df75ed1dc54b483476c9203ea71",
+          "bytes": 163,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:goal",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:requirements",
+          "kind": "brief",
+          "source": null,
+          "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+          "hash": "35ab587e49289bd89f10bbbc6368cb42b16b2055bacf07e70c54c0406f8366c4",
+          "bytes": 1644,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:requirements",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "brief:support:# Intake of plan \"status-badge-tone\":0",
+          "kind": "brief",
+          "source": null,
+          "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+          "hash": "ab5170469775f1af75b6b8270b59bbb093d6d3ac747e0dbc6b43d7fdc82056cf",
+          "bytes": 740,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "brief:support:# Intake of plan \"status-badge-tone\":0",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "procedure:catalog-extractor:intake",
+          "kind": "procedure",
+          "source": "subs/harness/src/analysis/intake.procedure.md",
+          "revision": "catalog-extractor/1",
+          "hash": "6c5393fb0e1e5ddd1864a58367726246333bd569624c0d1f8ce5eac01c49dc2e",
+          "bytes": 1236,
+          "delivery": "appended",
+          "sources": [
+            {
+              "path": "subs/harness/src/analysis/intake.procedure.md",
+              "hash": "e44044b165abceea56cc18532fc653927d1efc28bf2ef8013b07a2df5ccede5d",
+              "kind": "procedure",
+              "bytes": 1174
+            }
+          ],
+          "block": {
+            "key": "procedure:catalog-extractor:intake",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:projectRoot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "71c7ec3287e3273d7fe4ff5b1a35623b7d4bed24ff79b479832364055b4f8314",
+          "bytes": 231,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:projectRoot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:workingDirectory",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "bfd13200b51fbdf2c6c43e9065912d9b70aff1faf32350c3bf5cb931d5ac7bc6",
+          "bytes": 241,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:workingDirectory",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:candidate",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "82932bad45e33ff512afcfb2eb0f5e1b7d0c166f32eb8ee6d4894cf96e16ff77",
+          "bytes": 109,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:candidate",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:snapshot",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "dd1e81900a3a651c53e408331a53787f6a079d5f90437b98fb4441c8a02170b4",
+          "bytes": 107,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:snapshot",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:limits",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7bd86de0abceae25593619bd3918bca6e01a40ab55e45ecc977e038550c99e84",
+          "bytes": 1074,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:limits",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:availableTools",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "74e7a634bd90800040511ea1bf011fc74607d857f6e7fcecd73856c64d750a2e",
+          "bytes": 174,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:availableTools",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:views",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "04eb6782ffd55a7b9af42df0dfaa68256a55c5b4e2a20f93d33465c048568697",
+          "bytes": 1190,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:views",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:supportPaths",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "601c93c5e8090c633fe9a85015082b7551f377c6e91b7fd37c3d444161fbf714",
+          "bytes": 229,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:supportPaths",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "environment:cucumberConfiguration",
+          "kind": "environment",
+          "source": null,
+          "revision": null,
+          "hash": "7186289c14ddc7a0db4b771fd2d9545a2e051eb0d752e1c237b7bbd7be96157d",
+          "bytes": 133,
+          "delivery": "appended",
+          "sources": [],
+          "block": {
+            "key": "environment:cucumberConfiguration",
+            "effect": "set"
+          }
+        },
+        {
+          "key": "task",
+          "kind": "task",
+          "source": null,
+          "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+          "hash": "8159bea4a56f7be7c39e295f0e476a614591aa8798557eebbf3a18ba100894d9",
+          "bytes": 399,
+          "delivery": "appended",
+          "sources": []
+        }
+      ],
+      "currentMessage": {
+        "hash": "6020daf4d4ef343241f74cbe7e36b1a63171b685b3eb4afed0cf3df509af103d",
+        "bytes": 7804
+      },
+      "hash": "d50878cd0dc0100f818559c6d42680bc07f721cbaf53f138730ed60ca31d0bd5"
+    }
+  },
+  "context": {
+    "inherited": [
+      {
+        "key": "role:catalog-extractor",
+        "kind": "role-instructions",
+        "text": "You read captured plan and principles documents for one Ramify\nimplementation run and record what they require as elements of the run's\ncatalog. Every later agent works from the catalog instead of the documents:\nan engineer, a reviewer or an assessor receives the elements its work cites,\nwhole, and never reads the source to complete them. What you leave out,\nnobody downstream sees; what you strengthen or weaken, everybody downstream\nobeys.\n\nYou change nothing and nobody reads your messages while you work, so do not\nask questions: decide, and record what you are unsure of as an element's\nuncertainty.\n\n## Your tools\n\n- `read`, `grep` and `ls` read files. Read the captured files named in the\n  message, at their absolute paths: they are the bytes this run captured.\n- the designated submission tool named in the current task submits your reading. The harness checks its shape,\n  the documents and the citations, answers with every error and its path,\n  and you correct and submit again. It never compares your text with the\n  source.\n\n## Elements\n\nAn element is one requirement, or one passage of plan context, as its source\nstates it: its `kind`, the captured `document` it was read from, its `text`\nas close to the source wording as you find practical, its `conditions` (each\n`stated` where the source says it, `inferred` where you concluded it), your\n`uncertainty` (empty when you have none) and, optionally, a `locator` such as\na heading name, which is for a person and never resolved. Give each element\na `key` unique in your submission; the harness assigns its ID.\n\nThe kinds:\n\n- `functional`: what the plan delivers, its acceptance statements included.\n  Plan documents only.\n- `non-functional`: a constraint of the plan on how the functional work is\n  done, such as a size limit, determinism, tests kept in step with changed\n  text, or something the candidate must not change. Plan documents only.\n- `fixed`: a rule of a principles document that every plan of the project\n  keeps and that bears on this plan. Principles documents only.\n- `recommendation`: a suggestion that does not oblige, such as a preferred\n  technique, a library to consider or a warning about a known trap. Plan or\n  principles documents.\n- `context`: a passage of a plan that explains the situation it starts from\n  or why it exists. Plan documents only. The reasoning of a principles\n  document is not context.\n\nA statement that only says what the plan does not deliver is no element. A\nstatement that forbids the candidate a change is a `non-functional` element.\n\nThe unit is a requirement, not a sentence. An element is as long as its\nsource needs to state one requirement so that it can be understood, selected\nand honored on its own: a bullet, a paragraph, a table with its heading, or a\nwhole section with its example and the qualifications that bound it. A rule\nwith an example and four qualifications is one element, because cut shorter\nit is a rule without the conditions that make it true. A Constraints list of\nfive unrelated bullets is five elements, because each is selected and\nassessed apart from the others. Place the cuts so that no element needs\nanother to be read correctly; a long element is the ordinary case. Keep the\nsource's force: never make a requirement stronger or weaker than its source\nstates it.\n\n## The procedure for this turn\n\nFollow the procedure key and hash selected by the current task. Its body may be inherited or supplied in an explicit block update. Use the effective environment fields and briefing blocks, including explicit replacements and withdrawals; the current task supersedes earlier task selections.\n\n## What you submit\n\nThe current task names the submission tool. Its declaration carries the complete schema.\n",
+        "source": "subs/harness/src/analysis/catalog-extractor.system.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/catalog-extractor.system.md",
+            "hash": "41e331e29876b72186c2a1db822adc8b5b13e7b77b0603dbff0c5b18f3b7d604",
+            "kind": "system",
+            "bytes": 3899
+          }
+        ]
+      },
+      {
+        "key": "tool:submit_intake",
+        "kind": "tool-declaration",
+        "text": "{\"name\":\"submit_intake\",\"description\":\"Submit this task using exactly this JSON schema: {\\\"$schema\\\":\\\"https://json-schema.org/draft/2020-12/schema\\\",\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"goal\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"elements\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"kind\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"context\\\",\\\"functional\\\",\\\"non-functional\\\",\\\"fixed\\\",\\\"recommendation\\\"]},\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"conditions\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"text\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"stated\\\",\\\"inferred\\\"]}},\\\"required\\\":[\\\"text\\\",\\\"source\\\"],\\\"additionalProperties\\\":false}},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"},\\\"locator\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"key\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"kind\\\",\\\"document\\\",\\\"text\\\",\\\"conditions\\\",\\\"uncertainty\\\",\\\"key\\\"],\\\"additionalProperties\\\":false}},\\\"incorporation\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"documents\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"document\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"scenarios\\\":{\\\"type\\\":\\\"boolean\\\"},\\\"uncertainty\\\":{\\\"type\\\":\\\"string\\\"}},\\\"required\\\":[\\\"document\\\",\\\"scenarios\\\",\\\"uncertainty\\\"],\\\"additionalProperties\\\":false}},\\\"missing\\\":{\\\"type\\\":\\\"array\\\",\\\"items\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"from\\\":{\\\"type\\\":\\\"string\\\",\\\"pattern\\\":\\\"^doc-\\\\\\\\d{3,}$\\\"},\\\"target\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1},\\\"source\\\":{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"start\\\":{\\\"type\\\":\\\"integer\\\",\\\"minimum\\\":0,\\\"maximum\\\":9007199254740991},\\\"end\\\":{\\\"type\\\":\\\"integer\\\",\\\"exclusiveMinimum\\\":0,\\\"maximum\\\":9007199254740991}},\\\"required\\\":[\\\"start\\\",\\\"end\\\"],\\\"additionalProperties\\\":false},\\\"judgment\\\":{\\\"type\\\":\\\"string\\\",\\\"enum\\\":[\\\"required\\\",\\\"unclear\\\",\\\"advisory\\\"]},\\\"reason\\\":{\\\"type\\\":\\\"string\\\",\\\"minLength\\\":1}},\\\"required\\\":[\\\"from\\\",\\\"target\\\",\\\"source\\\",\\\"judgment\\\",\\\"reason\\\"],\\\"additionalProperties\\\":false}}},\\\"required\\\":[\\\"documents\\\",\\\"missing\\\"],\\\"additionalProperties\\\":false}},\\\"required\\\":[\\\"goal\\\",\\\"elements\\\",\\\"incorporation\\\"],\\\"additionalProperties\\\":false}\",\"inputSchema\":{\"type\":\"object\"},\"mutating\":false}",
+        "source": null,
+        "revision": null
+      },
+      {
+        "key": "briefing-state",
+        "kind": "task",
+        "text": "Briefing revision: 5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e; based on: none (full)",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e"
+      },
+      {
+        "key": "brief:goal",
+        "kind": "brief",
+        "text": "# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRead the captured plan for status-badge-tone and perform the current intake task.",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "block": {
+          "key": "brief:goal",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:requirements",
+        "kind": "brief",
+        "text": "# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "block": {
+          "key": "brief:requirements",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "brief:support:# Intake of plan \"status-badge-tone\":0",
+        "kind": "brief",
+        "text": "# Block brief:support:# Intake of plan \"status-badge-tone\":0\nCurrent value; replaces any earlier value for this key.\n# Intake of plan \"status-badge-tone\"\n\nRead each captured plan document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/plans/status-badge-tone/.harness/jobs/20261011T104510Z-0e1b47/input/plan.md\n\nScenario blocks the harness found in each plan document:\n\n- doc-001: A badge given a tone carries that tone in its markup (lines 34\u201338); A badge given no tone carries neutral (lines 40\u201343)\n\nMissing references to judge: none.\n\nSubmit with `submit_intake`.",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "block": {
+          "key": "brief:support:# Intake of plan \"status-badge-tone\":0",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "procedure:catalog-extractor:intake",
+        "kind": "procedure",
+        "text": "# Block procedure:catalog-extractor:intake\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n1. Read every captured plan document in the message in full.\n2. Write the plan's `goal`: a few sentences, close to the plan's own words,\n   that say what the plan delivers and why. The readers of the principles\n   documents use it to judge which of their rules bear on this plan.\n3. Submit the plan's `non-functional` elements and its `recommendation`\n   elements, each from the plan document that states it. Do not submit\n   functional or context elements: the architect reads those. Submit an\n   empty list only when the plan states no constraint and no suggestion.\n4. Judge each captured plan document once in `incorporation.documents`:\n   `scenarios` is true when its `gherkin` blocks are binding acceptance\n   scenarios of this plan, with your uncertainty. A linked example can stay\n   unincorporated.\n5. Judge every missing reference of the message once in\n   `incorporation.missing` as `required`, `unclear` or `advisory`, from the\n   surrounding source text, with your reason. A required missing document\n   cannot be accepted; report it so the run stops before implementation.\n6. Submit with `submit_intake`.",
+        "source": "subs/harness/src/analysis/intake.procedure.md",
+        "revision": "catalog-extractor/1",
+        "sources": [
+          {
+            "path": "subs/harness/src/analysis/intake.procedure.md",
+            "hash": "e44044b165abceea56cc18532fc653927d1efc28bf2ef8013b07a2df5ccede5d",
+            "kind": "procedure",
+            "bytes": 1174
+          }
+        ],
+        "block": {
+          "key": "procedure:catalog-extractor:intake",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:projectRoot",
+        "kind": "environment",
+        "text": "# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:projectRoot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:workingDirectory",
+        "kind": "environment",
+        "text": "# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:workingDirectory",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:candidate",
+        "kind": "environment",
+        "text": "# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:candidate",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:snapshot",
+        "kind": "environment",
+        "text": "# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:snapshot",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:limits",
+        "kind": "environment",
+        "text": "# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:limits",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:availableTools",
+        "kind": "environment",
+        "text": "# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_intake\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:availableTools",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:views",
+        "kind": "environment",
+        "text": "# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:views",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:supportPaths",
+        "kind": "environment",
+        "text": "# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/intake.procedure.md\"\n  ]\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:supportPaths",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "environment:cucumberConfiguration",
+        "kind": "environment",
+        "text": "# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}",
+        "source": null,
+        "revision": null,
+        "block": {
+          "key": "environment:cucumberConfiguration",
+          "effect": "set"
+        }
+      },
+      {
+        "key": "task",
+        "kind": "task",
+        "text": "# Current task: intake\nThis selection supersedes every prior task selection.\nActive role: catalog-extractor\nSelected procedure: procedure:catalog-extractor:intake; SHA-256: 6c5393fb0e1e5ddd1864a58367726246333bd569624c0d1f8ce5eac01c49dc2e\nPerform intake for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_intake`. Only an accepted submission completes this task.",
+        "source": null,
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e"
+      }
+    ],
+    "history": [
+      {
+        "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e",
+        "contentHash": "e5ea7033d727dc51e0ceae08d1f02be001b2a673adfdb3f21caa2d1a6692d5c5",
+        "sections": [
+          {
+            "key": "goal",
+            "text": "# Goal\nRead the captured plan for status-badge-tone and perform the current intake task."
+          },
+          {
+            "key": "requirements",
+            "text": "# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n"
+          },
+          {
+            "key": "support:# Intake of plan \"status-badge-tone\":0",
+            "text": "# Intake of plan \"status-badge-tone\"\n\nRead each captured plan document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/plans/status-badge-tone/.harness/jobs/20261011T104510Z-0e1b47/input/plan.md\n\nScenario blocks the harness found in each plan document:\n\n- doc-001: A badge given a tone carries that tone in its markup (lines 34\u201338); A badge given no tone carries neutral (lines 40\u201343)\n\nMissing references to judge: none.\n\nSubmit with `submit_intake`."
+          }
+        ]
+      }
+    ],
+    "revision": "5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e"
+  },
+  "policy": {
+    "context": {
+      "compaction": "forbidden",
+      "budgetTokens": 120000,
+      "budgetFraction": 0.6,
+      "reportReserveTokens": 16000
+    },
+    "authority": {
+      "scope": null,
+      "writer": false,
+      "work": {}
+    },
+    "validator": {
+      "name": "submit_intake",
+      "schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "goal": {
+            "type": "string",
+            "minLength": 1
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "context",
+                    "functional",
+                    "non-functional",
+                    "fixed",
+                    "recommendation"
+                  ]
+                },
+                "document": {
+                  "type": "string",
+                  "pattern": "^doc-\\d{3,}$"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "stated",
+                          "inferred"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "text",
+                      "source"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "uncertainty": {
+                  "type": "string"
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "kind",
+                "document",
+                "text",
+                "conditions",
+                "uncertainty",
+                "key"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "incorporation": {
+            "type": "object",
+            "properties": {
+              "documents": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "document": {
+                      "type": "string",
+                      "pattern": "^doc-\\d{3,}$"
+                    },
+                    "scenarios": {
+                      "type": "boolean"
+                    },
+                    "uncertainty": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "document",
+                    "scenarios",
+                    "uncertainty"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "missing": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "pattern": "^doc-\\d{3,}$"
+                    },
+                    "target": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "source": {
+                      "type": "object",
+                      "properties": {
+                        "start": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "end": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "start",
+                        "end"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "judgment": {
+                      "type": "string",
+                      "enum": [
+                        "required",
+                        "unclear",
+                        "advisory"
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "target",
+                    "source",
+                    "judgment",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "documents",
+              "missing"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "goal",
+          "elements",
+          "incorporation"
+        ],
+        "additionalProperties": false
+      },
+      "submissionSchema": "ramify-agent.intake/1",
+      "bound": 3
+    },
+    "destination": {
+      "run": "20261011T104510Z-0e1b47",
+      "invocation": "inv-0001",
+      "submission": "invocations/inv-0001/submission.json"
+    }
+  },
+  "task": {
+    "role": "catalog-extractor",
+    "message": "Briefing revision: 5445e101c89fe7db091b15d77c3d35a6739ddc08430b258d453b7f49ec2cbe7e; based on: none (full)\n\n# Block brief:goal\nCurrent value; replaces any earlier value for this key.\n# Goal\nRead the captured plan for status-badge-tone and perform the current intake task.\n\n# Block brief:requirements\nCurrent value; replaces any earlier value for this key.\n# Requirements\n- # A tone for the status badge\n\nThe status badge says whether a review passed or failed, but a feature that\nwants to draw attention to a badge, or to play one down, has no way to say so.\nGive the badge a tone.\n\n## Request\n\n- `StatusBadge` takes an optional `tone`: `neutral`, `positive`, `warning` or\n  `critical`.\n- The badge carries its tone as a `data-tone` attribute beside `data-status`,\n  so the stylesheet and a test can read it without matching on the label.\n- A badge rendered without a tone reads as `neutral`.\n\n## Constraints\n\n- The badge stays a presentation primitive of the shared UI: it learns nothing\n  about records, reviews or protocols, and the tone arrives as a prop like\n  everything else it renders.\n- `status` and `label` keep their meaning. A tone never changes the word the\n  badge shows.\n- No feature view has to change. Existing callers keep rendering the badge as\n  they do today.\n\n## Acceptance\n\n- A badge given a tone carries that tone in its markup.\n- A badge given no tone carries `neutral`.\n- The badge's existing tests still pass, and the tone has tests of its own.\n\nThe first two, as scenarios:\n\n```gherkin\nScenario: A badge given a tone carries that tone in its markup\n  Given a badge for a passed review with the tone \"warning\"\n  When the badge is rendered\n  Then its markup carries the tone \"warning\"\n  And it still reads \"Passed\"\n\nScenario: A badge given no tone carries neutral\n  Given a badge for a failed review with no tone\n  When the badge is rendered\n  Then its markup carries the tone \"neutral\"\n```\n\n\n# Block brief:support:# Intake of plan \"status-badge-tone\":0\nCurrent value; replaces any earlier value for this key.\n# Intake of plan \"status-badge-tone\"\n\nRead each captured plan document in full at its captured file:\n\n- doc-001 (plan): plans/status-badge-tone/plan.md; captured file /tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/plans/status-badge-tone/.harness/jobs/20261011T104510Z-0e1b47/input/plan.md\n\nScenario blocks the harness found in each plan document:\n\n- doc-001: A badge given a tone carries that tone in its markup (lines 34\u201338); A badge given no tone carries neutral (lines 40\u201343)\n\nMissing references to judge: none.\n\nSubmit with `submit_intake`.\n\n# Block procedure:catalog-extractor:intake\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n1. Read every captured plan document in the message in full.\n2. Write the plan's `goal`: a few sentences, close to the plan's own words,\n   that say what the plan delivers and why. The readers of the principles\n   documents use it to judge which of their rules bear on this plan.\n3. Submit the plan's `non-functional` elements and its `recommendation`\n   elements, each from the plan document that states it. Do not submit\n   functional or context elements: the architect reads those. Submit an\n   empty list only when the plan states no constraint and no suggestion.\n4. Judge each captured plan document once in `incorporation.documents`:\n   `scenarios` is true when its `gherkin` blocks are binding acceptance\n   scenarios of this plan, with your uncertainty. A linked example can stay\n   unincorporated.\n5. Judge every missing reference of the message once in\n   `incorporation.missing` as `required`, `unclear` or `advisory`, from the\n   surrounding source text, with your reason. A required missing document\n   cannot be accepted; report it so the run stops before implementation.\n6. Submit with `submit_intake`.\n\n# Block environment:projectRoot\nCurrent value; replaces any earlier value for this key.\n{\n  \"projectRoot\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}\n\n# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  \"workingDirectory\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review\"\n}\n\n# Block environment:candidate\nCurrent value; replaces any earlier value for this key.\n{\n  \"candidate\": null\n}\n\n# Block environment:snapshot\nCurrent value; replaces any earlier value for this key.\n{\n  \"snapshot\": null\n}\n\n# Block environment:limits\nCurrent value; replaces any earlier value for this key.\n{\n  \"limits\": {\n    \"budgetReturnsPerIteration\": 6,\n    \"commandTimeoutMs\": 600000,\n    \"cycleReplansPerWorkItem\": 1,\n    \"forkRetriesPerRequest\": 2,\n    \"infrastructureRetriesPerGate\": 2,\n    \"invocationAbsoluteMs\": 3600000,\n    \"invocationIdleMs\": 300000,\n    \"laterRoundMinimumRisk\": \"medium\",\n    \"maxCommandTimeoutMs\": 1800000,\n    \"maxInvocationAbsoluteMs\": 10800000,\n    \"maxInvocationIdleMs\": 1800000,\n    \"maxInvocationsPerRun\": 400,\n    \"maxIterationsPerCapabilityTask\": 24,\n    \"maxIterationsPerWorkItem\": 12,\n    \"maxPlacementRequests\": 32,\n    \"maxPlanDeviations\": 5,\n    \"maxWorkItems\": 64,\n    \"nonfunctionalRoundsPerPlan\": 3,\n    \"readinessRecoveries\": 2,\n    \"reconciliationRoundsPerWorkItem\": 3,\n    \"rejectedSubmissionsPerTurn\": 3,\n    \"rejectedToolInputsPerTurn\": 3,\n    \"repairRoundsPerIteration\": 3,\n    \"repairRoundsPerWorkItemGate\": 3,\n    \"runAbsoluteMs\": 28800000,\n    \"sessionReconstructionsPerWork\": 2,\n    \"stopSettleMs\": 30000,\n    \"writerSettleMs\": 30000\n  }\n}\n\n# Block environment:availableTools\nCurrent value; replaces any earlier value for this key.\n{\n  \"availableTools\": [\n    \"read\",\n    \"grep\",\n    \"ls\",\n    \"submit_intake\"\n  ]\n}\n\n# Block environment:views\nCurrent value; replaces any earlier value for this key.\n{\n  \"views\": [\n    {\n      \"coverage\": [\n        \"cut: 11\",\n        \"detailsUnavailable: 4\"\n      ],\n      \"modules\": [\n        \"collection-review\",\n        \"collection-review/integration-tests\",\n        \"collection-review/workspace\",\n        \"collection-review/workspace/catalog\",\n        \"collection-review/workspace/catalog/core\",\n        \"collection-review/workspace/catalog/ui\",\n        \"collection-review/workspace/contracts\",\n        \"collection-review/workspace/reviews\",\n        \"collection-review/workspace/reviews/core\",\n        \"collection-review/workspace/reviews/core/controller\",\n        \"collection-review/workspace/reviews/core/tasks\",\n        \"collection-review/workspace/reviews/ui\",\n        \"collection-review/workspace/reviews/ui/pure-ui\",\n        \"collection-review/workspace/reviews/validation\",\n        \"collection-review/workspace/shared-ui\"\n      ],\n      \"path\": \"/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review/.ramify-architect\",\n      \"revision\": \"rev/1:703779dd-cce1-490f-843d-1647a6f11987:1\"\n    }\n  ]\n}\n\n# Block environment:supportPaths\nCurrent value; replaces any earlier value for this key.\n{\n  \"supportPaths\": [\n    \"subs/harness/src/analysis/catalog-extractor.system.md\",\n    \"subs/harness/src/analysis/intake.procedure.md\"\n  ]\n}\n\n# Block environment:cucumberConfiguration\nCurrent value; replaces any earlier value for this key.\n{\n  \"cucumberConfiguration\": null\n}\n\n# Current task: intake\nThis selection supersedes every prior task selection.\nActive role: catalog-extractor\nSelected procedure: procedure:catalog-extractor:intake; SHA-256: 6c5393fb0e1e5ddd1864a58367726246333bd569624c0d1f8ce5eac01c49dc2e\nPerform intake for {}; use the current evidence and designated submission.\n\nSubmit only through `submit_intake`. Only an accepted submission completes this task.",
+    "submissionTool": "submit_intake",
+    "environment": {
+      "workingDirectory": "/tmp/claude-1000/-workspaces-ramify-agent/031cbbcd-d92e-477e-88f4-5998ad9469da/scratchpad/badge-run-61/collection-review",
+      "candidate": null,
+      "snapshot": null,
+      "limits": {
+        "repairRoundsPerIteration": 3,
+        "repairRoundsPerWorkItemGate": 3,
+        "infrastructureRetriesPerGate": 2,
+        "forkRetriesPerRequest": 2,
+        "budgetReturnsPerIteration": 6,
+        "sessionReconstructionsPerWork": 2,
+        "cycleReplansPerWorkItem": 1,
+        "rejectedSubmissionsPerTurn": 3,
+        "rejectedToolInputsPerTurn": 3,
+        "readinessRecoveries": 2,
+        "stopSettleMs": 30000,
+        "writerSettleMs": 30000,
+        "invocationIdleMs": 300000,
+        "invocationAbsoluteMs": 3600000,
+        "maxIterationsPerWorkItem": 12,
+        "maxIterationsPerCapabilityTask": 24,
+        "maxWorkItems": 64,
+        "maxPlacementRequests": 32,
+        "maxInvocationsPerRun": 400,
+        "runAbsoluteMs": 28800000,
+        "reconciliationRoundsPerWorkItem": 3,
+        "laterRoundMinimumRisk": "medium",
+        "maxPlanDeviations": 5,
+        "commandTimeoutMs": 600000,
+        "maxCommandTimeoutMs": 1800000,
+        "maxInvocationIdleMs": 1800000,
+        "maxInvocationAbsoluteMs": 10800000,
+        "nonfunctionalRoundsPerPlan": 3
+      }
+    },
+    "policyIdentity": "5fc26a20b6d789b3ae304a0c265a8a85fee491a57046f0e46a2658c90d8ef32b",
+    "validatorIdentity": "3abe10aef65e58f786582a68d7fb482354ee66526f4c3c939ad7bcf097f1ceac",
+    "destinationIdentity": "99ea7a3853066fbd3422169e0b0b534bf4f3ca02bf06718150eb863c5d34e459"
+  },
+  "declarations": [
+    {
+      "name": "read",
+      "description": "Read the contents of a file. Supports text files and images (jpg, png, gif, webp, bmp). Images are sent as attachments. For text files, output is truncated to 2000 lines or 50KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the file to read (relative or absolute)"
+          },
+          "offset": {
+            "type": "number",
+            "description": "Line number to start reading from (1-indexed)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of lines to read"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "grep",
+      "description": "Search file contents for a pattern. Returns matching lines with file paths and line numbers. Respects .gitignore. Output is truncated to 100 matches or 50KB (whichever is hit first). Long lines are truncated to 500 chars.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Search pattern (regex or literal string)"
+          },
+          "path": {
+            "type": "string",
+            "description": "Directory or file to search (default: current directory)"
+          },
+          "glob": {
+            "type": "string",
+            "description": "Filter files by glob pattern, e.g. '*.ts' or '**/*.spec.ts'"
+          },
+          "ignoreCase": {
+            "type": "boolean",
+            "description": "Case-insensitive search (default: false)"
+          },
+          "literal": {
+            "type": "boolean",
+            "description": "Treat pattern as literal string instead of regex (default: false)"
+          },
+          "context": {
+            "type": "number",
+            "description": "Number of lines to show before and after each match (default: 0)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of matches to return (default: 100)"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "ls",
+      "description": "List directory contents. Returns entries sorted alphabetically, with '/' suffix for directories. Includes dotfiles. Output is truncated to 500 entries or 50KB (whichever is hit first).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Directory to list (default: current directory)"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of entries to return (default: 500)"
+          }
+        }
+      },
+      "mutating": false
+    },
+    {
+      "name": "submit_intake",
+      "description": "Submit this task using exactly this JSON schema: {\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"type\":\"object\",\"properties\":{\"goal\":{\"type\":\"string\",\"minLength\":1},\"elements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"kind\":{\"type\":\"string\",\"enum\":[\"context\",\"functional\",\"non-functional\",\"fixed\",\"recommendation\"]},\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"text\":{\"type\":\"string\",\"minLength\":1},\"conditions\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"string\",\"enum\":[\"stated\",\"inferred\"]}},\"required\":[\"text\",\"source\"],\"additionalProperties\":false}},\"uncertainty\":{\"type\":\"string\"},\"locator\":{\"type\":\"string\",\"minLength\":1},\"key\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"kind\",\"document\",\"text\",\"conditions\",\"uncertainty\",\"key\"],\"additionalProperties\":false}},\"incorporation\":{\"type\":\"object\",\"properties\":{\"documents\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"document\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"scenarios\":{\"type\":\"boolean\"},\"uncertainty\":{\"type\":\"string\"}},\"required\":[\"document\",\"scenarios\",\"uncertainty\"],\"additionalProperties\":false}},\"missing\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"from\":{\"type\":\"string\",\"pattern\":\"^doc-\\\\d{3,}$\"},\"target\":{\"type\":\"string\",\"minLength\":1},\"source\":{\"type\":\"object\",\"properties\":{\"start\":{\"type\":\"integer\",\"minimum\":0,\"maximum\":9007199254740991},\"end\":{\"type\":\"integer\",\"exclusiveMinimum\":0,\"maximum\":9007199254740991}},\"required\":[\"start\",\"end\"],\"additionalProperties\":false},\"judgment\":{\"type\":\"string\",\"enum\":[\"required\",\"unclear\",\"advisory\"]},\"reason\":{\"type\":\"string\",\"minLength\":1}},\"required\":[\"from\",\"target\",\"source\",\"judgment\",\"reason\"],\"additionalProperties\":false}}},\"required\":[\"documents\",\"missing\"],\"additionalProperties\":false}},\"required\":[\"goal\",\"elements\",\"incorporation\"],\"additionalProperties\":false}",
+      "inputSchema": {
+        "type": "object"
+      },
+      "mutating": false
+    }
+  ]
+}
