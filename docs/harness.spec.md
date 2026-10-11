@@ -301,20 +301,29 @@ families. Inherited procedures remain available, but only the current selection
 is active. Current tools, cwd, validator, destination and read/write authority
 bind independently of inherited prose.
 
-Reusable procedure, environment and named briefing inputs use invariant framing:
-`# Block <key>`, followed by `Current value; replaces any earlier value for this key.`
-and the exact body, separated by LF. First delivery and replacement use identical
-framing; equality and selected-procedure hashes include that framing. A structural
+Reusable procedure, environment and named briefing inputs, including named
+appends, are framed as `# Block <key>` followed by the exact body, separated by
+LF. Where the session at the delivery point already holds an earlier delivery of
+the key, set or withdrawn, the line `Current value; replaces any earlier value
+for this key.` follows the key line. A fresh session and a first delivery of a
+key carry no such line. Block equality accepts either framing of the same body;
+selected-procedure hashes cover the bytes actually delivered. A structural
 withdrawal uses `Withdrawn; this block no longer applies.` with a final LF. Role
 instructions stay pinned and same-name submission declarations remain immutable.
 
 Resolve effective blocks by replaying actual ordered inputs at the chosen point.
 Fresh tasks supply the complete current inputs; continuations and forks supply
-missing/changed blocks and explicit withdrawals. A retaining selector's omitted
-section remains inherited. Environment fields replace whole values in declared
-order with deterministic object properties and preserved array order. Null and
-empty values clear earlier values explicitly. Superseded inputs remain physically
-in the conversation; effective state is not physical context size.
+missing/changed blocks and explicit withdrawals. A fork whose brief retains its
+source's sections (a context selector, a design review of its orientation, a
+consultation) withdraws none of them; an omitted section remains inherited.
+Each invocation is sent only the environment fields its tools use: the project
+root, working directory and views only to a file reader, and its own bounds
+rather than the run's policy. A field the session already holds is kept current,
+and support paths, which no role uses, are withdrawn. Environment fields replace
+whole values in declared order with deterministic object properties and
+preserved array order. Null and empty values clear earlier values explicitly.
+Superseded inputs remain physically in the conversation; effective state is not
+physical context size.
 
 Briefing content identity hashes canonical ordered section bodies/provenance.
 Occurrence identity identifies an accepted update after its predecessor and
