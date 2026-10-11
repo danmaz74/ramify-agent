@@ -117,7 +117,11 @@ describe('non-functional coordinator submissions', () => {
     expect(assessment).not.toContain('lack observed evidence');
     expect(assessment).not.toContain('temporal condition lacks observed intermediate evidence');
     expect(assessment).not.toContain('capability progress as evidence');
+    expect(assessment).toContain('Judge each as worded, under its stated or inferred conditions.');
+    expect(assessment).not.toContain('forward unchanged');
     expect(coordinatorActionPrompt(candidate, ['nfr-001'], ['nfr-001'])).toContain('one repair batch');
+    // The action instructions the assessment procedure no longer carries reach the action task.
+    expect(coordinatorActionPrompt(candidate, ['nfr-001'], ['nfr-001'])).toContain('An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.');
     const repair = repairPrompt('Bound retries', candidate, packageText(['nfr-001']), 'app/api');
     expect(repair).toContain(`### nfr-001: non-functional requirement of the plan from plans/plan.md\n\n> ${quote}`);
     expect(repair).not.toContain('fix-001');

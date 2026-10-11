@@ -11,8 +11,13 @@ export function workOrientationMessage(localBriefing: string, context?: { readon
 /** The kinds a selector chooses among; functional and context elements come with the entry. */
 export const selectableKinds = ['non-functional', 'fixed', 'recommendation'] as const;
 
-/** A fork inherits its briefing; a fresh selector receives it here. New reselection updates also belong here. */
-export function contextSelectorMessage(packet: string | undefined, catalog: ElementCatalog): string {
+/**
+ * A fork inherits its briefing; a fresh selector receives it here. New
+ * reselection updates also belong here. `capturedPlan` is the absolute path
+ * of the run's captured plan, `<project>/plans/<plan>/.harness/jobs/<run>/input/plan.md`;
+ * without it the message names no file to read.
+ */
+export function contextSelectorMessage(packet: string | undefined, catalog: ElementCatalog, capturedPlan?: string): string {
   const ids = catalog.elements.filter(element => (selectableKinds as readonly string[]).includes(element.kind)).map(element => element.id);
   const rendered = createPackage({ catalog, planDeviations: [], elements: ids, deviations: [] });
   if ('unavailable' in rendered) throw new Error(`The catalog cannot render its own elements: ${rendered.unavailable.missing.join(', ')}`);
@@ -20,6 +25,9 @@ export function contextSelectorMessage(packet: string | undefined, catalog: Elem
     ...(packet === undefined ? [] : [packet]),
     '', '# The selectable elements', '',
     ids.length === 0 ? 'The catalog holds no non-functional, fixed or recommendation element.' : rendered.text.trimEnd(),
-    '', 'Select, by ID, the elements an engineer working this work item must keep in view, each with your reason, conditions and uncertainty. Omitting an element never waives it: every non-functional and fixed element is assessed against the final candidate. You may read a captured document to settle a doubt; answer with IDs only.',
+    '', 'Select, by ID, the elements an engineer working this work item must keep in view, each with your reason, conditions and uncertainty. Omitting an element never waives it: every non-functional and fixed element is assessed against the final candidate. '
+      + (capturedPlan === undefined ? 'The elements above are quoted whole from the captured plan.'
+        : `The elements above are quoted whole from the captured plan; the captured file is \`${capturedPlan}\` if you need its surrounding text.`)
+      + ' Answer with IDs only.',
   ].join('\n');
 }

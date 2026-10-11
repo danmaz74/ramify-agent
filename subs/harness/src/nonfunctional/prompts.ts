@@ -4,7 +4,7 @@ import type { Assessment, Candidate } from '../../subs/nonfunctional/src/interfa
 export function coordinatorAssessmentPrompt(assessmentPackage: string, candidate: Candidate, round: number, phase: 'initial' | 'after-repair'): string {
   return [
     `Assess the prepared source tree ${candidate.tree} in round ${round} (${phase}).`,
-    'The package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Carry their wording and stated/inferred conditions forward unchanged.',
+    'The package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Judge each as worded, under its stated or inferred conditions.',
     'Submit exactly one result for every element ID of the package.',
     'For each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.',
     'Start from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.',
@@ -35,6 +35,7 @@ export function coordinatorActionPrompt(candidate: Candidate, unresolved: readon
       : context.allowedAction === 'repair-or-close'
         ? 'At this step, propose one repair batch with a starting module or close this round.'
         : 'At this step, request a sequential read-only investigation.',
+    'An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.',
     'A repair of an undetermined NFR requires investigation evidence for that same NFR. One repair batch is allowed per round.',
     'If closing with unresolved NFRs, state an alternative or explicit uncertainty for each one. Do not claim the final gate has passed.',
     'Submit the permitted action using `submit_nonfunctional_action`.',

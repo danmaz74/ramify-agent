@@ -75,7 +75,16 @@ describe('resolving a path in the audited candidate', () => {
     expect(await call(snapshotToolNames.search, { pattern: 'const (a|b)' })).toEqual({ text: 'src/a.ts:1: export const a = 1;\nsrc/b.ts:1: export const b = 2;' });
     expect(await call(snapshotToolNames.diff, {})).toEqual({ text: 'M\tsrc/a.ts\nD\tsrc/gone.ts\nA\tsrc/b.ts' });
     expect((await call(snapshotToolNames.diff, { path: 'src/gone.ts' })).isError).toBeUndefined();
-    expect(await call(snapshotToolNames.diff, { path: 'README.md' })).toMatchObject({ isError: true, text: expect.stringContaining('did not change') });
+    // A path the candidate holds but did not change is answered, not refused.
+    expect(await call(snapshotToolNames.diff, { path: 'README.md' })).toEqual({
+      text: '"README.md" is unchanged in the candidate: it is the same at the base c0 and at c1, so it has no patch. Read it with snapshot_read; snapshot_diff without a path lists what changed',
+    });
+    expect(await call(snapshotToolNames.diff, { path: 'src' })).toEqual({
+      text: '"src" is a directory; ask for one of the changed paths beneath it:\nM\tsrc/a.ts\nD\tsrc/gone.ts\nA\tsrc/b.ts',
+    });
+    expect(await call(snapshotToolNames.diff, { path: 'vendor' })).toEqual({ text: '"vendor" is a directory, and the candidate changed nothing beneath it' });
+    // A path the candidate does not hold at all, and was not deleted, stays an error.
+    expect(await call(snapshotToolNames.diff, { path: 'src/never.ts' })).toMatchObject({ isError: true, text: 'The audited candidate has no "src/never.ts", and it deleted no such path; snapshot_diff without a path lists what it changed' });
     expect(await call(snapshotToolNames.read, { path: '/etc/passwd' })).toMatchObject({ isError: true });
     expect(await call(snapshotToolNames.search, { pattern: 'x', path: 'src/link' })).toMatchObject({ isError: true });
     expect(await call(snapshotToolNames.read, { path: 'src/a.ts', extra: true })).toMatchObject({ isError: true, text: expect.stringContaining('Invalid input') });
@@ -85,7 +94,7 @@ describe('resolving a path in the audited candidate', () => {
     const hashed = (text: string) => `sha256:${createHash('sha256').update(text).digest('hex')}`;
     expect([...tools.read()]).toEqual([['src/a.ts', hashed('export const a = 1;\nexport const twice = 2;\n')], ['README.md', hashed('# project\n')]]);
     expect(tools.denials()).toEqual([
-      { tool: snapshotToolNames.diff, denial: 'missing', path: 'README.md' },
+      { tool: snapshotToolNames.diff, denial: 'missing', path: 'src/never.ts' },
       { tool: snapshotToolNames.read, denial: 'absolute', path: '/etc/passwd' },
       { tool: snapshotToolNames.search, denial: 'symlink', path: 'src/link' },
     ]);

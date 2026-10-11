@@ -257,7 +257,15 @@ export function snapshotTools(snapshot: CandidateSnapshot, source: CandidateSour
       return { text: identity + (compared.changes.length === 0 ? 'The candidate changed nothing' : compared.changes.map(change => `${change.status}\t${change.path}`).join('\n')) };
     }
     const path = resolveChangedPath(compared, input.path);
-    if (typeof path !== 'string') return refuse(snapshotToolNames.diff, input.path, path);
+    if (typeof path !== 'string') {
+      // A path the candidate holds but did not change is an answer, not an error.
+      const held = resolveSnapshotPath(compared, input.path);
+      if (!held.ok) {
+        return refuse(snapshotToolNames.diff, input.path, held.denial === 'missing'
+          ? { ...held, text: `${held.text}, and it deleted no such path; ${snapshotToolNames.diff} without a path lists what it changed` } : held);
+      }
+      return { text: identity + unchangedAnswer(compared, held) };
+    }
     const patch = await source.diffPatch(projectRoot, compared.base, snapshot.commit, path, signal);
     inspected.add(path);
     return {
@@ -293,6 +301,23 @@ export function snapshotToolDeclarations(): SnapshotToolDeclaration[] {
   const unread = (): never => { throw new Error('A declaration reads nothing'); };
   const source: CandidateSource = { commitTree: unread, treeEntries: unread, diffNameStatus: unread, readBlob: unread, grepTree: unread, diffPatch: unread };
   return snapshotTools(none, source, '').definitions.map(({ name, description, inputSchema, mutating }) => ({ name, description, inputSchema, mutating: mutating ?? false }));
+}
+
+/**
+ * What `snapshot_diff` answers for a path the candidate holds but did not
+ * change: a file is identical at both ends, and a directory names the changed
+ * paths beneath it.
+ */
+function unchangedAnswer(snapshot: CandidateSnapshot, held: Extract<SnapshotPath, { ok: true }>): string {
+  if (held.kind === 'file') {
+    return `"${held.path}" is unchanged in the candidate: it is the same at the base ${snapshot.base} and at ${snapshot.commit}, so it has no patch. Read it with ${snapshotToolNames.read}; ${snapshotToolNames.diff} without a path lists what changed`;
+  }
+  const prefix = held.path === '' ? '' : `${held.path}/`;
+  const beneath = snapshot.changes.filter(change => change.path.startsWith(prefix));
+  const name = held.path === '' ? 'the candidate\'s root' : `"${held.path}"`;
+  return beneath.length === 0
+    ? `${name} is a directory, and the candidate changed nothing beneath it`
+    : `${name} is a directory; ask for one of the changed paths beneath it:\n${beneath.map(change => `${change.status}\t${change.path}`).join('\n')}`;
 }
 
 /**
