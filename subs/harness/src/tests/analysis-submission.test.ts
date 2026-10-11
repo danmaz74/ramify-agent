@@ -551,7 +551,7 @@ describe('the prompt package', () => {
     expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/9');
+    expect(engineer.package).toBe('engineer/11');
     expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
     expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
@@ -607,7 +607,7 @@ describe('the prompt package', () => {
     expect(section).toContain('A directory inside the owner, such as its `src/tests`, is already part of\n  the base and is refused');
     expect(section).toContain('An included child module brings its whole subtree:');
     expect(current.packages.get('local-architect')!.package).toBe('local-architect/13');
-    expect(current.packages.get('engineer')!.package).toBe('engineer/8');
+    expect(current.packages.get('engineer')!.package).toBe('engineer/10');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
   });
 
