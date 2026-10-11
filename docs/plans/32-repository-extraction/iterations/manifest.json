@@ -1,6 +1,6 @@
 {
   "plan": "../main-plan.md",
-  "status": "proposed; implementation not started",
+  "status": "in implementation; iterations 1 and 2 complete",
   "execution": "serial in dependency order",
   "iterations": [
     {
@@ -17,8 +17,9 @@
       "file": "02-standalone-project.md",
       "dependsOn": ["1"],
       "cases": ["E05", "E06", "E07", "E08", "E09"],
-      "status": "proposed",
-      "writeBoundary": "Extracted agent root instructions, ignore/configuration files, complete architect skill snapshot, path adaptations and active documentation; minimal packaging corrections needed for standalone operation."
+      "status": "complete",
+      "writeBoundary": "Extracted agent root instructions, ignore/configuration files, complete architect skill snapshot, path adaptations and active documentation; minimal packaging corrections needed for standalone operation.",
+      "results": "02-results.md"
     },
     {
       "id": "3",
