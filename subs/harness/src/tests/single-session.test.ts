@@ -251,6 +251,25 @@ describe('a single engineer session', () => {
     }
   }, 120_000);
 
+  test('standalone capability submission repairs a contradictory prospective caller before admission', async () => {
+    const root = await project();
+    const future = `${notesDirectory}/src/new.ts`;
+    const need = (module: string) => ({ kind: 'capability-needed', summary: 'Need a note limit', request: {
+      need: 'Refuse notes longer than the configured limit',
+      usage: [{ path: future, use: 'Test configured limits', prospective: true, module }], constraints: [],
+      knownInterface: { kind: 'none-known' },
+      examples: [{ title: 'Long note', code: 'expect(validateNote(longNote)).toBe(false)', designation: 'pseudocode' }],
+    } });
+    const { result, events } = await session(root, [
+      { kind: 'submit', input: need('collection-review/integration-tests') },
+      { kind: 'submit', input: need(notes) },
+    ]);
+    expect(finished(result)).toMatchObject({ ended: 'submitted', submission: { request: { usage: [{ module: notes }] } } });
+    expect(events.filter(event => event.type === 'submission').map(event => event.type === 'submission' && event.accepted)).toEqual([false, true]);
+    expect(JSON.stringify(events)).toContain('request.usage.0.module');
+    expect(await exists(join(root, future))).toBe(false);
+  });
+
   test('an unknown module is refused before the agent starts, as a session that could not start, with the lock released', async () => {
     const root = await project();
 

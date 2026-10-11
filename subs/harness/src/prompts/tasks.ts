@@ -67,11 +67,12 @@ function projectRelative(projectRoot: string, path: string): string {
 
 /**
  * The environment blocks one invocation is told of, selected by the tools
- * it holds: what its tools cannot use is not sent. A field absent here is
+ * it holds and the current task: catalog-only prose tasks need no generated
+ * view inventory. What its tools cannot use is not sent. A field absent here is
  * delivered only to correct an earlier value the session already holds.
  *
  * - The project root and working directory reach only a role that reads the
- *   project's files; the views reach it too, project-relative.
+ *   project's files; tasks that use views receive them project-relative.
  * - The limits are the invocation's own bounds; the command timeout and the
  *   budget returns reach only a role with a shell.
  * - A null candidate, snapshot or Cucumber configuration says nothing, nor
@@ -80,7 +81,7 @@ function projectRelative(projectRoot: string, path: string): string {
  * - Support paths name the harness's own prompt files, which no project
  *   agent can open; the manifest keeps them as provenance.
  */
-export function selectedEnvironment(environment: TaskEnvironment): Partial<Record<EnvironmentField, unknown>> {
+export function selectedEnvironment(environment: TaskEnvironment, task?: { readonly role: LoadedPackage['role']; readonly kind: TaskKind }): Partial<Record<EnvironmentField, unknown>> {
   const tools = environment.availableTools;
   const readsFiles = tools.some(tool => fileReaders.includes(tool));
   const shell = tools.includes('shell');
@@ -97,7 +98,8 @@ export function selectedEnvironment(environment: TaskEnvironment): Partial<Recor
   const own = ['invocationAbsoluteMs', 'invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs', 'budgetReturnsPerIteration'] : [])];
   selected.limits = Object.fromEntries(own.filter(key => limits[key] !== undefined).map(key => [key, limits[key]]));
   selected.availableTools = environment.availableTools;
-  if (readsFiles && environment.views.length > 0) {
+  const usesViews = task === undefined || !(task.role === 'catalog-extractor' && ['intake', 'principles', 'check'].includes(task.kind));
+  if (readsFiles && usesViews && environment.views.length > 0) {
     const views = environment.views.map(view => ({ ...view, path: projectRelative(environment.projectRoot, view.path) }));
     const apiDirectories = views.filter(view => /\/\.ramify\/(external|children)$/u.test(view.path));
     const note = apiDirectories.length > 0 && apiDirectories.every(view => view.path.endsWith('/external'))
@@ -236,16 +238,17 @@ export function buildTaskPacket(input: {
   const procedureKey = `procedure:${loaded.role}:${task.family}`;
   const procedureBody = `# Current procedure\n${procedure}`;
   const inheritedBlocks = effectiveBlocks(input.inherited);
-  const selected = selectedEnvironment(environment);
+  const selected = selectedEnvironment(environment, { role: loaded.role, kind: input.kind });
   // A field this role is not told of stays unsent, unless the session holds
   // an earlier value of it: that value is corrected, or withdrawn where the
   // field reaches no role.
-  const environmentKeys = environmentFields.filter(key => key in selected || (key !== 'supportPaths' && inheritedBlocks.has(`environment:${key}`)));
+  const withdrawnEnvironment = ['supportPaths', ...('views' in selected ? [] : ['views'])] as readonly EnvironmentField[];
+  const environmentKeys = environmentFields.filter(key => key in selected || (!withdrawnEnvironment.includes(key) && inheritedBlocks.has(`environment:${key}`)));
   const reusable = resolveBlockAdditions({ inherited: input.inherited, desired: [
     { key: procedureKey, kind: 'procedure', body: procedureBody, source: task.source, revision: loaded.package, sources: procedureSources(loaded, task) },
     ...environmentKeys.map(key => ({ key: `environment:${key}`, kind: 'environment' as const,
       body: key in selected ? environmentBody(key, selected[key]) : JSON.stringify({ [key]: canonicalJson(environment[key]) }, null, 2), source: null, revision: null })),
-  ], withdraw: inheritedBlocks.has('environment:supportPaths') ? ['environment:supportPaths'] : [] });
+  ], withdraw: withdrawnEnvironment.filter(key => inheritedBlocks.has(`environment:${key}`)).map(key => `environment:${key}`) });
   const procedureHash = exactInputHash((reusable.find(item => item.key === procedureKey) ?? inheritedBlocks.get(procedureKey))!.text);
   // Interpret recognizable legacy sections without inventing physical field deliveries.
   // A framing migration delivers the current canonical representation once.
@@ -327,7 +330,7 @@ function taskDefinition(loaded: LoadedPackage, kind: TaskKind, consultationSubmi
   }
   if (['local-architect', 'capability-architect'].includes(role) && kind === 'capability-qualification') {
     tool = 'submit_capability_qualification'; schema = JSON.stringify(z.toJSONSchema(qualificationActionSchema));
-    procedure = 'Qualify only the named capability request using its current request and invocation identities, captured source, current plan and supplied API views. Inspect the actual exposed API and use sites; a matching name does not establish sufficient behavior and a missing name does not establish absence. Use available read-only tools. Submit satisfy-with-existing with concrete API evidence, delegate-capability with placement reasoning, request-placement, or unresolved through {{submissionTool}}.';
+    procedure = 'Qualify only the named capability request using its current request and invocation identities, captured source, current plan and supplied API views. Inspect the actual exposed API and use sites; a matching name does not establish sufficient behavior and a missing name does not establish absence. Use available read-only tools. Name actual consumer and provider locations; resolve any proposed import from the consumer file and assess importability separately with current API evidence. Return design contradictions to the responsible architect for explicit revision before handback; advice does not revise an assignment. Submit satisfy-with-existing with concrete API evidence, delegate-capability with placement reasoning, request-placement, or unresolved through {{submissionTool}}.';
     source = null;
   }
   if (role === 'capability-architect' && kind === 'capability') tool = 'submit_capability_action';

@@ -48,7 +48,13 @@ const entrySchema = z.object({
   /** Keys of the context elements a reader needs to understand the entry. */
   contextRefs: z.array(text),
   citations: z.array(citationSchema),
-  nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema).optional(),
+  nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema.extend({
+    ref: nonBehavioralAcceptanceSchema.shape.ref.describe(
+      'The submission-local key of a functional acceptance element in this submission. Never an accepted intake nfr-... ID; '
+      + 'intake non-functional elements retain their classification, coverage and identity. The harness converts this key '
+      + 'to its catalog ID after acceptance; the named test must already be registered.',
+    ),
+  })).optional(),
 }).strict();
 
 const hypothesisSubmissionSchema = z.object({

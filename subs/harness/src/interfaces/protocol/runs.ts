@@ -879,6 +879,18 @@ export const failureAnalysisSchema = z.discriminatedUnion('outcome', [
 ]);
 export type FailureAnalysis = z.infer<typeof failureAnalysisSchema>;
 
+/** Candidate-relative difference and the recorded mutations that can establish its attribution. */
+const outsideScopeEvidenceSchema = z.object({
+  path: text,
+  /** Null means no readable mutation observation establishes attribution. */
+  attributable: z.boolean().nullable(),
+  observations: z.array(z.object({
+    number: z.int().positive(), callId: z.string().nullable(),
+    observedBy: z.enum(['tool', 'snapshot']), attributable: z.boolean(),
+  }).strict()),
+  uncertainty: text.nullable(),
+}).strict();
+
 /** `GET /api/v1/plans/:planId/runs/:runId/work-items/:workItem`: one work item's outlines, iterations, gates and requirements. */
 export const workItemResponseSchema = z.object({
   workItem: workItemSummarySchema,
@@ -918,7 +930,7 @@ export const workItemResponseSchema = z.object({
       failure: z.object({ digest: z.array(z.string()), analysis: failureAnalysisSchema }).strict().nullable(),
     }).strict().nullable(),
     gates: z.array(gateSummary),
-    invocations: z.array(z.object({ id: text, role: roleSchema, ended: text.nullable(), outsideScope: z.array(text) }).strict()),
+    invocations: z.array(z.object({ id: text, role: roleSchema, ended: text.nullable(), outsideScope: z.array(text), outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional() }).strict()),
     /**
      * The assignment package its engineer and reviewers received: the IDs
      * the assignment cites and the text rendered again from them on this
@@ -1540,6 +1552,8 @@ export const invocationEvaluationSchema = z.object({
   guarding: guardingViewSchema,
   /** Writers only: uncommitted changed paths outside the write scope when it settled. */
   outsideScope: z.array(text),
+  /** Optional for responses produced before mutation attribution was projected. */
+  outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional(),
   hookChecks: z.object({ passed: count, findings: count, notChecked: count, newFindings: count }).strict(),
   /** Modules this invocation read outside its declared scope, each once. */
   excursions: z.array(text),
@@ -1586,7 +1600,9 @@ export const metricsResponseSchema = z.object({
   }).strict(),
   evaluation: z.object({
     guarding: guardingViewSchema,
-    outsideScope: z.array(z.object({ invocation: text, role: roleSchema, workItem: text.nullable(), iteration: text.nullable(), path: text }).strict()),
+    outsideScope: z.array(z.object({ invocation: text, role: roleSchema, workItem: text.nullable(), iteration: text.nullable(), path: text,
+      evidence: outsideScopeEvidenceSchema.omit({ path: true }).optional(),
+    }).strict()),
     invocations: z.array(invocationEvaluationSchema),
   }).strict(),
 }).strict();

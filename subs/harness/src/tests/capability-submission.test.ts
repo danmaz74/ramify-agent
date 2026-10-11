@@ -14,6 +14,10 @@ import { capabilityContext, line, registered, reported, submissionHash } from '.
 import { validateEngineer } from '../work/engineer.js';
 import { obligationEventsToRecord, outstandingReports } from '../work/obligations.js';
 import type { RunEvent } from '../run/log.js';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { runLayout } from '../run/records.js';
+import { runPath } from './helpers/runs.js';
 
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('./helpers/process-guard.js');
@@ -275,6 +279,84 @@ function reportingScript(prompts: string[]): Script {
     return [];
   };
 }
+
+it('Plan 36: preflight is stateless and only empty final submission counts as a rejected submission', async () => {
+  const fixture = await copyCapabilityFixture();
+  cleanups.push(fixture.remove);
+  const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'report', 'a+b');
+  answers.push(boundaryAnswers);
+  const original = reportingScript([]);
+  if (typeof original !== 'function') throw new Error('Expected a coordinator script function');
+  let first = true;
+  const script: Script = spec => {
+    const actions = original(spec);
+    if (spec.role !== 'capability-architect' || !first) return actions;
+    first = false;
+    const final = actions[1];
+    if (final?.kind !== 'submit') throw new Error('Expected a complete coordinator action');
+    return [
+      { kind: 'tool', tool: 'validate_capability_action', input: {} },
+      { kind: 'tool', tool: 'validate_capability_action', input: final.input },
+      { kind: 'submit', input: {} },
+      final,
+    ];
+  };
+  const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, { ...boundaryAnswers.options, script, inputs: treeInputs() });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun('need'));
+  const events = () => opened.service.events('need', receipt.jobId) ?? [];
+  await until(() => events().some(event => event.type === 'capability-assigned' || event.type === 'job-failed' || event.type === 'job-completed'));
+  const logged = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
+  expect(logged.some(event => event.type === 'capability-assigned'), JSON.stringify(logged.filter(event => event.type === 'job-failed'))).toBe(true);
+  const start = logged.find(event => event.type === 'invocation-started' && event.data.role === 'capability-architect');
+  if (start?.type !== 'invocation-started') throw new Error('Coordinator did not start');
+  const outcome = JSON.parse(await readFile(join(runPath(fixture.root, 'need', receipt.jobId), runLayout.outcome(start.data.invocation)), 'utf8'));
+  expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 1 });
+  const coordinator = opened.agent!.sessions.find(session => session.spec.role === 'capability-architect')!;
+  const previews = coordinator.results.filter(result => result.tool === 'validate_capability_action');
+  expect(previews.map(result => JSON.parse(result.text).valid)).toEqual([false, true]);
+  const finalInput = JSON.parse(await readFile(join(runPath(fixture.root, 'need', receipt.jobId), runLayout.submission(start.data.invocation)), 'utf8'));
+  expect(finalInput).toMatchObject({ kind: 'partial', task: 'cap-001', registrations: expect.any(Array), reports: expect.any(Array) });
+}, 300_000);
+
+it('Plan 36: a wrong prospective caller is repaired in the engineer turn before one immutable request is accepted', async () => {
+  const fixture = await copyCapabilityFixture();
+  cleanups.push(fixture.remove);
+  const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'report', 'a+b'); answers.push(boundaryAnswers);
+  const original = reportingScript([]);
+  if (typeof original !== 'function') throw new Error('Expected a coordinator script function');
+  let changed = false;
+  const script: Script = spec => {
+    const actions = original(spec);
+    if (spec.role !== 'engineer' || changed) return actions;
+    changed = true;
+    const final = actions.at(-1);
+    if (final?.kind !== 'submit') throw new Error('Expected a capability-needed request');
+    const value = final.input as { request: { usage: unknown[] } };
+    const usage = { path: 'subs/a/src/tests/steps/future.steps.ts', use: 'Observe preview', prospective: true };
+    const corrected = { ...value, request: { ...value.request, usage: [{ ...usage, module: a }] } };
+    return [
+      ...actions.slice(0, -1),
+      { kind: 'submit', input: { ...value, request: { ...value.request, usage: [{ ...usage, module: b }] } } },
+      { kind: 'submit', input: corrected },
+    ];
+  };
+  const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, { ...boundaryAnswers.options, script, inputs: treeInputs() });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun('need'));
+  const events = () => opened.service.events('need', receipt.jobId) ?? [];
+  await until(() => events().some(event => event.type === 'capability-assigned' || event.type === 'job-failed' || event.type === 'job-completed'));
+  const logged = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
+  expect(logged.some(event => event.type === 'capability-assigned'), JSON.stringify(logged.filter(event => event.type === 'job-failed'))).toBe(true);
+  expect(logged.filter(event => event.type === 'capability-requested')).toHaveLength(1);
+  const first = logged.find(event => event.type === 'invocation-started' && event.data.role === 'engineer');
+  if (first?.type !== 'invocation-started') throw new Error('Engineer did not start');
+  const path = runPath(fixture.root, 'need', receipt.jobId);
+  const outcome = JSON.parse(await readFile(join(path, runLayout.outcome(first.data.invocation)), 'utf8'));
+  expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 1 });
+  const recorded = JSON.parse(await readFile(join(path, 'capabilities/requests/need-001.json'), 'utf8'));
+  expect(recorded.original.usage).toEqual([{ path: 'subs/a/src/tests/steps/future.steps.ts', use: 'Observe preview', prospective: true, module: a }]);
+}, 300_000);
 
 it('PB3-D01 PB3-D02 PB3-D04: a capability architect registers a case and a test and reports during coordination; the run records exactly that', async () => {
   const fixture = await copyCapabilityFixture();

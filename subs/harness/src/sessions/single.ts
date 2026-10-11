@@ -31,7 +31,8 @@ import { manualRunner, openManualRun } from '../steps/manual.js';
 import { committedBody, finished } from '../steps/runner.js';
 import { engineerWorkingDirectory } from '../work/engineer-directory.js';
 import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../work/scratch.js';
-import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineer, type EngineerSubmission } from '../work/engineer.js';
+import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../work/engineer.js';
+import { committedRecords } from '../work/committed.js';
 import type { IterationAssignment } from '../work/iterations.js';
 import { auditPreparationPaths, scopeConfigurationPaths, captureGuardedFiles, deniedFiles, guardedScopeOf, resolveWriteScope, scopePaths, testPolicyOf } from '../work/scope.js';
 import { iterationApiViews } from '../work/session.js';
@@ -408,9 +409,10 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     // is judged: the hook checks saw only the mutations they covered.
     beforeSubmission: async (input, signal) => { await tools.findingsAtCompletion(input, signal); },
     validate: input => capabilityEngineerSubmissionSchema.safeParse(input).success
-      ? validateEngineer(input, {
+      ? validateEngineerWithOwnership(input, {
         capabilityWorkflow: true, kind: 'ordinary', obligation: null, openFindings: tools.openFindings(), submissions: tools.submissions,
-      })
+      }, paths => ramify.queryOwnership(projectRoot, paths),
+      () => new Map(committedRecords(run.log.ledger.replay()).registry.map(entry => [entry.capability, entry])))
       : { ok: false, errors: [{ path: 'kind', message: 'This session accepts only the current capability engineer submissions' }] },
     acceptedText: value => {
       const check = tools.completionCheck();

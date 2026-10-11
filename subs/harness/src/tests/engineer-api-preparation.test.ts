@@ -71,3 +71,41 @@ test('failed refresh never presents leftover views as current; a missing expecte
     evidence: null, unavailable: expect.stringContaining('the materialized architect view could not be read'),
   });
 }, 60_000);
+
+test('an extra consumer caller receives its own ordinary/testing views with refresh revision and coverage', async () => {
+  const directory = await temporaryDirectory(); cleanups.push(directory.remove);
+  const root = directory.path;
+  const revision = 'rev/3:scripted-consumer:2';
+  const files: Record<string, unknown> = {
+    '.ramify-architect/_meta.json': { schema: 'ramify.architect-view/3', revision, input: 'input/3:consumer', modules: 2, dependencies: 'measured', dependencyScope: 'production' },
+  };
+  for (const name of ['provider', 'consumer']) {
+    files[`.ramify-architect/${name}/module.json`] = { schema: 'ramify.architect-module/3', module: `app/${name}`, dir: `subs/${name}`, parent: 'app', children: [], tags: [], areas: ['src', 'src/tests'] };
+    for (const [area, kind] of [['src', 'ordinary'], ['src/tests', 'tests']]) files[`subs/${name}/${area}/.ramify/_meta.json`] = { schema: 'ramify.api-view/1', module: `app/${name}`, area: kind, revision, ...(name === 'consumer' ? { coverage: 1 } : {}) };
+  }
+  for (const [path, content] of Object.entries(files)) { await mkdir(join(root, path, '..'), { recursive: true }); await writeFile(join(root, path), JSON.stringify(content)); }
+  const ramify = new RamifyCli(); const calls: string[] = [];
+  vi.spyOn(ramify, 'materialize').mockImplementation(async (project, module) => {
+    expect(project).toBe(root); expect(['subs/provider', 'subs/consumer']).toContain(module); calls.push(module!); return { ok: true, output: '' };
+  });
+  const index = await loadArchitectIndex(root);
+  const extra = [{ path: 'subs/consumer/src/caller.ts', purpose: 'consumer' as const }];
+  const views = await iterationApiViews(ramify, root, index, { module: 'app/provider', included: [] }, extra);
+  expect(calls).toEqual(['subs/provider', 'subs/consumer']);
+  const consumer = views.find(entry => entry.module === 'app/consumer')!;
+  expect(consumer.unavailable).toBeNull();
+  expect(consumer.views).toEqual([
+    { area: 'src', path: 'subs/consumer/src/.ramify', revision, coverage: 1 },
+    { area: 'src/tests', path: 'subs/consumer/src/tests/.ramify', revision, coverage: 1 },
+  ]);
+});
+
+test('missing extra consumer ownership remains an explicit API evidence limitation', async () => {
+  const ramify = new RamifyCli();
+  const materialize = vi.spyOn(ramify, 'materialize');
+  const views = await iterationApiViews(ramify, '/project', null, { module: 'app/provider', included: [] }, [
+    { path: 'subs/consumer/src/caller.ts', purpose: 'consumer' },
+  ]);
+  expect(views).toMatchObject([{ module: 'app/provider', views: [], unavailable: expect.stringContaining('consumer ownership and API views are unavailable for extra file "subs/consumer/src/caller.ts": there is no architect index') }]);
+  expect(materialize).not.toHaveBeenCalled();
+});

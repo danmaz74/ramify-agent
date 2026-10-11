@@ -688,6 +688,50 @@ test('an unavailable metric reads unavailable with its known subtotal, never zer
   expect(cells[5]).toBe('1 of 2');
   expect(screen.getByText(/A count of blocked calls is not evidence/)).toBeTruthy();
   expect(within(screen.getByLabelText('Outside the write scope')).getByText('subs/reviews/src/outside.ts')).toBeTruthy();
+  expect(screen.getByLabelText('Outside the write scope').textContent).toContain('observed during inv-0004; attribution unknown');
+});
+
+test('candidate differences retain snapshot provenance and distinguish an attributable tool write in Measurements', async () => {
+  const run = stubRun();
+  run.metrics!.evaluation.outsideScope = [
+    ...['subs/validation/README.md', 'subs/validation/module.ramify'].map(path => ({
+      path, invocation: 'inv-0012', role: 'engineer' as const, workItem: 'wi-001', iteration: 'wi-001.i01',
+      evidence: { attributable: false, observations: [{ number: 258, observedBy: 'snapshot' as const, callId: null, attributable: false }], uncertainty: null },
+    })),
+    { path: 'subs/validation/src/changed.ts', invocation: 'inv-0012', role: 'engineer', workItem: 'wi-001', iteration: 'wi-001.i01',
+      evidence: { attributable: true, observations: [{ number: 257, observedBy: 'tool', callId: 'write-1', attributable: true }], uncertainty: null } },
+  ];
+  render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
+  fireEvent.click(await screen.findByRole('tab', { name: 'Measurements' }));
+  const list = await screen.findByLabelText('Outside the write scope');
+  const rows = within(list).getAllByRole('listitem');
+  expect(rows[0]!.textContent).toContain('subs/validation/README.md: observed during inv-0012; not attributable to this invocation (snapshot observation 258)');
+  expect(rows[1]!.textContent).toContain('subs/validation/module.ramify: observed during inv-0012; not attributable to this invocation');
+  expect(rows[2]!.textContent).toContain('recorded write attributable to inv-0012 (tool observation 257, call write-1)');
+  expect(list.textContent).not.toContain('by inv-0012');
+});
+
+test('work-item history preserves accepted settlement beside inherited candidate differences', async () => {
+  const run = stubRun();
+  const path = 'subs/validation/README.md';
+  run.workItem = { 'wi-001': workItemResponseSchema.parse({
+    workItem: workItemSummary, outlines: [], gates: [], requirements: [], requests: [],
+    iterations: [{ id: 'wi-001.i01', kind: 'ordinary', stage: 0, goal: 'Settle provider.', approach: 'Provider work.',
+      scope: { modules: ['shop/provider'], included: [], broad: false, rationale: 'Owner.', extra: [], read: [] },
+      checkpoint: 'iteration', completionEvidence: 'Focused checks.', authorizations: [], package: null, gates: [],
+      result: { outcome: 'accepted', gate: 'ga-001', commit: baseCommit, findings: [], changedAssumptions: [], recommendation: null, failure: null },
+      invocations: [{ id: 'inv-0012', role: 'engineer', ended: 'submitted', outsideScope: [path],
+        outsideScopeEvidence: [{ path, attributable: false, observations: [{ number: 258, callId: null, observedBy: 'snapshot', attributable: false }], uncertainty: null }],
+      }],
+    }],
+  }) };
+  run.workItems = workItemListResponseSchema.parse({ workItems: [workItemSummary], total: 1 });
+  render(<RunPage client={clientWith(run)} planId="review-notes" runId={runId} interval={60_000} />);
+  fireEvent.click(await screen.findByRole('tab', { name: 'Work items' }));
+  fireEvent.click(await screen.findByRole('button', { name: /wi-001/ }));
+  const history = await screen.findByLabelText('Work item wi-001');
+  await within(history).findByText(/Result: accepted/);
+  expect(history.textContent).toContain(`${path}: observed during inv-0012; not attributable to this invocation (snapshot observation 258)`);
 });
 
 // Acceptance scenarios: the review, Approve and the scenario list.

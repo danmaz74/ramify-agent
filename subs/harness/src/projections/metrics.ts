@@ -437,8 +437,9 @@ export async function metricsOf(view: RunView, history?: RunHistory): Promise<Me
     lineage: { policyVersion: lineagePolicyVersion, metrics: lineageMetrics(lineage) },
     evaluation: {
       guarding,
-      outsideScope: evaluations.flatMap(evaluation => evaluation.outsideScope.map(path => ({
+      outsideScope: evaluations.flatMap(evaluation => (evaluation.outsideScopeEvidence ?? []).map(({ path, ...evidence }) => ({
         invocation: evaluation.invocation, role: evaluation.role, workItem: evaluation.workItem, iteration: evaluation.iteration, path,
+        evidence,
       }))),
       invocations: evaluations,
     },
@@ -454,6 +455,23 @@ export interface EvaluationInputs {
   readonly lines: InvocationFacts['lines'];
   /** The review request a reviewer's `review-attempt-started` names, where its work identity names none. */
   readonly request?: string | undefined;
+}
+
+/** Preserve candidate-relative paths without treating the settling snapshot as this invocation's writes. */
+export function outsideScopeEvidenceOf(paths: readonly string[], observations: EvaluationInputs['observations']): NonNullable<InvocationEvaluation['outsideScopeEvidence']> {
+  const log = Array.isArray(observations) ? observations as readonly Observation[] : [];
+  const gaps = log.flatMap(line => line.type === 'coverage-gap' && (line.data.kind === 'observation-truncated' || line.data.kind === 'changed-paths-unknown') ? [line.data.detail] : []);
+  return paths.map(path => {
+    const matching = log.filter((line): line is Extract<Observation, { type: 'mutation' }> => line.type === 'mutation' && line.data.paths.includes(path));
+    return {
+      path,
+      attributable: matching.length === 0 ? null : matching.some(line => line.data.attributable),
+      observations: matching.map(line => ({ number: line.n, callId: line.data.callId, observedBy: line.data.observedBy, attributable: line.data.attributable })),
+      uncertainty: gaps.length > 0 ? `Mutation evidence is incomplete: ${gaps.join('; ')}` : matching.length > 0 ? null : Array.isArray(observations)
+        ? 'No recorded mutation observation establishes attribution for this candidate-relative path.'
+        : (observations as { unavailable: string }).unavailable,
+    };
+  });
 }
 
 /**
@@ -580,6 +598,7 @@ export function evaluationOf({ invocation, outcome, observations, lines, request
           statement: `What this invocation did is not known: ${(observations as { unavailable: string }).unavailable}. No count of blocked calls is evidence about its writes.`,
         },
     outsideScope: [...(outcome?.outsideScope ?? [])],
+    outsideScopeEvidence: outsideScopeEvidenceOf(outcome?.outsideScope ?? [], observations),
     hookChecks: {
       passed: hooks.filter(line => line.data.outcome === 'passed').length,
       findings: hooks.filter(line => line.data.outcome === 'findings').length,

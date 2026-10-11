@@ -14,6 +14,8 @@ import { scopePaths } from './scope.js';
 import type { TestArea } from '../run/project-config.js';
 import { startingPointsSchema } from './starting-points.js';
 import { apiCoverageStatement } from './session.js';
+import type { RegistryEntry } from '../analysis/records.js';
+import type { AffectedDocument } from 'ramify.ts/cli';
 
 /*
  * The engineer: what it submits, the one harness tool it is given, and the
@@ -169,6 +171,12 @@ const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;
 export interface EngineerEvidence {
   /** Only the internal test workflow may offer the new submission before rollout. */
   readonly capabilityWorkflow?: boolean;
+  /** Refreshed ownership and accepted creation authority for new usage declarations. Historical requests are never revalidated. */
+  readonly capabilityUsage?: {
+    readonly ownership: AffectedDocument | null;
+    readonly registry: ReadonlyMap<string, RegistryEntry>;
+    readonly unavailable?: string | undefined;
+  } | undefined;
   /**
    * The real-provider obligation this assignment owes, where it owes one.
    * The harness derives it from the assignment; no submission carries it.
@@ -213,6 +221,31 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
   }
   if (value.kind === 'contract-needed' && evidence.capabilityWorkflow === true) {
     errors.push({ path: 'kind', message: 'The contract workflow is unavailable in capability coordination', expected: 'capability-needed' });
+  }
+  if (value.kind === 'capability-needed' && evidence.capabilityUsage !== undefined) {
+    const { ownership, registry, unavailable } = evidence.capabilityUsage;
+    value.request.usage.forEach((usage, position) => {
+      if (usage.module === undefined) return; // Actual usage may omit its caller module.
+      const at = `request.usage.${position}.module`;
+      // Missing prospective files belong to their intended location. An
+      // accepted module proposal can supersede its existing parent's owner.
+      const proposal = [...registry.values()].filter(entry => entry.proposed !== undefined
+        && (usage.path === entry.proposed.directory || usage.path.startsWith(`${entry.proposed.directory}/`)))
+        .sort((left, right) => right.proposed!.directory.length - left.proposed!.directory.length)[0];
+      const observed = ownership?.selection.paths.find(path => path.path === usage.path);
+      // Owned-unwired and scratch regions still have a known module. A
+      // parent's ownership of an independent nested project does not name
+      // that project's caller module. None of these facts authorizes writes.
+      const observedOwner = observed?.status === 'owned' && observed.exclusion?.kind !== 'owned-nested-project' ? observed.module : undefined;
+      const createdOwner = proposal !== undefined && (observed === undefined || observed.status === 'owned'
+        && (observed.module === proposal.proposed!.parent || observed.module === proposal.owner)) ? proposal.owner : undefined;
+      const owner = createdOwner ?? observedOwner;
+      if (owner === usage.module) return;
+      errors.push({ path: at, message: owner === undefined
+        ? `Ownership evidence is unavailable for "${usage.path}"; its declared caller cannot be reconciled${unavailable === undefined ? '' : `: ${unavailable}`}${observed === undefined ? '' : ` (status ${observed.status}, exclusion ${observed.exclusion?.kind ?? 'none'})`}`
+        : `"${usage.path}" belongs to caller module "${owner}", not "${usage.module}"; suggestedProvider identifies a separate provider`,
+      expected: owner ?? 'a location with ownership evidence or accepted module-creation authority' });
+    });
   }
 
   // The harness writes the accepted commit's trailers, and one of them is the
@@ -315,6 +348,21 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
   }
 
   return errors.length === 0 ? shape : { ok: false, errors };
+}
+
+/** Reconcile only new submissions with current ownership before a runner admits them. */
+export async function validateEngineerWithOwnership(input: unknown, evidence: EngineerEvidence,
+  query: (paths: readonly string[]) => Promise<AffectedDocument>,
+  registry: () => ReadonlyMap<string, RegistryEntry>,
+): Promise<SubmissionValidation<EngineerSubmission>> {
+  const validated = validateEngineer(input, evidence);
+  if (!validated.ok || validated.value.kind !== 'capability-needed'
+    || !validated.value.request.usage.some(usage => usage.module !== undefined)) return validated;
+  let ownership: AffectedDocument | null = null;
+  let unavailable: string | undefined;
+  try { ownership = await query(validated.value.request.usage.map(usage => usage.path)); }
+  catch (error) { unavailable = error instanceof Error ? error.message : String(error); }
+  return validateEngineer(input, { ...evidence, capabilityUsage: { ownership, unavailable, registry: registry() } });
 }
 
 // The briefing.

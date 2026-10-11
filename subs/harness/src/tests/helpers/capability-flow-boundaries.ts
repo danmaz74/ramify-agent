@@ -43,6 +43,7 @@ const owners: Readonly<Record<string, string>> = {
   '.': 'capability-coordination', 'subs/a': 'capability-coordination/a', 'subs/b': 'capability-coordination/b', 'subs/d': 'capability-coordination/d',
   'subs/a/src/.gitignore': 'capability-coordination/a', 'subs/a/src/tmp/draft.txt': 'capability-coordination/a', 'subs/a/src/extra.ts': 'capability-coordination/a', 'subs/b/src/companion.ts': 'capability-coordination/b', 'module.ramify': 'capability-coordination', 'src/tests/stale.test.ts': 'capability-coordination', 'subs/d/module.ramify': 'capability-coordination/d',
   'subs/a/src/caller.ts': 'capability-coordination/a', 'subs/b/src/fact.ts': 'capability-coordination/b',
+  'subs/a/src/tests/steps/future.steps.ts': 'capability-coordination/a',
   'subs/a/src/tests/caller.test.ts': 'capability-coordination/a', 'subs/b/src/tests/fact.test.ts': 'capability-coordination/b',
   'subs/d/src/consumer.ts': 'capability-coordination/d', 'subs/d/src/tests/consumer.test.ts': 'capability-coordination/d',
   'subs/a/src/tests/features/need/a-reads-b.feature': 'capability-coordination/a',

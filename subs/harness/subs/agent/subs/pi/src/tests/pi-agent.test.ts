@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { scriptedProvider, scriptedRuntime } from './helpers/scripted-provider.js';
 import { createPiAgentOn, permissiveSchema } from '../pi-agent.js';
 import { nativeCall, nativeText, preservingPi, submission } from './helpers/session.js';
+import { installedPiPublicExport } from '../preservation.js';
 const cleanups: Array<() => Promise<void>> = [];
 beforeAll(() => { process.env.PI_OFFLINE = '1'; });
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
@@ -12,6 +13,9 @@ describe('the preserving Pi port', () => {
     expect(result.outcome).toEqual({ kind: 'submitted', input: { summary: 'Done' } });
     expect(f.native.requests[0]!['instructions']).toBe('EXACT INITIAL INSTRUCTIONS');
     expect((f.native.requests[0]!['tools'] as Array<{ name: string }>).map(tool => tool.name)).toEqual(['submit_map']);
+    const declaration = (f.native.requests[0]!['tools'] as Array<{ parameters: unknown; description: string }>)[0]!;
+    expect(declaration.parameters).toEqual(permissiveSchema(submission.inputSchema));
+    expect(JSON.parse(declaration.description.split('\n').at(-1)!)).toEqual(submission.inputSchema);
     expect(f.native.transports).toEqual(['sse']); f.native.verify();
     expect('startSession' in f.agent).toBe(false); expect('appendContext' in f.agent).toBe(false);
   });
@@ -40,5 +44,17 @@ describe('the preserving Pi port', () => {
   });
   test('the permissive declaration retains top-level names while the owner validates the full schema', () => {
     expect(permissiveSchema(submission.inputSchema)).toEqual({ type: 'object', properties: { summary: {} } });
+  });
+  test('pinned Pi typed executor validation coerces or refuses arguments before authoritative submission admission', async () => {
+    const validation = await import(await installedPiPublicExport('./utils/validation')) as {
+      validateToolArguments(tool: unknown, call: unknown): unknown;
+    };
+    const tool = { name: submission.name, parameters: submission.inputSchema };
+    const call = (arguments_: unknown) => ({ name: submission.name, arguments: arguments_ });
+    expect(validation.validateToolArguments(tool, call({ summary: 1 }))).toEqual({ summary: '1' });
+    expect(() => validation.validateToolArguments(tool, call({}))).toThrow('Validation failed');
+    const permissive = { ...tool, parameters: permissiveSchema(submission.inputSchema) };
+    expect(validation.validateToolArguments(permissive, call({ summary: 1 }))).toEqual({ summary: 1 });
+    expect(validation.validateToolArguments(permissive, call({}))).toEqual({});
   });
 });

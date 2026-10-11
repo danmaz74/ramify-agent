@@ -122,10 +122,21 @@ export async function iterationApiViews(
   projectRoot: string,
   index: ArchitectIndex | null,
   base: WriteScope['base'],
+  extra: WriteScope['extra'] = [],
 ): Promise<IterationApiViews[]> {
   const modules = 'module' in base
     ? [base.module, ...[...index?.modules.values() ?? []].filter(module => base.included.some(entry => module.dir === entry.directory || module.dir.startsWith(`${entry.directory}/`))).map(module => module.module)]
-    : base.modules;
+    : [...base.modules];
+  // Extra files can belong to consumers outside the base. Select their most
+  // specific declared owners; a provider's views cannot answer consumer imports.
+  const unresolved: string[] = [];
+  for (const location of extra) {
+    const owner = [...index?.modules.values() ?? []]
+      .filter(entry => entry.dir === '' || entry.dir === '.' || location.path === entry.dir || location.path.startsWith(`${entry.dir}/`))
+      .sort((a, b) => b.dir.length - a.dir.length)[0];
+    if (owner !== undefined) modules.push(owner.module);
+    else unresolved.push(`consumer ownership and API views are unavailable for extra file "${location.path}": ${index === null ? 'there is no architect index' : 'no module in the supplied architect index owns its location'}`);
+  }
   const entries: IterationApiViews[] = [];
   for (const module of new Set(modules)) {
     const result = await apiViewsOf(ramify, projectRoot, index, module)
@@ -136,6 +147,9 @@ export async function iterationApiViews(
       unavailable: result.unavailable,
     });
   }
+  if (unresolved.length > 0 && entries[0] !== undefined) entries[0] = {
+    ...entries[0], unavailable: [entries[0].unavailable, ...unresolved].filter(value => value !== null).join('; '),
+  };
   return entries;
 }
 

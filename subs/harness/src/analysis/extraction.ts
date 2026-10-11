@@ -6,7 +6,7 @@ import {
   acceptElements, createPackage, elementRewriteSchema, resolveCitations, reviseCatalog, submittedElementSchema,
   type ElementCatalog, type ElementKind,
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import { extractPlanScenarios } from '../../subs/scenarios/src/extraction.js';
+import { extractPlanScenarios, type PlanScenario } from '../../subs/scenarios/src/extraction.js';
 import type { SubmissionError, SubmissionValidation } from '../run/submissions.js';
 import { incorporationSchema, type Incorporation } from './evidence-contracts.js';
 import type { CatalogFinding } from './records.js';
@@ -288,7 +288,7 @@ export function principleMessage(inputs: ExtractionInputs, document: string, goa
   ].join('\n');
 }
 
-export function checkMessage(inputs: ExtractionInputs, document: string, state: CheckState): string {
+export function checkMessage(inputs: ExtractionInputs, document: string, state: CheckState, planScenarios: readonly PlanScenario[] = []): string {
   const ids = state.catalog.elements.filter(element => element.document === document).map(element => element.id);
   const rendered = createPackage({ catalog: state.catalog, planDeviations: [], elements: ids, deviations: [] });
   if ('unavailable' in rendered) throw new Error(`The catalog cannot render its own elements: ${rendered.unavailable.missing.join(', ')}`);
@@ -296,13 +296,21 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
   const plan = inputs.manifest.documents.find(item => item.id === document)?.kind === 'plan';
   const entries = state.analysis.entries.filter(entry => [...entry.requirementRefs, ...entry.acceptanceRefs, ...entry.contextRefs].some(id => cited.has(id)));
   const scenarios = state.analysis.scenarios.filter(scenario => (scenario.refs ?? []).some(id => cited.has(id)));
+  const origins = planScenarios.filter(scenario => (scenario.document ?? inputs.manifest.root) === document);
   return [
     `# Check the reading of ${document}`, '',
     'Read the document in full:', '',
     `- ${capturedFile(inputs, document)}`, '',
     ids.length === 0 ? 'No element was read from it.' : `The ${ids.length === 1 ? 'element' : `${ids.length} elements`} read from it, as every later reader receives them:`, '',
     ...(ids.length === 0 ? [] : [rendered.text]),
-    ...(plan ? ['', '# The entries and scenarios that cite them', '',
+    ...(plan ? ['', '# Scenario-origin mapping', '',
+      'Correction scenarios[].key names the architect scenario key. Registered plan origins (ps-NN) identify captured scenarios; partOf relates architect sub-scenarios to an integration origin. Source intervals below are 1-based captured-document lines. Frozen scenario text is unchanged.', '',
+      ...(origins.length === 0 ? ['No registered plan-origin mapping is available for this document in the supplied registry. Do not infer identities from scenario order.'] : origins.map(origin => {
+        const keys = state.analysis.scenarios.filter(scenario => scenario.origin.kind === 'plan'
+          ? scenario.origin.planScenario === origin.id : scenario.partOf === origin.id);
+        return `- Registered plan origin ${origin.id}: ${origin.name}; ${capturedFile(inputs, origin.document ?? inputs.manifest.root)}; lines ${origin.lines[0]}–${origin.lines[1]}; architect scenario keys: ${keys.map(scenario => `${scenario.key}${scenario.origin.kind === 'architect' ? ` (architect sub-scenario; partOf ${origin.id})` : ' (plan origin)'}`).join(', ') || 'none (see the integration scenario registration)'}.`;
+      })),
+      '', '# The entries and scenarios that cite them', '',
       ...(entries.length === 0 ? ['None.'] : entries.map(entry =>
         `- Entry ${entry.capability}: ${entry.description} Requirements: ${entry.requirementRefs.join(', ') || 'none'}; acceptance: ${entry.acceptanceRefs.join(', ') || 'none'}; context: ${entry.contextRefs.join(', ') || 'none'}.`)),
       ...scenarios.map(scenario => `- Scenario ${scenario.key} of ${scenario.entry}: cites ${(scenario.refs ?? []).join(', ')}.`)] : []),

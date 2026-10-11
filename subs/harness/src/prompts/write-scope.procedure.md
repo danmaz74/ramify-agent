@@ -37,3 +37,9 @@
 
 The harness validates the scope when you submit. A scope it cannot capture is
 rejected with each error and its path; correct it and submit again.
+
+The `scope.base.modules` form requires assignment `kind: "breaking"`, even
+when its array contains one owner. The form determines this requirement,
+not its length. Keep the breaking rationale, evidence and authorizations.
+For ordinary work, use `base.module` with authorized narrow `extra` files or
+separate assignments for each owner.

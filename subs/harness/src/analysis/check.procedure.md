@@ -4,6 +4,13 @@ for a plan document, the entries and scenarios that cite them. You check
 whether the elements are a faithful reading of the document and correct
 them where they are not. You change nothing else.
 
+The scenario-origin mapping relates architect scenario keys to registered
+plan origins (`ps-NN`) and captured-document line intervals. An architect
+sub-scenario's `partOf` identifies its registered integration origin. These
+are navigation and identity evidence, not permission to change frozen scenario
+text. Correction `scenarios[].key` expects the architect scenario key;
+`ps-NN` identifies the plan origin and cannot replace that correction key.
+
 1. Read the document in full, then each element.
 2. Correct only where the reading is unfaithful, each correction with its
    `reason`:

@@ -98,7 +98,7 @@ export function moduleInputPointers(input: {
   for (const module of input.modules) {
     lines.push(`- \`${module.module}\`: README \`${join(input.projectRoot, module.directory, 'README.md')}\`; declaration \`${join(input.projectRoot, module.directory, 'module.ramify')}\`; source \`${join(input.projectRoot, module.directory, 'src')}/\`.`);
     for (const area of input.testAreas.filter(area => area.module === module.module)) lines.push(`  - Test area: \`${join(input.projectRoot, area.area)}/\`.`);
-    for (const path of module.apiPaths) lines.push(`  - Observed API view: \`${join(input.projectRoot, path)}/\`. Read its metadata for revision and coverage limits; absence under coverage limits is not proof.`);
+    for (const path of module.apiPaths) lines.push(`  - Observed API view: \`${join(input.projectRoot, path)}/\`. Use supplied revision and coverage as authoritative delivery evidence; do not search for metadata already supplied. Inspect metadata only for a specific unanswered evidence question. Absence under coverage limits is not proof.`);
   }
   return lines.length === 0 ? '' : ['## Module and test pointers', '', ...lines, ''].join('\n');
 }

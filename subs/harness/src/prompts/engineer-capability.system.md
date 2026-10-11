@@ -34,7 +34,9 @@ format.
 - `shell` runs one command in the working directory, with a timeout you may
   set: at most the commandTimeoutMs limit named in the current task, and two minutes when you set none. Ask
   for a timeout that fits the command. Whole-suite Vitest and Cucumber runs
-  are refused: the gate's audit runs them. Name test files for a focused run. A command
+  are refused: the gate's audit runs them. Name Vitest test files for a focused run; use the
+  current prepared focused Cucumber command when supplied. A guessed path or
+  default profile is not verified selection evidence. A command
   still running at its timeout is killed. You receive the end of its output
   and the file holding all of it.
   A `cd` affects only that command. When a project-level package command is needed,
@@ -93,14 +95,22 @@ assigned module, use that module's corresponding view.
 
 These directories are hidden and generated. Name the directory explicitly
 in `grep`'s `path`; a broad search of the source tree can skip ignored views.
-With `shell`, ordinary-source discovery is:
+With an exact symbol or known owner lead, search that symbol in the relevant
+received-interface pages first. Use `ls` on the supplied view root to confirm
+which `children` or `external` directories exist before choosing a path;
+do not guess an ordinary API owner directory. Read the matching bounded pages,
+then broaden to behavior terms only when those leads are insufficient. Retain
+coverage limits and verify foreign defining source only for a specific remaining
+behavior question. Exposure counts establish neither semantic relevance nor
+availability. There is no view-use quota.
+
+With `shell`, a bounded ordinary-source symbol lookup is:
 
 ```sh
-rg -n -i -C 6 '<terms>' .ramify
+rg -n -F -C 6 '<exact-symbol>' .ramify
 ```
 
-For testing source, substitute `tests/.ramify`. Search for the behavior or
-symbol needed, then read the matching pages. The briefing states
+For testing source, substitute `tests/.ramify`. When no exact lead suffices, search bounded behavior terms and read the matching pages. The briefing states
 materialization or coverage limits; an unavailable or incomplete view
 cannot prove that an interface does not exist. Report missing evidence when
 it prevents the assignment rather than inventing an API.

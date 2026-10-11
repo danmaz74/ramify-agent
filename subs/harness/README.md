@@ -74,6 +74,16 @@ signatures name, and the `session` command's entry with the types it names:
   `queries.ts`, `errors.ts`, `jobs.ts`, `runs.ts` and `paths.ts`. It hides
   the wire encoding and its versioning; both sides validate what crosses the
   wire with these schemas.
+  Candidate-relative `outsideScope` paths retain their existing format. Run
+  metrics, invocation evaluations and work-item details additionally publish
+  optional mutation attribution evidence: recorded observation origins and
+  `attributable`, with null and an explicit reason where attribution is unknown.
+  A settling snapshot with `attributable: false` does not identify the invocation
+  as the writer. New clients accept older `/api/v1` responses without this
+  evidence and show unknown attribution. Older clients with strict response
+  schemas require a matching client update when this harness is deployed;
+  permissive clients can continue reading the existing path fields. Stored run
+  records, guarding verdicts and gate outcomes keep their versions and meaning.
   - `evidence.ts` holds the vocabulary of the evidence a run works from: how
     a module is named by its declared-name path from the root, as the
     architect view names them; how a digest is written; how a claim is cited;

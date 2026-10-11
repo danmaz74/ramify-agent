@@ -15,6 +15,14 @@ not in the registry.
 
 {{writeScope}}
 
+`assignment.stage` uses a valid zero-based index in the work item's applicable
+staged outline, or zero when that outline has no stages. A capability
+assignment validated without an applicable staged outline uses zero, even
+when a provider entry's outline is shown as background. Showing an outline
+does not give that assignment its authority.
+
+{{architectEngineering}}
+
 Record affected requirements, relevant package elements, scenarios and
 existing guarantees in the assignment. A scoped engineer may report
 `capability-needed` with its actual calling code, known constraints and

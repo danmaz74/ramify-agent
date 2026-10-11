@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
-import { initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis } from '../analysis/submission.js';
+import { acceptArchitectElements, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis } from '../analysis/submission.js';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { acceptElements, openElementCatalog } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { extensionIsANewForecast } from '../analysis/records.js';
@@ -105,6 +105,33 @@ function entry(capability: string, extra: Record<string, unknown> = {}) {
     ...extra,
   };
 }
+
+test('Plan 36: nonbehavioral acceptance cites a functional key and preserves intake constraints', () => {
+  const input = submission([entry('render', { nonBehavioralAcceptance: [
+    { ref: 'render-acceptance', kind: 'non-behavioral', test: 'registered-render-check' },
+  ] })]);
+  const before = structuredClone(catalog);
+  const evidence = { index, catalog, registeredTests: new Set(['registered-render-check']) };
+  const valid = validateInitialAnalysis(input, evidence);
+  expect(valid.ok).toBe(true);
+  if (!valid.ok) throw new Error(JSON.stringify(valid.errors));
+  const accepted = acceptArchitectElements(catalog, valid.value);
+  expect(accepted.analysis.entries[0]!.nonBehavioralAcceptance).toEqual([
+    { ref: 'fr-002', kind: 'non-behavioral', test: 'registered-render-check' },
+  ]);
+  expect(accepted.catalog.elements.filter(element => element.kind === 'non-functional')).toEqual(
+    before.elements.filter(element => element.kind === 'non-functional'),
+  );
+  const invalid = validateInitialAnalysis({ ...input, entries: [{ ...input.entries[0],
+    nonBehavioralAcceptance: [{ ref: 'nfr-001', kind: 'non-behavioral', test: 'registered-render-check' }],
+  }] }, evidence);
+  expect(invalid).toMatchObject({ ok: false, errors: expect.arrayContaining([
+    expect.objectContaining({ path: 'entries.0.nonBehavioralAcceptance.0', expected: expect.stringContaining('functional') }),
+  ]) });
+  expect(validateInitialAnalysis(input, { ...evidence, registeredTests: new Set() })).toMatchObject({ ok: false,
+    errors: [expect.objectContaining({ path: 'entries.0.nonBehavioralAcceptance.0.test' })] });
+  expect(catalog).toEqual(before);
+});
 
 describe('the schema', () => {
   test('rejects an input whose shape is wrong, with a path for every error', () => {
@@ -525,7 +552,7 @@ describe('the prompt package', () => {
     const { manifest } = await loadPromptPackages({ capabilityWorkflow: false });
     expect(Object.keys(manifest.packages).sort()).toEqual(['catalog-extractor', 'context-selector', 'contract-engineer', 'engineer', 'failure-analyst', 'global-fork', 'initial-architect', 'local-architect', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer', 'reviewer']);
     const initial = manifest.packages['initial-architect']!;
-    expect(initial.package).toBe('initial-architect/3');
+    expect(initial.package).toBe('initial-architect/4');
     expect(initial.submissionKinds).toEqual(['initial-analysis']);
     expect(initial.files.map(file => file.kind).sort()).toEqual(expect.arrayContaining(['procedure', 'skill', 'submission-schema', 'system']));
     expect(initial.hash).toMatch(/^[0-9a-f]{64}$/);
@@ -541,17 +568,17 @@ describe('the prompt package', () => {
     expect(extractor.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const local = manifest.packages['local-architect']!;
-    expect(local.package).toBe('local-architect/14');
+    expect(local.package).toBe('local-architect/15');
     // The reconciliation fork's submission is the package's second.
     expect(local.submissionKinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved', 'reconciliation', 'work-orientation']);
 
     const fork = manifest.packages['global-fork']!;
-    expect(fork.package).toBe('global-fork/4');
+    expect(fork.package).toBe('global-fork/5');
     expect(fork.submissionKinds).toEqual(['decision', 'partial', 'deviation', 'nothing-possible', 'environment']);
     expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/11');
+    expect(engineer.package).toBe('engineer/12');
     expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
     expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
@@ -585,7 +612,7 @@ describe('the prompt package', () => {
   test('new runs offer capability coordination without the retired contract package', async () => {
     const { manifest } = await loadPromptPackages();
     expect(manifest.packages['contract-engineer']).toBeUndefined();
-    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/3');
+    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/4');
     expect(manifest.packages['context-selector']?.package).toBe('context-selector/3');
     expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/3');
     expect(manifest.packages['engineer']?.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'capability-needed']);
@@ -606,8 +633,8 @@ describe('the prompt package', () => {
     expect(current.packages.get('local-architect')!.procedure).not.toContain('Keep source and tests with their owners');
     expect(section).toContain('A directory inside the owner, such as its `src/tests`, is already part of\n  the base and is refused');
     expect(section).toContain('An included child module brings its whole subtree:');
-    expect(current.packages.get('local-architect')!.package).toBe('local-architect/13');
-    expect(current.packages.get('engineer')!.package).toBe('engineer/10');
+    expect(current.packages.get('local-architect')!.package).toBe('local-architect/14');
+    expect(current.packages.get('engineer')!.package).toBe('engineer/11');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
   });
 

@@ -47,6 +47,8 @@ const capabilityLocalProcedureFile = fileURLToPath(new URL('./local-architect-ca
 const reconciliationProcedureFile = fileURLToPath(new URL('./reconciliation.procedure.md', import.meta.url));
 /** The write-scope section every architect procedure that assigns a scope includes as `{{writeScope}}`. */
 const writeScopeSectionFile = fileURLToPath(new URL('./write-scope.procedure.md', import.meta.url));
+const discoveryReadOnlyFile = fileURLToPath(new URL('./discovery-read-only.procedure.md', import.meta.url));
+const architectEngineeringFile = fileURLToPath(new URL('./architect-engineering.procedure.md', import.meta.url));
 const engineerSystemFile = fileURLToPath(new URL('./engineer.system.md', import.meta.url));
 const engineerProcedureFile = fileURLToPath(new URL('./engineer.procedure.md', import.meta.url));
 const capabilityEngineerSystemFile = fileURLToPath(new URL('./engineer-capability.system.md', import.meta.url));
@@ -155,14 +157,14 @@ export interface PromptPackageOptions {
 }
 
 /** The versions of the packages this iteration ships. */
-export const initialArchitectPackage = 'initial-architect/3';
+export const initialArchitectPackage = 'initial-architect/4';
 export const catalogExtractorPackage = 'catalog-extractor/1';
-export const globalForkPackage = 'global-fork/4';
-export const localArchitectPackage = 'local-architect/13';
+export const globalForkPackage = 'global-fork/5';
+export const localArchitectPackage = 'local-architect/14';
 export const contextSelectorPackage = 'context-selector/3';
-export const engineerPackage = 'engineer/11';
-export const capabilityEngineerPackage = 'engineer/10';
-export const capabilityArchitectPackage = 'capability-architect/3';
+export const engineerPackage = 'engineer/12';
+export const capabilityEngineerPackage = 'engineer/11';
+export const capabilityArchitectPackage = 'capability-architect/4';
 export const contractEngineerPackage = 'contract-engineer/3';
 export const reviewerPackage = 'reviewer/4';
 export const failureAnalystPackage = 'failure-analyst/1';
@@ -283,7 +285,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: options.capabilityWorkflow === false ? 'local-architect/14' : localArchitectPackage,
+    name: options.capabilityWorkflow === false ? 'local-architect/15' : localArchitectPackage,
     systemFile: localSystemFile,
     procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
     schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
@@ -296,7 +298,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
       describe(workOrientationProcedureFile, workOrientation, 'procedure'),
       { path: 'work-orientation.schema.json', hash: sha256(workOrientationSchema), kind: 'submission-schema', bytes: Buffer.byteLength(workOrientationSchema) },
     ],
-    sections: { writeScope: writeScopeSectionFile },
+    sections: { writeScope: writeScopeSectionFile, architectEngineering: architectEngineeringFile },
     options,
   });
   return { ...loaded, reconciliation: { procedure: withoutVersionComment(reconciliation).trim(), submissionSchema: reconciliationSchema },
@@ -337,7 +339,7 @@ async function loadCapabilityArchitect(options: PromptPackageOptions): Promise<L
     submissionKinds: [...capabilityActionSchema.options.map(option => option.shape.kind.value), 'reconciliation'],
     extraFiles: [describe(reconciliationProcedureFile, reconciliation, 'procedure'),
       { path: 'reconciliation.schema.json', hash: sha256(reconciliationSchema), kind: 'submission-schema', bytes: Buffer.byteLength(reconciliationSchema) }],
-    sections: { writeScope: writeScopeSectionFile },
+    sections: { writeScope: writeScopeSectionFile, architectEngineering: architectEngineeringFile },
     options,
   });
   return { ...loaded, reconciliation: { procedure: withoutVersionComment(reconciliation).trim(), submissionSchema: reconciliationSchema } };
@@ -439,7 +441,10 @@ async function loadPackage(request: {
   const sections = await Promise.all(Object.entries(request.sections ?? {}).map(async ([name, file]) => ({ name, file, text: await readFile(file, 'utf8') })));
   const usesSkill = system.includes('{{skill}}');
   const skillFiles = usesSkill ? [join(skillDirectory, 'SKILL.md')] : [];
-  const skill = usesSkill ? adaptReadOnlySkill(await readFile(join(skillDirectory, 'SKILL.md'), 'utf8'), skillDirectory) : '';
+  const readOnlyDiscovery = usesSkill || ['local-architect', 'capability-architect'].includes(request.role)
+    ? await readFile(discoveryReadOnlyFile, 'utf8') : '';
+  const snapshotSkill = usesSkill ? adaptReadOnlySkill(await readFile(join(skillDirectory, 'SKILL.md'), 'utf8'), skillDirectory) : '';
+  const skill = usesSkill ? `${snapshotSkill}\n\n${withoutVersionComment(readOnlyDiscovery).trim()}` : '';
   const extraSkill = request.extraSkillFile === undefined ? '' : await readFile(request.extraSkillFile, 'utf8');
   const submissionSchema = `${JSON.stringify(request.schema, null, 2)}\n`;
   const schemaName = submissionSchemaNames[request.role as keyof typeof submissionSchemaNames] ?? `${request.role}.schema.json`;
@@ -447,7 +452,8 @@ async function loadPackage(request: {
   const files: PackageFile[] = [
     describe(request.systemFile, system, 'system'),
     describe(request.procedureFile, procedure, 'procedure'),
-    ...skillFiles.map(path => describe(path, skill, 'skill')),
+    ...skillFiles.map(path => describe(path, snapshotSkill, 'skill')),
+    ...(readOnlyDiscovery ? [describe(discoveryReadOnlyFile, readOnlyDiscovery, 'skill')] : []),
     ...(request.extraSkillFile === undefined ? [] : [describe(request.extraSkillFile, extraSkill, 'skill')]),
     { path: schemaName, hash: sha256(submissionSchema), kind: 'submission-schema', bytes: Buffer.byteLength(submissionSchema) },
     ...(request.extraFiles ?? []),
@@ -460,14 +466,15 @@ async function loadPackage(request: {
     hash: packageHash(files),
     files,
     submissionKinds: request.submissionKinds,
-    system: withoutVersionComment(system),
+    system: withoutVersionComment(system) + (!usesSkill && readOnlyDiscovery ? `\n\n${withoutVersionComment(readOnlyDiscovery).trim()}` : ''),
     procedure: fill(withoutVersionComment(procedure).trim(),
       Object.fromEntries(sections.map(section => [section.name, withoutVersionComment(section.text).trim()]))),
     skill: skill.trim(),
     skillDirectory,
     extraSkill: withoutVersionComment(extraSkill).trim(),
     embeddedSkillPaths: [
-      ...skillFiles.map(path => describe(path, skill, 'skill').path),
+      ...skillFiles.map(path => describe(path, snapshotSkill, 'skill').path),
+      ...(readOnlyDiscovery ? [describe(discoveryReadOnlyFile, readOnlyDiscovery, 'skill').path] : []),
       ...(request.extraSkillFile !== undefined && system.includes('{{contractSkill}}') ? [describe(request.extraSkillFile, extraSkill, 'skill').path] : []),
     ],
     embeddedProcedurePaths: sections.filter(section => procedure.includes(`{{${section.name}}}`)).map(section => describe(section.file, section.text, 'procedure').path),
@@ -590,9 +597,13 @@ export function renderOrientationPrompt(loaded: LoadedPackage): string {
 
 /** Materialization and report-file instructions do not apply to harness read-only roles. */
 function adaptReadOnlySkill(skill: string, skillDirectory: string): string {
-  return skill.replace(/\]\((references\/[^)]+)\)/g, (_match, path: string) => `](${resolve(skillDirectory, path)})`)
+  return skill.replace(/\[references\/(?:discovery|access)\.md\]\(references\/(?:discovery|access)\.md\)/g,
+      '[the embedded discovery and access guidance](#discovery-with-the-active-read-tools)')
+    .replace(/\]\((references\/[^)]+)\)/g, (_match, path: string) => `](${resolve(skillDirectory, path)})`)
     .replace(/1\. Classify[\s\S]*?(?=2\. Read)/,
     '1. Classify the requested outcomes. Use the already supplied materialized views\n   named in the current task. There is no shell; do not run materialization.\n   Preserve every supplied coverage, revision and unavailable detail.\n')
+    .replace(/2\. Read[\s\S]*?(?=3\. Read)/,
+      '2. Use the current task\'s supplied revision, dependency/test-reference states,\n   coverage limits and unavailable details as authoritative delivery evidence.\n   Read metadata only for a specific unanswered evidence question.\n')
     .replace(/Before answering, read \[report\.md\][\s\S]*$/,
       'Complete the current task using its designated submission tool. No report.md\nfile or shell command is required. Read placement references only for a real\nownership or placement question, not for a change to an existing symbol.\n')
     .replace(/When requested to\n  verify a proposal,[\s\S]*?there\./,

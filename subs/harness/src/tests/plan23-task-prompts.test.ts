@@ -254,11 +254,13 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
   test('procedure manifest entries and support paths name the embedded section sources and nothing undelivered', () => {
     const local = current.get('local-architect')!;
     const writeScope = 'subs/harness/src/prompts/write-scope.procedure.md';
+    const engineering = 'subs/harness/src/prompts/architect-engineering.procedure.md';
+    const discovery = 'subs/harness/src/prompts/discovery-read-only.procedure.md';
     const procedureSources = (loaded: LoadedPackage, kind: TaskKind) =>
       buildTaskPacket(input(loaded, kind)).manifest.entries.filter(entry => entry.kind === 'procedure').flatMap(entry => entry.sources.map(source => source.path));
-    expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-capability.procedure.md', writeScope]);
-    expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect.procedure.md', writeScope]);
-    expect(procedureSources(current.get('capability-architect')!, 'capability')).toEqual(['subs/harness/src/prompts/capability-architect.procedure.md', writeScope]);
+    expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-capability.procedure.md', writeScope, engineering]);
+    expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect.procedure.md', writeScope, engineering]);
+    expect(procedureSources(current.get('capability-architect')!, 'capability')).toEqual(['subs/harness/src/prompts/capability-architect.procedure.md', writeScope, engineering]);
     expect(buildTaskPacket(input(local, 'assignment')).message).toContain('An included child module brings its whole subtree:');
     // A replaced procedure embeds no section, so its entry names only its own file.
     expect(procedureSources(local, 'orientation')).toEqual(['subs/harness/src/context-selection/orientation.procedure.md']);
@@ -268,12 +270,12 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     const packet = buildTaskPacket(input(local, 'assignment'));
     const manifestSources = [...new Set(packet.manifest.entries.flatMap(entry => entry.sources.map(source => source.path)))];
     expect(deliveredSupportPaths(local, 'assignment')).toEqual(manifestSources);
-    // The local architect's role embeds no skill file; the initial architect's does.
-    expect(deliveredSupportPaths(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect.system.md',
-      'subs/harness/src/prompts/local-architect-capability.procedure.md', writeScope]);
+    // Role-specific read-only guidance is embedded; no new reference read is required.
+    expect(deliveredSupportPaths(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect.system.md', discovery,
+      'subs/harness/src/prompts/local-architect-capability.procedure.md', writeScope, engineering]);
     expect(local.files.map(file => file.path)).toEqual(expect.arrayContaining(['local-architect.schema.json', 'subs/harness/src/prompts/reconciliation.procedure.md']));
-    expect(deliveredSupportPaths(local, 'reconciliation')).toEqual(['subs/harness/src/prompts/local-architect.system.md', 'subs/harness/src/prompts/reconciliation.procedure.md']);
-    expect(deliveredSupportPaths(current.get('initial-architect')!, 'initial-analysis')).toEqual(['subs/harness/src/prompts/initial-architect.system.md', 'skills/module-architect/SKILL.md', 'subs/harness/src/prompts/initial-analysis.procedure.md']);
+    expect(deliveredSupportPaths(local, 'reconciliation')).toEqual(['subs/harness/src/prompts/local-architect.system.md', discovery, 'subs/harness/src/prompts/reconciliation.procedure.md']);
+    expect(deliveredSupportPaths(current.get('initial-architect')!, 'initial-analysis')).toEqual(['subs/harness/src/prompts/initial-architect.system.md', 'skills/module-architect/SKILL.md', discovery, 'subs/harness/src/prompts/initial-analysis.procedure.md']);
     expect(deliveredSupportPaths(current.get('engineer')!, 'consultation', '{"type":"object"}')).toEqual(['subs/harness/src/prompts/engineer-capability.system.md']);
     expect(() => deliveredSupportPaths(current.get('engineer')!, 'consultation')).toThrow('actual caller-owned submission schema');
   });
@@ -359,7 +361,9 @@ describe('P04: manifests reflect supplied/inherited instructions and truthful re
     expect(architect.roleInstructions).toContain('Complete the current task using its designated submission tool. No report.md\nfile or shell command is required.');
     expect(current.get('initial-architect')!.system).not.toContain('No report.md\nfile or shell command is required.');
     expect(architect.roleInstructions).toContain('placement references only for a real');
-    expect(architect.roleInstructions).toContain(`[references/discovery.md](${join(defaultSkillDirectory, 'references/discovery.md')})`);
+    expect(architect.roleInstructions).toContain('[the embedded discovery and access guidance](#discovery-with-the-active-read-tools)');
+    expect(architect.roleInstructions).not.toContain(join(defaultSkillDirectory, 'references/discovery.md'));
+    expect(architect.roleInstructions).not.toContain(join(defaultSkillDirectory, 'references/access.md'));
     expect(architect.roleInstructions).not.toMatch(/\]\(references\//);
     expect(architect.message).toContain('"modules": [');
     expect(architect.message).toContain('unknown shapes: 1');

@@ -22,15 +22,21 @@ export const capabilityAssignmentId = (task: string, count: number): string => `
 
 export const capabilityNeedSchema = z.object({
   need: text,
-  usage: z.array(z.object({ path: location, symbol: text.optional(), use: text, prospective: z.boolean(), module: modulePathSchema.optional() }).strict()
-    .refine(value => !value.prospective || value.module !== undefined, { path: ['module'], message: 'A prospective call site names its intended module' })).min(1),
+  usage: z.array(z.discriminatedUnion('prospective', [
+    z.object({ path: location, symbol: text.optional(), use: text, prospective: z.literal(false),
+      module: modulePathSchema.optional().describe('The caller module, when specified; separate from the suggested provider'),
+    }).strict(),
+    z.object({ path: location, symbol: text.optional(), use: text, prospective: z.literal(true),
+      module: modulePathSchema.describe('Required intended caller module for this prospective project-relative location; not the suggested provider'),
+    }).strict(),
+  ])).min(1),
   constraints: z.array(text),
   knownInterface: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('none-known') }).strict(),
     z.object({ kind: z.literal('insufficient'), path: location, symbol: text, missing: text }).strict(),
   ]),
   examples: z.array(z.object({ id: exampleId, title: text, code: text, designation: z.enum(['executable', 'pseudocode']) }).strict()).min(1),
-  suggestedProvider: z.object({ module: modulePathSchema, reason: text }).strict().optional(),
+  suggestedProvider: z.object({ module: modulePathSchema.describe('The proposed provider, separately from each usage caller module'), reason: text }).strict().optional(),
   revises: z.object({ task: id, reason: text }).strict().optional(),
 }).strict().superRefine((value, context) => {
   const seen = new Set<string>();

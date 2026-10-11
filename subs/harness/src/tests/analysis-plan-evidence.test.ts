@@ -15,6 +15,7 @@ import { extractDocumentScenarios } from '../../subs/scenarios/src/extraction.js
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { unchangedGit } from './helpers/unchanged-run.js';
+import { analysis, entry } from './helpers/analysis.js';
 
 const planId = 'review-notes';
 const hash = (value: Uint8Array | string) => createHash('sha256').update(value).digest('hex');
@@ -206,4 +207,39 @@ test('the check of the root plan reads it in the plan block; any other document 
   const alone = intakeMessage({ ...inputs, manifest: documentManifestSchema.parse({ ...manifest, documents: [documents[0]] }) });
   expect(alone).toContain('- doc-001 (plan): plans/example/plan.md; in the plan block of this message');
   expect(alone).not.toContain('captured file');
+});
+
+test('recorded fresh checker receives the six retained scenario keys with incorporated origins and captured intervals', async () => {
+  const text = await readFile('subs/harness/fixtures/collection-review/plans/revision-preview/plan.md', 'utf8');
+  const origins = extractDocumentScenarios([{ id: 'doc-001', text }]).scenarios;
+  const fixture = await copyFixture();
+  cleanups.push(fixture.remove);
+  await installTestRunner(fixture.root);
+  await writeFile(join(fixture.root, 'plans', planId, 'plan.md'), text);
+  const preview = entry('preview', 'collection-review/workspace/reviews');
+  const submitted = analysis([preview], [], [], origins.map((origin, index) => ({
+    key: `retained-preview-${index + 1}`, entry: 'preview', origin: { kind: 'plan', planScenario: origin.id },
+    gherkin: origin.source.join('\n'), refs: [...preview.acceptanceRefs],
+  })));
+  const { service, agent } = await openRuns(fixture.root, {
+    script: spec => spec.role === 'initial-architect' ? [{ kind: 'submit', input: submitted }] : [],
+    git: unchangedGit(fixture.root, []),
+  });
+  cleanups.push(() => service.close());
+  const receipt = await service.execute(startRun(planId, 'scripted', undefined, true));
+  await until(() => service.getRun(planId, receipt.jobId)?.phase === 'awaiting-review');
+  const checker = agent!.sessions.find(session => session.spec.submission.name === 'submit_catalog_check' && session.spec.prompt.includes('# Check the reading of doc-001'))!;
+  expect(checker.start.mode).toBe('fresh');
+  expect(checker.inherited).toEqual([]);
+  expect(checker.spec.prompt).not.toContain('# Block environment:views');
+  expect(checker.spec.prompt).toContain(`<plan>\n${text}`);
+  for (const [index, origin] of origins.entries()) {
+    expect(checker.spec.prompt).toContain(`Registered plan origin ${origin.id}: ${origin.name}`);
+    expect(checker.spec.prompt).toContain(`lines ${origin.lines[0]}–${origin.lines[1]}; architect scenario keys: retained-preview-${index + 1} (plan origin)`);
+  }
+  const initial = agent!.sessions.find(session => session.spec.role === 'initial-architect')!;
+  expect(initial.spec.prompt).toContain('Read the plan in the message below, in full, and every accompanying plan');
+  expect(initial.spec.prompt).toContain('Scenario: Existing stored-record reviews keep their behavior');
+  await service.execute(stopRun(planId, receipt.jobId, service.getRun(planId, receipt.jobId)!.version));
+  await service.settled(planId, receipt.jobId);
 });

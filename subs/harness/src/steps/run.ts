@@ -19,7 +19,7 @@ import { readSessionPointReference } from '../run/session-operations.js';
 import type { ProcessGroups } from '../run/writer.js';
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
 import { committedRecords } from '../work/committed.js';
-import { iterationAcceptance, validateEngineer, type EngineerSubmission } from '../work/engineer.js';
+import { iterationAcceptance, validateEngineerWithOwnership, type EngineerSubmission } from '../work/engineer.js';
 import { engineerEquipment } from '../work/engineer-equipment.js';
 import { engineerWorkingDirectory } from '../work/engineer-directory.js';
 import { createGitInspectionTool } from '../work/git-inspection.js';
@@ -627,7 +627,7 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
     inputSchema: step.submission.inputSchema,
     submissionSchema: step.submission.submissionSchema,
     beforeSubmission: async (input, signal) => { await tools.findingsAtCompletion(input, signal); },
-    validate: input => validateEngineer(input, {
+    validate: input => validateEngineerWithOwnership(input, {
       capabilityWorkflow: step.validator.capabilityWorkflow,
       obligation: step.validator.obligation,
       kind: step.validator.kind,
@@ -639,7 +639,8 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
         consumer: step.validator.consumer,
         providerOf: capability => committedRecords(run.log.ledger.replay()).registry.find(entry => entry.capability === capability)?.owner,
       },
-    }),
+    }, paths => ramify.queryOwnership(projectRoot, paths),
+    () => new Map(committedRecords(run.log.ledger.replay()).registry.map(entry => [entry.capability, entry]))),
     acceptedText: value => {
       const check = tools.completionCheck();
       return iterationAcceptance(value.kind, check?.kind === 'not-checked' ? check.reason : null);

@@ -116,6 +116,11 @@ export async function chooseModel(runtime: ModelRuntime, requested: string | und
 }
 
 export function permissiveSchema(schema: JsonSchema): JsonSchema {
+  // Pi 0.87.1 validates/coerces executable parameters before execute and
+  // declares that same schema to the model. Keep malformed final inputs
+  // intact so the harness owns admission, field errors and rejection bounds.
+  // The preserving driver carries the complete typed schema in description;
+  // it does not claim typed native parameters or replace inherited tools.
   const properties = schema.properties;
   const names = properties !== null && typeof properties === 'object' ? Object.keys(properties) : [];
   return { type: 'object', properties: Object.fromEntries(names.map(name => [name, {}])) };

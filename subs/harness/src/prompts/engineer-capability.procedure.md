@@ -10,6 +10,21 @@ leaves an assigned obligation out is refused, naming it. Your results report
 your work; whether an obligation is done is the responsible architect's own
 judgment and report.
 
+Use relevant focused verification within the active shell restrictions and
+declared-check support block. Name test files for Vitest and use only the
+current prepared focused Cucumber command when supplied; their complete suites belong to the gate's committed
+audit, which retains every configured project and nested project. Return an
+assignment that contradicts those restrictions to its responsible architect
+for reconciliation; do not bypass them.
+
+For `capability-needed`, each prospective usage requires `module`: the
+intended consumer module for its project-relative `path`. That file may not
+exist yet, but the intended location must belong to the declared consumer.
+`suggestedProvider.module` names the provider separately; it is never evidence
+that the provider owns a caller's path. Actual usage keeps its existing
+optional module semantics. A demonstrated ownership contradiction is rejected
+before task authority is derived; missing evidence remains a stated limitation.
+
 ## Tests, and what the gate guards
 
 Adding and updating tests is part of the work: state the assigned behavior in

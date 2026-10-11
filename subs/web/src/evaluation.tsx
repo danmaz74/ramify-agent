@@ -1,5 +1,18 @@
 import type { InvocationEvaluation } from '../../harness/src/interfaces/protocol/runs.js';
 
+type ScopeEvidence = NonNullable<InvocationEvaluation['outsideScopeEvidence']>[number];
+
+/** Render only the harness's attribution evidence; older responses leave attribution unknown. */
+export function OutsideScopePath({ path, invocation, evidence }: { readonly path: string; readonly invocation: string; readonly evidence?: Omit<ScopeEvidence, 'path'> | undefined }) {
+  const attribution = evidence?.attributable === true
+    ? `recorded write attributable to ${invocation}`
+    : evidence?.attributable === false
+      ? `observed during ${invocation}; not attributable to this invocation`
+      : `observed during ${invocation}; attribution unknown`;
+  const origins = evidence?.observations.map(observation => `${observation.observedBy} observation ${observation.number}${observation.callId === null ? '' : `, call ${observation.callId}`}`).join('; ');
+  return <><code>{path}</code>: {attribution}{origins ? ` (${origins})` : ''}{evidence?.uncertainty ? `. ${evidence.uncertainty}` : ''}</>;
+}
+
 /*
  * One invocation's evaluation, as its chapter of the transcript shows it:
  * guarding, hook checks, reads outside the scope, lines and tokens.
@@ -39,7 +52,7 @@ export function EvaluationFacts({ evaluation }: { readonly evaluation: Invocatio
         <dt>Guarding</dt>
         <dd>
           {guardingText(evaluation)}
-          {evaluation.outsideScope.length > 0 && <span className="warn"> · changed outside the write scope: {evaluation.outsideScope.join(', ')}</span>}
+          {evaluation.outsideScope.length > 0 && <ul className="warn" aria-label="Candidate differences outside the write scope">{evaluation.outsideScope.map(path => <li key={path}><OutsideScopePath path={path} invocation={evaluation.invocation} evidence={evaluation.outsideScopeEvidence?.find(entry => entry.path === path)} /></li>)}</ul>}
         </dd>
       </div>
       <div><dt>Hook checks</dt><dd>{hookChecksText(evaluation)}</dd></div>

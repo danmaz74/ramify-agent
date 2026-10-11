@@ -42,6 +42,7 @@ import {
 import { reconciliationMessage, type PacketRequest, type ReconciliationPacket } from '../reviews/reconciliation-message.js';
 import { outsideScope, recordSettledSnapshot } from './mutations.js';
 import { captureProvisionalSource } from '../capability/source.js';
+import { capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../capability/delivery.js';
 import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, capabilityLayout,
   type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange,
 } from '../capability/records.js';
@@ -147,7 +148,7 @@ import {
   type ForkSubmission, type PlacementEvidence, type PlacementRequestBody,
 } from '../architecture/submission.js';
 import {
-  acceptArchitectElements, incorporatedExtraction, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis,
+  acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis,
   type AnalysisEvidence, type InitialAnalysisSubmission,
 } from '../analysis/submission.js';
 import { registerContract, registrationNeeded, type AttachedConsumer } from '../contracts/accept.js';
@@ -179,7 +180,7 @@ import { createGitInspectionTool } from '../work/git-inspection.js';
 import {
   capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerJsonSchema, engineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationAcceptance, iterationMessage,
   type AssignedObligation,
-  validateEngineer, type EngineerSubmission, type IterationApiViews,
+  validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews,
 } from '../work/engineer.js';
 import {
   iterationAssignmentSchema, iterationId, iterationLayout, iterationSchemas, type FailureDigest, type IterationAssignment, type IterationResult,
@@ -4357,14 +4358,57 @@ export class RunService {
     const known = ['initial-architect', 'local-architect', 'capability-architect', 'engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role)
       || (request.role === 'context-selector' && request.start.mode === 'fresh')
       ? await this.knownProjectFacts(run, request.task?.modules ?? (item === undefined ? [] : [item.module])) : undefined;
+    const evidenceSections: Array<{ key: string; text: string }> = [];
+    let deliveredViews = request.task?.views;
+    if (kind === 'capability' || kind === 'capability-qualification') {
+      const task = records.capabilityTasks.get(request.work.capabilityTask ?? '');
+      const need = records.capabilityRequests.get(request.work.request ?? task?.request ?? '');
+      const assignments = [...records.assignments.values()].filter(assignment =>
+        assignment.coordination?.kind === 'capability-task' && assignment.coordination.id === task?.id);
+      const iterations = new Set(assignments.map(assignment => assignment.id));
+      if (need !== undefined) iterations.add(need.assignment);
+      const gates = new Set([...records.results.values()].filter(result => iterations.has(result.iteration)).flatMap(result => result.gate === null ? [] : [result.gate]));
+      for (const started of run.log.all('capability-verification-started')) if (started.data.task === task?.id && started.data.gate !== undefined) gates.add(started.data.gate);
+      const committed = run.log.ledger.replay().flatMap(line => line.transaction.records);
+      const reviews = new Set(committed.flatMap(record => {
+        const parsed = reviewRequestSchema.safeParse(record.body);
+        return parsed.success && iterations.has(parsed.data.key.iteration) ? [parsed.data.id] : [];
+      }));
+      const pointers = committed.filter(record => {
+        if (record.path === capabilityLayout.request(need?.id ?? '')) return true;
+        if (task !== undefined && record.path.startsWith(`capabilities/${task.id}/`)) return true;
+        const body = record.body as { schema?: string; id?: string; iteration?: string };
+        if (body.schema === 'ramify-agent.iteration-assignment/1' && iterations.has(body.id ?? '')) return true;
+        if (body.schema === 'ramify-agent.iteration-result/1' && iterations.has(body.iteration ?? '')) return true;
+        return [...gates].some(gate => record.path.startsWith(`gates/${gate}/`)) || [...reviews].some(review => record.path.startsWith(`reviews/${review}/`));
+      }).map(record => ({ path: record.path, label: record.path }));
+      if (need !== undefined) {
+        pointers.unshift({ path: need.source.snapshot, label: `Immutable suspension snapshot (tree ${need.source.tree})` });
+        evidenceSections.push({ key: 'support:caller-source', text: await capabilitySourceSection(this.projectRoot, need) });
+      }
+      if (task !== undefined) for (const plan of records.capabilityPlans.get(task.id) ?? []) pointers.push({ path: capabilityLayout.plan(task.id, plan.revision), label: `Accepted plan revision ${plan.revision}` });
+      for (const gate of gates) pointers.push({ path: runLayout.gateOutput(gate), label: `${gate} named audit/report artifacts` });
+      evidenceSections.push({ key: 'support:run-records', text: capabilityRecordSection(run.directory, [...new Map(pointers.map(pointer => [pointer.path, pointer])).values()]) });
+      if (need !== undefined) {
+        const consumers = [...new Set([need.consumer, ...need.original.usage.flatMap(usage => usage.module === undefined ? [] : [usage.module]), ...task?.authority.map(entry => entry.owner) ?? []])];
+        const api = await iterationApiViews(this.options.ramify, this.projectRoot, run.index, { modules: consumers, rationale: 'Consumer API evidence for qualification and integration' });
+        deliveredViews = [...capabilityViewInputs(deliveredViews ?? this.architectViewInputs(run).map(view => ({ ...view, path: view.path.project })), api)];
+        evidenceSections.push({ key: 'support:consumer-api', text: [
+          '## Consumer API evidence',
+          'Refresh attempted at preparation of this task from the current candidate. Only successful refreshes supply current views; failures retain explicit unavailability. Earlier delivered views describe their earlier revision; unavailability in an earlier packet does not mean an API was already received. After exposure changes, assess integration using refreshed consumer evidence and the provider check.',
+          'Only existing ordinary/testing source areas are materialized. Missing views for existing areas are reported as unavailable; areas without a source directory have no view. Coverage null means complete; a numeric coverage value counts source-analysis limits, so absence there does not prove API unavailability. A failed or missing view is an evidence limitation, not permission to import.',
+          ...api.map(entry => JSON.stringify({ ...entry, views: entry.views.map(view => ({ ...view, open: resolve(this.projectRoot, view.path) })) })),
+        ].join('\n') });
+      }
+    }
     return composeTaskBrief(this.projectRoot, { kind, work: request.work, goal, requirements, prompt: request.prompt,
-      omit: request.task?.omit ?? [], literalSections: [...planSections, ...request.task?.literalSections ?? []], startingPointGroups: groups, known,
+      omit: request.task?.omit ?? [], literalSections: [...planSections, ...request.task?.literalSections ?? [], ...evidenceSections], startingPointGroups: groups, known,
       retainInheritedSections: request.role === 'context-selector' && request.start.mode === 'fork',
       consultationSubmissionSchema: request.task?.consultationSubmissionSchema,
       environment: { projectRoot: this.projectRoot, workingDirectory: spec.scope.workingDirectory,
         candidate: request.task?.candidate ?? request.candidateBefore ?? null, snapshot: request.task?.snapshot ?? null,
         limits, availableTools: [...spec.builtinTools, ...spec.tools.map(tool => tool.name), spec.submission.name],
-        views: request.task?.views ?? this.architectViewInputs(run).map(view => ({ ...view, path: view.path.project })),
+        views: deliveredViews ?? this.architectViewInputs(run).map(view => ({ ...view, path: view.path.project })),
         // Only the sources this task delivers; the package's other files never reach the model.
         supportPaths: deliveredSupportPaths(request.loaded, kind, request.task?.consultationSubmissionSchema), cucumberConfiguration: request.task?.cucumberConfiguration ?? null } });
   }
@@ -4493,7 +4537,7 @@ export class RunService {
     const findings: CatalogFinding[] = [];
     for (const document of documents.manifest.documents) {
       const checked = await this.extract<CheckSubmission>(run, agent, extractor, 'check', {
-        prompt: checkMessage(inputs, document.id, state), toolName: checkToolName, inputSchema: checkJsonSchema,
+        prompt: checkMessage(inputs, document.id, state, incorporatedScenarios(evidence)), toolName: checkToolName, inputSchema: checkJsonSchema,
         submissionSchema: 'ramify-agent.catalog-check/1',
         validate: input => {
           const shape = validateAgainst(checkSubmissionSchema, input);
@@ -7624,7 +7668,7 @@ export class RunService {
               revision: next.revision, body: next }]));
             plan = next;
             return { text: JSON.stringify({ task: task.id, revision: next.revision,
-              path: capabilityLayout.plan(task.id, next.revision) }) };
+              runRecordRoot: run.directory, path: run.path(capabilityLayout.plan(task.id, next.revision)) }) };
           } catch (error) { return { text: message(error), isError: true }; }
         } },
       createGitInspectionTool(this.projectRoot),
@@ -7646,7 +7690,6 @@ export class RunService {
           `Current plan: ${JSON.stringify(plan, null, 2)}`,
           `Provider entry decisions: ${JSON.stringify(providerDecisions, null, 2)}`,
           `Provider entry outlines: ${JSON.stringify(providerItems.map(entry => ({ item: entry.id, outline: records.outlines.get(entry.id) ?? [] })), null, 2)}`,
-          `Read the live source at ${request.original.usage.map(use => use.path).join(', ')} and its tests. The snapshot at ${request.source.snapshot} records the suspension tree.`,
           ...[defaultWriteScopeSection(await this.defaultWriteScopes(run.index,
             [task.provider, task.consumer, ...task.authority.map(entry => entry.owner)], [...capabilityGuardedPolicy(this.requiredArtifacts(records))])).join('\n').trim()]
             .filter(section => section !== ''),
@@ -7654,7 +7697,7 @@ export class RunService {
           ...(progress === '' ? [] : [`Progress from the last turn: ${progress}`]),
         ],
         ...[this.obligationBriefing(run, { kind: 'capability-task', id: task.id }).join('\n')].filter(section => section !== ''),
-        `Inspect current source and Git directly. The latest task assignment results are ${[...records.results.values()].filter(result => result.coordination?.kind === 'capability-task' && result.coordination.id === task.id).map(result => `${result.iteration}: ${result.outcome}, gate ${result.gate ?? '(none)'}, commit ${result.commit ?? '(none)'}, findings ${result.findings.join('; ')}`).join(' | ') || '(none)'}. Gate reports are under ${runLayout.gateOutput('ga-0001').replace(/ga-0001.*/, '')}; inspect the named gate and review artifacts when needed. Request handback when, in your judgment, the real provider and requesting consumer meet the original need: report ${task.id} and every obligation you registered done in the same or an earlier action; a request that leaves one unreported is rejected naming it. The original examples are the request's context; say what you concluded about one in your summary.`,
+        `Inspect current source and Git directly. The latest task assignment results are ${[...records.results.values()].filter(result => result.coordination?.kind === 'capability-task' && result.coordination.id === task.id).map(result => `${result.iteration}: ${result.outcome}, gate ${result.gate ?? '(none)'}, commit ${result.commit ?? '(none)'}, findings ${result.findings.join('; ')}`).join(' | ') || '(none)'}. Use the supplied absolute run-record pointers for named gate and review evidence. Request handback when, in your judgment, the real provider and requesting consumer meet the original need: report ${task.id} and every obligation you registered done in the same or an earlier action; a request that leaves one unreported is rejected naming it. The original examples are the request's context; say what you concluded about one in your summary.`,
       ].join('\n\n'),
       start: coordinatorPoint === undefined ? { mode: 'fresh' } : { mode: 'continue', ref: coordinatorPoint },
       ...(coordinatorPoint === undefined || coordinatorSession === undefined
@@ -8391,7 +8434,7 @@ export class RunService {
       } });
       await this.afterWrite('capability-assignment-settled', run.record.jobId);
     }
-    return { progress: `Assignment ${id}: ${outcome.result.outcome}; gate ${outcome.result.gate ?? '(none)'}; commit ${outcome.result.commit ?? '(none)'}; result ${iterationLayout.result(task.id, sequence)}. ${outcome.result.findings.join('; ')}`,
+    return { progress: `Assignment ${id}: ${outcome.result.outcome}; gate ${outcome.result.gate ?? '(none)'}; commit ${outcome.result.commit ?? '(none)'}; result ${run.path(iterationLayout.result(task.id, sequence))}. ${outcome.result.findings.join('; ')}`,
       point: consumer.point, session: consumer.session,
       ...(coordinatorAfterNested === undefined ? {} : { coordinator: coordinatorAfterNested }) };
   }
@@ -8633,7 +8676,7 @@ export class RunService {
         // mutations they covered.
         beforeSubmission: async (input, signal) => { await tools.findingsAtCompletion(input, signal); },
         validate: async input => {
-          const validated = validateEngineer(input, {
+          const validated = await validateEngineerWithOwnership(input, {
             capabilityWorkflow: step.validator.capabilityWorkflow,
             obligation: step.validator.obligation,
             kind: step.validator.kind,
@@ -8645,7 +8688,8 @@ export class RunService {
               consumer: step.validator.consumer,
               providerOf: capability => committedRecords(run.log.ledger.replay()).registry.find(entry => entry.capability === capability)?.owner,
             },
-          });
+          }, paths => this.options.ramify.queryOwnership(this.projectRoot, paths),
+          () => new Map(committedRecords(run.log.ledger.replay()).registry.map(entry => [entry.capability, entry])));
           // A capability-needed submission captures a provisional candidate
           // immediately after this invocation. Refuse unsafe scratch here so
           // the same engineer session can repair it before a tree is read.
@@ -10223,7 +10267,7 @@ export class RunService {
 
   /** The API views of the modules one iteration writes, for the engineer's briefing. */
   private async iterationViews(run: Run, assignment: IterationAssignment): Promise<IterationApiViews[]> {
-    return iterationApiViews(this.options.ramify, this.projectRoot, run.index, assignment.scope.base);
+    return iterationApiViews(this.options.ramify, this.projectRoot, run.index, assignment.scope.base, assignment.scope.extra);
   }
 
   /**

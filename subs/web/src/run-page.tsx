@@ -8,6 +8,7 @@ import { CapabilityTasksArea } from './capability-tasks.js';
 import { CatalogReview } from './catalog-review.js';
 import { EnvironmentProblems, ModuleCheckFindings, PlanDeviations, WorkItemCheckFindings } from './check-findings.js';
 import { ExecutionMapArea } from './execution-map.js';
+import { OutsideScopePath } from './evaluation.js';
 import { CapabilityModuleTree, type ModuleCapabilitySelection } from './capability-module-tree.js';
 import { newCommandId, type ConnectionState, type ProtocolClient } from './client.js';
 import { DebuggerArea, DebugPauseBadge, DebugPauseBanner, useDebugState } from './debugger.js';
@@ -571,7 +572,7 @@ function WorkItemDetail({ client, planId, runId, version, workItem, onOpenGate }
                     <p className="muted">Gates: {iteration.gates.map(gate => `${gate.id} ${gate.verdict}${gate.cause ? ` (${gate.cause})` : ''}`).join(', ') || 'none'}</p>
                     <p className="muted">Sessions: {iteration.invocations.map(invocation => `${invocation.id} ${invocation.role} ${invocation.ended ?? 'running'}`).join(', ')}</p>
                     {iteration.invocations.some(invocation => invocation.outsideScope.length > 0) && (
-                      <p className="warn">Changed outside the write scope: {iteration.invocations.flatMap(invocation => invocation.outsideScope).join(', ')}</p>
+                      <div className="warn">Candidate differences outside the write scope:<ul>{iteration.invocations.flatMap(invocation => invocation.outsideScope.map(path => <li key={`${invocation.id}-${path}`}><OutsideScopePath path={path} invocation={invocation.id} evidence={invocation.outsideScopeEvidence?.find(entry => entry.path === path)} /></li>))}</ul></div>
                     )}
                     {iteration.package && (
                       <details>
@@ -878,10 +879,10 @@ function Measurements({ client, planId, runId, version }: AreaProps) {
               <h2>What was guarded</h2>
               <p className={data.evaluation.guarding.complete ? '' : 'warn'}>{data.evaluation.guarding.statement}</p>
               <p className="muted">Guarded: {data.evaluation.guarding.guarded.join(', ') || 'no tool'}. Not guarded: {data.evaluation.guarding.unguarded.join(', ') || 'none observed'}. Verdicts: {data.evaluation.guarding.verdicts.allowed} allowed, {data.evaluation.guarding.verdicts['blocked-scope']} blocked by scope, {data.evaluation.guarding.verdicts['blocked-unresolved']} blocked unresolved.</p>
-              <h3>Changed outside a write scope</h3>
+              <h3>Candidate differences outside a write scope</h3>
               {data.evaluation.outsideScope.length === 0
-                ? <p className="muted">No writer left a change outside its write scope.</p>
-                : <ul aria-label="Outside the write scope">{data.evaluation.outsideScope.map(entry => <li key={`${entry.invocation}-${entry.path}`}><code>{entry.path}</code> by {entry.invocation} ({entry.role}{entry.iteration ? `, ${entry.iteration}` : ''})</li>)}</ul>}
+                ? <p className="muted">No candidate differences outside a write scope were recorded.</p>
+                : <ul aria-label="Outside the write scope">{data.evaluation.outsideScope.map(entry => <li key={`${entry.invocation}-${entry.path}`}><OutsideScopePath path={entry.path} invocation={entry.invocation} evidence={entry.evidence} /> ({entry.role}{entry.iteration ? `, ${entry.iteration}` : ''})</li>)}</ul>}
             </section>
             <section className="panel">
               <h2>Metrics</h2>

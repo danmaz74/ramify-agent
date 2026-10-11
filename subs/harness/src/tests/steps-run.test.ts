@@ -168,6 +168,29 @@ async function tree(root: string): Promise<string[]> {
 const json = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, 'utf8'));
 
 describe('S09/S12: one engineer step in a manual run', () => {
+  test('a new prospective capability caller is reconciled before manual submission admission', async () => {
+    const { root, scratch } = await project();
+    const authored = parseStepInputs(await readFile(await authoredInputs(root, scratch), 'utf8'));
+    const inputs = await writeInputs(scratch, 'prospective-inputs.json', { ...authored, capabilityWorkflow: true });
+    const future = `${notesDirectory}/src/tests/future.test.ts`;
+    const need = (module: string) => ({ kind: 'capability-needed', summary: 'Need a configured note limit', request: {
+      need: 'A note limit the reviewers configure',
+      usage: [{ path: future, use: 'Test the configured limit', prospective: true, module }],
+      constraints: [], knownInterface: { kind: 'none-known' },
+      examples: [{ title: 'Configured limit', code: 'expect(noteLimit()).toBe(500)', designation: 'pseudocode' }],
+      suggestedProvider: { module: 'collection-review/integration-tests', reason: 'Owns cross-module verification' },
+    } });
+    const { result, events } = await step(root, inputs, manualRun(root, 'm-prospective'), [
+      { kind: 'submit', input: need('collection-review/integration-tests') },
+      { kind: 'submit', input: need(notes) },
+    ], scriptedGit({ head: 'base-1', changed: [] }));
+    expect(finished(result)).toMatchObject({ ended: 'submitted', submissionKind: 'capability-needed', rejectedSubmissions: 1,
+      submission: { request: { usage: [{ module: notes, prospective: true }] } },
+    });
+    expect(JSON.stringify(events)).toContain('request.usage.0.module');
+    expect(await stat(join(root, future)).catch(() => null)).toBeNull();
+  });
+
   test('records the run\'s records, shows each tool call, denial, finding and verdict, and exits 0', async () => {
     const { root, scratch } = await project();
     const inputs = await authoredInputs(root, scratch);

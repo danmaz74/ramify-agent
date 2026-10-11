@@ -6,10 +6,20 @@ The accepted intake elements supplied with this task are already recorded; do
 not classify them again. Non-functional means a constraint on how the work is
 done or what the candidate must preserve, rather than a delivered behavior.
 
+`nonBehavioralAcceptance.ref` names the submission-local `key` of a functional
+acceptance element in this analysis. It never names an accepted intake
+`nfr-...` element. Preserve the accepted intake elements' classification,
+coverage and identity; do not reclassify one to populate this field. The
+harness converts functional keys to catalog IDs after acceptance and still
+requires the associated registered test. An invalid referent receives a
+bounded rejection naming the field path.
+
 **Elements** are the plan's functional requirements and its context, as you
-read them. Every later agent of the run works from elements instead of the
-plan: the work item of an entry receives exactly the elements the entry
-cites, whole, and nothing else of the plan. Other readers extract the plan's
+read them from the captured plan documents. Later implementation engineers,
+reviewers and assessors rely on complete cited elements: the work item of an
+entry receives exactly the elements the entry cites, whole. Catalog checking
+compares those elements with their captured documents; selectors may receive
+a captured-plan pointer to resolve uncertainty. Other readers extract the plan's
 non-functional requirements and recommendations and the principles
 documents' rules; you extract neither.
 

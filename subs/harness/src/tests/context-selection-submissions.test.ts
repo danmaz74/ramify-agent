@@ -59,16 +59,18 @@ describe('context selection submissions', () => {
     for (const text of ['Keep the timeout.', 'Use bounded work.', 'A cache could help.', '### nfr-001', '### fix-001', '### rec-001']) expect(message).toContain(text);
     expect(message).not.toMatch(/(^|[^n])fr-001|ctx-001/);
     for (const text of ['Serve with a timeout.', 'Today the service has no timeout.', '## Functional requirements', '## Context']) expect(message).not.toContain(text);
-    expect(message).toContain('Answer with IDs only.');
+    expect(message).toContain('Identify each selected element by its stable catalog ID, never by a passage, heading or line range.');
+    expect(message).toContain('Keep the required reason, conditions and uncertainty in the structured submission.');
     // Without the captured plan's path, the message names no file to read.
-    expect(message).toContain('The elements above are quoted whole from the captured plan. Answer with IDs only.');
+    expect(message).toContain('The elements above are quoted whole from the captured plan.');
+    expect(message).not.toContain('Answer with IDs only');
     expect(message).not.toContain('captured document');
   });
 
   test('the selector message gives the captured plan by its absolute path when the caller supplies it', () => {
     const captured = '/p/plans/tone/.harness/jobs/20261011T104510Z-0e1b47/input/plan.md';
     expect(contextSelectorMessage('The parent packet', catalog, captured)).toContain(
-      `The elements above are quoted whole from the captured plan; the captured file is \`${captured}\` if you need its surrounding text. Answer with IDs only.`);
+      `The elements above are quoted whole from the captured plan; the captured file is \`${captured}\` if you need its surrounding text.`);
   });
 
   test('a catalog without selectable elements says so', () => {

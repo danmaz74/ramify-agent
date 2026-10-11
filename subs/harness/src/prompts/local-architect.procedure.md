@@ -43,7 +43,7 @@ write.
   A recommendation you cite stays a recommendation; to make one binding,
   state it in the goal or approach under your own authority.
 - `assignment.stage` is the stage of your outline this iteration works. Use
-  `0` when the outline names no stage.
+  valid zero-based indices when it names stages and `0` when it names none.
 - `assignment.kind` is `ordinary` unless the iteration is one of the other
   four. `breaking` is below; `verification`, `repair` and `contract` are
   described where they arise.
@@ -83,6 +83,8 @@ write.
 ### Write scope
 
 {{writeScope}}
+
+{{architectEngineering}}
 
 You do not choose the gate, the tests it runs or the files it guards: the
 harness derives them from the kind, the scope and the evidence required, and

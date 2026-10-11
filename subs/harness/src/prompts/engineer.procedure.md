@@ -44,6 +44,13 @@ A message without "Obligations to bind" asks for no binding.
 
 ## Tests, and what the gate guards
 
+Use focused engineer commands within the active shell restrictions and
+declared-check support block. The gate owns complete Vitest/Cucumber suites
+and the complete committed audit, retaining every configured project and
+nested project. Return contradictory assignment check instructions to the
+responsible architect for reconciliation; do not bypass the active restrictions.
+
+
 Adding and updating tests is part of the work: state the assigned behavior in
 them. Revise a test whose expectation the request explicitly supersedes, and
 say so in `summary`. Every other guarantee the project states stays binding.

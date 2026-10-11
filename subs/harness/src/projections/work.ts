@@ -12,6 +12,8 @@ import { packageDeviation, planDeviationSchema } from '../deviations/records.js'
 import type { PackageDeviation } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { ProjectionError, type RunView } from './inputs.js';
 import { gateScenarioViewsOf } from './scenarios.js';
+import { outsideScopeEvidenceOf, readObservationLog } from './metrics.js';
+import { runLayout } from '../run/records.js';
 
 /*
  * Work items, their iterations and their gates, as a client reads them.
@@ -158,6 +160,13 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
     ? await readAcceptedEvidence(view.directory, view.record, view.events)
     : { status: 'unavailable' as const, reason: 'No assignment cites a package' };
   const planDeviations = planDeviationsOf(view);
+  const scopeEvidence = new Map(await Promise.all([...view.records.invocations.values()]
+    .filter(invocation => invocation.work.workItem === id)
+    .map(async invocation => {
+      const paths = view.records.outcomes.get(invocation.id)?.outsideScope ?? [];
+      const observations = paths.length === 0 ? [] : await readObservationLog(`${view.directory}/${runLayout.observations(invocation.id)}`, runLayout.observations(invocation.id));
+      return [invocation.id, outsideScopeEvidenceOf(paths, observations)] as const;
+    })));
 
   return {
     workItem: summaryOf(view, item, states),
@@ -202,7 +211,7 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
           .filter(invocation => invocation.work.iteration === assignment.id)
           .map(invocation => {
             const outcome = view.records.outcomes.get(invocation.id);
-            return { id: invocation.id, role: invocation.role, ended: outcome?.ended ?? null, outsideScope: [...(outcome?.outsideScope ?? [])] };
+            return { id: invocation.id, role: invocation.role, ended: outcome?.ended ?? null, outsideScope: [...(outcome?.outsideScope ?? [])], outsideScopeEvidence: scopeEvidence.get(invocation.id) ?? [] };
           }),
         package: packageOf(assignment, evidence, planDeviations),
       };

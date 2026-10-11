@@ -69,7 +69,10 @@ export const scopeBaseBodySchema = z.union([
   }).strict(),
   z.object({
     /** Every module the break runs through, the one that breaks included. */
-    modules: z.array(modulePathSchema).min(1),
+    modules: z.array(modulePathSchema).min(1).describe(
+      'This base form requires assignment kind breaking even when it names only one module. For ordinary work use '
+      + 'base.module with authorized narrow extras, or separate owner assignments.',
+    ),
     /**
      * Why the break cannot be staged within one module's subtree. The schema
      * accepts any string so the rule beside it can say what a blank one is
@@ -109,7 +112,10 @@ export const scopeBodySchema = z.object({
 /** An `IterationAssignment` without the fields the harness assigns. */
 export const assignmentBodySchema = z.object({
   /** Which stage of the outline this iteration works, `0` where the outline has none. */
-  stage: z.int().nonnegative(),
+  stage: z.int().nonnegative().describe(
+    'Use 0 when the applicable outline has no stages; otherwise use its valid zero-based stage index. Capability '
+    + 'assignments currently have no applicable staged outline and use 0; provider entry outlines are background only.',
+  ),
   kind: assignableKindSchema,
   goal: text,
   approach: text,
@@ -164,7 +170,14 @@ export const assignmentBodySchema = z.object({
    * invocation of the iteration.
    */
   bounds: assignedBoundsSchema.optional(),
-}).strict();
+}).strict().meta({
+  // JSON Schema states the same relationship enforced by assignmentErrors.
+  // Keeping the shape lets runtime report its existing bounded field error.
+  allOf: [{ anyOf: [
+    { properties: { kind: { const: 'breaking' } } },
+    { properties: { scope: { properties: { base: { required: ['module'] } } } } },
+  ] }],
+});
 export type AssignmentBody = z.infer<typeof assignmentBodySchema>;
 
 /** What an assignment's rules are checked against. */
@@ -273,7 +286,7 @@ export function assignmentErrors(body: AssignmentBody, evidence: AssignmentEvide
     if (body.kind !== 'breaking') {
       errors.push({
         path: 'assignment.kind',
-        message: `A scope spanning several modules is the planned exception of a breaking iteration, and this one is "${body.kind}"`,
+        message: `The scope.base.modules form requires a breaking iteration even with one module, and this one is "${body.kind}"`,
         expected: '"breaking", or a base naming one module',
       });
     }
