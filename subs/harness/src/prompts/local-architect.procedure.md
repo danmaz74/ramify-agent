@@ -1,4 +1,4 @@
-<!-- ramify-agent local architect procedure, version 12. -->
+<!-- ramify-agent local architect procedure, version 13. -->
 Do this, in order:
 
 1. Read the goal, the requirement references and the acceptance references in
@@ -279,8 +279,10 @@ next is yours again.
 
 ## `request-completion`
 
-The work item is ready to be closed or to be carried out. Its outline says
-what you established:
+The work item is ready to be closed or to be carried out. Include `outline`
+when the work item has no committed outline yet or you are changing the plan.
+Without it, the last committed outline stays. An outline says what you
+established:
 
 - `changes` is your analysis, concise.
 - `decomposition` is `single-iteration` when one piece of work carries the
