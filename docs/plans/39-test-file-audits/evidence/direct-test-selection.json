@@ -1,0 +1,224 @@
+{
+  "baseline": {
+    "depth": 1,
+    "foundAt": "cf7e5851b808058e762bebec691a308b0a83859d",
+    "kind": "note",
+    "ledgerEntries": 0,
+    "reportCommit": "331da83005844ac330338b839b19081bcb7f63aa",
+    "rootTestTotal": 3200,
+    "runRef": "refs/audited/runs/2026-10-11T21-54-04Z-cf7e5851b",
+    "sourceCommit": "cf7e5851b808058e762bebec691a308b0a83859d",
+    "sourceTree": "0ca5bae7207781e5e54441bc2a089a20fc6dfe1c",
+    "threshold": 320
+  },
+  "caps": {
+    "baselineDepth": 1,
+    "depth": 2,
+    "driftPaths": 3,
+    "driftRoot": "ce49799e32a6294703a07df0782dde12e9d949eb",
+    "selects": true
+  },
+  "changes": {
+    "effective": [
+      "subs/harness/subs/audit/src/tests/completed-audit.test.ts"
+    ],
+    "ignored": [],
+    "removed": []
+  },
+  "detected": {
+    "matches": [],
+    "preparationInputs": [
+      "bun.lock",
+      "bun.lockb",
+      "npm-shrinkwrap.json",
+      "package-lock.json",
+      "package.json",
+      "pnpm-lock.yaml",
+      "yarn.lock"
+    ],
+    "runnerConfigFiles": [
+      "vitest.config.ts"
+    ]
+  },
+  "directTests": [
+    {
+      "baseline": {
+        "exclusion": null,
+        "existence": "present",
+        "exports": {
+          "hasExports": false,
+          "names": [],
+          "state": "complete"
+        },
+        "incoming": {
+          "paths": [],
+          "state": "partial"
+        },
+        "limits": [],
+        "module": "ramify-agent/harness/audit",
+        "path": "subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+        "status": "owned"
+      },
+      "change": "modified",
+      "commands": [
+        {
+          "checkId": "agent-tests",
+          "command": "agent-vitest",
+          "projects": [
+            "node"
+          ]
+        }
+      ],
+      "path": "subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+      "reason": "discovered-isolated-test",
+      "source": {
+        "exclusion": null,
+        "existence": "present",
+        "exports": {
+          "hasExports": false,
+          "names": [],
+          "state": "complete"
+        },
+        "incoming": {
+          "paths": [],
+          "state": "partial"
+        },
+        "limits": [],
+        "module": "ramify-agent/harness/audit",
+        "path": "subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+        "status": "owned"
+      }
+    }
+  ],
+  "format": "ramify-audit.partial-selection",
+  "ignorePaths": {
+    "entries": [
+      "docs/**"
+    ]
+  },
+  "mergeReplay": {
+    "command": [
+      "git",
+      "merge-tree",
+      "--write-tree",
+      "--no-messages"
+    ],
+    "commitsInspected": 1,
+    "gitVersion": "git version 2.39.5",
+    "merges": [],
+    "settings": {},
+    "verified": true
+  },
+  "narrowedCommands": [
+    {
+      "checkId": "agent-tests",
+      "command": "agent-vitest",
+      "invocationGroups": [
+        [
+          "subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+          "--exclude",
+          "**/.git/**",
+          "--exclude",
+          "**/.ramify-architect.old-?*/**",
+          "--exclude",
+          "**/.ramify-architect.tmp-?*/**",
+          "--exclude",
+          "**/.ramify-architect/**",
+          "--exclude",
+          "**/.ramify.old-?*/**",
+          "--exclude",
+          "**/.ramify.tmp-?*/**",
+          "--exclude",
+          "**/.ramify/**",
+          "--exclude",
+          "**/bower_components/**",
+          "--exclude",
+          "**/jspm_packages/**",
+          "--exclude",
+          "**/node_modules/**",
+          "--passWithNoTests"
+        ]
+      ]
+    }
+  ],
+  "outcome": {
+    "carriedFailures": 0,
+    "executedMode": "ramify-partial",
+    "selectedModules": []
+  },
+  "ramify": {
+    "paths": [],
+    "selectingPaths": [],
+    "skipped": "no effective changed path remains",
+    "status": "skipped"
+  },
+  "selector": {
+    "config": {
+      "chainCap": 25,
+      "failureThreshold": {
+        "minimum": 3,
+        "percentOfRootTests": 10
+      }
+    },
+    "configDigest": "sha256:d5a7603cfc87a91ed6b47831ffe580558eb2ac63619b9228b32aba593219dfc9",
+    "id": "ramify-partial",
+    "version": "3"
+  },
+  "testFileQualification": {
+    "baseline": {
+      "facts": [
+        {
+          "exclusion": null,
+          "existence": "present",
+          "exports": {
+            "hasExports": false,
+            "names": [],
+            "state": "complete"
+          },
+          "incoming": {
+            "paths": [],
+            "state": "partial"
+          },
+          "limits": [],
+          "module": "ramify-agent/harness/audit",
+          "path": "subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+          "status": "owned"
+        }
+      ],
+      "revision": "cf7e5851b808058e762bebec691a308b0a83859d"
+    },
+    "source": {
+      "discovery": [
+        {
+          "checkId": "agent-tests",
+          "command": "agent-vitest",
+          "status": "discovered"
+        }
+      ],
+      "facts": [
+        {
+          "exclusion": null,
+          "existence": "present",
+          "exports": {
+            "hasExports": false,
+            "names": [],
+            "state": "complete"
+          },
+          "incoming": {
+            "paths": [],
+            "state": "partial"
+          },
+          "limits": [],
+          "module": "ramify-agent/harness/audit",
+          "path": "subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+          "status": "owned"
+        }
+      ],
+      "revision": "11478dda109bec6c141524eaafc61dfbdd90a32a"
+    }
+  },
+  "undetected": {
+    "entries": []
+  },
+  "version": 4
+}

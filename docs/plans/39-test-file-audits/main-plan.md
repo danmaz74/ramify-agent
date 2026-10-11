@@ -1,6 +1,8 @@
 # Plan 39: run changed tests individually
 
-**Status:** in implementation, 2026-10-11. **Tracking:** `ramify-agent-wy8`.
+**Status:** implementation and qualification complete, 2026-10-11; final
+consumer integration pending parent review. **Tracking:** `ramify-agent-wy8`.
+See the [release and consumer qualification receipt](qualification.md).
 Execute the following steps sequentially across Ramify, ramify-audit and
 ramify-agent, with one Sol subagent per step as requested.
 
@@ -8,7 +10,8 @@ ramify-agent, with one Sol subagent per step as requested.
 
 Changing an ordinary test file with no exports runs that file instead of all
 tests of its module and dependents. Start with Vitest-discovered test files.
-The current consumer pins are `ramify.ts` 0.4.2 and `ramify-audit` 0.7.2.
+The starting consumer pins were `ramify.ts` 0.4.2 and `ramify-audit` 0.7.2.
+The released and qualified pins are `ramify.ts` 0.4.3 and `ramify-audit` 0.8.0.
 
 ramify-audit continues to find changes with Git and decide test execution.
 Ramify supplies structural facts and computes impact for the remaining paths.
