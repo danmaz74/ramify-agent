@@ -179,9 +179,10 @@ describe('three questions over one candidate', () => {
     const opened = eventsOf(events, 'session-opened');
     const reviewerSessions = agent.sessions.filter(session => session.spec.role === 'reviewer');
     const sessionOf = (request: string) => reviewerSessions.find(session => new RegExp(`review ${request} `, 'u').test(session.spec.prompt))!;
-    expect(sessionOf('rq-0001').spec.prompt).toContain('Configuration/support pointer: `ramify-agent.json`');
+    expect(sessionOf('rq-0001').spec.prompt).toMatch(/configured in [^\n]*`ramify-agent\.json`/u);
+    expect(sessionOf('rq-0001').spec.prompt).toContain('Paths are project-relative, in the audited candidate.');
     expect(sessionOf('rq-0001').spec.prompt).toContain(`\`${notesDirectory}/src/tests/\`: inspect with snapshot_list`);
-    expect(sessionOf('rq-0001').spec.prompt).not.toContain(`Configuration/support pointer: \`${root}/`);
+    expect(sessionOf('rq-0001').spec.prompt).not.toMatch(new RegExp(`configured in [^\\n]*\`${root}/`, 'u'));
     expect(sessionOf('rq-0003').spec.prompt).not.toContain('## Declared project checks');
     for (const [request, iteration] of [['rq-0002', 0], ['rq-0005', 1], ['rq-0008', 2]] as const) {
       const architectRef = assigned[iteration]!.data.architectRef!;
