@@ -186,3 +186,36 @@ context checks read actual emitted packets and their source points, verify exact
 effective body/hash/revision/input mappings, and distinguish body delivery from
 retained pointers. No production code changed during these repairs. Committed
 requalification remains pending.
+
+Repair commit `fbd4ed995b34563d88e04bbceda1a3b7116dc3f7` received its own clean
+worktree and `npm ci`. The same default audit command selected partial mode and
+composed with the first full audit. All three original failures cleared. The
+rerun passed 2,805 tests, failed one and skipped the two opt-in fixture trials
+across 324 selected files (322 passed, one failed and one skipped). The other
+five configured checks passed. The remaining failure reproduced the earlier
+local correction cleanup rejection, `job is at version 84, not 83`, in
+`decision-correction-workflow.test.ts`; its cause is under investigation.
+The report is retained in
+`refs/audited/runs/2026-10-11T21-06-01Z-fbd4ed995`, report commit
+`25662d200940e4bbb07fb5f1ef09af15df6c7da3`, and local output
+`/tmp/ramify-agent-audit-fbd4ed9.json`. Its composed failure ledger contains
+only this newly reproduced failure.
+
+The correction test had waited for the fourth coordinator's
+`invocation-started` before sampling a version for Stop, although invocation
+preparation still appends two asynchronous records. A diagnostic run showed
+local start/preparation sequences 85/86/87 and capability sequences
+118/119/120; these later traces demonstrate the preparation window and do not
+identify the original failed sequence 84's record. The diagnostic files are
+`/tmp/plan38-correction-stop-phase-local.json` and
+`/tmp/plan38-correction-stop-phase-capability.json`.
+
+The test now parks the actual coordinator script after both `delivered-inputs`
+and `operation-identity` records, verifies the sampled version equals the final
+preparation sequence, and holds that turn while sending one Stop command. It
+releases the script before awaiting settlement and before service cleanup.
+Production command/version fencing, timeouts and workflow semantics remain
+unchanged; no retry was added. A final four-file regression with four workers
+passed 73/73 tests across correction, acceptance, delegation and local submission.
+Temporary diagnostic instrumentation was removed; committed requalification
+remains pending.

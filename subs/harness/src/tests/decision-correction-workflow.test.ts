@@ -45,6 +45,10 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   let originalAssignment = '', originalResult = '', capturedPlan = '', frozenCatalog = '';
   let replacementReceived = false;
   let prepared = 0;
+  let coordinatorParked!: () => void;
+  const parked = new Promise<void>(resolve => { coordinatorParked = resolve; });
+  let releaseCoordinator!: () => void;
+  const holdCoordinator = new Promise<void>(resolve => { releaseCoordinator = resolve; });
   // This verifies workflow and immutable evidence; audit/Cucumber answers are scripted, not native binding execution.
   const script: Script = spec => {
     if (spec.role === 'initial-architect') {
@@ -117,7 +121,12 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
           approach: 'Reuse retained implementation; assert the same behavior with the authorized local expression.', startingPoints: points, featureSelection });
         return submit(coordinator === 'local' ? assignment : { ...basis, kind: 'assign', assignment: assignment.assignment });
       }
-      return [{ kind: 'wait', ms: 60_000 }];
+      return [{ kind: 'await', until: async () => {
+        // Script execution begins after both invocation preparation records.
+        // Hold the coordinator here while teardown samples and submits Stop.
+        coordinatorParked();
+        await holdCoordinator;
+      } }];
     }
     return [];
   };
@@ -135,7 +144,7 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       expect(request.stdin).toContain('cucumber.json');
       return commandResult(request, { stdout: `RAMIFY_CUCUMBER_CONFIGURATION=${JSON.stringify({ schema: 'ramify-agent.cucumber-configuration/1', apiPath: join(fixture.root, 'node_modules/@cucumber/cucumber/lib/api/index.js'), configuration: effectiveConfiguration })}` });
     } });
-  cleanups.push(() => opened.service.close());
+  cleanups.push(async () => { releaseCoordinator(); await opened.service.close(); });
   const receipt = await opened.service.execute(startRun('need'));
   await until(() => {
     const events = opened.service.events('need', receipt.jobId) ?? [];
@@ -171,8 +180,15 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   const scenario = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'scenarios/sc-001.json'), 'utf8'));
   expect(scenario.source).toEqual(corrected);
   expect(await readFile(join(fixture.root, scenario.file), 'utf8')).toContain(corrected.at(-1)!);
-  await until(() => (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started' && event.data.role === (coordinator === 'local' ? 'local-architect' : 'capability-architect')).length >= 4);
+  await parked;
+  const stoppedAt = opened.service.events('need', receipt.jobId)!;
+  const waiting = stoppedAt.filter(event => event.type === 'invocation-started' && event.data.role === (coordinator === 'local' ? 'local-architect' : 'capability-architect')).at(-1)!;
+  if (waiting.type !== 'invocation-started') throw new Error('Missing parked coordinator invocation');
+  const preparation = stoppedAt.filter(event => event.type === 'invocation-prepared' && event.data.invocation === waiting.data.invocation);
+  expect(preparation.map(event => event.type === 'invocation-prepared' ? event.data.recorded : null)).toEqual(['delivered-inputs', 'operation-identity']);
   const current = opened.service.getRun('need', receipt.jobId)!;
+  expect(current.version).toBe(preparation.at(-1)!.sequence);
   await opened.service.execute(stopRun('need', receipt.jobId, current.version));
+  releaseCoordinator();
   await opened.service.settled('need', receipt.jobId);
 }, 60_000);
