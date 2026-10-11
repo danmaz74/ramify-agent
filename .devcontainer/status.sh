@@ -15,7 +15,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 status=0
 
 describe_repository() {
-  local name="$1" dir="$2" default="${3:-}"
+  local name="$1" dir="$2" url="${3:-}" default="${4:-}"
   local branch head subject remotes changes staged unstaged untracked
   echo "$name"
   echo "  path:     $dir"
@@ -31,6 +31,10 @@ describe_repository() {
   fi
   remotes="$(git -C "$dir" config --get-regexp '^remote\..*\.url$' | sed -E 's/^remote\.(.*)\.url /\1 /')"
   echo "  remotes:  ${remotes:-none}" | sed '2,$s/^/            /'
+  if [[ -n "$url" ]] && ! has_expected_remote "$dir" "$url"; then
+    echo "  identity: NO REMOTE NAMES $url"
+    status=1
+  fi
   branch="$(git -C "$dir" symbolic-ref --short -q HEAD || echo '(detached HEAD)')"
   echo "  branch:   $branch"
   if head="$(git -C "$dir" rev-parse -q --verify HEAD)"; then
@@ -64,8 +68,8 @@ describe_repository() {
 
 describe_repository ramify-agent "$AGENT_ROOT"
 if manifest="$(read_companion_manifest)"; then
-  while read -r name _url commit; do
-    describe_repository "$name" "$WORKSPACE_ROOT/$name" "$commit"
+  while read -r name url commit; do
+    describe_repository "$name" "$WORKSPACE_ROOT/$name" "$url" "$commit"
   done <<<"$manifest"
 else
   echo "companion manifest: INVALID ($COMPANION_MANIFEST)"
@@ -81,11 +85,11 @@ providers="$(node -e '
   let mismatch = false;
   for (const name of ["ramify.ts", "ramify-audit"]) {
     const pin = manifest.dependencies?.[name] ?? "(not declared)";
-    let installed = "NOT INSTALLED";
+    let installed;
     try { installed = JSON.parse(fs.readFileSync(`${root}/node_modules/${name}/package.json`, "utf8")).version; } catch {}
-    const verdict = installed === pin ? "matches pin" : "DIFFERS FROM PIN";
+    const verdict = installed === undefined ? "NOT INSTALLED" : installed === pin ? "matches pin" : "DIFFERS FROM PIN";
     if (installed !== pin) mismatch = true;
-    console.log(`  ${name}: pin ${pin}, installed ${installed} (${verdict})`);
+    console.log(`  ${name}: pin ${pin}, installed ${installed ?? "none"} (${verdict})`);
   }
   process.exit(mismatch ? 1 : 0);
 ' "$AGENT_ROOT")" || status=1
