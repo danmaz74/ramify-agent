@@ -49,6 +49,94 @@ export function coverageLimitsOf(meta: ArchitectMeta): string[] {
   return limits;
 }
 
+/** One exported original whose record a coverage limit marks. */
+export interface CoverageRecord {
+  readonly module: string;
+  readonly name: string;
+  readonly file: string;
+  /** `cut`: its detail was truncated; `details-unavailable`: the view gives none. */
+  readonly limit: 'cut' | 'details-unavailable';
+  /** What was truncated, or why no detail is given. */
+  readonly what: string;
+}
+
+/** The records of the index the view's `cut` and `detailsUnavailable` counts mark, in module order. */
+export function coverageRecordsOf(index: ArchitectIndex): CoverageRecord[] {
+  const records: CoverageRecord[] = [];
+  for (const module of [...index.symbols.keys()].sort()) {
+    for (const record of index.symbols.get(module) ?? []) {
+      if (record.detail !== undefined) records.push({ module, name: record.name, file: record.file, limit: 'details-unavailable', what: record.detail });
+      else if (record.cut !== undefined) records.push({ module, name: record.name, file: record.file, limit: 'cut',
+        what: record.cut.map(part => part === 'sig' ? 'signature' : part === 'doc' ? 'documentation' : part).join(' and ') });
+    }
+  }
+  return records;
+}
+
+/** How many names a coverage statement lists before it counts the rest. */
+const namedCoverageRecords = 12;
+
+/**
+ * The view's coverage limits, with the records its `cut` and
+ * `detailsUnavailable` counts mark named, and whether any lies in the named
+ * modules. A cut count beyond the named records counts test, feature and
+ * module-purpose titles, which no record names. Other limits stay as given.
+ */
+export function describeCoverageLimits(limits: readonly string[], records: readonly CoverageRecord[], modules: readonly string[] = []): string[] {
+  const statements: string[] = [];
+  const name = (record: CoverageRecord) => `\`${record.file}#${record.name}\` (${record.what})`;
+  const names = (marked: readonly CoverageRecord[]) => [...marked.slice(0, namedCoverageRecords).map(name),
+    ...marked.length > namedCoverageRecords ? [`${marked.length - namedCoverageRecords} more`] : []].join(', ');
+  for (const limit of limits) {
+    const count = /^(cut|detailsUnavailable): (\d+)$/u.exec(limit);
+    if (count === null) { statements.push(limit); continue; }
+    const total = Number(count[2]);
+    const marked = records.filter(record => record.limit === (count[1] === 'cut' ? 'cut' : 'details-unavailable'));
+    const rest = Math.max(0, total - marked.length);
+    const parts = [...marked.length === 0 ? [] : [`${marked.length === 1 ? 'one record' : `${marked.length} records`} with ${count[1] === 'cut' ? 'truncated detail' : 'no details'}: ${names(marked)}`],
+      ...rest === 0 ? [] : [count[1] === 'cut' ? `${rest} cut test, feature or module-purpose title${rest === 1 ? '' : 's'}` : `${rest} unnamed`]];
+    statements.push(`${count[1]}: ${total}, ${parts.join('; ')}`);
+  }
+  if (modules.length > 0 && statements.length > 0) {
+    const inScope = records.filter(record => modules.includes(record.module));
+    statements.push(inScope.length === 0
+      ? `None of these records is in ${modules.map(module => `\`${module}\``).join(', ')}.`
+      : `In ${modules.map(module => `\`${module}\``).join(', ')}: ${inScope.map(name).join(', ')}.`);
+  }
+  return statements;
+}
+
+/** One existing API view directory of a module: its category directory, with the area's revision and coverage count. */
+export interface ApiViewDirectory {
+  readonly area: SourceArea;
+  /** The project-relative category directory, such as `pkg/src/.ramify/external`. */
+  readonly path: string;
+  readonly revision: string;
+  readonly coverage: number | null;
+}
+
+/** The API view directories `entry` has: per source area, `external` and `children` where they exist. */
+export async function apiViewDirectoriesOf(projectRoot: string, entry: ModuleEntry): Promise<ApiViewDirectory[]> {
+  const directories: ApiViewDirectory[] = [];
+  for (const area of ['src', 'src/tests'] as const satisfies readonly SourceArea[]) {
+    const root = [entry.dir, area, '.ramify'].filter(Boolean).join('/');
+    let meta: { revision?: unknown; coverage?: unknown };
+    try {
+      meta = JSON.parse(await readFile(join(projectRoot, root, '_meta.json'), 'utf8')) as typeof meta;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+      throw error;
+    }
+    if (typeof meta.revision !== 'string') continue;
+    for (const category of ['external', 'children']) {
+      const listed = await readdir(join(projectRoot, root, category)).then(() => true, () => false);
+      if (listed) directories.push({ area, path: `${root}/${category}`, revision: meta.revision,
+        coverage: typeof meta.coverage === 'number' && meta.coverage > 0 ? meta.coverage : null });
+    }
+  }
+  return directories;
+}
+
 export interface ModuleEntry {
   /** The declared-name path, such as `app/orders`. */
   readonly module: string;
@@ -115,6 +203,10 @@ export interface SymbolRecord {
   readonly tags?: readonly string[];
   /** Each ancestor that re-exposes what it received, and where to, nearest first. */
   readonly reexposed?: ReadonlyArray<{ readonly by: string; readonly to: readonly ExposureChannel[] }>;
+  /** The parts of its detail the view truncated: `sig`, `doc`. */
+  readonly cut?: readonly string[];
+  /** Why its detail is unavailable, where the view gives none. */
+  readonly detail?: string;
 }
 
 export interface ArchitectIndex {
@@ -150,6 +242,8 @@ export async function loadArchitectIndex(projectRoot: string): Promise<Architect
           records.push({
             module: record.module, name: record.name, binding: record.binding, as: record.as, file: record.file,
             role: record.role, to: record.to, tags: record.tags, reexposed: record.reexposed,
+            ...(Array.isArray(record.cut) && record.cut.length > 0 ? { cut: record.cut } : {}),
+            ...(typeof record.detail === 'string' ? { detail: record.detail } : {}),
           });
         }
       }

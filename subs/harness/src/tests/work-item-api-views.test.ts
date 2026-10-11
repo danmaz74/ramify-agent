@@ -113,10 +113,12 @@ describe('the API view of a local architect\'s continued turns', () => {
     const moduleSource = join(fixture.root, notesDirectory, 'src');
     expect(directories).toEqual([moduleSource, moduleSource]);
     const architectMeta = JSON.parse(await readFile(join(fixture.root, '.ramify-architect', '_meta.json'), 'utf8')) as { revision: string };
-    expect(second).toContain(`- API view (src): \`${moduleSource}/.ramify/\`, revision \`${architectMeta.revision}\``);
-    expect(first).toContain(`- Onboarding (\`${join(fixture.root, notesDirectory, 'README.md')}\`)`);
-    expect(first).toContain(`- The architect view is at \`${fixture.root}/.ramify-architect/\``);
-    expect(first).toContain(`- Working directory: \`${moduleSource}\``);
+    // Every path in the message is project-relative; the project root is stated once, elsewhere.
+    expect(second).toContain(`- API view (src): \`${notesDirectory}/src/.ramify/\`, revision \`${architectMeta.revision}\``);
+    expect(first).toContain(`- Onboarding (\`${notesDirectory}/README.md\`)`);
+    expect(first).toContain('- The architect view is at `.ramify-architect/`');
+    expect(first).toContain(`- Working directory: \`${notesDirectory}/src\`, relative to the project root.`);
+    expect(second).not.toContain(`\`${fixture.root}/${notesDirectory}`);
     const activity = (await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.observations('inv-0006')), 'utf8'))
       .trim().split('\n').map(line => JSON.parse(line) as { type: string; data: { activity?: { kind: string; path?: string } } });
     expect(activity).toContainEqual(expect.objectContaining({ type: 'activity', data: { activity: expect.objectContaining({ kind: 'read', path: `${notesDirectory}/src/notes.ts` }) } }));

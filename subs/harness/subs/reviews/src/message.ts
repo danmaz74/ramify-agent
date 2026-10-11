@@ -52,6 +52,11 @@ export interface ReviewBriefing {
   readonly setup?: string | undefined;
   /** Complete inline patches or bounded fallback instructions from the same frozen comparison. */
   readonly diffPayload?: string | undefined;
+  /**
+   * Design: the guidance this session read in the orientation it forked, at
+   * the identities it read. Absent for a session that read none.
+   */
+  readonly oriented?: readonly { readonly ref: string; readonly hash: string }[] | undefined;
 }
 
 /**
@@ -100,9 +105,20 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
       : `The candidate holds the plan as \`${briefing.planDocument}\`. To name it as a concern's ground, read it with \`snapshot_read\`.`, '');
   }
   if (kind === 'design') {
-    lines.push('## The guidance this design is judged against', '',
-      'Each file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.', '');
-    for (const entry of request.guidance) lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)})`);
+    lines.push('## The guidance this design is judged against', '');
+    const oriented = briefing.oriented;
+    if (oriented === undefined) {
+      lines.push('Each file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.', '');
+      for (const entry of request.guidance) lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)})`);
+    } else {
+      // The orientation's reading is inherited history: a file read at the
+      // identity the request names counts as read.
+      lines.push('This session read these files in its orientation, at the identities below; they count as already read. Read one again with `snapshot_read` only where its identity here differs from the one you read, or when a concern cites it as its ground.', '');
+      for (const entry of request.guidance) {
+        const read = oriented.some(item => item.ref === entry.ref && item.hash === entry.hash);
+        lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)}), ${read ? 'read in orientation' : 'changed since orientation: read it before you judge'}`);
+      }
+    }
     lines.push('');
   }
   lines.push(
@@ -118,8 +134,9 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
   if (briefing.setup) lines.push(briefing.setup, '');
   if (assignment !== null && kind !== 'design') {
     const testAreas = assignment.testAreas.filter(area => snapshot.directories.has(area));
+    const areas = testAreas.map(area => `\`${area}/\``);
     if (testAreas.length > 0) lines.push('## Candidate test pointers', '',
-      ...testAreas.map(area => `- \`${area}/\`: inspect with snapshot_list; read named files with snapshot_read.`), '');
+      `The candidate's test ${testAreas.length === 1 ? `area for this module is ${areas[0]}` : `areas for these modules are ${areas.slice(0, -1).join(', ')} and ${areas.at(-1)}`}. Read a file there when a concern needs it${briefing.diffPayload === undefined ? '.' : '; the patches above already show the changed tests.'}`, '');
   }
   for (const binding of briefing.pendingBindings ?? []) lines.push(`Harness pending-tag binding: ${binding.scenario} in ${binding.path}, exact candidate sha256 ${binding.sha256}, accepted producer ${binding.invocation}, submission ${binding.submission}. This attribution supplies provenance; review the actual audited patch.`, '');
   if (briefing.checkFindings.length > 0) {

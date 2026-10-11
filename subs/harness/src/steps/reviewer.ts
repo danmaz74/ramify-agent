@@ -47,6 +47,9 @@ export function constructReviewStep(value: unknown, environment: StepEnvironment
   const kind = inputs.question;
   const { request, briefing } = inputs;
   const workingDirectory = runLocation(environment, inputs.run, inputs.workspace);
+  // A design review forks the orientation of its guidance selection, whose
+  // key binds the guidance identities: the session read exactly these.
+  const fromOrientation = inputs.start.kind === 'fork' && inputs.start.reason === 'design-orientation';
   const prompt = reviewMessage({
     request: {
       id: request.id, key: { kind, iteration: request.key.iteration, candidate: request.key.candidate },
@@ -60,6 +63,7 @@ export function constructReviewStep(value: unknown, environment: StepEnvironment
     ...(briefing.setup === undefined ? {} : { setup: briefing.setup }),
     ...(briefing.planDocument === undefined ? {} : { planDocument: briefing.planDocument }),
     diffPayload: briefing.diffPayload,
+    ...(kind === 'design' && fromOrientation ? { oriented: request.guidance } : {}),
   });
   const limits = invocationLimits(inputs.limits, { absoluteMs: inputs.bounds.absoluteMs });
   const tools = snapshotToolDeclarations();
@@ -73,6 +77,8 @@ export function constructReviewStep(value: unknown, environment: StepEnvironment
     literalSections: [...(briefing.package === undefined ? [] : [{ key: 'support:assignment-package', text: briefing.package }]),
       { key: 'support:candidate-diff', text: briefing.diffPayload }, ...(inputs.discovery === undefined ? [] : [inputs.discovery])],
     startingPointGroups: [], known: undefined,
+    // The orientation's guidance is inherited history the fork keeps.
+    ...(fromOrientation ? { retainInheritedSections: true } : {}),
     environment: { projectRoot, workingDirectory, candidate: request.key.candidate, snapshot: inputs.snapshotTree, limits,
       availableTools: [...tools.map(tool => tool.name), submission.toolName], views: [], supportPaths: deliveredSupportPaths(loaded, kind), cucumberConfiguration: null },
   });

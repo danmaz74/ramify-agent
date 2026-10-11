@@ -181,8 +181,10 @@ describe('three questions over one candidate', () => {
     const sessionOf = (request: string) => reviewerSessions.find(session => new RegExp(`review ${request} `, 'u').test(session.spec.prompt))!;
     expect(sessionOf('rq-0001').spec.prompt).toMatch(/configured in [^\n]*`ramify-agent\.json`/u);
     expect(sessionOf('rq-0001').spec.prompt).toContain('Paths are project-relative, in the audited candidate.');
-    expect(sessionOf('rq-0001').spec.prompt).toContain(`\`${notesDirectory}/src/tests/\`: inspect with snapshot_list`);
     expect(sessionOf('rq-0001').spec.prompt).not.toMatch(new RegExp(`configured in [^\\n]*\`${root}/`, 'u'));
+    // The test pointer informs; it is no instruction to list the area.
+    expect(sessionOf('rq-0001').spec.prompt).toContain(`The candidate's test area for this module is \`${notesDirectory}/src/tests/\`. Read a file there when a concern needs it`);
+    expect(sessionOf('rq-0001').spec.prompt).not.toContain('inspect with snapshot_list');
     expect(sessionOf('rq-0003').spec.prompt).not.toContain('## Declared project checks');
     for (const [request, iteration] of [['rq-0002', 0], ['rq-0005', 1], ['rq-0008', 2]] as const) {
       const architectRef = assigned[iteration]!.data.architectRef!;

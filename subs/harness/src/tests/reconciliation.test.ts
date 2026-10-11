@@ -216,9 +216,9 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
     expect(parentTurn.spec.scope.workingDirectory).toBe(moduleSource);
     expect(fork!.spec.scope.workingDirectory).toBe(moduleSource);
     expect([...fork!.inherited, fork!.spec.prompt].join('\n')).toContain(
-      `# Block environment:workingDirectory\nCurrent value; replaces any earlier value for this key.\n{\n  "workingDirectory": ${JSON.stringify(moduleSource)}\n}`);
-    // Its support paths are the delivered sources, not the package inventory.
-    expect(fork!.spec.prompt).toContain('subs/harness/src/prompts/reconciliation.procedure.md');
+      `# Block environment:workingDirectory\n{\n  "workingDirectory": ${JSON.stringify(moduleSource)}\n}`);
+    // Support paths name the harness's own prompt files, which no project agent can open: none reaches the fork.
+    expect(fork!.spec.prompt).not.toContain('subs/harness/src/prompts/reconciliation.procedure.md');
     expect(fork!.spec.prompt).not.toContain('.schema.json');
     expect(fork!.spec.prompt).not.toContain('orientation.procedure.md');
     const opened = eventsOf(events, 'session-opened').find(event => event.data.fork?.reason === 'reconciliation')!;
@@ -602,7 +602,7 @@ describe('CF10: a missing fork point and a failed brief append', () => {
     expect(first!.start).toEqual({ mode: 'fresh' });
     expect(first!.spec.prompt).toContain('## CheckFindings needing attention (1)');
     expect(first!.spec.prompt).toContain('The plan asks for review-notes-request.');
-    expect(first!.spec.prompt).toContain(`${root}/${notesDirectory}/src/tests/`);
+    expect(first!.spec.prompt).toContain(`\`${notesDirectory}/src/tests/\``);
     const record = await committed<ReconciliationAssessment>(root, runId, reconciliationLayout.assessment('wi-001.rc01'));
     expect(record).toMatchObject({ requestedStart: 'fork', actualStart: 'fresh' });
     const forkEnded = eventsOf(events, 'invocation-ended').find(event => event.data.invocation === record.invocation)!;

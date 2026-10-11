@@ -164,7 +164,8 @@ describe('the integration work item', () => {
     // An entry's local architect is given its entry's scenario, and the integration scenario it came from.
     const entryBriefing = sessions.find(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_orientation' && session.spec.scope.workingDirectory === join(root, notesDirectory, 'src'))!.spec.prompt;
     expect(entryBriefing).toContain('## The scenarios of this work item');
-    expect(entryBriefing).toContain(`### sc-001 (pending): A note is written for tagging\n\n- Feature file: \`${noteFeature}\`.\n- A sub-scenario of the integration scenario \`sc-003\``);
+    expect(entryBriefing).toContain(`### sc-001: A note is written for tagging\n\n- Feature file: \`${noteFeature}\`.\n- A sub-scenario of the integration scenario \`sc-003\``);
+    expect(entryBriefing).toContain('## The states of these scenarios\n\n- `sc-001`: pending.');
     // Its engineer, each scenario not done and the rules; the
     // integration item's engineer, the scenario and the step files it imports.
     const engineerInvocations = log.filter(event => event.type === 'invocation-started' && event.data.role === 'engineer');

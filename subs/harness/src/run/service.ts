@@ -13,7 +13,7 @@ import type { AgentPort, AgentSession, JsonSchema, SessionSpec, SessionStart, To
 import { gitCandidateSource, gitChangeHistory, gitService, type CandidateSource, type ChangeHistory, type GitService } from '../../subs/evidence/src/git.js';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { projectConfigurationFile } from '../../subs/evidence/src/project-configuration.js';
-import { findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
+import { apiViewDirectoriesOf, coverageRecordsOf, describeCoverageLimits, findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { GateAttempt, GateRuleRecord, TestSelectionPolicy } from '../checks/records.js';
 import { acceptedCommit } from '../checks/accepted.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
@@ -99,8 +99,8 @@ import { assessedElements, bindCoordinatorAssessment, coordinatorAssessmentJsonS
   nonfunctionalRepairSubmissionSchema,
   type CoordinatorAssessmentSubmission, type CoordinatorAction, type CoordinatorInvestigation, type NonfunctionalRepairSubmission } from '../nonfunctional/submissions.js';
 import { coordinatorAssessmentPrompt, coordinatorActionPrompt, repairPrompt } from '../nonfunctional/prompts.js';
-import { contextSelectionSchema } from '../context-selection/contracts.js';
-import { readRecordedContextSelection } from '../context-selection/recorded.js';
+import { contextSelectionSchema, type ContextSelection } from '../context-selection/contracts.js';
+import { readRecordedContextSelection, type RecordedContextSelection } from '../context-selection/recorded.js';
 import { citePackage, deliverPackage } from '../context-selection/delivery.js';
 import { orientationPacket, prepareContextSelection, workOrientationSubmissionSchema, workOrientationToolName, type ContextSelectorSubmission, type SelectionSource, type WorkOrientationSubmission } from '../context-selection/submissions.js';
 import { documentChanges, readCapturedDocuments } from './document-inputs.js';
@@ -201,9 +201,10 @@ import {
 } from '../work/obligations.js';
 import { capabilityOf, frontierOrder, hypothesesFor } from '../work/frontier.js';
 import { integrationScenarioOf, originKindOf, workLayout, workItemId, type WorkItem } from '../work/records.js';
-import { apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
+import { apiCoverageStatement, apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
 import { localArchitectToolName, type LocalArchitectSubmission } from '../work/submission.js';
-import { gateDiagnostics, passedScenarioLines, type GateAudience } from '../checks/diagnostics.js';
+import { gateDiagnostics, type GateAudience } from '../checks/diagnostics.js';
+import { scenarioResultsOf, type ScenarioResult } from '../checks/scenario-results.js';
 import { concernBindings, finishReview, requestedStartOf, reviewOutcome, sameWorkItem, type ConcernBinding } from './review-finish.js';
 import { AfterHandling, assignedCount, completionBlockers, authorizedScope, evidenceFor, requiredArtifacts, bindingsOf, capabilityBlockersOf, integrationItemsDue, obligationOwedBy, obligationProjection, openRequirementsOf, pendingCorrection, verifiedRequirements, type HandlingHost } from './after-handling.js';
 import { CandidateDriftError, CommittingGates, readinessAuditOutcome, writeScopePaths, type GateHost } from './committing-gate.js';
@@ -858,6 +859,7 @@ export class RunService {
       queue: policy.queue,
       unsettled: () => unsettledRequests(run.log.events).map(request => request.id),
       attempt: request => this.runReviewAttempt(run, agent, packages, request),
+      prepare: request => this.prepareReview(run, agent, packages, request),
       overflow: async request => {
         await this.finishUnsettledReviews(run, () => ({ reason: 'queue-overflow', detail: `More than ${policy.queue} review requests were waiting; this one was not run` }), [request]);
       },
@@ -873,6 +875,29 @@ export class RunService {
       warn: text => this.warn(`Run ${run.record.jobId}: ${text}`),
     });
     run.reviews.wake();
+  }
+
+  /**
+   * Starts a waiting design request's orientation before the request has a
+   * slot: the orientation reads only the captured guidance, so it need not
+   * wait for the readers ahead of it. The attempt that later forks it finds
+   * it recorded or still being made. Nothing here settles the request; a
+   * failure is met again, and recorded, by that attempt.
+   */
+  private async prepareReview(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, id: string): Promise<void> {
+    const state = reviewStateOf(run.log.events).get(id);
+    if (state === undefined || state.settledBy !== null) return;
+    if (this.closed || this.ignoring(run) || run.reviews?.accepting !== true) return;
+    const loaded = packages.get('reviewer');
+    if (loaded?.reviewer === undefined) return;
+    const request = reviewRequestSchema.parse(this.committedBody(run, reviewLayout.request(id)));
+    const point = request.forkPoint;
+    if (request.key.kind !== 'design' || point.kind !== 'orientation' || request.inputsUnavailable !== undefined) return;
+    if (request.guidance.length === 0 || run.log.all('review-orientation-recorded').some(event => event.data.key === point.key)) return;
+    const texts = await Promise.all(request.guidance.map(entry => this.candidates.readBlob(this.projectRoot, request.key.candidate, entry.ref)));
+    const guidance = boundInputs(request.guidance.map((entry, index) => ({ ref: entry.ref, hash: sha256(texts[index]!), text: texts[index]! })), request.guidance);
+    if (this.closed || this.ignoring(run) || run.reviews?.accepting !== true) return;
+    await this.orientation(run, agent, loaded, request, guidance);
   }
 
   /**
@@ -960,20 +985,36 @@ export class RunService {
     return cited.citation;
   }
 
-  /** Render a cited package again from the frozen catalog and the record's IDs alone. */
-  private async packageText(run: Run, cited: PackageCitation): Promise<string> {
+  /**
+   * Render a cited package again from the frozen catalog and the record's
+   * IDs alone. Given its work item, the package an engineer receives also
+   * carries why the work item's current selection put each element in view.
+   */
+  private async packageText(run: Run, cited: PackageCitation, workItem?: string): Promise<string> {
     const delivered = deliverPackage(await this.frozenCatalog(run), this.planDeviationsOf(run), cited);
     if (delivered.status === 'unavailable') throw new EvidenceUnavailableError(delivered.reason);
-    return delivered.text;
+    if (workItem === undefined) return delivered.text;
+    const selection = await this.currentSelection(run, workItem);
+    return selection === null ? delivered.text : withSelectionReasons(delivered.text, selection.selection.selected);
   }
 
   /** A work item's current selection: the latest one recorded, which supersedes any earlier. */
   private async currentSelection(run: Run, workItem: string) {
     const event = run.log.all('context-selection-recorded').filter(entry => entry.data.workItem === workItem).at(-1);
     if (event === undefined) return null;
-    const recorded = await readRecordedContextSelection(run.directory, event, await this.frozenCatalog(run), this.planDeviationsOf(run));
+    const recorded = await this.recordedSelection(run, event, await this.frozenCatalog(run));
     if (recorded.status === 'unavailable') throw new EvidenceUnavailableError(recorded.reason);
     return { event, ...recorded };
+  }
+
+  /**
+   * A recorded selection whose package, verified against its citation, is
+   * delivered with the selector's reason, conditions and uncertainty for
+   * each element it selected.
+   */
+  private async recordedSelection(run: Run, event: RunEventOf<'context-selection-recorded'>, catalog: ElementCatalog): Promise<RecordedContextSelection> {
+    const recorded = await readRecordedContextSelection(run.directory, event, catalog, this.planDeviationsOf(run));
+    return recorded.status === 'unavailable' ? recorded : { ...recorded, packageText: withSelectionReasons(recorded.packageText, recorded.selection.selected) };
   }
 
   /** A record body as the log committed it, never the materialized file. */
@@ -2565,7 +2606,7 @@ export class RunService {
           this.warn(`Run ${run.record.jobId}: context append ${pending.key} lacks its agent or verified selection`);
           continue;
         }
-        const recorded = await readRecordedContextSelection(run.directory, selected, evidence.catalog, this.planDeviationsOf(run));
+        const recorded = await this.recordedSelection(run, selected, evidence.catalog);
         if (recorded.status === 'unavailable') {
           this.warn(`Run ${run.record.jobId}: context append ${pending.key} is unavailable: ${recorded.reason}`);
           continue;
@@ -4290,7 +4331,13 @@ export class RunService {
     const records = committedRecords(run.log.ledger.replay());
     const item = records.workItems.find(item => item.id === request.work.workItem);
     const goal = request.task?.goal ?? item?.goal ?? `Read the captured plan for ${run.record.planId} and perform the current ${kind} task.`;
-    const requirements = request.task?.requirements ?? [new TextDecoder().decode(await readFile(run.path(runLayout.capturedPlan)))];
+    // The plan is delivered once, whole, in its plan block; the requirements
+    // point to it. A continued or forked session already holds the block.
+    const requirements = request.task?.requirements ?? [planPointer(run.record.planId)];
+    const planSections = request.task?.requirements === undefined && request.start.mode === 'fresh' && !request.prompt.includes('\n<plan>\n')
+      ? [{ key: 'support:plan', text: capturedPlanBlock(run.record.planId,
+        this.capturedPlanPath(run), new TextDecoder().decode(await readFile(run.path(runLayout.capturedPlan)))).join('\n') }]
+      : [];
     const groups = [...request.task?.startingPointGroups ?? []];
     if (request.role === 'engineer' && request.work.iteration !== undefined) {
       const assignment = records.assignments.get(request.work.iteration);
@@ -4311,13 +4358,13 @@ export class RunService {
       || (request.role === 'context-selector' && request.start.mode === 'fresh')
       ? await this.knownProjectFacts(run, request.task?.modules ?? (item === undefined ? [] : [item.module])) : undefined;
     return composeTaskBrief(this.projectRoot, { kind, work: request.work, goal, requirements, prompt: request.prompt,
-      omit: request.task?.omit ?? [], literalSections: request.task?.literalSections ?? [], startingPointGroups: groups, known,
+      omit: request.task?.omit ?? [], literalSections: [...planSections, ...request.task?.literalSections ?? []], startingPointGroups: groups, known,
       retainInheritedSections: request.role === 'context-selector' && request.start.mode === 'fork',
       consultationSubmissionSchema: request.task?.consultationSubmissionSchema,
       environment: { projectRoot: this.projectRoot, workingDirectory: spec.scope.workingDirectory,
         candidate: request.task?.candidate ?? request.candidateBefore ?? null, snapshot: request.task?.snapshot ?? null,
         limits, availableTools: [...spec.builtinTools, ...spec.tools.map(tool => tool.name), spec.submission.name],
-        views: request.task?.views ?? (run.record.manifest.architectView.status === 'materialized' ? [{ path: join(this.projectRoot, '.ramify-architect'), revision: run.record.manifest.architectView.revision, modules: [...(run.index?.modules.keys() ?? [])], coverage: run.record.manifest.architectView.coverageLimits }] : []),
+        views: request.task?.views ?? this.architectViewInputs(run).map(view => ({ ...view, path: view.path.project })),
         // Only the sources this task delivers; the package's other files never reach the model.
         supportPaths: deliveredSupportPaths(request.loaded, kind, request.task?.consultationSubmissionSchema), cucumberConfiguration: request.task?.cucumberConfiguration ?? null } });
   }
@@ -4394,7 +4441,10 @@ export class RunService {
     const plan = new TextDecoder().decode(await readFile(run.path(runLayout.capturedPlan)));
     const evidence: AnalysisEvidence = { index: run.index, catalog, incorporation, documents, registeredTests: new Set([...this.obligationProjection(run).obligations.values()].filter(item => item.kind === 'test').map(item => item.id)), planScenarios: run.record.planScenarios.scenarios };
     const systemPrompt = renderInitialArchitectPrompt(loaded, this.projectRoot);
-    const prompt = analysisMessage(run.record, plan, inputs, incorporatedExtraction(evidence));
+    const view = run.record.manifest.architectView;
+    // The limits name the records they mark where the index is read; otherwise they stay as counted.
+    const coverage = view.status !== 'materialized' ? [] : run.index === null ? view.coverageLimits : describeCoverageLimits(view.coverageLimits, coverageRecordsOf(run.index));
+    const prompt = analysisMessage(run.record, plan, this.capturedPlanPath(run), inputs, incorporatedExtraction(evidence), coverage);
     const scope = baselineScope(
       this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',
       // Each invocation's own package and the plan are its support documents.
@@ -4403,7 +4453,7 @@ export class RunService {
 
     const result = await this.runInvocation<InitialAnalysisSubmission>(run, agent, {
       role: 'initial-architect',
-      task: { kind: 'initial-analysis', goal: intake.value.goal, requirements: [plan], literalSections: [{ key: 'support:accepted-intake', text: `Accepted intake classifications and incorporation: ${JSON.stringify({ catalog, incorporation })}` }] },
+      task: { kind: 'initial-analysis', goal: intake.value.goal, requirements: [planPointer(run.record.planId, 'Implement')], literalSections: [{ key: 'support:accepted-intake', text: `Accepted intake classifications and incorporation: ${JSON.stringify({ catalog, incorporation })}` }] },
       work: {},
       attempt: 1,
       loaded,
@@ -4849,13 +4899,14 @@ export class RunService {
     }
     const orientationRequirements = [this.planPackage(run, evidence.catalog,
       [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])];
+    const orientationViews = await this.localViewInputs(run, item.module);
     // The orientation is built from its inputs by the local architect's own
     // constructor, which `step render` uses too.
     const orientationInputs = (attempt: number, known: KnownFactsInputs): OrientationStepInputs => ({
       schema: stepInputsSchemaId, role: 'local-architect', phase: 'orientation', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
       work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits,
       context: contextPolicyOf(run.record.policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
-      briefing: workBriefingInputs(briefing), requirements: orientationRequirements, known, architectView: this.architectViewInputs(run),
+      briefing: workBriefingInputs(briefing), requirements: orientationRequirements, known, architectView: orientationViews,
       start: { kind: 'fresh' },
     });
     const orientationStep = async (attempt: number) => constructOrientationStep(
@@ -4958,7 +5009,7 @@ export class RunService {
       await this.fail(run, 'invalid-submission', `No valid context selection was obtained for ${item.id} within the captured retry bound`);
       return { kind: 'failed' };
     }
-    const recorded = await readRecordedContextSelection(run.directory, selectionEvent, evidence.catalog, this.planDeviationsOf(run));
+    const recorded = await this.recordedSelection(run, selectionEvent, evidence.catalog);
     if (recorded.status === 'unavailable') {
       await this.fail(run, 'inputs-changed', `The recorded context selection of ${item.id} is unavailable: ${recorded.reason}`, [selectionEvent.data.selection]);
       return { kind: 'failed' };
@@ -5043,7 +5094,7 @@ export class RunService {
         await this.fail(run, 'invalid-submission', `No valid context selection was obtained for ${item.id} within the captured retry bound`);
         return null;
       }
-      const recorded = await readRecordedContextSelection(run.directory, selected, catalog, this.planDeviationsOf(run));
+      const recorded = await this.recordedSelection(run, selected, catalog);
       if (recorded.status === 'unavailable') throw new EvidenceUnavailableError(recorded.reason);
       return { selection: selected.data.selection, citation: recorded.selection.package, text: recorded.packageText };
     } catch (error) {
@@ -5084,7 +5135,7 @@ export class RunService {
         orientation: { invocation: from.orientationInvocation, point: from.point }, workspace: { run: workspace },
         known: knownFactsInputs(await this.knownProjectFacts(run, [item.module])),
         startingPoints: oriented === undefined ? [] : [JSON.parse(JSON.stringify(oriented.group)) as unknown],
-        architectView: this.architectViewInputs(run),
+        architectView: await this.localViewInputs(run, item.module),
         start: forked ? { kind: 'fork', session: from.session!, invocation: from.orientationInvocation, point: from.point! }
           : { kind: 'fresh', degraded: { requested: 'fork', reason: 'the recorded orientation has no retained session point' } },
       });
@@ -7462,7 +7513,7 @@ export class RunService {
         await this.fail(run, 'inputs-changed', `The expanded owner context of ${task.id} could not be selected`);
         return null;
       }
-      const delivered = await readRecordedContextSelection(run.directory, expanded, catalog, this.planDeviationsOf(run));
+      const delivered = await this.recordedSelection(run, expanded, catalog);
       if (delivered.status === 'unavailable') {
         await this.fail(run, 'inputs-changed', `The expanded owner package of ${task.id} is unavailable: ${delivered.reason}`);
         return null;
@@ -8479,7 +8530,7 @@ export class RunService {
       // holds it from its first prompt.
       let assignmentPackage: string | undefined;
       try {
-        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source);
+        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source, assignment.workItem);
       } catch (error) {
         await this.fail(run, 'inputs-changed', `The assignment package of ${assignment.id} cannot be delivered: ${message(error)}`);
         return null;
@@ -9146,7 +9197,7 @@ export class RunService {
       // The requester's assignment package reaches the session once.
       let assignmentPackage: string | undefined;
       try {
-        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source);
+        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source, assignment.workItem);
       } catch (error) {
         await this.fail(run, 'inputs-changed', `The assignment package of contract ${assignment.id} cannot be delivered: ${message(error)}`);
         return null;
@@ -9937,6 +9988,28 @@ export class RunService {
     return view.status === 'materialized'
       ? [{ path: projectPath('.ramify-architect'), revision: view.revision, modules: [...(run.index?.modules.keys() ?? [])], coverage: [...view.coverageLimits] }]
       : [];
+  }
+
+  /**
+   * The views a local architect's orientation and its selector are told of:
+   * the API view directories its module has, each project-relative, and
+   * the architect view's coverage limits named, with whether any lies in the
+   * module. A module with no readable API view is told of the architect view.
+   */
+  private async localViewInputs(run: Run, module: string): Promise<OrientationStepInputs['architectView']> {
+    const entry = run.index === null ? undefined : findModule(run.index, module);
+    const directories = entry === undefined ? [] : await apiViewDirectoriesOf(this.projectRoot, entry).catch(() => []);
+    if (directories.length === 0) return this.architectViewInputs(run);
+    const named = run.record.manifest.architectView.status === 'materialized' && run.index !== null
+      ? describeCoverageLimits(run.record.manifest.architectView.coverageLimits, coverageRecordsOf(run.index), [entry!.module]) : [];
+    // The architect view's limits are stated once, with the first directory.
+    return directories.map((directory, index) => ({ path: projectPath(directory.path), revision: directory.revision, modules: [entry!.module],
+      coverage: [...directory.coverage === null ? [] : [apiCoverageStatement(directory.coverage)], ...index === 0 ? named : []] }));
+  }
+
+  /** The frozen plan's project-relative path. */
+  private capturedPlanPath(run: Run): string {
+    return relative(this.projectRoot, run.path(runLayout.capturedPlan)).split(sep).join('/');
   }
 
   /** The bounds one iteration's engineers run under: the policy's, and what its assignment raised. */
@@ -10775,7 +10848,7 @@ export class RunService {
     const gate = await this.readGate(run, result.gate);
     if (gate === null) return [];
     const { records } = trackedScenarios(run.log.ledger.replay());
-    return passedScenarioLines(gate, new Map(records.map(record => [record.id, record.name])));
+    return groupedPassedScenarioLines(scenarioResultsOf(gate), new Map(records.map(record => [record.id, record.name])));
   }
 
   private async readGate(run: Run, id: string): Promise<GateAttempt | null> {
@@ -11053,19 +11126,107 @@ function callerPauseMs(events: readonly RunEvent[], now: number): number {
   return total;
 }
 
-function analysisMessage(record: RunRecord, plan: string, inputs: ExtractionInputs, planScenarios: PlanScenarioExtraction): string {
-  const view = record.manifest.architectView;
-  const source = record.manifest.source;
-  const accompanying = inputs.manifest.documents.filter(document => document.kind === 'plan' && document.id !== inputs.manifest.root);
+/**
+ * A verified package as its reader receives it: each element the selection
+ * holds says why it is in view, and its `Conditions:` and `Uncertainty:`
+ * lines appear only where the plan or the selector recorded some. The plan's
+ * own conditions come first; the selector's follow, marked as its reading.
+ * Elements the selection does not name, and plan deviations, are unchanged.
+ */
+export function withSelectionReasons(text: string, selected: ContextSelection['selected']): string {
+  const reasons = new Map(selected.map(entry => [entry.id, entry]));
+  const lines = text.replace(/\n$/u, '').split('\n');
+  const out: string[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const heading = /^### ([^\s:]+): /u.exec(lines[index]!);
+    const entry = heading === null ? undefined : reasons.get(heading[1]!);
+    if (entry === undefined) { out.push(lines[index]!); index++; continue; }
+    let end = index + 1;
+    while (end < lines.length && !/^#{2,3} /u.test(lines[end]!)) end++;
+    const segment = lines.slice(index, end);
+    const conditionsAt = segment.findIndex(line => line.startsWith('Conditions:'));
+    const uncertaintyAt = segment.findIndex(line => line.startsWith('Uncertainty:'));
+    if (conditionsAt < 0 || uncertaintyAt < conditionsAt) { out.push(...segment); index = end; continue; }
+    const trimmed = (block: readonly string[]) => {
+      const kept = [...block];
+      while (kept.length > 0 && kept.at(-1)!.trim() === '') kept.pop();
+      return kept;
+    };
+    const planConditions = trimmed(segment.slice(conditionsAt, uncertaintyAt));
+    const planUncertainty = trimmed(segment.slice(uncertaintyAt));
+    const conditions = [
+      ...(planConditions[0] === 'Conditions: none recorded.' ? [] : planConditions.slice(1)),
+      ...entry.conditions.map(condition => `- selection: ${condition.replace(/\n/gu, '\n  ')}`),
+    ];
+    const uncertainty = [
+      ...(planUncertainty[0] === 'Uncertainty: none recorded.' ? [] : [planUncertainty.join('\n').slice('Uncertainty: '.length)]),
+      ...(entry.uncertainty.trim() === '' ? [] : [`${entry.uncertainty.trim()} (the selection's reading)`]),
+    ];
+    out.push(...trimmed(segment.slice(0, conditionsAt)), '', `Why it is in view: ${entry.reason}`);
+    if (conditions.length > 0) out.push('', 'Conditions:', ...conditions);
+    if (uncertainty.length > 0) out.push('', `Uncertainty: ${uncertainty.join('\n')}`);
+    if (end < lines.length) out.push('');
+    index = end;
+  }
+  return `${out.join('\n')}\n`;
+}
+
+/**
+ * The tracked scenarios a passed gate ran, each with the step definitions
+ * that bound it. A Scenario Outline's examples that one check ran in one
+ * file and that the same definitions bound are listed once, with every
+ * example's line: their bindings differ only in the example values.
+ */
+export function groupedPassedScenarioLines(results: readonly ScenarioResult[], names: ReadonlyMap<string, string> = new Map()): string[] {
+  const title = (id: string) => (names.has(id) ? `\`${id}\` "${names.get(id)}"` : `\`${id}\``);
+  const groups = new Map<string, ScenarioResult[]>();
+  for (const result of results.filter(entry => entry.status === 'passed')) {
+    const key = JSON.stringify([result.id, result.check, result.file, result.binding.map(binding => binding.definition)]);
+    groups.set(key, [...groups.get(key) ?? [], result]);
+  }
+  return [...groups.values()].flatMap(group => {
+    const [first] = group as [ScenarioResult, ...ScenarioResult[]];
+    const bound = first.binding.length === 0 ? ', with no step bound.' : ', bound by:';
+    const where = group.length === 1
+      ? `at \`${first.file}:${first.line}\``
+      : `${group.length} examples, at \`${first.file}\` lines ${group.map(entry => entry.line).join(', ')}`;
+    return [
+      `- ${title(first.id)} passed in \`${first.check}\`, ${where}${bound}`,
+      ...first.binding.map(binding => `  - \`${binding.step}\` → \`${binding.definition}\``),
+      ...(group.length > 1 && first.binding.length > 0 ? [`  The step texts are line ${first.line}'s; the other examples differ only in their example values.`] : []),
+    ];
+  });
+}
+
+/** The one requirement of a task the plan block carries whole. */
+export function planPointer(planId: string, verb?: string): string {
+  return verb === undefined ? `The plan "${planId}", delivered whole in the plan block below.` : `${verb} the plan "${planId}", delivered whole in the plan block below.`;
+}
+
+/**
+ * The plan block: the captured plan verbatim, delivered once, with where the
+ * frozen file is. The live plan file is not the run's input.
+ */
+export function capturedPlanBlock(planId: string, capturedPath: string, plan: string, document?: string): string[] {
   return [
-    `# Plan "${record.planId}"`,
+    `# Plan "${planId}"`,
     '',
-    `The plan, as \`plans/${record.planId}/plan.md\` read when this run started (${inputs.manifest.root}):`,
+    `The plan${document === undefined ? '' : ` (${document})`}, frozen when this run started. The live file \`plans/${planId}/plan.md\` may have changed since and is not this run's input; if you need the frozen file itself, it is at \`${capturedPath}\`.`,
     '',
     '<plan>',
     plan.trim(),
     '</plan>',
     '',
+  ];
+}
+
+function analysisMessage(record: RunRecord, plan: string, capturedPath: string, inputs: ExtractionInputs, planScenarios: PlanScenarioExtraction, coverage: readonly string[]): string {
+  const view = record.manifest.architectView;
+  const source = record.manifest.source;
+  const accompanying = inputs.manifest.documents.filter(document => document.kind === 'plan' && document.id !== inputs.manifest.root);
+  return [
+    ...capturedPlanBlock(record.planId, capturedPath, plan, inputs.manifest.root),
     ...(accompanying.length === 0 ? [] : [
       '# Accompanying plan documents', '',
       'Read each in full at its captured file; its functional and context elements are yours to submit as well:', '',
@@ -11078,7 +11239,7 @@ function analysisMessage(record: RunRecord, plan: string, inputs: ExtractionInpu
       ? `- Architect view: \`.ramify-architect/\`, revision \`${view.revision}\`, input \`${view.input}\`.`
       : '- Architect view: none was materialized for this run, so every claim about the module tree is yours to establish from the source.',
     view.status === 'materialized'
-      ? `- Coverage limits the view reports: ${view.coverageLimits.length ? view.coverageLimits.join('; ') : 'none'}.`
+      ? `- Coverage limits the view reports: ${coverage.length ? coverage.join('; ') : 'none'}.`
       : '- Coverage limits: unknown.',
     `- Source: ${source === null ? 'not a git checkout' : `commit ${source.commit}${source.dirty ? ', with uncommitted changes, which the views include' : ''}`}.`,
     '',

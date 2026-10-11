@@ -1,4 +1,4 @@
-import { exactInputHash, type DeliveredInput } from './delivered-manifest.js';
+import type { DeliveredInput } from './delivered-manifest.js';
 
 export interface InstructionBlock {
   readonly key: string;
@@ -13,10 +13,27 @@ function requireKey(key: string): void {
   if (!key.trim() || /[\r\n]/u.test(key)) throw new Error('A block requires a nonempty single-line key');
 }
 
-/** These exact bytes define set equality and selected-procedure identity. */
-export function renderBlockSet(key: string, body: string): string {
+/** The line that tells a reader a block replaces the value an earlier block of its key set. */
+export const replacementBanner = 'Current value; replaces any earlier value for this key.';
+
+/**
+ * These exact bytes define set equality and selected-procedure identity.
+ * The replacement banner is rendered only where the conversation already
+ * holds an earlier delivery of the key: a first delivery replaces nothing.
+ */
+export function renderBlockSet(key: string, body: string, replaces = true): string {
   requireKey(key);
-  return `# Block ${key}\nCurrent value; replaces any earlier value for this key.\n${body}`;
+  return replaces ? `# Block ${key}\n${replacementBanner}\n${body}` : `# Block ${key}\n${body}`;
+}
+
+/** Whether a delivered block sets exactly this body, in either framing. */
+export function setsBody(text: string, key: string, body: string): boolean {
+  return text === renderBlockSet(key, body, true) || text === renderBlockSet(key, body, false);
+}
+
+/** Whether the history holds any earlier delivery, set or withdrawal, of the key. */
+export function deliveredBefore(history: readonly DeliveredInput[], key: string): boolean {
+  return history.some(input => input.block?.key === key);
 }
 
 export function renderBlockRemoval(key: string): string {
@@ -56,9 +73,9 @@ export function resolveBlockAdditions(input: {
   const effective = effectiveBlocks(input.inherited);
   return [
     ...input.desired.flatMap(block => {
-      const text = renderBlockSet(block.key, block.body);
       const prior = effective.get(block.key);
-      if (prior && exactInputHash(prior.text) === exactInputHash(text)) return [];
+      if (prior && setsBody(prior.text, block.key, block.body)) return [];
+      const text = renderBlockSet(block.key, block.body, deliveredBefore(input.inherited, block.key));
       return [{ key: block.key, kind: block.kind, text, source: block.source, revision: block.revision,
         ...(block.sources ? { sources: block.sources } : {}), block: { key: block.key, effect: 'set' as const } }];
     }),

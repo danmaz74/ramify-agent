@@ -128,3 +128,70 @@ test('B03: an expired deadline is not revived, and releasing suspension after pe
   releaseClosed();
   expect(started).toEqual([]);
 });
+
+// A waiting design request's orientation reads no candidate, so it starts
+// outside the slot count; only the attempt that forks it takes a slot.
+test('a waiting request is prepared at once and once, outside the slots, while a started one is not', async () => {
+  const unsettled = ['rq-1', 'rq-2', 'rq-3'];
+  const started: string[] = [];
+  const prepared: string[] = [];
+  const releases = new Map<string, () => void>();
+  let releasePreparation!: () => void;
+  const warnings: string[] = [];
+  const queue = new ReviewQueue({
+    concurrency: 1,
+    queue: 1,
+    unsettled: () => unsettled,
+    attempt: async request => {
+      started.push(request);
+      await new Promise<void>(resolve => releases.set(request, resolve));
+      unsettled.splice(unsettled.indexOf(request), 1);
+      return true;
+    },
+    prepare: async request => {
+      prepared.push(request);
+      await new Promise<void>(resolve => { releasePreparation = resolve; });
+      throw new Error('orientation unavailable');
+    },
+    overflow: async request => { unsettled.splice(unsettled.indexOf(request), 1); },
+    warn: text => warnings.push(text),
+  });
+  queue.wake();
+  // rq-1 holds the one slot; rq-2 waits and is prepared meanwhile; rq-3 overflows and is not.
+  expect(started).toEqual(['rq-1']);
+  expect(prepared).toEqual(['rq-2']);
+  expect(queue.active).toEqual(['rq-1']);
+  // A later wake prepares nothing again.
+  queue.wake();
+  expect(prepared).toEqual(['rq-2']);
+  // A failed preparation is warned of and leaves the request to its attempt.
+  releasePreparation();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(warnings).toEqual([expect.stringContaining("rq-2's preparation failed: orientation unavailable")]);
+  releases.get('rq-1')!();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(started).toEqual(['rq-1', 'rq-2']);
+  expect(prepared).toEqual(['rq-2']);
+  releases.get('rq-2')!();
+  await queue.settled();
+  expect(unsettled).toEqual([]);
+});
+
+test('settled waits for a preparation still running', async () => {
+  let finishPreparation!: () => void;
+  let preparationDone = false;
+  const queue = new ReviewQueue({
+    concurrency: 0,
+    queue: 1,
+    unsettled: () => ['rq-1'],
+    attempt: async () => true,
+    prepare: async () => { await new Promise<void>(resolve => { finishPreparation = resolve; }); preparationDone = true; },
+    overflow: async () => undefined,
+    warn: () => undefined,
+  });
+  queue.wake();
+  const settled = queue.settled().then(() => preparationDone);
+  finishPreparation();
+  expect(await settled).toBe(true);
+  queue.close();
+});

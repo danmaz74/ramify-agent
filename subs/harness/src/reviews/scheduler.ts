@@ -13,6 +13,14 @@
  * attempt bound: such a request is finished at once as not verified, with
  * that reason, rather than started and cut off.
  *
+ * A request's preparation is not a reader. A design review forks an
+ * orientation that reads only the captured guidance, holds no snapshot tool
+ * and reads no candidate, so it is started as soon as its request waits,
+ * outside the `concurrency` count; only the attempt that forks it takes a
+ * slot. A request started at once needs no separate preparation: its
+ * attempt makes the orientation itself, and a preparation already running
+ * is the one it waits for.
+ *
  * The writer is never scheduled here and never waits for a reader: readers
  * hold no writer, their durable writes are short transitions under the run
  * mutex, and an invocation's start gives a waiting writer precedence over
@@ -33,6 +41,12 @@ export interface ReviewQueueOptions {
   readonly attempt: (request: string) => Promise<boolean>;
   /** Finishes a request the queue has no room for, as not verified. */
   readonly overflow: (request: string) => Promise<void>;
+  /**
+   * Starts, outside the slot count, what a waiting request's attempt will
+   * build on and that reads no candidate: its design orientation. Called
+   * once per request; a failure is the attempt's to meet again.
+   */
+  readonly prepare?: ((request: string) => Promise<void>) | undefined;
   /** The time by which a request must be settled, in epoch milliseconds; null while it has none. */
   readonly deadline?: ((request: string) => number | null) | undefined;
   /** The longest one attempt may run: an attempt is started only if it could finish by its deadline. */
@@ -47,6 +61,8 @@ export class ReviewQueue {
   private readonly running = new Map<string, Promise<void>>();
   private readonly finishing = new Map<string, Promise<void>>();
   private readonly parked = new Set<string>();
+  /** Preparations started, by request; each runs once and holds no slot. */
+  private readonly preparing = new Map<string, Promise<void>>();
   /** Each waiter of `changed`, woken once when an attempt or a finish ends. */
   private readonly waiters = new Set<() => void>();
   private open = true;
@@ -97,6 +113,7 @@ export class ReviewQueue {
     for (const request of waiting.slice(room + this.options.queue)) {
       this.finish(request, this.options.overflow, 'finished as overflowed');
     }
+    for (const request of waiting.slice(room, room + this.options.queue)) this.prepare(request);
     for (const request of starting) {
       const task = this.options.attempt(request)
         .then(committed => { if (!committed) this.parked.add(request); })
@@ -172,6 +189,14 @@ export class ReviewQueue {
     }
   }
 
+  /** Starts one waiting request's preparation, once; it never takes a slot. */
+  private prepare(request: string): void {
+    if (this.options.prepare === undefined || this.preparing.has(request)) return;
+    const task = this.options.prepare(request)
+      .catch(error => this.options.warn(`Review ${request}'s preparation failed: ${error instanceof Error ? error.message : String(error)}`));
+    this.preparing.set(request, task);
+  }
+
   /** Finishes one waiting request as not verified, once. */
   private finish(request: string, how: (request: string) => Promise<void>, what: string): void {
     const task = how(request)
@@ -206,10 +231,13 @@ export class ReviewQueue {
     for (const waiter of waiters) waiter();
   }
 
-  /** Settles once no attempt is running or being finished, including any started meanwhile. */
+  /** Settles once no attempt is running or being finished and no preparation is running, including any started meanwhile. */
   async settled(): Promise<void> {
-    while (this.running.size > 0 || this.finishing.size > 0) {
-      await Promise.all([...this.running.values(), ...this.finishing.values()]);
+    for (;;) {
+      const pending = [...this.running.values(), ...this.finishing.values(), ...this.preparing.values()];
+      await Promise.all(pending);
+      if (this.running.size === 0 && this.finishing.size === 0
+        && [...this.preparing.values()].every(task => pending.includes(task))) return;
     }
   }
 }

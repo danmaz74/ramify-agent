@@ -10,7 +10,7 @@ import type { IterationAssignment } from '../work/iterations.js';
 import { obligationsOf } from '../work/obligations.js';
 import type { WorkItem } from '../work/records.js';
 import { entryScenariosOf } from '../work/scenario-briefing.js';
-import { workItemMessage, type WorkItemBriefing } from '../work/session.js';
+import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../work/session.js';
 import { validateLocalArchitect } from '../work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 
@@ -116,7 +116,7 @@ describe('the local architect\'s briefing', () => {
     expect(text).toContain('## The scenarios of this work item');
     expect(text).toContain('Its entry has 3 scenarios.');
     expect(text).toContain([
-      '### sc-002 (bound): A lent book is marked',
+      '### sc-002: A lent book is marked',
       '',
       `- Feature file: \`${shelfFile}\`.`,
       '- A sub-scenario of the integration scenario `sc-005`, whose integration work item is due once every sub-scenario is reported done.',
@@ -128,8 +128,12 @@ describe('the local architect\'s briefing', () => {
       '  Then the shelf lists 1 book',
       '```',
     ].join('\n'));
-    expect(text).toContain('### sc-001 (done): A shelved book is listed');
-    expect(text).toContain('### sc-003 (pending): A returned book is listed again');
+    expect(text).toContain('### sc-001: A shelved book is listed');
+    expect(text).toContain('### sc-003: A returned book is listed again');
+    // The states, which change from turn to turn, are their own section, apart from the text, which does not.
+    expect(text).toContain('## The states of these scenarios\n\n');
+    expect(text).toContain('- `sc-001`: done.\n- `sc-002`: bound.\n- `sc-003`: pending.');
+    expect(text.indexOf('## The states of these scenarios')).toBeGreaterThan(text.indexOf('### sc-003'));
     // Another entry's scenario and the integration scenario are not this item's.
     expect(text).not.toContain('sc-004');
     expect(text).not.toContain('### sc-005');
@@ -138,6 +142,18 @@ describe('the local architect\'s briefing', () => {
     expect(text).toContain('A passing gate is evidence, never your\nreport');
     expect(text).toContain('report it `done` in `reports`,\nwhatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.');
     expect(text).not.toContain('`request-completion.scenarios`');
+  });
+
+  test('a continued turn is told its outline stands, not how many revisions it has', () => {
+    const text = workItemMessage(architectBriefing(workItem({ entry: 'shelve-books' }), { outlines: [{ revision: 1 }, { revision: 2 }] as never }));
+    expect(text).toContain("## Your outline\n\nRevision 2 is this work item's current outline, and it stands. Include `outline` only to revise it.");
+    expect(text).not.toContain('Earlier outlines');
+    expect(text).not.toContain('outline revision(s)');
+  });
+
+  test('an API view\'s coverage count says what it means', () => {
+    expect(apiCoverageStatement(1)).toBe('one source-analysis limit that may have left a received API out of this view, so absence is not proof of unavailability');
+    expect(apiCoverageStatement(3)).toBe('3 source-analysis limits that may have left a received API out of this view, so absence is not proof of unavailability');
   });
 
   test('a provider work item\'s briefing says nothing about scenarios, and the completion refusal names what still blocks it', () => {

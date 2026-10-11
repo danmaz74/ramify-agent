@@ -245,3 +245,44 @@ describe('the scope question\'s message', () => {
     expect(none).toContain('The assignment cites no element of the plan; judge the candidate against the assignment\'s own goal.');
   });
 });
+
+describe('the design question\'s guidance', () => {
+  const guidance = [{ ref: 'docs/style.md', hash: 'a'.repeat(64) }, { ref: 'docs/layout.md', hash: 'b'.repeat(64) }];
+  const request = (): ReviewRequest => ({
+    schema: 'ramify-agent.review-request/1', id: 'rq-0003', key: { iteration: 'wi-001.i01', candidate: 'c1', kind: 'design', policy: 'review-policy/1' },
+    workItem: 'wi-001', assignment: 'a.json', base: 'c0', gate: 'ga-0001', tree: 't1', guidance, forkPoint: { kind: 'orientation', key: 'k'.repeat(64) },
+  } as ReviewRequest);
+  const snapshotOf = async () => openCandidateSnapshot(scriptedCandidates('/project', { c1: { tree: 't1', base: 'c0', changes: [], files: { 'docs/style.md': '# Style\n' } } }), '/project', { commit: 'c1', base: 'c0' });
+
+  test('a fresh design review reads each file it has not read yet', async () => {
+    const message = reviewMessage({ request: request(), snapshot: await snapshotOf(), assignment: null, checkFindings: [] });
+    expect(message).toContain('If this session has not read one of them yet, read it with `snapshot_read` before you judge.');
+    expect(message).not.toContain('read in orientation');
+  });
+
+  test('a fork of the orientation counts the guidance it read at the same identity as read', async () => {
+    const oriented = [guidance[0]!, { ref: 'docs/layout.md', hash: 'c'.repeat(64) }];
+    const message = reviewMessage({ request: request(), snapshot: await snapshotOf(), assignment: null, checkFindings: [], oriented });
+    expect(message).toContain('they count as already read');
+    expect(message).toContain(`- docs/style.md (sha256 ${'a'.repeat(12)}), read in orientation`);
+    expect(message).toContain(`- docs/layout.md (sha256 ${'b'.repeat(12)}), changed since orientation: read it before you judge`);
+    expect(message).not.toContain('If this session has not read one of them yet');
+  });
+});
+
+describe('the candidate\'s test pointers', () => {
+  test('name the test area as information, not as an instruction to list it', async () => {
+    const source = scriptedCandidates('/project', { c1: { tree: 't1', base: 'c0', changes: [], files: { 'pkg/src/tests/a.test.ts': 'test\n' } } });
+    const snapshot = await openCandidateSnapshot(source, '/project', { commit: 'c1', base: 'c0' });
+    const request: ReviewRequest = {
+      schema: 'ramify-agent.review-request/1', id: 'rq-0001', key: { iteration: 'wi-001.i01', candidate: 'c1', kind: 'code', policy: 'review-policy/1' },
+      workItem: 'wi-001', assignment: 'a.json', base: 'c0', gate: 'ga-0001', tree: 't1', guidance: [], forkPoint: { kind: 'none' },
+    };
+    const assignment = { goal: 'G', approach: 'A', completionEvidence: 'E', scopeRationale: 'S', testAreas: ['pkg/src/tests'] };
+    const plain = reviewMessage({ request, snapshot, assignment, checkFindings: [] });
+    expect(plain).toContain("## Candidate test pointers\n\nThe candidate's test area for this module is `pkg/src/tests/`. Read a file there when a concern needs it.\n");
+    expect(plain).not.toContain('inspect with snapshot_list');
+    const withPatches = reviewMessage({ request, snapshot, assignment, checkFindings: [], diffPayload: '## Patches\n' });
+    expect(withPatches).toContain('Read a file there when a concern needs it; the patches above already show the changed tests.');
+  });
+});

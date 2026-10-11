@@ -15,6 +15,8 @@ const roots: string[] = []; const adapters: HarnessSessionOperations[] = [];
 afterEach(async () => { for (const adapter of adapters.splice(0)) await adapter.close(); for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }); });
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const set = (key: string, text: string) => `# Block ${key}\nCurrent value; replaces any earlier value for this key.\n${text}`;
+/** A key's first value in a session replaces nothing, so it carries no banner. */
+const initial = (key: string, text: string) => `# Block ${key}\n${text}`;
 function request(operationId: string, ref?: string, body = 'A', candidate: string | null = 'C1'): HarnessOperationInput {
   const name = 'submit_work_item_result';
   return { runId: 'run', operationId, session: 'logical-session', loaded: { role: 'local-architect', package: 'pinned/test', hash: '0'.repeat(64), files: [], submissionKinds: [], system: 'Pinned architect role.', procedure: 'Main procedure; submit through {{submissionTool}}.', skill: '', skillDirectory: '/skills', extraSkill: '', submissionSchema: '{"type":"object"}' },
@@ -53,7 +55,7 @@ test('P08/P09/S07: actual start A/B/A, unchanged goal and requirements, immutabl
   expect(seen[2]!.task.message).not.toContain('# Block brief:goal'); expect(seen[2]!.task.message).not.toContain('# Block brief:requirements');
   const last = (await next.adapter.packet('run', 'unchanged'))!;
   expect(last.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);
-  expect(last.manifest.entries.filter(entry => entry.key === 'brief:support:evidence').map(entry => entry.hash)).toEqual([hash(set('brief:support:evidence', 'A')), hash(set('brief:support:evidence', 'B')), hash(set('brief:support:evidence', 'A'))]);
+  expect(last.manifest.entries.filter(entry => entry.key === 'brief:support:evidence').map(entry => entry.hash)).toEqual([hash(initial('brief:support:evidence', 'A')), hash(set('brief:support:evidence', 'B')), hash(set('brief:support:evidence', 'A'))]);
   expect(last.manifest.entries.every(entry => entry.kind === 'task' || entry.delivery === 'inherited')).toBe(true);
 });
 
@@ -86,7 +88,7 @@ test('S01/S02: old-point fork sees its exact prefix, active role/tool/cwd/valida
   const packet = (await adapter.packet('run', 'child'))!;
   expect(packet.message).toContain('Selected procedure: procedure:engineer:main');
   expect(packet.manifest.entries.some(entry => entry.hash === hash(set('brief:support:evidence', 'B')))).toBe(false);
-  expect(effectiveBlocks((await contextAt(roots[0]!, result.ref)).inherited).get('environment:candidate')!.text).toBe(set('environment:candidate', '{\n  "candidate": "C1"\n}'));
+  expect(effectiveBlocks((await contextAt(roots[0]!, result.ref)).inherited).get('environment:candidate')!.text).toBe(initial('environment:candidate', '{\n  "candidate": "C1"\n}'));
 });
 
 test('S03: restart retries retained packet despite changed package; changed requests remain conflicts', async () => {
@@ -108,7 +110,7 @@ test('S04: prepared and uncommitted failure do not establish delivery; committed
   expect(await adapter.operations.operationIdentity('run', 'prepared')).toBeNull();
   const failed = await adapter.start({ ...request('committed-failure'), identified: async () => { throw new Error('before provider dispatch'); } });
   expect((await failed.outcome).kind).toBe('failed'); expect(await failed.settled()).toBe('settled'); expect(failed.ref).not.toBe('');
-  expect(effectiveBlocks((await contextAt(root, failed.ref)).inherited).get('brief:support:evidence')!.text).toBe(set('brief:support:evidence', 'A'));
+  expect(effectiveBlocks((await contextAt(root, failed.ref)).inherited).get('brief:support:evidence')!.text).toBe(initial('brief:support:evidence', 'A'));
   const continued = await turn(adapter, request('after-failure', failed.ref)); expect(continued.ref).not.toBe('');
   expect((await adapter.packet('run', 'after-failure'))!.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);
   const other = await open([{ kind: 'fail', error: 'provider interrupted' }]); const interrupted = await other.adapter.start(request('interrupted'));
@@ -183,7 +185,9 @@ test('S03/S06: legacy retry preserves /1 bytes; new task migrates representation
   expect(current.manifest.schema).toBe('ramify-agent.delivered-inputs/2');
   expect(current.manifest.entries.filter(entry => entry.delivery === 'inherited').map(entry => entry.hash)).toEqual(old.packet.manifest.entries.map(entry => entry.hash));
   expect(current.manifest.entries.filter(entry => entry.delivery === 'inherited' && entry.kind === 'environment')).toHaveLength(1);
-  expect(current.additions.filter(item => item.kind === 'environment')).toHaveLength(9);
+  // The migration delivers only the fields this role's tools use; a legacy environment is no earlier block value.
+  expect(current.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits', 'environment:availableTools']);
+  expect(current.additions.filter(item => item.kind === 'environment').every(item => !item.text.includes('Current value; replaces'))).toBe(true);
   expect(current.additions.filter(item => item.kind === 'brief').map(item => item.key)).toEqual(['brief:goal', 'brief:requirements', 'brief:support:evidence']);
   expect(current.additions.filter(item => item.kind === 'role-instructions' || item.kind === 'tool-declaration')).toEqual([]);
   await turn(next.adapter, request('after-migration', migrated.ref)); expect((await next.adapter.packet('run', 'after-migration'))!.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);
@@ -200,7 +204,7 @@ test('S05/S06: hand-authored old named append replays its unframed original afte
   const engine = await next.adapter.operations.inspect('run', point.sessionId); expect(engine!.additions.at(-1)!.text).toBe('OLD APPEND');
   const current = request('after-old-append', sessionPointReference('run', receipt.point!));
   const migrated = await turn(next.adapter, { ...current, brief: { ...current.brief, sections: [...current.brief.sections, section] } });
-  expect((await next.adapter.packet('run', 'after-old-append'))!.additions.find(item => item.key === 'brief:support:legacy-only')!.text).toBe(set('brief:support:legacy-only', 'OLD APPEND'));
+  expect((await next.adapter.packet('run', 'after-old-append'))!.additions.find(item => item.key === 'brief:support:legacy-only')!.text).toBe(initial('brief:support:legacy-only', 'OLD APPEND'));
   const unchanged = request('after-old-migration', migrated.ref);
   await turn(next.adapter, { ...unchanged, brief: { ...unchanged.brief, sections: [...unchanged.brief.sections, section] } });
   expect((await next.adapter.packet('run', 'after-old-migration'))!.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);

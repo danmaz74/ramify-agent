@@ -14,7 +14,7 @@ import type { PlacementDecision } from '../architecture/records.js';
 import type { EnvironmentProblem } from '../deviations/records.js';
 import type { IterationApiViews } from './engineer.js';
 import type { IntegrationBriefing } from './integration.js';
-import { architectScenarioSection, type BriefedScenario } from './scenario-briefing.js';
+import type { BriefedScenario } from './scenario-briefing.js';
 import type { WorkItem, WorkItemOutline } from './records.js';
 import type { EngineerBounds } from '../run/policy.js';
 import { analysisLines, boundOf, digestLines } from './failure.js';
@@ -288,10 +288,50 @@ export function defaultWriteScopeSection(scopes: readonly DefaultWriteScope[]): 
   return lines;
 }
 
+/** What an API view's coverage count means: the source-analysis limits that may have left a received API out. */
+export function apiCoverageStatement(coverage: number): string {
+  return `${coverage === 1 ? 'one source-analysis limit' : `${coverage} source-analysis limits`} that may have left a received API out of this view, so absence is not proof of unavailability`;
+}
+
+/**
+ * The scenarios of an entry's work item, as two sections: their text, which
+ * stays the same from turn to turn and so reaches a session once, and their
+ * states, which a later turn delivers alone when only they changed.
+ */
+export function architectScenarioSections(scenarios: readonly BriefedScenario[]): string[] {
+  if (scenarios.length === 0) return [];
+  const lines: string[] = ['## The scenarios of this work item', '',
+    `Its entry has ${scenarios.length} scenario${scenarios.length === 1 ? '' : 's'}. The harness wrote each into its feature file,`,
+    'and no agent edits a feature file. The work item completes only when you have reported every one `done`.', ''];
+  for (const scenario of scenarios) {
+    lines.push(`### ${scenario.id}: ${scenario.name}`, '', `- Feature file: \`${scenario.file}\`.`,
+      ...(scenario.partOf === null ? [] : [`- A sub-scenario of the integration scenario \`${scenario.partOf}\`, whose integration work item is due once every sub-scenario is reported done.`]),
+      '', '```gherkin', ...scenario.source, '```', '');
+  }
+  lines.push(
+    'A scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing',
+    'module\'s `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer\'s',
+    'accepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its',
+    'pending tag at the next commit, so the gates\' configured checks run it. A passing gate is evidence, never your',
+    'report: when, in your judgment, a scenario is correctly implemented and passing, report it `done` in `reports`,',
+    'whatever fakes its binding names. A completion request that leaves one not `done` is rejected, naming it.',
+    '',
+    '## The states of these scenarios',
+    '',
+    ...scenarios.map(scenario => `- \`${scenario.id}\`: ${scenario.state}.`),
+    '',
+    'Their text is in "The scenarios of this work item"; only these states change from turn to turn.',
+    '',
+  );
+  return lines;
+}
+
 /** The first user message of one local architect invocation. */
 export function workItemMessage(briefing: WorkItemBriefing): string {
   const { item } = briefing;
-  const rooted = (path: string): string => briefing.projectRoot === undefined ? path : join(briefing.projectRoot, path);
+  // Paths are project-relative: the task's environment states the project root once.
+  const working = briefing.workingDirectory === undefined || briefing.projectRoot === undefined
+    ? briefing.workingDirectory : relative(briefing.projectRoot, briefing.workingDirectory).split(sep).join('/') || '.';
   const lines: string[] = [
     `# Work item ${item.id} — ${item.module}`,
     '',
@@ -313,27 +353,27 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     '',
     ...deviationSection(briefing.deviations, briefing.deviationRecorded),
     ...(briefing.integration === undefined ? [] : integrationSection(briefing.integration)),
-    ...architectScenarioSection(briefing.scenarios ?? []),
+    ...architectScenarioSections(briefing.scenarios ?? []),
     '## Your module',
     '',
     `- Declared name: \`${item.module}\`.`,
-    ...(briefing.workingDirectory === undefined ? [] : [
-      `- Working directory: \`${briefing.workingDirectory}\`.`,
+    ...(working === undefined ? [] : [
+      `- Working directory: \`${working}\`, relative to the project root.`,
       briefing.workingDirectory === briefing.projectRoot
         ? '- The assigned module source directory was absent when this session began. This session remains at the project root even if an engineer creates the module. Do not create it from this reader session.'
         : '- This is the assigned module\'s source directory.',
       '- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.',
     ]),
     ...(briefing.moduleDirectory === undefined ? [] : [
-      `- Assigned module declaration: \`${rooted(join(briefing.moduleDirectory, 'module.ramify'))}\` (read it if present).`,
-      `- Assigned module source: \`${rooted(join(briefing.moduleDirectory, 'src'))}/\` (read it if present).`,
+      `- Assigned module declaration: \`${join(briefing.moduleDirectory, 'module.ramify')}\` (read it if present).`,
+      `- Assigned module source: \`${join(briefing.moduleDirectory, 'src')}/\` (read it if present).`,
     ]),
-    ...(briefing.testAreas ?? []).map(area => `- Test area (${area.module}): \`${rooted(area.area)}/\`.`),
+    ...(briefing.testAreas ?? []).map(area => `- Test area (${area.module}): \`${area.area}/\`.`),
     briefing.onboarding.path === '(module directory unavailable)'
       ? `- Onboarding unavailable: ${briefing.onboarding.missing}. No other module's prose stands in for it.`
       : briefing.onboarding.purpose === null
-        ? `- Onboarding: \`${rooted(briefing.onboarding.path)}\` gives none: ${briefing.onboarding.missing}. No other module's prose stands in for it.`
-        : `- Onboarding (\`${rooted(briefing.onboarding.path)}\`): ${briefing.onboarding.purpose}`,
+        ? `- Onboarding: \`${briefing.onboarding.path}\` gives none: ${briefing.onboarding.missing}. No other module's prose stands in for it.`
+        : `- Onboarding (\`${briefing.onboarding.path}\`): ${briefing.onboarding.purpose}`,
   ];
 
   if (briefing.views.evidence === null) {
@@ -341,12 +381,12 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
   } else {
     if (briefing.views.unavailable !== null) lines.push(`- API view limitations: ${briefing.views.unavailable}. Missing evidence is not proof of API absence.`);
     for (const view of briefing.views.evidence.views) {
-      lines.push(`- API view (${view.area}): \`${rooted(view.path)}/\`, revision \`${view.revision}\`; ${view.coverage === null
+      lines.push(`- API view (${view.area}): \`${view.path}/\`, revision \`${view.revision}\`; ${view.coverage === null
         ? 'coverage complete, so absence means unavailable'
-        : `coverage limits: ${view.coverage}, so absence is not proof of unavailability`}.`);
+        : `coverage limits: ${apiCoverageStatement(view.coverage)}`}.`);
     }
   }
-  lines.push(`- The architect view is at \`${rooted(architectViewDirectory)}/\`.`, '');
+  lines.push(`- The architect view is at \`${architectViewDirectory}/\`.`, '');
   if (briefing.setup) lines.push(briefing.setup, '');
   lines.push(...defaultWriteScopeSection(briefing.defaultWriteScope ?? []));
 
@@ -502,7 +542,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     lines.push(...briefing.failedGate.summary);
     lines.push('', 'Revise your outline and say in `revisionReason` what you changed and why, or answer `unresolved`.', '');
   } else if (briefing.outlines.length > 0) {
-    lines.push(`## Earlier outlines`, '', `This work item already has ${briefing.outlines.length} outline revision(s).`, '');
+    lines.push('## Your outline', '', `Revision ${briefing.outlines.at(-1)!.revision} is this work item's current outline, and it stands. Include \`outline\` only to revise it.`, '');
   }
 
   return lines.join('\n');

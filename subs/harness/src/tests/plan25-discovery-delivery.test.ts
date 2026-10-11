@@ -166,7 +166,8 @@ test('I04: prepared and uncommitted failure cannot establish delivered discoveri
   expect(packet.manifest.inheritedPoint).toBeNull();
   expect(packet.additions.find(item => item.block?.key === blockKey)!.text).toContain('"note":"A"');
   expect(packet.additions.some(item => item.kind === 'procedure')).toBe(true);
-  expect(packet.additions.filter(item => item.kind === 'environment')).toHaveLength(9);
+  // A fresh session receives the fields its tools use: no file reader, so no paths or views.
+  expect(packet.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits', 'environment:availableTools']);
 });
 
 test('D11: snapshot hints use captured existence/access and exact pairs coalesce with every origin', () => {
