@@ -8,8 +8,9 @@
       "file": "01-preserve-and-extract.md",
       "dependsOn": [],
       "cases": ["E01", "E02", "E03", "E04"],
-      "status": "proposed",
-      "writeBoundary": "Isolated migration candidate, persistent original-repository and working-tree archives, disposable filtered repository, commit mapping and migration receipts. No edits to the user's checkout or live worktrees."
+      "status": "complete",
+      "writeBoundary": "Isolated migration candidate, persistent original-repository and working-tree archives, disposable filtered repository, commit mapping and migration receipts. No edits to the user's checkout or live worktrees.",
+      "results": "01-results.md"
     },
     {
       "id": "2",
