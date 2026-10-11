@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import type { TaskEnvironment, TaskKind } from '../prompts/tasks.js';
 import type { TestArea } from './project-config.js';
 import type { HarnessTaskBrief } from './session-operations.js';
@@ -45,13 +44,24 @@ export interface TaskBriefFacts {
   readonly environment: TaskEnvironment;
 }
 
-/** The section of scenario file pointers, or nothing where the modules own no tracked scenario. */
-export function scenarioFilePointers(projectRoot: string, known: Pick<KnownProjectFacts, 'scenarioFeatures' | 'stepDirectories'>): HarnessTaskBrief['sections'][number] | undefined {
+/**
+ * The section of scenario file pointers, or nothing where the modules own
+ * no tracked scenario. Its paths are project-relative: the task's
+ * environment states the project root once.
+ */
+export function scenarioFilePointers(known: Pick<KnownProjectFacts, 'scenarioFeatures' | 'stepDirectories'>): HarnessTaskBrief['sections'][number] | undefined {
   if (known.scenarioFeatures.length === 0) return undefined;
   return { key: 'support:scenario-files', text: ['## Scenario file pointers', '',
-    ...known.scenarioFeatures.map(path => `- Feature: \`${join(projectRoot, path)}\`.`),
-    ...known.stepDirectories.map(entry => `- Step directory: \`${join(projectRoot, entry.directory)}\`; observed files: ${entry.files.map(path => `\`${join(projectRoot, path)}\``).join(', ') || '(none)'}.`),
-    'Observed files do not establish what the runner loads. Inspect its declared configuration.', ''].join('\n') };
+    'Paths are relative to the project root.', '',
+    ...known.scenarioFeatures.map(path => `- Feature: \`${path}\`.`),
+    ...known.stepDirectories.map(entry => `- Step directory: \`${entry.directory}\`; observed files: ${entry.files.map(path => `\`${path}\``).join(', ') || '(none)'}.`),
+    'Observed files do not establish what the runner loads; its declared configuration does.', ''].join('\n') };
+}
+
+/** The objective line of a task: the work it names, where it names any. */
+export function taskObjective(kind: TaskKind, work: unknown): string {
+  const named = work !== null && typeof work === 'object' && !Array.isArray(work) ? Object.keys(work).length > 0 : work !== undefined && work !== null;
+  return `Perform ${kind}${named ? ` for ${JSON.stringify(work)}` : ''}; use the current evidence and designated submission.`;
 }
 
 /** The brief one invocation's task is delivered as. */
@@ -64,12 +74,13 @@ export function composeTaskBrief(projectRoot: string, facts: TaskBriefFacts): Ha
   if (facts.known !== undefined) {
     const setup = declaredCheckInputs({ projectRoot, checks: facts.known.declaredChecks.checks, paths: facts.known.declaredChecks.paths, snapshot: false });
     if (setup && !facts.prompt.includes(setup)) sections.push({ key: 'support:declared-checks', text: setup });
-    const pointers = moduleInputPointers({ projectRoot, modules: facts.known.modules, testAreas: facts.known.testAreas });
-    if (pointers) sections.push({ key: 'support:module-pointers', text: pointers });
-    const scenarios = scenarioFilePointers(projectRoot, facts.known);
+    // An empty root renders the pointers project-relative; the environment states the root once.
+    const pointers = moduleInputPointers({ projectRoot: '', modules: facts.known.modules, testAreas: facts.known.testAreas });
+    if (pointers) sections.push({ key: 'support:module-pointers', text: pointers.replace(/^(## [^\n]*\n\n)/u, '$1Paths are relative to the project root.\n\n') });
+    const scenarios = scenarioFilePointers(facts.known);
     if (scenarios !== undefined) sections.push(scenarios);
   }
-  return { kind, objective: `Perform ${kind} for ${JSON.stringify(facts.work)}; use the current evidence and designated submission.`, goal, requirements, sections,
+  return { kind, objective: taskObjective(kind, facts.work), goal, requirements, sections,
     ...(facts.retainInheritedSections === true ? { retainInheritedSections: true } : {}),
     ...(facts.consultationSubmissionSchema === undefined ? {} : { consultationSubmissionSchema: facts.consultationSubmissionSchema }),
     environment: facts.environment };

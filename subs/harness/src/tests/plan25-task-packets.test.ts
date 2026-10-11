@@ -19,7 +19,8 @@ let ordinary: ReadonlyMap<Role, LoadedPackage>;
 beforeAll(async () => { packages = (await loadPromptPackages()).packages; ordinary = (await loadPromptPackages({ capabilityWorkflow: false })).packages; });
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 const set = (key: string, body: string) => `# Block ${key}\nCurrent value; replaces any earlier value for this key.\n${body}`;
-const env: TaskEnvironment = { projectRoot: '/project', workingDirectory: '/project/owner', candidate: 'C1', snapshot: 'S1', limits: { z: { z: 2, a: 1 }, a: 0 }, availableTools: ['submit_work_item_result', 'submit_work_orientation', 'submit_reconciliation', 'submit_capability_qualification'], views: [], supportPaths: ['b', 'a'], cucumberConfiguration: null };
+const first = (key: string, body: string) => `# Block ${key}\n${body}`;
+const env: TaskEnvironment = { projectRoot: '/project', workingDirectory: '/project/owner', candidate: 'C1', snapshot: 'S1', limits: { invocationIdleMs: 2, invocationAbsoluteMs: 1, commandTimeoutMs: 3, stopSettleMs: 4 }, availableTools: ['read', 'grep', 'submit_work_item_result', 'submit_work_orientation', 'submit_reconciliation', 'submit_capability_qualification'], views: [], supportPaths: ['b', 'a'], cucumberConfiguration: null };
 const brief = taskBriefingRevision({ revision: 'r1', goal: 'G', requirements: ['R'], sections: [] });
 function packet(kind: TaskKind = 'assignment', inherited: readonly DeliveredInput[] = [], environment = env, loaded = packages.get('local-architect')!) {
   return buildTaskPacket({ loaded, kind, objective: `Current ${kind}`, goal: 'G', requirements: ['R'], environment,
@@ -32,10 +33,12 @@ test('P01/P02/P09: exact first framing, physical hashes and unchanged assignment
   expect(first.manifest.schema).toBe('ramify-agent.delivered-inputs/2');
   const procedure = first.additions.find(item => item.kind === 'procedure')!;
   expect(procedure.key).toBe('procedure:local-architect:main');
-  expect(procedure.text.startsWith('# Block procedure:local-architect:main\nCurrent value; replaces any earlier value for this key.\n# Current procedure\n')).toBe(true);
+  // A fresh session holds no earlier value, so no block says it replaces one.
+  expect(procedure.text.startsWith('# Block procedure:local-architect:main\n# Current procedure\n')).toBe(true);
+  expect(first.additions.some(item => item.text.includes('Current value; replaces'))).toBe(false);
   expect(first.message).toContain(`Selected procedure: procedure:local-architect:main; SHA-256: ${hash(procedure.text)}`);
   expect(first.manifest.entries.find(entry => entry.key === procedure.key)).toMatchObject({ hash: hash(procedure.text), bytes: Buffer.byteLength(procedure.text), block: { key: procedure.key, effect: 'set' } });
-  expect(first.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:projectRoot', 'environment:workingDirectory', 'environment:candidate', 'environment:snapshot', 'environment:limits', 'environment:availableTools', 'environment:views', 'environment:supportPaths', 'environment:cucumberConfiguration']);
+  expect(first.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:projectRoot', 'environment:workingDirectory', 'environment:candidate', 'environment:snapshot', 'environment:limits', 'environment:availableTools']);
   const next = packet('completion', first.additions);
   expect(next.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);
   expect(next.message).toContain('# Current task: completion');
@@ -45,14 +48,20 @@ test('P01/P02/P09: exact first framing, physical hashes and unchanged assignment
 });
 
 test('P03/P04: deterministic object order, preserved arrays, whole replacements and explicit clears', () => {
-  const first = packet();
-  expect(first.additions.find(item => item.key === 'environment:limits')!.text).toBe(set('environment:limits', '{\n  "limits": {\n    "a": 0,\n    "z": {\n      "a": 1,\n      "z": 2\n    }\n  }\n}'));
-  expect(packet('completion', first.additions, { ...env, limits: { a: 0, z: { a: 1, z: 2 } } }).additions.filter(item => item.kind === 'environment')).toEqual([]);
-  const changed = packet('completion', first.additions, { ...env, candidate: null, limits: {}, supportPaths: [] });
-  expect(changed.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits', 'environment:supportPaths']);
+  const initial = packet();
+  // The limits are the invocation's own bounds; without a shell, no command bound.
+  expect(initial.additions.find(item => item.key === 'environment:limits')!.text).toBe(first('environment:limits', '{\n  "limits": {\n    "invocationAbsoluteMs": 1,\n    "invocationIdleMs": 2\n  }\n}'));
+  expect(packet('completion', initial.additions, { ...env, limits: { invocationAbsoluteMs: 1, invocationIdleMs: 2, commandTimeoutMs: 9 } }).additions.filter(item => item.kind === 'environment')).toEqual([]);
+  const changed = packet('completion', initial.additions, { ...env, candidate: null, limits: {}, supportPaths: [] });
+  expect(changed.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits']);
+  // A value the session holds is corrected explicitly, even to null.
   expect(changed.additions.find(item => item.key === 'environment:candidate')!.text).toBe(set('environment:candidate', '{\n  "candidate": null\n}'));
-  expect(effectiveBlocks([...first.additions, ...changed.additions]).get('environment:limits')!.text).toBe(set('environment:limits', '{\n  "limits": {}\n}'));
-  expect(packet('completion', first.additions, { ...env, supportPaths: ['a', 'b'] }).additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:supportPaths']);
+  expect(effectiveBlocks([...initial.additions, ...changed.additions]).get('environment:limits')!.text).toBe(set('environment:limits', '{\n  "limits": {}\n}'));
+  // Support paths reach no role.
+  expect(packet('completion', initial.additions, { ...env, supportPaths: ['a', 'b'] }).additions.filter(item => item.kind === 'environment')).toEqual([]);
+  // A shell adds the command bound.
+  expect(packet('assignment', [], { ...env, availableTools: [...env.availableTools, 'shell'] }).additions.find(item => item.key === 'environment:limits')!.text)
+    .toBe(first('environment:limits', '{\n  "limits": {\n    "commandTimeoutMs": 3,\n    "invocationAbsoluteMs": 1,\n    "invocationIdleMs": 2\n  }\n}'));
 });
 
 test('P05: orientation, main, reconciliation and main retain independently available families', () => {
@@ -70,7 +79,9 @@ test('P06/P09: same-family A/B/A replacement, no repeated set, selected-body val
   const changed = { ...original, procedure: 'Replacement policy. Submit through {{submissionTool}}.' };
   const a = packet(); const b = packet('assignment', a.additions, env, changed);
   const history = [...a.additions, ...b.additions]; const restored = packet('completion', history);
-  expect(restored.additions.find(item => item.kind === 'procedure')!.text).toBe(a.additions.find(item => item.kind === 'procedure')!.text);
+  // A's body returns, now framed as replacing B.
+  const aText = a.additions.find(item => item.kind === 'procedure')!.text;
+  expect(restored.additions.find(item => item.kind === 'procedure')!.text).toBe(aText.replace('\n', '\nCurrent value; replaces any earlier value for this key.\n'));
   expect(packet('completion', [...history, ...restored.additions]).additions.filter(item => item.kind === 'procedure')).toEqual([]);
   const key = 'procedure:local-architect:main'; const selected = effectiveBlocks(history).get(key)!;
   expect(() => assertTaskProcedureSelection(history, key, hash(selected.text))).not.toThrow();

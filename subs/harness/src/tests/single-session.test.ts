@@ -431,7 +431,10 @@ describe('the session\'s records', () => {
         } };
       },
     };
-    const { result } = await session(root, [], { agent }, {
+    // A body above the inline bound is stored by reference; the bound is
+    // lowered so the task message, whatever its size, is such a body.
+    const policy = testPolicy(root);
+    const { result } = await session(root, [], { agent, policy: { ...policy, transcript: { inlineBodyBytes: 1024 } } }, {
       changed: [notesSource],
       ramify: [checked('changed'), checked('complete')],
       commandExecution, command: 'echo checking',

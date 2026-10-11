@@ -16,7 +16,7 @@ import { workOrientationToolName, contextSelectorToolName } from '../context-sel
 import { coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorAssessmentToolName,
   coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
 import { buildDeliveredManifest, exactInputHash, type DeliveredInput, type DeliveredManifest } from './delivered-manifest.js';
-import { effectiveBlocks, renderBlockSet, renderBlockRemoval, resolveBlockAdditions } from './blocks.js';
+import { deliveredBefore, effectiveBlocks, renderBlockSet, renderBlockRemoval, resolveBlockAdditions } from './blocks.js';
 import { taskBriefingRevision, type BriefingDelivery } from './briefings.js';
 
 export type TaskKind = 'initial-analysis' | ExtractionTurn | 'placement' | 'orientation' | 'assignment' | 'completion' | 'repair'
@@ -53,6 +53,70 @@ const procedureFamilies: Readonly<Partial<Record<LoadedPackage['role'], Partial<
 };
 
 const environmentFields = ['projectRoot', 'workingDirectory', 'candidate', 'snapshot', 'limits', 'availableTools', 'views', 'supportPaths', 'cucumberConfiguration'] as const satisfies readonly (keyof TaskEnvironment)[];
+type EnvironmentField = typeof environmentFields[number];
+
+/** The tools that read the project's files, and so its generated views. */
+const fileReaders = ['read', 'grep', 'ls', 'find', 'shell'];
+
+/** A path inside the project, relative to its root; any other path as given. */
+function projectRelative(projectRoot: string, path: string): string {
+  const root = projectRoot.replace(/\/+$/u, '');
+  if (path === root) return '.';
+  return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
+}
+
+/**
+ * The environment blocks one invocation is told of, selected by the tools
+ * it holds: what its tools cannot use is not sent. A field absent here is
+ * delivered only to correct an earlier value the session already holds.
+ *
+ * - The project root and working directory reach only a role that reads the
+ *   project's files; the views reach it too, project-relative.
+ * - The limits are the invocation's own bounds; the command timeout and the
+ *   budget returns reach only a role with a shell.
+ * - A null candidate, snapshot or Cucumber configuration says nothing, nor
+ *   does a snapshot equal to the candidate. An available Cucumber
+ *   configuration is the focused command the brief already states.
+ * - Support paths name the harness's own prompt files, which no project
+ *   agent can open; the manifest keeps them as provenance.
+ */
+export function selectedEnvironment(environment: TaskEnvironment): Partial<Record<EnvironmentField, unknown>> {
+  const tools = environment.availableTools;
+  const readsFiles = tools.some(tool => fileReaders.includes(tool));
+  const shell = tools.includes('shell');
+  const selected: Partial<Record<EnvironmentField, unknown>> = {};
+  if (readsFiles) {
+    selected.projectRoot = environment.projectRoot;
+    selected.workingDirectory = environment.workingDirectory;
+  }
+  if (environment.candidate !== null) {
+    selected.candidate = tools.includes('snapshot_read') ? { candidate: environment.candidate, paths: 'project-relative; the snapshot tools read this candidate' } : environment.candidate;
+  }
+  if (environment.snapshot !== null && environment.snapshot !== environment.candidate) selected.snapshot = environment.snapshot;
+  const limits = environment.limits;
+  const own = ['invocationAbsoluteMs', 'invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs', 'budgetReturnsPerIteration'] : [])];
+  selected.limits = Object.fromEntries(own.filter(key => limits[key] !== undefined).map(key => [key, limits[key]]));
+  selected.availableTools = environment.availableTools;
+  if (readsFiles && environment.views.length > 0) {
+    const views = environment.views.map(view => ({ ...view, path: projectRelative(environment.projectRoot, view.path) }));
+    const apiDirectories = views.filter(view => /\/\.ramify\/(external|children)$/u.test(view.path));
+    const note = apiDirectories.length > 0 && apiDirectories.every(view => view.path.endsWith('/external'))
+      ? { note: 'This module has no children view, so no `children` directory exists.' } : {};
+    selected.views = { views, ...note };
+  }
+  if (environment.cucumberConfiguration !== null && !isAvailableCucumber(environment.cucumberConfiguration)) selected.cucumberConfiguration = environment.cucumberConfiguration;
+  return selected;
+}
+
+function isAvailableCucumber(configuration: string): boolean {
+  try { return (JSON.parse(configuration) as { kind?: unknown }).kind === 'available'; } catch { return false; }
+}
+
+/** The body of one environment block: its field, or the selected value's own fields where it carries several. */
+function environmentBody(key: EnvironmentField, value: unknown): string {
+  const fields = value !== null && typeof value === 'object' && !Array.isArray(value) && (key === 'candidate' || key === 'views') ? value as Record<string, unknown> : { [key]: value };
+  return JSON.stringify(canonicalJson(fields), null, 2);
+}
 
 /** Objects are canonical; arrays retain the caller's order and replace atomically. */
 function canonicalJson(value: unknown): unknown {
@@ -141,6 +205,8 @@ export function buildTaskPacket(input: {
   readonly changedPaths?: readonly { readonly path: string; readonly annotation?: string }[];
   /** Consultation's actual caller-owned schema, serialized from its runtime validator. */
   readonly consultationSubmissionSchema?: string;
+  /** A fork that keeps its source's sections: none of them is withdrawn. */
+  readonly retainInheritedSections?: boolean;
 }): TaskPacket {
   const { loaded, environment } = input;
   if (!input.objective.trim() || !input.goal.trim() || input.requirements.length === 0 || input.requirements.some(requirement => !requirement.trim())) throw new Error('Task requires objective, goal and complete requirement text');
@@ -169,12 +235,18 @@ export function buildTaskPacket(input: {
   if (previousRole.some(item => item.text !== roleInstructions)) throw new Error(`Pinned role instructions changed for ${loaded.role}`);
   const procedureKey = `procedure:${loaded.role}:${task.family}`;
   const procedureBody = `# Current procedure\n${procedure}`;
-  const procedureHash = exactInputHash(renderBlockSet(procedureKey, procedureBody));
+  const inheritedBlocks = effectiveBlocks(input.inherited);
+  const selected = selectedEnvironment(environment);
+  // A field this role is not told of stays unsent, unless the session holds
+  // an earlier value of it: that value is corrected, or withdrawn where the
+  // field reaches no role.
+  const environmentKeys = environmentFields.filter(key => key in selected || (key !== 'supportPaths' && inheritedBlocks.has(`environment:${key}`)));
   const reusable = resolveBlockAdditions({ inherited: input.inherited, desired: [
     { key: procedureKey, kind: 'procedure', body: procedureBody, source: task.source, revision: loaded.package, sources: procedureSources(loaded, task) },
-    ...environmentFields.map(key => ({ key: `environment:${key}`, kind: 'environment' as const,
-      body: JSON.stringify({ [key]: canonicalJson(environment[key]) }, null, 2), source: null, revision: null })),
-  ] });
+    ...environmentKeys.map(key => ({ key: `environment:${key}`, kind: 'environment' as const,
+      body: key in selected ? environmentBody(key, selected[key]) : JSON.stringify({ [key]: canonicalJson(environment[key]) }, null, 2), source: null, revision: null })),
+  ], withdraw: inheritedBlocks.has('environment:supportPaths') ? ['environment:supportPaths'] : [] });
+  const procedureHash = exactInputHash((reusable.find(item => item.key === procedureKey) ?? inheritedBlocks.get(procedureKey))!.text);
   // Interpret recognizable legacy sections without inventing physical field deliveries.
   // A framing migration delivers the current canonical representation once.
   const briefing = input.briefing;
@@ -183,9 +255,18 @@ export function buildTaskPacket(input: {
     !input.inherited.some(item => item.block?.key === `brief:${section.key}`))
     .map(section => ({ key: `brief:${section.key}`, kind: 'brief' as const, text: section.text, source: section.source ?? null, revision: briefing.revision,
       block: { key: `brief:${section.key}`, effect: section.effect ?? 'set' } }));
-  const briefingAdditions = [...input.briefing.additions, ...upgrades].map(item => ({ ...item,
-    text: item.block?.effect === 'remove' ? renderBlockRemoval(item.key) : renderBlockSet(item.key, item.text),
-    block: item.block ?? { key: item.key, effect: 'set' as const } }));
+  // A brief that retains its inherited sections withdraws none of them: a
+  // fork keeps what its source read.
+  const delivered: DeliveredInput[] = [...input.inherited];
+  const briefingAdditions = [...input.briefing.additions, ...upgrades]
+    .filter(item => !(input.retainInheritedSections === true && item.block?.effect === 'remove'))
+    .map(item => {
+      const addition = { ...item,
+        text: item.block?.effect === 'remove' ? renderBlockRemoval(item.key) : renderBlockSet(item.key, item.text, deliveredBefore(delivered, item.key)),
+        block: item.block ?? { key: item.key, effect: 'set' as const } };
+      delivered.push(addition);
+      return addition;
+    });
   const revisionText = `Briefing revision: ${input.briefing.revision}; based on: ${input.briefing.basedOnRevision ?? 'none'} (${input.briefing.mode})`;
   const taskText = [`# Current task: ${input.kind}`, 'This selection supersedes every prior task selection.', `Active role: ${loaded.role}`, `Selected procedure: ${procedureKey}; SHA-256: ${procedureHash}`, input.objective,
     ...(input.changedPaths === undefined ? [] : ['', '# Canonical changed paths', ...input.changedPaths.map(item => `- ${item.path}${item.annotation ? ` (${item.annotation})` : ''}`)]),

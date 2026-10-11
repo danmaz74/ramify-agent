@@ -7,6 +7,7 @@ import { readHarnessOperationIntent } from '../run/session-operations.js';
 
 const key = 'procedure:engineer:main';
 const setA = '# Block procedure:engineer:main\nCurrent value; replaces any earlier value for this key.\nA\n';
+const firstA = '# Block procedure:engineer:main\nA\n';
 const removed = '# Block procedure:engineer:main\nWithdrawn; this block no longer applies.\n';
 const aHash = '98644b57ccbb86b9611ac54ce76dc962b6068103d39aec62452cb258a8659d3e';
 const oldHash = '06f961b802bc46ee168555f066d28f4f0e9afdf3f88174c1ee6f9de004fc30a0';
@@ -49,7 +50,16 @@ describe('Plan 25 D01–D03: ordered exact block effects', () => {
     const adHoc: DeliveredInput = { ...b, block: undefined, text: 'Current environment is C' };
     expect(effectiveBlocks([a, b, adHoc]).get(key)).toBe(b);
     expect(resolveBlockAdditions({ inherited: [a, b, adHoc], desired: [block('B')] })).toEqual([]);
-    expect(resolveBlockAdditions({ inherited: [adHoc], desired: [block()] })).toEqual([expect.objectContaining({ text: setA })]);
+    // Unannotated prose is no earlier value, so the first set carries no replacement banner.
+    expect(resolveBlockAdditions({ inherited: [adHoc], desired: [block()] })).toEqual([expect.objectContaining({ text: firstA })]);
+  });
+  test('only a key delivered before is framed as replacing an earlier value', () => {
+    expect(renderBlockSet(key, 'A\n', false)).toBe(firstA);
+    expect(resolveBlockAdditions({ inherited: [], desired: [block()] })).toEqual([expect.objectContaining({ text: firstA })]);
+    expect(resolveBlockAdditions({ inherited: [delivered('B')], desired: [block()] })).toEqual([expect.objectContaining({ text: setA })]);
+    // Either framing of an equal body is the same effective value: nothing is repeated.
+    const first: DeliveredInput = { ...delivered(), text: firstA };
+    expect(resolveBlockAdditions({ inherited: [first], desired: [block()] })).toEqual([]);
   });
   test('returning from B to A delivers A despite older matching history, then inherits it unchanged', () => {
     const inherited = [delivered(), delivered('B')];

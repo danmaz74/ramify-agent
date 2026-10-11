@@ -595,7 +595,7 @@ test('a restart with an unqualified pending request qualifies it fresh and recor
   expect(qualifications).toEqual([{ mode: 'fresh', prompt: expect.stringContaining('The plan asks for a-reads-b-request.') }]);
   expect(qualifications[0]!.prompt).toContain('The plan asks for a-reads-b-acceptance.');
   expect(qualifications[0]!.prompt).not.toContain('# Captured plan package');
-  expect(qualifications[0]!.prompt).toContain(`${fixture.root}/subs/a/src/tests/`);
+  expect(qualifications[0]!.prompt).toContain('`subs/a/src/tests/`');
   await stopWaitingRun(second.service, receipt.jobId);
 }, 60_000);
 

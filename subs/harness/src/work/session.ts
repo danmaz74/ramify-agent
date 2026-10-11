@@ -296,7 +296,9 @@ export function apiCoverageStatement(coverage: number): string {
 /** The first user message of one local architect invocation. */
 export function workItemMessage(briefing: WorkItemBriefing): string {
   const { item } = briefing;
-  const rooted = (path: string): string => briefing.projectRoot === undefined ? path : join(briefing.projectRoot, path);
+  // Paths are project-relative: the task's environment states the project root once.
+  const working = briefing.workingDirectory === undefined || briefing.projectRoot === undefined
+    ? briefing.workingDirectory : relative(briefing.projectRoot, briefing.workingDirectory).split(sep).join('/') || '.';
   const lines: string[] = [
     `# Work item ${item.id} — ${item.module}`,
     '',
@@ -322,23 +324,23 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     '## Your module',
     '',
     `- Declared name: \`${item.module}\`.`,
-    ...(briefing.workingDirectory === undefined ? [] : [
-      `- Working directory: \`${briefing.workingDirectory}\`.`,
+    ...(working === undefined ? [] : [
+      `- Working directory: \`${working}\`, relative to the project root.`,
       briefing.workingDirectory === briefing.projectRoot
         ? '- The assigned module source directory was absent when this session began. This session remains at the project root even if an engineer creates the module. Do not create it from this reader session.'
         : '- This is the assigned module\'s source directory.',
       '- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.',
     ]),
     ...(briefing.moduleDirectory === undefined ? [] : [
-      `- Assigned module declaration: \`${rooted(join(briefing.moduleDirectory, 'module.ramify'))}\` (read it if present).`,
-      `- Assigned module source: \`${rooted(join(briefing.moduleDirectory, 'src'))}/\` (read it if present).`,
+      `- Assigned module declaration: \`${join(briefing.moduleDirectory, 'module.ramify')}\` (read it if present).`,
+      `- Assigned module source: \`${join(briefing.moduleDirectory, 'src')}/\` (read it if present).`,
     ]),
-    ...(briefing.testAreas ?? []).map(area => `- Test area (${area.module}): \`${rooted(area.area)}/\`.`),
+    ...(briefing.testAreas ?? []).map(area => `- Test area (${area.module}): \`${area.area}/\`.`),
     briefing.onboarding.path === '(module directory unavailable)'
       ? `- Onboarding unavailable: ${briefing.onboarding.missing}. No other module's prose stands in for it.`
       : briefing.onboarding.purpose === null
-        ? `- Onboarding: \`${rooted(briefing.onboarding.path)}\` gives none: ${briefing.onboarding.missing}. No other module's prose stands in for it.`
-        : `- Onboarding (\`${rooted(briefing.onboarding.path)}\`): ${briefing.onboarding.purpose}`,
+        ? `- Onboarding: \`${briefing.onboarding.path}\` gives none: ${briefing.onboarding.missing}. No other module's prose stands in for it.`
+        : `- Onboarding (\`${briefing.onboarding.path}\`): ${briefing.onboarding.purpose}`,
   ];
 
   if (briefing.views.evidence === null) {
@@ -346,12 +348,12 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
   } else {
     if (briefing.views.unavailable !== null) lines.push(`- API view limitations: ${briefing.views.unavailable}. Missing evidence is not proof of API absence.`);
     for (const view of briefing.views.evidence.views) {
-      lines.push(`- API view (${view.area}): \`${rooted(view.path)}/\`, revision \`${view.revision}\`; ${view.coverage === null
+      lines.push(`- API view (${view.area}): \`${view.path}/\`, revision \`${view.revision}\`; ${view.coverage === null
         ? 'coverage complete, so absence means unavailable'
         : `coverage limits: ${apiCoverageStatement(view.coverage)}`}.`);
     }
   }
-  lines.push(`- The architect view is at \`${rooted(architectViewDirectory)}/\`.`, '');
+  lines.push(`- The architect view is at \`${architectViewDirectory}/\`.`, '');
   if (briefing.setup) lines.push(briefing.setup, '');
   lines.push(...defaultWriteScopeSection(briefing.defaultWriteScope ?? []));
 

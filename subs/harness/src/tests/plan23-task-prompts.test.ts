@@ -65,7 +65,7 @@ const taskR1 = taskBriefingRevision({ revision: 'r1', goal: 'Deliver the status 
 const taskR2 = taskBriefingRevision({ revision: 'r2', goal: 'Deliver the status label', requirements: ['Expose the changed status'], sections: [{ key: 'catalog', text: 'K1' }] });
 function environment(phase: 'A' | 'B' = 'A'): TaskEnvironment {
   return { projectRoot: '/project', workingDirectory: `/project/${phase}`, candidate: phase === 'A' ? 'C0' : 'C1', snapshot: phase === 'A' ? 'S0' : 'S1',
-    limits: { commandTimeoutMs: phase === 'A' ? 10 : 20 }, availableTools: ['read', 'grep', 'ls', 'snapshot_read', 'snapshot_diff', ...new Set(expected.map(item => item[2]))],
+    limits: { invocationAbsoluteMs: phase === 'A' ? 10 : 20, commandTimeoutMs: phase === 'A' ? 10 : 20 }, availableTools: ['read', 'grep', 'ls', 'snapshot_read', 'snapshot_diff', ...new Set(expected.map(item => item[2]))],
     views: [{ path: 'subs/status/src/.ramify', revision: 'api-r1', modules: ['status'], coverage: ['unknown shapes: 1'] }],
     supportPaths: ['support/world.mjs', 'support/steps.mjs'], cucumberConfiguration: 'cucumber.mjs' };
 }
@@ -159,7 +159,9 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(next.message).toContain('"workingDirectory": "/project/B"');
     expect(next.message).toContain('"candidate": "C1"');
     expect(next.message).toContain('"snapshot": "S1"');
-    expect(next.message).toContain('"commandTimeoutMs": 20');
+    expect(next.message).toContain('"invocationAbsoluteMs": 20');
+    // A command bound is delivered only to a role that has a shell.
+    expect(next.message).not.toContain('commandTimeoutMs');
     expect(next.message).not.toContain('support/steps.mjs');
     expect(next.message).not.toContain('cucumber.mjs');
     expect(next.message).not.toContain('unknown shapes: 1');
