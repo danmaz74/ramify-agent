@@ -106,7 +106,7 @@ async function linesOf(view: RunView, invocation: Invocation): Promise<Invocatio
 }
 
 /**
- * The recorded adaptation that caused each invocation: the local architect's
+ * The recorded adaptation that caused each invocation: the module architect's
  * next turn after an `unsuitable` result, the session of a follow-up work
  * item after `evidence-reopened`, a contract revision's session, and the
  * fork whose decision revises another.

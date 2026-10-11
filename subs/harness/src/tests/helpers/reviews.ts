@@ -93,12 +93,12 @@ export interface ReviewRun {
   readonly agentOptions?: ScriptedAgentOptions;
   /** Given the scripted fake once the service is open, before the run starts. */
   readonly agentReady?: (agent: ScriptedAgent) => void;
-  /** The local architect's turns in place of the three assignments and the completion request. */
+  /** The module architect's turns in place of the three assignments and the completion request. */
   readonly architect?: ReadonlyArray<readonly ScriptStep[]>;
   /** The run's `now`, for a scenario that moves the clock. */
   readonly now?: () => Date;
   /**
-   * The local architect's reconciliation forks, by reconciliation ID
+   * The module architect's reconciliation forks, by reconciliation ID
    * (`wi-001.rc01`), or `<id>#<n>` for the nth start of one. A fork with none
    * scripted ends without a submission.
    */

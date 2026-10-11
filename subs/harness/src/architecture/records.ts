@@ -5,8 +5,8 @@ import { globalForkSourceSchema, moduleProposalSchema, recordRefSchema } from '.
 import { slugSchema } from '../analysis/records.js';
 
 /*
- * The records of capability identity and placement: the request a local
- * architect makes of the global architect, and the decision one fork of the
+ * The records of capability identity and placement: the request a module
+ * architect makes of the plan architect, and the decision one fork of the
  * long-lived architect context commits.
  *
  * Only placement has its own decision record. The other significant choices
@@ -48,7 +48,7 @@ export const placementOutcomeSchema = z.enum(['reuse', 'create', 'extract', 'ext
 });
 export type PlacementOutcome = z.infer<typeof placementOutcomeSchema>;
 
-/** Who decided: one fork of the global architect, or the work item's own local architect. */
+/** Who decided: one fork of the plan architect, or the work item's own module architect. */
 export const decisionAuthoritySchema = z.enum(['global', 'local']);
 export type DecisionAuthority = z.infer<typeof decisionAuthoritySchema>;
 
@@ -85,7 +85,7 @@ export const placementDecisionSchema = z.object({
   schema: z.literal('ramify-agent.placement-decision/1'),
   id: text,
   authority: decisionAuthoritySchema,
-  /** Null for a local decision: no request was made of the global architect. */
+  /** Null for a local decision: no request was made of the plan architect. */
   request: z.string().nullable(),
   workItem: text,
   invocation: text,

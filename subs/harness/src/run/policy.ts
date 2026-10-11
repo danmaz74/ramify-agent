@@ -54,7 +54,7 @@ export const defaultLimits: RunPolicy['limits'] = {
 };
 
 /**
- * An engineer's bounds as its iteration applies them: the longest one shell
+ * A module engineer's bounds as its iteration applies them: the longest one shell
  * command may run, the idle bound and the absolute bound of each of its
  * invocations.
  */
@@ -64,7 +64,7 @@ export interface EngineerBounds {
   readonly absoluteMs: number;
 }
 
-/** The bounds an engineer runs under when its assignment raises none, and the ceilings an assignment may raise them to. */
+/** The bounds a module engineer runs under when its assignment raises none, and the ceilings an assignment may raise them to. */
 export function engineerBoundsOf(limits: RunPolicy['limits']): { readonly defaults: EngineerBounds; readonly ceilings: EngineerBounds } {
   return {
     defaults: {
@@ -130,7 +130,7 @@ export const defaultContextPolicies: Record<Role, NonNullable<RunPolicy['context
  * default to fall back to.
  */
 /**
- * The limits one invocation runs under: the policy's, with an engineer's own
+ * The limits one invocation runs under: the policy's, with a module engineer's own
  * bounds in place of its command, idle and absolute bounds, or a reader's
  * tighter absolute bound.
  */

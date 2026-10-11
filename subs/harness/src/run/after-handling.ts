@@ -40,7 +40,7 @@ import type { RunWrite } from './service.js';
 /*
  * What the harness records after an accepted submission, as far as it is a
  * function of records: the obligations an architect reported, the bindings
- * an engineer proposed, an iteration's close and the review requests an
+ * a module engineer proposed, an iteration's close and the review requests an
  * accepted iteration owes. An implementation run and a manual run's `after`
  * share it; each names, through its host, how it writes and fails, and what
  * only it can supply: a correction's close, a package citation and the
@@ -163,7 +163,7 @@ export class AfterHandling<R extends GateRun> {
    * What one question of one candidate is given besides the candidate, and
    * the point its reviewer starts from. Code review needs nothing more and
    * never forks. Scope review binds the plan excerpts the assignment cites
-   * and the local architect's pinned point at the assignment. Design review
+   * and the module architect's pinned point at the assignment. Design review
    * binds the guidance it selects from the candidate and the orientation
    * key of that selection. An input that cannot be read is recorded as
    * such: the attempt then says what it lacked.
@@ -190,7 +190,7 @@ export class AfterHandling<R extends GateRun> {
       const capabilityAssigned = run.log.all('capability-assigned').find(event => event.data.assignment === closed.iteration);
       const pinned = assigned?.data.architectRef ?? capabilityAssigned?.data.architectRef;
       const forkPoint: ForkPoint = pinned === undefined || pinned === null
-        ? { kind: 'unavailable', reason: pinned === null ? 'The local architect\'s session was not kept after the assignment' : 'The assignment recorded no pinned point of the local architect' }
+        ? { kind: 'unavailable', reason: pinned === null ? 'The module architect\'s session was not kept after the assignment' : 'The assignment recorded no pinned point of the module architect' }
         : { kind: 'session', session: pinned.session, ref: pinned.ref };
       return { guidance: [], forkPoint, ...(source === undefined ? {} : { source }) };
     }
@@ -228,7 +228,7 @@ export class AfterHandling<R extends GateRun> {
       readonly gate: string | null;
       readonly commit: string | null;
       readonly recommendation?: string | undefined;
-      /** Where an engineer ended without a result: its digest and its analysis. */
+      /** Where a module engineer ended without a result: its digest and its analysis. */
       readonly failure?: IterationResult['failure'] | undefined;
     },
   ): Promise<IterationResult> {
@@ -368,7 +368,7 @@ export class AfterHandling<R extends GateRun> {
   }
 
   /**
-   * The outline revision an accepted local architect submission carries,
+   * The outline revision an accepted module architect submission carries,
    * written once for its invocation: a repeated handling of the same
    * invocation answers the revision it already wrote. A completion request
    * that changes nothing in the committed outline, because it carried none

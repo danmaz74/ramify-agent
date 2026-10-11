@@ -28,8 +28,8 @@ import type { EngineerScenarios } from '../work/scenario-briefing.js';
 import type { prepareAssignedCucumber } from '../work/session.js';
 
 /*
- * The engineer step: one engineer invocation of an iteration, built from its
- * inputs. The run builds every engineer invocation through this constructor,
+ * The module engineer step: one engineer invocation of an iteration, built from its
+ * inputs. The run builds every module engineer invocation through this constructor,
  * and `step render` renders the same construction, so both deliver the same
  * packet, tools, validator and bounds.
  */
@@ -84,7 +84,7 @@ export interface ConstructedEngineerStep {
   readonly limits: RunPolicy['limits'];
   readonly context: RunPolicy['context']['engineer'];
   readonly start: EngineerStepStart;
-  /** What the engineer's equipment is built from. */
+  /** What the module engineer's equipment is built from. */
   readonly equipment: {
     readonly workingDirectory: string;
     readonly scopeRevision: number;
@@ -105,7 +105,7 @@ export interface ConstructedEngineerStep {
 const path = (projectRoot: string, field: ProjectPath): string => join(projectRoot, field.project);
 const relative = (field: ProjectPath): string => field.project;
 
-/** The project facts the engineer's brief carries, as the brief composes them. */
+/** The project facts the module engineer's brief carries, as the brief composes them. */
 export function engineerKnownFacts(inputs: EngineerStepInputs): KnownProjectFacts {
   return knownFacts(inputs.known);
 }
@@ -120,7 +120,7 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
   const inputs: EngineerStepInputs = validated;
   const { projectRoot } = environment;
   const loaded = environment.packages.get('engineer');
-  if (loaded === undefined) throw new Error('No prompt package is loaded for the engineer');
+  if (loaded === undefined) throw new Error('No prompt package is loaded for the module engineer');
   const { assignment } = inputs;
   const workingDirectory = path(projectRoot, inputs.workingDirectory);
   const capability = inputs.capabilityWorkflow;

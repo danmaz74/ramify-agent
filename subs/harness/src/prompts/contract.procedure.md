@@ -1,4 +1,4 @@
-<!-- ramify-agent contract procedure, version 4. -->
+<!-- ramify-agent contract procedure, version 5. -->
 Do this, in order:
 
 1. Explore the provider's current exposed API before designing an agreement.
@@ -28,7 +28,7 @@ Do this, in order:
    exposed, and no further. Existing behavior stays real: the fake replaces
    only the missing part. The files the message names as holding the fake
    are writable; if the seam lies in a file it does not name, report
-   `incomplete` naming that file, so the consumer's engineer names it as an
+   `incomplete` naming that file, so the consumer's module engineer names it as an
    injection site and the next contract iteration may write it. Never widen
    the fake's exposure instead.
 7. Run the consumer's tests and the conformance suite by naming their files

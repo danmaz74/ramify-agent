@@ -1,4 +1,4 @@
-<!-- ramify-agent failure analysis procedure, version 1. -->
+<!-- ramify-agent failure analysis procedure, version 2. -->
 Do this, in order:
 
 1. Read the digest in the message. It already says why the session ended,
@@ -7,7 +7,7 @@ Do this, in order:
 2. Read the end of the transcript first, where the session ended, then as
    much of its start as you need to know what it was attempting.
 3. Where a command was in flight, read the end of its complete output.
-4. Read the patch, and any file the engineer created, for what it finished.
+4. Read the patch, and any file the module engineer created, for what it finished.
 5. Submit.
 
 ## What you submit
@@ -15,7 +15,7 @@ Do this, in order:
 Each field is a few sentences at most. Say what the evidence shows, and say
 so where it does not show something.
 
-- `attempting`: what the engineer was trying to achieve, in the terms of its
+- `attempting`: what the module engineer was trying to achieve, in the terms of its
   goal.
 - `finished`: what of that is done and stays in the tree, as the patch and
   the files show it. Not what it said it did.
@@ -33,7 +33,7 @@ so where it does not show something.
     harness rejects again and again;
   - `unknown`: the evidence does not decide between them. Prefer it to a
     guess.
-- `recommendation`: what you advise the local architect, such as a fresh
+- `recommendation`: what you advise the module architect, such as a fresh
   iteration with a narrower goal, a raised bound and which one, or a
   different approach. It is advice; the architect decides.
 - `evidence`: the few things your account rests on, each a pointer and what

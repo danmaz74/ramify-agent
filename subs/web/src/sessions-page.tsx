@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useEffect, useState } from 'react';
 import { sessionQueryLimits, type SessionListEntry, type SessionListResponse } from '../../harness/src/interfaces/protocol/sessions.js';
 import type { ProtocolClient } from './client.js';
@@ -24,7 +25,7 @@ function SessionItem({ entry }: { readonly entry: SessionListEntry }) {
   return (
     <li className={`session-entry session-entry-${entry.state}`}>
       <p className="session-entry-title">
-        <a href={sessionHref(ref)}><code>{ref.session}</code> {entry.role}</a>
+        <a href={sessionHref(ref)}><code>{ref.session}</code> {roleLabel(entry.role)}</a>
         <SessionState state={entry.state} />
         {entry.degradedStarts > 0 && <DegradedStarts count={entry.degradedStarts} />}
         {entry.finished && <span className="muted"> {entry.finished}</span>}

@@ -87,7 +87,7 @@ export type Checkpoint = 'readiness' | 'iteration' | 'contract' | 'breaking-iter
 
 /**
  * The owners an assignment is judged on, captured as a policy and never as a
- * file list. It is briefing text only: the engineer is told the test areas
+ * file list. It is briefing text only: the module engineer is told the test areas
  * of these owners, and the gate's audit runs what the project configured.
  */
 export interface TestSelectionPolicy {
@@ -141,7 +141,7 @@ export type GateNext = 'accept' | 'repair' | 'retry-infrastructure' | 'return-to
 /**
  * A rule the harness verifies itself, beside the commands it runs: it reads
  * the tree rather than spawning anything. A failed rule fails the attempt,
- * and what it found is the diagnostics the engineer repairs from.
+ * and what it found is the diagnostics the module engineer repairs from.
  */
 export interface GateRuleRecord {
   readonly rule: 'fake-naming' | 'fake-exposure-parity' | 'scratch-safety' | 'write-scope';

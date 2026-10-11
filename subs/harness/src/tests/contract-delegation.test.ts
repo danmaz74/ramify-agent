@@ -202,7 +202,7 @@ const need = {
   existingEvidence: [`${consumerDirectory}/src/tests/notes.test.ts`],
 };
 
-/** The `contract-needed` submission, as the engineer writes it. */
+/** The `contract-needed` submission, as the module engineer writes it. */
 const contractNeeded = {
   kind: 'contract-needed' as const,
   need,
@@ -442,7 +442,7 @@ describe('a contract sub-session that fails registers nothing, and its caller go
     expect(result.findings).toContain(
       `the contract engineer of wi-001.i02 ended without a result (failed: the provider refused the request; invocation ${result.invocations[0]}); nothing was registered`,
     );
-    // Its local architect is briefed with the digest and the analysis, as for an engineer.
+    // Its module architect is briefed with the digest and the analysis, as for a module engineer.
     expect(result.failure?.digest).toMatchObject({ invocation: result.invocations[0], role: 'contract-engineer', ended: 'failed' });
     expect(result.failure?.analysis.outcome).toBe('analyzed');
     // Successor9 still discovers this ordinary iteration separately: it

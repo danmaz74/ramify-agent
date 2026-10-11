@@ -118,7 +118,7 @@ export async function reviewInputsFromRequest(options: ReviewInputsFromRequestOp
   let prepared: PreparedReview;
   try { prepared = await prepareReview({ source: candidates, projectRoot, maxConcerns: policy.maxConcerns, briefing }); }
   catch (error) { return refused(`The audited candidate's patches could not be collected: ${message(error)}`); }
-  notes.push('Not composed: the starting points a run renders against the candidate from the assignment and the engineer.');
+  notes.push('Not composed: the starting points a run renders against the candidate from the assignment and the module engineer.');
   const attempt = reviewAttemptId(request.id, state.attempts.length + 1);
   try {
     const inputs = validateReviewInputs({
@@ -144,7 +144,7 @@ export async function reviewInputsFromRequest(options: ReviewInputsFromRequestOp
 
 /**
  * The start a question takes in a manual run: a scope review forks the
- * local architect's pinned point at the assignment where the manual run
+ * module architect's pinned point at the assignment where the manual run
  * recorded it, and starts fresh with the reason otherwise; a design review
  * forks an orientation the manual run recorded for its key, and starts fresh
  * with the reason where there is none, its guidance in its packet. `step run`

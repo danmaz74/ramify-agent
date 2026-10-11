@@ -135,10 +135,10 @@ const point = (session: string, invocation: string) => ({ session, invocation })
 
 describe('ST13: the lineage measurements of a scripted run', () => {
   /*
-   * ses-0001  initial architect, generation 1's context; appended to at event 8; lost
+   * ses-0001  plan architect, generation 1's context; appended to at event 8; lost
    * ses-0002  fork of ses-0001 at inv-0001, generation 1
    * ses-0003  fork of ses-0001 at the append, generation 1
-   * ses-0004  local architect, continued once, then a continuation the executor made fresh
+   * ses-0004  module architect, continued once, then a continuation the executor made fresh
    * ses-0005  engineer, continued for a repair, then lost
    * ses-0006  engineer reconstructed in place of ses-0005
    * ses-0007  global fork that rebuilt the context: generation 2, fresh
@@ -291,7 +291,7 @@ describe('ST13: the lineage measurements of a scripted run', () => {
   });
 
   test('a fork of a local session is measured in the local group, not in any generation\'s', async () => {
-    // A scope review forked from the local architect's assignment point.
+    // A scope review forked from the module architect's assignment point.
     const { lineage } = await run([
       ...open({ id: 'inv-0001', session: 'ses-0001', role: 'initial-architect', usage: use(1000, 0, 5000, 2000), kept: false }),
       ...open({ id: 'inv-0002', session: 'ses-0002', role: 'local-architect', usage: use(900, 0, 4000, 700), kept: true }),
@@ -322,7 +322,7 @@ describe('ST13: a measurement whose inputs are missing is unavailable with the r
     // Interrupted: no start was recorded and no usage was reported.
     ...open({ id: 'inv-0003', session: 'ses-0003', role: 'global-fork', usage: { unavailable: 'the harness stopped while the session was running' }, kept: false, interrupted: true }, fork(1)),
     ...open({ id: 'inv-0004', session: 'ses-0004', role: 'global-fork', usage: use(400, 22_000, 500, 1200), kept: false }, fork(1)),
-    // An engineer whose first segment has a readable empty observation log, continued for a repair.
+    // A module engineer whose first segment has a readable empty observation log, continued for a repair.
     ...open({ id: 'inv-0005', session: 'ses-0005', role: 'engineer', usage: use(3000, 30_000, 1000, 4000), kept: true }),
     ...continued({ id: 'inv-0006', session: 'ses-0005', role: 'engineer', usage: { unavailable: 'the session reported no usage' }, kept: false,
       continues: { from: point('ses-0005', 'inv-0005'), reason: 'repair', briefs: [] } }),

@@ -17,7 +17,7 @@ import { integrationScenarioOf, type WorkItem } from './records.js';
  * register themselves, and registration never removes a requirement.
  *
  * Each obligation is `pending`, `bound` or `done`, and each state is
- * entered by one accepted submission: registration, an engineer's binding
+ * entered by one accepted submission: registration, a module engineer's binding
  * that names the fakes it relies on, or the responsible architect's report.
  * A report is the architect's judgment: `done` means correctly implemented
  * and passing in its judgment, and `bound` is only an explicit revision of
@@ -101,10 +101,10 @@ export const obligationReportedDataSchema = z.object({
 });
 export type ObligationReportedData = z.infer<typeof obligationReportedDataSchema>;
 
-/** A fake class or export name an engineer's binding relies on: it carries the fake-naming rule's `Fake` designation. */
+/** A fake class or export name a module engineer's binding relies on: it carries the fake-naming rule's `Fake` designation. */
 export const fakeNameSchema = text.max(200).refine(carriesFakeDesignation, 'A fake\'s name carries "Fake", as the fake-naming rule requires');
 
-/** One binding of an engineer's completion proposal: an assigned obligation and the fakes it relies on, none by default. */
+/** One binding of a module engineer's completion proposal: an assigned obligation and the fakes it relies on, none by default. */
 export const obligationBindingSchema = z.object({
   id: text.describe('An obligation id the assignment names, such as sc-003'),
   fakes: z.array(fakeNameSchema).max(100).default([])
@@ -131,7 +131,7 @@ export type ObligationKind = 'scenario' | 'outcome' | 'test';
 /**
  * Who reports on an obligation. An integration scenario whose work item
  * does not exist yet is held by its stable key, and no invocation may
- * report on it until that work item's local architect does.
+ * report on it until that work item's module architect does.
  */
 export type ObligationResponsible =
   | { readonly kind: 'work-item'; readonly id: string }
@@ -307,14 +307,14 @@ export interface ObligationContext {
 
 function describeResponsible(responsible: ObligationResponsible): string {
   switch (responsible.kind) {
-    case 'work-item': return `the local architect of ${responsible.id}`;
+    case 'work-item': return `the module architect of ${responsible.id}`;
     case 'capability-task': return `the capability architect of ${responsible.id}`;
-    case 'integration-scenario': return `the local architect of ${responsible.id}'s integration work item, which does not exist yet`;
+    case 'integration-scenario': return `the module architect of ${responsible.id}'s integration work item, which does not exist yet`;
   }
 }
 
 function describeActor(actor: ObligationActor): string {
-  return actor.kind === 'work-item' ? `the local architect of ${actor.id}` : `the capability architect of ${actor.id}`;
+  return actor.kind === 'work-item' ? `the module architect of ${actor.id}` : `the capability architect of ${actor.id}`;
 }
 
 /** Whether this actor is the obligation's responsible architect. A module path never establishes it. */
@@ -375,7 +375,7 @@ export function obligationSubmissionErrors(
       if (actor.kind !== 'capability-task') {
         errors.push({
           path: at(`registrations.${index}.kind`),
-          message: 'A case registration is accepted only from its capability task\'s current architect; a local architect may register a required test',
+          message: 'A case registration is accepted only from its capability task\'s current architect; a module architect may register a required test',
           expected: '"test"',
         });
         return;
@@ -499,7 +499,7 @@ export function assignedObligationErrors(
 }
 
 /**
- * Every reason an engineer's `bindings` cannot be accepted: an ID the
+ * Every reason a module engineer's `bindings` cannot be accepted: an ID the
  * assignment does not name, one named twice, a fake named twice, and every
  * assigned obligation the proposal leaves out, named together. The check is
  * structural; whether a declared binding or fake is right is the gate's
@@ -682,7 +682,7 @@ export function obligationBriefingLines(owned: readonly Obligation[]): string[] 
     '',
     'You are the responsible architect for these. Report one with `reports: [{ id, judgment: "done", basedOnRevision, where? }]` '
       + 'when, in your judgment, it is correctly implemented and passing; `basedOnRevision` is the revision shown. '
-      + 'An engineer\'s accepted binding makes an obligation `bound` and names the fakes it relies on; '
+      + 'A module engineer\'s accepted binding makes an obligation `bound` and names the fakes it relies on; '
       + 'a gate or audit result is execution evidence beside the status. Neither is your report, and neither changes one; '
       + 'your report is accepted whatever the fakes list says. Revise an earlier `done` with judgment "bound". '
       + 'Name the obligations an iteration binds in `assignment.obligations`. '

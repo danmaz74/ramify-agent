@@ -28,8 +28,8 @@ import { reviewLayout, type ReviewRequest } from '../reviews/records.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unchanged-run.js';
 
 /*
- * A local architect that finds its request cannot be met as stated answers
- * `unresolved`. The run no longer ends there: the harness forks the global
+ * A module architect that finds its request cannot be met as stated answers
+ * `unresolved`. The run no longer ends there: the harness forks the plan
  * architect with the conflict, and the fork fixes the placement, records a
  * plan deviation the work item goes on under, or finds nothing possible,
  * which ends the run. A deviation is a CheckFinding the person accepts or
@@ -113,7 +113,7 @@ describe('an unresolved request answered with a plan deviation', () => {
     const runId = receipt.jobId;
     expect(onlyRun(opened.service, plan).state).toBe('completed');
 
-    // The unresolved request forked the global architect, whose deviation was
+    // The unresolved request forked the plan architect, whose deviation was
     // recorded; the work item then went on and completed, as did the next.
     const events = await runEventsOnDisk(project, plan, runId);
     expect(types(events).filter(type => ['unresolved-requested', 'view-refreshed', 'plan-deviation-recorded', 'work-item-completed', 'job-completed'].includes(type))).toEqual([
@@ -145,7 +145,7 @@ describe('an unresolved request answered with a plan deviation', () => {
     expect(forks[0]!.spec.prompt).toContain('### fr-001: functional requirement from plans/revision-diff/plan.md\n\n> The plan asks for compare-revisions-request.');
     expect(forks[0]!.spec.prompt).not.toContain('  11  - Serve it through both protocol surfaces');
 
-    // The local architect that asked was continued with the deviation and the element it amends; the next work item's package carries it.
+    // The module architect that asked was continued with the deviation and the element it amends; the next work item's package carries it.
     const architects = agent.sessions.filter(session => session.spec.role === 'local-architect'
       && session.spec.submission.name === 'submit_work_item_result');
     expect(architects).toHaveLength(3);

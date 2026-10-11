@@ -23,9 +23,9 @@ import { validateLocalArchitect, type LocalArchitectSubmission } from '../work/s
 import { createShellTool, shellToolName } from '../tools/shell.js';
 
 /*
- * An engineer that ends without a result is its local architect's decision,
+ * A module engineer that ends without a result is its module architect's decision,
  * not the run's end, and the architect decides on a pre-analysis: the
- * harness's digest of what the engineer left, and a failure analysis a
+ * harness's digest of what the module engineer left, and a failure analysis a
  * model makes in a reader session of its own. Where a bound ended it, the
  * architect may raise that bound for the next iteration, up to the policy's
  * ceiling.
@@ -193,9 +193,9 @@ describe('an engineer ended by a bound in the middle of a command', () => {
     expect(briefing).toContain('- Recommendation: Raise the absolute bound and the command maximum so the suite can finish.');
     expect(briefing).toContain('The absolute bound of an invocation ended it, at 1500 ms. If the work needs more, raise `assignment.bounds.absoluteMs` in the next assignment, up to 10800000 ms');
     expect(briefing.indexOf('### The failure analysis')).toBeGreaterThan(briefing.indexOf('- Why it ended:'));
-    expect(briefing).toContain('## The bounds of an engineer');
+    expect(briefing).toContain('## The bounds of a module engineer');
 
-    // The raised bounds are the assignment's, and every engineer invocation of it runs under them.
+    // The raised bounds are the assignment's, and every module engineer invocation of it runs under them.
     const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('wi-001', 2)), 'utf8')) as IterationAssignment;
     expect(assignment.bounds).toEqual(raised);
     const [, next] = role('engineer');

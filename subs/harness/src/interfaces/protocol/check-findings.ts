@@ -154,7 +154,7 @@ export type CheckFindingMaterialChoice = z.infer<typeof checkFindingMaterialChoi
 /**
  * A plan deviation, as its CheckFinding carries it: the requirements as the
  * plan writes them, what the run does instead, why, the alternatives the
- * global architect rejected and what the person loses. A reworded scenario
+ * plan architect rejected and what the person loses. A reworded scenario
  * shows its text before and after. The person accepts it by waiving it or
  * answering `accept`, and rejects it by answering `reject` with the
  * requirement a follow-up run must meet, which `followUp` then holds.

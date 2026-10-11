@@ -112,7 +112,7 @@ describe('ST07, ST08: the transcripts of a scripted run', () => {
     const scenario = await runSessionScenario({
       cleanup: step => { cleanups.push(step); },
       before: {
-        // The initial architect thinks, retries a failed call, compacts and reads.
+        // The plan architect thinks, retries a failed call, compacts and reads.
         'initial-architect': [
           {
             kind: 'message', text: 'Orienting.', blocks: [{ type: 'thinking', visibility: 'unmarked', text: thinking }],
@@ -195,7 +195,7 @@ describe('ST07, ST08: the transcripts of a scripted run', () => {
       }
     }
 
-    // The initial architect's thinking, retry and compaction are there.
+    // The plan architect's thinking, retry and compaction are there.
     const architect = transcripts.get('ses-0002')!;
     expect(architect.map(entry => (entry.type === 'message' ? `${entry.type} ${entry.role}` : entry.type)).slice(0, 10)).toEqual([
       'started', 'message user', 'message assistant', 'message assistant', 'retry', 'retry', 'compaction', 'compaction',

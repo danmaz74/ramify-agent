@@ -19,7 +19,7 @@ import { installTestRunner, onlyRun, openRuns, realRamify, runEventsOnDisk, runP
  *
  * An entry capability whose owner does not exist yet carries a proposal, and
  * the first assignment of that owner captures the bootstrap authority the
- * registry gives it. The module is created by the engineer, recognized by
+ * registry gives it. The module is created by the module engineer, recognized by
  * the refreshed architect view before its gate can pass, and reported from the
  * changed declaration the commit boundary was told about.
  *
@@ -92,7 +92,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
   test('a bootstrap assignment creates the module with nested source and its first test, and the notice is read from the commit', async () => {
     const { root, scripted, final } = await target({ commits: [scenarios, created, unchanged, unchanged], finalHead: 'revision-01' });
     // This scenario keeps the real architect view: what it proves is that
-    // the module the engineer created is in the refreshed view before its
+    // the module the module engineer created is in the refreshed view before its
     // own gate can pass.
     const daemon = await realRamify();
     cleanups.push(() => daemon.dispose());
@@ -128,7 +128,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
 
     expect(onlyRun(opened.service, 'review-notes').state).toBe('completed');
     expect(architectScopes.map(scope => scope.directory)).toEqual([root, root]);
-    expect(architectScopes[0]!.prompt).toContain('This session remains at the project root even if an engineer creates the module.');
+    expect(architectScopes[0]!.prompt).toContain('This session remains at the project root even if a module engineer creates the module.');
     expect(architectScopes[0]!.prompt).toContain(`- Assigned module declaration: \`${notesDirectory}/module.ramify\` (read it if present).`);
     expect(architectScopes[0]!.prompt).toContain(`- Onboarding: \`${notesDirectory}/README.md\` gives none:`);
     // Every refresh answered, so nothing below rests on evidence the

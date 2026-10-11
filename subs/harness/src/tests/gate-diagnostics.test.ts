@@ -328,7 +328,7 @@ describe('a module violation at the iteration gate, over a run', () => {
       isCleanRepository: async () => true,
       createRunBranch: async (_root, runId) => ({ branch: `ramify-agent-run/${runId}`, created: true }),
       findCommitByTrailers: async () => null,
-      // The feature files' commit is the boundary the engineer's change is asked against.
+      // The feature files' commit is the boundary the module engineer's change is asked against.
       changedPaths: async (_root, accepted) => accepted === 'scenarios' ? [source] : [],
       changedEntries: async (_root, accepted) => accepted === 'scenarios' ? [{ status: 'M', path: source }] : [],
       diffNameStatus: async (_root, from, to) => {

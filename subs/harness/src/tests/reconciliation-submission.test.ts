@@ -8,7 +8,7 @@ import {
 /*
  * The rules a reconciliation submission is judged by before the child
  * decides anything (Plan 12 appendix §6): one disposition per CheckFinding
- * that needs one, the round's correction floor, the local architect's waive
+ * that needs one, the round's correction floor, the module architect's waive
  * authority over its own module, a next action that follows from the
  * dispositions, and a user decision's exact citation. Pure: the context is
  * literal, and the child is stood in for by a decision that accepts.

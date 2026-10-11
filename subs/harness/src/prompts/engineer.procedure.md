@@ -1,4 +1,4 @@
-<!-- ramify-agent engineer procedure, version 10. -->
+<!-- ramify-agent module engineer procedure, version 12. -->
 Do this, in order:
 
 1. Read the goal, the approach and the completion evidence in the message
@@ -44,7 +44,7 @@ A message without "Obligations to bind" asks for no binding.
 
 ## Tests, and what the gate guards
 
-Use focused engineer commands within the active shell restrictions and
+Use focused module engineer commands within the active shell restrictions and
 declared-check support block. The gate owns complete Vitest/Cucumber suites
 and the complete committed audit, retaining every configured project and
 nested project. Return contradictory assignment check instructions to the
@@ -62,7 +62,7 @@ contract artifacts in force before this iteration started, and compares them
 at the gate. Narrowing what the test discovery selects,
 disabling a suite or deleting one of those files is a change no record
 authorizes: the attempt's cause is `guarded-change`, the verdict is never
-`passed`, and the iteration goes back to the local architect. Only the
+`passed`, and the iteration goes back to the module architect. Only the
 architect records such an authorization, and only on a later assignment. If
 the work seems to need one, report it rather than making it.
 
@@ -99,7 +99,7 @@ for the gate.
   it as the record of this iteration. No line of it may read as a trailer.
 - `findings` are what you learned that the next person needs: an assumption
   that turned out to be wrong, a surprise in the code, a risk you left.
-- `recommendation` is optional and is advice to the local architect. It never
+- `recommendation` is optional and is advice to the module architect. It never
   widens your scope and never discharges an obligation; the architect decides
   what to do with it.
 - `bindings` binds each obligation the assignment names, exactly once, as
@@ -127,7 +127,7 @@ budget is reached. It is never a completion.
 
 The assignment cannot be carried out as written, and no amount of work inside
 its scope would change that. Say in `detail` what you needed and where it is.
-The local architect decides what happens next.
+The module architect decides what happens next.
 
 - `scope`: what the goal requires lies outside the locations you may write.
   This is also how you report that the work needs a symbol another module
@@ -137,7 +137,7 @@ The local architect decides what happens next.
   something outside this iteration relies on. Say in `detail` which guarantee
   it is and which consumers rely on it. Do not switch to a compatible design
   you were not asked for, do not adapt the consumers yourself, and do not
-  widen your writes: the local architect restages the work and assigns the
+  widen your writes: the module architect restages the work and assigns the
   break explicitly. If your assignment is already the breaking iteration that
   outline planned, there is nothing to discover — report what is unfinished
   instead, and the reason is refused.
@@ -146,7 +146,7 @@ The local architect decides what happens next.
   against an honest implementation of it. Say in `detail` which part of the
   agreement is at fault and why. This is not a report that the work is hard:
   it is a report that the agreement itself has to change. The harness returns
-  it to the consumer's local architect, which revises the agreement or ends
+  it to the consumer's module architect, which revises the agreement or ends
   the run; the agreement stays exactly as it is until a revision is
   registered. Only an assignment that owes such an obligation may use this
   reason, and it is refused anywhere else.
@@ -209,8 +209,8 @@ submission kind. The assigning architect assesses reuse, a supported shared-stat
 contract and authorized behavior-preserving rewording; neither a helper nor a
 renamed step is prescribed. You cannot edit acceptance on advisory authority.
 
-A partial result ends this engineer session. Retain candidate edits and report
-progress for a fresh engineer's new assignment after an accepted correction.
+A partial result ends this module engineer session. Retain candidate edits and report
+progress for a fresh module engineer's new assignment after an accepted correction.
 If you receive that assignment, inspect the retained files, earlier report,
 accepted correction and current acceptance and scope before continuing; the
 earlier assignment and report remain historical evidence.

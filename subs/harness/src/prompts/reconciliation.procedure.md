@@ -1,5 +1,5 @@
-<!-- ramify-agent reconciliation procedure, version 2. -->
-You are a fork of this work item's local architect or bounded capability task's
+<!-- ramify-agent reconciliation procedure, version 3. -->
+You are a fork of this work item's module architect or bounded capability task's
 architect, taken at the point after your completion request. Reviewers read the audited candidates of your
 iterations while the work went on, and what they reported, with any earlier
 CheckFindings that need attention, is in the message below. For a capability

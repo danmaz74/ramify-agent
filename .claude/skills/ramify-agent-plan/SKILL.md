@@ -60,7 +60,7 @@ document; add companions only for substantial contracts or acceptance material.
   A forecast must not silently become required work or a prescribed sequence.
 
 Retain a genuine ordering constraint, such as compatibility during a migration,
-as a requirement with its reason. Let the local and capability architects decide
+as a requirement with its reason. Let the module and capability architects decide
 how to achieve it. They can adapt to discoveries and coordinate real provider
 and consumer integration without a prewritten iteration for every owner.
 
@@ -78,7 +78,7 @@ The harness can derive scenarios for entries lacking them, but author the
 important acceptance examples now so the intended result is reviewable. Leave
 run-local element/scenario IDs, entry mappings, generated feature files and step
 bindings to execution. Scenario text is frozen when analysis is accepted; do
-not treat it as something an engineer may weaken to obtain a passing check.
+not treat it as something a module engineer may weaken to obtain a passing check.
 
 For structural or nonfunctional obligations, state the required property and
 appropriate inspection or check evidence plainly. Do not manufacture a runtime

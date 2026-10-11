@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { InvocationEvaluation } from '../../harness/src/interfaces/protocol/runs.js';
 import type {
@@ -69,7 +70,7 @@ function workText(work: RunSessionView['work']): string {
 function SessionLink({ from, session, sessions }: { readonly from: SessionRef; readonly session: string; readonly sessions: ReadonlyMap<string, RunSessionView> }) {
   const role = sessions.get(session)?.role;
   const ref: SessionRef = from.source === 'run' ? { ...from, session } : from;
-  return <a href={sessionHref(ref)}>{session}{role ? ` (${role})` : ''}</a>;
+  return <a href={sessionHref(ref)}>{session}{role ? ` (${roleLabel(role)})` : ''}</a>;
 }
 
 function joined(items: readonly ReactNode[]): ReactNode {
@@ -82,7 +83,7 @@ function SessionFacts({ at: ref, detail }: { readonly at: SessionRef; readonly d
     const { session, prompt, outcome } = detail.standalone;
     return (
       <dl className="facts">
-        <div><dt>Role</dt><dd>{session.role}</dd></div>
+        <div><dt>Role</dt><dd>{roleLabel(session.role)}</dd></div>
         <div><dt>Reaches</dt><dd>{reachText(session.reaches)}</dd></div>
         <div><dt>Executor</dt><dd>{session.executor}{session.model ? `, model ${session.model}` : ', the executor\'s own model'}</dd></div>
         <div><dt>Started</dt><dd>{session.startedAt}</dd></div>
@@ -115,7 +116,7 @@ function SessionFacts({ at: ref, detail }: { readonly at: SessionRef; readonly d
   if (lineage.forks.length > 0) relations.push(<>Forks from its points: {joined(lineage.forks.map(id => <SessionLink key={id} from={ref} session={id} sessions={sessions} />))}</>);
   return (
     <dl className="facts">
-      <div><dt>Role</dt><dd>{session.role}</dd></div>
+      <div><dt>Role</dt><dd>{roleLabel(session.role)}</dd></div>
       <div><dt>Work</dt><dd>{workText(session.work)}</dd></div>
       <div><dt>Reaches</dt><dd>{reachText(session.reaches)}</dd></div>
       <div><dt>Executor</dt><dd>{session.executor}{session.model ? `, model ${session.model}` : ', the executor\'s own model'}</dd></div>

@@ -62,7 +62,7 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
     expect(metrics.baseline, JSON.stringify(metrics.baseline)).toMatchObject({ state: 'measured' });
   }, 180_000);
 
-  row('the initial architect\'s invocation records its snapshot reference and its S_s components', async () => {
+  row('the plan architect\'s invocation records its snapshot reference and its S_s components', async () => {
     const root = await environment.target();
     const { service } = await environment.open(root, { script: [{ kind: 'submit', input: emptyAnalysis() }], ramify: environment.ramify(root) });
     environment.cleanups.push(() => service.close());

@@ -32,7 +32,7 @@ export interface ConsultationEquipmentInputs<R extends RunnerRun> {
   readonly now: () => Date;
 }
 
-/** The same ordinary awaited tool equips an engineer, a local turn and a local consultation fork. */
+/** The same ordinary awaited tool equips a module engineer, a local turn and a local consultation fork. */
 export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipmentInputs<R>, context: EquipContext): ToolDefinition {
   return { ...consultArchitectDeclaration, action: () => ({ kind: 'harness' }), execute: async (raw, signal, actualCallId) => {
     const parsed = consultationMessageSchema.safeParse(raw);

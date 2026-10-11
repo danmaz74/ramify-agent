@@ -109,7 +109,7 @@ test(title, async () => {
   const secondPath = `/api/v1/plans/${plan}/runs/${secondRun.jobId}`;
   const secondPause = await (await fetch(first.url + secondPath + '/debug')).json() as {
     current: { pauseId: string; revision: number }; run: { counts: { invocations: number } } };
-  // Release through a distinct actual CLI client. Keep the resumed engineer
+  // Release through a distinct actual CLI client. Keep the resumed module engineer
   // admitted but blocked, so crash recovery also covers a run after release.
   await unlink(release);
   const proceed = join(fixture.root, '..', 'proceed.txt'); await writeFile(proceed, 'Now implement the ordinary assignment.');

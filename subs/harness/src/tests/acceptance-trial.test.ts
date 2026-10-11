@@ -42,7 +42,7 @@ import { finalCandidate } from './helpers/final-candidate.js';
  * gate fails the scenario, the work item yields, and the scenario stays
  * `bound`: no gate or yield moves a state. The provider implements the
  * limit, the note's verification binds the sub-scenario again with no fake,
- * and the local architect reports it `done`. The tags' work item spends its
+ * and the module architect reports it `done`. The tags' work item spends its
  * repair rounds with the scenario still `bound`, binds it again in a repair
  * iteration, and its architect reports it done; the second sub-scenario
  * reported done creates the integration work item at their common

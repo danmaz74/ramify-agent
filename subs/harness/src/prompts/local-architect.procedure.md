@@ -1,4 +1,4 @@
-<!-- ramify-agent local architect procedure, version 14. -->
+<!-- ramify-agent module architect procedure, version 15. -->
 Do this, in order:
 
 1. Read the goal, the requirement references and the acceptance references in
@@ -22,13 +22,13 @@ Do this, in order:
    them correctly implemented, report them `done` with the completion
    request; otherwise assign an iteration that names them in
    `assignment.obligations` and writes the step definitions.
-6. Where it is not, decide what one engineer can carry out next, and assign
+6. Where it is not, decide what one module engineer can carry out next, and assign
    it.
 7. Submit.
 
 ## `assign`
 
-One iteration of this work item, for one engineer, with the locations it may
+One iteration of this work item, for one module engineer, with the locations it may
 write.
 
 - `assignment.goal` is what that iteration achieves, and `approach` is how
@@ -36,8 +36,8 @@ write.
   that a check can answer it.
 - `assignment.citedElements` names, by ID, the elements of your work-item
   package this iteration must honor: its requirements, the context its
-  engineer needs, and the non-functional, fixed and recommendation elements
-  that bear on it. The engineer, a contract engineer and the reviewers of
+  module engineer needs, and the non-functional, fixed and recommendation elements
+  that bear on it. The module engineer, a module engineer working on a contract and the reviewers of
   the iteration receive exactly these elements, whole, and nothing else of
   the plan, so cite what they need; an ID outside the package is refused.
   A recommendation you cite stays a recommendation; to make one binding,
@@ -47,7 +47,7 @@ write.
 - `assignment.kind` is `ordinary` unless the iteration is one of the other
   four. `breaking` is below; `verification`, `repair` and `contract` are
   described where they arise.
-- `assignment.scope.base.module` is the module the engineer works in. It must
+- `assignment.scope.base.module` is the module the module engineer works in. It must
   be a module of the architect view, or one an accepted proposal creates.
 - `assignment.scope` is the iteration's write scope, under "Write scope"
   below.
@@ -67,20 +67,20 @@ write.
 
 - `assignment.obligations` is optional: the obligations of this work item
   the iteration must bind, by ID — its scenarios and the required tests you
-  registered. They reach the engineer under "Obligations to bind", with the
-  scenario's text. The engineer's completion proposal must bind every one,
+  registered. They reach the module engineer under "Obligations to bind", with the
+  scenario's text. The module engineer's completion proposal must bind every one,
   with the fakes its binding relies on; a proposal that leaves one out is
   refused, naming it, before any commit or gate. A partial report is not.
   Each must be an obligation you are responsible for.
 
-- `assignment.bounds` is optional: the bounds this iteration's engineers
+- `assignment.bounds` is optional: the bounds this iteration's module engineers
   need beyond the policy's. `commandTimeoutMs` is the longest one shell
   command may run, `idleMs` how long a session may go without a sign of
   activity, and `absoluteMs` how long one invocation may run. Each is
   `{ "ms": …, "reason": … }`, raised above the policy's value and at most its
   ceiling; the message states both. A command's timeout is never longer than
   the invocation that runs it, so raise `absoluteMs` with it where it must.
-  They apply to every engineer invocation of the iteration. Raise one when
+  They apply to every module engineer invocation of the iteration. Raise one when
   the work needs it, such as a test suite longer than the command maximum,
   not to wait out a session that is stuck.
 
@@ -95,12 +95,12 @@ harness derives them from the kind, the scope and the evidence required, and
 freezes them on the assignment. Each attempt resolves the current test files
 again, so a test the iteration writes runs before it is accepted.
 
-The harness then runs the engineer, the gate, and the repair rounds the
+The harness then runs the module engineer, the gate, and the repair rounds the
 policy allows, and returns the result to you.
 
-## An engineer that ended without a result
+## A module engineer that ended without a result
 
-A bound may end an engineer's session, its provider or adapter may fail, it
+A bound may end a module engineer's session, its provider or adapter may fail, it
 may stop on its own, or its submissions may be rejected until the bound on
 them is reached. None of that ends the run: its iteration closes `partial`,
 nothing of it is committed, and what it wrote stays in the tree. The message
@@ -121,12 +121,12 @@ bound counts every iteration, a failed one included.
 The message lists each scenario of this work item's entry: its ID, its state,
 its text, its feature file and, for a sub-scenario, the integration scenario it
 came from. The scenarios are the plan's requirements. The harness wrote them
-into the owners' feature files, and no agent edits a feature file. An engineer
+into the owners' feature files, and no agent edits a feature file. A module engineer
 binds a scenario by writing step definitions in `src/tests/steps/` of the
 owner (a testing module's `src/steps/`), and a run of the owner's scenarios
 loads those step files and what they import.
 
-A scenario is `pending` until something binds it. An engineer's accepted
+A scenario is `pending` until something binds it. A module engineer's accepted
 completion proposal binds the obligations its assignment names, each with the
 fakes it relies on, and makes them `bound`; you see the fakes listed with
 each binding. A bound scenario loses its pending tag at the next commit, and
@@ -176,7 +176,7 @@ test tracked and reported on its own; the harness gives it a `test-NNN` ID.
 Ordinary tests are never registered, and registering never removes a
 requirement. You cannot report another work item's obligation.
 
-An engineer's completion proposal reports its work, and a gate or audit
+A module engineer's completion proposal reports its work, and a gate or audit
 result records how the configured checks ran. Neither is your report and
 neither changes one: you read them, the implementation and the tests, and
 you decide.
@@ -205,10 +205,10 @@ with a narrow change goal. State that scope as `assignment.scope.base` with
 `modules` — every module the break runs through — and `rationale`, which says
 why the break cannot be staged within one subtree. That broad form is a
 planned exception you record, and only a `breaking` assignment may state it.
-It is never permission for an engineer to widen its own writes. If the scope
+It is never permission for a module engineer to widen its own writes. If the scope
 proves unmanageable, revise the approach; the gate does not move.
 
-An engineer may report `unsuitable` with reason `break-discovered`: the work
+A module engineer may report `unsuitable` with reason `break-discovered`: the work
 you gave it cannot be done without breaking a guarantee. It stopped there and
 changed nothing outside what it was given. Revise your outline — record the
 break in `breakingChanges`, restage, and reassign — or answer `unresolved`.
@@ -242,7 +242,7 @@ subtree is already responsible for, preserves the ownership already
 recorded, and leaves no competing candidate. Choosing which child renders a
 view is yours. Record such a choice in `localDecisions`, with the registry
 entry it creates, so that later work finds the capability without asking
-anyone. Nothing is appended to the global architect's context for it.
+anyone. Nothing is appended to the plan architect's context for it.
 
 An extension is a new capability, never a change to a registered one. Name
 the extended behavior for itself, register it with the module that already
@@ -253,7 +253,7 @@ Physical containment alone does not make a capability yours. A hypothesis
 that suggests an owner outside your subtree, especially with anticipated
 consumers elsewhere, is strong evidence against keeping the capability
 local. It is not an assignment, and you may depart from it — but a departure
-about shared responsibility goes to the global architect with your
+about shared responsibility goes to the plan architect with your
 counterevidence, not into `localDecisions`.
 
 ## `request-placement`
@@ -275,7 +275,7 @@ owners compete, or the ownership already recorded would have to change.
 - `request.localDecisions` names your own local decisions the request rests
   on.
 
-The harness refreshes the architect view, forks the global architect's
+The harness refreshes the architect view, forks the plan architect's
 context and gives it your request. The decision comes back to you at your
 next turn, and you continue from there. Requests run one at a time; there is
 no parallel request and no approval step.
@@ -329,7 +329,7 @@ something no stage can carry, the evidence it asks for cannot be had, or the
 harness offers no way to do it. Name the conflict and the evidence for it. Do
 not weaken the request to make it satisfiable; that is not yours to decide.
 
-The global architect decides what follows, and you are continued with its
+The plan architect decides what follows, and you are continued with its
 answer. It may fix a placement, which reaches you as a placement decision. It
 may record a plan deviation: the requirement as written, what the run does
 instead and why. The deviation binds the rest of the run, and you go on with
@@ -393,13 +393,13 @@ If no revision would meet the request, answer `unresolved` instead.
 In assignment `startingPoints`, optionally select a few useful source, test,
 support, caller or API-view locations you already encountered, with a short
 note about what to inspect. Paths are literal and project-relative. Select
-useful pointers for the engineer; do not forward your entire exploration.
+useful pointers for the module engineer; do not forward your entire exploration.
 These hints authorize no writes and establish no completion or obligation.
 No extra discovery turn is required; you may omit them.
 
 ## Correcting an assignment after a conflict
 
-Assess an engineer's partial findings to identify the conflicting choice and
+Assess a module engineer's partial findings to identify the conflicting choice and
 its current decision authority. Correct your own outline
 and assignment within your authority, delegate implementation to an authorized
 owner, or use existing placement or `unresolved` paths. Compare reuse of an
@@ -409,17 +409,16 @@ verify the proposed expression avoids competing global bindings and preserves
 the original behavior, then ask the plan architect to evaluate it before
 commissioning the helper. Escalation requests assessment, not automatic approval.
 
-For a plan-level correction, the engineer returns `partial`, you submit
-`unresolved` with the conflict, evidence and alternatives, and the global
-architect answers through its existing decision or deviation mechanism. Only
-the global architect's recorded deviation can reword a pending accepted scenario;
+For a plan-level correction, the module engineer returns `partial`, you submit
+`unresolved` with the conflict, evidence and alternatives, and the plan architect answers through its existing decision or deviation mechanism. Only
+the plan architect's recorded deviation can reword a pending accepted scenario;
 bound or completed scenarios cannot be reworded. Report that restriction through
 conflict handling; never reset state or edit a generated feature. Consultation
 changes no decision. If the design is retained, delegate any needed testing
 contract within authorized scopes and verify provider and consumer integration
 before handback.
 
-After the accepted answer, issue a corrected assignment to a fresh engineer.
+After the accepted answer, issue a corrected assignment to a fresh module engineer.
 Supply completed and remaining work, the conflict and accepted correction,
 retained candidate and source/test pointers, and current acceptance and scope.
 The earlier partial-result session is closed; same-session suspension is for

@@ -61,9 +61,9 @@ test('a session on the scripted fake prints its stream, says nothing verified th
   expect(out).toMatch(/^Session \S+ on collection-review\/workspace\/reviews \(subs\/workspace\/subs\/reviews\)$/m);
   expect(out).toContain('Say in the session table\'s comment that there is one per application.');
   expect(out).toContain('… Adding the note the prompt asks for.');
-  expect(out).toContain('◆ write refused; the engineer is told:');
+  expect(out).toContain('◆ write refused; the module engineer is told:');
   expect(out).toContain('→ edit {"path":"session.ts"');
-  expect(out).toContain('◆ Accepted; the engineer is told:');
+  expect(out).toContain('◆ Accepted; the module engineer is told:');
   expect(out).toContain('Session ended: submitted');
   expect(out).toContain('Submission: completion-proposed. Rejected submissions: 0.');
   expect(out).toContain('Violations still standing: 0.');
@@ -133,7 +133,7 @@ test('a step run on the scripted fake prints its stream and records, and exits 0
   expect(result.code).toBe(0);
   const out = result.stdout;
   expect(out).toContain(`Agent: the scripted fake, from ${script}`);
-  expect(out).toMatch(/^Step: engineer, invocation inv-0001, session ses-0001$/mu);
+  expect(out).toMatch(/^Step: Module engineer, invocation inv-0001, session ses-0001$/mu);
   expect(out).toContain(`Run: ${manual} (created)`);
   expect(out).toMatch(/^Base: [0-9a-f]{40}; the tree differed from it at start in \d+ path\(s\): /mu);
   expect(out).toContain('◆ write refused; the session is told:');
@@ -151,7 +151,7 @@ test('a step run on the scripted fake prints its stream and records, and exits 0
   await writeFile(ending, JSON.stringify([{ kind: 'message', text: 'Stopping without a submission.' }]));
   const ended = await command(['step', 'run', '--inputs', inputs, '--run', manual, '--agent', 'fake', '--script', ending]);
   expect(ended.code).toBe(1);
-  expect(ended.stdout).toMatch(/^Step: engineer, invocation inv-0002, /mu);
+  expect(ended.stdout).toMatch(/^Step: Module engineer, invocation inv-0002, /mu);
 
   // A directory that is not a run directory is refused before any agent starts.
   const refused = await command(['step', 'run', '--inputs', inputs, '--run', join(project, 'plans', 'manual'), '--agent', 'fake', '--script', script]);

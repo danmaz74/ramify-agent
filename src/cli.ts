@@ -79,7 +79,7 @@ export const usage = [
   '                       Imports one invocation\'s recorded inputs as a fresh start; compares the delivery as a diagnostic.',
   '                       Authored files replace parts of them, each judged as its producing role\'s output with the run\'s context.',
   '  ramify-agent step inputs --role engineer --project <root> --work-item <file> [--outline <file>] --assignment <file> [--iteration <n>] [--out <file>]',
-  '                       Authors engineer inputs with no run: the assignment is judged as the local architect\'s first work turn',
+  '                       Authors module engineer inputs with no run: the assignment is judged as the module architect\'s first work turn',
   '                       of the work item against the project and its materialized architect view, which is never materialized.',
   '  ramify-agent step render --inputs <file> [--project <root>] [--invocation <id>]',
   '                       Prints what the step\'s session receives. Takes no lock and writes nothing.',
@@ -91,8 +91,8 @@ export const usage = [
   '  ramify-agent step inputs --role reviewer --from-run <manual run dir> --request <review request id> [--out <file>]',
   '                       Composes a code, scope or design review of a request the manual run recorded; step run runs it',
   '                       and its terminal attempt settles the request.',
-  '  ramify-agent step inputs --role engineer --from-run <manual run dir> --assignment-of <local architect invocation id> [--out <file>]',
-  '                       Derives the first, fresh engineer inputs of the assignment that invocation\'s accepted assign made,',
+  '  ramify-agent step inputs --role engineer --from-run <manual run dir> --assignment-of <module architect invocation id> [--out <file>]',
+  '                       Derives the first, fresh module engineer inputs of the assignment that invocation\'s accepted assign made,',
   '                       once step after recorded it, as a run derives them on acceptance.',
   '  ramify-agent step gate --run <manual run dir> --checkpoint <iteration|work-item|readiness|final> [--invocation <id>] [--no-commit]',
   '                       Runs one gate as a run runs it: a committing checkpoint commits the candidate on the run branch and',
@@ -275,7 +275,7 @@ function parseStep(rest: readonly string[]): CommandLine {
     if (request !== undefined && fromRun === undefined) throw new UsageError('step inputs --request needs --from-run <manual run dir>');
     if (assignmentOf !== undefined) {
       if (fromRun === undefined) throw new UsageError('step inputs --assignment-of needs --from-run <manual run dir>');
-      if (invocation !== undefined || request !== undefined) throw new UsageError('step inputs --assignment-of names the local architect invocation itself; it takes no --invocation or --request');
+      if (invocation !== undefined || request !== undefined) throw new UsageError('step inputs --assignment-of names the module architect invocation itself; it takes no --invocation or --request');
       return { command: 'step', step: { command: 'inputs', role, fromRun, invocation, out, assignmentOf, authored } };
     }
     if (fromRun === undefined && Object.keys(authored).length === 0) throw new UsageError('step inputs needs --from-run <run dir>, or --project <root> with authored files');

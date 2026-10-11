@@ -13,5 +13,5 @@ and coordination. Verify equivalent behavior; fewer components never justify
 weaker acceptance or private-state access. For consequential choices, briefly
 explain sufficiency and why a plausible simpler alternative was rejected.
 Correct choices only within your authority; present evidence and alternatives
-to the decision's current authority when revision exceeds it. An engineer's
+to the decision's current authority when revision exceeds it. A module engineer's
 suspected cause is evidence, not a verdict or automatic capability request.

@@ -235,7 +235,7 @@ function bucketText(label: string, bucket: { readonly total: number; readonly pa
 
 /**
  * Each tracked scenario of the audit's raw runner output: where any did not
- * pass, every result, so that an engineer sees which scenarios of a
+ * pass, every result, so that a module engineer sees which scenarios of a
  * composition still pass beside the one that fails; then the project's own
  * failures by count.
  */
@@ -266,7 +266,7 @@ function scenarioLines(results: readonly ScenarioResult[], names: ReadonlyMap<st
 
 /**
  * The tracked scenarios a passed gate's audit ran, each with the step
- * definitions that bound it: what an engineer is told its binding achieved.
+ * definitions that bound it: what a module engineer is told its binding achieved.
  */
 export function passedScenarioLines(gate: Pick<GateAttempt, 'provider'>, names: ReadonlyMap<string, string> = new Map()): string[] {
   const title = (id: string) => (names.has(id) ? `\`${id}\` "${names.get(id)}"` : `\`${id}\``);

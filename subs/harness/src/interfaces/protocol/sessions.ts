@@ -72,7 +72,7 @@ export const sessionFinishReasonSchema = z.enum(['work-closed', 'run-ended', 'lo
 export type SessionFinishReasonView = z.infer<typeof sessionFinishReasonSchema>;
 
 /**
- * The diagram elements a session reaches. The initial architect reaches the
+ * The diagram elements a session reaches. The plan architect reaches the
  * run itself, which shows it at run level. A work item's session reaches its
  * capability and module; a global fork, its request's capability and work
  * item; a standalone session, its module. A value the records do not name

@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { sessionQueryLimits, type RunSessionView, type SessionBodyResponse, type SessionRef } from '../../harness/src/interfaces/protocol/sessions.js';
 import type {
@@ -339,7 +340,7 @@ function StartedEntry({ entry }: { readonly entry: TranscriptEntryOf<'started'> 
   return (
     <>
       <p className="entry-header">
-        <strong>{entry.invocation} started</strong> <span className="muted">· {entry.role} · {entry.start} · requested {entry.requested} · {entry.executor} · model {entry.model ?? 'the executor\'s own'}</span>
+        <strong>{entry.invocation} started</strong> <span className="muted">· {roleLabel(entry.role)} · {entry.start} · requested {entry.requested} · {entry.executor} · model {entry.model ?? 'the executor\'s own'}</span>
       </p>
       <BodyBlock label="System prompt" body={entry.systemPrompt} className="block-system-prompt" />
       <BodyBlock label="Prompt" body={entry.prompt} className="block-prompt" />

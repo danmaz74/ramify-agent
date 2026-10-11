@@ -156,12 +156,12 @@ export const runPolicySchema = z.object({
     /** The plan deviations recorded before the next one waits for the person. */
     maxPlanDeviations: z.int().nonnegative().optional(),
     /**
-     * The longest one shell command of an engineer may run unless its
+     * The longest one shell command of a module engineer may run unless its
      * assignment raises it; the current policy builder supplies the default.
      */
     commandTimeoutMs: z.int().positive().optional(),
     /**
-     * The ceilings an assignment may raise an engineer's bounds to: one
+     * The ceilings an assignment may raise a module engineer's bounds to: one
      * shell command, the idle bound and the absolute bound of each of its
      * invocations. The current policy builder supplies their defaults.
      */
@@ -593,7 +593,7 @@ export const usageSchema = z.object({
   total: z.int().nonnegative(),
 }).strict();
 
-/** The work one invocation, and the session it belongs to, is for: none for the initial architect. */
+/** The work one invocation, and the session it belongs to, is for: none for the plan architect. */
 export const invocationWorkSchema = z.object({ workItem: text.optional(), iteration: text.optional(), request: text.optional(),
   capabilityTask: text.optional(),
   nonfunctionalRepair: text.optional(),
@@ -635,9 +635,9 @@ export type ContinueReason = z.infer<typeof continueReasonSchema>;
 
 /**
  * Why a session is forked from another: a placement request forks the
- * architect context; a scope review forks the local architect at the point
+ * architect context; a scope review forks the module architect at the point
  * that produced the assignment; a design review forks the orientation that
- * read its guidance; a reconciliation forks the local architect at the
+ * read its guidance; a reconciliation forks the module architect at the
  * point after its completion request; an unresolved request forks the
  * architect context, as a placement request does.
  */
@@ -646,7 +646,7 @@ export const forkReasonSchema = z.enum(['placement-request', 'scope-review', 'de
 /** Why a session takes another's place: a lost engineer is reconstructed from records, or the architect context is rebuilt. */
 export const replaceReasonSchema = z.enum(['reconstructed', 'context-rebuilt']);
 
-/** Why an invocation's result opened a session: an engineer's need opens a contract sub-session. */
+/** Why an invocation's result opened a session: a module engineer's need opens a contract sub-session. */
 export const requestReasonSchema = z.enum(['contract-needed', 'capability-needed']);
 
 /** A continued invocation: the point it continues from, why, and the briefs appended since its session's previous invocation. */
@@ -672,7 +672,7 @@ export const forkRelationSchema = z.object({
 export type ForkRelation = z.infer<typeof forkRelationSchema>;
 
 /**
- * The local architect's session and the executor's pinned ref at one point
+ * The module architect's session and the executor's pinned ref at one point
  * of it, captured with the event that commits what that point produced. A
  * fork from the ref starts at that point whatever the session did later.
  */

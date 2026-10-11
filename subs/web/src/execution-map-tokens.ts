@@ -1,4 +1,4 @@
-import type { Role } from '../../harness/src/interfaces/protocol/runs.js';
+import { roleDisplayName, type Role } from '../../harness/src/interfaces/protocol/runs.js';
 
 /** Semantic colors are accents and text; every mark also carries a label or shape. */
 export const executionMapVisualTokens = {
@@ -19,19 +19,22 @@ export const executionMapVisualTokens = {
       'context-selector': '#93c5fd', 'nonfunctional-coordinator': '#c4b5fd', 'nonfunctional-repair-engineer': '#fcd34d' },
   },
   roleIdentity: {
-    'initial-architect': { label: 'Initial architect', icon: 'compass' },
-    'catalog-extractor': { label: 'Catalog extractor', icon: 'search' },
-    'global-fork': { label: 'Global fork', icon: 'branch' },
-    'local-architect': { label: 'Local architect', icon: 'blueprint' },
-    engineer: { label: 'Engineer', icon: 'tool' },
-    'contract-engineer': { label: 'Contract engineer', icon: 'link' },
-    'capability-architect': { label: 'Capability architect', icon: 'blueprint' },
-    reviewer: { label: 'Reviewer', icon: 'eye' },
-    'failure-analyst': { label: 'Failure analyst', icon: 'search' },
-    'context-selector': { label: 'Context selector', icon: 'search' },
-    'nonfunctional-coordinator': { label: 'Non-functional coordinator', icon: 'compass' },
-    'nonfunctional-repair-engineer': { label: 'Non-functional repair engineer', icon: 'tool' },
+    'initial-architect': { label: roleDisplayName('initial-architect'), icon: 'compass' },
+    'catalog-extractor': { label: roleDisplayName('catalog-extractor'), icon: 'search' },
+    'global-fork': { label: roleDisplayName('global-fork'), icon: 'branch' },
+    'local-architect': { label: roleDisplayName('local-architect'), icon: 'blueprint' },
+    engineer: { label: roleDisplayName('engineer'), icon: 'tool' },
+    'contract-engineer': { label: roleDisplayName('contract-engineer'), icon: 'link' },
+    'capability-architect': { label: roleDisplayName('capability-architect'), icon: 'blueprint' },
+    reviewer: { label: roleDisplayName('reviewer'), icon: 'eye' },
+    'failure-analyst': { label: roleDisplayName('failure-analyst'), icon: 'search' },
+    'context-selector': { label: roleDisplayName('context-selector'), icon: 'search' },
+    'nonfunctional-coordinator': { label: roleDisplayName('nonfunctional-coordinator'), icon: 'compass' },
+    'nonfunctional-repair-engineer': { label: roleDisplayName('nonfunctional-repair-engineer'), icon: 'tool' },
   } satisfies Record<Role, { label: string; icon: string }>,
   unavailable: { label: 'Unavailable', pattern: 'diagonal-hatch' },
   motion: { livePulseMs: 1600, focusOutlineMs: 900, reducedMotion: 'static-outline' },
 } as const;
+
+/** Current role names for stored protocol values, including historical runs. */
+export const roleLabel = roleDisplayName;

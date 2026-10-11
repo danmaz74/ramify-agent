@@ -12,7 +12,7 @@ import { elementIdSchema } from '../../subs/plan-evidence/src/interfaces/catalog
  * capability.
  *
  * A hypothesis is a forecast and nothing more. It has no reference to a work
- * item, and nothing references it but a decision and a local architect's
+ * item, and nothing references it but a decision and a module architect's
  * input; no harness code reads one to create work, an obligation or a
  * completion requirement. Revision 1 is never rewritten, so the forecast and
  * what happened stay comparable.
@@ -57,7 +57,7 @@ export const hypothesisSchema = z.object({
   changesExistingSymbols: z.boolean(),
   suggestedOwner: modulePathSchema,
   anticipatedConsumers: z.array(text),
-  /** Which local architects receive it, beside the anticipated consumers. */
+  /** Which module architects receive it, beside the anticipated consumers. */
   involvedModules: z.array(modulePathSchema),
   /** Forecast dependency links, all tentative. */
   dependsOn: z.array(slugSchema),

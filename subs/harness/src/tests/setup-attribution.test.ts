@@ -23,7 +23,7 @@ import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRu
  *
  * A setup command that ran and exited non-zero failed on the source it was
  * given: after readiness passed, the change since the last passing state is
- * the assignment's own, so the failure is in scope and the engineer repairs
+ * the assignment's own, so the failure is in scope and the module engineer repairs
  * it from what the command printed. One that did not finish, could not start
  * or was stopped is infrastructure, whose bounded retry follows. Either way
  * nothing after it ran, and the attempt says so rather than that its
@@ -163,7 +163,7 @@ describe('the declared setup over a run', () => {
         expect(request.signal).toBeInstanceOf(AbortSignal);
         return commandResult(request, {});
       },
-      // The engineer's first change breaks the build; its repair builds.
+      // The module engineer's first change breaks the build; its repair builds.
       checkScript: ({ check, context }) => check.kind === 'setup' && context.sourceCommit === 'broken-build'
         ? { stderr: `${buildError}\n`, outcome: { kind: 'completed', exitCode: 2 } }
         : {},
@@ -202,7 +202,7 @@ describe('the declared setup over a run', () => {
     expect(iteration[0]!.evidence).toBeNull();
     expect(iteration[1]!.audit).toMatchObject({ status: 'completed', requestedSourceCommit: 'repaired-build', verdict: 'pass' });
 
-    // The engineer's repair was briefed with the command, its exit code and what it printed.
+    // The module engineer's repair was briefed with the command, its exit code and what it printed.
     const engineers = opened.agent!.sessions.filter(session => session.spec.role === 'engineer');
     const repair = engineers.at(-1)!.spec.prompt;
     expect(repair).toContain(`Attempt \`${iteration[0]!.id}\` (check-failed). What ran, and what it reported:`);

@@ -204,7 +204,7 @@ describe('a run captures each writer\'s line events when the observation happens
       ]);
     const { service } = await openRuns(root, {
       git, candidates: final.candidates,
-      // The engineer's writes are what Git reports once the feature files are committed.
+      // The module engineer's writes are what Git reports once the feature files are committed.
       afterWrite: async write => { if (write === 'scenarios-materialized') git.givenWrites(); },
       script: byRole({
         'initial-architect': [submit(analysis([entry('review-note', notes)]))],

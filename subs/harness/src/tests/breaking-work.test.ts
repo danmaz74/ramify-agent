@@ -27,7 +27,7 @@ describe('the broad scope is a planned exception', () => {
   test('a broad scope with no rationale is returned with its path, and the corrected one is accepted', async () => {
     const root = await target();
     const blank = assign(core, { kind: 'breaking', stage: 1, goal: 'Make the break.', scope: broadScope('   ') }, stagedOutline());
-    // The engineer finishes nothing and the architect stops the run, so no
+    // The module engineer finishes nothing and the architect stops the run, so no
     // gate of this scenario's own reaches a commit boundary.
     const scripted = gateGit(root, { head: base, commits: [scenarios] });
     const { service, runId, agent } = await openRuns(root, {
@@ -83,14 +83,14 @@ describe('a break discovered during work', () => {
           breakingChanges: [],
           stages: [],
         })),
-        // The engineer reported the break. The outline is revised and the
+        // The module engineer reported the break. The outline is revised and the
         // work is restaged as a breaking iteration with the broad scope.
         submit(assign(core, {
           kind: 'breaking',
           stage: 1,
           goal: 'Make the outcome from a structured reviewer and adapt every consumer.',
           scope: broadScope(),
-        }, stagedOutline('The engineer found that every consumer of the outcome reads the plain field; the work is restaged as a break.'))),
+        }, stagedOutline('The module engineer found that every consumer of the outcome reads the plain field; the work is restaged as a break.'))),
         submit({ kind: 'request-completion', summary: 'The reviewer is structured and every consumer reads it.', outline: stagedOutline('Done.') }),
       ],
       engineer: [
@@ -131,7 +131,7 @@ describe('a break discovered during work', () => {
     expect(reported.commit).toBeNull();
     expect(reported.findings.some(finding => finding.includes('break-discovered'))).toBe(true);
 
-    // The engineer did not widen its own writes: its scope was the one
+    // The module engineer did not widen its own writes: its scope was the one
     // module it was given, and nothing outside it changed in its turn.
     const first = await readAssignment(root, runId, 'wi-001', 1);
     expect(first.kind).toBe('ordinary');

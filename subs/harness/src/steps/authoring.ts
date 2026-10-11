@@ -34,14 +34,14 @@ import { constructWorkTurnStep, judgeWorkTurn, workBriefingInputs } from './loca
 
 /*
  * Engineer inputs authored without a run: the work item, its outline and
- * the assignment an author supplies, judged as the local architect's output
+ * the assignment an author supplies, judged as the module architect's output
  * against the project as it stands. The context a run would read at its
  * start is read from the project instead: the materialized architect view,
  * the provider's answers through the Ramify port, the committed audit
  * configuration and the default run policy. Nothing is materialized and no
  * lock is taken. The work turn is built as a run builds the first turn of a
  * work item with no prior iteration, finding or selection, over records that
- * hold nothing yet; the assignment is accepted and the engineer inputs are
+ * hold nothing yet; the assignment is accepted and the module engineer inputs are
  * collected as the run does on acceptance. What a run would derive from its
  * own records is derived the same way from those empty records; what only a
  * run can supply is refused with the reason.
@@ -58,7 +58,7 @@ export interface AuthoringPorts {
   readonly skillDirectory?: string | undefined;
 }
 
-/** The files an engineer's inputs are authored from. */
+/** The files a module engineer's inputs are authored from. */
 export interface AuthoredEngineerFiles {
   readonly workItem: string;
   readonly outline?: string | undefined;
@@ -138,7 +138,7 @@ export async function authorEngineerInputs(options: {
     outlines.push(parsed.data);
   }
   const shape = validateAgainst(localArchitectSubmissionSchema, rawAssignment);
-  if (!shape.ok) return refused(`--assignment: the local architect's submission schema refuses it: ${issues(shape.errors)}`);
+  if (!shape.ok) return refused(`--assignment: the module architect's submission schema refuses it: ${issues(shape.errors)}`);
   if (shape.value.kind !== 'assign') return refused(`--assignment: it is a ${shape.value.kind} submission, not an assign envelope`);
   if (shape.value.assignment.citedElements.length > 0) {
     return refused(`--assignment: it cites the elements ${shape.value.assignment.citedElements.join(', ')}; a work item's package is selected from a run's frozen catalog, and without a run there is none whose elements its engineer could be given`);
@@ -178,12 +178,12 @@ export async function authorEngineerInputs(options: {
       projectConfigPath: projectConfig.path, policy, records, projection, scenarioFiles, preparationPaths });
     constructWorkTurnStep(workTurn, { projectRoot, packages });
   } catch (error) {
-    return refused(`the local architect's work turn cannot be built from the project: ${message(error)}`);
+    return refused(`the module architect's work turn cannot be built from the project: ${message(error)}`);
   }
 
   // The assignment is judged as that turn's submission, as the run judges it.
   const judged = await judgeWorkTurn({ inputs: workTurn }, rawAssignment, { index, ramify: ports.ramify, projectRoot });
-  if (!judged.verdict.ok) return refused(`--assignment: the local architect's rules refuse it: ${issues(judged.verdict.errors)}`);
+  if (!judged.verdict.ok) return refused(`--assignment: the module architect's rules refuse it: ${issues(judged.verdict.errors)}`);
   if (judged.prepared === undefined) return refused('--assignment: it carries no assignment whose scope the provider can capture');
   const submission = judged.verdict.value;
   if (submission.kind !== 'assign') return refused('--assignment: it is not an assign envelope');
@@ -219,7 +219,7 @@ export async function authorEngineerInputs(options: {
     return refused(`--assignment: the assignment record cannot be captured: ${message(error)}`);
   }
 
-  // The engineer inputs, collected as the run collects them for the first
+  // The module engineer inputs, collected as the run collects them for the first
   // invocation of an accepted assignment.
   try {
     const source = await assignedSourceDirectory(projectRoot, assignment.scope, index);
@@ -250,12 +250,12 @@ export async function authorEngineerInputs(options: {
     });
     return { status: 'authored', inputs, workTurn };
   } catch (error) {
-    return refused(`the engineer inputs cannot be collected for ${assignment.id}: ${message(error)}`);
+    return refused(`the module engineer inputs cannot be collected for ${assignment.id}: ${message(error)}`);
   }
 }
 
 /**
- * The local architect's first work turn of one work item, as a run builds it
+ * The module architect's first work turn of one work item, as a run builds it
  * with no prior iteration, finding or selection, over the given records.
  */
 async function firstWorkTurn(facts: {

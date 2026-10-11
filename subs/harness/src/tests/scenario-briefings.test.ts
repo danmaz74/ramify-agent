@@ -19,7 +19,7 @@ import { assign, outline } from './helpers/iterations.js';
  * §6, and what a scenario check says to them, "Diagnostics" and "Binding is
  * recorded, not policed" of the scenario check.
  *
- * The local architect is given every scenario of its entry; the engineer
+ * The module architect is given every scenario of its entry; the module engineer
  * the obligations its assignment names, each scenario not done, the assigned
  * ones under "Scenarios to bind", and the three rules; an integration work item's engineer its scenario and the
  * step files it imports; a provider work item's briefings say nothing about
@@ -269,8 +269,8 @@ describe('assignment.obligations', () => {
     expect(assignmentErrors(body(['sc-001', 'sc-003']), evidence())).toEqual([]);
     expect(assignmentErrors(body(undefined), evidence())).toEqual([]);
     expect(assignmentErrors(body(['sc-004', 'sc-005', 'sc-009', 'sc-002']), evidence())).toEqual([
-      { path: 'assignment.obligations.0', message: 'sc-004 is reported by the local architect of wi-002, so the local architect of wi-001 cannot assign its binding', expected: 'IDs among sc-001, sc-002, sc-003' },
-      { path: 'assignment.obligations.1', message: 'sc-005 is reported by the local architect of sc-005\'s integration work item, which does not exist yet, so the local architect of wi-001 cannot assign its binding', expected: 'IDs among sc-001, sc-002, sc-003' },
+      { path: 'assignment.obligations.0', message: 'sc-004 is reported by the module architect of wi-002, so the module architect of wi-001 cannot assign its binding', expected: 'IDs among sc-001, sc-002, sc-003' },
+      { path: 'assignment.obligations.1', message: 'sc-005 is reported by the module architect of sc-005\'s integration work item, which does not exist yet, so the module architect of wi-001 cannot assign its binding', expected: 'IDs among sc-001, sc-002, sc-003' },
       { path: 'assignment.obligations.2', message: '"sc-009" is no registered obligation of this run', expected: 'IDs among sc-001, sc-002, sc-003' },
     ]);
     // Without the run's obligations nothing may be named.

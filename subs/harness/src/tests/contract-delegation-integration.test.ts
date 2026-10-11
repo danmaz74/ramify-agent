@@ -213,7 +213,7 @@ const need = {
   existingEvidence: [`${consumerDirectory}/src/tests/notes.test.ts`],
 };
 
-/** The `contract-needed` submission, as the engineer writes it. */
+/** The `contract-needed` submission, as the module engineer writes it. */
 const contractNeeded = {
   kind: 'contract-needed' as const,
   need,

@@ -32,12 +32,12 @@ import { architectIndex, moduleEntry } from './helpers/views.js';
  *
  * The done report of the last sub-scenario creates the integration work
  * item at their common ancestor, queued behind the item whose architect
- * reported it; no gate or audit result does. Its local architect is briefed
+ * reported it; no gate or audit result does. Its module architect is briefed
  * with the scenario, the sub-scenarios, their owners and those owners' step
  * files, and its engineer works at the ancestor with the children on both
  * paths in scope. A failure of the integration scenario reaches its engineer
  * raw, with every result, and with no diagnosis of its cause.
- * No process starts here; the real checker's verdict on what the engineer
+ * No process starts here; the real checker's verdict on what the module engineer
  * wrote is `integration-scenarios-integration.test.ts`'s.
  */
 
@@ -133,7 +133,7 @@ describe('the integration work item', () => {
     expect(at(log, 'obligation-reported', data => data.id === 'sc-002')).toBeLessThan(at(log, 'work-item-completed', data => data.workItem === 'wi-002'));
     expect(at(log, 'work-item-completed', data => data.workItem === 'wi-002')).toBeLessThan(at(log, 'work-item-started', data => data.workItem === 'wi-003'));
     const global = log.find(event => event.type === 'invocation-started' && event.data.role === 'initial-architect')!;
-    if (global.type !== 'invocation-started') throw new Error('initial architect expected');
+    if (global.type !== 'invocation-started') throw new Error('plan architect expected');
     const globalOutcome = JSON.parse(await readFile(runPath(root, plan, runId, runLayout.outcome(global.data.invocation)), 'utf8')) as InvocationOutcome;
     expect(globalOutcome.session?.ref).toEqual(expect.any(String));
     const globalTarget = { role: 'global-fork', run: { planId: plan, runId }, session: global.data.session,
@@ -145,7 +145,7 @@ describe('the integration work item', () => {
     ]);
 
     // The briefing: the scenario, its sub-scenarios and their owners, the
-    // owners' step files as the tree held them, and the scope the engineer
+    // owners' step files as the tree held them, and the scope the module engineer
     // must be given; no bridging Given is singled out.
     const sessions = agent!.sessions;
     const briefing = sessions.find(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_orientation' && session.spec.scope.workingDirectory === join(root, reviewsDirectory, 'src'))!.spec.prompt;
@@ -161,7 +161,7 @@ describe('the integration work item', () => {
     expect(briefing).toContain(`writes a step file in \`${reviewsDirectory}/src/tests/steps/\``);
     // Its origin is the integration scenario, so it has no entry scenarios of its own.
     expect(briefing).not.toContain('## The scenarios of this work item');
-    // An entry's local architect is given its entry's scenario, and the integration scenario it came from.
+    // An entry's module architect is given its entry's scenario, and the integration scenario it came from.
     const entryBriefing = sessions.find(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_orientation' && session.spec.scope.workingDirectory === join(root, notesDirectory, 'src'))!.spec.prompt;
     expect(entryBriefing).toContain('## The scenarios of this work item');
     expect(entryBriefing).toContain(`### sc-001: A note is written for tagging\n\n- Feature file: \`${noteFeature}\`.\n- A sub-scenario of the integration scenario \`sc-003\``);
@@ -193,7 +193,7 @@ describe('the integration work item', () => {
       expected: `the base { module: "${reviews}", included: [{ directory: "subs/workspace/subs/reviews/subs/notes", reason, instructions }, { directory: "subs/workspace/subs/reviews/subs/tags", reason, instructions }] }`,
     }]);
 
-    // The engineer's scope, the binding, and the iteration gate whose
+    // The module engineer's scope, the binding, and the iteration gate whose
     // committed audit's scenario check ran the ancestor's feature file, its
     // pending tag removed by the gate's commit, beside the done
     // sub-scenarios of its children. The harness selected none of them.
@@ -343,10 +343,10 @@ describe('the rules, over literal records', () => {
     const integrationArchitect = { actor: { kind: 'work-item' as const, id: 'wi-004' }, projection };
     expect(assignedObligationErrors(['sc-004'], integrationArchitect)).toEqual([]);
     expect(assignedObligationErrors(['sc-001', 'sc-009'], integrationArchitect)).toEqual([
-      { path: 'assignment.obligations.0', message: 'sc-001 is reported by the local architect of wi-001, so the local architect of wi-004 cannot assign its binding', expected: 'IDs among sc-004' },
+      { path: 'assignment.obligations.0', message: 'sc-001 is reported by the module architect of wi-001, so the module architect of wi-004 cannot assign its binding', expected: 'IDs among sc-004' },
       { path: 'assignment.obligations.1', message: '"sc-009" is no registered obligation of this run', expected: 'IDs among sc-004' },
     ]);
     expect(assignedObligationErrors(['sc-004'], { actor: { kind: 'work-item', id: 'wi-001' }, projection }).map(error => error.message))
-      .toEqual(['sc-004 is reported by the local architect of wi-004, so the local architect of wi-001 cannot assign its binding']);
+      .toEqual(['sc-004 is reported by the module architect of wi-004, so the module architect of wi-001 cannot assign its binding']);
   });
 });

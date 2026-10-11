@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import type { InvocationEvaluation, OperationIdentity, ScopeSizeView, RecordedChargeView } from '../../harness/src/interfaces/protocol/runs.js';
 
 const value = (number: number | null | undefined): string => number == null ? 'unavailable' : String(number);
@@ -107,7 +108,7 @@ export function SessionMetrics({ evaluation, operation, invocation }: { readonly
         </dl>
         <Coverage items={efficiency.exploration.metrics.coverage} />
         <details><summary>Recorded read and search calls</summary><ul>{efficiency.exploration.observations.map((call, index) => <li key={index}>
-          <code>{call.callId}</code>: {call.kind}, {call.outcome}; observation {call.id}; {call.invocationId}, operation {call.operationId}, turn {call.turn} in {call.sessionId} ({call.role}).
+          <code>{call.callId}</code>: {call.kind}, {call.outcome}; observation {call.id}; {call.invocationId}, operation {call.operationId}, turn {call.turn} in {call.sessionId} ({roleLabel(call.role)}).
           <dl><dt>Requested scope</dt><dd>{paths(call.requestedScope)}</dd><dt>Resolved scope</dt><dd>{paths(call.resolvedScope)}</dd><dt>Reported files</dt><dd>{paths(call.files)}</dd>
             <dt>Returned output</dt><dd>{value(call.returnedBytes)} {efficiency.units.returned}</dd><dt>Duration</dt><dd>{value(call.elapsedMs)} {efficiency.units.duration}; start {call.startedAt ?? 'unavailable'}; end {call.endedAt ?? 'unavailable'}</dd>
             <dt>Search breadth / outside scope</dt><dd>{call.broad === null ? 'unavailable' : String(call.broad)} / {call.outsideScope === null ? 'unavailable' : String(call.outsideScope)}</dd></dl><Coverage items={call.coverage} />

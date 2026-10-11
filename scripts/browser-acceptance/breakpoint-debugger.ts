@@ -18,7 +18,7 @@ import {
 import { z } from 'zod';
 
 /*
- * Chromium witness for Plan 35 (U13): a person drives the engineer
+ * Chromium witness for Plan 35 (U13): a person drives the module engineer
  * breakpoint through the real web UI. The answers are those one scripted
  * breakpoint run gave through the real route handlers, which
  * `execution-breakpoints-http.test.ts` exports when PLAN35_DEBUG_EXPORT
@@ -117,7 +117,7 @@ try {
     const stateLine = page.locator('.debug-state-line');
     const send = page.getByRole('button', { name: 'Send message' });
     const resume = page.getByRole('button', { name: 'Resume', exact: true });
-    const composer = page.getByLabel('Message to the engineer');
+    const composer = page.getByLabel('Message to the module engineer');
     const identity = { planId, jobId: runId, pauseId: pause.pauseId };
 
     // The Plan page: check the breakpoint and start.
@@ -149,7 +149,7 @@ try {
     // The Debugger area: the state and the prepared input.
     await banner.getByRole('button', { name: 'Open the Debugger' }).click();
     check('Open the Debugger selects the Debugger tab', await page.getByRole('tab', { name: 'Debugger' }).getAttribute('aria-selected') === 'true');
-    await stateLine.filter({ hasText: 'The run is paused before the engineer starts.' }).waitFor({ timeout: 10_000 });
+    await stateLine.filter({ hasText: 'The run is paused before the module engineer starts.' }).waitFor({ timeout: 10_000 });
     const facts = await page.getByLabel('Pause facts').innerText();
     check('the state panel shows the paused state, role, work item, iteration, goal, next action, task state, pause ID and revision with the harness summary',
       [pause.role, pause.work.workItem!, pause.work.iteration!, pause.goal, pause.nextAction, pause.taskState, pause.pauseId].every(text => facts.includes(text))
@@ -166,7 +166,7 @@ try {
       previewText.includes(input.message.split('\n').find(line => line.trim() !== '')!.trim())
       && input.tools.every(tool => previewText.includes(tool.name))
       && (await calls()).filter(call => call === `getDebugInspection:${runId}:${pause.pauseId}`).length === 1
-      && await page.getByText('It is not evidence of what the engineer received.', { exact: false }).isVisible());
+      && await page.getByText('It is not evidence of what the module engineer received.', { exact: false }).isVisible());
     await page.getByRole('heading', { name: 'Prepared input' }).scrollIntoViewIfNeeded();
     await shot('03-prepared-input', false);
     // Close the long sections again, so the later full-page screenshots stay readable.
@@ -177,18 +177,18 @@ try {
     check('Send and Resume are enabled at the paused pending task', await send.isEnabled() && await resume.isEnabled());
     await composer.fill(fixture.message);
     await send.click();
-    await page.getByText('The engineer is answering.').waitFor({ timeout: 10_000 });
+    await page.getByText('The module engineer is answering.').waitFor({ timeout: 10_000 });
     sent = await commands();
     check('Send posts one debug-message with a fresh command ID, the current pause ID and revision and the verbatim text',
       sent.length === 2 && runCommandSchema.safeParse(sent[1]).success && sent[1]!.type === 'debug-message' && sent[1]!.commandId !== sent[0]!.commandId
       && JSON.stringify(sent[1]!.payload) === JSON.stringify({ ...identity, expectedRevision: pause.revision, message: fixture.message }));
-    check('the admitted message shows in the conversation, the composer is cleared and Send is disabled while the engineer answers',
+    check('the admitted message shows in the conversation, the composer is cleared and Send is disabled while the module engineer answers',
       (await page.getByLabel('Interventions').innerText()).includes(fixture.message) && await composer.inputValue() === '' && !(await send.isEnabled()));
-    await page.getByText('The engineer answered:').waitFor({ timeout: 15_000 });
+    await page.getByText('The module engineer answered:').waitFor({ timeout: 15_000 });
     const settled = steps.settled.debug.current!;
-    await stateLine.filter({ hasText: 'The run is paused before the engineer starts.' }).waitFor({ timeout: 10_000 });
+    await stateLine.filter({ hasText: 'The run is paused before the module engineer starts.' }).waitFor({ timeout: 10_000 });
     const conversation = await page.getByLabel('Interventions').innerText();
-    check('the settled exchange shows the person\'s text, the engineer\'s actual answer and its transcript chapter link',
+    check('the settled exchange shows the person\'s text, the module engineer\'s actual answer and its transcript chapter link',
       conversation.includes(fixture.message) && conversation.includes(answer)
       && await page.getByRole('link', { name: `Open the transcript chapter (${steps.settled.debug.interventions[0]!.exchange!.invocation})` }).isVisible());
     check('after the answer the pause is at its next revision and the earlier preview is historical',

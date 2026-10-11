@@ -121,7 +121,7 @@ async function readResult(root: string, runId: string, workItem: string, number:
 describe('G8: a work item revised across several iterations keeps every obligation', () => {
   test('three outline revisions, each from its own turn of one continuing session, and nothing already closed reopens', async () => {
     const root = await target();
-    // The engineer writes the store once; the two revisions that follow it
+    // The module engineer writes the store once; the two revisions that follow it
     // write the same content, which Git reports as an unchanged tree.
     const { service, runId, scripted } = await run(root, {
       'initial-architect': [submit(analysis([entry('review-note', notes)]))],
@@ -232,7 +232,7 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
 
     const firstGate = await readGate(root, runId, (await readResult(root, runId, 'wi-001', 1)).gate!);
     const secondGate = await readGate(root, runId, (await readResult(root, runId, 'wi-001', 2)).gate!);
-    // The engineer is briefed, as text, with the test areas of the owners it
+    // The module engineer is briefed, as text, with the test areas of the owners it
     // is assigned; the second briefing adds exactly the included core's.
     const briefings = agent!.sessions.filter(session => session.spec.role === 'engineer').map(session => session.spec.prompt);
     expect(briefings).toHaveLength(2);
@@ -249,7 +249,7 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
     expect(firstGate.commands).toEqual([]);
     expect(secondGate.commands).toEqual([]);
     expect([firstGate.audit?.mode, secondGate.audit?.mode]).toEqual(['project-default', 'project-default']);
-    // The scope the engineer could write differs the same way.
+    // The scope the module engineer could write differs the same way.
     expect(first.scope.resolved.roots.some(path => path.includes('subs/reviews/subs/core'))).toBe(false);
     expect(second.scope.resolved.roots.some(path => path.endsWith('subs/workspace/subs/reviews/subs/core'))).toBe(true);
 

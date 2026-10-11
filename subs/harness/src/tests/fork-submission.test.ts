@@ -9,7 +9,7 @@ import { decision, forkDecision, placementRequest, registryChange } from './help
 
 /*
  * Everything a placement fork tells the harness is validated JSON, and so is
- * the request a local architect makes: the strict schema, then the rules the
+ * the request a module architect makes: the strict schema, then the rules the
  * schema cannot hold. A failure changes nothing, every error names its path,
  * and a corrected input is accepted.
  *

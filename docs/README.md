@@ -14,18 +14,18 @@ Design documents for the separate agent harness:
   Cucumber binding and decision-correction work are excluded
 - [Plan 35: the breakpoint debugger in the web UI](plans/35-breakpoint-debugger-ui/main-plan.md),
   implemented, audited and witnessed in Chromium: start a plan with the
-  engineer breakpoint from the Plan page, then read the prepared input,
-  message the paused engineer and resume from a Debugger area on the Run page,
+  module engineer breakpoint from the Plan page, then read the prepared input,
+  message the paused module engineer and resume from a Debugger area on the Run page,
   over Plan 34's controls
 - [Plan 34: execution breakpoints](plans/34-execution-breakpoints/main-plan.md),
   proposed: four serial iterations for before-engineer inspection, same-session
   conversation and CLI resume; whole-run suspension with a live server
 - [Plan 33: consult architect](plans/33-consult-architect/main-plan.md), proposed:
   four serial iterations for advisory architect forks, one-level nesting and
-  inspectable consultation logs, including capability-assigned engineers
+  inspectable consultation logs, including capability-assigned module engineers
 - [Consult architect](analysis/2026-10-10-consult-architect.md), initial analysis:
-  advisory questions from engineers to local architects and local architects
-  to the global architect, using forks of their delegation context
+  advisory questions from module engineers to module architects and module architects
+  to the plan architect, using forks of their delegation context
 - [Plan 32: independent repository and persistent development workspace](plans/32-repository-extraction/main-plan.md),
   in implementation, published here; the host cutover, container witnesses,
   toolkit cleanup landing and pending branches remain, as listed in the
@@ -99,7 +99,7 @@ Design documents for the separate agent harness:
 - [Decomposition hypothesis 3](decomposition/dan-hypothesis-3.md), initial draft:
   local coordinators, unified delegation and decisions recorded without review waits
 - [Autonomous implementation loop](architecture/autonomous-implementation-loop.md), current implementation design:
-  global and local architects refine architectural hypotheses, and a fresh
+  plan and module architects refine architectural hypotheses, and a fresh
   capability architect coordinates scoped work through verified handback
 - [Cooperation through a capability plan](architecture/capability-plan-cooperation.hypothesis.md),
   architecture hypothesis: consumer and provider architects iteratively develop
@@ -107,7 +107,7 @@ Design documents for the separate agent harness:
   a shared plan
 - [A fresh architect for one capability](architecture/fresh-capability-architect.hypothesis.md),
   architecture hypothesis: one new architect coordinates interface design and
-  provider implementation, consults the consumer engineer and returns the result
+  provider implementation, consults the consumer module engineer and returns the result
   for consumer integration
 - [Plan 16: a fresh architect coordinates each requested capability](plans/16-capability-architect/main-plan.md),
   proposed implementation: durable capability plans, direct consumer consultation,
@@ -158,7 +158,7 @@ Design documents for the separate agent harness:
   comes from and whether the protocol publishes it
 - [Plan execution decomposition map](analysis/2026-09-24-plan-execution-decomposition-map.proposal.md),
   design proposal for capability-rooted work trees with scenario results and
-  full module paths, ordered iterations, local architect sessions, gate results
+  full module paths, ordered iterations, module architect sessions, gate results
   and movable live transcript windows
 - [Acceptance scenarios](analysis/2026-09-23-acceptance-scenarios.md),
   analysis recording Dan's decision that Gherkin scenarios are the plan's main
@@ -215,8 +215,8 @@ Design documents for the separate agent harness:
 - [Plan 4: delivered-solution token efficiency](plans/04-token-efficiency/main-plan.md),
   including context-limit and overflow visibility; planned and blocked until
   Plan 3 is complete and merged
-- [Plan 5: single engineer sessions](plans/05-single-engineer-sessions/main-plan.md),
-  the `ramify-agent session` command for one engineer session on one module;
+- [Plan 5: single module engineer sessions](plans/05-single-engineer-sessions/main-plan.md),
+  the `ramify-agent session` command for one module engineer session on one module;
   proposed
 - [Plan 6: role-specific prompts](plans/06-role-specific-prompts/main-plan.md),
   self-contained prompts per role in place of the module-architect skill;
@@ -255,7 +255,7 @@ Design documents for the separate agent harness:
 - [The plan context catalog: purpose and fidelity](architecture/plan-context-catalog.spec.md),
   Dan's decisions of 2026-09-26: the catalog is the bounded view an agent works
   from, with four kinds of element, kept as faithful as the technology allows
-  and not more; a fork of the warmed-up local architect selects the
+  and not more; a fork of the warmed-up module architect selects the
   non-functional elements once per work item, and one package creator renders
   every package; exactness belongs to byte facts the harness owns, never to a
   reading

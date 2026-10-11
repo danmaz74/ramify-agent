@@ -20,7 +20,7 @@ export const consultationTargetSchema = z.object({
 export type ConsultationTarget = z.infer<typeof consultationTargetSchema>;
 const targetsSchema = z.object({
   assigning: consultationTargetSchema.refine(target => target.role === 'local-architect' || target.role === 'capability-architect', 'An assigning target is a local or capability architect.').optional(),
-  global: consultationTargetSchema.refine(target => target.role === 'global-fork', 'A global target is a global architect.').optional(),
+  global: consultationTargetSchema.refine(target => target.role === 'global-fork', 'A global target is a plan architect.').optional(),
 }).strict();
 export const consultationInputsSchema = targetsSchema.extend({
   unavailable: text.optional(),
@@ -38,7 +38,7 @@ export function captureGlobalTarget(run: ConsultationTarget['run'], context: Glo
 export function localConsultationInputs(events: readonly RunEvent[], workItem: string, before = Infinity): ConsultationInputs {
   const dispatch = events.filter(event => event.sequence < before && (event.type === 'work-item-started' || event.type === 'work-item-resumed') && event.data.workItem === workItem).at(-1);
   const global = dispatch !== undefined && (dispatch.type === 'work-item-started' || dispatch.type === 'work-item-resumed') ? dispatch.data.globalTarget : undefined;
-  return global == null ? { unavailable: 'This work dispatch recorded no settled global architect point.' } : { global };
+  return global == null ? { unavailable: 'This work dispatch recorded no settled plan architect point.' } : { global };
 }
 
 /** Repairs and handbacks use the original assignment event, including nested capability tasks. */

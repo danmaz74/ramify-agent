@@ -35,7 +35,7 @@ import { finalCandidate } from './helpers/final-candidate.js';
  * Once readiness has passed and the branch exists, the harness renders
  * every tracked feature file from the records and the states, writes it and
  * commits it as "Scenarios of <planId>" with the run's trailer and no gate's,
- * before the first local architect starts. A re-rendering writes only what
+ * before the first module architect starts. A re-rendering writes only what
  * differs. The files join every assignment's guarded list with the hash of
  * their expected rendering, the write guard refuses an agent's edit of them
  * and of the project's configuration, and a file that differs at a gate is a
@@ -153,8 +153,8 @@ describe('materializing the feature files', () => {
     expect(reviewsText).toContain('  Scenario: A person uses reviewer-note\n    Given the project as the plan finds it\n');
     expect(await readFile(join(project, rootFeature), 'utf8')).toContain('Feature: note-in-panel\n  The review panel shows the note under the findings.\n\n  @ramify-sc-002\n');
 
-    // The commit is the accepted boundary the first local architect starts from.
-    // inv-0001 to inv-0003 are the intake, the initial architect and the plan's checker.
+    // The commit is the accepted boundary the first module architect starts from.
+    // inv-0001 to inv-0003 are the intake, the plan architect and the plan's checker.
     const firstArchitect = JSON.parse(await readFile(runPath(project, plan, receipt.jobId, runLayout.invocation('inv-0004')), 'utf8')) as { role: string; base: string };
     expect(firstArchitect).toMatchObject({ role: 'local-architect', base: 'scenarios-revision' });
 
@@ -456,7 +456,7 @@ describe('an engineer and the feature files', () => {
     });
     await installMiniRunner(fixture.root);
     const project = fixture.root;
-    // What the engineer's shell leaves, stated and written directly: one
+    // What the module engineer's shell leaves, stated and written directly: one
     // line appended to the feature file. No shell runs.
     const tamper = `printf '# tampered\\n' >> '${join(project, notesFeature)}'`;
     const commands = statedCommands(project, [{

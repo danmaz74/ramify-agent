@@ -138,9 +138,9 @@ Distinguish a useful focused follow-up from avoidable broad rediscovery. Cite
 examples of successful discovery, missed behavior/owners, unnecessary exploration,
 or view shortcomings. Usage shares alone do not establish effectiveness.
 
-### Engineers: using foreign capabilities through API views
+### Module Engineers: using foreign capabilities through API views
 
-Inventory each need to use a capability outside the engineer's module, including
+Inventory each need to use a capability outside the module engineer's module, including
 attempts that ended in a new-capability request or failure. For each need, trace
 the question through available API documentation, lookup or delivered context,
 selected symbol/provider, import and call, and observed verification/handback.
@@ -149,7 +149,7 @@ independent, and the architect view cannot establish consumer importability.
 Dependencies outside the API view's documented scope remain separate.
 
 Assess whether the view supplied usable signatures, companion types, behavioral
-documentation and import guidance for the actual consumer file. Did the engineer
+documentation and import guidance for the actual consumer file. Did the module engineer
 find and correctly apply that information, need provider-source inspection,
 guess an API, choose an unavailable/type-only symbol for a value use, or request
 a capability already available? If nothing suitable was available, assess
@@ -248,7 +248,7 @@ authoritative records, when useful for traceability.
 
 Lead with the recorded outcome and the improvements supported by evidence.
 Include a prompt-kind coverage table, architect discovery counts/shares and
-engineer capability-use outcomes, metrics findings, a cache-boundary table with
+module engineer capability-use outcomes, metrics findings, a cache-boundary table with
 a dedicated first-post-fork-call column, and explicit evidence gaps.
 For each finding record severity, affected role/task and IDs, artifact location
 and excerpt, expected goal, observed mismatch, impact/confidence and correction

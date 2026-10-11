@@ -315,7 +315,7 @@ test('a run with a degraded start notices it with its count and a link to its ch
   client.runSessions.set(runId, { version: 12, sessions: [architect, liveEngineer(), globalFork], total: 3 });
   render(<RunPage client={client} planId="review-notes" runId={runId} interval={60_000} />);
   const overview = await screen.findByLabelText('Overview');
-  const link = await within(overview).findByRole('link', { name: 'ses-0003 global-fork, inv-0003' });
+  const link = await within(overview).findByRole('link', { name: 'ses-0003 Plan architect, inv-0003' });
   expect(link.getAttribute('href')).toBe(`#/plans/review-notes/runs/${runId}/sessions/ses-0003/chapters/inv-0003`);
   const notice = link.closest('.notice')!;
   expect(notice.className).toBe('notice notice-degraded-start');
@@ -595,7 +595,7 @@ test('an iteration whose engineer ended without a result shows the digest and th
           checkpoint: 'iteration', completionEvidence: 'Its tests pass.', authorizations: [],
           result: {
             outcome: 'partial', gate: null, commit: null, changedAssumptions: [], recommendation: null,
-            findings: ['the engineer of wi-001.i01 ended without a result (idle-timeout: No port event for 300000 ms; invocation inv-0003)'],
+            findings: ['the module engineer of wi-001.i01 ended without a result (idle-timeout: No port event for 300000 ms; invocation inv-0003)'],
             failure: {
               digest: ['- Why it ended: The idle bound fired: no port event for 300000 ms.', '- What it said last: “Running the suite.”'],
               analysis: {
@@ -1053,11 +1053,11 @@ test('Run → Sessions draws the timeline, each segment opening its chapter; Mea
   render(<RunPage client={client} planId="review-notes" runId={runId} interval={60_000} />);
   fireEvent.click(await screen.findByRole('tab', { name: 'Sessions' }));
   const area = await screen.findByLabelText('Sessions');
-  const engineer = await within(area).findByRole('group', { name: 'ses-0002 engineer, live' });
+  const engineer = await within(area).findByRole('group', { name: 'ses-0002 Module engineer, live' });
   expect(within(engineer).getByRole('link', { name: 'ses-0002' }).getAttribute('href')).toBe(`#/plans/review-notes/runs/${runId}/sessions/ses-0002`);
   expect(within(engineer).getByRole('link', { name: /^Chapter 2 of ses-0002: inv-0004/ }).getAttribute('href')).toBe(`#/plans/review-notes/runs/${runId}/sessions/ses-0002/chapters/inv-0004`);
   expect(engineer.querySelector('.session-state')!.textContent).toBe('live');
-  expect(within(area).getByRole('group', { name: 'ses-0001 initial-architect, finished' })).toBeTruthy();
+  expect(within(area).getByRole('group', { name: 'ses-0001 Plan architect, finished' })).toBeTruthy();
 
   fireEvent.click(screen.getByRole('tab', { name: 'Measurements' }));
   await screen.findByLabelText('Metrics');
@@ -1309,7 +1309,7 @@ test('U06: a reached pause shows the header badge, a banner that names it and op
   const client = debugClient(debugState(paused));
   render(<RunPage client={client} planId={debugPlanId} runId={debugRunId} interval={60_000} />);
   const banner = await screen.findByRole('status', { name: 'Paused at a breakpoint' });
-  expect(banner.textContent).toContain('Paused at a breakpoint. The engineer for wi-001.i01 is prepared and waits for resume.');
+  expect(banner.textContent).toContain('Paused at a breakpoint. The module engineer for wi-001.i01 is prepared and waits for resume.');
   expect(banner.textContent).toContain('pause bp-0001, revision 1');
   const badge = document.querySelector('.page-header .badge.debug-paused')!;
   expect(badge.textContent).toBe('Paused at a breakpoint');
@@ -1318,12 +1318,12 @@ test('U06: a reached pause shows the header badge, a banner that names it and op
   fireEvent.click(within(banner).getByRole('button', { name: 'Open the Debugger' }));
   const area = await screen.findByLabelText('Debugger');
   expect(screen.getByRole('tab', { name: 'Debugger' }).getAttribute('aria-selected')).toBe('true');
-  expect(within(area).getByText('The run is paused before the engineer starts.')).toBeTruthy();
+  expect(within(area).getByText('The run is paused before the module engineer starts.')).toBeTruthy();
   const facts = within(area).getByLabelText('Pause facts');
   expect([...facts.querySelectorAll('div')].map(row => [row.querySelector('dt')!.textContent, row.querySelector('dd')!.textContent])).toEqual([
-    ['Role', 'engineer'], ['Work item', 'wi-001'], ['Iteration', 'wi-001.i01'], ['Request', 'rq-002'], ['Capability task', 'ct-003'],
+    ['Role', 'Module engineer'], ['Work item', 'wi-001'], ['Iteration', 'wi-001.i01'], ['Request', 'rq-002'], ['Capability task', 'ct-003'],
     ['Nonfunctional repair', 'nfr-004'], ['Goal', 'Attach a note to a review'], ['Next action', 'execute the iteration'],
     ['Task state', 'pending'], ['Pause ID', 'bp-0001'], ['Revision', '1'],
   ]);
-  expect(within(area).getByLabelText('Harness summary').textContent).toBe('The engineer for wi-001.i01 is prepared and waits for resume.');
+  expect(within(area).getByLabelText('Harness summary').textContent).toBe('The module engineer for wi-001.i01 is prepared and waits for resume.');
 });

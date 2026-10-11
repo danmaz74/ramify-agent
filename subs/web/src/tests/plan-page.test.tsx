@@ -132,9 +132,9 @@ test('U04: Start with the engineer breakpoint checked carries before-agent:engin
   const opened: string[] = [];
   render(<PlanPage client={unchecked} planId="p" navigate={hash => opened.push(hash)} />);
   await screen.findByText('This plan has no run yet.');
-  const box = screen.getByRole('checkbox', { name: /^Stop before each engineer starts/ }) as HTMLInputElement;
+  const box = screen.getByRole('checkbox', { name: /^Stop before each module engineer starts/ }) as HTMLInputElement;
   expect(box.checked).toBe(false);
-  expect(box.closest('label')!.textContent).toContain('the run then pauses before every engineer and waits on the Run page\'s Debugger area');
+  expect(box.closest('label')!.textContent).toContain('the run then pauses before every module engineer and waits on the Run page\'s Debugger area');
   fireEvent.click(screen.getByRole('button', { name: 'Start a run' }));
   await waitFor(() => expect(opened).toHaveLength(1));
   const [{ commandId: _plain, ...plain }] = unchecked.commands as [RunCommandInput];
@@ -145,7 +145,7 @@ test('U04: Start with the engineer breakpoint checked carries before-agent:engin
   const checked = clientWith('# Plan');
   render(<PlanPage client={checked} planId="p" navigate={hash => opened.push(hash)} />);
   await screen.findByText('This plan has no run yet.');
-  fireEvent.click(screen.getByRole('checkbox', { name: /^Stop before each engineer starts/ }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /^Stop before each module engineer starts/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Start a run' }));
   await waitFor(() => expect(opened).toHaveLength(2));
   const [{ commandId: _withBreakpoint, ...withBreakpoint }] = checked.commands as [RunCommandInput];

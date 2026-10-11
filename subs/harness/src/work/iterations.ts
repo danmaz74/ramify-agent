@@ -49,7 +49,7 @@ export const testSelectionPolicySchema = z.object({
 
 export const checkpointSchema = z.enum(['readiness', 'iteration', 'contract', 'breaking-iteration', 'work-item', 'final']);
 
-/** The kinds of iteration. This iteration's local architect may assign three of them. */
+/** The kinds of iteration. This iteration's module architect may assign three of them. */
 export const iterationKindSchema = z.enum(['ordinary', 'breaking', 'contract', 'verification', 'repair', 'integration']);
 export type IterationKind = z.infer<typeof iterationKindSchema>;
 
@@ -57,7 +57,7 @@ export type IterationKind = z.infer<typeof iterationKindSchema>;
 const raisedBoundSchema = z.object({ ms: z.int().positive(), reason: text }).strict();
 
 /**
- * The bounds an assignment raises for every engineer invocation of its
+ * The bounds an assignment raises for every module engineer invocation of its
  * iteration: the longest one shell command may run, the idle bound and the
  * absolute bound of each invocation. A bound it leaves out is the policy's.
  * Each is at most the policy's ceiling, and a command's timeout is never
@@ -119,9 +119,9 @@ export const iterationAssignmentSchema = z.object({
    * else, and an unlisted guarded change is never a pass.
    */
   authorizations: z.array(z.object({ path: text, rationale: text, by: recordRefSchema }).strict()),
-  /** Set for a contract iteration: the engineer iteration that asked for it. */
+  /** Set for a contract iteration: the module engineer iteration that asked for it. */
   requestedBy: text.optional(),
-  /** A local architect may assign a contract revision directly. */
+  /** A module architect may assign a contract revision directly. */
   revisesContract: recordRefSchema.optional(),
   /**
    * The registered obligations the architect delegated to this iteration's
@@ -129,7 +129,7 @@ export const iterationAssignmentSchema = z.object({
    * every one; absent, none was named.
    */
   obligations: z.array(text).optional(),
-  /** The bounds the local architect raised for this iteration's engineers; absent, the policy's. */
+  /** The bounds the module architect raised for this iteration's engineers; absent, the policy's. */
   bounds: assignedBoundsSchema.optional(),
 }).strict();
 export type IterationAssignment = z.infer<typeof iterationAssignmentSchema>;
@@ -152,10 +152,10 @@ export type ModuleNotice = z.infer<typeof moduleNoticeSchema>;
 const count = z.int().nonnegative();
 
 /**
- * What an engineer that ended without a result left, derived by the harness
+ * What a module engineer that ended without a result left, derived by the harness
  * from what it already holds, and bounded as a gate summary is: why it
  * ended, what was in flight, what it changed, what it said last and where
- * its transcript is. Its local architect reads it without the transcript.
+ * its transcript is. Its module architect reads it without the transcript.
  */
 export const failureDigestSchema = z.object({
   invocation: text,
@@ -192,7 +192,7 @@ export const failureDigestSchema = z.object({
     /** Why the counts are missing or partial, where they are. */
     gaps: z.array(z.string()),
   }).strict(),
-  /** The engineer's last assistant text, shortened; null where it wrote none. */
+  /** The module engineer's last assistant text, shortened; null where it wrote none. */
   lastMessage: z.string().nullable(),
   /** The session's transcript, relative to the run's directory. */
   transcript: text,
@@ -218,8 +218,8 @@ export const iterationResultSchema = z.object({
   recommendation: z.string().optional(),
   artifacts: z.array(z.string()),
   /**
-   * Where an engineer ended without a result: the harness's digest, then the
-   * failure analysis, both read by the local architect before it decides.
+   * Where a module engineer ended without a result: the harness's digest, then the
+   * failure analysis, both read by the module architect before it decides.
    */
   failure: z.object({ digest: failureDigestSchema, analysis: failureAnalysisSchema }).strict().optional(),
 }).strict();

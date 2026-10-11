@@ -228,7 +228,7 @@ describe('P4: an ordinary provider engineer reports inability to conform through
     expect(next?.data.role).toBe('local-architect');
 
     // The revision is a contract iteration of the consumer's own work item,
-    // assigned directly: it names the agreement and no requesting engineer.
+    // assigned directly: it names the agreement and no requesting module engineer.
     const requested = log.filter(event => event.type === 'contract-requested');
     expect(requested.map(event => [event.data.iteration, event.data.requestedBy, event.data.revises])).toEqual([
       ['wi-001.i02', 'wi-001.i01', null],

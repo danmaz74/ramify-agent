@@ -73,7 +73,7 @@ function phaseOf(service: RunService, runId: string) {
   return service.getRun(plan, runId)?.phase;
 }
 
-/** The initial analysis's turns: the catalog intake, the initial architect and the plan's checker, each its own session. */
+/** The initial analysis's turns: the catalog intake, the plan architect and the plan's checker, each its own session. */
 const analysed = ['session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended'];
 
 async function types(root: string, runId: string): Promise<string[]> {
@@ -249,7 +249,7 @@ describe('a run started with the review stop', () => {
     const accepted = (await runEventsOnDisk(root, plan, receipt.jobId)).find(event => event.type === 'analysis-accepted')!;
     if (accepted.type !== 'analysis-accepted') throw new Error('unreachable');
     expect(accepted.data.catalog).toEqual({ context: 0, functional: 2, nonFunctional: 1, fixed: 0, recommendation: 0 });
-    // inv-0003 is the plan's checker, after the intake and the initial architect.
+    // inv-0003 is the plan's checker, after the intake and the plan architect.
     expect(accepted.data.findings?.map(finding => [finding.invocation, finding.action, finding.elements])).toEqual([
       ['inv-0003', 'rewrite', ['fr-001']], ['inv-0003', 'add', ['nfr-001']],
     ]);
@@ -421,7 +421,7 @@ describe('approve-analysis in a run without the stop', () => {
     await service.settled(plan, receipt.jobId);
     expect(onlyRun(service, plan)).toMatchObject({ state: 'completed', review: 'not-reviewed' });
 
-    // The second run's initial architect ends without an analysis, so it fails.
+    // The second run's plan architect ends without an analysis, so it fails.
     const failing = await service.execute(startRun(plan));
     await service.settled(plan, failing.jobId);
     expect(service.getRun(plan, failing.jobId)!.state).toBe('failed');
@@ -435,7 +435,7 @@ describe('the run budget', () => {
   /**
    * A run with the stop whose clock the test holds. Each session start moves
    * the clock by `perSession`, the analysis's three included (the intake, the
-   * initial architect and the plan's checker); the test moves it by `pause`
+   * plan architect and the plan's checker); the test moves it by `pause`
    * while the run waits at its stop, and then approves.
    */
   async function budgeted(perSession: number, pause: number) {

@@ -128,8 +128,8 @@ test('one oriented local context selects once, appends the work-item package onc
   expect(orienting.spec.prompt).not.toContain('Read your module, decide, and submit.');
   const selectingSession = agent.sessions.find(session => session.spec.role === 'context-selector')!;
   expect(selectingSession.start.mode).toBe('fork');
-  expect(selectingSession.spec.prompt).not.toContain('## Local architect briefing');
-  expect(selectingSession.spec.prompt).not.toContain('## Local architect orientation');
+  expect(selectingSession.spec.prompt).not.toContain('## Module architect briefing');
+  expect(selectingSession.spec.prompt).not.toContain('## Module architect orientation');
   expect(selectingSession.spec.prompt).not.toContain('The plan asks for review-summary-request.');
   expect(selectingSession.spec.prompt).not.toContain('no longer applies to this task');
   expect(selectingSession.spec.prompt).not.toContain("`subs/workspace/subs/reviews/subs/core/module.ramify`");
@@ -322,7 +322,7 @@ test('a fresh selector receives the ordinary work brief, its complete own elemen
     expect(selector.spec.prompt).toContain(text);
     expect(selector.spec.prompt.split(text)).toHaveLength(2);
   }
-  expect(selector.spec.prompt).toContain('## Local architect orientation');
+  expect(selector.spec.prompt).toContain('## Module architect orientation');
   expect(selector.spec.prompt).toContain('`subs/workspace/subs/reviews/subs/core/module.ramify`');
   expect(selector.spec.prompt).toContain('Select, by ID, the elements');
   expect(selector.spec.prompt).not.toContain('once you have oriented');
@@ -389,7 +389,7 @@ test.each(['fork', 'continue'] as const)('actual unavailable %s startup creates 
   const task = agent.sessions.find(session => session.spec.submission.name === (mode === 'fork' ? contextSelectorToolName : 'submit_work_item_result') && session.start.mode === 'fresh')!;
   expect(task.inherited).toEqual([]); expect(task.spec.prompt).toContain('The plan asks for review-summary-request.');
   expect(task.spec.prompt).toContain('`subs/workspace/subs/reviews/subs/core/module.ramify`');
-  if (mode === 'fork') expect(task.spec.prompt).toContain('## Local architect orientation');
+  if (mode === 'fork') expect(task.spec.prompt).toContain('## Module architect orientation');
 }, 120_000);
 
 test('exhausted work orientation proceeds with a fresh selector and architect using ordinary inputs', async () => {

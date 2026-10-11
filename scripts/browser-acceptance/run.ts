@@ -169,11 +169,11 @@ try {
   await page.getByRole('button', { name: 'Fit', exact: true }).click();
   await moduleCanvas.locator('.react-flow__controls-fitview').click();
   await page.screenshot({ path: resolve(artifacts, 'desktop-1440x900.png'), fullPage: true });
-  const local = page.getByLabel('All sessions').getByRole('listitem').filter({ hasText: 'Status local architect' });
+  const local = page.getByLabel('All sessions').getByRole('listitem').filter({ hasText: 'Status module architect' });
   await local.getByRole('button', { name: 'Transcript' }).click();
   const first = page.getByLabel('Transcript window ses-0002');
   await first.waitFor();
-  check('local architect transcript shows full module path', (await first.innerText()).includes('project/ui'));
+  check('module architect transcript shows full module path', (await first.innerText()).includes('project/ui'));
   await page.getByLabel('All sessions').getByRole('listitem').filter({ hasText: 'Status engineer' }).getByRole('button', { name: 'Transcript' }).click();
   const second = page.getByLabel('Transcript window ses-0003');
   await second.waitFor();
@@ -228,7 +228,7 @@ try {
   check('narrow 480x700: modules drawer opens', await moduleCanvas.isVisible());
   await page.screenshot({ path: resolve(artifacts, 'narrow-map-480x700.png'), fullPage: true });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.getByLabel('All sessions').getByRole('listitem').filter({ hasText: 'Status local architect' }).getByRole('button', { name: 'Transcript' }).click();
+  await page.getByLabel('All sessions').getByRole('listitem').filter({ hasText: 'Status module architect' }).getByRole('button', { name: 'Transcript' }).click();
   await page.getByLabel('All sessions').getByRole('listitem').filter({ hasText: 'Status engineer' }).getByRole('button', { name: 'Transcript' }).click();
   await page.setViewportSize({ width: 480, height: 700 });
   await page.getByLabel('Open transcripts').waitFor();

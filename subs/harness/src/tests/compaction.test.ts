@@ -62,7 +62,7 @@ describe('compaction during a run', () => {
     await service.settled('review-notes', receipt.jobId);
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
 
-    // The initial architect: the trigger, the success and both sizes.
+    // The plan architect: the trigger, the success and both sizes.
     const initial = await observations(fixture.root, receipt.jobId, 'inv-0002');
     const compacted = initial.filter(line => line.type === 'compaction');
     expect(compacted).toHaveLength(1);
@@ -73,7 +73,7 @@ describe('compaction during a run', () => {
     const contexts = initial.filter(line => line.type === 'context');
     expect(contexts.map(line => line.data['tokens'])).toEqual([90_000, null]);
 
-    // The local architect: the same record, with the size the implementation
+    // The module architect: the same record, with the size the implementation
     // could not report left null rather than filled in.
     const local = await observations(fixture.root, receipt.jobId, 'inv-0006');
     const localCompaction = local.filter(line => line.type === 'compaction');
@@ -111,7 +111,7 @@ describe('compaction during a run', () => {
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
 
-    // The initial architect may compact, so this one did.
+    // The plan architect may compact, so this one did.
     expect(agent!.sessions.find(session => session.spec.role === 'initial-architect')!.suppressedCompactions).toBe(0);
     const recorded = (await observations(fixture.root, receipt.jobId, 'inv-0002')).filter(line => line.type === 'compaction');
     expect(recorded).toHaveLength(1);

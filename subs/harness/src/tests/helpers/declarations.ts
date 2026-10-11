@@ -4,20 +4,20 @@ import { contextSelectorToolName, workOrientationToolName } from '../../context-
 import { checkToolName, intakeToolName, principleToolName } from '../../analysis/extraction.js';
 
 /*
- * Scripted local architects that report their work item's scenarios done.
+ * Scripted module architects that report their work item's scenarios done.
  *
  * Every entry of a scripted analysis has scenarios, and a completion
  * request that leaves one of its entry's scenarios not reported done is a
  * rejected submission (architecture §9). A test whose subject is not the scenarios writes
  * its completion requests without reports, so this wrapper reports for it:
- * a local architect's `request-completion` that names no `reports` reports
+ * a module architect's `request-completion` that names no `reports` reports
  * every scenario obligation its prompt lists as not yet done, as an
  * architect would whose entry existing step definitions already bind. The
  * report names the revision the prompt's "# Registered obligations" lines
  * state, so it is accepted as the harness's own briefing describes.
  *
  * A request that states `reports`, even an empty list, is left as the test
- * wrote it, and no other submission is touched: an engineer binds, and an
+ * wrote it, and no other submission is touched: a module engineer binds, and an
  * architect assigns, only where a test says so.
  */
 
@@ -49,7 +49,7 @@ export function defaultTurn(spec: SessionSpec): readonly ScriptStep[] | undefine
   }
 }
 
-/** The script, with each local architect's completion request reporting its scenarios done unless it states its own reports. */
+/** The script, with each module architect's completion request reporting its scenarios done unless it states its own reports. */
 export function declaringScenarios(script: Script): Script {
   return (spec: SessionSpec): readonly ScriptStep[] => {
     const fallback = scriptedOrDefault(script, spec);
@@ -65,7 +65,7 @@ export function declaringScenarios(script: Script): Script {
   };
 }
 
-/** The scenario obligations a local architect's prompt lists as not done, each with the revision a report names. */
+/** The scenario obligations a module architect's prompt lists as not done, each with the revision a report names. */
 export function unfinishedScenarioObligations(prompt: string): Array<{ id: string; revision: number }> {
   const section = prompt.split('\n# Registered obligations\n').at(-1);
   if (section === undefined || section === prompt) return [];
@@ -80,7 +80,7 @@ export function withDefaultTurns(script: Script): Script {
 }
 
 /**
- * An orientation and a selection are always the default ones, so no local
+ * An orientation and a selection are always the default ones, so no module
  * architect's scripted turn is spent on them. A catalog extractor's turn is
  * the script's where it states one, and the default otherwise.
  */

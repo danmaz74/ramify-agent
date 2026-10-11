@@ -7,7 +7,7 @@ import { createScratchDirectory } from './scratch.js';
 import { directoryOf } from './scope.js';
 import type { WriteScope } from './iterations.js';
 
-/** The first recorded base module is where an ordinary engineer starts. */
+/** The first recorded base module is where an ordinary module engineer starts. */
 export function assignedModuleDirectory(scope: WriteScope, index: ArchitectIndex | null): string {
   const module = 'module' in scope.base ? scope.base.module : scope.base.modules[0]!;
   const declared = directoryOf(index, module);
@@ -19,7 +19,7 @@ export function assignedModuleDirectory(scope: WriteScope, index: ArchitectIndex
   return directory;
 }
 
-/** The first recorded base module is where an ordinary engineer starts. */
+/** The first recorded base module is where an ordinary module engineer starts. */
 /**
  * The source directory an assignment's engineer works in, checked against
  * its captured write authority, and whether it exists yet: only a

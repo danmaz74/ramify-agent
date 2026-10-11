@@ -596,7 +596,7 @@ describe('the records this iteration establishes', () => {
       expect(read.outcome).toBe(outcome);
     }
 
-    // A partial result an engineer's failure closed carries its digest and
+    // A partial result a module engineer's failure closed carries its digest and
     // the analysis: every judged cause, and an analysis that is unavailable.
     const digest = {
       invocation: 'inv-0003', role: 'engineer', ended: 'failed', interruption: 'idle-timeout',

@@ -364,7 +364,7 @@ describe('P5: a capability that transitively depends on itself', () => {
     }
     expect(detections.map(event => event.data.detection)).toEqual([1, 2]);
 
-    // The first detection returned to the local architect of the work item
+    // The first detection returned to the module architect of the work item
     // whose registration closed it, before anything else was invoked.
     const first = log.indexOf(detections[0]!);
     const next = log.slice(first + 1).find(event => event.type === 'invocation-started');

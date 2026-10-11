@@ -287,7 +287,7 @@ export const packageDeviationSchema = z.object({
   id: planDeviationIdSchema,
   /** Requirements and recommendations only; context states no requirement to amend. */
   amends: z.array(elementIdSchema.refine(id => !id.startsWith('ctx-'), 'a deviation cannot amend context')).min(1),
-  /** Who recorded the deviation and for what, for example the global architect for a work item. */
+  /** Who recorded the deviation and for what, for example the plan architect for a work item. */
   authority: text,
   text,
 }).strict();

@@ -20,7 +20,7 @@ import { onlyRun, realRamify, runEventsOnDisk } from './helpers/runs.js';
  * integration scenario bound and reported done: the integration work item's engineer
  * wrote a step file at the common ancestor that imports both sub-scenarios'
  * step files by name, and exposed each to its parent with `expose-test`.
- * The run's own gates use the direct executor, so what the engineer wrote
+ * The run's own gates use the direct executor, so what the module engineer wrote
  * is then given to the installed Ramify, with a daemon of its own: the
  * complete check passes, and fails at the ancestor's import once one
  * exposure is taken away.
@@ -50,7 +50,7 @@ describe('AS08: an integration scenario bound through expose-test', () => {
     expect(log.at(-1)!.type).toBe('job-completed');
     git.assertAnswered();
 
-    // What the engineers wrote is in the tree: both step files, the
+    // What the module engineers wrote is in the tree: both step files, the
     // ancestor's that imports them by name, and the two exposures.
     expect(readFileSync(join(root, ancestorSteps), 'utf8')).toBe(ancestorStepFile);
     expect(readFileSync(join(root, notesModule), 'utf8')).toContain('expose-test reviewNoteSteps from "steps/review-note.steps.ts" to parent');

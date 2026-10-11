@@ -142,10 +142,10 @@ function profile(prefix: string, group: readonly SegmentFacts[], empty: string):
 
 const ended = (inputs: LineageInputs) => inputs.segments.filter(segment => segment.ended);
 
-/** The roles whose sessions hold the global architect's context. */
+/** The roles whose sessions hold the plan architect's context. */
 const globalRoles: readonly Role[] = ['initial-architect', 'global-fork'];
 
-/** A fork of a local session: its source is not one of the global architect's sessions. */
+/** A fork of a local session: its source is not one of the plan architect's sessions. */
 const localFork = (segment: SegmentFacts): boolean =>
   segment.requested === 'fork' && segment.source != null && !globalRoles.includes(segment.source.role);
 
@@ -153,7 +153,7 @@ const localFork = (segment: SegmentFacts): boolean =>
  * A fork's inherited context and cost by the generation it forked, beside
  * the global forks that started fresh: after a rebuild, or where the
  * executor could not fork. Forks of a local session, such as a review or a
- * context selection forked from a local architect, are a group of their own.
+ * context selection forked from a module architect, are a group of their own.
  */
 function forkCost(inputs: LineageInputs): LineageMetric[] {
   const segments = ended(inputs);

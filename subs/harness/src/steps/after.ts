@@ -133,11 +133,11 @@ export async function runStepAfter(options: StepAfterOptions): Promise<StepAfter
       line(`After ${options.invocation}: ${accepted.role}${typeof value.kind === 'string' ? ` ${value.kind}` : ''}, submission ${accepted.hash}.`);
       if (accepted.role === 'local-architect') {
         const parsed = localArchitectSubmissionSchema.safeParse(value);
-        if (!parsed.success) throw new Refused(`the accepted submission of ${options.invocation} is not a local architect submission this harness reads`);
+        if (!parsed.success) throw new Refused(`the accepted submission of ${options.invocation} is not a module architect submission this harness reads`);
         await afterArchitect(handling, parsed.data);
       } else if (accepted.role === 'engineer') {
         const parsed = engineerSubmissionSchema.safeParse(value);
-        if (!parsed.success) throw new Refused(`the accepted submission of ${options.invocation} is not an engineer submission this harness reads`);
+        if (!parsed.success) throw new Refused(`the accepted submission of ${options.invocation} is not a module engineer submission this harness reads`);
         await afterEngineer(handling, parsed.data, options);
       } else {
         handling.notRun(`the handling after a ${accepted.role} invocation, which \`step after\` does not apply; nothing was recorded`);
@@ -164,12 +164,12 @@ export async function runStepAfter(options: StepAfterOptions): Promise<StepAfter
   }
 }
 
-// Local architect submissions.
+// Module architect submissions.
 
 async function afterArchitect(handling: Handling, submission: LocalArchitectSubmission): Promise<void> {
   const { run, invocation } = handling;
   if (submission.kind !== 'assign' && submission.kind !== 'request-completion') {
-    handling.notRun(`the handling of a local architect's ${submission.kind}, which \`step after\` does not apply; nothing was recorded`);
+    handling.notRun(`the handling of a module architect's ${submission.kind}, which \`step after\` does not apply; nothing was recorded`);
     return;
   }
   const inputs = await workTurnInputs(run, invocation);
@@ -194,7 +194,7 @@ async function workTurnInputs(run: ManualRun, invocation: string): Promise<WorkT
   try { text = await readFile(run.path(runLayout.stepInputs(invocation)), 'utf8'); }
   catch (error) { throw new Refused(`the step inputs of ${invocation} cannot be read: ${message(error)}`); }
   try { return validateWorkTurnInputs(parseStepInputs(text)); }
-  catch (error) { throw new Refused(`the step inputs of ${invocation} are not a local architect's work turn: ${message(error)}`); }
+  catch (error) { throw new Refused(`the step inputs of ${invocation} are not a module architect's work turn: ${message(error)}`); }
 }
 
 /**
@@ -286,7 +286,7 @@ async function afterAssign(handling: Handling, item: WorkItem, inputs: WorkTurnS
     // The submission is judged again against the turn's inputs and the project as it stands, which captures its scope.
     const index = await refreshedIndex(handling);
     const judged = await judgeWorkTurn({ inputs }, submission, { index, ramify: context.ramify, projectRoot });
-    if (!judged.verdict.ok) throw new Error(`The assignment no longer passes the local architect's rules: ${judged.verdict.errors.map(error => `${error.path}: ${error.message}`).join('; ')}`);
+    if (!judged.verdict.ok) throw new Error(`The assignment no longer passes the module architect's rules: ${judged.verdict.errors.map(error => `${error.path}: ${error.message}`).join('; ')}`);
     if (judged.prepared === undefined) throw new Error('The assignment carries no scope the provider can capture');
     const { body } = judged.prepared;
 
@@ -317,7 +317,7 @@ async function afterAssign(handling: Handling, item: WorkItem, inputs: WorkTurnS
     handling.applied(`assignment ${assignment.id}: ${run.path(iterationLayout.assignment(item.id, number))}`);
   }
   const assigned = run.log.all('iteration-assigned').find(event => event.data.invocation === invocation)!;
-  handling.notRun(`scheduling the engineer of ${assigned.data.iteration}; a run starts it from the assignment record`);
+  handling.notRun(`scheduling the module engineer of ${assigned.data.iteration}; a run starts it from the assignment record`);
 }
 
 async function afterCompletionRequest(handling: Handling, item: WorkItem,
@@ -366,7 +366,7 @@ async function afterEngineer(handling: Handling, submission: EngineerSubmission,
   }
 }
 
-/** The engineer invocations of one iteration in the manual run, in order, through the given one. */
+/** The module engineer invocations of one iteration in the manual run, in order, through the given one. */
 function iterationInvocations(run: ManualRun, iteration: string, through: string): string[] {
   const ids: string[] = [];
   for (const event of run.log.all('invocation-started')) {
@@ -413,7 +413,7 @@ async function afterProposal(handling: Handling, item: WorkItem, assignment: Ite
   if (all.length > 0) {
     handling.notRun(`the review sessions of ${all.map(event => `${event.data.request} (${event.data.kind})`).join(', ')}; each runs as \`step inputs --role reviewer --from-run <run> --request <id>\`, then \`step run\``);
   }
-  handling.notRun('the evidence the acceptance discharges (provider conformance and verified requirements), and the next work turn of the local architect');
+  handling.notRun('the evidence the acceptance discharges (provider conformance and verified requirements), and the next work turn of the module architect');
 }
 
 /**
@@ -442,7 +442,7 @@ async function qualifyingGate(handling: Handling, assignment: IterationAssignmen
     return null;
   }
   if (latest.verdict !== 'passed' || latest.audited === null || latest.evidence === null) {
-    handling.notRun(`the close of ${assignment.id} and its review requests: the latest gate ${latest.id} of this proposal ${latest.verdict === 'passed' ? 'published no audit evidence' : `did not pass (${latest.verdict}${latest.cause === null ? '' : `, ${latest.cause}`}; next: ${latest.next})`}. A run would repair it; a repair is an engineer step`);
+    handling.notRun(`the close of ${assignment.id} and its review requests: the latest gate ${latest.id} of this proposal ${latest.verdict === 'passed' ? 'published no audit evidence' : `did not pass (${latest.verdict}${latest.cause === null ? '' : `, ${latest.cause}`}; next: ${latest.next})`}. A run would repair it; a repair is a module engineer step`);
     return null;
   }
   const later = attempts.filter(attempt => attempt.proposedBy !== invocation && attempts.indexOf(attempt) > attempts.indexOf(latest));
@@ -496,14 +496,14 @@ async function afterReport(handling: Handling, item: WorkItem, assignment: Itera
     handling.notRun('the revision report a provider that cannot conform sends to its consumer\'s architect');
   }
   await nextTurnInputs(handling, item, assignment, result);
-  handling.notRun(`the local architect's next turn, which a run continues with ${assignment.id}'s result`);
+  handling.notRun(`the module architect's next turn, which a run continues with ${assignment.id}'s result`);
 }
 
 /**
- * The local architect's next work turn, as the run continues the session
+ * The module architect's next work turn, as the run continues the session
  * that assigned the iteration: its recorded inputs with the closed
  * iteration's result, the outlines as recorded now and the next attempt.
- * Written beside the engineer's records; nothing starts it.
+ * Written beside the module engineer's records; nothing starts it.
  */
 async function nextTurnInputs(handling: Handling, item: WorkItem, assignment: IterationAssignment,
   result: { readonly iteration: string; readonly outcome: string; readonly findings: readonly string[]; readonly commit: string | null; readonly recommendation?: string | undefined }): Promise<void> {
@@ -512,7 +512,7 @@ async function nextTurnInputs(handling: Handling, item: WorkItem, assignment: It
   const architect = assigned?.data.invocation;
   const recorded = architect === undefined ? null : await readFile(run.path(runLayout.stepInputs(architect)), 'utf8').catch(() => null);
   if (architect === undefined || recorded === null) {
-    handling.notRun(`the local architect's next-turn inputs: ${assignment.id} was assigned ${architect === undefined ? 'with no recorded invocation' : `by ${architect}`}, whose work turn inputs this manual run does not hold`);
+    handling.notRun(`the module architect's next-turn inputs: ${assignment.id} was assigned ${architect === undefined ? 'with no recorded invocation' : `by ${architect}`}, whose work turn inputs this manual run does not hold`);
     return;
   }
   const previous = validateWorkTurnInputs(parseStepInputs(recorded));
@@ -545,7 +545,7 @@ async function nextTurnInputs(handling: Handling, item: WorkItem, assignment: It
     return;
   }
   await writeFileAtomic(path, bytes);
-  handling.applied(`the local architect's next-turn inputs: ${path}`);
+  handling.applied(`the module architect's next-turn inputs: ${path}`);
 }
 
 async function afterCapabilityNeed(handling: Handling, item: WorkItem, assignment: IterationAssignment, options: StepAfterOptions): Promise<void> {
@@ -557,6 +557,6 @@ async function afterCapabilityNeed(handling: Handling, item: WorkItem, assignmen
     acceptedBase: accepted, writerSettledBy: invocation, changedPaths: await context.git.changedPaths(context.projectRoot, accepted),
   });
   handling.applied(`the provisional source of ${invocation} for request ${request}: ${source.delta.length} changed path${source.delta.length === 1 ? '' : 's'}, ${run.path(source.snapshot)}`);
-  handling.notRun(`the capability workflow of ${item.id}'s need in ${assignment.id}: its request record, its architect and its return to the engineer`);
+  handling.notRun(`the capability workflow of ${item.id}'s need in ${assignment.id}: its request record, its architect and its return to the module engineer`);
 }
 

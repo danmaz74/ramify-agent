@@ -23,7 +23,7 @@ describe('Plan 33 C18 real Pi adapter nested consultation transport', () => {
   test('awaits both answers, restores exact source prefixes and sends literal results to subsequent scripted native requests', async () => {
     const f = await preservingPi(cleanup, [
       [nativeCall('submit_map', { summary: 'G0 dispatched local work' }, 'G0')],
-      [nativeCall('submit_map', { summary: 'L0 assigned engineer' }, 'L0')],
+      [nativeCall('submit_map', { summary: 'L0 assigned module engineer' }, 'L0')],
       [nativeCall('consult_architect', { message: 'Engineer literal question' }, 'engineer-question')],
       [nativeCall('consult_architect', { message: 'Local literal question' }, 'local-question')],
       [nativeCall('consult_architect', { message: 'Forbidden onward question' }, 'inactive-consult'), nativeCall('submit_map', { summary: 'Forbidden inherited submission' }, 'inactive-submit')],
@@ -74,7 +74,7 @@ describe('Plan 33 C18 real Pi adapter nested consultation transport', () => {
     }
     await retain('nested-before-assertions.json', { requests: f.native.requests, snapshots, events });
     const localRequest = f.native.requests[3]!; const globalRequest = f.native.requests[4]!;
-    expect(JSON.stringify(localRequest)).toContain('L0 assigned engineer'); expect(JSON.stringify(localRequest)).not.toContain('LATER');
+    expect(JSON.stringify(localRequest)).toContain('L0 assigned module engineer'); expect(JSON.stringify(localRequest)).not.toContain('LATER');
     expect(JSON.stringify(globalRequest)).toContain('G0 dispatched local work'); expect(JSON.stringify(globalRequest)).not.toContain('LATER');
     const tools = (request: Record<string, unknown>) => (request['tools'] as Array<{ name: string }>).map(tool => tool.name);
     // Installed native transport keeps the original tool-definition prefix.

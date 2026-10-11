@@ -30,7 +30,7 @@ export type RunId = z.infer<typeof runIdSchema>;
  * append to it without inference, and its maintenance is recorded against
  * the fork that performed it. A reviewer reads one frozen candidate beside
  * the run's one writer and writes nothing. A failure analyst reads what an
- * engineer that ended without a result left, before its local architect is
+ * engineer that ended without a result left, before its module architect is
  * told, and writes nothing either.
  */
 export const roleSchema = z.enum([
@@ -48,6 +48,27 @@ export const roleSchema = z.enum([
   'nonfunctional-repair-engineer',
 ]);
 export type Role = z.infer<typeof roleSchema>;
+
+/** Current names for stored invocation roles; task and lineage identify each invocation's purpose. */
+const roleDisplayNames: Readonly<Record<Role, string>> = {
+  'initial-architect': 'Plan architect',
+  'catalog-extractor': 'Catalog extractor',
+  'global-fork': 'Plan architect',
+  'local-architect': 'Module architect',
+  engineer: 'Module engineer',
+  'contract-engineer': 'Module engineer (contract)',
+  'capability-architect': 'Capability architect',
+  reviewer: 'Reviewer',
+  'failure-analyst': 'Failure analyst',
+  'context-selector': 'Context selector',
+  'nonfunctional-coordinator': 'Non-functional coordinator',
+  'nonfunctional-repair-engineer': 'Module engineer (non-functional repair)',
+};
+
+/** Open role strings in older evidence retain their text when no current name is known. */
+export function roleDisplayName(role: string): string {
+  return Object.hasOwn(roleDisplayNames, role) ? roleDisplayNames[role as Role] : role;
+}
 
 /** The agent implementations a run may be started with. */
 export const runAgentSchema = z.enum(['pi', 'scripted']);
@@ -78,7 +99,7 @@ export const debugResumeCommandSchema = z.object({
 }).strict();
 export type DebugResumeCommand = z.infer<typeof debugResumeCommandSchema>;
 
-/** Admit one bounded ordinary engineer exchange while keeping its workflow parked. */
+/** Admit one bounded ordinary module engineer exchange while keeping its workflow parked. */
 export const debugMessageCommandSchema = z.object({
   commandId: commandIdSchema, expectedVersion: jobVersionSchema.default(0), type: z.literal('debug-message'),
   payload: z.object({ planId: planIdSchema, jobId: jobIdSchema, pauseId: z.string().min(1),
@@ -319,7 +340,7 @@ export type RunDecisionRequests = z.infer<typeof runDecisionRequestsSchema>;
 
 /**
  * The plan deviations a run recorded: departures from a requirement of its
- * plan that the global architect decided because the requirement could not
+ * plan that the plan architect decided because the requirement could not
  * be met as written. None holds a work item or a gate, so a run that
  * recorded any completes "with N plan deviations to review", never plainly;
  * `toReview` counts those still awaiting the person's decision.
@@ -331,11 +352,11 @@ export const runPlanDeviationsSchema = z.object({
 export type RunPlanDeviations = z.infer<typeof runPlanDeviationsSchema>;
 
 /**
- * An environment problem the global architect reported for an unresolved
+ * An environment problem the plan architect reported for an unresolved
  * request: the conflict lies in how the gate or the harness runs, not in
  * the plan or the architecture. The run holds the work item until the
  * operator answers its CheckFinding: `waiting` until then, then `resumed`,
- * which returns the work item to its local architect, or `ended`, which
+ * which returns the work item to its module architect, or `ended`, which
  * ends the run.
  */
 export const runEnvironmentProblemSchema = z.object({
@@ -576,7 +597,7 @@ export type ScenarioKind = z.infer<typeof scenarioKindSchema>;
 
 /**
  * Where a tracked scenario comes from: the plan, whose text is the
- * requirement, with the plan's lines; or the initial architect, with the
+ * requirement, with the plan's lines; or the plan architect, with the
  * acceptance elements it cites.
  */
 export const scenarioOriginViewSchema = z.discriminatedUnion('kind', [
@@ -587,7 +608,7 @@ export type ScenarioOriginView = z.infer<typeof scenarioOriginViewSchema>;
 
 /**
  * A tracked scenario's state, which is its obligation status: `pending`
- * keeps the pending tag in the source, `bound` was bound by an engineer's
+ * keeps the pending tag in the source, `bound` was bound by a module engineer's
  * accepted proposal, `done` was reported by its responsible architect. Only
  * an accepted submission moves a state; a gate or audit result never does.
  */
@@ -716,7 +737,7 @@ export const decisionViewSchema = z.discriminatedUnion('kind', [
     ...decisionBase,
     id: text,
     authority: z.enum(['global', 'local']),
-    /** The request the global architect answered; null for a local decision. */
+    /** The request the plan architect answered; null for a local decision. */
     request: text.nullable(),
     question: text,
     outcome: placementOutcomeViewSchema,
@@ -839,7 +860,7 @@ const scopeView = z.object({
 }).strict();
 
 /**
- * A failure analyst's judgment of why an engineer ended without a result:
+ * A failure analyst's judgment of why a module engineer ended without a result:
  * the bound was too tight for the work, the environment failed it, the work
  * itself was the problem, the agent's own behavior kept it from finishing,
  * or the evidence does not say.
@@ -851,21 +872,21 @@ export type FailureCause = z.infer<typeof failureCauseSchema>;
  * The analysis of one engineer that ended without a result, as its
  * iteration's result records it: the analyst's short account, or why there
  * is none. An analysis that failed or was invalid is `unavailable`, and the
- * local architect is briefed with the digest alone.
+ * module architect is briefed with the digest alone.
  */
 export const failureAnalysisSchema = z.discriminatedUnion('outcome', [
   z.object({
     outcome: z.literal('analyzed'),
     /** The analyst's invocation. */
     invocation: text,
-    /** What the engineer was attempting. */
+    /** What the module engineer was attempting. */
     attempting: text,
     /** What it had finished. */
     finished: text,
     /** What it was doing when it ended. */
     whenEnded: text,
     cause: failureCauseSchema,
-    /** Advice to the local architect, which decides. */
+    /** Advice to the module architect, which decides. */
     recommendation: text,
     /** What the account rests on: a transcript entry, an output line, a diff hunk. */
     evidence: z.array(text),
@@ -923,8 +944,8 @@ export const workItemResponseSchema = z.object({
       changedAssumptions: z.array(z.string()),
       recommendation: z.string().nullable(),
       /**
-       * Where an engineer ended without a result: the harness's digest of
-       * what it left, as the lines its local architect read, and the
+       * Where a module engineer ended without a result: the harness's digest of
+       * what it left, as the lines its module architect read, and the
        * analysis that followed.
        */
       failure: z.object({ digest: z.array(z.string()), analysis: failureAnalysisSchema }).strict().nullable(),

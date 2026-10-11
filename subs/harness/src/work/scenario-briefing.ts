@@ -5,8 +5,8 @@ import { stepDirectoryOf } from './integration.js';
 
 /*
  * What the briefings of a work item's agents say about its scenarios,
- * architecture §6. The local architect is given every scenario of its work
- * item's entry; the engineer the ones its assignment names under "Scenarios
+ * architecture §6. The module architect is given every scenario of its work
+ * item's entry; the module engineer the ones its assignment names under "Scenarios
  * to bind", the entry's others that are not done, and the rules of binding.
  * A provider or follow-up work item has no scenarios, and its briefings say
  * nothing about them. A state is the obligation status that accepted
@@ -39,7 +39,7 @@ export function briefed(record: ScenarioRecord, state: ScenarioState): BriefedSc
   return { id: record.id, name: record.name, state, file: record.file, source: record.source, partOf: record.partOf };
 }
 
-/** What an engineer is told of its work item's scenarios. */
+/** What a module engineer is told of its work item's scenarios. */
 export type EngineerScenarios =
   | {
     readonly kind: 'entry';
@@ -68,7 +68,7 @@ export function scenarioLines(scenario: BriefedScenario, level = '###'): string[
 }
 
 /**
- * The local architect's section: every scenario of its work item's entry,
+ * The module architect's section: every scenario of its work item's entry,
  * with its state, and what binding and reporting them means.
  */
 export function architectScenarioSection(scenarios: readonly BriefedScenario[]): string[] {
@@ -81,7 +81,7 @@ export function architectScenarioSection(scenarios: readonly BriefedScenario[]):
   );
   for (const scenario of scenarios) lines.push(...scenarioLines(scenario));
   lines.push(
-    'A scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing',
+    'A scenario is bound by step definitions, which a module engineer writes in `src/tests/steps/` of the owner (a testing',
     'module\'s `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer\'s',
     'accepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its',
     'pending tag at the next commit, so the gates\' configured checks run it. A passing gate is evidence, never your',
@@ -93,7 +93,7 @@ export function architectScenarioSection(scenarios: readonly BriefedScenario[]):
 }
 
 /**
- * The engineer's scenario sections: the assigned ones under "Scenarios to
+ * The module engineer's scenario sections: the assigned ones under "Scenarios to
  * bind", the rest of the entry's ones that are not done, and the rules of
  * binding. Nothing for a work item without scenarios.
  */

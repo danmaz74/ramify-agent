@@ -108,7 +108,7 @@ export async function stepFilesIn(projectRoot: string, directory: string): Promi
   return found.sort();
 }
 
-/** What the local architect of an integration work item is told of its scenario. */
+/** What the module architect of an integration work item is told of its scenario. */
 export interface IntegrationBriefing {
   readonly scenario: {
     readonly id: string;

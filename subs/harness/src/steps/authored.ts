@@ -48,10 +48,10 @@ export const authoredOptions = { workItem: '--work-item', outline: '--outline', 
 
 /** Which recorded inputs each authored file replaces part of. */
 const replaces = {
-  workItem: 'a local architect orientation or work turn',
-  outline: 'a local architect orientation or work turn',
-  assignment: 'an engineer',
-  selection: 'a local architect work turn',
+  workItem: 'a module architect orientation or work turn',
+  outline: 'a module architect orientation or work turn',
+  assignment: 'a module engineer',
+  selection: 'a module architect work turn',
   reviewRequest: 'a code, scope or design review',
 } as const;
 
@@ -63,7 +63,7 @@ const runContextOf = {
 
 /**
  * The refusal of a `step inputs` command that names no recorded invocation
- * and is not the authoring of engineer inputs from the project: an engineer
+ * and is not the authoring of engineer inputs from the project: a module engineer
  * role, a project, a work item and an assignment.
  */
 export function missingContext(role: string, files: AuthoredFiles, projectRoot: string | undefined): string {
@@ -179,15 +179,15 @@ async function apply(key: keyof AuthoredFiles, value: unknown, inputs: StepInput
 
 /**
  * An authored assignment in its producing `assign` envelope, judged as the
- * work turn that assigned the recorded iteration judged its own: the local
+ * work turn that assigned the recorded iteration judged its own: the module
  * architect's schema and rules over that turn's recorded evidence, then the
- * scope preparation the provider answers. The engineer inputs keep what the
+ * scope preparation the provider answers. The module engineer inputs keep what the
  * assignment does not change; what would need the run to derive again is refused.
  */
 async function authoredAssignment(value: unknown, inputs: Extract<StepInputs, { role: 'engineer' }>,
   run: { readonly directory: string; readonly projectRoot: string }, context: AuthoringContext): Promise<StepInputs | string> {
   const shape = validateAgainst(localArchitectSubmissionSchema, value);
-  if (!shape.ok) return `the local architect's submission schema refuses it: ${issues(shape.errors)}`;
+  if (!shape.ok) return `the module architect's submission schema refuses it: ${issues(shape.errors)}`;
   if (shape.value.kind !== 'assign') return `it is a ${shape.value.kind} submission, not an assign envelope`;
   const events = await runEvents(run.directory);
   const assigned = events.find(event => event.type === 'iteration-assigned' && event.data.iteration === inputs.work.iteration);
@@ -201,11 +201,11 @@ async function authoredAssignment(value: unknown, inputs: Extract<StepInputs, { 
   try { index = await context.index(run.projectRoot); }
   catch (error) { return `missing context: the architect view cannot be read: ${message(error)}`; }
   const judged = await judgeWorkTurn({ inputs: turn }, value, { index, ramify: context.ramify, projectRoot: run.projectRoot });
-  if (!judged.verdict.ok) return `the local architect's rules refuse it: ${issues(judged.verdict.errors)}`;
+  if (!judged.verdict.ok) return `the module architect's rules refuse it: ${issues(judged.verdict.errors)}`;
   if (judged.prepared === undefined) return 'it carries no assignment whose scope the provider can capture';
   const body = judged.prepared.body;
   const recorded = inputs.assignment;
-  // What the engineer inputs derive from beyond the assignment's own text.
+  // What the module engineer inputs derive from beyond the assignment's own text.
   const unchanged: [string, unknown, unknown][] = [
     ['kind', body.kind, recorded.kind],
     ['scope.base', body.scope.base, recorded.scope.base],
@@ -216,7 +216,7 @@ async function authoredAssignment(value: unknown, inputs: Extract<StepInputs, { 
     ['bounds', body.bounds ?? {}, recorded.bounds ?? {}],
   ];
   const changed = unchanged.filter(([, now, then]) => canonical(now) !== canonical(then)).map(([field]) => field);
-  if (changed.length > 0) return `it changes ${changed.join(', ')}, which the engineer inputs derive the gate, test policy, focused command and protected files from; these records cannot derive them again`;
+  if (changed.length > 0) return `it changes ${changed.join(', ')}, which the module engineer inputs derive the gate, test policy, focused command and protected files from; these records cannot derive them again`;
   if (shape.value.localDecisions.length > 0) return 'it carries local decisions, which a run commits before the assignment; an authored assignment commits nothing';
   const scope = judged.prepared.scope;
   const tests = testPolicyOf(body.kind, scope.base, recorded.evidenceObligations, scope.extra, scope.resolved.included);
@@ -253,7 +253,7 @@ async function runEvents(directory: string): Promise<{ readonly type: string; re
 }
 
 function describe(inputs: StepInputs): string {
-  return inputs.role === 'local-architect' ? `a local architect ${inputs.phase}` : inputs.role === 'reviewer' ? `a ${inputs.question} reviewer` : `a ${inputs.role}`;
+  return inputs.role === 'local-architect' ? `a module architect ${inputs.phase}` : inputs.role === 'reviewer' ? `a ${inputs.question} reviewer` : `a ${inputs.role}`;
 }
 
 function zodIssues(list: readonly { readonly path: readonly PropertyKey[]; readonly message: string }[]): string {

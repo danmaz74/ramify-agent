@@ -16,12 +16,12 @@ import type { FailureCause } from '../../interfaces/protocol/runs.js';
 import type { FailureAnalysisSubmission } from '../../work/failure.js';
 import { installScriptedCucumber } from './project-config.js';
 
-/** An engineer submission as an agent sends it: a declaration's `scenarios` may be left out. */
+/** A module engineer submission as an agent sends it: a declaration's `scenarios` may be left out. */
 type EngineerSubmission = z.input<typeof engineerSubmissionSchema>;
 
 /*
- * What a test needs to drive an iteration: the submissions a local architect
- * and an engineer make, a script that answers each role in turn, a runner
+ * What a test needs to drive an iteration: the submissions a module architect
+ * and a module engineer make, a script that answers each role in turn, a runner
  * that really runs the files the selection resolved to, and the run inputs
  * that refresh a real architect view.
  *
@@ -170,7 +170,7 @@ export function edit(path: string, oldText: string, newText: string): ScriptStep
   return { kind: 'tool', tool: 'edit', input: { path, edits: [{ oldText, newText }] } };
 }
 
-/** A call of the engineer's shell, whose writes pass no guard. */
+/** A call of the module engineer's shell, whose writes pass no guard. */
 export function shell(command: string, extra: Record<string, unknown> = {}): ScriptStep {
   return { kind: 'tool', tool: 'shell', input: { command, ...extra } };
 }

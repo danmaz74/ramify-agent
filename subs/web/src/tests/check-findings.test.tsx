@@ -156,11 +156,11 @@ test('fixed, superseded, waived, deferred, unresolved and open CheckFindings rea
     .toMatch(/scenario:sc-004@1 ran completely and passed in ga-0012 on tree t-03/);
   expect(within(card('cf-0001')).queryByRole('group', { name: 'Factual verification' })).toBeNull();
   // The waiver names its actor and the risk accepted; its material choice is shown apart.
-  expect(within(card('cf-0003')).getByRole('group', { name: 'Waiver' }).textContent).toMatch(/Waived by local-architect \(inv-0020\): The cache is rebuilt on start.*Accepted risk: high/);
+  expect(within(card('cf-0003')).getByRole('group', { name: 'Waiver' }).textContent).toMatch(/Waived by Module architect \(inv-0020\): The cache is rebuilt on start.*Accepted risk: high/);
   expect(within(card('cf-0003')).getByRole('group', { name: 'Material choice' }).textContent).toMatch(/kept the cache/);
   // Recorded prose that already ends with a period gets no second one.
   expect(within(card('cf-0008')).getByRole('group', { name: 'Deferral' }).textContent)
-    .toBe('Deferred by local-architect (inv-0020): Logging is configured later. Revisit: when logging is configured.');
+    .toBe('Deferred by Module architect (inv-0020): Logging is configured later. Revisit: when logging is configured.');
   // Unresolved, and the distinct marker for a non-low signal from the latest review.
   expect(within(card('cf-0004')).getByLabelText('Unresolved').textContent).toMatch(/^Unresolved from the latest review: a high-risk signal/);
   expect(within(card('cf-0004')).getByLabelText('Unresolved').className).toContain('unresolved-latest');
@@ -261,11 +261,11 @@ test('the history sits beside its attempt, candidate diff and repair session', a
   expect(stub.calls.some(call => call.startsWith('getCheckFinding:'))).toBe(false);
   fireEvent.click(within(card).getByRole('button', { name: 'History' }));
   const history = await within(card).findByLabelText('History of cf-0009');
-  expect(history.textContent).toMatch(/reviewer \(inv-0010\) judged it high risk: A failing upstream spins forever/);
+  expect(history.textContent).toMatch(/Reviewer \(inv-0010\) judged it high risk: A failing upstream spins forever/);
   expect(history.textContent).toMatch(/Candidate diff: bbbbbbbbbbbb → cccccccccccc \(tree tree-03\)/);
   expect(within(history).getByRole('link', { name: 'ses-0007' }).getAttribute('href')).toContain('ses-0007');
-  expect(within(history).getByRole('link', { name: 'engineer ses-0009' }).getAttribute('href')).toContain('inv-0030');
-  expect(history.textContent).toMatch(/cfd-0006 by local-architect \(inv-0020\): planned a repair \(intent wi-001\.rc01\)/);
+  expect(within(history).getByRole('link', { name: 'Module engineer ses-0009' }).getAttribute('href')).toContain('inv-0030');
+  expect(history.textContent).toMatch(/cfd-0006 by Module architect \(inv-0020\): planned a repair \(intent wi-001\.rc01\)/);
   fireEvent.click(within(history).getByRole('button', { name: 'ga-0005' }));
   expect(opened).toEqual(['ga-0005']);
 });
@@ -296,7 +296,7 @@ test('a plan deviation reads as a departure from the plan: the elements it amend
     workItem: null, revision: 2, reason: 'awaiting-user-decision', awaiting: 'user-decision', risk: 'high', credibility: 'agent-generated',
     producers: ['plan:deviation'], title: 'Plan deviation pd-001: tRPC only', userCommands: ['respond', 'waive'],
     pendingUserDecision: {
-      request: 'cfd-0005', by: { kind: 'harness', reason: 'a plan deviation is the person\'s to accept or reject' }, rationale: 'The global architect departs from the plan',
+      request: 'cfd-0005', by: { kind: 'harness', reason: 'a plan deviation is the person\'s to accept or reject' }, rationale: 'The plan architect departs from the plan',
       conflicts: [{ text: 'Serve it over MCP too.', document: 'plans/review-notes/plan.md', revision: 'sha256:plan' }],
       options: [{ id: 'accept', summary: 'Accept the deviation', consequence: 'It stands.' }, { id: 'reject', summary: 'Reject the deviation', consequence: 'A follow-up run meets it.' }],
     },

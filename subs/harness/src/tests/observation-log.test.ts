@@ -136,7 +136,7 @@ describe('what a run observes', () => {
       .split('\n').filter(Boolean).map(line => JSON.parse(line) as { type: string; data: Record<string, unknown> });
     const contexts = lines.filter(line => line.type === 'context');
     expect(contexts).toHaveLength(2);
-    // The threshold recorded is the initial architect's own, from the policy.
+    // The threshold recorded is the plan architect's own, from the policy.
     expect(contexts[0]!.data).toEqual({ tokens: 1000, window: 200_000, threshold: 150_000 });
     // An unknown size is recorded as unknown, and never as room.
     expect(contexts[1]!.data).toEqual({ tokens: null, window: 200_000, threshold: 150_000 });

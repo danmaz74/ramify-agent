@@ -37,7 +37,7 @@ function interrupted(store: SessionStore, predicate: (commit: SessionStoreCommit
   } };
 }
 const opBody = (commit: SessionStoreCommit) => commit.records.find(item => item.schema === 'ramify-agent.session-operation/1')?.body;
-/** One harness operation of the engineer role, fresh or continuing the session holding `ref`. */
+/** One harness operation of the module engineer role, fresh or continuing the session holding `ref`. */
 function harnessInput(operationId: string, ref?: string): HarnessOperationInput {
   const name = 'submit_iteration_result';
   const loaded: LoadedPackage = { role: 'engineer', package: 'engineer/fixture', hash: '1'.repeat(64), files: [], submissionKinds: [], system: 'Stable engineer role.', procedure: 'Perform the current task with {{submissionTool}}.', skill: '', extraSkill: '', skillDirectory: '/skills', submissionSchema: '{}' };

@@ -32,7 +32,7 @@ const href = (session: string) => `#/plans/${planId}/runs/${runId}/sessions/${se
 
 /** ses-0002, the live engineer of send-button in shop/reviews, awaiting inv-0004. */
 const engineer = liveEngineer();
-/** ses-0004, the local architect of send-button, suspended while its engineer works. */
+/** ses-0004, the module architect of send-button, suspended while its engineer works. */
 const localArchitect = sessionView('ses-0004', {
   state: 'suspended', finished: null, role: 'local-architect', work: { workItem: 'wi-001' },
   opened: { sequence: 3, at: at(3) }, changed: { sequence: 8, at: at(8) },
@@ -77,10 +77,10 @@ const marksOf = (node: HTMLElement) => [...node.querySelectorAll('.session-mark,
 describe('the capability graph', () => {
   test('a node shows its live sessions by role, and its suspended and interrupted ones apart; a node of finished sessions shows none', () => {
     render(<CapabilityDependencyGraph {...capabilities} sessions={diagram} />);
-    const send = screen.getByRole('button', { name: 'send-button, working, entry, sessions: 1 live (engineer), 1 suspended' });
-    expect(marksOf(send)).toEqual([['session-mark-live', '1 live'], ['role-chip', 'engineer'], ['session-mark-suspended', '1 suspended']]);
-    const note = screen.getByRole('button', { name: 'note-search, working, sessions: 2 live (engineer ×2), 1 interrupted' });
-    expect(marksOf(note)).toEqual([['session-mark-live', '2 live'], ['role-chip', 'engineer ×2'], ['session-mark-interrupted', '1 interrupted']]);
+    const send = screen.getByRole('button', { name: 'send-button, working, entry, sessions: 1 live (Module engineer), 1 suspended' });
+    expect(marksOf(send)).toEqual([['session-mark-live', '1 live'], ['role-chip', 'Module engineer'], ['session-mark-suspended', '1 suspended']]);
+    const note = screen.getByRole('button', { name: 'note-search, working, sessions: 2 live (Module engineer ×2), 1 interrupted' });
+    expect(marksOf(note)).toEqual([['session-mark-live', '2 live'], ['role-chip', 'Module engineer ×2'], ['session-mark-interrupted', '1 interrupted']]);
     const quiet = screen.getByRole('button', { name: 'quiet, todo' });
     expect(marksOf(quiet)).toEqual([]);
     // Every node keeps the line for its marks, so a mark never moves a node.
@@ -104,9 +104,9 @@ describe('the capability graph', () => {
     const list = within(screen.getByLabelText('Details for send-button')).getByLabelText('Sessions of send-button');
     const items = within(list).getAllByRole('listitem');
     // Live, then suspended, then the finished ones, the latest change first: the global fork reached send-button through its request.
-    expect(items.map(item => item.querySelector('a')!.textContent)).toEqual(['ses-0002 engineer', 'ses-0004 local-architect', 'ses-0005 engineer', 'ses-0003 global-fork']);
+    expect(items.map(item => item.querySelector('a')!.textContent)).toEqual(['ses-0002 Module engineer', 'ses-0004 Module architect', 'ses-0005 Module engineer', 'ses-0003 Plan architect']);
     expect(items.map(item => item.querySelector('.session-state')!.textContent)).toEqual(['live', 'suspended', 'finished', 'finished']);
-    expect(within(items[0]!).getByRole('link', { name: 'ses-0002 engineer' }).getAttribute('href')).toBe(href('ses-0002'));
+    expect(within(items[0]!).getByRole('link', { name: 'ses-0002 Module engineer' }).getAttribute('href')).toBe(href('ses-0002'));
     expect(within(items[0]!).getByRole('link', { name: 'inv-0004' }).getAttribute('href')).toBe(`${href('ses-0002')}/chapters/inv-0004`);
     expect(items[0]!.textContent).toContain('awaiting inv-0004');
     expect(items[3]!.textContent).toContain('work-closed');
@@ -121,10 +121,10 @@ describe('the capability graph', () => {
     expect(marksOf(strip.querySelector('.session-strip-label')!)).toEqual([['session-mark-suspended', '1 suspended']]);
     const open = strip.querySelector(':scope > .session-strip-list')!;
     expect([...open.querySelectorAll('li')].map(item => item.textContent)).toEqual([
-      'ses-0009 local-architectsuspended · work item wi-004, capability not-drawn, module shop/not-drawn',
+      'ses-0009 Module architectsuspended · work item wi-004, capability not-drawn, module shop/not-drawn',
     ]);
     const finished = within(strip).getByText('1 finished').closest('details')!;
-    expect(within(finished).getByRole('link', { name: 'ses-0001 initial-architect' }).getAttribute('href')).toBe(href('ses-0001'));
+    expect(within(finished).getByRole('link', { name: 'ses-0001 Plan architect' }).getAttribute('href')).toBe(href('ses-0001'));
   });
 });
 
@@ -160,11 +160,11 @@ describe('By module', () => {
     render(<Tree sessions={diagram} />);
     await screen.findByLabelText('Modules with their capability rows');
     expect(marksOf(shell(reviews).querySelector('.capability-module-heading')!)).toEqual([
-      ['session-mark-live', '1 live'], ['role-chip', 'engineer'], ['session-mark-suspended', '1 suspended'],
+      ['session-mark-live', '1 live'], ['role-chip', 'Module engineer'], ['session-mark-suspended', '1 suspended'],
     ]);
-    expect(marksOf(shell(search))).toEqual([['session-mark-live', '2 live'], ['role-chip', 'engineer ×2'], ['session-mark-interrupted', '1 interrupted']]);
+    expect(marksOf(shell(search))).toEqual([['session-mark-live', '2 live'], ['role-chip', 'Module engineer ×2'], ['session-mark-interrupted', '1 interrupted']]);
     expect(marksOf(shell('shop'))).toEqual([]);
-    expect(shell(reviews).getAttribute('aria-label')).toContain('sessions: 1 live (engineer), 1 suspended');
+    expect(shell(reviews).getAttribute('aria-label')).toContain('sessions: 1 live (Module engineer), 1 suspended');
     const plain = comparisonNodes(comparison).find(node => node.id === reviews)!;
     const marked = comparisonNodes(comparison, sessionsBy(all, moduleOf)).find(node => node.id === reviews)!;
     expect(marked.width).toBeGreaterThan(plain.width);
@@ -177,29 +177,29 @@ describe('By module', () => {
     fireEvent.click(shell(search));
     const moduleSessions = within(screen.getByLabelText(`Details for module ${search}`)).getByLabelText(`Sessions of ${search}`);
     expect(within(moduleSessions).getAllByRole('link', { name: /^ses-/ }).map(link => [link.textContent, link.getAttribute('href')])).toEqual([
-      ['ses-0006 engineer', href('ses-0006')], ['ses-0007 engineer', href('ses-0007')], ['ses-0008 engineer', href('ses-0008')],
+      ['ses-0006 Module engineer', href('ses-0006')], ['ses-0007 Module engineer', href('ses-0007')], ['ses-0008 Module engineer', href('ses-0008')],
     ]);
 
     fireEvent.click(within(shell(reviews)).getByRole('button', { name: /^send-button,/ }));
     const rowSessions = screen.getByLabelText('Sessions of send-button');
     expect(within(rowSessions).getAllByRole('link', { name: /^ses-/ }).map(link => link.textContent))
-      .toEqual(['ses-0002 engineer', 'ses-0004 local-architect', 'ses-0005 engineer', 'ses-0003 global-fork']);
+      .toEqual(['ses-0002 Module engineer', 'ses-0004 Module architect', 'ses-0005 Module engineer', 'ses-0003 Plan architect']);
   });
 
   test('the strip holds the run itself, a request\'s fork, which reaches no module, and a module the tree does not draw', async () => {
     render(<Tree sessions={diagram} />);
     const strip = await screen.findByLabelText('Sessions without an element here');
-    expect(within(strip).getByRole('link', { name: 'ses-0009 local-architect' })).toBeTruthy();
+    expect(within(strip).getByRole('link', { name: 'ses-0009 Module architect' })).toBeTruthy();
     const finished = within(strip).getByText('2 finished').closest('details')!;
     expect(within(finished).getAllByRole('listitem').map(item => item.textContent)).toEqual([
-      'ses-0003 global-forkfinished work-closed · request pr-001, capability send-button, work item wi-001',
-      'ses-0001 initial-architectfinished work-closed',
+      'ses-0003 Plan architectfinished work-closed · request pr-001, capability send-button, work item wi-001',
+      'ses-0001 Plan architectfinished work-closed',
     ]);
   });
 });
 
 test('marks in words and the panel order', () => {
-  expect(marksText(all)).toBe('3 live (engineer ×3), 2 suspended, 1 interrupted');
+  expect(marksText(all)).toBe('3 live (Module engineer ×3), 2 suspended, 1 interrupted');
   expect(marksText([architect])).toBe('');
   expect(panelOrder(all).map(session => session.session)).toEqual([
     'ses-0002', 'ses-0006', 'ses-0007', 'ses-0004', 'ses-0009', 'ses-0008', 'ses-0005', 'ses-0003', 'ses-0001',
@@ -247,10 +247,10 @@ describe('following the run', () => {
     render(<RunPage client={client} planId={planId} runId={runId} interval={5} />);
     fireEvent.click(await screen.findByRole('tab', { name: 'Progress' }));
     await screen.findByLabelText('Modules with their capability rows');
-    await waitFor(() => expect(marksOf(shell(reviews))).toEqual([['session-mark-live', '1 live'], ['role-chip', 'engineer'], ['session-mark-suspended', '1 suspended']]));
+    await waitFor(() => expect(marksOf(shell(reviews))).toEqual([['session-mark-live', '1 live'], ['role-chip', 'Module engineer'], ['session-mark-suspended', '1 suspended']]));
     await waitFor(() => expect(client.waiting()).toBe(1));
 
-    // The engineer's invocation ends and its session is finished; its architect is continued.
+    // The module engineer's invocation ends and its session is finished; its architect is continued.
     const polls = client.answeredPolls;
     client.runs.get(runId)!.snapshot = snapshot(16);
     client.runSessions.set(runId, {
@@ -259,13 +259,13 @@ describe('following the run', () => {
       total: 3,
     });
     await act(async () => { client.release(); });
-    await waitFor(() => expect(marksOf(shell(reviews))).toEqual([['session-mark-live', '1 live'], ['role-chip', 'local-architect']]));
+    await waitFor(() => expect(marksOf(shell(reviews))).toEqual([['session-mark-live', '1 live'], ['role-chip', 'Module architect']]));
     expect(client.answeredPolls).toBe(polls + 1);
 
     // The Dependencies view reads the same sessions at the same version.
     fireEvent.click(screen.getByRole('tab', { name: 'Dependencies' }));
-    expect(marksOf(await screen.findByRole('button', { name: 'send-button, working, entry, sessions: 1 live (local-architect)' })))
-      .toEqual([['session-mark-live', '1 live'], ['role-chip', 'local-architect']]);
+    expect(marksOf(await screen.findByRole('button', { name: 'send-button, working, entry, sessions: 1 live (Module architect)' })))
+      .toEqual([['session-mark-live', '1 live'], ['role-chip', 'Module architect']]);
     expect(client.answeredPolls).toBe(polls + 1);
   });
 

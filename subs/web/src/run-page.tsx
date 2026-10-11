@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useEffect, useState, type ReactNode } from 'react';
 import type {
   DecisionView, GateView, HypothesisView, LineageMetric, Metric, MetricsResponse,
@@ -28,7 +29,7 @@ import { SessionMetrics } from './session-metrics.js';
  * cycle, resolved or not, during the run and after it, and every degraded
  * start. A run that waits for the person's decision says so above every
  * area, and its banner opens each request's answer form. An environment
- * problem the global architect reported shows its diagnosis and suggestion
+ * problem the plan architect reported shows its diagnosis and suggestion
  * in the overview, with the answer form that resumes the run. Stop and Approve
  * are its commands; Start is on the Plan page. A run started with a
  * breakpoint has a Debugger area, and while it is paused a badge and a
@@ -253,7 +254,7 @@ const mergeReadinessLabel = {
 
 function currentText(current: NonNullable<RunSnapshot['current']>): string {
   const parts = [
-    current.role && `${current.role}`,
+    current.role && `${roleLabel(current.role)}`,
     current.invocation && `session ${current.invocation}`,
     current.workItem && `work item ${current.workItem}`,
     current.iteration && `iteration ${current.iteration}`,
@@ -306,7 +307,7 @@ function DegradedStartsNotice({ client, run }: { readonly client: ProtocolClient
         <ul>
           {starts.map(({ session, invocation, requested, actual, reason }) => (
             <li key={invocation}>
-              <a href={chapterHref({ source: 'run', planId, runId, session: session.session }, invocation)}>{session.session} {session.role}, {invocation}</a>
+              <a href={chapterHref({ source: 'run', planId, runId, session: session.session }, invocation)}>{session.session} {roleLabel(session.role)}, {invocation}</a>
               : {requested} was requested and {actual} was made{reason ? ` (${reason})` : ''}
             </li>
           ))}
@@ -380,7 +381,7 @@ export function PlanAndEntries({ client, planId, runId, version, run, onApproved
             {data.analysis.status === 'accepted' && (
               <section className="panel" aria-labelledby="catalog-review-heading">
                 <h2 id="catalog-review-heading">The plan context catalog</h2>
-                <p className="muted">What every later agent works from instead of the documents: the elements the intake, the principles extractions and the initial architect read, as the checkers corrected them. The catalog is frozen; an element is a reading, not a satisfied requirement.</p>
+                <p className="muted">What every later agent works from instead of the documents: the elements the intake, the principles extractions and the plan architect read, as the checkers corrected them. The catalog is frozen; an element is a reading, not a satisfied requirement.</p>
                 <CatalogReview evidence={data.analysis.planEvidence} />
               </section>
             )}
@@ -570,7 +571,7 @@ function WorkItemDetail({ client, planId, runId, version, workItem, onOpenGate }
                     {iteration.result && iteration.result.findings.length > 0 && <ul>{iteration.result.findings.map(finding => <li key={finding}>{finding}</li>)}</ul>}
                     {iteration.result?.failure && <IterationFailure failure={iteration.result.failure} />}
                     <p className="muted">Gates: {iteration.gates.map(gate => `${gate.id} ${gate.verdict}${gate.cause ? ` (${gate.cause})` : ''}`).join(', ') || 'none'}</p>
-                    <p className="muted">Sessions: {iteration.invocations.map(invocation => `${invocation.id} ${invocation.role} ${invocation.ended ?? 'running'}`).join(', ')}</p>
+                    <p className="muted">Sessions: {iteration.invocations.map(invocation => `${invocation.id} ${roleLabel(invocation.role)} ${invocation.ended ?? 'running'}`).join(', ')}</p>
                     {iteration.invocations.some(invocation => invocation.outsideScope.length > 0) && (
                       <div className="warn">Candidate differences outside the write scope:<ul>{iteration.invocations.flatMap(invocation => invocation.outsideScope.map(path => <li key={`${invocation.id}-${path}`}><OutsideScopePath path={path} invocation={invocation.id} evidence={invocation.outsideScopeEvidence?.find(entry => entry.path === path)} /></li>))}</ul></div>
                     )}
@@ -882,7 +883,7 @@ function Measurements({ client, planId, runId, version }: AreaProps) {
               <h3>Candidate differences outside a write scope</h3>
               {data.evaluation.outsideScope.length === 0
                 ? <p className="muted">No candidate differences outside a write scope were recorded.</p>
-                : <ul aria-label="Outside the write scope">{data.evaluation.outsideScope.map(entry => <li key={`${entry.invocation}-${entry.path}`}><OutsideScopePath path={entry.path} invocation={entry.invocation} evidence={entry.evidence} /> ({entry.role}{entry.iteration ? `, ${entry.iteration}` : ''})</li>)}</ul>}
+                : <ul aria-label="Outside the write scope">{data.evaluation.outsideScope.map(entry => <li key={`${entry.invocation}-${entry.path}`}><OutsideScopePath path={entry.path} invocation={entry.invocation} evidence={entry.evidence} /> ({roleLabel(entry.role)}{entry.iteration ? `, ${entry.iteration}` : ''})</li>)}</ul>}
             </section>
             <section className="panel">
               <h2>Metrics</h2>
@@ -909,7 +910,7 @@ function Measurements({ client, planId, runId, version }: AreaProps) {
             <section className="panel" aria-label="Invocation efficiency">
               <h2>Invocation efficiency</h2>
               {data.evaluation.invocations.length === 0 ? <p>No invocation efficiency records.</p> : data.evaluation.invocations.map(evaluation => <details key={evaluation.invocation}>
-                <summary>{evaluation.invocation} ({evaluation.role}) · {evaluation.ended ?? 'not ended'}</summary>
+                <summary>{evaluation.invocation} ({roleLabel(evaluation.role)}) · {evaluation.ended ?? 'not ended'}</summary>
                 <SessionMetrics evaluation={evaluation} />
               </details>)}
             </section>
@@ -944,7 +945,7 @@ function MetricRow({ metric }: { readonly metric: Metric | LineageMetric }) {
 
 type IterationFailureView = NonNullable<NonNullable<WorkItemResponse['iterations'][number]['result']>['failure']>;
 
-/** An engineer that ended without a result: the harness's digest and the failure analysis its architect read. */
+/** A module engineer that ended without a result: the harness's digest and the failure analysis its architect read. */
 function IterationFailure({ failure }: { failure: IterationFailureView }) {
   const analysis = failure.analysis;
   return (

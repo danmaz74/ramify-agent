@@ -25,7 +25,7 @@ import type { CommittedLine, RunView } from './inputs.js';
  *
  * An environment problem holds the work item whose request it answered
  * until the operator resumes the run or ends it; the snapshot states each
- * one with the global architect's diagnosis and suggestion.
+ * one with the plan architect's diagnosis and suggestion.
  */
 
 /** A run's public snapshot, from its view. */

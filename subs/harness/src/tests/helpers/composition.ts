@@ -102,7 +102,7 @@ const yieldFor = (requirements: readonly string[]) => ({
   summary: 'This work item runs against its fake and waits for the real provider.',
 });
 
-/** An engineer turn that reaches its context budget: it is never a completion. */
+/** A module engineer turn that reaches its context budget: it is never a completion. */
 const budgetTurn: Turn = [
   { kind: 'context', tokens: 200_000, window: null },
   { kind: 'message', text: 'I have read the module and have not changed anything yet.' },
@@ -248,7 +248,7 @@ const limitsModule = { directory: limitsDirectory, name: 'limits', files: {} };
 /**
  * One work item worked by one iteration, with every observation the loop
  * makes along the way: a hypothesis delivered to it, an architect that
- * compacts, an engineer that returns at its context budget and then, in a
+ * compacts, a module engineer that returns at its context budget and then, in a
  * fresh session, reads outside its scope, has a submission rejected, writes
  * through the guard and through the unguarded shell, and proposes
  * completion; the gate, its commit, the work-item gate and the final gate.
@@ -306,7 +306,7 @@ const iteration: Scenario = {
         ].join('\n'),
       },
     },
-    // An explicitly included child module, which the engineer's shell removes.
+    // An explicitly included child module, which the module engineer's shell removes.
     { directory: draftsDirectory, name: 'drafts', files: {} },
   ]),
   script: root => byRole({
@@ -675,12 +675,12 @@ const failingNotes = {
 
 /**
  * A gate that fails in scope, three repair rounds that change nothing, the
- * iteration exhausted, a local architect that reports the request cannot be
- * met, and a global architect that finds nothing of the plan possible.
+ * iteration exhausted, a module architect that reports the request cannot be
+ * met, and a plan architect that finds nothing of the plan possible.
  */
 const repair: Scenario = {
   name: 'repair',
-  // The engineer changes nothing, so the one checkpoint it reaches finds
+  // The module engineer changes nothing, so the one checkpoint it reaches finds
   // nothing to commit after the feature files.
   git: { head: base, after: materialized, commits: [materialize(featureOf(notesDirectory, 'review-note')), unchanged(materialized)] },
   exercises: 'a failing gate, its repair rounds, exhaustion, and an architect that reports the request unresolved',
@@ -693,7 +693,7 @@ const repair: Scenario = {
       submit({ kind: 'unresolved', conflict: 'The limit the test states is not one this module can meet as asked.', evidence: [`${notesDirectory}/src/tests/notes.test.ts`] }),
     ],
     engineer: [submit(completionProposed('Nothing needed changing.'))],
-    // The global architect answers the unresolved request: no deviation
+    // The plan architect answers the unresolved request: no deviation
     // leaves anything of the plan worth doing, so the run ends.
     'global-fork': [submit({ kind: 'nothing-possible', reason: 'The plan asks for exactly the limit the module cannot meet.', evidence: [`${notesDirectory}/src/tests/notes.test.ts`] })],
   }),
@@ -712,7 +712,7 @@ const testless: Scenario = {
     head: base, after: materialized,
     commits: [materialize(featureOf(limitsDirectory, 'note-limits')), unchanged(materialized), unchanged(materialized), unchanged(materialized)],
   },
-  exercises: 'an engineer that reports the goal outside its scope, and an owner with no test of its own judged by the audit alone',
+  exercises: 'a module engineer that reports the goal outside its scope, and an owner with no test of its own judged by the audit alone',
   ends: 'completed',
   finalCandidate: { head: materialized, tree: '6'.repeat(40) },
   target: () => fixtureWith([{ directory: limitsDirectory, name: 'limits', files: { 'src/limits.ts': 'export const limits = [];\n' } }]),
@@ -843,7 +843,7 @@ const cycle: Scenario = {
 const engineerBudget: Scenario = {
   name: 'engineer-budget',
   git: { head: base, after: materialized, commits: [materialize(featureOf(notesDirectory, 'review-notes'))] },
-  exercises: 'an engineer reaches the hard context limit without an accepted submission; its assignment stays unfinished',
+  exercises: 'a module engineer reaches the hard context limit without an accepted submission; its assignment stays unfinished',
   ends: 'failed',
   target: () => fixtureWith([notesModule]),
   script: () => byRole({
@@ -854,7 +854,7 @@ const engineerBudget: Scenario = {
   inputs: treeInputs,
 };
 
-/** A stop that arrives while an engineer holds the writer. */
+/** A stop that arrives while a module engineer holds the writer. */
 const stopping: Scenario = {
   name: 'stop',
   // The stop arrives while the writer is held: no checkpoint is reached,
@@ -889,9 +889,9 @@ function failingAnalysis(name: ScenarioName, exercises: string, turn: Turn, poli
   };
 }
 
-const agentFails = failingAnalysis('agent-fails', 'an initial architect whose session fails: agent-failed', [{ kind: 'fail', error: 'the provider refused the request' }]);
-const noSubmission = failingAnalysis('no-submission', 'an initial architect that ends without a submission: analysis-invalid', [{ kind: 'end', message: 'I have nothing to submit.' }]);
-const invalidAnalysis = failingAnalysis('invalid-analysis', 'an initial architect whose every submission is invalid: invalid-submission at the bound',
+const agentFails = failingAnalysis('agent-fails', 'an plan architect whose session fails: agent-failed', [{ kind: 'fail', error: 'the provider refused the request' }]);
+const noSubmission = failingAnalysis('no-submission', 'an plan architect that ends without a submission: analysis-invalid', [{ kind: 'end', message: 'I have nothing to submit.' }]);
+const invalidAnalysis = failingAnalysis('invalid-analysis', 'an plan architect whose every submission is invalid: invalid-submission at the bound',
   [1, 2, 3, 4].map(() => ({ kind: 'submit' as const, input: { entries: 'none' } })));
 const overLimit: Scenario = {
   ...failingAnalysis('over-limit', 'a run whose policy allows fewer work items than its analysis assigns: limit-exceeded',

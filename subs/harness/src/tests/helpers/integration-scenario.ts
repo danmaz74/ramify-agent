@@ -17,7 +17,7 @@ import { openRuns, runPath, startRun } from './runs.js';
  * §10, for the tests that drive it with and without the real checker.
  *
  * The plan's one scenario combines two entries: a reviewer writes a note,
- * and tags it. The initial architect decomposes it into one sub-scenario per
+ * and tags it. The plan architect decomposes it into one sub-scenario per
  * entry, the tags' bridged with a Given that states the written note instead
  * of taking the action. Each entry's work item binds its own sub-scenario in
  * its own module, under the reviews module; the implementation of the second
@@ -170,7 +170,7 @@ export const bindAtAncestor = assign(reviews, {
   scope: { base: { module: reviews, included: [notes, tags].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })) }, extra: [], read: [], rationale: 'The ancestor and both paths down to the owners.' },
 }, outline());
 
-/** The engineer that binds it: the ancestor's step file, the two exposures, and the binding. */
+/** The module engineer that binds it: the ancestor's step file, the two exposures, and the binding. */
 export const bindTurn = submit(
   completionProposed('The integration scenario binds to both sub-scenarios\' definitions.', { bindings: [{ id: 'sc-003' }] }),
   write('tests/steps/integration.steps.ts', ancestorStepFile),

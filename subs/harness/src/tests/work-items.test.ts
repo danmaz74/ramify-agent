@@ -20,7 +20,7 @@ import {
 /*
  * A run whose work items need no change: the initial analysis produces entry
  * assignments and separate hypotheses, one work item is created per entry
- * capability, each work item's local architect requests completion, the
+ * capability, each work item's module architect requests completion, the
  * `work-item` gate verifies it, and the run completes.
  *
  * Requesting completion with no iteration is a legitimate outcome. The goal
@@ -94,7 +94,7 @@ describe('a run whose work items need no change', () => {
 
     const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
     expect(events.map(event => event.type)).toEqual([
-      // The intake, the initial architect and the plan's checker, each a fresh session.
+      // The intake, the plan architect and the plan's checker, each a fresh session.
       'job-started', 'document-manifest-committed', 'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended',
       'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'analysis-accepted',
       'gate-started', 'readiness-passed', 'scratch-setting-up', 'scratch-setup-complete', 'scenarios-materializing', 'scenarios-materialized',
@@ -309,7 +309,7 @@ describe('a work-item gate that does not pass', () => {
     expect(events.some(event => event.type === 'work-item-completed')).toBe(false);
     expect(events.some(event => event.type === 'job-completed')).toBe(false);
 
-    // The local architect is one continuing session: every turn after the
+    // The module architect is one continuing session: every turn after the
     // first continues the point the last one reached.
     const local = agent!.sessions.filter(session => session.spec.submission.name === localArchitectToolName);
     expect(local).toHaveLength(4);

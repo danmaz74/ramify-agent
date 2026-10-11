@@ -146,7 +146,7 @@ export interface CommitMessageParts {
   readonly gate: Pick<GateAttempt, 'id' | 'checkpoint' | 'subject' | 'repairRound'>;
   /** The assignment's goal, which is the subject line beside the iteration. */
   readonly goal?: string | undefined;
-  /** The engineer's own words, from its validated submission; the harness writes everything else. */
+  /** The module engineer's own words, from its validated submission; the harness writes everything else. */
   readonly summary?: string | undefined;
   /** Earlier attempts at the same subject, newest last. */
   readonly earlier?: ReadonlyArray<{ readonly id: string; readonly verdict: string; readonly cause: string | null }> | undefined;

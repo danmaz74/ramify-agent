@@ -246,7 +246,7 @@ describe('S09/S12: one engineer step in a manual run', () => {
     expect(types.at(-1)).toBe('step-summary');
     const printer = createStepProgressText();
     const text = events.map(printer).filter(line => line !== null).join('\n');
-    expect(text).toContain(`Step: engineer, invocation ${summary.invocation}`);
+    expect(text).toContain(`Step: Module engineer, invocation ${summary.invocation}`);
     expect(text).toContain('Base: base-1; the tree matched it at start.');
     expect(text).toMatch(/→ edit /u);
     expect(text).toMatch(/◆ write refused; the session is told:/u);

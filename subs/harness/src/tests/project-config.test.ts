@@ -256,7 +256,7 @@ describe('the project-config readiness step', () => {
     expect(attempt.steps.filter(entry => entry.step.startsWith('baseline-')).every(entry => entry.outcome === 'not-verified')).toBe(true);
     expect(attempt.verdict).toBe('failed');
     // No code-repair assignment follows: the three invocations are the
-    // analysis's intake, initial architect and plan check.
+    // analysis's intake, plan architect and plan check.
     expect(snapshot.counts.invocations).toBe(3);
     expect(git.branch()).toBeNull();
   }, 180_000);

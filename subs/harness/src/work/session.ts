@@ -23,7 +23,7 @@ import type { DefaultWriteScope } from './scope.js';
 import type { TestArea } from '../run/project-config.js';
 
 /*
- * What a local architect is given for one work item: the goal, its
+ * What a module architect is given for one work item: the goal, its
  * requirement and acceptance references, its module's onboarding and API
  * view, the hypotheses it received with their rationales, and the registry.
  *
@@ -203,7 +203,7 @@ export interface WorkItemBriefing {
    * with what that command reported.
    */
   readonly failedGate?: { readonly id: string; readonly cause: string | null; readonly summary: readonly string[] } | undefined;
-  /** For an integration work item: its scenario, the sub-scenarios, their owners' step files and the engineer's scope. */
+  /** For an integration work item: its scenario, the sub-scenarios, their owners' step files and the module engineer's scope. */
   readonly integration?: IntegrationBriefing | undefined;
   /** For an entry's work item: every scenario of its entry, with its state. */
   readonly scenarios?: readonly BriefedScenario[] | undefined;
@@ -223,7 +223,7 @@ export interface WorkItemBriefing {
     /** Where its engineer ended without a result: the harness's digest and the failure analysis. */
     readonly failure?: IterationResult['failure'] | undefined;
   } | undefined;
-  /** The bounds an engineer runs under unless an assignment raises them, and the ceilings it may raise them to. */
+  /** The bounds a module engineer runs under unless an assignment raises them, and the ceilings it may raise them to. */
   readonly bounds?: { readonly defaults: EngineerBounds; readonly ceilings: EngineerBounds } | undefined;
   /** The run's directory, which the paths of a failure digest are relative to. */
   readonly runDirectory?: string | undefined;
@@ -236,7 +236,7 @@ export interface WorkItemBriefing {
   readonly reconciliation?: ReconciliationBriefing | undefined;
 }
 
-/** A reconciliation, as the local architect it returns to receives it. */
+/** A reconciliation, as the module architect it returns to receives it. */
 export interface ReconciliationBriefing {
   readonly id: string;
   readonly next: 'complete' | 'correct' | 'await-user' | 'unresolved';
@@ -285,7 +285,7 @@ export interface DelegationBriefing {
 
 /**
  * The "Default write scope" block of an architect's briefing: for each owner,
- * the directory its base gives an engineer, the only directories `included`
+ * the directory its base gives a module engineer, the only directories `included`
  * may name, and the guarded files beneath it. Empty where no owner is known.
  */
 export function defaultWriteScopeSection(scopes: readonly DefaultWriteScope[]): string[] {
@@ -323,7 +323,7 @@ export function architectScenarioSections(scenarios: readonly BriefedScenario[])
       '', '```gherkin', ...scenario.source, '```', '');
   }
   lines.push(
-    'A scenario is bound by step definitions, which an engineer writes in `src/tests/steps/` of the owner (a testing',
+    'A scenario is bound by step definitions, which a module engineer writes in `src/tests/steps/` of the owner (a testing',
     'module\'s `src/steps/`). Name the scenarios an iteration is to bind in `assignment.obligations`; its engineer\'s',
     'accepted proposal binds each, naming the fakes the binding relies on, and the scenario is `bound` and loses its',
     'pending tag at the next commit, so the gates\' configured checks run it. A passing gate is evidence, never your',
@@ -340,7 +340,7 @@ export function architectScenarioSections(scenarios: readonly BriefedScenario[])
   return lines;
 }
 
-/** The first user message of one local architect invocation. */
+/** The first user message of one module architect invocation. */
 export function workItemMessage(briefing: WorkItemBriefing): string {
   const { item } = briefing;
   // Paths are project-relative: the task's environment states the project root once.
@@ -374,7 +374,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     ...(working === undefined ? [] : [
       `- Working directory: \`${working}\`, relative to the project root.`,
       briefing.workingDirectory === briefing.projectRoot
-        ? '- The assigned module source directory was absent when this session began. This session remains at the project root even if an engineer creates the module. Do not create it from this reader session.'
+        ? '- The assigned module source directory was absent when this session began. This session remains at the project root even if a module engineer creates the module. Do not create it from this reader session.'
         : '- This is the assigned module\'s source directory.',
       '- Any project-relative path in this briefing resolves from the project root; structured submissions keep their project-relative paths.',
     ]),
@@ -445,7 +445,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
         }
       }
     }
-    lines.push('', 'A decision is accepted placement. It does not claim the owner is implemented, and it does not widen what an engineer may write.');
+    lines.push('', 'A decision is accepted placement. It does not claim the owner is implemented, and it does not widen what a module engineer may write.');
   }
   lines.push('');
 
@@ -493,7 +493,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
     lines.push('## A capability depends on itself', '');
     lines.push(`The requirement your work item just registered closed this cycle: ${delegation.cycle.members.map(member => `\`${member}\``).join(' → ')} → \`${delegation.cycle.members[0]!}\`.`);
     lines.push(`It runs through the work items ${list(delegation.cycle.workItems)}.`);
-    lines.push('', 'Re-plan with the submissions you have: ask the global architect to place the capability elsewhere, assign work so that one side completes without the other, or answer `unresolved`. The same cycle detected again fails the run.', '');
+    lines.push('', 'Re-plan with the submissions you have: ask the plan architect to place the capability elsewhere, assign work so that one side completes without the other, or answer `unresolved`. The same cycle detected again fails the run.', '');
   }
 
   if (delegation?.blocked !== undefined && delegation.blocked.length > 0) {
@@ -505,7 +505,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
   if (briefing.unresolvedRequest !== undefined) {
     const request = briefing.unresolvedRequest;
     lines.push('## Your placement request was not resolved', '');
-    lines.push(`\`${request.id}\` came back without a decision. What the global architect established:`);
+    lines.push(`\`${request.id}\` came back without a decision. What the plan architect established:`);
     for (const finding of request.findings) lines.push(`- Finding: ${finding}`);
     for (const gap of request.gaps) lines.push(`- Gap: ${gap}`);
     lines.push('', 'Nothing was placed and nothing was registered. Decide what to do with the work item on the evidence you have, or answer `unresolved`.', '');
@@ -515,7 +515,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
 
   if (briefing.bounds !== undefined) {
     const { defaults, ceilings } = briefing.bounds;
-    lines.push('## The bounds of an engineer', '');
+    lines.push('## The bounds of a module engineer', '');
     lines.push(`Unless an assignment raises them, one shell command may run ${defaults.commandTimeoutMs} ms, a session may go ${defaults.idleMs} ms without a sign of activity, and one invocation may run ${defaults.absoluteMs} ms.`);
     lines.push(`\`assignment.bounds\` raises them for one iteration, each with its reason, up to ${ceilings.commandTimeoutMs}, ${ceilings.idleMs} and ${ceilings.absoluteMs} ms.`, '');
   }
@@ -566,7 +566,7 @@ export function workItemMessage(briefing: WorkItemBriefing): string {
 const boundFields = { idleMs: 'the idle bound', absoluteMs: 'the absolute bound of an invocation' } as const;
 
 /**
- * An engineer that ended without a result, as its architect decides on it:
+ * A module engineer that ended without a result, as its architect decides on it:
  * the harness's digest, the failure analysis, and the options it has.
  */
 function failureSection(failure: NonNullable<IterationResult['failure']>, ceilings: EngineerBounds | undefined, runDirectory: string | undefined): string[] {
@@ -601,7 +601,7 @@ function deviationSection(deviations: string | undefined, recorded: string | und
   const lines: string[] = [];
   if (recorded !== undefined) {
     lines.push('## Your unresolved request was answered with a plan deviation', '');
-    lines.push(`The global architect answered with plan deviation \`${recorded}\`, below. Go on with the work item under it: meet the rest of the plan as written and the elements it amends as the deviation states them. Do not answer \`unresolved\` again for the same conflict; the person reviews the deviation.`, '');
+    lines.push(`The plan architect answered with plan deviation \`${recorded}\`, below. Go on with the work item under it: meet the rest of the plan as written and the elements it amends as the deviation states them. Do not answer \`unresolved\` again for the same conflict; the person reviews the deviation.`, '');
   }
   if (deviations === undefined) return lines;
   lines.push('## Plan deviations recorded after your package', '');
@@ -619,7 +619,7 @@ function environmentSection({ problem, note }: { readonly problem: EnvironmentPr
   return [
     '## The environment problem was reported, and the run resumed',
     '',
-    `The global architect answered \`${problem.request}\` with environment problem \`${problem.id}\`: the conflict lies in how the gate or the harness runs, not in the plan or the architecture. Its diagnosis:`,
+    `The plan architect answered \`${problem.request}\` with environment problem \`${problem.id}\`: the conflict lies in how the gate or the harness runs, not in the plan or the architecture. Its diagnosis:`,
     '',
     ...problem.diagnosis.split('\n').map(line => `> ${line}`),
     '',
@@ -632,7 +632,7 @@ function environmentSection({ problem, note }: { readonly problem: EnvironmentPr
   ];
 }
 
-/** What a reconciliation returns to the local architect: its correction, and its brief where the session lacks it. */
+/** What a reconciliation returns to the module architect: its correction, and its brief where the session lacks it. */
 function reconciliationSection(reconciliation: ReconciliationBriefing): string[] {
   const lines: string[] = [`## Reconciliation ${reconciliation.id}`, ''];
   if (reconciliation.brief !== undefined) {
@@ -685,8 +685,8 @@ function integrationSection(integration: IntegrationBriefing): string[] {
       : ` with the children ${scope.includedChildren.map(child => `\`${child}\``).join(', ')} included`}; the harness refuses any other base.`,
     `Its engineer writes a step file in \`${scenario.steps}/\` that imports, by name, the step files above, adds the`,
     '`expose-test` declarations along each path so this module receives them, and defines no step of its own. Name',
-    `\`${scenario.id}\` in \`assignment.obligations\`; the engineer's proposal binds it. Its gate runs this module's feature`,
-    'files; a failure arrives with the runner\'s own diagnostics, which you and the engineer investigate. The harness',
+    `\`${scenario.id}\` in \`assignment.obligations\`; the module engineer's proposal binds it. Its gate runs this module's feature`,
+    'files; a failure arrives with the runner\'s own diagnostics, which you and the module engineer investigate. The harness',
     'draws no conclusion about its cause. When, in your judgment, it is correctly implemented and passing, report it',
     '`done`; this work item completes at its own work-item gate.',
     '',

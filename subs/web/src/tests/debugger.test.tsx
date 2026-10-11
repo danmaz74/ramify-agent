@@ -17,7 +17,7 @@ async function openDebugger(client: StubClient, interval = 60_000): Promise<HTML
 }
 
 const debugReads = (client: StubClient) => client.calls.filter(call => call.startsWith('getDebugState')).length;
-const textarea = (area: HTMLElement) => within(area).getByRole('textbox', { name: 'Message to the engineer' }) as HTMLTextAreaElement;
+const textarea = (area: HTMLElement) => within(area).getByRole('textbox', { name: 'Message to the module engineer' }) as HTMLTextAreaElement;
 const button = (area: HTMLElement, name: string) => within(area).getByRole('button', { name }) as HTMLButtonElement;
 const withoutId = (command: RunCommandInput) => { const { commandId: _id, ...rest } = command; return rest; };
 
@@ -29,9 +29,9 @@ test('U05/U06: the state panel names the pausing and exchanging states, with the
   expect(screen.queryByRole('status', { name: 'Paused at a breakpoint' })).toBeNull();
   cleanup();
 
-  area = await openDebugger(debugClient(debugState(pause({ state: 'exchanging', revision: 2, summary: 'The engineer answers message c-1.' }))));
-  expect(await within(area).findByText('An exchange is in progress: the engineer is answering a message.')).toBeTruthy();
-  expect(within(area).getByLabelText('Harness summary').textContent).toBe('The engineer answers message c-1.');
+  area = await openDebugger(debugClient(debugState(pause({ state: 'exchanging', revision: 2, summary: 'The module engineer answers message c-1.' }))));
+  expect(await within(area).findByText('An exchange is in progress: the module engineer is answering a message.')).toBeTruthy();
+  expect(within(area).getByLabelText('Harness summary').textContent).toBe('The module engineer answers message c-1.');
   expect(document.querySelector('.badge.debug-paused')).toBeNull();
   expect(button(area, 'Send message').disabled).toBe(true);
   expect(button(area, 'Resume').disabled).toBe(true);
@@ -41,10 +41,10 @@ test('U07: the prepared input is read once on request, bound to the pause ID and
   const first = pause();
   const client = debugClient(debugState(first), { inspections: { 'bp-0001': inspection(first) } });
   const area = await openDebugger(client, 20);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   const inspections = () => client.calls.filter(call => call.startsWith('getDebugInspection'));
   expect(inspections()).toEqual([]);
-  expect(area.textContent).toContain('A preview of the input the harness prepared for the engineer, read only on request. It is not evidence of what the engineer received.');
+  expect(area.textContent).toContain('A preview of the input the harness prepared for the module engineer, read only on request. It is not evidence of what the module engineer received.');
 
   fireEvent.click(button(area, 'Read the prepared input'));
   const preview = await within(area).findByLabelText('Prepared input preview');
@@ -56,7 +56,7 @@ test('U07: the prepared input is read once on request, bound to the pause ID and
     'Continuity', 'Source point', 'Scope', 'Bounds',
   ]);
   const section = (name: string) => [...preview.querySelectorAll('details')].find(details => details.querySelector('summary')!.textContent!.startsWith(name))!;
-  expect(section('Role instructions').querySelector('pre')!.textContent).toBe('You are the engineer of this iteration.');
+  expect(section('Role instructions').querySelector('pre')!.textContent).toBe('You are the module engineer of this iteration.');
   expect(section('Task message').querySelector('pre')!.textContent).toBe('Implement wi-001.i01 at revision 1.');
   expect(section('Current additions').textContent).toContain('gate-failure');
   expect(section('Current additions').textContent).toContain('The last gate failed.');
@@ -93,7 +93,7 @@ test('U07: an inspection refusal is shown with the harness\'s message', async ()
   const client = debugClient(debugState(pause()));
   client.getDebugInspection = async () => { throw new ClientError('protocol', 'This is not a live breakpoint occurrence', 'conflict'); };
   const area = await openDebugger(client);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   fireEvent.click(button(area, 'Read the prepared input'));
   expect((await within(area).findByRole('alert')).textContent).toBe('The prepared input could not be read: This is not a live breakpoint occurrence');
   expect(within(area).queryByLabelText('Prepared input preview')).toBeNull();
@@ -103,7 +103,7 @@ test('U08: Send posts one debug-message with a fresh command ID, the current pau
   const paused = pause();
   const client = debugClient(debugState(paused));
   const area = await openDebugger(client);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   const text = 'Why this file?\n  Explain the  plan.';
   fireEvent.change(textarea(area), { target: { value: text } });
   // The harness admits the message: an exchange begins.
@@ -120,9 +120,9 @@ test('U08: Send posts one debug-message with a fresh command ID, the current pau
   });
   await waitFor(() => expect(debugReads(client)).toBeGreaterThan(reads));
   await waitFor(() => expect(textarea(area).value).toBe(''));
-  const entry = (await within(area).findByText('The engineer is answering.')).closest('li')!;
+  const entry = (await within(area).findByText('The module engineer is answering.')).closest('li')!;
   expect(entry.querySelector('.debug-person')!.textContent).toBe(text);
-  expect(within(area).getByText('An exchange is in progress: the engineer is answering a message.')).toBeTruthy();
+  expect(within(area).getByText('An exchange is in progress: the module engineer is answering a message.')).toBeTruthy();
   expect(screen.queryByRole('status', { name: 'Paused at a breakpoint' })).toBeNull();
   expect(within(area).queryByRole('alert')).toBeNull();
 });
@@ -157,7 +157,7 @@ test('U09: a settled exchange shows the text, the answer, its verdicts, outcome,
 test('U10: Resume carries the text as its message, or no message without text; after a held accepted or terminal outcome Send is disabled and Resume enabled', async () => {
   const client = debugClient(debugState(pause()));
   const area = await openDebugger(client);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   fireEvent.change(textarea(area), { target: { value: 'Go on, and keep\n the tests.' } });
   fireEvent.click(button(area, 'Resume'));
   await waitFor(() => expect(client.commands).toHaveLength(1));
@@ -175,7 +175,7 @@ test('U10: Resume carries the text as its message, or no message without text; a
 
   for (const taskState of ['accepted', 'terminal'] as const) {
     const held = await openDebugger(debugClient(debugState(pause({ revision: 2, taskState }))));
-    await within(held).findByText('The run is paused before the engineer starts.');
+    await within(held).findByText('The run is paused before the module engineer starts.');
     expect(button(held, 'Send message').disabled).toBe(true);
     expect(button(held, 'Resume').disabled).toBe(false);
     cleanup();
@@ -185,7 +185,7 @@ test('U10: Resume carries the text as its message, or no message without text; a
 test('U11: a refusal at an unchanged run version shows the harness\'s message and reads the state again, so the next click names the current revision', async () => {
   const client = debugClient(debugState(pause()));
   const area = await openDebugger(client);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   // Another client's exchange settled: the interaction is now at revision 2, the run version unchanged.
   answerDebug(client, debugState(pause({ revision: 2 })));
   client.commandRefusals = [new ClientError('protocol', 'The interaction is at revision 2, not 1', 'conflict')];
@@ -207,7 +207,7 @@ test('U11: a lost reply names the command ID and says it may have been admitted;
   const paused = pause();
   const client = debugClient(debugState(paused));
   const area = await openDebugger(client, 5000);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   client.commandRefusals = [new ClientError('connection', 'The harness did not answer: fetch failed')];
   fireEvent.change(textarea(area), { target: { value: 'Did this arrive?' } });
   fireEvent.click(button(area, 'Send message'));
@@ -220,7 +220,7 @@ test('U11: a lost reply names the command ID and says it may have been admitted;
   // It was admitted: the next interval read lists it.
   answerDebug(client, debugState(pause({ state: 'exchanging', revision: 2 }), [messageEntry(15, command.commandId, 'Did this arrive?', exchange(paused, command.commandId))]));
   await act(() => vi.advanceTimersByTimeAsync(5000));
-  const entry = (await within(area).findByText('The engineer is answering.')).closest('li')!;
+  const entry = (await within(area).findByText('The module engineer is answering.')).closest('li')!;
   expect(entry.querySelector('.debug-person')!.textContent).toBe('Did this arrive?');
 });
 
@@ -228,12 +228,12 @@ test('U11: a failed read of the debug state keeps the last state shown with the 
   vi.useFakeTimers({ shouldAdvanceTime: true });
   const client = debugClient(debugState(pause()));
   const area = await openDebugger(client, 5000);
-  await within(area).findByText('The run is paused before the engineer starts.');
+  await within(area).findByText('The run is paused before the module engineer starts.');
   client.failure = new ClientError('connection', 'The harness did not answer: fetch failed');
   await act(() => vi.advanceTimersByTimeAsync(5000));
   expect((await within(area).findByRole('alert')).textContent)
     .toBe('The debugger state could not be read: The harness did not answer: fetch failed. What is shown is the last state read. The next interval reads it again.');
-  expect(within(area).getByText('The run is paused before the engineer starts.')).toBeTruthy();
+  expect(within(area).getByText('The run is paused before the module engineer starts.')).toBeTruthy();
   expect(within(within(area).getByLabelText('Pause facts')).getByText('bp-0001')).toBeTruthy();
   expect(screen.getByRole('status', { name: 'Paused at a breakpoint' })).toBeTruthy();
 

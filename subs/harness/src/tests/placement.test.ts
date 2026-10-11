@@ -242,7 +242,7 @@ describe('G2, G3: two sequential placement forks, and the brief between them', (
       expect(decision.evidence.view).toEqual(refreshed[index]!.data.view);
     }
 
-    // The decision reached the local architect that asked, before it planned
+    // The decision reached the module architect that asked, before it planned
     // anything further.
     const delivered = types(events).indexOf('decision-delivered');
     expect(types(events).slice(delivered).includes('outline-revised')).toBe(true);
@@ -302,7 +302,7 @@ describe('X1c: a fork that returns partial findings and no decision', () => {
     expect(agent.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_orientation')).toHaveLength(2);
     expect(agent.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_item_result')).toHaveLength(3);
 
-    // The unresolved outcome reached the local architect that asked.
+    // The unresolved outcome reached the module architect that asked.
     const architects = agent.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name === 'submit_work_item_result');
     expect(architects[1]!.spec.prompt).toContain('pr-001');
     expect(architects[1]!.spec.prompt).toContain('was not resolved');
@@ -416,7 +416,7 @@ describe('a start the executor could not honor', () => {
       'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [submit(firstDecision('field-diff belongs to the catalog core.'))],
     })));
-    // The executor forgets the architect context and the local architect's
+    // The executor forgets the architect context and the module architect's
     // session as soon as each first invocation ends, so the requested preserving fork must remain unavailable.
     let forgotInitial = false;
     let forgotLocal = false;
@@ -495,7 +495,7 @@ describe('a parent context that can no longer be read', () => {
     expect(missing.every(event => event.data.generation === 1)).toBe(true);
     expect(events.filter(event => event.type === 'brief-appended')).toEqual([]);
 
-    // The decision still reached the local architect that asked for it.
+    // The decision still reached the module architect that asked for it.
     expect(events.filter(event => event.type === 'decision-delivered')).toHaveLength(2);
 
     // The next fork was started fresh and oriented from the records, which
@@ -535,7 +535,7 @@ describe('a parent context that can no longer be read', () => {
     expect(sessions.get(rebuiltContext)!.appends).toHaveLength(0);
     expect(sessions.get(context)).toMatchObject({ state: 'finished', finished: 'not-kept' });
     // ST03: the first fork forked the architect context of generation 1 at
-    // the initial architect's end; the fork that rebuilt the context names
+    // the plan architect's end; the fork that rebuilt the context names
     // the session it took the place of, and forks from nothing.
     expect(sessions.get(context)!.fork).toEqual({ from: { session: 'ses-0002', invocation: 'inv-0002' }, reason: 'placement-request', generation: 1, briefs: [] });
     expect(sessions.get(rebuiltContext)).toMatchObject({ fork: null, replaces: null });

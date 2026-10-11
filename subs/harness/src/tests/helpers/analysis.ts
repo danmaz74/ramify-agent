@@ -113,7 +113,7 @@ export function elementsOf(entries: ReadonlyArray<{ readonly requirementRefs: re
   return [...elements.values()];
 }
 
-/** A local architect asking for completion with the smallest honest outline. */
+/** A module architect asking for completion with the smallest honest outline. */
 export function requestCompletion(extra: Partial<Extract<LocalArchitectSubmission, { kind: 'request-completion' }>['outline']> = {}) {
   return {
     kind: 'request-completion' as const,
@@ -130,7 +130,7 @@ export function requestCompletion(extra: Partial<Extract<LocalArchitectSubmissio
   };
 }
 
-/** A local architect reporting that the request cannot be met as stated. */
+/** A module architect reporting that the request cannot be met as stated. */
 export function unresolved(conflict = 'The request contradicts the module\'s own guarantee.', evidence: readonly string[] = ['README.md']) {
   return { kind: 'unresolved' as const, conflict, evidence: [...evidence] };
 }

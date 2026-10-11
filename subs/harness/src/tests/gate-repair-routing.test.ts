@@ -8,7 +8,7 @@ import type { PlannedCheck } from '../checks/verify.js';
 import { createMappedCheckExecution, type DirectCheckStep } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
-/* Failed check locations are evidence. The engineer diagnoses ownership during repair. */
+/* Failed check locations are evidence. The module engineer diagnoses ownership during repair. */
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

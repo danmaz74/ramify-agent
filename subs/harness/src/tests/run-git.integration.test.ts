@@ -34,7 +34,7 @@ function authorizedRepair(root: string) {
 
 /*
  * The smallest coherent run: one with no entry capabilities. It starts,
- * invokes the initial architect, passes readiness, passes its final gate and
+ * invokes the plan architect, passes readiness, passes its final gate and
  * completes, with no client connected: the file system alone is watched.
  */
 

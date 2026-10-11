@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Background, Controls, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow,
   type Edge, type Node, type NodeChange, type NodeProps, type Viewport } from '@xyflow/react';
@@ -63,7 +64,7 @@ function moduleText(node: ExecutionNode, byKey: ReadonlyMap<string, ExecutionNod
     return item?.kind === 'work-item' && item.module !== null ? item.module : moduleNotRecorded;
   }
   if (node.kind === 'session' && (node.reach.kind === 'work-item' || node.reach.kind === 'module' || node.reach.kind === 'capability-task')) return node.reach.module ?? moduleNotRecorded;
-  if (node.modules.length) return node.modules.map(relation => `${relation.module} (${relation.role})`).join(', ');
+  if (node.modules.length) return node.modules.map(relation => `${relation.module} (${roleLabel(relation.role)})`).join(', ');
   if ((node.kind === 'gate' && node.subject.workItem === null) || (node.kind === 'session' && node.reach.kind === 'run')) return 'Run-wide';
   return moduleNotRecorded;
 }
@@ -177,7 +178,7 @@ function ExecutionCard({ data }: NodeProps<CardNode>) {
         <small className="execution-capability-behavior" title={node.behavior}>{node.behavior}</small></> : <strong>{node.label}</strong>}
       {awaitingDecision && <small className="execution-decision-mark">{waitingLabel}</small>}
       <small>{module}</small>
-      {node.kind === 'session' && node.role === 'local-architect' && <small>Local architect lane · {node.invocations.length} invocation{node.invocations.length === 1 ? '' : 's'} across the work item</small>}
+      {node.kind === 'session' && node.role === 'local-architect' && <small>Module architect lane · {node.invocations.length} invocation{node.invocations.length === 1 ? '' : 's'} across the work item</small>}
       {node.kind === 'iteration' && <small>Iteration {node.ordinal} · outline {node.outlineRevision} · {node.outcome ?? node.state}</small>}
       {node.kind === 'requirement' && <small>{node.state} · provider {node.providerStage} · revision {node.currentRevision}</small>}
       {node.kind === 'contract' && <small>{node.mode} · revision {node.revision} · {node.state}</small>}
@@ -211,9 +212,9 @@ function Detail({ node, map, client, planId, runId, onOpenGate, onOpenSession }:
   const gate = useQuery(`gate-detail:${runId}:${map.runVersion}:${key}`, () =>
     node?.kind === 'gate' && !node.active ? client.getGate(planId, runId, key.slice('gate:'.length)) : Promise.resolve(null));
   if (!node) return <p className="muted">Select a map card, scenario name, session or gate for its recorded detail.</p>;
-  const moduleRoles = new Set([...node.modules.map(relation => `${relation.module} (${relation.role})`),
+  const moduleRoles = new Set([...node.modules.map(relation => `${relation.module} (${roleLabel(relation.role)})`),
     ...[...map.moduleMap.modules, ...map.moduleMap.outsideTree].flatMap(row =>
-      row.direct.filter(relation => relation.element === node.key).map(relation => `${row.module} (${relation.role})`))]);
+      row.direct.filter(relation => relation.element === node.key).map(relation => `${row.module} (${roleLabel(relation.role)})`))]);
   return <section className="execution-detail" aria-label={`Details for ${node.label}`}>
     <h3>{node.kind === 'capability' ? <code>{node.label}</code> : node.label}</h3><p><code>{node.key}</code> · {node.kind}</p>
     {moduleRoles.size > 0 && <p>Modules: {[...moduleRoles].join('; ')}</p>}

@@ -75,7 +75,7 @@ test('ST10: thinking, files, tool input and output, the system prompt and append
     'tool call command npm test · bash · answered',
   ]);
   expect(toggle(/^File src\/app\.ts/)[0]!.textContent).toContain('8.8 KiB');
-  expect(toggle(/^System prompt/)[0]!.textContent).toContain('You are the engineer of shop/reviews.');
+  expect(toggle(/^System prompt/)[0]!.textContent).toContain('You are the module engineer of shop/reviews.');
 });
 
 test('ST10: the thinking visibility and every absent optional detail are shown', async () => {
@@ -94,7 +94,7 @@ test('ST10: the thinking visibility and every absent optional detail are shown',
 test('ST10: a body is fetched on its first expansion only, and an inline body needs no request; a read is a file with its range and line numbers', async () => {
   const client = clientWith(finishedEngineer());
   client.bodies.set('b'.repeat(64), { content: 'const a = 1;\nconst b = 2;\nconst c = 3;\n\n[Showing lines 10-12 of 40. Use offset=13 to continue.]', bytes: 9000, truncated: false });
-  client.bodies.set('a'.repeat(64), { content: 'You are the engineer of shop/reviews.\nKeep to the scope.', bytes: 12000, truncated: false });
+  client.bodies.set('a'.repeat(64), { content: 'You are the module engineer of shop/reviews.\nKeep to the scope.', bytes: 12000, truncated: false });
   render(<SessionPage client={client} session={ses2} anchor={null} interval={60_000} />);
   const file = (await screen.findAllByRole('button', { name: /^File src\/app\.ts/ }))[0]!;
   const bodyCalls = () => client.calls.filter(call => call.startsWith('getBody'));

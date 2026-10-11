@@ -64,7 +64,7 @@ describe('the session fixture over HTTP', () => {
     expect(runs.lineage.state).toBe('completed');
     const sessions = await sessionsOf(runs.lineage);
     expect(sessions.every(session => session.state === 'finished')).toBe(true);
-    // The intake is ses-0001; the architect context is the initial architect's.
+    // The intake is ses-0001; the architect context is the plan architect's.
     const architect = sessions.find(session => session.session === 'ses-0002')!;
     expect(architect.role).toBe('initial-architect');
     expect(architect.reaches).toEqual({ kind: 'run' });

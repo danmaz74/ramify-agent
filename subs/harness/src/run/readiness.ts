@@ -200,7 +200,7 @@ function declaredPackagesStep(
     : { step: 'declared-packages', outcome: 'passed', detail: `${packages.length} declared package directories; ${required ? 'all installed' : 'optional root dependency link'}` };
 }
 
-/** Run the committed preparation in the engineer's working tree, even when the audit reuses evidence. */
+/** Run the committed preparation in the module engineer's working tree, even when the audit reuses evidence. */
 async function declaredPreparationStep(
   request: ReadinessRequest,
   configuration: CommittedAuditConfiguration,

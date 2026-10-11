@@ -36,7 +36,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     const fixture = await consultationFixture(cleanup, input => {
       if (input.task.submissionTool !== 'answer_architect_consultation') return [ask('Explain boundary'), { kind: 'message', payload: { text: 'Engineer continued' } }, { kind: 'submit', input: {} }];
       if (input.task.role === 'local-architect') return [ask('Local new facts for global', 'global-question'), { kind: 'message', payload: { text: 'Local received global result and chose its advice' } }, answer('Local composed the final answer')];
-      return [{ kind: 'tool', tool: 'consult_architect', input: { message: 'Forbidden extra level' } }, answer('Global advised the local architect')];
+      return [{ kind: 'tool', tool: 'consult_architect', input: { message: 'Forbidden extra level' } }, answer('Global advised the module architect')];
     }, base => ({ dispatch: (input, runtime) => {
       if (input.task.submissionTool === 'answer_architect_consultation') {
         const global = input.task.role === 'global-fork';
@@ -53,7 +53,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     const second = consultationOutcome(fixture.run.log, starts[1]!.data.consultation)!;
     expect(starts[1]!.data.parent).toBe(first.id);
     expect(first).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Local composed the final answer' } } });
-    expect(second).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Global advised the local architect' } } });
+    expect(second).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Global advised the module architect' } } });
     expect(new Set([outer.session, first.child!.session, second.child!.session]).size).toBe(3);
     const global = fixture.seen.find(input => input.key.operationId === second.child!.invocation)!;
     expect(global.session.activeTools).toEqual(['read', 'grep', 'ls', 'answer_architect_consultation']);

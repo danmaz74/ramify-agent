@@ -9,7 +9,7 @@ import { validateAgainst, type SubmissionValidation } from '../run/submissions.j
 import type { FailureDigest } from './iterations.js';
 
 /*
- * An engineer that ended without a result, as its local architect learns of
+ * A module engineer that ended without a result, as its module architect learns of
  * it: in two layers, both ready before the architect is briefed.
  *
  * The digest is the harness's own, derived from what it already holds: why
@@ -18,7 +18,7 @@ import type { FailureDigest } from './iterations.js';
  * bounded as a gate summary is.
  *
  * The analysis is a model's, in a session of its own that reads and writes
- * nothing else: what the engineer was attempting, what it finished, what it
+ * nothing else: what the module engineer was attempting, what it finished, what it
  * was doing when it ended, the cause as one of five judgments and a
  * recommendation. An analysis that fails is unavailable, and the architect
  * is briefed with the digest alone.
@@ -187,13 +187,13 @@ export function duration(ms: number): string {
   return seconds === 0 ? `${minutes} min` : `${minutes} min ${seconds} s`;
 }
 
-/** The engineer's role as the briefing names it. */
+/** The module engineer's role as the briefing names it. */
 function roleName(role: Role): string {
   return role === 'contract-engineer' ? 'contract engineer' : role;
 }
 
 /**
- * The digest as the lines the local architect reads, and a client shows.
+ * The digest as the lines the module architect reads, and a client shows.
  * Its paths are relative to the run's directory, or beneath `runDirectory`
  * where the reader is given it.
  */
@@ -250,7 +250,7 @@ const causeNames: Readonly<Record<FailureAnalysisSubmission['cause'], string>> =
   unknown: 'unknown',
 };
 
-/** The analysis as the lines the local architect reads. */
+/** The analysis as the lines the module architect reads. */
 export function analysisLines(analysis: FailureAnalysis): string[] {
   if (analysis.outcome === 'unavailable') {
     return [`The failure analysis is unavailable${analysis.invocation === null ? '' : ` (\`${analysis.invocation}\`)`}: ${analysis.reason}. Decide on the digest above.`];
@@ -311,11 +311,11 @@ export function failureAnalysisMessage(request: {
     ...evidence.files.map(file => `- \`${file.path}\`: ${file.holds}`),
     ...(evidence.missing.length === 0 ? [] : ['', 'What it could not be given:', ...evidence.missing.map(entry => `- ${entry}`)]),
     '',
-    `The project is at \`${request.projectRoot}\`, with the engineer's uncommitted work in it. Read a file there by its absolute path where the patch does not show it, such as a file the engineer created.`,
+    `The project is at \`${request.projectRoot}\`, with the module engineer's uncommitted work in it. Read a file there by its absolute path where the patch does not show it, such as a file the module engineer created.`,
     '',
     'Read, then submit your account.',
     '',
-    'The engineer shell refuses whole-suite and watch-mode test runs; gates run the configured audit. A refusal means nothing ran. Focused commands run from the engineer working directory, under the recorded timeout and environment, and complete output is retained separately from its tail. Interpret these restrictions alongside the supplied tool results.',
+    'The module engineer shell refuses whole-suite and watch-mode test runs; gates run the configured audit. A refusal means nothing ran. Focused commands run from the module engineer working directory, under the recorded timeout and environment, and complete output is retained separately from its tail. Interpret these restrictions alongside the supplied tool results.',
   ].join('\n');
 }
 

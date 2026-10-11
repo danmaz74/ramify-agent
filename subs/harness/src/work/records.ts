@@ -7,7 +7,7 @@ import { slugSchema } from '../analysis/records.js';
 import { scenarioIdSchema } from '../../subs/scenarios/src/records.js';
 
 /*
- * A module work item and the outline its local architect writes for it.
+ * A module work item and the outline its module architect writes for it.
  *
  * One work item is created per entry capability, always: its module is the
  * entry's owner and its goal the entry's description. Iterations, their

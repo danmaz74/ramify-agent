@@ -181,12 +181,12 @@ function invocationsOf(log: readonly RunEvent[], role: string): string[] {
   return log.flatMap(event => (event.type === 'invocation-started' && event.data.role === role ? [event.data.invocation] : []));
 }
 
-/** The prompts the local architects of a run were given, in order. */
+/** The prompts the module architects of a run were given, in order. */
 function architectPrompts(agent: { readonly sessions: ReadonlyArray<{ readonly spec: { readonly submission: { readonly name: string }; readonly prompt: string } }> } | undefined): string[] {
   return (agent?.sessions ?? []).filter(session => session.spec.submission.name === 'submit_work_item_result').map(session => session.spec.prompt);
 }
 
-/** The verdicts of each local architect session of a run, in order. */
+/** The verdicts of each module architect session of a run, in order. */
 function architectVerdicts(agent: { readonly sessions: ReadonlyArray<{ readonly spec: { readonly submission: { readonly name: string } }; readonly verdicts: readonly unknown[] }> } | undefined): unknown[][] {
   return (agent?.sessions ?? []).filter(session => session.spec.submission.name === 'submit_work_item_result').map(session => [...session.verdicts]);
 }

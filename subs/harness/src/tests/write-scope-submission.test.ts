@@ -80,7 +80,7 @@ describe('included entries', () => {
     expect(scope).toBeNull();
     expect(errors).toEqual([{
       path: 'assignment.scope.base.included.0.directory',
-      message: '"subs/ui/src/tests" lies inside the own contents of "app/ui", which the base already gives the engineer whole; remove this entry',
+      message: '"subs/ui/src/tests" lies inside the own contents of "app/ui", which the base already gives the module engineer whole; remove this entry',
       expected: 'one of "subs/ui/subs/widgets", "subs/ui/tools/cli", or no entry',
     }]);
     // One ownership query judged the whole scope.

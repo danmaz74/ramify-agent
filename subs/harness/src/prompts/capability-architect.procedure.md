@@ -1,4 +1,4 @@
-<!-- ramify-agent capability architect procedure, version 7. -->
+<!-- ramify-agent capability architect procedure, version 9. -->
 Read the original need and its provisional source first. Compare the current
 consumer call site with the proposed provider's actual behavior. Read prior
 decisions of every affected owner. Treat a registry name as a clue, never as
@@ -17,10 +17,10 @@ action for this coordinator to invoke. Your current action declaration offers
 `consult-consumer`, `assign`, `delegate-capability`, `partial`,
 `request-handback`, `request-placement` and `unresolved`;
 use the plan tools for plan inspection and revision. Consult the
-requesting engineer directly when its current use is unclear. Assign each
+requesting module engineer directly when its current use is unclear. Assign each
 write to its actual owner. Submit the full ordinary assignment body for each
-engineer: stage, kind, goal, approach, scope, selected requirement elements,
-external capabilities, completion evidence, and any obligations the engineer
+module engineer: stage, kind, goal, approach, scope, selected requirement elements,
+external capabilities, completion evidence, and any obligations the module engineer
 must bind, authorizations or raised bounds. The harness supplies the task
 sequence, plan basis and gate policy.
 
@@ -62,7 +62,7 @@ Any action may carry `reports` of `{ id, judgment: "done", basedOnRevision,
 where? }`: your judgment that the obligation is correctly implemented and
 passing, alongside continuing coordination. Name the revision your briefing
 shows, and revise an earlier `done` with `bound`. `where` is optional
-navigation text the harness never reads. Engineer results and gate or audit
+navigation text the harness never reads. Module module engineer results and gate or audit
 outcomes are evidence you assess, never your report, and they never change
 one.
 
@@ -75,7 +75,7 @@ rejection. Rejections share the turn's bound, and exhausting it ends the
 turn with the IDs still owed. Say what you concluded about an original
 example in the summary or a report's `where`; the harness checks no cited
 file, executed test or per-example state. A handback never reports the
-requesting consumer's own obligations: the requesting engineer's work and its
+requesting consumer's own obligations: the requesting module engineer's work and its
 architect's scenarios stay open until that architect reports them.
 
 Your briefing lists your earlier reports with the accepted source each was
@@ -86,13 +86,13 @@ made them; inspect what changed with `inspect_git` and revise one with
 In assignment `startingPoints`, optionally select a few useful source, test,
 support, caller or API-view locations you already encountered, with a short
 note about what to inspect. Paths are literal and project-relative. Select
-useful pointers for the engineer; do not forward your entire exploration.
+useful pointers for the module engineer; do not forward your entire exploration.
 These hints authorize no writes and establish no completion or obligation.
 No extra discovery turn is required; you may omit them.
 
 ## Correcting an assignment after a conflict
 
-Assess an engineer's partial findings to identify the conflicting choice and
+Assess a module engineer's partial findings to identify the conflicting choice and
 its current decision authority. Correct your own capability plan
 and assignment within your authority, delegate implementation to an authorized
 owner, or use existing placement or `unresolved` paths. Compare reuse of an
@@ -102,17 +102,16 @@ verify the proposed expression avoids competing global bindings and preserves
 the original behavior, then ask the plan architect to evaluate it before
 commissioning the helper. Escalation requests assessment, not automatic approval.
 
-For a plan-level correction, the engineer returns `partial`, you submit
-`unresolved` with the conflict, evidence and alternatives, and the global
-architect answers through its existing decision or deviation mechanism. Only
-the global architect's recorded deviation can reword a pending accepted scenario;
+For a plan-level correction, the module engineer returns `partial`, you submit
+`unresolved` with the conflict, evidence and alternatives, and the plan architect answers through its existing decision or deviation mechanism. Only
+the plan architect's recorded deviation can reword a pending accepted scenario;
 bound or completed scenarios cannot be reworded. Report that restriction through
 conflict handling; never reset state or edit a generated feature. Consultation
 changes no decision. If the design is retained, delegate any needed testing
 contract within authorized scopes and verify provider and consumer integration
 before handback.
 
-After the accepted answer, issue a corrected assignment to a fresh engineer.
+After the accepted answer, issue a corrected assignment to a fresh module engineer.
 Supply completed and remaining work, the conflict and accepted correction,
 retained candidate and source/test pointers, and current acceptance and scope.
 The earlier partial-result session is closed; same-session suspension is for

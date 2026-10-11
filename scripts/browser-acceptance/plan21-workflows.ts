@@ -20,7 +20,7 @@ import { gateViewSchema, type GateView, type ObligationView } from '../../subs/h
  * produced by production wiring with scripted agents and the installed
  * providers. At desktop and narrow widths it reads the ordinary run's failing
  * nested final audit and its repaired passing one, the registered obligations
- * with their reports and where hints, an architect's brief, an engineer's
+ * with their reports and where hints, an architect's brief, a module engineer's
  * post-write dispositions and the capability task's handback report, and
  * compares each projection with the harness's own protocol answer.
  *
@@ -204,13 +204,13 @@ try {
       check(`${width}: the obligation list fits the page width`, await noSidewaysScroll(page));
       await shot('w1-failed-obligations', obligations.list);
 
-      // The engineer's post-write dispositions in the failed run.
+      // The module engineer's post-write dispositions in the failed run.
       await page.goto(`${servers['w1']!.url}/#/plans/review-notes/runs/${encodeURIComponent(failed.run)}/sessions/${engineerSession}`, { waitUntil: 'networkidle' });
       const dispositions = page.getByLabel('Path dispositions');
       await dispositions.first().waitFor({ timeout: 15_000 });
       const rows = (await dispositions.locator(':scope > li').allInnerTexts()).map(row => row.trim());
       observed[`${width}-engineer-dispositions`] = rows;
-      check(`${width}: the engineer's writes keep their dispositions: source checked, scratch not analyzed without a passing label`,
+      check(`${width}: the module engineer's writes keep their dispositions: source checked, scratch not analyzed without a passing label`,
         rows.some(row => row.startsWith('checked ') && row.includes('notes'))
         && rows.some(row => row.startsWith('not-analyzed ') && row.includes('tmp/draft.txt') && row.includes('scratch'))
         && rows.filter(row => row.startsWith('not-analyzed')).every(row => !/pass/u.test(row)));

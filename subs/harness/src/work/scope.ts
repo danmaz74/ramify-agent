@@ -325,8 +325,8 @@ export function includedTreeErrors(
       return;
     }
     seen.add(entry.directory);
-    if (entry.reason.trim() === '') errors.push({ path: `${at}.reason`, message: 'An included tree states why the engineer needs it, and this reason is blank' });
-    if (entry.instructions.trim() === '') errors.push({ path: `${at}.instructions`, message: 'An included tree carries instructions for the engineer, and these are blank' });
+    if (entry.reason.trim() === '') errors.push({ path: `${at}.reason`, message: 'An included tree states why the module engineer needs it, and this reason is blank' });
+    if (entry.instructions.trim() === '') errors.push({ path: `${at}.instructions`, message: 'An included tree carries instructions for the module engineer, and these are blank' });
     const child = topology.modules.find(module => module.directory === entry.directory && module.parent === base.module);
     const project = topology.exclusions.find(exclusion => exclusion.directory === entry.directory && exclusion.kind === 'owned-nested-project');
     if (child === undefined && project === undefined) {
@@ -334,7 +334,7 @@ export function includedTreeErrors(
       errors.push({
         path: `${at}.directory`,
         message: seed?.status === 'owned' && seed.module === base.module
-          ? `"${entry.directory}" lies inside the own contents of "${base.module}", which the base already gives the engineer whole; remove this entry`
+          ? `"${entry.directory}" lies inside the own contents of "${base.module}", which the base already gives the module engineer whole; remove this entry`
           : `"${entry.directory}" is neither an immediate child module directory of "${base.module}" nor an owned nested-project root`,
         expected,
       });

@@ -1,7 +1,7 @@
-<!-- ramify-agent global fork procedure, version 5. -->
+<!-- ramify-agent plan architect placement procedure, version 7. -->
 For a placement request, do this, in order:
 
-1. Read the request: the behavior it requires, what the local architect
+1. Read the request: the behavior it requires, what the module architect
    established, the candidates it suggests and what it could not resolve.
 2. Read the registry and the decisions already made. A capability that is
    registered and not implemented yet is still decided: reusing it preserves
@@ -29,7 +29,7 @@ revisions it makes, and the brief that reaches later forks.
   between them is recorded.
 - `decision.changesExistingSymbols` is true when implementing this capability
   will change symbols that already have consumers. Say so: it is what break
-  analysis reads, and what lets the contract engineer read those consumers.
+  analysis reads, and what lets the module engineer working on a contract read those consumers.
   Only a module the refreshed view already has can be true here, so a
   capability whose owner you propose, and an `external` one, are false.
 - `decision.owner` is the module that owns the capability. It is `null` only
@@ -62,7 +62,7 @@ revisions it makes, and the brief that reaches later forks.
 Ordinary project scripts and documentation belong to the owner the installed
 provider reports. Decide capability placement using that owner and the registry.
 Whole included children and declared owned nested projects use the assignment's
-one `included` list; the local architect supplies each directory's reason and
+one `included` list; the module architect supplies each directory's reason and
 instructions. Provider exclusions cannot be opened by a placement decision.
 
 ## `partial`
@@ -70,14 +70,14 @@ instructions. Provider exclusions cannot be opened by a placement decision.
 You could not decide. Say what you established in `findings` and what is
 missing in `gaps`. This is never appended and is never a decision: the
 harness retries this request within its bound and then returns an unresolved
-outcome to the local architect. It never asks the parent context to supply
+outcome to the module architect. It never asks the parent context to supply
 the choice you could not make.
 
 Do not invent a decision to avoid a partial return.
 
 ## An unresolved request
 
-A local architect answered that its request cannot be met as stated. The
+A module architect answered that its request cannot be met as stated. The
 message gives its conflict and evidence, the plan with its line numbers, and
 the deviations already recorded. Do this, in order:
 
@@ -97,18 +97,18 @@ the deviations already recorded. Do this, in order:
 5. Answer `nothing-possible` only when no deviation leaves anything of the
    plan worth doing. The run ends there.
 
-The remedy decides between them. A remedy an engineer can carry out in a
+The remedy decides between them. A remedy a module engineer can carry out in a
 write scope, a code or declaration change within modules or extra scope with
 a purpose, is a placement or a deviation. A remedy outside every write
 scope, such as building, installing, configuring the gate or changing the
 harness, is `environment`. **An environment problem is never dressed as a
-placement or a deviation**: a constraint no engineer can meet, such as "run
+placement or a deviation**: a constraint no module engineer can meet, such as "run
 the production build before the tests", leaves the work item failing the
 same gate.
 
 ### `decision`, for an unresolved request
 
-As for a placement request. Its `decision.constraints` name only what a local
+As for a placement request. Its `decision.constraints` name only what a module
 architect can assign: code and declaration changes within modules, and extra
 scope with its purpose. Give at most 10, each one statement of at most 400
 characters.
@@ -151,7 +151,7 @@ before it goes on. Many deviations say the plan is wrong: prefer
 The conflict lies in how the gate or the harness runs, not in the plan or the
 architecture. The run holds the work item for the operator: nothing is
 placed, no deviation is recorded and the plan file is untouched. When the
-operator resumes the run, the work item's local architect retries from its
+operator resumes the run, the work item's module architect retries from its
 last outline with your diagnosis; if the same failure returns, it may ask
 again.
 
@@ -175,7 +175,7 @@ harness retries within its bound; exhaustion ends the run.
 
 ## Binding conflicts and plan acceptance
 
-When an assigning architect escalates an engineer's partial conflict, assess
+When an assigning architect escalates a module engineer's partial conflict, assess
 reuse, a supported shared-state contract and behavior-preserving scenario
 rewording before selecting a correction. A collision alone does not justify a
 deviation. Consider whether authorized local wording avoids a helper while
@@ -191,4 +191,4 @@ or completed scenario remains protected: return the limitation through existing
 conflict handling, without a state reset or a generated-file edit. Existing
 user-review findings, continuation limits and decision behavior still apply.
 The assigning architect receives the answer and prepares the corrected fresh
-engineer assignment; advisory recommendations alone change no acceptance.
+module engineer assignment; advisory recommendations alone change no acceptance.

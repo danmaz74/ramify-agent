@@ -228,7 +228,7 @@ describe('the scope question\'s message', () => {
     })), [{ key: 'serve', kind: 'functional', document: 'doc-001', text: 'Serve it over tRPC and MCP.', conditions: [], uncertainty: '' }]);
     if (!catalog.ok) throw new Error(catalog.errors.join('\n'));
     const rendered = createPackage({ catalog: catalog.catalog, elements: ['fr-001'], deviations: ['pd-001'],
-      planDeviations: [{ id: 'pd-001', amends: ['fr-001'], authority: 'The global architect, for wi-001.', text: 'What the run does instead: tRPC only.' }] });
+      planDeviations: [{ id: 'pd-001', amends: ['fr-001'], authority: 'The plan architect, for wi-001.', text: 'What the run does instead: tRPC only.' }] });
     if ('unavailable' in rendered) throw new Error('fixture did not render');
     const request = (kind: 'code' | 'scope'): ReviewRequest => ({
       schema: 'ramify-agent.review-request/1', id: 'rq-0002', key: { iteration: 'wi-001.i01', candidate: 'c1', kind, policy: 'review-policy/1' },

@@ -41,7 +41,7 @@ export function lineageInputsOf(view: RunView, logs: ObservationLogs): LineageIn
     if (event.type === 'session-opened') {
       opened.set(event.data.session, { fork: event.data.fork ?? null, replaces: event.data.replaces ?? null });
       if (event.data.fork?.generation !== undefined) generations.add(event.data.fork.generation);
-      // The initial architect's context is generation 1, forked or not.
+      // The plan architect's context is generation 1, forked or not.
       if (event.data.role === 'initial-architect') generations.add(1);
     }
   }

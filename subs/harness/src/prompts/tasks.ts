@@ -308,7 +308,7 @@ function taskDefinition(loaded: LoadedPackage, kind: TaskKind, consultationSubmi
   if (['local-architect', 'capability-architect', 'global-fork'].includes(role) && kind === 'architect-consultation') {
     tool = architectAnswerName;
     schema = JSON.stringify(architectAnswerJsonSchema);
-    procedure = 'This is advisory only. Explain, research and advise using inherited context and current source/views, whose revisions and limits may differ from inherited observations. Use read-only tools. Do not change source, assignments, scope, permissions or architectural decisions. The original architect conversation is untouched. A local fork may optionally consult its recorded global architect, carrying relevant new facts in its question. Answer through {{submissionTool}} with a nonblank answer; state uncertainty where evidence is missing.';
+    procedure = 'This is advisory only. Explain, research and advise using inherited context and current source/views, whose revisions and limits may differ from inherited observations. Use read-only tools. Do not change source, assignments, scope, permissions or architectural decisions. The original architect conversation is untouched. A local fork may optionally consult its recorded plan architect, carrying relevant new facts in its question. Answer through {{submissionTool}} with a nonblank answer; state uncertainty where evidence is missing.';
     source = null;
   }
   if (role === 'global-fork' && kind === 'placement') tool = forkToolName;

@@ -16,9 +16,9 @@ import { finalCandidate } from './final-candidate.js';
 
 /*
  * One scripted run whose sessions take every relation a run records: a
- * local architect continued across a placement request, an iteration and a
+ * module architect continued across a placement request, an iteration and a
  * yield; a global fork of the architect context, whose brief is appended
- * back to it; an engineer iteration whose need opens a contract
+ * back to it; a module engineer iteration whose need opens a contract
  * sub-session; a provider engineer continued for a repair after its first
  * gate failed; and the resumed consumer's fresh architect.
  *

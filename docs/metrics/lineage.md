@@ -29,7 +29,7 @@ measured under `lineage/2`.
 | --- | --- |
 | Requested start | `invocation-ended.degraded.requested` when present; otherwise `session-opened.fork` and `invocation-started.start`/`continues` |
 | Actual start | The requested start, or the `degraded` relation of `invocation-ended`; unknown where the outcome records no start |
-| Context generation | A fork's `fork.generation`; generation 1 with the initial architect, and each `global-context-rebuilt` generation |
+| Context generation | A fork's `fork.generation`; generation 1 with the plan architect, and each `global-context-rebuilt` generation |
 | Fork source | A forked session's `session-opened.fork.from.session`, and the `role` of that session's own `session-opened` |
 | Starting context size | The first `context` observation of the invocation's observation log |
 | Usage | The input, cache-read, cache-write and output tokens of `outcome.json` |
@@ -50,10 +50,10 @@ start where the actual one is unknown.
 | Group | Segments |
 | --- | --- |
 | `fork.generation-<g>` | Forks of context generation `g` |
-| `fork.local` | Forks whose source session is not the initial architect's or a global fork's: a scope review, design review, context selection or reconciliation forked from a local architect |
+| `fork.local` | Forks whose source session is not the plan architect's or a global fork's: a scope review, design review, context selection or reconciliation forked from a module architect |
 | `fresh-fork` | Global-fork segments whose start was fresh, including ordinary fallback and historical rebuild starts |
 | `repair` | Continued segments whose reason is `repair` |
-| `fresh-engineer` | Engineer segments whose start was fresh, reconstructions included |
+| `fresh-engineer` | Module engineer segments whose start was fresh, reconstructions included |
 
 Each group has one measurement per segment cost measure: `start-context`,
 `input`, `cache-read`, `cache-write` and `output`, such as
@@ -102,6 +102,6 @@ still counts harness sessions.
 
 The comparisons are descriptive. A fork and a fresh global fork differ in more
 than their start: the fresh one is oriented from the records. A repair and a
-fresh engineer differ in their work. The starting context size is an estimate
+fresh module engineer differ in their work. The starting context size is an estimate
 taken after the segment's first model call, so it includes that call's
 exchange as well as what was inherited.

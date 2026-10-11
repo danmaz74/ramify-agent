@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type {
   CheckFindingActorView, CheckFindingDecisionView, CheckFindingDetail, CheckFindingListResponse, CheckFindingSettlement,
@@ -86,7 +87,7 @@ export function standingText(summary: CheckFindingSummaryView): string {
 export function actorText(actor: CheckFindingActorView): string {
   switch (actor.kind) {
     case 'user': return actor.name;
-    case 'agent': return `${actor.role} (${actor.invocation})`;
+    case 'agent': return `${roleLabel(actor.role)} (${actor.invocation})`;
     case 'harness': return `the harness (${actor.reason})`;
   }
 }
@@ -563,7 +564,7 @@ function HistoryBody({ planId, runId, detail, onOpenGate }: {
             <li key={repair.decision}>
               <code>{repair.decision}</code>: {repair.iteration === null ? 'no correction iteration assigned yet' : <>correction iteration {repair.iteration}</>}
               {repair.reconciliation && <> for {repair.reconciliation}</>}
-              {repair.sessions.map(entry => <span key={entry.invocation}>, {session(entry.session, entry.invocation, `${entry.role} ${entry.session}`)}</span>)}
+              {repair.sessions.map(entry => <span key={entry.invocation}>, {session(entry.session, entry.invocation, `${roleLabel(entry.role)} ${entry.session}`)}</span>)}
             </li>
           ))}</ul>
         </>
@@ -633,12 +634,12 @@ export function PlanDeviations({ client, planId, runId, version, onOpenGate }: S
 /** What the operator's answer to an environment problem did, in words. */
 const environmentAnswerText: Readonly<Record<RunEnvironmentProblem['answer'], string>> = {
   waiting: 'The run holds this work item until you answer: resume it once the environment is corrected, or end the run.',
-  resumed: 'You resumed the run; the work item returned to its local architect with this diagnosis.',
+  resumed: 'You resumed the run; the work item returned to its module architect with this diagnosis.',
   ended: 'You ended the run.',
 };
 
 /**
- * Every environment problem the global architect reported: the conflict
+ * Every environment problem the plan architect reported: the conflict
  * lies in how the gate or the harness runs, not in the plan or the
  * architecture. Each shows its work item, request, diagnosis and suggestion,
  * and one still waiting shows its CheckFinding's answer form.

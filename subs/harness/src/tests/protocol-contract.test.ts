@@ -461,7 +461,7 @@ describe('sessions', () => {
     const started = {
       n: 1, at, type: 'started', invocation: 'inv-0001', role: 'engineer', work: {}, start: 'opened', requested: 'fresh',
       continues: null, fork: null, replaces: null, requestedBy: null, executor: 'scripted', model: null,
-      systemPrompt: { stored: 'blob', hash: 'a'.repeat(64), bytes: 20_000, preview: 'You are the engineer.' },
+      systemPrompt: { stored: 'blob', hash: 'a'.repeat(64), bytes: 20_000, preview: 'You are the module engineer.' },
       prompt: { stored: 'inline', text: 'Raise the limit.', bytes: 16 },
     };
     expect(sessionTranscriptResponseSchema.safeParse({ session: run, page: { ...page, entries: [started], cursor: 1 } }).success).toBe(true);

@@ -75,7 +75,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   /** Actual packet/scope/execution identity committed before observational events; does not start another invocation. */
   // Each of an invocation's two record revisions names its part; earlier logs name neither.
   event('invocation-prepared', z.object({ invocation: text, recorded: z.enum(['delivered-inputs', 'operation-identity']).optional() }).strict()),
-  /** The run's first event, holding the start command. It licenses the initial architect. */
+  /** The run's first event, holding the start command. It licenses the plan architect. */
   event('job-started', z.object({ command: acceptedCommandSchema }).strict()),
   event('debug-pausing', z.object({ pauseId: text, revision: z.int().positive(), role: roleSchema,
     work: invocationWorkSchema, goal: z.string(), nextAction: z.string() }).strict()),
@@ -281,7 +281,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
    */
   event('obligation-registered', obligationRegisteredDataSchema),
   /**
-   * An engineer's accepted completion proposal bound an obligation its
+   * A module engineer's accepted completion proposal bound an obligation its
    * assignment named, relying on the fakes it lists, possibly none. A
    * `pending` obligation is `bound` from here and loses its pending tag at
    * the next commit; a `done` one records the new list and stays `done`.
@@ -296,7 +296,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
    */
   event('obligation-reported', obligationReportedDataSchema),
   /**
-   * The work item's turn begins; it licenses its local architect. It names
+   * The work item's turn begins; it licenses its module architect. It names
    * the item's origin, and an integration work item's scenario.
    */
   event('work-item-started', z.object({
@@ -313,7 +313,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
    */
   event('hypotheses-delivered', z.object({ workItem: text, refs: z.array(recordRefSchema) }).strict()),
   /**
-   * Commits the `PlacementRequest` one local architect made. Requests run
+   * Commits the `PlacementRequest` one module architect made. Requests run
    * one at a time, and this one licenses no agent by itself.
    */
   event('placement-requested', z.object({
@@ -378,12 +378,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
     generation: z.int().positive(),
     reason: text,
   }).strict()),
-  /** The accepted decision returns to the requesting local architect. */
+  /** The accepted decision returns to the requesting module architect. */
   event('decision-delivered', z.object({ decision: text, workItem: text }).strict()),
   /**
    * Commits one revision of a `WorkItemOutline`, revision 1 included.
    * `architectRef` is present exactly on the revision that commits a
-   * `request-completion` submission: the local architect's pinned point
+   * `request-completion` submission: the module architect's pinned point
    * after it, which reconciliation forks, or null where none was kept. A
    * revision committed with an assignment, and one of an earlier run, has
    * none. A completion request that changes nothing in the committed
@@ -399,7 +399,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   }).strict()),
   /**
    * Commits one `IterationAssignment` with its captured `WriteScope`, its
-   * derived gate and its guarded hashes. It licenses the engineer that works
+   * derived gate and its guarded hashes. It licenses the module engineer that works
    * it.
    */
   event('iteration-assigned', z.object({
@@ -408,10 +408,10 @@ export const runEventSchema = z.discriminatedUnion('type', [
     kind: text,
     scopeRevision: z.int().nonnegative(),
     invocation: text,
-    /** The local architect's own placement decisions, committed with the assignment. */
+    /** The module architect's own placement decisions, committed with the assignment. */
     decisions: z.array(text),
     /**
-     * The local architect's pinned point at the end of the invocation that
+     * The module architect's pinned point at the end of the invocation that
      * produced this assignment, which the iteration's scope review forks;
      * null where the session was not kept, absent in an earlier run.
      */
@@ -443,7 +443,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('scratch-preserved', z.object({ iteration: text, paths: z.array(text) }).strict()),
   /**
    * Commits the `contract` `IterationAssignment` of one sub-session, and
-   * licenses the contract engineer. `requestedBy` names the engineer
+   * licenses the contract engineer. `requestedBy` names the module engineer
    * iteration that asked; a committed record, so a caller that dies
    * discovers the outcome without its original reply.
    */
@@ -533,7 +533,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   /**
    * An ordinary provider engineer reported that it cannot conform to the
    * agreement as it stands. Deduplicated per obligation revision, it returns
-   * to the requesting consumer's local architect, even while that consumer
+   * to the requesting consumer's module architect, even while that consumer
    * is yielded. The agreement stays unchanged until a revision is
    * registered.
    */
@@ -544,7 +544,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   }).strict()),
   /**
    * A capability transitively depends on itself. The cycle returns to the
-   * local architect of the work item whose registration closed it, and is a
+   * module architect of the work item whose registration closed it, and is a
    * notice the person sees whether or not the re-plan resolved it.
    */
   event('dependency-cycle-detected', z.object({
@@ -639,13 +639,13 @@ export const runEventSchema = z.discriminatedUnion('type', [
   /**
    * Commits one `ReconciliationBasis`: a work item that requested completion
    * has CheckFindings needing attention, and one round assesses them. It
-   * licenses one fork of the local architect.
+   * licenses one fork of the module architect.
    */
   event('reconciliation-started', reconciliationStartedDataSchema),
   /**
    * Commits one `ReconciliationAssessment` with the relations and decisions
    * it makes, validated against its basis under the run mutex. It is the
-   * intent of the brief's append to the local architect's session, keyed
+   * intent of the brief's append to the module architect's session, keyed
    * by the reconciliation.
    */
   event('reconciliation-assessed', z.object({ ...reconciliationAssessedFields, checkFindings: checkFindingEventsField }).strict()),
@@ -654,16 +654,16 @@ export const runEventSchema = z.discriminatedUnion('type', [
   /** A basis that no longer held, at the assessment or before the work item's completion; a new round follows. */
   event('reconciliation-refused', reconciliationRefusedDataSchema),
   /**
-   * Commits the `UnresolvedRequest` a local architect's `unresolved` answer
+   * Commits the `UnresolvedRequest` a module architect's `unresolved` answer
    * makes. Like a placement request it licenses no agent by itself; the
-   * `view-refreshed` of its request licenses one fork of the global
+   * `view-refreshed` of its request licenses one fork of the plan
    * architect, which answers it.
    */
   event('unresolved-requested', z.object({
     request: text,
     workItem: text,
     requester: modulePathSchema,
-    /** The local architect's invocation that answered `unresolved`. */
+    /** The module architect's invocation that answered `unresolved`. */
     invocation: text,
   }).strict()),
   /**

@@ -25,7 +25,7 @@ export function contextSelectorMessage(packet: string | undefined, catalog: Elem
     ...(packet === undefined ? [] : [packet]),
     '', '# The selectable elements', '',
     ids.length === 0 ? 'The catalog holds no non-functional, fixed or recommendation element.' : rendered.text.trimEnd(),
-    '', 'Select, by ID, the elements an engineer working this work item must keep in view, each with your reason, conditions and uncertainty. Omitting an element never waives it: every non-functional and fixed element is assessed against the final candidate. '
+    '', 'Select, by ID, the elements a module engineer working this work item must keep in view, each with your reason, conditions and uncertainty. Omitting an element never waives it: every non-functional and fixed element is assessed against the final candidate. '
       + (capturedPlan === undefined ? 'The elements above are quoted whole from the captured plan.'
         : `The elements above are quoted whole from the captured plan; the captured file is \`${capturedPlan}\` if you need its surrounding text.`)
       + ' Identify each selected element by its stable catalog ID, never by a passage, heading or line range. Keep the required reason, conditions and uncertainty in the structured submission.',

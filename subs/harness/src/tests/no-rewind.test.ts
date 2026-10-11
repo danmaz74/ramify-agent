@@ -95,14 +95,14 @@ async function target() {
   return fixture.root;
 }
 
-/** The engineer that raises the note limit, in the source and in the test that states it. */
+/** The module engineer that raises the note limit, in the source and in the test that states it. */
 const raiseTheNoteLimit = submit(
   completionProposed('Raised the note limit to 500, in the source and in the test that states it.'),
   edit('notes.ts', 'notesLimit = 400', 'notesLimit = 500'),
   edit('tests/notes.test.ts', 'toBe(400)', 'toBe(500)'),
 );
 
-/** The engineer that repairs the consumer the raised limit broke. */
+/** The module engineer that repairs the consumer the raised limit broke. */
 const repairTheAlert = submit(
   completionProposed('An alert now covers five hundred characters, as the note limit does.'),
   edit('alerts.ts', 'alertsLimit = 4', 'alertsLimit = 5'),

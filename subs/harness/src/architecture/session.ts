@@ -41,7 +41,7 @@ export function forkMessage(briefing: ForkBriefing): string {
   lines.push(
     `# Placement request ${request.id}`,
     '',
-    `The local architect of \`${request.requester}\`, working ${request.workItem} for the capability \`${request.forCapability}\`, asks:`,
+    `The module architect of \`${request.requester}\`, working ${request.workItem} for the capability \`${request.forCapability}\`, asks:`,
     '',
     `> ${request.question}`,
     '',
@@ -105,7 +105,7 @@ export function unresolvedForkMessage(briefing: UnresolvedForkBriefing): string 
   lines.push(
     `# Unresolved request ${request.id}`,
     '',
-    `The local architect of \`${request.requester}\`, working ${request.workItem}, answered that its request cannot be met as stated:`,
+    `The module architect of \`${request.requester}\`, working ${request.workItem}, answered that its request cannot be met as stated:`,
     '',
     ...request.conflict.split('\n').map(line => `> ${line}`),
     '',

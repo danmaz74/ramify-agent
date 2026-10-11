@@ -17,7 +17,7 @@ import { forkPointSchema, reviewAttemptIdSchema, reviewRequestIdSchema } from '.
  * requests completion, its review requests are settled, and the open and
  * due CheckFindings of the work item are its attention set. An empty set
  * goes to the work item's gate with no agent call. Otherwise one fork of the
- * local architect, at the point after its completion request, assesses
+ * module architect, at the point after its completion request, assesses
  * them together in one submission: how they relate, what becomes of each,
  * how each decision is communicated, and what the work item does next.
  *
@@ -141,7 +141,7 @@ export const reconciliationSubmissionSchema = z.object({
     z.object({ kind: z.literal('await-user') }).strict(),
     z.object({ kind: z.literal('unresolved') }).strict(),
   ]),
-  /** The concise brief the harness appends to the local architect's own session. */
+  /** The concise brief the harness appends to the module architect's own session. */
   brief: prose,
 }).strict();
 export type ReconciliationSubmission = z.infer<typeof reconciliationSubmissionSchema>;
@@ -153,7 +153,7 @@ export const reconciliationSubmissionDescription = 'End this reconciliation with
 
 /**
  * The committed assessment: the fork's submission, what the harness bound
- * for it, the decisions it made, and the brief appended to the local
+ * for it, the decisions it made, and the brief appended to the module
  * architect's session, which is `parent` where one was kept.
  */
 export const reconciliationAssessmentSchema = z.object({
@@ -201,7 +201,7 @@ export const reconciliationAssessedFields = {
   next: z.enum(['complete', 'correct', 'await-user', 'unresolved']),
 } as const;
 
-/** How the brief append to the local architect's session ended. */
+/** How the brief append to the module architect's session ended. */
 export const briefAppendOutcomeSchema = z.enum(['appended', 'already-present', 'session-lost', 'failed', 'no-session']);
 export type BriefAppendOutcome = z.infer<typeof briefAppendOutcomeSchema>;
 
@@ -246,7 +246,7 @@ export function withinFloor(floor: ReconciliationBasis['floor'], risk: CheckFind
 }
 
 /**
- * Whether a local architect has waive authority over these modules: each is
+ * Whether a module architect has waive authority over these modules: each is
  * its work item's module or a module beneath it (appendix §10).
  */
 export function withinModule(module: string, modules: readonly string[]): boolean {
@@ -268,7 +268,7 @@ export interface AttentionEntry {
 export interface ReconciliationContext {
   readonly id: string;
   readonly workItem: string;
-  /** The work item's module, the bound of the local architect's waive authority. */
+  /** The work item's module, the bound of the module architect's waive authority. */
   readonly module: string;
   readonly floor: ReconciliationBasis['floor'];
   /** The least risk a correction after the first round may be planned for. */
@@ -493,7 +493,7 @@ function bindCommands(
 }
 
 /**
- * The brief appended to the local architect's session: what was decided,
+ * The brief appended to the module architect's session: what was decided,
  * by the durable IDs of the decisions and relations, what was left open,
  * the next action and the fork's own account. It is appended without a
  * model call.

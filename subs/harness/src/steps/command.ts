@@ -19,7 +19,7 @@ import { reviewInputsFromRequest } from './review-step.js';
 
 /*
  * The `step` command's entry. `inputs` imports one invocation's inputs from a
- * run, or authors an engineer's from a work item and an assignment judged
+ * run, or authors a module engineer's from a work item and an assignment judged
  * against the project with no run; `render` prints what a step's session would receive. Neither starts a
  * model or takes the project lock, and `render` writes nothing. `run` runs
  * one invocation from the inputs in a manual run and prints it as it
@@ -41,7 +41,7 @@ export type StepCommandOptions =
       readonly invocation: string | undefined;
       /** A review request a manual run recorded, whose question's inputs are composed; with --from-run and no --invocation. */
       readonly request?: string | undefined;
-      /** The local architect invocation of a manual run whose recorded assignment the engineer inputs are derived from; with --from-run. */
+      /** The module architect invocation of a manual run whose recorded assignment the module engineer inputs are derived from; with --from-run. */
       readonly assignmentOf?: string | undefined;
       /** Where the imported inputs are written; absent, they are printed. */
       readonly out?: string | undefined;
@@ -159,17 +159,17 @@ async function gateOrAfter(options: Extract<StepCommandOptions, { command: 'gate
   }
 }
 
-/** An engineer's inputs, derived from the assignment one local architect invocation of a manual run made. */
+/** A module engineer's inputs, derived from the assignment one module architect invocation of a manual run made. */
 async function assignedInputs(options: Extract<StepCommandOptions, { command: 'inputs' }>, invocation: string,
   authoringPorts: AuthoringPorts | undefined): Promise<StepCommandResult> {
-  if (options.role !== 'engineer') return { exitStatus: 2, stdout: '', stderr: `Refused: --assignment-of derives an engineer's inputs, not ${options.role}'s\n` };
+  if (options.role !== 'engineer') return { exitStatus: 2, stdout: '', stderr: `Refused: --assignment-of derives a module engineer's inputs, not ${options.role}'s\n` };
   if (options.fromRun === undefined || options.invocation !== undefined || Object.values(options.authored ?? {}).some(path => path !== undefined)) {
     return { exitStatus: 2, stdout: '', stderr: 'Refused: --assignment-of takes the manual run that recorded the assignment as --from-run, with no --invocation or authored files\n' };
   }
   const result = await engineerInputsFromAssignment({ runDirectory: options.fromRun, invocation, ports: authoringPorts ?? installedAuthoringPorts() });
   if (result.status === 'refused') return { exitStatus: 2, stdout: '', stderr: `Refused: ${result.reason}\n` };
   return written(serializeStepInputs(result.inputs), options.out, [
-    `Derived the engineer inputs of ${result.inputs.assignment.id} (attempt 1, fresh start) from the assignment ${invocation} made, as the manual run recorded it.`,
+    `Derived the module engineer inputs of ${result.inputs.assignment.id} (attempt 1, fresh start) from the assignment ${invocation} made, as the manual run recorded it.`,
   ]);
 }
 
@@ -206,7 +206,7 @@ async function importInputs(options: Extract<StepCommandOptions, { command: 'inp
     if (result.status === 'refused') return { exitStatus: 2, stdout: '', stderr: `Refused: ${result.reason}\n` };
     const provenance = result.inputs.provenance;
     const lines = [
-      `Authored engineer inputs for ${result.inputs.assignment.id} with no run, the assignment judged as the output of the local architect's ${options.iteration === undefined || options.iteration === 1 ? 'first work turn' : `work turn assigning iteration ${options.iteration}`} of ${result.inputs.work.workItem} against the project.`,
+      `Authored engineer inputs for ${result.inputs.assignment.id} with no run, the assignment judged as the output of the module architect's ${options.iteration === undefined || options.iteration === 1 ? 'first work turn' : `work turn assigning iteration ${options.iteration}`} of ${result.inputs.work.workItem} against the project.`,
       `Authored: ${provenance !== undefined && 'origin' in provenance && provenance.origin === 'authored' ? provenance.authored.join(', ') : ''}.`,
     ];
     return written(serializeStepInputs(result.inputs), options.out, lines);

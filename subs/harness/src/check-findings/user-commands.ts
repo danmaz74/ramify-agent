@@ -14,10 +14,10 @@ import { environmentOptions, isEnvironmentProblem } from '../deviations/environm
  * to the revision the person saw; the child then decides it like any other.
  *
  * Authority: the user may waive any signal and revoke any waiver; the
- * global architect may waive for the project; a local architect only a
+ * plan architect may waive for the project; a module architect only a
  * signal whose modules all lie within its own module. A revocation needs a
- * rank at least the waiver's actor's: user, then global architect, then
- * local architect, then the harness. A required check is waived by no one:
+ * rank at least the waiver's actor's: user, then plan architect, then
+ * module architect, then the harness. A required check is waived by no one:
  * the child refuses it whoever asks.
  *
  * A plan deviation awaits the person's decision. Their waiver, or their
@@ -39,7 +39,7 @@ export function authorityRank(actor: CheckFindingActor): number {
   return -1;
 }
 
-/** Whether `actor` may waive a signal of these modules; `own` is a local architect's module. */
+/** Whether `actor` may waive a signal of these modules; `own` is a module architect's module. */
 export function mayWaive(actor: CheckFindingActor, modules: readonly string[], own: string | null): boolean {
   const rank = authorityRank(actor);
   if (rank >= 2) return true;

@@ -69,7 +69,7 @@ import { reviewCoverage, reviewStateOf, unsettledRequests, type ReviewCoverage }
 import { orientationToolName } from '../../subs/reviews/src/submission.js';
 import type { AcceptedCommand, Receipt } from '../interfaces/protocol/jobs.js';
 import type { ViewIdentity } from '../interfaces/protocol/evidence.js';
-import { breakpointSelectorSchema, type BreakpointState, type DebugExchange, type DebugInspection, type FailureAnalysis, type Role, type RunCommand, type RunFailureReason } from '../interfaces/protocol/runs.js';
+import { roleDisplayName, breakpointSelectorSchema, type BreakpointState, type DebugExchange, type DebugInspection, type FailureAnalysis, type Role, type RunCommand, type RunFailureReason } from '../interfaces/protocol/runs.js';
 import { CommandLedger, CommandRejection } from '../jobs/commands.js';
 import { commitRecord, readCommitted, recoverCommits, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import { Mutex, PriorityMutex } from '../jobs/mutex.js';
@@ -260,7 +260,7 @@ import { processGroupIdentity } from '../../subs/evidence/src/run-command.js';
  * licenses an agent is appended before the agent starts; the event that
  * closes work is the last write of that work.
  *
- * This iteration invokes exactly one role, the initial architect, then
+ * This iteration invokes exactly one role, the plan architect, then
  * verifies readiness and the final composition. Work items, iterations and
  * writers arrive with the iterations that build them; the writer's ownership
  * and settlement are here already, because no gate may run against a tree
@@ -401,7 +401,7 @@ const key = (planId: string, runId: string) => `${planId}/${runId}`;
 const defaultReconciliationRounds = 3;
 
 /**
- * The local architect's own session while its work item reconciles: the
+ * The module architect's own session while its work item reconciles: the
  * harness's session and the executor's latest point, which a brief append
  * moves, and the rounds whose brief did not land, which its next input carries.
  */
@@ -460,7 +460,7 @@ interface ContractOutcome {
   readonly findings: string[];
   /** The iteration result, where this outcome closed one. */
   readonly result?: IterationResult | undefined;
-  /** A cycle this registration closed, delivered once to the local architect. */
+  /** A cycle this registration closed, delivered once to the module architect. */
   readonly cycle?: DependencyCycle | undefined;
 }
 
@@ -470,7 +470,7 @@ interface ClosedIterationOutcome {
   readonly reportedRevision?: boolean | undefined;
   readonly result: IterationResult;
   /**
-   * The gate that returned this iteration to the local architect, with what
+   * The gate that returned this iteration to the module architect, with what
    * each failing command reported. It is not in the result record: the
    * record holds the findings, and this is the diagnosis the next architect
    * briefing carries.
@@ -479,7 +479,7 @@ interface ClosedIterationOutcome {
   readonly need?: {
     readonly need: NeedAsBehavior;
     readonly suggestedProvider?: string | undefined;
-    /** The files the fake must be injected in, as the engineer named them. */
+    /** The files the fake must be injected in, as the module engineer named them. */
     readonly injectionSites?: readonly string[] | undefined;
     readonly invocation: string;
   } | undefined;
@@ -928,7 +928,7 @@ export class RunService {
   }
 
   /**
-   * The iterations that closed accepted after an engineer's passing gate,
+   * The iterations that closed accepted after a module engineer's passing gate,
    * which are the ones a review request is owed for: their audited commit,
    * gate and assignment. Contract iterations establish agreements and are
    * not reviewed in this version.
@@ -956,7 +956,7 @@ export class RunService {
     return cited.text;
   }
 
-  /** The plan deviations recorded after a package, rendered by the package creator for a local architect's brief. */
+  /** The plan deviations recorded after a package, rendered by the package creator for a module architect's brief. */
   private laterDeviations(run: Run, catalog: ElementCatalog, pinned: readonly string[]): { readonly deviations?: string } {
     const planDeviations = this.planDeviationsOf(run);
     const later = planDeviations.filter(deviation => !pinned.includes(deviation.id)).map(deviation => deviation.id);
@@ -988,7 +988,7 @@ export class RunService {
 
   /**
    * Render a cited package again from the frozen catalog and the record's
-   * IDs alone. Given its work item, the package an engineer receives also
+   * IDs alone. Given its work item, the package a module engineer receives also
    * carries why the work item's current selection put each element in view.
    */
   private async packageText(run: Run, cited: PackageCitation, workItem?: string): Promise<string> {
@@ -1308,7 +1308,7 @@ export class RunService {
 
   /**
    * Where one attempt's reviewer starts. Code review starts fresh. Scope
-   * review forks the local architect at the point that produced its
+   * review forks the module architect at the point that produced its
    * assignment, and design review forks the orientation of its guidance,
    * made first where none exists yet. Only the existing scope recovery may
    * use the complete recorded assignment packet. Unavailable orientation
@@ -1702,7 +1702,7 @@ export class RunService {
    * Reconciles one work item that requested completion (appendix §6): its
    * reviews settle, any user decision it waits for is answered, and its
    * attention set is captured. An empty set goes to the work item's gate
-   * with no agent call. Otherwise one round forks the local architect at
+   * with no agent call. Otherwise one round forks the module architect at
    * its completion request, within the round's floor, and the assessment it
    * commits leads to the gate, to a correction, or to a user decision and
    * another round. A refused basis or a fork that returns nothing is another
@@ -1771,7 +1771,7 @@ export class RunService {
     const id = reconciliationId(workItem, round);
     const pinned = completion === undefined ? this.latestCompletion(run, workItem)?.data.architectRef : completion;
     const forkPoint: ForkPoint = pinned === undefined || pinned === null
-      ? { kind: 'unavailable', reason: pinned === null ? 'The local architect\'s session was not kept after its completion request' : 'No completion request of this work item recorded the local architect\'s point' }
+      ? { kind: 'unavailable', reason: pinned === null ? 'The module architect\'s session was not kept after its completion request' : 'No completion request of this work item recorded the module architect\'s point' }
       : { kind: 'session', session: pinned.session, ref: pinned.ref };
     const basis = reconciliationBasisSchema.parse({
       schema: 'ramify-agent.reconciliation-basis/1',
@@ -1820,7 +1820,7 @@ export class RunService {
   }
 
   /**
-   * Where a reconciliation's fork starts: the local architect's point after
+   * Where a reconciliation's fork starts: the module architect's point after
    * its completion request, or fresh with the complete packet and the reason
    * where that point is missing or unusable.
    */
@@ -1831,7 +1831,7 @@ export class RunService {
   }> {
     const fresh = (reason: string) => ({ start: { mode: 'fresh' } as const, degraded: { requested: 'fork' as const, reason } });
     const point = basis.forkPoint;
-    if (point.kind !== 'session') return fresh(point.kind === 'unavailable' ? point.reason : 'No point of the local architect was captured');
+    if (point.kind !== 'session') return fresh(point.kind === 'unavailable' ? point.reason : 'No point of the module architect was captured');
     if (completion === undefined) return fresh('No completion request of this work item is recorded');
     const from = { session: point.session as SessionId, invocation: completion.invocation };
     const source = this.sessionsOf(run)?.get(from.session);
@@ -2001,7 +2001,7 @@ export class RunService {
   }
 
   /**
-   * Commits one assessment and appends its brief to the local architect's
+   * Commits one assessment and appends its brief to the module architect's
    * session, as the ledger's external effect keyed `brief:<reconciliation>`:
    * the intent is `reconciliation-assessed` with its record and every
    * CheckFinding event, decided under the mutex against the basis as it
@@ -2092,17 +2092,17 @@ export class RunService {
   }
 
   /**
-   * The brief's append to the local architect's session. A lost session, a
+   * The brief's append to the module architect's session. A lost session, a
    * failure and no session are outcomes, never thrown. A conflict, such as an
    * append while the session's turn is active, is a failure of this append
    * alone: the session is intact and the brief reaches its next input.
    */
   private async appendReconciliationBrief(agent: AgentPort, key: string, parent: ArchitectRef | null, brief: string): Promise<BriefAppend> {
-    if (parent === null) return { session: null, ref: null, outcome: 'no-session', reason: 'The local architect\'s session was not kept after its completion request' };
+    if (parent === null) return { session: null, ref: null, outcome: 'no-session', reason: 'The module architect\'s session was not kept after its completion request' };
     try {
       const answer = await (await this.operations(agent)).append(parent.ref, key, brief);
-      if (answer.outcome === 'session-lost') return { session: parent.session, ref: null, outcome: 'session-lost', reason: 'The local architect\'s session can no longer be read' };
-      if (answer.outcome === 'conflict') return { session: parent.session, ref: null, outcome: 'failed', reason: `The local architect's session did not take the brief: ${answer.reason}` };
+      if (answer.outcome === 'session-lost') return { session: parent.session, ref: null, outcome: 'session-lost', reason: 'The module architect\'s session can no longer be read' };
+      if (answer.outcome === 'conflict') return { session: parent.session, ref: null, outcome: 'failed', reason: `The module architect's session did not take the brief: ${answer.reason}` };
       return { session: parent.session, ref: answer.ref, outcome: answer.outcome, reason: null };
     } catch (error) {
       return { session: parent.session, ref: null, outcome: 'failed', reason: message(error) };
@@ -2135,7 +2135,7 @@ export class RunService {
   }
 
   /**
-   * What the local architect's next turn is told of a reconciliation: the
+   * What the module architect's next turn is told of a reconciliation: the
    * correction it chose with the CheckFindings planned for repair, and the
    * brief of every round whose append did not land, read from the log.
    */
@@ -4144,10 +4144,10 @@ export class RunService {
     if (refusal !== null) { await this.fail(run, 'limit-exceeded', refusal); return false; }
     const pauseId = `pause-${String(run.log.count('debug-pausing') + 1).padStart(4, '0')}`;
     const goal = request.task?.goal ?? request.description;
-    const nextAction = `Execute the prepared ${request.role} task with its ordinary tools and submission validator.`;
+    const nextAction = `Execute the prepared ${roleDisplayName(request.role).toLowerCase()} task with its ordinary tools and submission validator.`;
     const pause: BreakpointState = { kind: 'breakpoint', planId: run.planId, runId: run.jobId, pauseId, revision: 1,
       cursor: run.log.version, state: 'pausing', role: request.role, work: { ...request.work }, goal, nextAction,
-      taskState: 'pending', summary: `Settling admitted work before ${request.role}: ${goal}` };
+      taskState: 'pending', summary: `Settling admitted work before ${roleDisplayName(request.role).toLowerCase()}: ${goal}` };
     run.debugPause = pause;
     // Attempts already admitted may finish their orientation and review calls.
     // The barrier is for new attempts, not the calls within those pipelines.
@@ -4189,7 +4189,7 @@ export class RunService {
         if (run.debugPause !== pause) break;
         await changed;
       }
-      if (!run.debugPrepared?.held()) run.writer.requireSettled('The resumed engineer requires a settled writer');
+      if (!run.debugPrepared?.held()) run.writer.requireSettled('The resumed module engineer requires a settled writer');
       const changes = await documentChanges(this.projectRoot, run.planId, run.directory, run.record.manifest);
       if (changes.length > 0) { await this.fail(run, 'inputs-changed', `Captured documents changed while paused: ${changes.join('; ')}`); return false; }
       return !this.ignoring(run);
@@ -4295,7 +4295,7 @@ export class RunService {
     if (!parsed.success) return undefined;
     const record = records.invocations.get(event.data.invocation);
     const boundary = record?.candidateBefore ?? record?.base;
-    const group: StartingPointGroup = { origin: { producer: 'local architect orientation', workItem: event.data.workItem,
+    const group: StartingPointGroup = { origin: { producer: 'module architect orientation', workItem: event.data.workItem,
       invocation: event.data.invocation, ...(boundary === undefined ? {} : { boundary }) }, points: parsed.data.startingPoints };
     return { group, submission: parsed.data };
   }
@@ -4436,7 +4436,7 @@ export class RunService {
 
   /**
    * The initial analysis: the intake, one extraction per principles
-   * document, the initial architect and one checker per captured document,
+   * document, the plan architect and one checker per captured document,
    * each a fresh bounded session, and the records the accepted analysis
    * commits. Nothing is durable before `analysis-accepted`, so a run started
    * again before it repeats every turn.
@@ -4446,7 +4446,7 @@ export class RunService {
     const loaded = packages.get('initial-architect');
     const extractor = packages.get('catalog-extractor');
     if (loaded === undefined || extractor === undefined) {
-      await this.fail(run, 'internal', 'No prompt package is loaded for the initial architect or the catalog extractor');
+      await this.fail(run, 'internal', 'No prompt package is loaded for the plan architect or the catalog extractor');
       return false;
     }
     const manifestRef = run.record.manifest.documentManifest;
@@ -4653,7 +4653,7 @@ export class RunService {
    */
   private async takeWorkItems(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot): Promise<boolean> {
     if (packages.get('local-architect') === undefined) {
-      await this.fail(run, 'internal', 'No prompt package is loaded for the local architect');
+      await this.fail(run, 'internal', 'No prompt package is loaded for the module architect');
       return false;
     }
     // Registration can publish a provider before its consumer has received
@@ -4944,7 +4944,7 @@ export class RunService {
     const orientationRequirements = [this.planPackage(run, evidence.catalog,
       [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])];
     const orientationViews = await this.localViewInputs(run, item.module);
-    // The orientation is built from its inputs by the local architect's own
+    // The orientation is built from its inputs by the module architect's own
     // constructor, which `step render` uses too.
     const orientationInputs = (attempt: number, known: KnownFactsInputs): OrientationStepInputs => ({
       schema: stepInputsSchemaId, role: 'local-architect', phase: 'orientation', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
@@ -4974,7 +4974,7 @@ export class RunService {
         if (ended.data.submission === null || !ended.data.kept) continue;
         const started = run.log.all('invocation-started').find(event => event.data.invocation === ended.data.invocation);
         if (started?.data.role !== 'local-architect' || started.data.work.workItem !== item.id) continue;
-        // The orientation is the local architect's operation whose recorded
+        // The orientation is the module architect's operation whose recorded
         // intent submits through the orientation tool. Its identity is that
         // intent, not the prompt this restart would render for it.
         const packet = await (await this.operations(agent)).packet(run.record.jobId, ended.data.invocation);
@@ -5148,7 +5148,7 @@ export class RunService {
   }
 
   /**
-   * One selection of a work item's elements by a read-only fork of its local
+   * One selection of a work item's elements by a read-only fork of its module
    * architect at `from.point`, or a fresh selector from the recorded
    * orientation where no point is retained, which marks it degraded. It
    * records the selection and the package it cites, superseding the work
@@ -5311,7 +5311,7 @@ export class RunService {
 
   /**
    * One work item: its start, the hypothesis revisions it receives, the
-   * continuing session of its local architect, the iterations that architect
+   * continuing session of its module architect, the iterations that architect
    * assigns, and the `work-item` gate that is the only thing that closes it.
    *
    * A failing gate returns to the same architect, which may revise its
@@ -5355,7 +5355,7 @@ export class RunService {
     let views = await apiViewsOf(this.options.ramify, this.projectRoot, run.index, item.module);
     const moduleDirectory = moduleEntry?.dir;
     const moduleSource = moduleDirectory === undefined ? null : join(this.projectRoot, moduleDirectory, 'src');
-    // A continued session keeps the same cwd even if an engineer creates the module later.
+    // A continued session keeps the same cwd even if a module engineer creates the module later.
     const workingDirectory = moduleSource !== null && (await stat(moduleSource).catch(() => null))?.isDirectory()
       ? moduleSource
       : this.projectRoot;
@@ -5385,9 +5385,9 @@ export class RunService {
     let lastIterationGate: { id: string; cause: string | null; summary: readonly string[] } | undefined;
     /** A placement request of this work item that came back without a decision. */
     let unresolvedRequest: { id: string; findings: readonly string[]; gaps: readonly string[] } | undefined;
-    /** The plan deviation the global architect recorded for this work item's last unresolved request, delivered once. */
+    /** The plan deviation the plan architect recorded for this work item's last unresolved request, delivered once. */
     let deviationRecorded: PlanDeviation | undefined;
-    /** The environment problem the global architect reported for that request, after which the operator resumed the run, delivered once. */
+    /** The environment problem the plan architect reported for that request, after which the operator resumed the run, delivered once. */
     let environmentResumed: { problem: EnvironmentProblem; note: string } | undefined;
     /** A cycle one of this item's registrations closed, delivered once as a finding. */
     let cycleFinding: DependencyCycle | undefined;
@@ -5405,7 +5405,7 @@ export class RunService {
     const undelivered: string[] = [];
 
     // A recovered handback still owes the original A engineer its suspended
-    // iteration. Its assignment remains open; no new local architect turn
+    // iteration. Its assignment remains open; no new module architect turn
     // may assign over it or treat the handback as completion of A's goal.
     if (this.workflow !== null && run.record.policy.version === capabilityRunPolicyVersion) {
       const saved = committedRecords(run.log.ledger.replay());
@@ -5422,7 +5422,7 @@ export class RunService {
         const parsed = submitted === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(submitted));
         if (assignment === undefined || !parsed?.success || parsed.data.kind !== 'capability-needed' ||
           unqualified.continuation.point === null) {
-          await this.fail(run, 'recovery-exhausted', `Pending request ${unqualified.id} cannot recover its original engineer submission`);
+          await this.fail(run, 'recovery-exhausted', `Pending request ${unqualified.id} cannot recover its original module engineer submission`);
           return null;
         }
         const suspended: SuspendedCapabilityOutcome = { kind: 'capability-needed', summary: parsed.data.summary,
@@ -5653,7 +5653,7 @@ export class RunService {
           `This task did not complete ${item.id}. Reassess its prior outline, decisions and any unexecuted assignment against the current source before assigning it.`
         ).join('\n\n');
       }
-      // The turn is built from its inputs by the local architect's own
+      // The turn is built from its inputs by the module architect's own
       // constructor, which `step render` uses too.
       const requirements = contextPackage === undefined
         ? [this.planPackage(run, await this.frozenCatalog(run), [...item.requirementRefs, ...item.acceptanceRefs, ...item.contextRefs])] : [];
@@ -5728,7 +5728,7 @@ export class RunService {
         session,
         continuing: step.continuing,
         // The architect is continued after a placement request, an
-        // unresolved request the global architect answered, an iteration and
+        // unresolved request the plan architect answered, an iteration and
         // a refused or failed completion. A yield ends its use: a resumed
         // work item starts afresh.
         keep: (ended, value) => (ended === 'submitted' && value !== undefined && value.kind !== 'yield-for-providers'
@@ -5778,7 +5778,7 @@ export class RunService {
         await this.fail(
           run,
           result.ended === 'invalid-submission' ? 'invalid-submission' : result.ended === 'failed' ? 'agent-failed' : 'internal',
-          `The local architect of ${item.id} ended without a result (${result.ended})${owed}`,
+          `The module architect of ${item.id} ended without a result (${result.ended})${owed}`,
           [runLayout.outcome(result.id)],
         );
         return null;
@@ -5791,7 +5791,7 @@ export class RunService {
         && !await this.handling.recordObligations(run, { kind: 'work-item', id: item.id }, result.id, result.value)) return null;
 
       if (result.value.kind === 'unresolved') {
-        // The request cannot be met as stated. The global architect answers
+        // The request cannot be met as stated. The plan architect answers
         // it: a placement fix, a plan deviation this work item goes on
         // under, an environment problem the run holds for until the
         // operator resumes it, or nothing possible, which ends the run.
@@ -6047,7 +6047,7 @@ export class RunService {
   }
 
   /**
-   * One global placement request, from the local architect that made it to
+   * One global placement request, from the module architect that made it to
    * the decision returned to it. Requests run one at a time: the harness
    * pauses implementation writes, refreshes the architect view and records
    * its identity with the request, then forks the architect context's latest
@@ -6117,7 +6117,7 @@ export class RunService {
   ): Promise<PlacementResolution | null> {
     const loaded = packages.get('global-fork');
     if (loaded === undefined) {
-      await this.fail(run, 'internal', 'No prompt package is loaded for the global architect');
+      await this.fail(run, 'internal', 'No prompt package is loaded for the plan architect');
       return null;
     }
 
@@ -6227,7 +6227,7 @@ export class RunService {
           ...(revalidate === undefined ? {} : { revalidate }),
         }),
         start: context.ref === null ? { mode: 'fresh' } : { mode: 'fork', from: context.ref },
-        ...(context.ref === null ? { degraded: { requested: 'fork' as const, reason: 'The global architect context is unavailable; using the ordinary request records' } } : {}),
+        ...(context.ref === null ? { degraded: { requested: 'fork' as const, reason: 'The plan architect context is unavailable; using the ordinary request records' } } : {}),
         ...(context.point === null ? {} : {
           fork: { from: context.point, reason: 'placement-request', generation: context.generation, briefs: [...context.appended] },
         }),
@@ -6263,7 +6263,7 @@ export class RunService {
         if (this.ignoring(run)) return null;
         partial = { attempt, findings: [...result.value.findings], gaps: [...result.value.gaps] };
         revalidate = undefined;
-        // Exhaustion returns an unresolved outcome to the local architect.
+        // Exhaustion returns an unresolved outcome to the module architect.
         // The parent is never invoked to supply the choice the fork could
         // not make.
         if (retry > bound) return { kind: 'unresolved', request: id, findings: partial.findings, gaps: partial.gaps };
@@ -6351,7 +6351,7 @@ export class RunService {
   }
 
   /**
-   * A local architect's `unresolved` answer: its request cannot be met as
+   * A module architect's `unresolved` answer: its request cannot be met as
    * stated. The harness records it as an unresolved request and forks the
    * architect context with it, as for a placement request. The fork answers
    * with a placement decision, delivered as a placement answer is; with a
@@ -6372,7 +6372,7 @@ export class RunService {
   ): Promise<UnresolvedResolution | null> {
     const loaded = packages.get('global-fork');
     if (loaded === undefined) {
-      await this.fail(run, 'internal', 'No prompt package is loaded for the global architect');
+      await this.fail(run, 'internal', 'No prompt package is loaded for the plan architect');
       return null;
     }
     // Unresolved requests fork the architect context as placement requests
@@ -6440,7 +6440,7 @@ export class RunService {
       return null;
     }
     const unresolvable = (detail: string, evidence: readonly string[]) => this.fail(run, 'unresolvable-requirement',
-      `The local architect of ${item.id} reports the request cannot be met as stated (${answer.conflict}), and ${detail}`,
+      `The module architect of ${item.id} reports the request cannot be met as stated (${answer.conflict}), and ${detail}`,
       [deviationLayout.request(id), runLayout.submission(answer.invocation), ...answer.evidence, ...evidence]);
     const systemPrompt = renderGlobalForkPrompt(loaded, this.projectRoot);
     const bound = run.record.policy.limits.forkRetriesPerRequest;
@@ -6498,7 +6498,7 @@ export class RunService {
           ...(revalidate === undefined ? {} : { revalidate }),
         }),
         start: context.ref === null ? { mode: 'fresh' } : { mode: 'fork', from: context.ref },
-        ...(context.ref === null ? { degraded: { requested: 'fork' as const, reason: 'The global architect context is unavailable; using the ordinary request records' } } : {}),
+        ...(context.ref === null ? { degraded: { requested: 'fork' as const, reason: 'The plan architect context is unavailable; using the ordinary request records' } } : {}),
         ...(context.point === null ? {} : {
           fork: { from: context.point, reason: 'unresolved-request', generation: context.generation, briefs: [...context.appended] },
         }),
@@ -6540,13 +6540,13 @@ export class RunService {
         partial = { attempt, findings: [...value.findings], gaps: [...value.gaps] };
         revalidate = undefined;
         if (retry > bound) {
-          await unresolvable(`the global architect could not answer ${id} within ${bound} retr${bound === 1 ? 'y' : 'ies'}: ${[...value.findings, ...value.gaps].join('; ') || 'it named nothing'}`, [runLayout.submission(result.id)]);
+          await unresolvable(`the plan architect could not answer ${id} within ${bound} retr${bound === 1 ? 'y' : 'ies'}: ${[...value.findings, ...value.gaps].join('; ') || 'it named nothing'}`, [runLayout.submission(result.id)]);
           return null;
         }
         continue;
       }
       if (value.kind === 'nothing-possible') {
-        await unresolvable(`the global architect found that no deviation leaves anything of the plan worth doing: ${value.reason}`, [runLayout.submission(result.id)]);
+        await unresolvable(`the plan architect found that no deviation leaves anything of the plan worth doing: ${value.reason}`, [runLayout.submission(result.id)]);
         return null;
       }
       if (value.kind === 'deviation') {
@@ -6655,7 +6655,7 @@ export class RunService {
    * Records the environment problem a fork reported, with its CheckFinding,
    * as one line, and holds the work item until the operator answers it:
    * nothing is placed, no deviation is recorded and the plan file is
-   * untouched. Their resumption returns the work item to its local
+   * untouched. Their resumption returns the work item to its module
    * architect with the diagnosis; their answer `end` ends the run.
    */
   private async reportEnvironment(
@@ -6724,7 +6724,7 @@ export class RunService {
         const answer = [...entry.decisions].reverse().find(decision => decision.decision.action === 'answer-user-decision');
         const option = answer?.decision.action === 'answer-user-decision' ? answer.decision.option : null;
         await this.fail(run, 'unresolvable-requirement',
-          `The operator ended the run on environment problem ${problem.id} of ${problem.workItem}${option === environmentOptions.end ? '' : ` (answer ${option ?? 'none'})`}: ${answer?.rationale ?? 'no answer was recorded'}. The global architect's diagnosis: ${problem.diagnosis}`,
+          `The operator ended the run on environment problem ${problem.id} of ${problem.workItem}${option === environmentOptions.end ? '' : ` (answer ${option ?? 'none'})`}: ${answer?.rationale ?? 'no answer was recorded'}. The plan architect's diagnosis: ${problem.diagnosis}`,
           [deviationLayout.environment(problem.id), deviationLayout.request(problem.request)]);
         return null;
       }
@@ -6921,7 +6921,7 @@ export class RunService {
     if (result.outcome === 'session-lost') await this.finishSession(run, result.session ?? undefined, 'lost');
   }
 
-  /** The accepted decision returns to the requesting local architect, before any contract work. */
+  /** The accepted decision returns to the requesting module architect, before any contract work. */
   private async deliverDecision(run: Run, decision: PlacementDecision): Promise<boolean> {
     if (run.log.all('decision-delivered').some(event => event.data.decision === decision.id)) return true;
     await this.write(run, { type: 'decision-delivered', data: { decision: decision.id, workItem: decision.workItem } });
@@ -7158,7 +7158,7 @@ export class RunService {
       return null;
     }
 
-    // A guarded path this architect authorized is one the engineer may write
+    // A guarded path this architect authorized is one the module engineer may write
     // through the guarded tools: the authorization is the permission, and
     // the assignment records it beside the scope it widens by that one file.
     await authorizedScope(this.projectRoot, scope, revised === undefined ? submission.assignment.authorizations ?? [] : []);
@@ -7166,7 +7166,7 @@ export class RunService {
     // Registered evidence this iteration must satisfy. It is derived, never
     // submitted: a provider item runs the agreed suite against the real
     // implementation, and a verification runs its consumer's tests with the
-    // fake replaced. An engineer cannot remove one or weaken it.
+    // fake replaced. A module engineer cannot remove one or weaken it.
     const evidenceObligations = revised === undefined ? this.evidenceFor(run, item, body.kind, committed) : [];
 
     // The guarded set is the project's configuration and manifests together
@@ -7299,7 +7299,7 @@ export class RunService {
   }
 
   /**
-   * One iteration: the engineer invocations that work it, the gate that owns
+   * One iteration: the module engineer invocations that work it, the gate that owns
    * the verdict, the repair rounds the policy allows, and the result that
    * closes it. The counters are keyed by the iteration, not by the session,
    * so a fresh session after a context-budget return resets nothing.
@@ -7378,7 +7378,7 @@ export class RunService {
 
     const local = packages.get('local-architect');
     if (local === undefined) {
-      await this.fail(run, 'internal', 'The local architect package is absent during qualification');
+      await this.fail(run, 'internal', 'The module architect package is absent during qualification');
       return null;
     }
     const registry = committedRecords(run.log.ledger.replay()).registry;
@@ -7398,7 +7398,7 @@ export class RunService {
       loaded: local, systemPrompt: renderLocalArchitectPrompt(local, this.projectRoot, parent.workingDirectory),
       prompt: [
         `# Qualify capability request ${request.id}`,
-        `The engineer of ${assignment.id} retained its source and session. Its invocation is ${request.invocation}.`,
+        `The module engineer of ${assignment.id} retained its source and session. Its invocation is ${request.invocation}.`,
         `Original request: ${JSON.stringify(request.original, null, 2)}`,
         `Provisional source: ${JSON.stringify(request.source, null, 2)}`,
         ...(point === undefined ? [`Current assignment: ${JSON.stringify(assignment)}`] : []),
@@ -7410,11 +7410,11 @@ export class RunService {
       ].join('\n\n'),
       workingDirectory: parent.workingDirectory,
       start: point === undefined ? { mode: 'fresh' } : { mode: 'continue', ref: point },
-      // Qualification continues the local architect's latest settled point.
+      // Qualification continues the module architect's latest settled point.
       // Without one, the fresh start is a degradation the record states.
       ...(point === undefined
         ? { ...(parentSession === undefined ? {} : { replaces: { session: parentSession, reason: 'reconstructed' as const } }),
-          degraded: { requested: 'continued' as const, reason: 'The local architect session point is unavailable; the request, its provisional source and the current work-item package were supplied to a fresh session.' } }
+          degraded: { requested: 'continued' as const, reason: 'The module architect session point is unavailable; the request, its provisional source and the current work-item package were supplied to a fresh session.' } }
         : parentSession === undefined ? {} : { session: parentSession, continuing: 'capability-qualification' as const }),
       toolName: 'submit_capability_qualification',
       description: 'Qualify this exact request using current behavior and placement evidence.',
@@ -7432,7 +7432,7 @@ export class RunService {
       keep: (ended, value) => ended === 'submitted' && value !== undefined ? kept : finished('not-kept'),
       });
       if (qualification.ended !== 'submitted' || qualification.value === undefined) {
-        await this.fail(run, 'invalid-submission', `The local architect could not qualify ${request.id}`);
+        await this.fail(run, 'invalid-submission', `The module architect could not qualify ${request.id}`);
         return null;
       }
       const pending = qualification.value;
@@ -7447,7 +7447,7 @@ export class RunService {
         if (resolution === null) return null;
         returned = resolution.kind === 'decided'
           ? `Placement decision ${resolution.decision.id}: ${JSON.stringify(resolution.decision)}`
-          : `The global architect could not settle placement ${resolution.request}: ${[...resolution.findings, ...resolution.gaps].join('; ')}`;
+          : `The plan architect could not settle placement ${resolution.request}: ${[...resolution.findings, ...resolution.gaps].join('; ')}`;
         point = qualification.ref || undefined;
         parentSession = qualification.kept ? qualification.session : undefined;
         qualification = undefined;
@@ -7458,7 +7458,7 @@ export class RunService {
           invocation: qualification.id, conflict: pending.problem, evidence: pending.evidence,
         }, run.log.all('unresolved-requested').find(event => event.data.invocation === qualification!.id)?.data.request);
         if (resolution === null) return null;
-        returned = `The responsible global architect answered the unresolved request: ${JSON.stringify(resolution)}`;
+        returned = `The responsible plan architect answered the unresolved request: ${JSON.stringify(resolution)}`;
         point = qualification.ref || undefined;
         parentSession = qualification.kept ? qualification.session : undefined;
         qualification = undefined;
@@ -7527,7 +7527,7 @@ export class RunService {
 
     // The provider entry's recorded decisions belong in the fresh briefing.
     // It receives the selected source package whole, while its own transcript
-    // has none of either local architect's history.
+    // has none of either module architect's history.
     const providerDecisions = [...records.decisions.values()].filter(entry =>
       entry.owner === decision.provider || providerItems.some(item =>
         item.id === entry.workItem || entry.revises?.affected.some(affected => affected.workItem === item.id)));
@@ -7832,7 +7832,7 @@ export class RunService {
     return null;
   }
 
-  /** A question uses the requesting engineer's saved point with read-only
+  /** A question uses the requesting module engineer's saved point with read-only
    * equipment. The reply belongs to the task, never to a new A assignment. */
   private async consultCapabilityConsumer(
     run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, task: CapabilityTask,
@@ -8118,7 +8118,7 @@ export class RunService {
   ): Promise<{ readonly guidance: string; readonly coordinatorPoint: string; readonly coordinatorSession: SessionId;
     readonly coordinatorInvocation: string } | null> {
     if (suspended.ended !== 'submitted' || suspended.value?.kind !== 'capability-needed' || !suspended.kept || suspended.ref === '') {
-      await this.fail(run, 'invalid-submission', `Nested need from ${assignment.id} has no retained requesting engineer`);
+      await this.fail(run, 'invalid-submission', `Nested need from ${assignment.id} has no retained requesting module engineer`);
       return null;
     }
     const assignmentOwner = 'module' in assignment.scope.base ? assignment.scope.base.module : parentTask.consumer;
@@ -8205,7 +8205,7 @@ export class RunService {
           invocation: qualification.id, conflict: pending.problem, evidence: pending.evidence,
         }, run.log.all('unresolved-requested').find(event => event.data.invocation === qualification!.id)?.data.request);
       if (resolution === null) return null;
-      returned = `The responsible global architect answered the nested boundary request: ${JSON.stringify(resolution)}`;
+      returned = `The responsible plan architect answered the nested boundary request: ${JSON.stringify(resolution)}`;
       point = qualification.ref || undefined;
       session = qualification.kept ? qualification.session : undefined;
       qualification = undefined;
@@ -8242,7 +8242,7 @@ export class RunService {
       proposedInterface: 'Undecided; inspect actual source and consumer use',
       useCases: request.original.examples.map(example => ({ id: example.id, expectedBehavior: example.title, derivedFrom: [example.id] })),
       compatibility: [...request.original.constraints],
-      outline: ['Review existing behavior and affected owners', 'Coordinate provider and requesting engineer', 'Verify use and hand back'],
+      outline: ['Review existing behavior and affected owners', 'Coordinate provider and requesting module engineer', 'Verify use and hand back'],
       decisions: [{ decision: `Coordinate in ${decision.provider}`, reason: decision.placementReason,
         evidence: [...decision.requirementRefs] }], openQuestions: [], requirementRefs: [...decision.requirementRefs],
       originalExamples: request.original.examples.map(example => example.id) };
@@ -8465,12 +8465,12 @@ export class RunService {
       return { kind: 'closed', result: savedResult };
     }
     if (packages.get('engineer') === undefined) {
-      await this.fail(run, 'internal', 'No prompt package is loaded for the engineer');
+      await this.fail(run, 'internal', 'No prompt package is loaded for the module engineer');
       return null;
     }
     const number = assignment.coordination?.kind === 'capability-task'
       ? assignment.coordination.sequence : Number.parseInt(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2), 10);
-    // Every engineer invocation of the iteration, a budget return's too,
+    // Every module engineer invocation of the iteration, a budget return's too,
     // runs under the bounds its assignment raised, and its prompt states the
     // longest a command may run.
     const bounds = this.engineerBounds(run, assignment);
@@ -8484,7 +8484,7 @@ export class RunService {
     const invocations: string[] = priorStarts.map(event => event.data.invocation);
     const findings: string[] = [];
     let sessionRef: string | undefined = resume?.point;
-    /** The engineer's session while the harness keeps it; `sessionRef` is its executor's point. */
+    /** The module engineer's session while the harness keeps it; `sessionRef` is its executor's point. */
     let session: SessionId | undefined = resume?.session;
     /** A lost session the next one is reconstructed in place of. */
     let replacing: SessionId | undefined;
@@ -8564,7 +8564,7 @@ export class RunService {
         const note = `Continuing iteration ${assignment.id}.`;
         const appended = await (await this.operations(agent)).append(sessionRef, `${assignment.id}:${attempt}`, note);
         if (appended.outcome !== 'appended' && appended.outcome !== 'already-present') {
-          if (appended.outcome === 'conflict') throw new Error(`The engineer session did not take its note: ${appended.reason}`);
+          if (appended.outcome === 'conflict') throw new Error(`The module engineer session did not take its note: ${appended.reason}`);
           await this.finishSession(run, session, 'lost');
           degraded = { requested: 'continued', reason: 'The retained engineer session is unavailable; using the ordinary task brief' };
           replacing = undefined;
@@ -8607,7 +8607,7 @@ export class RunService {
         runner: this.options.commandExecution ?? runCommand });
       const invocationViews = replay === undefined ? await this.iterationViews(run, assignment) : [];
 
-      // The invocation is built from its inputs by the engineer step's own
+      // The invocation is built from its inputs by the module engineer step's own
       // constructor, which `step render` uses too; the inputs are validated
       // here and written beside the invocation before it starts.
       let step: ConstructedEngineerStep;
@@ -8622,7 +8622,7 @@ export class RunService {
             : { kind: 'fresh', ...(degraded === undefined || degraded.requested !== 'continued' ? {} : { degraded: { requested: 'continued', reason: degraded.reason } }) },
         }), { projectRoot: this.projectRoot, packages });
       } catch (error) {
-        await this.fail(run, 'internal', `The engineer of ${assignment.id} cannot be constructed from its inputs: ${message(error)}`);
+        await this.fail(run, 'internal', `The module engineer of ${assignment.id} cannot be constructed from its inputs: ${message(error)}`);
         return null;
       }
       const guarded = await protectedScopeOf(this.projectRoot, assignment.scope, step.equipment.protectedFiles, this.options.ramify);
@@ -8650,7 +8650,7 @@ export class RunService {
         prompt: step.prompt,
         start: step.start.mode === 'continue' ? { mode: 'continue', ref: step.start.ref } : { mode: 'fresh' },
         session,
-        // The engineer is kept only after a proposed completion, and
+        // The module engineer is kept only after a proposed completion, and
         // continued only for the repair its failing gate asks for. The
         // harness point is its previous invocation's end: the note appended
         // before it is the executor's, and no other session starts from it.
@@ -8742,7 +8742,7 @@ export class RunService {
         return null;
       }
 
-      // An engineer that ended without a result, whether a bound, the
+      // A module engineer that ended without a result, whether a bound, the
       // provider or the adapter ended it, it stopped on its own or its
       // submissions were rejected to the bound, leaves its iteration and not
       // the run: the iteration closes partial, what the session wrote stays
@@ -8756,7 +8756,7 @@ export class RunService {
           await this.fail(
             run,
             result.ended === 'invalid-submission' ? 'invalid-submission' : result.ended === 'failed' ? 'agent-failed' : 'internal',
-            `The engineer of ${assignment.id} ended without a result (${result.ended})`,
+            `The module engineer of ${assignment.id} ended without a result (${result.ended})`,
             [runLayout.outcome(result.id)],
           );
           return null;
@@ -8809,7 +8809,7 @@ export class RunService {
 
       if (result.value.kind === 'capability-needed') {
         if (this.workflow === null || result.ref === '' || !result.kept || run.writer.isUnsettled) {
-          await this.fail(run, 'internal', 'The requesting engineer could not be retained after its writer settled');
+          await this.fail(run, 'internal', 'The requesting module engineer could not be retained after its writer settled');
           return null;
         }
         return { kind: 'capability-needed', summary: result.value.summary, need: result.value.request,
@@ -8861,7 +8861,7 @@ export class RunService {
         }
         if (gate.next === 'return-to-local-architect') {
           findings.push(...proposal.findings);
-          findings.push(`the gate returned to the local architect: ${gate.cause ?? 'unknown'} at gate ${gate.id}`);
+          findings.push(`the gate returned to the module architect: ${gate.cause ?? 'unknown'} at gate ${gate.id}`);
           // The architect can only record a revision for a change it can
           // name, so the guarded paths the attempt found go with the cause.
           for (const change of gate.guardedChanges) {
@@ -8884,9 +8884,9 @@ export class RunService {
 
   /**
    * What a provider's report that it cannot conform records. The obligation
-   * is derived from the assignment and not from what the engineer said; the
+   * is derived from the assignment and not from what the module engineer said; the
    * report is deduplicated per obligation revision, and it returns to the
-   * local architect of the consumer that asked for this provider work, even
+   * module architect of the consumer that asked for this provider work, even
    * while that consumer is yielded.
    *
    * A second report at the same obligation revision means the agreement was
@@ -9004,7 +9004,7 @@ export class RunService {
   }
 
   /**
-   * One contract sub-session: the assignment that licenses it, the engineer
+   * One contract sub-session: the assignment that licenses it, the module engineer
    * that establishes the agreement, the gate that verifies it, and the
    * registration a passing gate makes.
    *
@@ -9045,10 +9045,10 @@ export class RunService {
     }
     const index = await this.refreshIndex(run);
 
-    // The owner comes from the registry, and from nothing an engineer said.
+    // The owner comes from the registry, and from nothing a module engineer said.
     // A capability the registry does not place, or places with the consumer
     // itself, is a placement question: it goes back to this work item's own
-    // architect, which is the role that may ask the global architect.
+    // architect, which is the role that may ask the plan architect.
     const entry = records.registry.find(candidate => candidate.capability === request.need.capability);
     if (entry === undefined || entry.owner === item.module) {
       return {
@@ -9218,7 +9218,7 @@ export class RunService {
     const savedResult = committedRecords(run.log.ledger.replay()).results.get(assignment.id);
     if (run.restoring && savedResult) return { findings: [...savedResult.findings], result: savedResult };
     // A revision its architect assigned may raise the bounds, as any
-    // assignment may; a sub-session an engineer's need opened runs under
+    // assignment may; a sub-session a module engineer's need opened runs under
     // the policy's.
     const bounds = this.engineerBounds(run, assignment);
     const systemPrompt = renderContractPrompt(loaded, this.projectRoot, bounds.commandTimeoutMs);
@@ -9345,12 +9345,12 @@ export class RunService {
           await this.fail(
             run,
             result.ended === 'invalid-submission' ? 'invalid-submission' : result.ended === 'failed' ? 'agent-failed' : 'internal',
-            `The contract engineer of ${assignment.id} ended without a result (${result.ended})`,
+            `The module engineer working on a contract of ${assignment.id} ended without a result (${result.ended})`,
             [runLayout.outcome(result.id)],
           );
           return null;
         }
-        findings.push(`${failedWithoutResult('contract engineer', assignment.id, result)}; nothing was registered`);
+        findings.push(`${failedWithoutResult('contract-engineer', assignment.id, result)}; nothing was registered`);
         const failure = await this.failureOf(run, agent, packages, {
           item, assignment, number: subject.number, role: 'contract-engineer', result, bounds, lines, after, shellLog: tools.shellLog(),
         });
@@ -9998,7 +9998,7 @@ export class RunService {
 
   /**
    * The inputs of one engineer invocation, collected from the run's records
-   * and the project as they stand: everything the engineer step is built
+   * and the project as they stand: everything the module engineer step is built
    * from, with every path project-relative.
    */
   private async engineerStepInputs(run: Run, collected: {
@@ -10083,7 +10083,7 @@ export class RunService {
   }
 
   /**
-   * The views a local architect's orientation and its selector are told of:
+   * The views a module architect's orientation and its selector are told of:
    * the API view directories its module has, each project-relative, and
    * the architect view's coverage limits named, with whether any lies in the
    * module. A module with no readable API view is told of the architect view.
@@ -10110,7 +10110,7 @@ export class RunService {
   }
 
   /**
-   * What an engineer that ended without a result leaves its local architect,
+   * What a module engineer that ended without a result leaves its module architect,
    * ready before the architect is briefed: the harness's digest, then the
    * failure analysis. Neither ends the run: what cannot be read is a gap in
    * the digest, and an analysis that fails is unavailable. Null only for a
@@ -10189,7 +10189,7 @@ export class RunService {
 
   /**
    * The failure analysis: a model's account of one failed invocation, in a
-   * reader session of its own, before the local architect is briefed. It
+   * reader session of its own, before the module architect is briefed. It
    * reads the evidence the harness writes into its working directory and
    * submits once. Whatever happens to it, it never fails the run: a missing
    * package, a refused start, a failed or invalid session and any error of
@@ -10293,7 +10293,7 @@ export class RunService {
     return { directory: workspace, files, missing };
   }
 
-  /** The API views of the modules one iteration writes, for the engineer's briefing. */
+  /** The API views of the modules one iteration writes, for the module engineer's briefing. */
   private async iterationViews(run: Run, assignment: IterationAssignment): Promise<IterationApiViews[]> {
     return iterationApiViews(this.options.ramify, this.projectRoot, run.index, assignment.scope.base, assignment.scope.extra);
   }
@@ -10687,7 +10687,7 @@ export class RunService {
   /**
    * Writes the tracked feature files onto the run branch and commits them as
    * "Scenarios of <planId>", once readiness has passed and the branch
-   * exists, before the first local architect starts. The commit is an
+   * exists, before the first module architect starts. The commit is an
    * external effect of the ledger: `scenarios-materializing` is its intent
    * and `scenarios-materialized` its completion, and a crash between them
    * is recovered by re-rendering and by the commit's trailers. A run without
@@ -10817,7 +10817,7 @@ export class RunService {
   }
 
   /**
-   * What each obligation an assignment names is, for the engineer's
+   * What each obligation an assignment names is, for the module engineer's
    * briefing: a scenario's name, a delegated outcome, a registered case or a
    * registered test's description.
    */
@@ -10866,7 +10866,7 @@ export class RunService {
   }
 
   /**
-   * What an engineer is told of its work item's scenarios: its entry's, or
+   * What a module engineer is told of its work item's scenarios: its entry's, or
    * an integration work item's one scenario with its sub-scenarios' step
    * files. Undefined for a provider, follow-up or capability-task
    * iteration, whose briefing says nothing about scenarios beyond the
@@ -10933,7 +10933,7 @@ export class RunService {
   /**
    * The tracked scenarios an accepted iteration's gate audit passed, read
    * from its raw runner output, each with the step definitions that bound
-   * it, for the local architect: binding is recorded, not policed, and this
+   * it, for the module architect: binding is recorded, not policed, and this
    * is where the architect sees it. Display only.
    */
   private async passedScenarioLines(run: Run, result: IterationResult): Promise<string[]> {
@@ -11021,8 +11021,8 @@ type UnresolvedResolution =
   | { readonly kind: 'deviation'; readonly deviation: PlanDeviation }
   | { readonly kind: 'environment'; readonly problem: EnvironmentProblem; readonly note: string };
 
-/** What one placement request resolved to, for the local architect that made it. */
-/** A work item's package as its local architect holds it: the selection that cites it, the citation and its text. */
+/** What one placement request resolved to, for the module architect that made it. */
+/** A work item's package as its module architect holds it: the selection that cites it, the citation and its text. */
 interface WorkPackage {
   readonly selection: string;
   readonly citation: PackageCitation;
@@ -11135,7 +11135,7 @@ function boundInputs(read: readonly CapturedInput[], bound: ReadonlyArray<{ read
 }
 
 /**
- * The local architect's pinned point after one invocation, where the harness
+ * The module architect's pinned point after one invocation, where the harness
  * kept its session: the session and the executor's ref at the invocation's
  * end. Null where the session was not kept or no ref was reported.
  */
@@ -11150,22 +11150,22 @@ const failureAnalysisMs = 600_000;
 const failureOutputCharacters = 400_000;
 
 /**
- * Why one implementation session ended without a result, as its local
+ * Why one implementation session ended without a result, as its module
  * architect reads it: the bound or fault that ended it, and what its outcome
  * records.
  */
 function failedWithoutResult(role: string, iteration: string, result: InvocationResult<unknown>): string {
   const cause = [result.interruption ?? result.ended, result.error].filter(part => part !== undefined && part !== '').join(': ');
-  return `the ${role} of ${iteration} ended without a result (${cause}; invocation ${result.id})`;
+  return `the ${roleDisplayName(role).toLowerCase()} of ${iteration} ended without a result (${cause}; invocation ${result.id})`;
 }
 
 function analysisFailure(ended: InvocationOutcome['ended'], kind: string): string {
   switch (ended) {
     case 'invalid-submission': return 'Every allowed submission of the initial analysis was invalid';
-    case 'failed': return 'The initial architect\'s session failed';
-    case 'context-budget-reached': return 'The initial architect reached its context budget without submitting an analysis; a budget return is never a completion';
-    case 'stopped': return 'The initial architect\'s session stopped without a stop request';
-    default: return `The initial architect ended without an accepted analysis (${kind})`;
+    case 'failed': return 'The plan architect\'s session failed';
+    case 'context-budget-reached': return 'The plan architect reached its context budget without submitting an analysis; a budget return is never a completion';
+    case 'stopped': return 'The plan architect\'s session stopped without a stop request';
+    default: return `The plan architect ended without an accepted analysis (${kind})`;
   }
 }
 

@@ -18,11 +18,11 @@ import {
 } from './obligations.js';
 
 /*
- * What a local architect submits at a coordination point. This iteration
+ * What a module architect submits at a coordination point. This iteration
  * offers it four members of the union:
  *
  * `assign` commits an outline revision and one `IterationAssignment`, and
- * licenses the engineer that works it. It carries no gate, no test selection
+ * licenses the module engineer that works it. It carries no gate, no test selection
  * and no guarded hashes: the harness derives those from the kind, the scope
  * and the required evidence.
  *
@@ -36,8 +36,8 @@ import {
  * this architect is responsible for without a `done` report is rejected,
  * naming the IDs, like any other invalid submission.
  *
- * `request-placement` asks the global architect where a capability belongs,
- * when the choice is not the local architect's to make. It records the
+ * `request-placement` asks the plan architect where a capability belongs,
+ * when the choice is not the module architect's to make. It records the
  * request and nothing else; the answer comes back at the next turn of this
  * same session.
  *
@@ -53,7 +53,7 @@ import {
  * conformed.
  *
  * `unresolved` names the conflict and its evidence rather than weakening the
- * request. The global architect answers it with a placement fix, a plan
+ * request. The plan architect answers it with a placement fix, a plan
  * deviation the work item goes on under, or nothing possible, which ends
  * the run.
  *
@@ -61,7 +61,7 @@ import {
  * each carry `registrations` and `reports`: a required test this architect
  * chooses to track independently, and its judgment that an obligation it
  * is responsible for is correctly implemented and passing. They apply when
- * the submission is accepted, before its action, and an engineer's report
+ * the submission is accepted, before its action, and a module engineer's report
  * never supplies them.
  *
  * The fields the harness already knows are absent: the work item, the
@@ -132,7 +132,7 @@ const unresolvedMemberSchema = z.object({
 }).strict();
 
 /**
- * An accepted local architect submission, as `submission.json` records it:
+ * An accepted module architect submission, as `submission.json` records it:
  * a completion request always carries the outline it stands on.
  */
 export const localArchitectSubmissionSchema = z.discriminatedUnion('kind', [
@@ -141,7 +141,7 @@ export const localArchitectSubmissionSchema = z.discriminatedUnion('kind', [
 export type LocalArchitectSubmission = z.infer<typeof localArchitectSubmissionSchema>;
 
 /**
- * What a local architect may write: the accepted shape, except that a
+ * What a module architect may write: the accepted shape, except that a
  * completion request may omit its outline, meaning the last committed
  * revision stands. Validation resolves the omission against the records.
  */
@@ -227,7 +227,7 @@ function placementEvidence(evidence: WorkEvidence): PlacementEvidence {
 }
 
 /**
- * Validates one local architect submission: the strict schema, then the
+ * Validates one module architect submission: the strict schema, then the
  * rules the schema cannot hold. Nothing changes on a failure, and every
  * error names its path.
  */

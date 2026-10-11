@@ -11,6 +11,31 @@ applicable alongside these detailed contracts.
 
 ## Specification
 
+### Role Names
+
+The [glossary](glossary.md#plan-architect) defines **plan architect**,
+**module architect**, **module engineer** and **capability architect**.
+A module architect serves one module work item; it is not a permanent owner
+of every task in that module. Its architectural visibility can span the project.
+A module engineer can receive work from a module architect or a capability
+architect. Contract work and non-functional repair describe assignments rather
+than additional module engineer identities.
+
+Initial analysis and later placement decisions are tasks of the plan architect.
+Current prompts and UI labels use these role names. Stored protocol values and
+CLI role selectors remain compatible with existing runs:
+
+| Stored role | Role name |
+| --- | --- |
+| `initial-architect`, `global-fork` | Plan architect |
+| `local-architect` | Module architect |
+| `engineer`, `contract-engineer`, `nonfunctional-repair-engineer` | Module engineer |
+| `capability-architect` | Capability architect |
+
+Historical evidence retains the names actually recorded. The toolkit's
+module-architect skill and its glossary retain their upstream terminology under
+the snapshot's [provenance](../skills/module-architect/PROVENANCE.md).
+
 ### Forecast Early; Decide with Current Evidence
 
 When a concrete need arises, reuse the responsible agent's oriented context
@@ -33,10 +58,10 @@ that restriction.
 The issuing architect names each included tree with a reason and instructions
 for its meaning. An included owned-nested-project tree is excluded from Ramify
 source checks; its own instructions and commands apply from its root. Substantial work on that project belongs in
-a run rooted there. An engineer needing a scope expansion asks its architect;
+a run rooted there. A module engineer needing a scope expansion asks its architect;
 excluded analysis never creates write authority.
 
-An engineer's default working directory and code-search root are the assigned
+A module engineer's default working directory and code-search root are the assigned
 module's `src/`, including its tests and interface vocabulary. Work on auxiliary
 source and other owned contents uses their actual locations within the authorized
 scope. Expanding reads is deliberate navigation; the harness checks write
@@ -74,7 +99,7 @@ A not-analyzed path is never presented as passing source analysis.
 The harness ensures module scratch directories are ignored by Git before use.
 It adds missing rules to the project's `.gitignore`, preserving existing rules
 and avoiding duplicates, including when new modules are introduced. This is
-harness setup responsibility, independent of an engineer's module write scope.
+harness setup responsibility, independent of a module engineer's module write scope.
 
 The harness creates the assigned module's scratch directory within its scope.
 Scratch survives for as long as the iteration that generated it remains open,
@@ -103,7 +128,7 @@ completeness gate. Review pointers use the candidate snapshot; module tasks
 use their working-directory conventions.
 
 Work orientation receives the work item's own functional, acceptance and context
-elements, then asks the local architect to explore its module before submitting.
+elements, then asks the module architect to explore its module before submitting.
 The context selector forks that point with selectable elements and its current
 instruction, retaining inherited support sections without redelivering them.
 The assignment turn continues with the selected package and explores further
@@ -123,11 +148,11 @@ assignment and its gate check the naming convention when a fake is used.
 
 ### A Small Closed Set of Outcomes Is the Whole Protocol
 
-Each role submits from a closed action union. A requesting engineer can
-propose completion, report partial work or request a capability. The local
+Each role submits from a closed action union. A requesting module engineer can
+propose completion, report partial work or request a capability. The module
 architect qualifies reuse or delegates. The capability architect consults,
 revises its plan, assigns scoped work, delegates a nested need, records a
-placement conflict or requests handback. An accepted engineer completion
+placement conflict or requests handback. An accepted module engineer completion
 proposal advances orchestration to verification; it does not establish correct
 implementation. An authorized architect's accepted done report records that
 architect's judgment that its registered obligation is correctly implemented
@@ -136,7 +161,9 @@ from gate results. Read,
 plan-update and prevalidation tools have explicit recorded effects but do not
 complete work. The harness applies only accepted actions and current gates.
 
-### An Engineer's Failure Is Its Architect's Decision
+<a id="an-engineers-failure-is-its-architects-decision"></a>
+
+### A Module Engineer's Failure Is Its Architect's Decision
 
 The harness reports the failure pre-analyzed: a digest of what it already
 holds, then a model's analysis, so the decision needs no transcript. A bound
@@ -295,7 +322,7 @@ implementation and qualification require no benefit trial or performance gate.
 Each task selects its current role, kind, objective, submission tool and
 `procedure:<role>:<family>` key with the SHA-256 of its exact rendered set text.
 The selected body must be available at the selected session point or supplied
-with that task. Assignment, completion and ordinary local-architect repair use
+with that task. Assignment, completion and ordinary module architect repair use
 the main family; orientation, reconciliation and qualification have distinct
 families. Inherited procedures remain available, but only the current selection
 is active. Current tools, cwd, validator, destination and read/write authority
@@ -343,7 +370,7 @@ Historical hashes and evidence are not rewritten.
 
 ### Optional Discovery Handoffs and NFR Comparisons
 
-Work orientation, architect assignments and engineer completion/partial results
+Work orientation, architect assignments and module engineer completion/partial results
 may declare concise `startingPoints` path/note pairs. Paths are normalized literal
 project-relative locations, never absolute paths, traversal or globs. Omission
 remains valid. Syntax validation does not probe existence or judge relevance.
@@ -352,7 +379,7 @@ No extra discovery invocation, completeness rule or semantic decision follows.
 The shared named `support:starting-points` briefing groups pointers by their
 harness-recorded producer, work item, iteration, invocation and source boundary
 when available. Identical path/note pairs coalesce while retaining every origin.
-Assignment pointers reach the engineer; result pointers reach its architect and
+Assignment pointers reach the module engineer; result pointers reach its architect and
 that exact candidate's code/scope/design reviewers. Retained orientation and
 selector contexts need no repeated pointer list; fresh consumers receive usable
 recorded orientation pointers alongside their ordinary current brief.

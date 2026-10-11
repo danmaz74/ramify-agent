@@ -31,7 +31,7 @@ describe('correction guidance delivered by the active prompt packages', () => {
     expect(engineer.procedure).toContain('zero executed scenarios is not passing acceptance');
     expect(engineer.procedure).toContain('return `partial`');
     expect(engineer.procedure).toContain('separate verified facts from');
-    expect(engineer.procedure).toContain('A partial result ends this engineer session');
+    expect(engineer.procedure).toContain('A partial result ends this module engineer session');
     expect(engineer.procedure).toContain('current acceptance and scope');
     expect(engineer.submissionKinds).toContain('partial');
   });
@@ -42,7 +42,7 @@ describe('correction guidance delivered by the active prompt packages', () => {
       const loaded = packages.get(role)!;
       expect(loaded.procedure).toContain('ask the plan architect to evaluate it before');
       expect(loaded.procedure).toContain('you submit\n`unresolved`');
-      expect(loaded.procedure).toContain('fresh engineer');
+      expect(loaded.procedure).toContain('fresh module engineer');
       expect(loaded.procedure).toContain('completed and remaining work');
       expect(loaded.procedure).toContain('current acceptance and scope');
       expect(loaded.procedure).toContain('bound or completed scenarios cannot be reworded');

@@ -18,7 +18,7 @@ export function constructStep(value: unknown, environment: StepEnvironment): Con
 /**
  * The fresh start the run falls back to where the session a step continues
  * or forks is unavailable, with the reason recorded as its degradation: the
- * complete fresh briefing of the same inputs. An engineer's fallback keeps
+ * complete fresh briefing of the same inputs. A module engineer's fallback keeps
  * its construction, as the run does; a fresh step has none.
  */
 export function freshFallback(value: unknown, reason: string): Exclude<ReturnType<typeof validateStepInputs>, { role: 'engineer' }> | null {

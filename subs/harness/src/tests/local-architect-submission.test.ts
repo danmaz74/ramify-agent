@@ -27,7 +27,7 @@ import { committedRecords } from '../work/committed.js';
 import { RunLog } from '../run/log.js';
 
 /*
- * Everything a local architect tells the harness is validated JSON: the
+ * Everything a module architect tells the harness is validated JSON: the
  * strict schema, then the rules the schema cannot hold. A failure changes
  * nothing, every error names its path, a corrected input is accepted, and
  * the bound ends the invocation as `invalid-submission`.
@@ -452,9 +452,9 @@ describe('PB3-D01 PB3-D02 PB3-D04: registrations and reports', () => {
     ] });
     expect(errors.map(error => [error.path, error.message])).toEqual([
       ['reports.0.id', '"sc-404" is no registered obligation of this run'],
-      ['reports.1.id', 'sc-002 is reported by the local architect of wi-002, not by the local architect of wi-001'],
-      ['reports.2.id', 'sc-003 is reported by the local architect of sc-003\'s integration work item, which does not exist yet, not by the local architect of wi-001'],
-      ['reports.3.id', 'cap-001 is reported by the capability architect of cap-001, not by the local architect of wi-001'],
+      ['reports.1.id', 'sc-002 is reported by the module architect of wi-002, not by the module architect of wi-001'],
+      ['reports.2.id', 'sc-003 is reported by the module architect of sc-003\'s integration work item, which does not exist yet, not by the module architect of wi-001'],
+      ['reports.3.id', 'cap-001 is reported by the capability architect of cap-001, not by the module architect of wi-001'],
       ['reports.4.judgment', 'sc-001 is pending; "bound" only revises an earlier "done" report'],
     ]);
     // A duplicate in one submission, and a report based on a superseded revision, are refused.
@@ -720,7 +720,7 @@ describe('a rejected submission in a run', () => {
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('failed');
     expect(snapshot.failure).toMatchObject({ reason: 'invalid-submission' });
-    expect(snapshot.failure!.message).toBe('The local architect of wi-001 ended without a result (invalid-submission); '
+    expect(snapshot.failure!.message).toBe('The module architect of wi-001 ended without a result (invalid-submission); '
       + 'its last rejected completion request left sc-001 without a done report');
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     expect(local.verdicts).toHaveLength(3);
@@ -776,7 +776,7 @@ describe('a rejected submission in a run', () => {
     const answer = answerOf(local.verdicts[0]);
     expect(answer.errors).toEqual([{
       path: 'assignment.scope.base.included.0.directory',
-      message: `"${reviewsDirectory}/src/tests" lies inside the own contents of "${reviews}", which the base already gives the engineer whole; remove this entry`,
+      message: `"${reviewsDirectory}/src/tests" lies inside the own contents of "${reviews}", which the base already gives the module engineer whole; remove this entry`,
       expected: `one of "${reviewsDirectory}/subs/core", "${reviewsDirectory}/subs/ui", "${reviewsDirectory}/subs/validation", or no entry`,
     }]);
     expect(answer.remainingAttempts).toBe(2);

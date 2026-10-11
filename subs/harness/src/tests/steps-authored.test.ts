@@ -73,23 +73,23 @@ describe('S07: an authored assignment', () => {
 
   test('one the local architect\'s schema refuses is refused with the schema\'s reasons', async () => {
     const result = await authored('engineer', engineerId, { assignment: await file({ kind: 'assign', localDecisions: [] }) });
-    expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--assignment .*: the local architect's submission schema refuses it: /u) });
+    expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--assignment .*: the module architect's submission schema refuses it: /u) });
   });
 
   test('one the local architect\'s rules refuse is refused with the rules\' reasons', async () => {
     const result = await authored('engineer', engineerId, { assignment: await file(assign(notes, { citedElements: ['no-such-element'] }, outline())) });
-    expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--assignment .*: the local architect's rules refuse it: .*no-such-element/u) });
+    expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--assignment .*: the module architect's rules refuse it: .*no-such-element/u) });
   });
 
   test('one that changes what the engineer inputs derive their gate from is refused', async () => {
     const scope = { base: { module: notes, included: [] }, extra: [], read: [], rationale: 'The work is in this module.' };
     const result = await authored('engineer', engineerId, { assignment: await file(assign(notes, { kind: 'verification', scope }, outline())) });
-    expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--assignment .*: it changes kind, which the engineer inputs derive the gate/u) });
+    expect(result).toEqual({ status: 'refused', reason: expect.stringMatching(/--assignment .*: it changes kind, which the module engineer inputs derive the gate/u) });
   });
 
   test('an assignment given for a role it does not produce inputs for is refused', async () => {
     const result = await authored('local-architect', workTurnId, { assignment: await file(assign(notes)) });
-    expect(result).toEqual({ status: 'refused', reason: expect.stringContaining('it replaces part of an engineer\'s inputs') });
+    expect(result).toEqual({ status: 'refused', reason: expect.stringContaining('it replaces part of a module engineer\'s inputs') });
   });
 });
 
@@ -115,7 +115,7 @@ describe('S07: authored local architect inputs', () => {
     const refused = await authored('local-architect', workTurnId, { selection: await file({ selected: [{ id: 'x' }] }) });
     expect(refused).toEqual({ status: 'refused', reason: expect.stringContaining('the context selector\'s submission schema refuses it') });
     const onOrientation = await authored('local-architect', orientationId, { selection: await file({ selected: [] }) });
-    expect(onOrientation).toEqual({ status: 'refused', reason: expect.stringContaining('a local architect work turn\'s inputs') });
+    expect(onOrientation).toEqual({ status: 'refused', reason: expect.stringContaining('a module architect work turn\'s inputs') });
 
     const accepted = await authored('local-architect', workTurnId, { selection: await file({ selected: [] }) });
     if (accepted.status !== 'imported') throw new Error(accepted.reason);
@@ -275,11 +275,11 @@ describe('S07: engineer inputs authored with no run', () => {
     }, ports());
     expect((await author({ ...item, requirementRefs: ['fr-001'] }, assign(notes, {}, outline()))).stderr).toContain('it cites the plan elements fr-001');
     expect((await author(item, { ...assign(notes, {}, outline()), localDecisions: [{ question: 'q', decision: 'd', rationale: 'r' }] })).stderr)
-      .toMatch(/--assignment: (it carries local decisions|the local architect's submission schema refuses it)/u);
+      .toMatch(/--assignment: (it carries local decisions|the module architect's submission schema refuses it)/u);
     expect((await author(item, assign(notes, { citedElements: ['fr-001'] }, outline()))).stderr).toContain('--assignment: it cites the elements fr-001');
     const elsewhere = { base: { module: 'collection-review/no-such-module', included: [] }, extra: [], read: [], rationale: 'Elsewhere.' };
     expect((await author(item, assign(notes, { scope: elsewhere }, outline()))).stderr)
-      .toMatch(/--assignment: the local architect's rules refuse it: .*no-such-module/u);
+      .toMatch(/--assignment: the module architect's rules refuse it: .*no-such-module/u);
     expect((await author(item, assign(notes))).stderr).toContain('The first assignment needs an outline');
   });
 });

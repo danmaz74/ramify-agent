@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import type { RunSessionView, SessionReach, SessionRef, ShownSessionState } from '../../harness/src/interfaces/protocol/sessions.js';
 import { chapterHref, sessionHref } from './routes.js';
 import { reachText, SessionState } from './run-labels.js';
@@ -9,7 +10,7 @@ import { reachText, SessionState } from './run-labels.js';
  * counted with their roles, and its suspended and interrupted ones, each
  * counted and named apart. A finished session leaves no mark; it is listed
  * with the node's sessions when the node is selected. A session that reaches
- * no drawn element, such as the initial architect, which reaches the run
+ * no drawn element, such as the plan architect, which reaches the run
  * itself, is shown in the run-level strip instead.
  */
 
@@ -66,7 +67,7 @@ export function marksText(sessions: readonly RunSessionView[] | undefined): stri
     const n = count(all, state);
     if (n === 0) return [];
     if (state !== 'live') return [`${n} ${state}`];
-    return [`${n} live (${liveRoles(all).map(([role, times]) => (times > 1 ? `${role} ×${times}` : role)).join(', ')})`];
+    return [`${n} live (${liveRoles(all).map(([role, times]) => (times > 1 ? `${roleLabel(role)} ×${times}` : roleLabel(role))).join(', ')})`];
   }).join(', ');
 }
 
@@ -85,7 +86,7 @@ export function SessionMarks({ sessions }: { readonly sessions: readonly RunSess
         <>
           <span className="session-mark session-mark-live">{live} live</span>
           {liveRoles(all).map(([role, times]) => (
-            <span key={role} className="role-chip">{role}{times > 1 ? ` ×${times}` : ''}</span>
+            <span key={role} className="role-chip">{roleLabel(role)}{times > 1 ? ` ×${times}` : ''}</span>
           ))}
         </>
       )}
@@ -114,7 +115,7 @@ function SessionLine({ diagram, session, where }: { readonly diagram: DiagramSes
   const ref = refOf(diagram, session);
   return (
     <>
-      <a href={sessionHref(ref)}><code>{session.session}</code> {session.role}</a>
+      <a href={sessionHref(ref)}><code>{session.session}</code> {roleLabel(session.role)}</a>
       <SessionState state={session.state} />
       {session.state === 'live' && session.awaiting !== null && (
         <span className="muted"> awaiting <a href={chapterHref(ref, session.awaiting)}>{session.awaiting}</a></span>
@@ -153,7 +154,7 @@ export function ElementSessions({ diagram, sessions, element }: {
 
 /**
  * The run-level strip: the sessions a diagram draws no element for. The
- * initial architect reaches the run itself; any other session here reaches
+ * plan architect reaches the run itself; any other session here reaches
  * an element this view does not draw, which is named. Sessions that are not
  * finished are listed; finished ones are counted and listed on request.
  */

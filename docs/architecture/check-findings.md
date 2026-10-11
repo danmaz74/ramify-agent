@@ -18,14 +18,14 @@ contracts and has no filesystem, agent, Git, HTTP or scheduling dependencies.
 The **harness remains the application coordinator**. It starts checks and
 reviews, binds their outputs to trusted evidence, obtains architect decisions,
 assigns repairs, enforces authority and commits transitions through the
-existing ledger. Reviewers report concerns; a fork of the responsible local
-architect assesses them when the work item has CheckFindings; ordinary engineer
+existing ledger. Reviewers report concerns; a fork of the responsible module
+architect assesses them when the work item has CheckFindings; ordinary module engineer
 iterations perform repairs. A CheckFinding never changes a gate verdict.
 
 Under the principles, a CheckFinding is a **risk signal**: objective when a
 check observed it, subjective when an agent judged it, with a risk level and
 a credibility derived from the provenance of what grounds it. The system
-spends on a signal in proportion to both. No signal is skipped: the local
+spends on a signal in proportion to both. No signal is skipped: the module
 architect gives every signal of its work item at least a little attention,
 and every subjective signal is waivable.
 
@@ -160,8 +160,8 @@ Its decisions explain what the system chose to do. The current view is
 derived from that history.
 
 The harness already uses the word finding for something else: `HookFinding`
-and `FindingsSeen` in `hooks/post-write.ts` and the engineer submission gate's
-`openFindings` carry Ramify diagnostics to the engineer. Those remain check
+and `FindingsSeen` in `hooks/post-write.ts` and the module engineer submission gate's
+`openFindings` carry Ramify diagnostics to the module engineer. Those remain check
 attempt evidence on their existing path. They are not CheckFindings unless a
 producer adapter promotes one, and every CheckFinding identifier in this
 document and its implementation keeps the `CheckFinding` prefix so the two
@@ -199,7 +199,7 @@ analysis artifact before any implementation commit exists. Evidence scoped to
 one file or document must not be presented as whole-project evidence.
 
 A report can mix fact and judgment. For example, “this sealed file changed
-from A to B” is observed, while “that change is warranted” is the engineer's
+from A to B” is observed, while “that change is warranted” is the module engineer's
 judgment. The CheckFinding's question is whether to retain the exception, so its
 disposition uses an assessment. A failing test's existence is also observed,
 but a claim that the failure is fixed requires execution evidence. Superseding
@@ -226,7 +226,7 @@ Recognition has three steps, each answering a different question:
 3. **Could two judgments describe the same concern?** Record a new CheckFinding
    provisionally when the producer has no reliable issue key. A reviewer may
    suggest an existing CheckFinding and explain why, but this is only a hint:
-   parallel reviewers may not have seen each other's reports. The **local
+   parallel reviewers may not have seen each other's reports. The **module
    architect is the matching agent** at the work-item reconciliation step.
    It sees the collected CheckFindings together, confirms a same-issue relation
    or keeps the concerns separate, and records the reason. Linked CheckFindings
@@ -252,7 +252,7 @@ reopens a closed issue; a repeated report never reopens a waiver.
 
 ### The architect's semantic match
 
-The harness gives a fork of the local architect one bounded packet at
+The harness gives a fork of the module architect one bounded packet at
 reconciliation:
 all CheckFindings reported for this work item, relevant earlier CheckFindings for the
 same work item (including closed and deferred ones), their original claims and
@@ -298,8 +298,8 @@ no cycle or cross-owner transfer. It records the architect's semantic reason
 as a judgment; it cannot mechanically prove that the issues are equivalent.
 If a proposed match crosses work-item ownership, the architect responsible
 for their common coordination scope decides the relation and owner before
-one repair is scheduled for both. That may be the global architect when no
-local architect holds the common scope. It does not require another matcher
+one repair is scheduled for both. That may be the plan architect when no
+module architect holds the common scope. It does not require another matcher
 role.
 
 The matching fork is the reconciliation fork described under
@@ -325,7 +325,7 @@ lifecycle machines.
 | Action | Result and required evidence |
 | --- | --- |
 | Plan a repair | Remains open; link the responsible correction assignment or durable pending assignment intent. |
-| Report a repair | Remains open until fixed; link what the engineer changed and the candidate it claims repaired. |
+| Report a repair | Remains open until fixed; link what the module engineer changed and the candidate it claims repaired. |
 | Fix | Closed as fixed, with a check rerun or a fresh assessment appropriate to the producer's verification rule. |
 | Supersede a judgment | Closed or narrowed with an explicit replacement assessment and rationale. Cannot cancel a required factual verification obligation. |
 | Waive | Closed as waived, with the actor, the accepted risk and the reason. Does not claim a repair or change a gate result. Refused for a required check. |
@@ -337,7 +337,7 @@ lifecycle machines.
 
 Waiving is a settlement. The user can waive any subjective signal; an agent
 can waive one when it has authority over every module the signal concerns:
-the local architect for its own module, the global architect for the
+the module architect for its own module, the plan architect for the
 project. A fresh report of the same issue joins a waived CheckFinding as
 evidence and does not reopen it; only an explicit revocation does. Conversely,
 mere absence from a later report cannot close an existing CheckFinding.
@@ -368,14 +368,14 @@ only when they do not evade a required obligation or reserved approval.
 
 ### Plan deviations
 
-A plan deviation is the one CheckFinding that holds nothing. When a local
-architect answers that its request cannot be met as stated, the global
+A plan deviation is the one CheckFinding that holds nothing. When a module
+architect answers that its request cannot be met as stated, the plan
 architect answers the unresolved request: a placement decision, a plan
 deviation, or that nothing of the plan remains worth doing, which fails the
 run. A deviation records the requirement as written at its plan lines, what
 the run does instead, why, the alternatives rejected and what the person
 loses. The plan file is never changed; the deviation is a durable record
-beside it that binds the rest of the run. Local architects receive it with
+beside it that binds the rest of the run. Module architects receive it with
 the requirement it changes, and scope reviews judge the work against the plan
 as it amends it. A deviation may reword a pending scenario, and the harness
 renders that scenario's feature file from it.
@@ -393,14 +393,14 @@ decides, and a rejection there fails the run.
 
 ### Environment problems
 
-The global architect may also answer an unresolved request with an
+The plan architect may also answer an unresolved request with an
 environment problem: the conflict lies in how the gate or the harness runs,
 not in the plan or the architecture. Its CheckFinding is the run's, high
 risk and agent-generated, with the diagnosis as its rationale and the
 operator's suggested change as its remedy. It awaits the operator from the
 start and holds the work item that asked. The operator resumes the run by
 answering `resume` or waiving it, which closes it as waived and returns the
-work item to its local architect with the diagnosis; answering `end` fails
+work item to its module architect with the diagnosis; answering `end` fails
 the run. Nothing is placed and no deviation is recorded.
 
 ## Application flow
@@ -416,7 +416,7 @@ flowchart TD
     A --> S
     S --> O{CheckFindings need assessment?}
     O -- No --> W[Ordinary work-item gate]
-    O -- Yes --> L[Local architect fork matches and assesses current tree]
+    O -- Yes --> L[Module architect fork matches and assesses current tree]
     L --> D[Waive, supersede or defer with reasons]
     D --> W
     L --> E[Assign normal correction iteration]
@@ -459,7 +459,7 @@ A valid partial result may end the request with explicit missing coverage.
 If further coverage is wanted, create a new request linked to it; do not
 overwrite the accepted result or silently withdraw its concerns.
 
-Reviewers must read a **snapshot**, not the next engineer's working tree.
+Reviewers must read a **snapshot**, not the next module engineer's working tree.
 The evidence owner supplies candidate files and diffs; harness review tools
 confine reads to that snapshot and the captured evidence bundle. A different
 working directory alone is insufficient if unrestricted tools can read
@@ -477,14 +477,14 @@ No concurrency default should be justified merely by there being three kinds.
 
 ### Reusing agent context
 
-Scope review forks the local architect at the pinned point that produced the
+Scope review forks the module architect at the pinned point that produced the
 assignment. It receives that assignment and the frozen candidate diff. Later
 architect turns must not change the fork's source of intent. The fork is asked
 to challenge scope, and has no authority inherited from its parent's role.
 
-CheckFinding reconciliation uses a **different fork point**: the local
+CheckFinding reconciliation uses a **different fork point**: the module
 architect's retained point after its `request-completion` submission, when
-the ordinary iterations of this work item are known. The engineer's
+the ordinary iterations of this work item are known. The module engineer's
 `completion-proposed` submission is a different record and never a fork
 point. The reconciliation fork never starts from a later, moving session
 head. The earlier fork taken when an iteration was assigned serves scope
@@ -507,7 +507,7 @@ idempotency key. If context append fails, the next architect invocation
 receives the same brief from the run log. The parent session remains available
 for a correction round or later decision.
 
-A missing fork point falls back to a fresh local architect session with the
+A missing fork point falls back to a fresh module architect session with the
 same complete evidence packet. Record whether the requested fork actually
 started as a fork. Session reuse reduces repeated orientation; the evidence
 packet and decisions provide recovery.
@@ -542,7 +542,7 @@ The harness evaluates that condition in the work context and supplies the due
 CheckFinding IDs to the query. The CheckFinding child does not interpret run phases or
 schedule future work.
 
-Otherwise, fork the local architect from its captured completion-request
+Otherwise, fork the module architect from its captured completion-request
 point to assess all current concerns together. The fork can find that later
 iterations already repaired an issue, supersede a weak earlier judgment,
 waive a justified tradeoff, defer a nonblocking improvement, or choose
@@ -556,13 +556,13 @@ The harness validates the basis and actor before recording the decisions.
 Commit a repair decision and its assignment together where both are ready;
 otherwise retain an explicit pending assignment intent. A crash must not
 leave a CheckFinding that claims scheduled work without any recoverable assignment.
-The engineer for a new correction is the ordinary engineer of that assignment;
+The module engineer for a new correction is the ordinary module engineer of that assignment;
 existing session-reuse policy decides whether to reuse context. The reviewer
-does not become the repair engineer.
+does not become the repair module engineer.
 
 Repairs retain the normal iteration gate and review path. A repair claim
 keeps the CheckFinding open until its verification rule is satisfied. For a
-judgmental concern, the local architect fork can perform that fresh assessment
+judgmental concern, the module architect fork can perform that fresh assessment
 against current evidence; a compulsory second reviewer for every disposition
 would defeat the intended latency model. If independent re-review is selected
 and unavailable, record the gap and choose an explicit risk disposition when
@@ -642,7 +642,7 @@ cannot rewrite a failing required gate as passed.
 
 The [sealed-edit follow-up](../analysis/2026-09-24-sealed-file-edit-hooks.md)
 remains a separate implementation plan. Its hook and justified-save tool
-belong to harness engineer equipment and seal policy. The save commits its
+belong to harness module engineer equipment and seal policy. The save commits its
 exact file evidence, justification and CheckFinding creation together, so it cannot
 succeed while leaving no reviewable CheckFinding. The CheckFinding child assesses the
 exception's lifecycle, not filesystem permissions. The gate still verifies
@@ -652,13 +652,13 @@ existing authorities.
 
 | Producer or use case | Integration with this architecture | Delivery boundary |
 | --- | --- | --- |
-| Iteration code review | Judgmental report about a frozen candidate; local architect chooses the response. | First delivery. |
+| Iteration code review | Judgmental report about a frozen candidate; module architect chooses the response. | First delivery. |
 | Scope review | Judgmental report citing immutable assignment intent and diff evidence; architect fork is optional context reuse. | First delivery. |
 | Design, simplification and principles review | Judgmental report with relevant guidance revision, consequence and bounded remedy. | First delivery, with warm orientation measured separately. |
 | Repeated structural or scenario failures | Producer evidence with issue identity and owner-check verification; existing immediate repair remains. | Add only where continued tracking changes a decision. |
 | Focused flaky investigation | Execution attempts and classification linked to the factual failure. | Follow-up once runner identity and reports support it. |
-| Saved sealed-file exception | Observed file change plus agent justification; local architect assesses retaining it. | Separate sealed-edit plan. |
-| Initial plan coverage review | Review request over captured plan/analysis artifacts; initial architect is responsible before acceptance. | Later; requires staging/revision of initial analysis. |
+| Saved sealed-file exception | Observed file change plus agent justification; module architect assesses retaining it. | Separate sealed-edit plan. |
+| Initial plan coverage review | Review request over captured plan/analysis artifacts; plan architect is responsible before acceptance. | Later; requires staging/revision of initial analysis. |
 | Work-item gap review | Review question over cumulative item output; same reconciliation and correction path. | Later, if iteration reviews leave material gaps. |
 | Cumulative scope/risk, final gap, documentation review | Review over broader source and requirements, with a responsible run owner. | Later; final review needs a defined correction path before run closure. |
 | Peer review | Another attempt for the same question with independent provenance; disagreement remains judgment. | Optional later policy; no new CheckFinding lifecycle. |
@@ -758,7 +758,7 @@ The harness child `reviews` owns mechanical review preparation: fixed candidate
 snapshots and tools, bounded patch delivery, captured guidance, briefings and
 reviewer submission validation. Harness retains review scheduling, run-log
 projections, durable record envelopes and CheckFinding producer integration.
-Its run events retain both local architect fork points: the session ref at
+Its run events retain both module architect fork points: the session ref at
 `iteration-assigned` and the ref after a committed `request-completion`
 submission. `checks/` supplies factual producer evidence;
 `work/engineer-equipment.ts` integrates the seal hook. Existing gate attempts
@@ -823,7 +823,7 @@ its architecture is evidence for adaptation, not authority over ramify-agent.
 | `core/runtime/finding-lifecycle/check-finding-reconciliation.ts` distinguishes successful, skipped and inconclusive owner reruns, and resolves a CheckFinding whose fingerprint is absent from a successful rerun; skipped and inconclusive reruns resolve nothing. | Retain the coverage distinctions. The fingerprint carries no same-obligation identity, so require positive same-obligation test evidence or adequate complete-check coverage, and reject a fingerprint match across a changed obligation. |
 | `core/runtime/flaky-followup/flaky-confirmation-runner.ts` performs bounded focused reruns; its loop treats any non-passing rerun, including a process launch error, as reproduced. | Reuse bounded focused investigation, but preserve runner errors as inconclusive and intermittent classification as provisional. |
 | The [review analysis](../analysis/2026-09-24-implementation-studio-adoption.md#specific-studio-behavior-to-correct-while-adapting-it) records malformed or unavailable Studio reviews becoming empty/pass results. | Require a valid result and explicit coverage. Empty valid output and unavailable review are different. |
-| The [sealed-edit analysis](../analysis/2026-09-24-sealed-file-edit-hooks.md#studio-precedent-and-what-to-take-from-it) finds justified writes linked to pending CheckFindings. | Preserve the exact edit and reason; use local-architect assessment and escalate only at the governing authority boundary. |
+| The [sealed-edit analysis](../analysis/2026-09-24-sealed-file-edit-hooks.md#studio-precedent-and-what-to-take-from-it) finds justified writes linked to pending CheckFindings. | Preserve the exact edit and reason; use module architect assessment and escalate only at the governing authority boundary. |
 
 These are source-observed mechanisms and design judgments about adaptation,
 not measurements of their frequency or impact on delivered quality.
@@ -837,7 +837,7 @@ Author a focused implementation plan in this order:
    cases so a subjective-only pilot does not hard-code the wrong lifecycle.
 2. Background invocation lifecycle, immutable snapshot access and durable
    review attempts; start with one real review integration to prove the path.
-3. Scope and design inputs, a fork of the local architect for matching and
+3. Scope and design inputs, a fork of the module architect for matching and
    reconciliation, durable brief return, and normal correction assignments;
    preserve the fast path for a work item without CheckFindings. Measure the fork against fresh
    sessions before relying on a cost or latency benefit.

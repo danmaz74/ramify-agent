@@ -29,18 +29,18 @@ import { fixtureScratchGit } from './mock-git.js';
  *
  * - `lineage` (review-notes, completed): the session scenario, whose
  *   sessions are forked, appended to, continued, requested by a contract
- *   need and, because the executor forgets each engineer session at its
+ *   need and, because the executor forgets each module engineer session at its
  *   first settled repair-context append, followed by an ordinary fresh
- *   engineer task with recorded degradation. The retained local architect
+ *   engineer task with recorded degradation. The retained module architect
  *   continues its original lineage; no replacement parent is created.
- * - `interrupted` (reviewer-identity, stopped): an initial architect that
+ * - `interrupted` (reviewer-identity, stopped): an plan architect that
  *   ignores the stop past its grace, so the run ends with the session its log
  *   still says is live.
  * - `live` (status-badge-tone): started by the serving process itself, since
  *   a run is live only while the process that serves it drives it. Its
- *   initial architect is kept for forks, its placement request's global fork
- *   has finished, its local architect is suspended while its engineer works,
- *   and the engineer is live. The engineer is paced: each step a `Pacer`
+ *   plan architect is kept for forks, its placement request's global fork
+ *   has finished, its module architect is suspended while its engineer works,
+ *   and the module engineer is live. The module engineer is paced: each step a `Pacer`
  *   releases adds entries to its transcript, and `finish` lets it submit, so
  *   the run goes on to complete and every session finishes.
  *
@@ -78,9 +78,9 @@ async function lineageRun(root: string): Promise<FinishedSessionRuns['lineage']>
     const scenario = await runSessionScenario({
       root,
       cleanup: step => { cleanups.push(step); },
-      // The executor can no longer read an engineer session once it ends, so
+      // The executor can no longer read a module engineer session once it ends, so
       // the provider's repair uses an ordinary fresh task with degradation.
-      // The local architect remains available and continues its original session.
+      // The module architect remains available and continues its original session.
       port: scripted => {
         const port: AgentPort = {
           ...scripted,
@@ -126,7 +126,7 @@ async function interruptedRun(root: string): Promise<FinishedSessionRuns['interr
   });
   try {
     const runId = (await service.execute(startRun(planId))).jobId;
-    // The intake is the first session and the initial architect the second.
+    // The intake is the first session and the plan architect the second.
     await until(async () => agent!.sessions.length === 2
       && (await readTranscript(runPath(root, planId, runId, runLayout.transcript('ses-0002')))).entries.length >= 3);
     await service.execute(stopRun(planId, runId, service.getRun(planId, runId)!.version));

@@ -22,7 +22,7 @@ vi.mock('node:child_process', async original =>
  *
  * An entry capability whose owner does not exist yet carries a proposal, and
  * the first assignment of that owner captures the bootstrap authority the
- * registry gives it. The module is created by the engineer, recognized by
+ * registry gives it. The module is created by the module engineer, recognized by
  * the declared module inventory before its gate can pass, and reported from
  * the changed declaration the commit boundary was told about.
  *
@@ -101,7 +101,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
   test('an absent owner with no accepted authority is rejected, and so is a write outside the creation scope', async () => {
     // The assignment falls on a module of the fixture, whose own tests are
     // not this test's to run: the runner answers for them, and what is being
-    // proved is the rejection and the guard. Nothing the engineer wrote
+    // proved is the rejection and the guard. Nothing the module engineer wrote
     // reached the tree, so every boundary is an unchanged one.
     const { root, scripted, final } = await target({ commits: [scenarios, unchanged, unchanged, unchanged], finalHead: materialized }, { miniRunner: false });
     const opened = await openRuns(root, {
@@ -143,7 +143,7 @@ describe('G9: an accepted proposed entry owner reaches implementation', () => {
     expect(assignment.scope.base.module).toBe(reviews);
     expect(assignment.scope.bootstrap).toEqual([]);
 
-    // The engineer's attempt to create a module outside the scope wrote
+    // The module engineer's attempt to create a module outside the scope wrote
     // nothing, and no module was created.
     const result = await readResult(root, runId, 1);
     const observations = await readFile(runPath(root, 'review-notes', runId, runLayout.observations(result.invocations[0]!)), 'utf8');
@@ -175,7 +175,7 @@ describe('G10: global placement authorizes a new owner without claiming it exist
     const opened = await openRuns(root, {
       script: byRole({
         // The entry owner exists: what does not exist is the owner the
-        // global architect decides on.
+        // plan architect decides on.
         'initial-architect': [submit(analysis([entry('review-note', reviews, 'A reviewer can attach one note to a review run.')]))],
         'local-architect': [
           submit(requestPlacement({

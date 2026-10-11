@@ -689,7 +689,7 @@ export async function diffPatch(root: string, from: string, to: string, path?: s
 
 /**
  * The patch of the working tree's tracked changes against `base`, as
- * `git diff` prints it: what an engineer's uncommitted work changed in files
+ * `git diff` prints it: what a module engineer's uncommitted work changed in files
  * Git already tracks. A file it created is not in it; `worktreeLineChanges`
  * names those.
  */

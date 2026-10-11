@@ -10,7 +10,7 @@ import { startingPointsSchema } from '../work/starting-points.js';
 
 const text = z.string().min(1);
 
-/** The local architect's first, assignment-free turn for one work item. */
+/** The module architect's first, assignment-free turn for one work item. */
 export const workOrientationSubmissionSchema = z.object({
   focus: text,
   currentUnderstanding: text,
@@ -36,7 +36,7 @@ export const contextSelectorJsonSchema = z.toJSONSchema(contextSelectorSubmissio
 
 export interface OrientationPacketInput {
   readonly workItem: string;
-  /** The exact local architect briefing the parent saw before orienting. */
+  /** The exact module architect briefing the parent saw before orienting. */
   readonly briefing: string;
   readonly submission: WorkOrientationSubmission;
 }
@@ -46,8 +46,8 @@ export function orientationPacket(input: OrientationPacketInput): { readonly tex
   const submission = workOrientationSubmissionSchema.parse(input.submission);
   const text = [
     `# Work orientation ${input.workItem}`,
-    '', '## Local architect briefing', '', input.briefing,
-    '', '## Local architect orientation', '',
+    '', '## Module architect briefing', '', input.briefing,
+    '', '## Module architect orientation', '',
     `Focus: ${submission.focus}`,
     `Current understanding: ${submission.currentUnderstanding}`,
     'Open questions:',

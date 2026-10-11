@@ -87,6 +87,7 @@ expose-sub capabilityRequestViewSchema, CapabilityRequestView from harness to de
 
 // protocol/runs.ts
 expose-sub runIdSchema, RunId, roleSchema, Role, runAgentSchema, RunAgent from harness to descendants
+expose-sub roleDisplayName from harness to descendants
 expose-sub startRunCommandSchema, StartRunCommand, runCommandSchema, RunCommand from harness to descendants
 expose-sub RunCommandType, runFailureReasonSchema, RunFailureReason from harness to descendants
 expose-sub approveAnalysisCommandSchema, ApproveAnalysisCommand, RunCommandInput from harness to descendants

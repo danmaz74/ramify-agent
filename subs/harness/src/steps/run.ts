@@ -41,7 +41,7 @@ import { committedBody, finished, kept, type InvocationProgress, type Invocation
  * recorded in a manual run in a run's own layout.
  *
  * It holds the project lock, materializes the architect view and prepares
- * what the role works in as a run does: an engineer's source directory, its
+ * what the role works in as a run does: a module engineer's source directory, its
  * scratch and its focused Cucumber command; a reader's empty workspace. It
  * uses the tree as it stands: the invocation records the commit HEAD names
  * and whether the tree differed from it, and nothing is snapshotted or
@@ -112,7 +112,7 @@ export interface StepRunSummary {
   /** The accepted submission's kind, where it has one. */
   readonly submissionKind: string | null;
   readonly rejectedSubmissions: number;
-  /** An engineer's Ramify findings that no later check cleared. */
+  /** A module engineer's Ramify findings that no later check cleared. */
   readonly standingViolations: readonly { readonly code: string; readonly message: string; readonly file: string | null; readonly line: number | null }[];
   /** Every path that differed from the base when the session settled. */
   readonly changed: readonly string[];
@@ -225,7 +225,7 @@ function takenStart(inputs: StepInputs, run: ManualRun, sessionOf: (ref: string,
   else if (sessionOf(point!, session) === null) reason = `this manual run holds no session at the point the inputs name${session === undefined ? '' : ` (${session})`}`;
   if (reason === null) return { inputs, reason: null };
   if (inputs.role === 'engineer') {
-    // A fresh engineer keeps a failed gate to repair; guidance belongs to a resumption only.
+    // A fresh module engineer keeps a failed gate to repair; guidance belongs to a resumption only.
     const fields = Object.fromEntries(Object.entries(inputs).filter(([key]) => key !== 'guidance' && key !== 'start'));
     return { inputs: validateStepInputs({ ...fields, start: { kind: 'fresh', degraded: { requested: 'continued', reason } } }), reason };
   }
@@ -392,7 +392,7 @@ class Refusal extends Error {}
 interface Prepared<T> {
   readonly request: Omit<InvocationRequest<T>, 'progress' | 'signal' | 'startingTree'>;
   readonly standing?: (() => readonly { readonly code: string; readonly message: string; readonly file: string | null; readonly line: number | null }[]) | undefined;
-  /** The module directory whose scratch the engineer was given. */
+  /** The module directory whose scratch the module engineer was given. */
   readonly scratch?: { readonly directory: string } | undefined;
   /** A review question's attempt records. */
   readonly review?: ManualReview | undefined;
@@ -539,7 +539,7 @@ async function prepareReviewRequest(inputs: Extract<StepInputs, { role: 'reviewe
 }
 
 /**
- * The engineer's request, with what a run prepares before it starts: the
+ * The module engineer's request, with what a run prepares before it starts: the
  * authored records, the scratch, the source directory, the focused Cucumber
  * command and the guarded scope its equipment is bound to.
  */
@@ -556,12 +556,12 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
   if (removed.preservedTracked.length > 0) throw new Refusal(`Tracked scratch appeared during preparation: ${removed.preservedTracked.join(', ')}`);
   await ensureScratchRule(projectRoot, modules, git);
 
-  // The source directory the run would start the engineer in, made as the run makes it.
+  // The source directory the run would start the module engineer in, made as the run makes it.
   let workingDirectory: string;
   try { workingDirectory = await engineerWorkingDirectory(projectRoot, assignment.scope, context.index(), git); }
-  catch (error) { throw new Refusal(`The engineer cannot start in the module's src directory: ${message(error)}`); }
+  catch (error) { throw new Refusal(`The module engineer cannot start in the module's src directory: ${message(error)}`); }
   if (workingDirectory !== step.equipment.workingDirectory) {
-    throw new Refusal(`The inputs start the engineer in ${step.equipment.workingDirectory}, and the assignment's source directory is now ${workingDirectory}`);
+    throw new Refusal(`The inputs start the module engineer in ${step.equipment.workingDirectory}, and the assignment's source directory is now ${workingDirectory}`);
   }
   const scratch = { directory: relative(projectRoot, dirname(workingDirectory)).split(sep).join('/') };
 
@@ -654,7 +654,7 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
     endedAs: () => (tools.exhausted() ? 'invalid-submission' : undefined),
   };
   return {
-    // The runner is generic in the submission; the engineer's request is one of its values.
+    // The runner is generic in the submission; the module engineer's request is one of its values.
     request: request as Prepared<unknown>['request'],
     standing: () => tools.openFindings(),
     scratch,

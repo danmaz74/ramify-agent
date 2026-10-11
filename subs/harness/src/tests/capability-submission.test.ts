@@ -138,7 +138,7 @@ describe('PB3-D01 PB3-D02 PB3-D04: capability registrations and reports', () => 
     expect(judged({ registrations: [{ kind: 'scenario', case: 'derived-retry' }],
       reports: [{ id: 'cap-001.case.derived-retry', judgment: 'done', basedOnRevision: 0 }] })).toEqual([]);
     expect(judged({ reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }, { id: 'cap-002', judgment: 'done', basedOnRevision: 0 }] })).toEqual([
-      ['reports.0.id', 'sc-001 is reported by the local architect of wi-001, not by the capability architect of cap-001'],
+      ['reports.0.id', 'sc-001 is reported by the module architect of wi-001, not by the capability architect of cap-001'],
       ['reports.1.id', '"cap-002" is no registered obligation of this run'],
     ]);
     // The basis check still applies: a stale invocation cannot report.

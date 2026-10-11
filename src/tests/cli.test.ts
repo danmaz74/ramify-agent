@@ -179,7 +179,7 @@ describe('step', () => {
     expect(usage).toContain('ramify-agent step render --inputs <file> [--project <root>] [--invocation <id>]');
     expect(usage).toContain('ramify-agent step run --inputs <file> --run <project>/plans/<plan>/.harness/jobs/<run>');
     expect(usage).toContain('ramify-agent step inputs --role reviewer --from-run <manual run dir> --request <review request id> [--out <file>]');
-    expect(usage).toContain('ramify-agent step inputs --role engineer --from-run <manual run dir> --assignment-of <local architect invocation id> [--out <file>]');
+    expect(usage).toContain('ramify-agent step inputs --role engineer --from-run <manual run dir> --assignment-of <module architect invocation id> [--out <file>]');
     expect(usage).toContain('ramify-agent step gate --run <manual run dir> --checkpoint <iteration|work-item|readiness|final> [--invocation <id>] [--no-commit]');
     expect(usage).toContain('ramify-agent step after --run <manual run dir> --invocation <id>');
   });

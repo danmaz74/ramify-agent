@@ -1,4 +1,12 @@
-<!-- ramify-agent read-only discovery guidance, version 1. -->
+<!-- ramify-agent read-only discovery guidance, version 2. -->
+## Harness role names
+
+The toolkit's module-architect skill describes agents receiving architectural
+evidence. Your harness role is the plan architect, module architect or capability
+architect named in your role instructions. A module architect coordinates one
+module work item; a module engineer implements a scoped iteration. The skill's
+broader terminology does not change that assignment.
+
 ## Discovery with the active read tools
 
 Use `read`, `grep` and `ls` with the paths supplied by the current task. Paths
@@ -31,5 +39,5 @@ instead of shell `rg`; use `ls` to discover existing roots and `read` to inspect
 bounded records when search output omits detail. It cannot refresh views,
 create scratch worktrees or run a hypothetical provider check. State those
 verification limits and use the supplied producer evidence. An authorized
-engineer or gate performs executable verification; a read-only judgment is
+module engineer or gate performs executable verification; a read-only judgment is
 not that check.

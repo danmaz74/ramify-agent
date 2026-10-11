@@ -489,7 +489,7 @@ describe('the rule at a run\'s contract gate', () => {
       JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.gate(id)), 'utf8')) as GateAttempt));
 
     const [first, repaired] = attempts.filter(attempt => attempt.checkpoint === 'contract');
-    // Every command passed; the verdict is the rule's, and the repair is the engineer's.
+    // Every command passed; the verdict is the rule's, and the repair is the module engineer's.
     expect(first!.verdict).toBe('failed');
     expect(first!.commands.every(command => command.outcome === 'passed')).toBe(true);
     expect(first!.cause).toBe('check-failed');

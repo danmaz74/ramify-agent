@@ -2,7 +2,7 @@ import type {
   ExecutionCapabilityDetail, ExecutionLink, ExecutionNode, ExecutionScenarioDetail, ExecutionSourceRef,
   ExecutionScenarioResult, ExecutionMapPage,
 } from '../interfaces/protocol/execution-map.js';
-import { gateCheckpointSchema } from '../interfaces/protocol/runs.js';
+import { gateCheckpointSchema, roleDisplayName } from '../interfaces/protocol/runs.js';
 import type { ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import type { GateAttempt } from '../checks/records.js';
 import { scenarioResultsOf } from '../checks/scenario-results.js';
@@ -205,7 +205,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     const source = eventSource(view, session.opened.sequence);
     const workItem = session.reaches.kind === 'work-item' ? session.reaches.workItem : session.work.workItem ?? null;
     const module = session.reaches.kind === 'work-item' || session.reaches.kind === 'module' ? session.reaches.module : null;
-    add({ ...base(key('session', session.session), `${label(session.role)} ${session.session}`, source), kind: 'session',
+    add({ ...base(key('session', session.session), `${roleDisplayName(session.role)} ${session.session}`, source), kind: 'session',
       role: session.role, state: session.state, executor: session.executor, workItem: workItem === null ? null : key('work-item', workItem),
       reach: session.reaches, invocations: session.invocations.map(invocation => invocation.invocation),
       operations: session.invocations.flatMap(invocation => invocation.operation == null ? [] : [invocation.operation]),

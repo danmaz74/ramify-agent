@@ -9,7 +9,7 @@ import { deviationLayout, type PlanDeviation } from './records.js';
 /*
  * The CheckFinding of a plan deviation: the run's own, since a deviation
  * amends the plan rather than any work item's code. Its report is the
- * global architect's judgment, credited as agent-generated and located at
+ * plan architect's judgment, credited as agent-generated and located at
  * the plan lines it departs from; it is high risk. The harness asks the
  * person at once to accept or reject it, and nothing waits on that answer
  * unless the run recorded more deviations than its policy continues past.
@@ -84,7 +84,7 @@ export function deviationCommands(state: CheckFindingState, deviation: PlanDevia
     decision: {
       actor: { kind: 'harness', reason: 'a plan deviation is the person\'s to accept or reject' },
       source,
-      rationale: bounded(`The global architect departs from the plan: ${deviation.why}`),
+      rationale: bounded(`The plan architect departs from the plan: ${deviation.why}`),
       evidence: [{ kind: 'plan-deviation', ref: record, hash }],
       communication: { mode: 'quiet' },
       decision: {

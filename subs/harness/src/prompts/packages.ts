@@ -135,8 +135,8 @@ export interface LoadedPackage {
     readonly orientation: { readonly system: string; readonly submissionSchema: string };
   } | undefined;
   /**
-   * The local architect's reconciliation fork: its procedure and its
-   * submission. Only the local architect's package has them.
+   * The module architect's reconciliation fork: its procedure and its
+   * submission. Only the module architect's package has them.
    */
   readonly reconciliation?: { readonly procedure: string; readonly submissionSchema: string } | undefined;
   readonly workOrientation?: { readonly procedure: string; readonly submissionSchema: string } | undefined;
@@ -157,18 +157,18 @@ export interface PromptPackageOptions {
 }
 
 /** The versions of the packages this iteration ships. */
-export const initialArchitectPackage = 'initial-architect/5';
-export const catalogExtractorPackage = 'catalog-extractor/1';
-export const globalForkPackage = 'global-fork/6';
-export const localArchitectPackage = 'local-architect/15';
-export const contextSelectorPackage = 'context-selector/3';
-export const engineerPackage = 'engineer/13';
-export const capabilityEngineerPackage = 'engineer/12';
-export const capabilityArchitectPackage = 'capability-architect/5';
-export const contractEngineerPackage = 'contract-engineer/3';
-export const reviewerPackage = 'reviewer/4';
-export const failureAnalystPackage = 'failure-analyst/1';
-export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/4';
+export const initialArchitectPackage = 'initial-architect/6';
+export const catalogExtractorPackage = 'catalog-extractor/2';
+export const globalForkPackage = 'global-fork/7';
+export const localArchitectPackage = 'local-architect/18';
+export const contextSelectorPackage = 'context-selector/4';
+export const engineerPackage = 'engineer/16';
+export const capabilityEngineerPackage = 'engineer/15';
+export const capabilityArchitectPackage = 'capability-architect/6';
+export const contractEngineerPackage = 'contract-engineer/4';
+export const reviewerPackage = 'reviewer/5';
+export const failureAnalystPackage = 'failure-analyst/2';
+export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/5';
 
 /**
  * Loads every package a run offers. A role with no package yet has no entry:
@@ -190,7 +190,7 @@ export async function loadPromptPackages(options: PromptPackageOptions = {}): Pr
     ['reviewer', await loadReviewer(options)],
     ['failure-analyst', await loadFailureAnalyst(options)],
     ['nonfunctional-coordinator', await loadNonfunctionalCoordinator(options)],
-    ['nonfunctional-repair-engineer', await loadPackage({ role: 'nonfunctional-repair-engineer', name: 'nonfunctional-repair-engineer/2',
+    ['nonfunctional-repair-engineer', await loadPackage({ role: 'nonfunctional-repair-engineer', name: 'nonfunctional-repair-engineer/3',
       systemFile: nonfunctionalRepairSystemFile, procedureFile: nonfunctionalRepairProcedureFile,
       schema: nonfunctionalRepairJsonSchema, submissionKinds: ['completed', 'partial'], options })],
   ]);
@@ -273,7 +273,7 @@ function loadGlobalFork(options: PromptPackageOptions): Promise<LoadedPackage> {
 }
 
 /**
- * The local architect's package. It offers the members of the union this
+ * The module architect's package. It offers the members of the union this
  * iteration produces; a member a package does not offer is one the role
  * never sees, so no run can produce it. Its reconciliation fork has a
  * procedure and a submission of its own, both part of the hash.
@@ -285,7 +285,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: options.capabilityWorkflow === false ? 'local-architect/16' : localArchitectPackage,
+    name: options.capabilityWorkflow === false ? 'local-architect/19' : localArchitectPackage,
     systemFile: localSystemFile,
     procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
     schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
@@ -312,7 +312,7 @@ function loadContextSelector(options: PromptPackageOptions): Promise<LoadedPacka
 }
 
 /**
- * The engineer's package. It offers the four members of the union this
+ * The module engineer's package. It offers the four members of the union this
  * iteration produces. Its system prompt does not include the module
  * architect's skill: what a Ramify project is, where the API view is and how
  * an unexposed symbol is reported are stated in the prompt itself.
@@ -348,7 +348,7 @@ async function loadCapabilityArchitect(options: PromptPackageOptions): Promise<L
 /**
  * The contract sub-session's package. It offers the two members of the
  * contract union and carries the contract skill beside the module
- * architect's: the role is an engineer's, and the skill is what makes it a
+ * architect's: the role is a module engineer's, and the skill is what makes it a
  * contract iteration.
  */
 function loadContractEngineer(options: PromptPackageOptions): Promise<LoadedPackage> {
@@ -402,8 +402,8 @@ async function loadReviewer(options: PromptPackageOptions): Promise<LoadedPackag
 }
 
 /**
- * The failure analyst's package: it reads what an engineer that ended
- * without a result left, and submits a short account before the local
+ * The failure analyst's package: it reads what a module engineer that ended
+ * without a result left, and submits a short account before the module
  * architect is briefed. It offers one submission.
  */
 function loadFailureAnalyst(options: PromptPackageOptions): Promise<LoadedPackage> {
@@ -503,7 +503,7 @@ function withoutVersionComment(text: string): string {
   return first.startsWith('<!--') ? text.slice(first.length + 1) : text;
 }
 
-/** The rendered system prompt of the initial architect. It is never stored: it holds file contents. */
+/** The rendered system prompt of the plan architect. It is never stored: it holds file contents. */
 export function renderInitialArchitectPrompt(loaded: LoadedPackage, projectRoot: string): string {
   return render(loaded, projectRoot, initialAnalysisToolName);
 }
@@ -521,7 +521,7 @@ export function renderGlobalForkPrompt(loaded: LoadedPackage, projectRoot: strin
   return render(loaded, projectRoot, forkToolName);
 }
 
-/** The rendered system prompt of a local architect. It is never stored either. */
+/** The rendered system prompt of a module architect. It is never stored either. */
 export function renderLocalArchitectPrompt(loaded: LoadedPackage, projectRoot: string, workingDirectory: string = projectRoot): string {
   return render(loaded, projectRoot, localArchitectToolName, { workingDirectory });
 }
@@ -544,7 +544,7 @@ export function renderReconciliationPrompt(loaded: LoadedPackage, projectRoot: s
 }
 
 /**
- * The rendered system prompt of an engineer, which states the longest one
+ * The rendered system prompt of a module engineer, which states the longest one
  * of its shell commands may run: the policy's, or what its assignment raised
  * it to. It is never stored either.
  */

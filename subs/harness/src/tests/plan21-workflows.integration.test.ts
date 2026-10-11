@@ -198,7 +198,7 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
     const external = await providers(root);
     const witnessed: Record<string, unknown> = {};
 
-    // Run 1: the engineer raises the limit and the report's stated limit,
+    // Run 1: the module engineer raises the limit and the report's stated limit,
     // but not what the report expects.
     let firstEngineer = 0;
     let firstArchitect = 0;
@@ -551,7 +551,7 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     const nextAction = events.find(event => event.type === 'invocation-started' && event.sequence > events.find(entry => entry.type === 'capability-handed-back')!.sequence
       && event.data.role === 'local-architect' && event.data.continues?.reason === 'capability-returned');
     expect(nextAction?.type).toBe('invocation-started');
-    if (nextAction?.type !== 'invocation-started') throw new Error('No recovered local architect action');
+    if (nextAction?.type !== 'invocation-started') throw new Error('No recovered module architect action');
     const action = JSON.parse(await readFile(runPath(root, capabilityPlan, runId, runLayout.invocation(nextAction.data.invocation)), 'utf8')) as { session: { from: string } };
     expect(action.session.from).toBe(qualified.session.ref);
 

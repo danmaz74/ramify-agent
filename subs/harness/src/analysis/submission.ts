@@ -17,7 +17,7 @@ import {
 } from '../../subs/scenarios/src/form.js';
 
 /*
- * The initial architect's submission, `initial-architect/3`: the functional
+ * The plan architect's submission, `initial-architect/3`: the functional
  * and context elements it read from the plan documents, the entry
  * capabilities that cite them, the deeper hypotheses it forecasts, and the
  * acceptance scenarios of every entry. Entries and hypotheses stay separate,
@@ -75,7 +75,7 @@ const hypothesisSubmissionSchema = z.object({
 }).strict();
 
 /**
- * What the initial architect submits. The harness assigns every ID it knows
+ * What the plan architect submits. The harness assigns every ID it knows
  * already, the elements' and the scenarios' included; an element is named
  * by its submission-local key until then.
  */
@@ -220,7 +220,7 @@ function elementErrors(submission: InitialAnalysisSubmission, evidence: Analysis
   const citationPaths = new Set(citations.map(error => error.path));
   const plans = new Set(evidence.catalog.documents.filter(document => document.kind === 'plan').map(document => document.id));
   submission.elements.forEach((element, index) => {
-    if (element.kind !== 'functional' && element.kind !== 'context') errors.push({ path: `elements.${index}.kind`, message: `The initial architect does not submit ${element.kind} elements`, expected: 'functional or context' });
+    if (element.kind !== 'functional' && element.kind !== 'context') errors.push({ path: `elements.${index}.kind`, message: `The plan architect does not submit ${element.kind} elements`, expected: 'functional or context' });
     if (!plans.has(element.document)) errors.push({ path: `elements.${index}.document`, message: `${element.document} is not a captured plan document`, expected: 'a captured plan document' });
   });
   if (errors.length === 0) {

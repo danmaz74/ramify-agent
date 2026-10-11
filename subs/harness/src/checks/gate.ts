@@ -58,7 +58,7 @@ export interface GateRequest {
   readonly authorizations?: readonly { readonly path: string; readonly by: RecordReference }[] | undefined;
   /**
    * Rules the caller verified over the tree, such as the fake-naming rule of
-   * a contract gate. A failed rule fails the attempt and is the engineer's to
+   * a contract gate. A failed rule fails the attempt and is the module engineer's to
    * repair, so the attempt's cause is `check-failed`.
    */
   readonly rules?: readonly GateRuleRecord[] | undefined;
@@ -129,7 +129,7 @@ export async function prepareGate(checkpoint: Checkpoint, request: GateRequest):
   // the small allowance covers lease, worktree and publication operations.
   const timeoutMs = request.audit?.timeoutMs ?? request.checks.reduce((total, check) => total + check.command.timeoutMs, 0) + 30_000;
   // Scratch violations must stop before a committing checkpoint stages a tree.
-  // Keep a normal failed attempt so the engineer receives repair diagnostics.
+  // Keep a normal failed attempt so the module engineer receives repair diagnostics.
   const unsafeScratch = rules.some(rule => (rule.rule === 'scratch-safety' || rule.rule === 'write-scope') && rule.outcome === 'failed');
   if (!verified || unsafeScratch) {
     return finishGate({ checkpoint, request, guardedChanges, rules, unauthorized, ruleFailed, decisive, timeoutMs }, {
@@ -261,7 +261,7 @@ function finishConfiguredGate(prepared: PreparedGate, result: ConfiguredAuditRes
   const record = configuredAuditRecord(result);
   const answered = result.status === 'completed';
   // The candidate's own declared setup, such as its build, exiting non-zero
-  // is the candidate's failure, as a failing check is: the engineer repairs
+  // is the candidate's failure, as a failing check is: the module engineer repairs
   // it. Every other unanswered request says nothing about the source.
   const setupFailed = configuredSetupFailed(result);
   const verdict: GateAttempt['verdict'] = setupFailed ? 'failed'
@@ -463,7 +463,7 @@ function causeOf(
   if (reasons.has('timeout')) return 'timeout';
   if (reasons.has('runner-error') || reasons.has('command-missing') || reasons.has('interrupted')) return 'infrastructure';
   if (verdict !== 'failed') return 'unknown';
-  // The engineer diagnoses every failed check and requests another owner when
+  // The module engineer diagnoses every failed check and requests another owner when
   // repair exceeds its authority. A diagnostic path or test location is evidence,
   // not a decision about who receives the failed iteration.
   return commands.some(command => command.outcome === 'failed') || ruleFailed ? 'check-failed' : 'unknown';

@@ -222,7 +222,7 @@ actual start was fresh.
 
 ## Context generation
 
-The number of the architect context a global fork forks: 1 for the initial
+The number of the architect context a global fork forks: 1 for the plan
 architect's context, and one more after each rebuild.
 
 ## Starting context size
@@ -236,8 +236,8 @@ output tokens.
 
 ## Local fork
 
-A fork whose source session is not one of the global architect's: a scope
-review, design review, context selection or reconciliation forked from a local
+A fork whose source session is not one of the plan architect's: a scope
+review, design review, context selection or reconciliation forked from a module
 architect's session.
 
 ## Fork cost against a fresh start
@@ -255,7 +255,7 @@ that of the segment before it in its session, under `lineage/2`.
 ## Repair segment cost
 
 The mean segment cost profile of the segments continued for a repair, beside
-the mean profile of the engineer segments whose actual start was fresh, under
+the mean profile of the module engineer segments whose actual start was fresh, under
 `lineage/2`.
 
 ## Degraded-start rate

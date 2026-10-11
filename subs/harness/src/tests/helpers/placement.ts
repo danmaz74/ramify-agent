@@ -49,7 +49,7 @@ export function forkPartial(findings: readonly string[] = ['two modules could ow
   return { kind: 'partial', findings: [...findings], gaps: [...gaps] };
 }
 
-/** The request body a local architect submits. */
+/** The request body a module architect submits. */
 export function placementRequest(extra: Partial<PlacementRequestBody> = {}): PlacementRequestBody {
   return {
     forCapability: 'send-email',
@@ -64,17 +64,17 @@ export function placementRequest(extra: Partial<PlacementRequestBody> = {}): Pla
   };
 }
 
-/** A local architect asking the global architect where a capability belongs. */
+/** A module architect asking the plan architect where a capability belongs. */
 export function requestPlacement(extra: Partial<PlacementRequestBody> = {}): LocalArchitectSubmissionInput {
   return { kind: 'request-placement', request: placementRequest(extra) };
 }
 
-/** One placement a local architect decided within its own authority. */
+/** One placement a module architect decided within its own authority. */
 export function localDecision(body: Partial<DecisionBody>, registry: readonly RegistryChange[] = []): LocalDecisionBody {
   return { decision: decision(body), registry: [...registry] };
 }
 
-/** A local architect reporting that its request cannot be met as stated. */
+/** A module architect reporting that its request cannot be met as stated. */
 export function unresolved(
   conflict = 'The comparison cannot be served as an MCP tool: the project has no MCP surface to serve it from.',
   evidence: readonly string[] = ['plans/revision-diff/plan.md, lines 11–12, ask for an MCP tool `catalog.compare`.'],
@@ -82,7 +82,7 @@ export function unresolved(
   return { kind: 'unresolved', conflict, evidence: [...evidence] };
 }
 
-/** The global architect's answer to an unresolved request: a plan deviation, keeping what the conflict allows. */
+/** The plan architect's answer to an unresolved request: a plan deviation, keeping what the conflict allows. */
 export function forkDeviation(extra: Partial<Extract<ForkSubmission, { kind: 'deviation' }>['deviation']> = {}): ForkSubmission {
   return {
     kind: 'deviation',
@@ -99,12 +99,12 @@ export function forkDeviation(extra: Partial<Extract<ForkSubmission, { kind: 'de
   };
 }
 
-/** The global architect finding that no deviation leaves anything of the plan worth doing. */
+/** The plan architect finding that no deviation leaves anything of the plan worth doing. */
 export function forkNothingPossible(reason = 'Every requirement of the plan rests on the missing surface.'): ForkSubmission {
   return { kind: 'nothing-possible', reason, evidence: ['plans/revision-diff/plan.md, lines 9–14'] };
 }
 
-/** The global architect's answer that the conflict lies in how the gate runs: an environment problem for the operator. */
+/** The plan architect's answer that the conflict lies in how the gate runs: an environment problem for the operator. */
 export function forkEnvironment(
   diagnosis = 'The work-item gate runs `npm test`, whose tests import `dist/src`; nothing builds `dist` in the gate\'s worktree, so every attempt fails before a test runs.',
   suggestion = 'Declare a build step in `ramify-agent.json` that runs before the gate\'s tests.',

@@ -11,7 +11,7 @@ contracts; agent judgment remains responsible for meaning and completion.
 
 Read the real plan and target instructions. Identify the next useful deliverable,
 its likely owner and the requirement that will tell you whether it works. Pick
-one or two uncertainties worth watching, such as whether the engineer discovers
+one or two uncertainties worth watching, such as whether the module engineer discovers
 an existing API or whether a provider change reaches its consumer correctly.
 Supply normal plan inputs and constraints. Do not pre-solve the particular
 decision whose harness support you want to assess.
@@ -19,7 +19,7 @@ decision whose harness support you want to assess.
 Choose the available surface:
 
 - **Standalone `session`:** you choose the owner, goal, write scope and follow-up.
-  Use it to assess engineer instructions, API discovery, guarded tools, mutation
+  Use it to assess module engineer instructions, API discovery, guarded tools, mutation
   hooks and submission feedback while obtaining a useful implementation slice.
   A `capability-needed` submission ends the session; it does not dispatch a
   capability architect. Inspect and address that need before the next assignment.
@@ -29,7 +29,7 @@ Choose the available surface:
   analysis review stop, but the script does not expose that option; consult the
   [run protocol](../../../../subs/harness/src/interfaces/protocol/runs.ts) if that
   pause is needed. It is an analysis approval boundary, not arbitrary stepping.
-- **Attached engineer breakpoint:** use an independently hosted server and
+- **Attached module engineer breakpoint:** use an independently hosted server and
   `before-agent:engineer` to inspect the prepared ordinary input, ask for an
   interpretation, follow up, and resume at the retained logical point. The
   first version suspends the whole run after admitted work settles. Caller
@@ -54,8 +54,8 @@ session as an accepted full-run iteration.
 | Part of the harness | How to exercise it through real work | What the supervising agent should judge |
 | --- | --- | --- |
 | Intake and initial architecture | Let a full run consume the plan, linked guidance and project architecture. Inspect the catalog, entry assignments and scenarios before attributing later failures to implementation. | Were requirements preserved, specifications considered, owners and existing behavior identified? Did forecasts remain hypotheses rather than unnecessary scheduled work? |
-| Local planning and context selection | Follow one work item into its outline, selected requirements and actual engineer briefing. | Is the goal achievable within the scope? Are the relevant constraints and navigation pointers available? Missing context, irrelevant bulk and artificial splitting of simple subtree work are concrete findings. |
-| Engineer equipment | Give a real bounded change through `session` or a full-run iteration. Inspect API reads, tool and hook feedback, submission and diff. | Can the engineer find usable APIs and module guidance, make authorized edits and understand rejections? Separate an incorrect scope from a broken guard. An accepted completion proposal still needs verification and review. |
+| Local planning and context selection | Follow one work item into its outline, selected requirements and actual module engineer briefing. | Is the goal achievable within the scope? Are the relevant constraints and navigation pointers available? Missing context, irrelevant bulk and artificial splitting of simple subtree work are concrete findings. |
+| Module engineer equipment | Give a real bounded change through `session` or a full-run iteration. Inspect API reads, tool and hook feedback, submission and diff. | Can the module engineer find usable APIs and module guidance, make authorized edits and understand rejections? Separate an incorrect scope from a broken guard. An accepted completion proposal still needs verification and review. |
 | Discovery and capability delegation | When a consumer actually needs behavior elsewhere, follow its request through qualification, placement if needed, owner assignments and handback in a full run. | Was reuse considered? Did the request preserve usage, constraints and partial work? Were the real provider and requesting consumer verified together before the parent resumed? Fakes and provider-only checks cannot establish integration. |
 | Gates and repair | Inspect the committed candidate, configured audit evidence and any repair assignment at a reached gate. | Did failures reach the agent with enough information to act? Did the repair fix the problem while preserving the requirement? A standalone `--gate` diagnoses setup/types/Ramify only; it does not exercise committed audit orchestration. |
 | Reviews and reconciliation | Follow code, scope and design reviews of an accepted iteration, then the issuing architect's handling of findings. | Did reviewers inspect the right candidate and applicable guidance? Are findings substantive and supported? Does reconciliation resolve them without silently weakening the goal? Reviewer output is evidence for the architect's decision. |

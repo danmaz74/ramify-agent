@@ -23,7 +23,7 @@ import { architectIndex, moduleEntry } from './helpers/views.js';
 
 /*
  * The acceptance scenarios of the initial analysis, `initial-architect/2`:
- * the plan's own scenarios captured with the plan and shown to the initial
+ * the plan's own scenarios captured with the plan and shown to the plan
  * architect, the form rules applied after every other rule under the same
  * per-turn bound, and one frozen `ScenarioRecord` per scenario committed by
  * `analysis-accepted` beside the entries, every one `pending`.
@@ -116,7 +116,7 @@ function scenarioAnalysis(plan: string): InitialAnalysisSubmission {
   ], [{ planScenario: panel!.id, subScenarios: ['attach-for-panel', 'panel-shows-note'] }]);
 }
 
-/** The scripted fake: the default catalog extraction, the analysis, then a local architect that asks for completion. */
+/** The scripted fake: the default catalog extraction, the analysis, then a module architect that asks for completion. */
 function script(initial: unknown) {
   return (spec: SessionSpec) => spec.role === 'catalog-extractor' ? []
     : [{ kind: 'submit' as const, input: spec.role === 'initial-architect' ? initial : requestCompletion() }];
@@ -233,7 +233,7 @@ describe('acceptance', () => {
     expect(onlyRun(service, 'review-notes').counts.scenarios).toEqual({ pending: 0, bound: 0, done: 4 });
     const events = await runEventsOnDisk(project, 'review-notes', runId);
     const global = events.find(event => event.type === 'invocation-started' && event.data.role === 'initial-architect')!;
-    if (global.type !== 'invocation-started') throw new Error('initial architect expected');
+    if (global.type !== 'invocation-started') throw new Error('plan architect expected');
     const outcome = JSON.parse(await readFile(runPath(project, 'review-notes', runId, runLayout.outcome(global.data.invocation)), 'utf8')) as InvocationOutcome;
     expect(outcome.session?.ref).toEqual(expect.any(String));
     const globalTarget = { role: 'global-fork', run: { planId: 'review-notes', runId }, session: global.data.session,
@@ -443,7 +443,7 @@ describe('the snapshot\'s scenario counts', () => {
     type Events = Parameters<typeof runSnapshot>[1];
     expect(runSnapshot(record, [] as unknown as Events).counts.scenarios).toEqual({ pending: 0, bound: 0, done: 0 });
     expect(runSnapshot(record, [accepted] as unknown as Events).counts.scenarios).toEqual({ pending: 3, bound: 0, done: 0 });
-    // An engineer's binding and an architect's report move states; a gate result moves none.
+    // A module engineer's binding and an architect's report move states; a gate result moves none.
     const moved = [
       accepted,
       line('obligation-bound', { id: 'sc-001', fakes: [], by: 'inv-0003', submission: 'a'.repeat(64) }),

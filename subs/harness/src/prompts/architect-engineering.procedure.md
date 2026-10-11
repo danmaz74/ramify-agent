@@ -1,5 +1,5 @@
-<!-- ramify-agent architect implementation guidance, version 1. -->
-## Exposure, paths and engineer verification
+<!-- ramify-agent architect implementation guidance, version 2. -->
+## Exposure, paths and module engineer verification
 
 Use the installed pinned Ramify provider's supported declarations. For the
 current `ramify.ts@0.4.2` contract, a declaration starts with `ramify 1` and its
@@ -39,13 +39,13 @@ design. Keep the original need and guarantees and explain the reconciliation.
 The responsible architect judges the design; prose keywords establish no
 correctness verdict.
 
-Ask engineers for relevant focused checks supported by their active tools and
-declared-check block. Whole-suite Vitest and Cucumber engineer commands are
+Ask module engineers for relevant focused checks supported by their active tools and
+declared-check block. Whole-suite Vitest and Cucumber module engineer commands are
 refused: name relevant Vitest test files and use the current prepared focused
 Cucumber command when supplied. A guessed Cucumber path or profile does not
 establish a verified selection. The gate owns
 the complete committed audit and retains every configured project, nested
 project and required check. Reconcile contradictory check instructions in the
-assignment instead of asking an engineer to bypass tool restrictions. If an
-engineer receives such a contradiction, it follows the active restrictions and
+assignment instead of asking a module engineer to bypass tool restrictions. If a
+module engineer receives such a contradiction, it follows the active restrictions and
 returns the conflict to its architect for a revised assignment.

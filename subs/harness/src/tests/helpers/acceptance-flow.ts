@@ -518,7 +518,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   if (mode === 'revision') expect(inheritedAuthorityChecked).toBe(true);
   // PB3-D08: the handback followed the architect's done report on cap-001,
   // which cited no test file and recorded no per-example state. PB3-D10: the
-  // consumer's own scenario is still its local architect's to report.
+  // consumer's own scenario is still its module architect's to report.
   const handedBack = events.find(event => event.type === 'capability-handed-back')!;
   const outcomeReport = events.find(event => event.type === 'obligation-reported' && event.data.id === 'cap-001');
   expect(outcomeReport?.type === 'obligation-reported' ? [outcomeReport.data.judgment, outcomeReport.data.where] : null)

@@ -242,7 +242,7 @@ export const recoveryTable = {
   },
   'session-finished': {
     machines: ['SM5'], scenario: 'iteration', appended: interrupted,
-    stated: 'The engineer session its accepted iteration released stays finished; the sessions the run still keeps are finished before the interruption',
+    stated: 'The module engineer session its accepted iteration released stays finished; the sessions the run still keeps are finished before the interruption',
   },
   'work-item-completed': {
     machines: ['SM4'], scenario: 'iteration', appended: interrupted,
@@ -281,7 +281,7 @@ export const recoveryTable = {
   },
   'decision-delivered': {
     machines: ['SM3'], scenario: 'placement', appended: interrupted,
-    stated: 'The delivery stands; the local architect\'s next turn belongs to a run started again',
+    stated: 'The delivery stands; the module architect\'s next turn belongs to a run started again',
   },
   'contract-requested': {
     machines: ['SM6', 'SM5'], scenario: 'delegation', appended: interrupted,

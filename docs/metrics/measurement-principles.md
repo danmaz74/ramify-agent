@@ -114,7 +114,7 @@ Session-weighted arithmetic sums scope once per model context, not per harness
 session: a degraded continuation loaded its scope again.
 
 Lineage comparisons are descriptive. A fork and a fresh start, or a repair and
-a fresh engineer, differ in their prompts and work as well as in their start.
+a fresh module engineer, differ in their prompts and work as well as in their start.
 
 ## Keep collection simple
 

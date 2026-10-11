@@ -200,7 +200,7 @@ const briefAppended = z.object({
   outcome: z.enum(['appended', 'already-present']),
   text: transcriptBodySchema,
 }).strict();
-/** Text appended to a kept session before it is continued, such as an engineer's next iteration. It is not a point. */
+/** Text appended to a kept session before it is continued, such as a module engineer's next iteration. It is not a point. */
 const noteAppended = z.object({ kind: z.literal('note-appended'), text: transcriptBodySchema }).strict();
 /** The context budget was reached: the tools were withdrawn and one final response allowed. */
 const budgetReached = z.object({

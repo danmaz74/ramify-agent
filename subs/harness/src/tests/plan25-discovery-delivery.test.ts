@@ -328,7 +328,7 @@ test.each(['retained', 'no-point', 'missing-packet', 'lost-parent', 'legacy', 'l
       expect(consumer.spec.prompt.split(point.note)).toHaveLength(2);
       expect(consumer.spec.prompt).toContain(`"path":"${point.path}"`);
       expect(consumer.spec.prompt).not.toContain(join(fixture.root, point.path));
-      expect(consumer.spec.prompt).toContain('"producer":"local architect orientation"');
+      expect(consumer.spec.prompt).toContain('"producer":"module architect orientation"');
       expect(consumer.spec.prompt).toContain('"boundary":"scenarios-of-revision-diff"');
     } else {
       expect(consumer.spec.prompt).not.toContain(point.note);

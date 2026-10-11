@@ -3,7 +3,7 @@ import type { PlanScenario } from './extraction.js';
 import { comparableSteps, dedent, normalizedText, parseGherkin, scenariosOf, sourceLines, stepKey, stepsOfSource, type ComparableStep } from './gherkin.js';
 
 /*
- * The form rules of the initial architect's scenarios, architecture §2: six
+ * The form rules of the plan architect's scenarios, architecture §2: six
  * rules in order, the first one broken rejecting the submission with a
  * message naming it, and three warnings that never reject. The rules see the
  * submitted scenarios, the extracted plan scenarios and the submitted
@@ -27,7 +27,7 @@ export const scenarioOriginSubmissionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('architect') }).strict(),
 ]);
 
-/** One entry scenario of the initial architect's submission. */
+/** One entry scenario of the plan architect's submission. */
 export const scenarioSubmissionSchema = z.object({
   /** Unique within the submission. */
   key: z.string().min(1),

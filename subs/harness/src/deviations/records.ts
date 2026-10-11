@@ -5,13 +5,13 @@ import { elementIdSchema, type PackageDeviation } from '../../subs/plan-evidence
 import { globalForkSourceSchema } from '../run/records.js';
 
 /*
- * Plan deviations. A local architect that finds its request cannot be met
+ * Plan deviations. A module architect that finds its request cannot be met
  * as stated answers `unresolved`; the harness records that as an unresolved
- * request and forks the global architect with it. The fork fixes the
+ * request and forks the plan architect with it. The fork fixes the
  * placement, records a plan deviation, or finds that nothing of the plan
  * remains worth doing.
  *
- * A plan deviation is the global architect's decision that the run does
+ * A plan deviation is the plan architect's decision that the run does
  * something other than an element of its catalog states: the elements it
  * amends, by ID, what is done instead, why, the alternatives it rejected and
  * what the person loses. The plan file and the catalog are never changed;
@@ -19,7 +19,7 @@ import { globalForkSourceSchema } from '../run/records.js';
  * run and is rendered after the elements it amends.
  * Its CheckFinding asks the person to accept or reject it and holds nothing.
  *
- * An environment problem is the global architect's answer that the conflict
+ * An environment problem is the plan architect's answer that the conflict
  * lies in how the gate or the harness runs, not in the plan or the
  * architecture. Nothing is placed and nothing of the plan changes: the run
  * holds the work item for the operator, who resumes it or ends the run.
@@ -43,7 +43,7 @@ export const environmentLimits = { diagnosis: 2000, suggestion: 1000 } as const;
 export const defaultMaxPlanDeviations = 5;
 
 /**
- * What the global architect submits as a plan deviation. It names the
+ * What the plan architect submits as a plan deviation. It names the
  * elements of the work item's package it amends; the harness records their
  * text. A deviation keeps as much of each element as the conflict allows.
  */
@@ -69,13 +69,13 @@ export const deviationBodySchema = z.object({
 }).strict();
 export type DeviationBody = z.infer<typeof deviationBodySchema>;
 
-/** A local architect's `unresolved` answer, as the harness records it before forking the global architect. */
+/** A module architect's `unresolved` answer, as the harness records it before forking the plan architect. */
 export const unresolvedRequestSchema = z.object({
   schema: z.literal('ramify-agent.unresolved-request/1'),
   id: text,
   workItem: text,
   requester: text,
-  /** The local architect's invocation that answered `unresolved`. */
+  /** The module architect's invocation that answered `unresolved`. */
   invocation: text,
   conflict: text,
   evidence: z.array(text),
@@ -102,9 +102,9 @@ export const planDeviationSchema = z.object({
   id: text,
   /** The unresolved request it answers. */
   request: text,
-  /** The work item whose local architect answered `unresolved`. */
+  /** The work item whose module architect answered `unresolved`. */
   workItem: text,
-  /** The global architect's fork that decided it. */
+  /** The plan architect's fork that decided it. */
   invocation: text,
   /** The plan it departs from, which stays exactly as written. */
   plan: z.object({ path: text, revision: text }).strict(),
@@ -129,7 +129,7 @@ export const planDeviationSchema = z.object({
 export type PlanDeviation = z.infer<typeof planDeviationSchema>;
 
 /**
- * What the global architect submits as an environment problem: what is
+ * What the plan architect submits as an environment problem: what is
  * wrong with how the gate or the harness runs, with its evidence, and what
  * the operator could do about it. Both are bounded.
  */
@@ -144,16 +144,16 @@ export type EnvironmentBody = z.infer<typeof environmentBodySchema>;
 /**
  * An environment problem as the run records it. The run holds its work item
  * until the operator answers its CheckFinding: resuming returns the work
- * item to its local architect with the diagnosis; ending fails the run.
+ * item to its module architect with the diagnosis; ending fails the run.
  */
 export const environmentProblemSchema = z.object({
   schema: z.literal('ramify-agent.environment-problem/1'),
   id: text,
   /** The unresolved request it answers. */
   request: text,
-  /** The work item whose local architect answered `unresolved`, which the run holds. */
+  /** The work item whose module architect answered `unresolved`, which the run holds. */
   workItem: text,
-  /** The global architect's fork that reported it. */
+  /** The plan architect's fork that reported it. */
   invocation: text,
   diagnosis: text,
   suggestion: text,
@@ -177,7 +177,7 @@ export const deviationSchemas = {
 
 /**
  * A deviation as a package renders it, after the elements: the elements it
- * amends, the global architect's authority, and what the run does instead,
+ * amends, the plan architect's authority, and what the run does instead,
  * why, what is lost and any reworded scenario. Its bytes depend on the
  * record alone.
  */
@@ -189,7 +189,7 @@ export function packageDeviation(deviation: PlanDeviation): PackageDeviation {
   return {
     id: deviation.id,
     amends: deviation.amends.map(element => element.id),
-    authority: `Recorded by the global architect for ${deviation.workItem}, answering ${deviation.request}. The plan file and the catalog are unchanged.`,
+    authority: `Recorded by the plan architect for ${deviation.workItem}, answering ${deviation.request}. The plan file and the catalog are unchanged.`,
     text: lines.join('\n'),
   };
 }

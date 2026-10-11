@@ -9,9 +9,9 @@ import { hypothesisStanceSchema, placementOutcomeSchema, type PlacementDecision 
 import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '../deviations/records.js';
 
 /*
- * What one fork of the global architect submits, what a local architect
- * submits when it decides within its own authority, and what a local
- * architect asks the global architect when it cannot.
+ * What one fork of the plan architect submits, what a module architect
+ * submits when it decides within its own authority, and what a module
+ * architect asks the plan architect when it cannot.
  *
  * The three carry the same decision body, because a placement decision is
  * one thing whoever makes it; the authority, the request and the identifiers
@@ -22,7 +22,7 @@ import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '
  * findings and gaps: it is never appended to the parent context and is never
  * a decision.
  *
- * A fork of an unresolved request, which a local architect's `unresolved`
+ * A fork of an unresolved request, which a module architect's `unresolved`
  * answer makes, may also answer `deviation`, which records a plan deviation
  * and lets the work item go on; `environment`, which reports that the
  * conflict lies in how the gate or the harness runs and holds the run for
@@ -107,7 +107,7 @@ export const hypothesisRevisionSchema = z.object({
 }).strict();
 export type HypothesisRevision = z.infer<typeof hypothesisRevisionSchema>;
 
-/** One decision a local architect makes within its own authority, with what it registers. */
+/** One decision a module architect makes within its own authority, with what it registers. */
 export const localDecisionSchema = z.object({
   decision: decisionBodySchema,
   registry: z.array(registryChangeSchema),
@@ -175,7 +175,7 @@ export const forkSubmissionKinds = ['decision', 'partial', 'deviation', 'nothing
 
 /**
  * The shape of a constraint a placement decision gives in answer to an
- * unresolved request: one short statement per entry, of something a local
+ * unresolved request: one short statement per entry, of something a module
  * architect can assign. What it names is the fork's judgment; only its
  * shape is verified.
  */
@@ -262,7 +262,7 @@ function unresolvedConstraintErrors(constraints: readonly string[], prefix: stri
   if (constraints.length > entries) {
     errors.push({
       path: prefix,
-      message: `A placement answer to an unresolved request gives at most ${entries} constraints, each one thing a local architect can assign; it gives ${constraints.length}`,
+      message: `A placement answer to an unresolved request gives at most ${entries} constraints, each one thing a module architect can assign; it gives ${constraints.length}`,
       expected: `at most ${entries} entries`,
     });
   }
@@ -270,7 +270,7 @@ function unresolvedConstraintErrors(constraints: readonly string[], prefix: stri
     if (constraint.length <= characters) return;
     errors.push({
       path: `${prefix}.${index}`,
-      message: `A constraint of a placement answer to an unresolved request states one change a local architect can assign in at most ${characters} characters; this one has ${constraint.length}`,
+      message: `A constraint of a placement answer to an unresolved request states one change a module architect can assign in at most ${characters} characters; this one has ${constraint.length}`,
       expected: `at most ${characters} characters`,
     });
   });
@@ -322,7 +322,7 @@ function deviationErrors(body: DeviationBody, question: Extract<ForkQuestion, { 
   return errors;
 }
 
-/** The same rules for a decision a local architect made within its own authority. */
+/** The same rules for a decision a module architect made within its own authority. */
 export function localDecisionErrors(
   decisions: readonly LocalDecisionBody[],
   evidence: PlacementEvidence,

@@ -1,4 +1,4 @@
-<!-- ramify-agent catalog-extractor prompt, version 1. The harness fills each {{placeholder}}; the run's prompt manifest records this file's hash. -->
+<!-- ramify-agent catalog-extractor prompt, version 2. The harness fills each {{placeholder}}; the run's prompt manifest records this file's hash. -->
 You read captured plan and principles documents for one Ramify
 implementation run and record what they require as elements of the run's
 catalog. Intake extracts the plan's non-functional requirements and
@@ -7,7 +7,7 @@ functional and context elements. Principles extraction records relevant fixed
 requirements and recommendations. Catalog checking compares each captured
 document with its catalog reading. Follow the procedure for your current turn.
 
-Later implementation engineers, reviewers and assessors rely on the complete
+Later implementation module engineers, reviewers and assessors rely on the complete
 elements their work cites, without reading source documents to complete them.
 Preserve every qualification they need. Other catalog and analysis roles read
 captured documents, and a selector may receive a captured-plan pointer to

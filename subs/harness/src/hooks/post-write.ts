@@ -58,7 +58,7 @@ export interface HookCheck {
   readonly dispositions: readonly HookPathDisposition[];
 }
 
-/** A check as the engineer is told about it: the record, with the findings themselves. */
+/** A check as the module engineer is told about it: the record, with the findings themselves. */
 interface ReportedCheck extends HookCheck {
   /** Whether a check that established no project result still reported findings it verified. */
   readonly retained: boolean;
@@ -93,14 +93,14 @@ export interface HookOutcome {
   readonly checks: readonly HookCheck[];
   readonly gaps: readonly HookGap[];
   /**
-   * What reaches the engineer before its next step, or null when there is
+   * What reaches the module engineer before its next step, or null when there is
    * nothing it must know: a check that passed with no new finding is not
    * news and is not repeated at it.
    */
   readonly text: string | null;
 }
 
-/** One finding of a check, as much of it as the engineer is told. */
+/** One finding of a check, as much of it as the module engineer is told. */
 export interface HookFinding {
   /** Ramify's own `id` for the finding, or the entry itself where it carries none. */
   readonly identity: string;
@@ -146,7 +146,7 @@ function awaitsEvaluation(finding: HookFinding): boolean {
 /**
  * The findings one invocation has been told about, and which of them still
  * stand. A finding reported again by a later check of the same invocation is
- * not newly introduced, so the engineer is not told about it twice. A
+ * not newly introduced, so the module engineer is not told about it twice. A
  * finding stands until provider coverage establishes that it is gone: a
  * check that evaluated imports and analyzed its file, or the deletion of
  * that file, and no longer reports it, or a covering revision that lists it
@@ -307,7 +307,7 @@ export const completionCheckFileLimit = 400;
 
 /**
  * Runs the hook check for one settled mutation and answers what to record
- * and what the engineer must be told.
+ * and what the module engineer must be told.
  */
 export async function runHookCheck(options: HookCheckOptions): Promise<HookOutcome> {
   const mutation = options.purpose !== 'completion';
@@ -437,7 +437,7 @@ function reported(
   const added = seen.admit(found);
   const repeated = found.filter(finding => !added.includes(finding));
   // What this check cleared: a finding it covered and no longer reports. It
-  // was reported to the engineer when it arose, so its going is news too.
+  // was reported to the module engineer when it arose, so its going is news too.
   const cleared = gone;
   const reportedNow = new Set(found.map(finding => finding.identity));
   const unevaluated = !established || evaluated ? null : {
@@ -475,7 +475,7 @@ function outcomeOf(result: RamifyCheckResult): HookCheck['outcome'] {
 }
 
 /**
- * The findings a check reported, with what the engineer must be told of
+ * The findings a check reported, with what the module engineer must be told of
  * each: `findings` of a `ramify.check/3` document and `diagnostics` of a
  * `ramify.analysis/3` report, each located in `location`. The hook reads
  * only documents its adapter decoded; a gate's report is read as it was
@@ -583,7 +583,7 @@ export function noticesOf(report: unknown, written: readonly string[]): HookNoti
 }
 
 /**
- * What the engineer is told, or null when no check produced news. A finding
+ * What the module engineer is told, or null when no check produced news. A finding
  * is spelled out in full every time it is reported, new or still standing,
  * because a model acts on what its tool result says and not on a file it
  * would have to open. A check that did not check says so, and is not a pass.
@@ -755,8 +755,8 @@ export function sentenceOf(finding: HookFinding): string {
 }
 
 /**
- * What the engineer can do about them, in the terms of its own submission:
- * one decision procedure, each fact said once. The engineer's own prompt
+ * What the module engineer can do about them, in the terms of its own submission:
+ * one decision procedure, each fact said once. The module engineer's own prompt
  * carries the same procedure at length; this is the reminder beside the
  * finding, not a second copy of it.
  */

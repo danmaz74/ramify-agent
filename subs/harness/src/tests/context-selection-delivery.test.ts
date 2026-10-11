@@ -30,7 +30,7 @@ const accepted = acceptElements(openElementCatalog(hash, manifest), [
 if (!accepted.ok) throw new Error(accepted.errors.join('\n'));
 const catalog = accepted.catalog;
 const planDeviations: PackageDeviation[] = [
-  { id: 'pd-001', amends: ['fr-001'], authority: 'The global architect, for wi-001', text: 'Serve the lookup from the cache.' },
+  { id: 'pd-001', amends: ['fr-001'], authority: 'The plan architect, for wi-001', text: 'Serve the lookup from the cache.' },
 ];
 
 describe('package citation and delivery', () => {

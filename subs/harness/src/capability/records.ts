@@ -47,7 +47,7 @@ export const capabilityNeedSchema = z.object({
 });
 export type CapabilityNeed = z.infer<typeof capabilityNeedSchema>;
 
-/** The engineer does not choose durable example IDs. The harness assigns
+/** The module engineer does not choose durable example IDs. The harness assigns
  * them after the request ID is reserved. */
 const { examples: _identifiedExamples, ...needInputShape } = capabilityNeedSchema.shape;
 export const capabilityNeedInputSchema = z.object({ ...needInputShape,

@@ -56,7 +56,7 @@ export function sessionView(session: string, extra: Partial<RunSessionView> = {}
   });
 }
 
-/** The engineer session ses-0002: inv-0002, then a note, and the continued inv-0004, live. */
+/** The module engineer session ses-0002: inv-0002, then a note, and the continued inv-0004, live. */
 export function liveEngineer(extra: Partial<RunSessionView> = {}): RunSessionView {
   return sessionView('ses-0002', {
     state: 'live', finished: null, changed: { sequence: 14, at: at(14) }, awaiting: 'inv-0004',
@@ -106,7 +106,7 @@ export const engineerEntries: TranscriptEntry[] = entries([
   {
     n: 1, at: at(5), type: 'started', invocation: 'inv-0002', role: 'engineer', work: { workItem: 'wi-001', iteration: 'wi-001.i01' },
     start: 'opened', requested: 'fresh', continues: null, fork: null, replaces: null, requestedBy: null, executor: 'scripted', model: null,
-    systemPrompt: blob('a', 'You are the engineer of shop/reviews.', 12000), prompt: inline('Implement the iteration wi-001.i01.'),
+    systemPrompt: blob('a', 'You are the module engineer of shop/reviews.', 12000), prompt: inline('Implement the iteration wi-001.i01.'),
   },
   { n: 2, at: at(5), type: 'message', invocation: 'inv-0002', role: 'user', blocks: [{ type: 'text', body: inline('Implement the iteration wi-001.i01.') }] },
   {
@@ -138,7 +138,7 @@ export const engineerEntries: TranscriptEntry[] = entries([
     n: 10, at: at(14), type: 'started', invocation: 'inv-0004', role: 'engineer', work: { workItem: 'wi-001', iteration: 'wi-001.i02' },
     start: 'continued', requested: 'continue', continues: { from: { session: 'ses-0002', invocation: 'inv-0002' }, reason: 'iteration-closed', briefs: [] },
     fork: null, replaces: null, requestedBy: null, executor: 'scripted', model: null,
-    systemPrompt: blob('a', 'You are the engineer of shop/reviews.', 12000), prompt: inline('Continue with wi-001.i02.'),
+    systemPrompt: blob('a', 'You are the module engineer of shop/reviews.', 12000), prompt: inline('Continue with wi-001.i02.'),
   },
 ]);
 

@@ -1,4 +1,6 @@
-# Autonomous implementation loop with global and local architects
+<a id="autonomous-implementation-loop-with-global-and-local-architects"></a>
+
+# Autonomous implementation loop with plan and module architects
 
 **Status:** Current implementation design, developed from hypothesis 3b and
 revised by [Plan 16](../plans/16-capability-architect/main-plan.md). The
@@ -6,7 +8,7 @@ production capability workflow has scripted verification; its live Pi and
 served-browser acceptance remains a separate gate.
 
 This design grew from [hypothesis 3](../decomposition/dan-hypothesis-3.md). It
-keeps bounded execution and changes how the global
+keeps bounded execution and changes how the plan
 architect handles placement requests: a fork of its current context investigates
 and makes the decision. A concise decision brief is appended to the long-lived
 session without invoking the model there; the next fork inherits that update.
@@ -14,8 +16,8 @@ A Ramify view diff is optional, not a prerequisite.
 
 Like hypothesis 3, it keeps bounded agent work, executable delegation and
 integration on return, separates architectural hypotheses from execution
-decisions, and removes all waits for human review from the MVP. The local
-architect plans a module work item and tests the global architect's hypotheses
+decisions, and removes all waits for human review from the MVP. The module
+architect plans a module work item and tests the plan architect's hypotheses
 against concrete work.
 
 The current [harness principles](../harness.principles.md) describe its
@@ -31,7 +33,7 @@ A run started with the review stop waits for a person's approval after the
 analysis is accepted, the one human-review wait. Every committing gate asks
 for the project's committed audit, whose configured Cucumber check runs the
 scenarios without a pending tag, and a work item completes only when its
-local architect has reported its scenarios done. The final gate asks for a
+module architect has reported its scenarios done. The final gate asks for a
 full audit, which runs every tracked scenario.
 
 The [metrics glossary](../metrics/glossary.md) distinguishes search space from
@@ -46,43 +48,45 @@ starts. This MVP instead records those choices as agents make them and
 continues automatically. A person can review the decisions and resulting work
 afterwards. A recorded decision is not recorded human approval.
 
-A global architect initially identifies the top-level capabilities and their
+A plan architect initially identifies the top-level capabilities and their
 owner modules and proposes hypotheses about deeper capabilities to reuse or
 create. The hypotheses are recorded for review, but do not schedule work.
-The global architect retains one long-lived context throughout the run.
+The plan architect retains one long-lived context throughout the run.
 Sequential forks resolve
-capability identity and placement when local architects encounter actual
+capability identity and placement when module architects encounter actual
 needs, then return concise decision briefs to that context without a parent
-model invocation. Iteration planning happens locally: a local architect examines
+model invocation. Iteration planning happens locally: a module architect examines
 the assigned goal, its module and the architect view, plans iterations, and
-delegates each iteration to an engineer.
+delegates each iteration to a module engineer.
 
-The local architect identifies required breaking changes and delegates
-bounded engineer assignments. An engineer needing behavior outside its scope
+The module architect identifies required breaking changes and delegates
+bounded module engineer assignments. A module engineer needing behavior outside its scope
 records a capability request with actual calling code, constraints and
-examples. Its partial source is captured after the writer settles. The local
+examples. Its partial source is captured after the writer settles. The module
 architect qualifies existing behavior and, when new coordination is needed,
 delegates to a fresh capability architect. That task's architect coordinates
-separate owner-scoped engineers, current design, real provider and requesting
-consumer checks through verified handback. The original engineer and work
+separate owner-scoped module engineers, current design, real provider and requesting
+consumer checks through verified handback. The original module engineer and work
 item resume their broader goal after handback.
 
 | Role | Responsibility |
 | --- | --- |
-| Global architect | Maintains architectural hypotheses, considers shared needs and resolves placement across responsibility boundaries or where local ownership is uncertain. |
-| Local architect | Tests relevant hypotheses against module work, makes local decomposition choices, and plans and assesses engineer iterations. |
+| Plan architect | Maintains architectural hypotheses, considers shared needs and resolves placement across responsibility boundaries or where local ownership is uncertain. |
+| Module architect | Tests relevant hypotheses against module work, makes local decomposition choices, and plans and assesses module engineer iterations. |
 | Module engineer | Implements an assigned iteration within its goal and write scope. |
 | Capability architect | Coordinates one delegated task, its owner assignments, consultation, checks and handback. |
 | Harness | Runs sessions, persists records, schedules work and enforces transitions. |
 
-The local architect is assigned to one module work item, not permanently to a
+The module architect is assigned to one module work item, not permanently to a
 module. Its responsibility ends when that work item's own gates complete.
 Local authority does not imply local-only visibility: it can consult
-the global architect view to discover reuse and surrounding responsibilities.
+the whole-project architect view to discover reuse and surrounding responsibilities.
 
-## 1. A global architect: form hypotheses first, resolve actual needs later
+<a id="1-a-global-architect-form-hypotheses-first-resolve-actual-needs-later"></a>
 
-The global architect's initial session reads the request and architect view.
+## 1. A plan architect: form hypotheses first, resolve actual needs later
+
+The plan architect's initial session reads the request and architect view.
 It identifies the top-level capabilities: behavior used by a person, an external system or
 a part of the project outside the requested work. It assigns each capability
 to an existing or proposed module.
@@ -108,7 +112,9 @@ A provider's independent entry work item retains its own goal and gates. A
 capability task may assign its owner while deferring that entry; the task does
 not absorb or complete it.
 
-### Resolve shared placement in sequential global architect forks
+<a id="resolve-shared-placement-in-sequential-global-architect-forks"></a>
+
+### Resolve shared placement in sequential plan architect forks
 
 The initial session becomes the run's long-lived architect context. It retains
 orientation, the hypotheses and concise updates from completed requests. For each
@@ -117,12 +123,12 @@ and decides; the parent does not reassess or approve the choice.
 
 Requests run one at a time. Before starting the next fork, the harness persists
 the previous accepted decision and registry changes, appends its brief to the
-parent context, and returns the result to the requesting local architect. All forks
+parent context, and returns the result to the requesting module architect. All forks
 act in the same architect role and consult the current registry and decision
 log. They must explicitly revise an earlier decision rather than silently
 contradict it.
 
-A local architect supplies the required behavior, relevant discoveries and current
+A module architect supplies the required behavior, relevant discoveries and current
 artifact references, and may suggest candidates or an owner. The architect fork
 consults the inherited hypotheses, current architectural evidence and previous decisions,
 then resolves the need to reuse an existing capability, or create a new
@@ -130,16 +136,16 @@ capability with an owner. Extending existing behavior is the second of
 those: a new capability named for itself, owned by the module that already
 holds the behavior, recorded as changing symbols that already have
 consumers. The harness records the decision and returns its reference to the
-local architect before contract work begins. Ordinary use of an already
+module architect before contract work begins. Ordinary use of an already
 identified, available API needs no new placement decision. Local refinements
 within established responsibilities use the local authority described in
 section 2. Unresolved responsibility boundaries,
 competing reuse or placement candidates, and revisions of established ownership
-come to the global architect in both breaking and non-breaking work.
+come to the plan architect in both breaking and non-breaking work.
 
-The global architect resolves shared or uncertain capability identity and
-ownership; the local architect makes bounded local placement and decomposition
-choices and decides iterations and scope. Scoped engineers implement the
+The plan architect resolves shared or uncertain capability identity and
+ownership; the module architect makes bounded local placement and decomposition
+choices and decides iterations and scope. Scoped module engineers implement the
 affected owners. Placement does not establish requester-specific importability
 or implementation readiness. A contract, fake or partial implementation may
 identify intended behavior without establishing that its provider is ready.
@@ -163,13 +169,13 @@ contract behavior. Reusing an entry does not prove the existing contract or
 implementation satisfies the new need. Semantic matching remains an architect
 judgment, not a guarantee supplied by registry identifiers.
 
-The global architect can revise a tentative hypothesis as evidence develops.
+The plan architect can revise a tentative hypothesis as evidence develops.
 Revising an actual
 placement must identify affected contracts and work, with consequences returned
-to the relevant local architects; it cannot silently move existing obligations.
+to the relevant module architects; it cannot silently move existing obligations.
 
 The harness persists architectural hypotheses, decisions and registry updates.
-The global architect normally forks from the accumulated parent context, but must also recover from
+The plan architect normally forks from the accumulated parent context, but must also recover from
 those files after session loss or compaction. Conversation history is useful
 context, not the sole authority for architectural decisions.
 
@@ -179,22 +185,22 @@ An architectural hypothesis records an expected capability arrangement and why
 it may be appropriate. It identifies suggested owners, anticipated consumers
 and involved modules, assumptions and unresolved questions. These module and
 capability references let the harness supply relevant hypotheses and their
-rationales when a local architect starts its work item or receives an update.
+rationales when a module architect starts its work item or receives an update.
 Relevance includes being an anticipated consumer, not only the suggested owner.
 
 For example, a hypothesis may place email delivery in `notifications` because
 customer messaging and invoice delivery are both expected to use it. The
-customer-page local architect receives that rationale, so it has reason to keep
+customer-page module architect receives that rationale, so it has reason to keep
 delivery external even if implementing it locally would be possible.
 
 Hypotheses guide judgment but remain distinct from accepted placement decisions
 and implementation obligations. Anticipated consumers influence placement and
 interface choices; they do not create speculative implementation requirements.
-A local architect checks hypotheses against current code and actual requirements,
+A module architect checks hypotheses against current code and actual requirements,
 records local refinements, and brings counterevidence or departures affecting
-shared ownership to a global architect request.
+shared ownership to a plan architect request.
 
-Each global architect decision fork also asks whether its evidence or choice
+Each plan architect decision fork also asks whether its evidence or choice
 requires revising any relevant architectural hypotheses. It records material
 revisions and their rationale, including changed assumptions or anticipated
 consumers, alongside the placement decision. No revision is required merely
@@ -202,20 +208,20 @@ because an invocation occurred, and no whole-plan reanalysis is required for
 each request. Hypothesis maintenance stays focused on the current choice.
 
 The harness persists hypothesis revisions and includes them in the concise
-brief appended to the global context without a model call. Affected local
+brief appended to the global context without a model call. Affected module
 architects receive revised hypotheses and rationales at their next coordination
 point, before assigning dependent work. This delivery does not trigger a separate
 local invocation or silently rewrite active iterations, contracts or accepted
-placements. The local architect assesses the consequences for remaining work;
+placements. The module architect assesses the consequences for remaining work;
 actual placement revisions retain their explicit impact obligations.
 
 ```text
 global hypothesis and rationale
-  -> relevant local architect
+  -> relevant module architect
   -> concrete findings and local decisions
   -> global decision fork, when consultation is needed
   -> recorded placement and relevant hypothesis revisions
-  -> affected local architects
+  -> affected module architects
 ```
 
 Routine local choices and findings are recorded through the harness, with
@@ -229,7 +235,7 @@ not itself trigger global consultation.
 For the initial analysis, the harness materializes the architect view. Before
 starting a subsequent placement fork, it refreshes that view. The fork inherits
 the parent's orientation, hypotheses and decision briefs, and receives the new
-local architect request and current record references. It treats inherited source
+module architect request and current record references. It treats inherited source
 facts as potentially stale and verifies relevant assumptions against current
 evidence and the registry.
 
@@ -239,24 +245,24 @@ The invocation has one focused goal:
 > evidence and recorded decisions. Check inherited assumptions and relevant
 > alternatives, make the choice, and update any relevant architectural
 > hypotheses warranted by the findings. Return the decision, material hypothesis
-> revisions and a concise brief for future global architect invocations.
+> revisions and a concise brief for future plan architect invocations.
 
 This is broader than looking only for changes. A relevant alternative may have
 existed all along, or the architect may never have inspected it. The fork
-searches for the required behavior, not only the local architect's suggested owner.
+searches for the required behavior, not only the module architect's suggested owner.
 It sees fresh evidence directly when deciding; no separate evidence-summary
 handoff or second decision-making invocation is required.
 
 The request flow is:
 
 ```text
-local architect brief
+module architect brief
   -> refresh architect view
   -> fork accumulated architect context
   -> investigate and decide in the fork
   -> harness persists decision, registry changes and hypothesis revisions
   -> append decision brief to parent context without an LLM call
-  -> return decision to local architect
+  -> return decision to module architect
 
 next placement request
   -> next fork inherits the accumulated briefs
@@ -274,10 +280,10 @@ The fork can resolve placement and return proposed registry updates. The harness
 remains the writer of durable records; acceptance is protocol validation and
 persistence, not another agent or human approval. The fork has no source-write
 authority and does not create a capability task merely by placing a
-capability. A concrete engineer request starts task coordination and its
+capability. A concrete module engineer request starts task coordination and its
 separate completion gate.
 
-The local architect supplies a compact brief:
+The module architect supplies a compact brief:
 
 | Field | Content |
 | --- | --- |
@@ -287,7 +293,7 @@ The local architect supplies a compact brief:
 | Candidates and uncertainty | Suggested capabilities or owners, if any, and what remains unresolved. |
 | Relevant hypotheses | Hypothesis IDs/revisions and rationale being tested, with supporting findings or counterevidence and any proposed departure. |
 
-The local architect explains intent and local discoveries; it does not reproduce
+The module architect explains intent and local discoveries; it does not reproduce
 or summarize the whole view. The fork's full decision record identifies the
 request, chosen capability and owner, rationale, relevant evidence and its
 revision, important constraints or uncertainty, and any revised decision or
@@ -311,14 +317,14 @@ invoked. If no further request arrives, no model call is needed for that brief.
 The fork's detailed searches, tool results and reasoning transcript remain
 outside the parent context.
 
-Only conclusions of global architect invocations, including their hypothesis
+Only conclusions of plan architect invocations, including their hypothesis
 revisions, are appended through this mechanism. Local implementation changes,
 capability tasks and placement decisions remain in durable records and the registry;
 they are not routinely copied into the global context. Each fork retrieves
 relevant records alongside the refreshed view, and focused requests supply
 local findings that require global judgment. Planned capabilities must remain
 discoverable in the registry even before they appear in code. Implementation
-readiness remains outside the global architect's responsibility.
+readiness remains outside the plan architect's responsibility.
 
 The decision log and registry remain authoritative. Each fork checks relevant
 current records; inherited briefs help orientation but cannot replace them.
@@ -366,20 +372,22 @@ its own searches. Measure parent context growth, fork and total usage, elapsed
 time, compaction and decision quality separately. No token-economy claim is
 established by the design alone.
 
-## 2. A local architect for each module work item
+<a id="2-a-local-architect-for-each-module-work-item"></a>
+
+## 2. A module architect for each module work item
 
 A module work item is a bounded goal assigned to a module, not all future work
 that might happen in that module. It may require several iterations. A later
 entry in the same module can create another work item.
 
-The local architect has the architect view, access to the assigned module,
+The module architect has the architect view, access to the assigned module,
 requirements relevant to its goal, and the relevant global architectural
 hypotheses with their rationales. It:
 
 1. Analyzes the changes needed in that module and tests relevant architectural
    hypotheses against the concrete requirements and code.
 2. Finds capability needs and candidate reuse. It resolves routine local
-   decomposition within its authority, consults the global architect for shared
+   decomposition within its authority, consults the plan architect for shared
    or unresolved placement, and checks requester-specific access separately.
 3. Identifies required breaking changes and their affected consumers during
    its initial analysis, before assigning implementation iterations.
@@ -393,18 +401,18 @@ hypotheses with their rationales. It:
    hypotheses change, reporting architectural findings and local decisions.
 7. Requests work-item completion once local work and required dependencies are
    satisfied. The harness runs global checks before accepting completion;
-   failures return to the local architect for scoped repair assignments.
+   failures return to the module architect for scoped repair assignments.
 
-This combines the estimate and local planning steps of hypothesis 2. The local
+This combines the estimate and local planning steps of hypothesis 2. The module
 architect continues its session across iterations; this variant does not apply
-the global architect's per-request fork mechanism to local planning. There is
+the plan architect's per-request fork mechanism to local planning. There is
 no separate planning session before every iteration. Only the next iteration
 is fixed; later iterations remain provisional.
 
-The local architect owns iteration boundaries, not detailed implementation
+The module architect owns iteration boundaries, not detailed implementation
 steps. For the next assignment it determines the required outcome, search and
 write scope, dependencies, applicable requirements, execution approach and
-completion evidence. The engineer chooses which files to inspect, the
+completion evidence. The module engineer chooses which files to inspect, the
 implementation and test sequence, and internal implementation details within
 that assignment. It reports discoveries that make the boundary unsuitable
 rather than silently expanding its scope.
@@ -412,40 +420,40 @@ rather than silently expanding its scope.
 For example, an iteration may implement the customer-page send action,
 including loading, success and failure behavior, within the page and its
 selected rendering child. Its completion check is the relevant consumer
-tests. The local architect need not prescribe component edits,
+tests. The module architect need not prescribe component edits,
 individual test cases or each red/green step.
 
-The local architect may assign a small work item as one iteration. Several
+The module architect may assign a small work item as one iteration. Several
 iterations may also use the same module scope; substantial work does not by
 itself justify introducing another module boundary. Decomposition should
 produce manageable goals, not a mandatory number of iterations.
 
-The local architect's broader visibility serves a narrow planning responsibility.
-It does not become an unrestricted implementation agent. It passes the engineer
+The module architect's broader visibility serves a narrow planning responsibility.
+It does not become an unrestricted implementation agent. It passes the module engineer
 a bounded goal, write scope, applicable requirements, identified external
 capabilities to reuse or request, and evidence obligations. The handoff states
 whether a known breaking change needs its explicit authority. For each
 external capability, it identifies the proposed owner and intended role.
-An engineer's new out-of-scope need enters the capability task protocol;
+A module engineer's new out-of-scope need enters the capability task protocol;
 newly discovered dependencies can revise the plan.
 
 Results return as concise findings, changed assumptions and artifact references,
-not entire engineering transcripts. Engineers may include a recommendation for
+not entire engineering transcripts. Module engineers may include a recommendation for
 the next iteration or a proposed split of remaining work, explaining the
-dependencies or discoveries behind it. The local architect assesses that
+dependencies or discoveries behind it. The module architect assesses that
 recommendation and records the next assignment using the ordinary result
 handoff; no extra planning agent or invocation is required merely to obtain
-the recommendation. An engineer's recommendation does not itself change the
+the recommendation. A module engineer's recommendation does not itself change the
 assigned scope or discharge unfinished obligations.
 
-Where the module is new, the local architect uses its recorded purpose and
+Where the module is new, the module architect uses its recorded purpose and
 placement and includes creating it in the work. Where new information
-invalidates an established placement, it asks the global architect to revise
+invalidates an established placement, it asks the plan architect to revise
 the decision and accounts for affected work without a human review wait.
 
 ### Local placement authority
 
-The local architect may place work within its assigned subtree when that choice
+The module architect may place work within its assigned subtree when that choice
 refines the subtree's established responsibility, preserves recorded ownership
 decisions, and leaves no unresolved competing reuse or placement candidate.
 It checks the registry and architect view for reuse before introducing another
@@ -453,25 +461,27 @@ capability. Physical containment alone does not justify local ownership.
 
 Choosing a child to render the email button is local decomposition. Deciding
 where general email delivery belongs when several branches may use it calls
-for the global architect. A hypothesis proposing an external owner, especially
+for the plan architect. A hypothesis proposing an external owner, especially
 with anticipated consumers elsewhere, is strong evidence against localizing
 the capability. It is not an accepted assignment, but a material departure
 about shared responsibility needs a focused global decision with counterevidence.
 
 The harness records local placement choices and registry changes so later
 requests can discover them without a brief appended to the global context.
-When a choice requires global judgment, the local architect includes the
+When a choice requires global judgment, the module architect includes the
 relevant records in its request. Local placement does not widen
-an engineer's write scope: the local architect still chooses whether to include
+a module engineer's write scope: the module architect still chooses whether to include
 a child's whole subtree or delegate to it.
 
-## 3. Engineer iterations and unified delegation
+<a id="3-engineer-iterations-and-unified-delegation"></a>
+
+## 3. Module engineer iterations and unified delegation
 
 Each iteration has a focused goal, explicit write boundaries and a completion
 check. Broader change goals require narrower search spaces; broader searches
 require narrower change goals.
 
-For non-breaking iterations, the local architect assigns scope as **the assigned module's own
+For non-breaking iterations, the module architect assigns scope as **the assigned module's own
 contents, plus the complete subtrees of selected immediate children**. For
 each child, it evaluates the search space of the whole subtree and either
 includes all of it or excludes all of it. It does not select individual
@@ -497,16 +507,16 @@ This includes `export`'s own contents and everything beneath
 descendants are excluded. An empty inclusion list limits implementation to the
 assigned module's own contents.
 
-The local architect records the scope choice and its rationale for each iteration.
-The local architect uses each iteration’s results to revise the remaining work,
+The module architect records the scope choice and its rationale for each iteration.
+The module architect uses each iteration’s results to revise the remaining work,
 including the goals and scopes of subsequent iterations. A delegated child's
-local architect makes the same decision relative to that child. No human review wait
+module architect makes the same decision relative to that child. No human review wait
 is required.
 
 The following delegation rules apply to non-breaking iterations. Breaking
 iterations use the ordinary implementation approach described in section 6.
 
-The engineer uses existing available behavior directly. Work already within
+The module engineer uses existing available behavior directly. Work already within
 its assigned scope can remain local. Implementation needed in an excluded
 child subtree uses the same delegation mechanism as work in another branch.
 Crossing a module boundary to call an existing API does not itself require
@@ -514,13 +524,13 @@ delegation. Including modules in one iteration does not change their
 importability rules, and access to a subtree does not require loading all of
 its contents into context.
 
-When work must be delegated outside the assigned scope, the engineer writes
+When work must be delegated outside the assigned scope, the module engineer writes
 the need as behavior: use cases, inputs and outputs, side effects, constraints
 and any existing executable evidence. It submits the same capability request
 whether the provider is a descendant or lies in another branch.
 
-Expected providers come from the local architect's planning. A newly discovered
-need is resolved within its local authority or referred to the global architect
+Expected providers come from the module architect's planning. A newly discovered
+need is resolved within its local authority or referred to the plan architect
 when shared or uncertain, before a task plan is accepted. This answers an
 actual execution need; it does not make architectural hypotheses executable.
 
@@ -555,9 +565,9 @@ file. If the target cannot be resolved sufficiently to check its scope, block
 with that distinct reason rather than assuming it is allowed.
 
 A blocked call returns a concise explanation naming the target and scope and
-directing the engineer to report the need or use the established delegation
+directing the module engineer to report the need or use the established delegation
 mechanism. It does not itself end the session or request human approval. The
-engineer may continue within scope. Only a recorded architectural assignment
+module engineer may continue within scope. Only a recorded architectural assignment
 can change write authority; a retry or successful read does not expand it.
 
 Read and search boundaries are soft. Default exploration to the assigned
@@ -597,22 +607,22 @@ is implied by enabling these controls.
 
 ## 4. A capability request and one coordinator
 
-An engineer whose assignment needs behavior outside its scope submits a
+A module engineer whose assignment needs behavior outside its scope submits a
 `capability-needed` result with actual or prospective use sites, constraints,
 known interface evidence and examples. Proposed signatures and pseudocode are
 marked provisional. The harness settles its writer, captures staged, working
 and untracked source with attribution, and suspends the original assignment
-and session. Its local architect checks existing behavior and importability.
-A suitable API returns to the same engineer; an unresolved boundary receives
+and session. Its module architect checks existing behavior and importability.
+A suitable API returns to the same module engineer; an unresolved boundary receives
 the responsible architect's decision. A need requiring work becomes one
 durable capability task with a fresh capability architect.
 
 The task records the original request, provisional source, current plan
 revision, owner assignments, consultations, checks, reviews and handback. The
 capability architect reads relevant A and B source and previous decisions. It
-can consult the requesting engineer read-only, or assign an explicit A-scoped
+can consult the requesting module engineer read-only, or assign an explicit A-scoped
 experiment with the writer. Every source change, including compatibility
-repair in another owner, is made by an engineer with a module scope. Its
+repair in another owner, is made by a module engineer with a module scope. Its
 assignments have one task-owned sequence across owners; they do not consume
 an owner's separate entry iteration numbers.
 
@@ -643,7 +653,7 @@ obligation it registered; the original examples stay the request's context,
 with no per-example coverage state. The harness verifies those references and
 the current candidate before accepting it, never a cited test file or an
 executed-file inventory. It resumes the
-requesting engineer and parent coordinator once; their broader work remains
+requesting module engineer and parent coordinator once; their broader work remains
 open. A post-handback finding creates linked revision work without rewriting
 the earlier accepted source or evidence.
 
@@ -651,20 +661,22 @@ An ordinary work item cannot complete with a pending request, a stopped task,
 or a delegated task without accepted current handback. The harness rechecks
 this predicate at the completion commit, along with ordinary scenarios,
 reviews and gates. Crashes reconstruct from durable records; an interrupted
-engineer with source changes needs its own structured result. A stopped task
+module engineer with source changes needs its own structured result. A stopped task
 or exhausted bound remains explicitly unfinished and never becomes an
 accepted handback because a check happened to pass.
 
-## 6. The local architect isolates breaking work before execution
+<a id="6-the-local-architect-isolates-breaking-work-before-execution"></a>
 
-The local architect's initial analysis is the main breaking-change detection
+## 6. The module architect isolates breaking work before execution
+
+The module architect's initial analysis is the main breaking-change detection
 point. Before assigning implementation iterations, it examines which existing
 guarantees must change and which consumers are affected. This is local work-item
 planning, not a global classification during top-level capability discovery.
 
 Compatible additions remain the default. A cleaner interface alone does not
 justify changing existing guarantees. When the requested behavior requires a
-break, the local architect records what changes, why, and which consumers are
+break, the module architect records what changes, why, and which consumers are
 affected. It plans iterations around those changes, isolating breaking work
 from compatible feature work as far as practical and ordering both according
 to their dependencies. It does not wait for human review.
@@ -678,12 +690,12 @@ Both approaches retain a bounded goal, explicit write scope, context-budget
 enforcement, recorded results and verification obligations. A breaking iteration
 may have an explicitly assigned scope spanning affected modules, with a narrow
 change goal to keep the broader search manageable. This is a planned exception
-to the ordinary module-and-selected-children scope, not permission for an
-engineer to expand its own writes. Ramify importability rules still apply.
+to the ordinary module-and-selected-children scope, not permission for a
+module engineer to expand its own writes. Ramify importability rules still apply.
 
 A breaking segment may take several iterations, but every successfully
 completed breaking iteration must pass the global test suite and the other
-required checks. The local architect plans coherent intermediate states rather
+required checks. The module architect plans coherent intermediate states rather
 than accepting iterations with expected failures. For example, replacing an
 email-address field can introduce the new representation with temporary
 compatibility, migrate consumers in manageable iterations, then remove the old
@@ -692,7 +704,7 @@ precede the segment where needed; breaking work need not always be first.
 
 Where temporary compatibility is inappropriate, the interface change and
 affected consumer adaptations belong in one explicitly scoped, narrowly
-focused iteration. If that scope proves unmanageable, the local architect
+focused iteration. If that scope proves unmanageable, the module architect
 revises the approach; the harness does not waive the gate. A crash,
 context-budget return or insufficient-scope report may leave unfinished work,
 but it is a partial result, not a completed iteration. Dependent non-breaking
@@ -703,9 +715,9 @@ be adapted and verified before the run can complete. Previously completed work
 may acquire new verification obligations. Tests whose expectations the request
 explicitly supersedes are revised; unrelated guarantees remain requirements.
 
-Initial detection can miss a break. An engineer that discovers one reports it
+Initial detection can miss a break. A module engineer that discovers one reports it
 to its coordinating architect, which revises the remaining assignments and
-their execution approach. The engineer does not silently switch approaches or
+their execution approach. The module engineer does not silently switch approaches or
 expand its writes; affected owners receive separate scopes.
 
 This draft does not introduce a dedicated migration state machine or claim
@@ -714,14 +726,14 @@ the contract-based process. Reliable identification, isolation and ordering
 of broad breaking work remain hypotheses to test.
 
 Autonomous decisions select how to fulfill the request. They do not authorize
-silently weakening its acceptance conditions. When a local architect finds a
-requirement cannot be met as stated, the global architect either fixes the
+silently weakening its acceptance conditions. When a module architect finds a
+requirement cannot be met as stated, the plan architect either fixes the
 placement, records a plan deviation that keeps as much of the requirement as
 the conflict allows, reports an environment problem, or finds nothing of the
 plan worth doing, which ends the run with the conflict. An environment
 problem is a conflict in how the gate or the harness runs, not in the plan or
 the architecture: the run holds the work item until the operator resumes the
-run, and the local architect then retries with the diagnosis. It is never
+run, and the module architect then retries with the diagnosis. It is never
 answered as a placement or a deviation. A deviation is never silent: it is a
 CheckFinding the user accepts or rejects, and a run that recorded one
 completes with it to review rather than claiming plain success. If the agents cannot find a viable
@@ -749,11 +761,11 @@ need approval commands, approval-expiry rules or an awaiting-review state.
 
 ## 8. The harness remains the deterministic execution owner
 
-The harness tracks each global architect fork, its decision and the brief appended to
+The harness tracks each plan architect fork, its decision and the brief appended to
 the long-lived context. The fork exercises placement authority for its request;
 the parent receives durable context updates without another model invocation.
 
-The global architect, local architects and engineers make semantic decisions within
+The plan architect, module architects and module engineers make semantic decisions within
 their respective responsibilities. The harness records work, launches
 invocations, commits capability requests, assignments and handbacks, and
 applies explicit transitions. Consultation and nested delegation use that
@@ -764,7 +776,7 @@ The whole run is:
 ```text
 start -> assign entry capabilities and record the architectural hypotheses
       -> prepare execution environment and establish a passing global baseline
-      -> coordinate and execute module work, consulting the global architect
+      -> coordinate and execute module work, consulting the plan architect
          as needed and including delegated providers
       -> verify final composition and the original acceptance
       -> complete
@@ -784,8 +796,8 @@ restarts unfinished work from those records without duplicate handbacks. A
 caller that dies after handback can discover the accepted result without
 receiving the original reply.
 
-Reusing an oriented session is an optimization. The global architect and every
-local architect, engineer and capability architect must also work from a fresh
+Reusing an oriented session is an optimization. The plan architect and every
+module architect, module engineer and capability architect must also work from a fresh
 session using durable records. Runtime failures remain separate from semantic
 outcomes; bounded recovery does not depend on
 a person answering a review request.
@@ -802,8 +814,8 @@ After bounded preparation recovery, unresolved readiness ends the run with
 evidence rather than waiting for review or beginning implementation anyway.
 
 Every invocation has a distinct identity. Before transferring write authority
-to another scoped engineer, checking the working tree or starting a replacement
-engineer, settle the previous writer's mutating tools. On timeout, cancellation
+to another scoped module engineer, checking the working tree or starting a replacement
+module engineer, settle the previous writer's mutating tools. On timeout, cancellation
 or recovery after a crash, confirm that the superseded invocation and its
 mutating subprocesses have stopped before releasing write authority. Discarding
 their replies does not prevent late filesystem writes. If shutdown cannot be
@@ -811,7 +823,7 @@ confirmed, do not start another writer or accept a check against that tree.
 
 Reject results from superseded invocations, and retain their original outcomes
 for diagnosis and usage accounting. The same rule applies after a context-budget
-return: a fresh engineer must not overlap an earlier tool still changing files.
+return: a fresh module engineer must not overlap an earlier tool still changing files.
 The harness owns process cleanup and write authority; an agent's statement that
 it has stopped is not sufficient evidence.
 
@@ -824,7 +836,7 @@ tool lifecycle, not an optional instruction for the agent to remember.
 
 After a settled mutation, run the bounded `ramify check --changed <path>...`
 check for the observed changed paths in the target project. Deliver newly
-introduced findings and explicit not-checked reasons to the engineer before
+introduced findings and explicit not-checked reasons to the module engineer before
 its next implementation step, and retain the complete check record with its
 revision, outcome and invocation. Observe actual mutations even when a tool
 fails; shell edits need changed-path capture rather than assuming only named
@@ -849,17 +861,17 @@ imports or target-project editor configuration are required.
 
 ### Harness-owned testing gates and repair
 
-The engineer proposes completion; the harness runs the required checks and
+The module engineer proposes completion; the harness runs the required checks and
 owns their verdict. A completion submission is provisional until the gate
 passes. Agents may run diagnostic checks during development, but their reports
-do not substitute for harness-run completion checks. The local architect still
+do not substitute for harness-run completion checks. The module architect still
 assesses whether the result fulfills its goal; passing commands alone does not
 prove semantic acceptance.
 
 Ordinary and capability architects issue the same assignment body and use
 one iteration executor. Capability coordination adds consumer/provider context
-and return routing; it does not add another engineer lifecycle. Before every
-engineer invocation, the common preparation refreshes and briefs each selected
+and return routing; it does not add another module engineer lifecycle. Before every
+module engineer invocation, the common preparation refreshes and briefs each selected
 owner's ordinary and testing foreign API views, separately, with actual paths,
 coverage and unavailable reasons. Included child subtrees are included in this
 preparation. Architect-view metadata cannot certify these views.
@@ -881,20 +893,20 @@ from diagnostic paths. Required scenarios belong to the
 bounded delegated goal; unrelated pending consumer scenarios stay pending.
 
 Capture the check commands, selection policy and required evidence obligations
-before the assignment starts. The engineer may add or update tests to implement
+before the assignment starts. The module engineer may add or update tests to implement
 the assigned behavior, but may not narrow discovery, disable required suites
 or weaken established guarantees to obtain a pass. Inspect changes to
 relevant test configuration and evidence against the captured assignment.
 Legitimate changes return to the coordinating architect for a recorded
 revision consistent with the original request and existing contract authority.
 
-"Local architect completion" means finishing its assigned module work item,
+"Module architect completion" means finishing its assigned module work item,
 including accepted current capability handbacks and its own remaining gates.
 It does not follow from a task handback alone. Global tests can expose failures
-outside the most recent engineer's scope. Return those findings to the local
+outside the most recent module engineer's scope. Return those findings to the module
 architect, which assigns scoped repair work and requests the global gate again.
 It uses the existing placement and delegation rules when another owner is
-needed; the failure does not authorize an engineer to expand its own writes.
+needed; the failure does not authorize a module engineer to expand its own writes.
 
 ```text
 engineering -> completion requested -> checking -> accepted iteration result
@@ -904,14 +916,14 @@ engineering -> completion requested -> checking -> accepted iteration result
 
 work-item completion requested -> global checking -> completed work item
                                      |
-                                     +-> failures -> local architect plans repair
+                                     +-> failures -> module architect plans repair
                                                       -> engineering and recheck
 ```
 
 The harness pauses implementation writes while checking and records the
 invocation, check commands, working directory, source/input identity, exit
 outcomes, timing and output references. Return all relevant producer failure diagnostics and
-references to the complete report and logs to the engineer. After repairs, run
+references to the complete report and logs to the module engineer. After repairs, run
 the required checks under the shared audit selection and freshness policy. Source changes after a
 check invalidate its result for completion. Persist passing evidence and the
 accepted result before releasing dependent work; do not mark a session complete
@@ -926,7 +938,7 @@ check repair remains separate from the existing review CheckFindings lifecycle.
 
 Repair uses a bounded, durable attempt counter. A context-budget return follows
 the normal partial-result handoff; a fresh session does not reset the counter.
-Exhaustion or an unsuitable scope returns unresolved findings to the local
+Exhaustion or an unsuitable scope returns unresolved findings to the module
 architect, subject to the run's overall recovery limits. A timeout, unavailable
 runner or interrupted check is not verified, never a pass; distinguish bounded
 infrastructure recovery from code repair. No failure enters a human-review wait.
@@ -935,11 +947,11 @@ Use a few explicit failure categories to select recovery:
 
 | Failure | Next action |
 | --- | --- |
-| Failed assertion, type error or Ramify violation | Return complete producer diagnostics to the engineer for bounded repair. The engineer decides whether a scope or design decision is needed. |
-| Runner failure, unavailable daemon or other execution infrastructure failure | Harness attempts bounded infrastructure recovery; do not ask the engineer to repair application code without evidence of a code defect. |
+| Failed assertion, type error or Ramify violation | Return complete producer diagnostics to the module engineer for bounded repair. The module engineer decides whether a scope or design decision is needed. |
+| Runner failure, unavailable daemon or other execution infrastructure failure | Harness attempts bounded infrastructure recovery; do not ask the module engineer to repair application code without evidence of a code defect. |
 | Invalid or lost agent session | Replace or reconstruct the session from durable records after settling its tools; preserve outstanding work and repair counters. |
-| Engineer session that ends without a result: an idle or absolute bound, a provider error, an adapter fault, a session that stops on its own, or rejected submissions at their bound | After its writer settles, preserve provisional source and record the ordinary partial result with its failure digest. Return it to the issuing architect under ordinary recovery bounds. A persisted result is replayed after restart without dispatching another writer; an unconfirmed settlement blocks replacement work. |
-| Required change outside the assignment or to an established obligation | Return to the local architect for a scoped assignment or recorded obligation revision. |
+| Module engineer session that ends without a result: an idle or absolute bound, a provider error, an adapter fault, a session that stops on its own, or rejected submissions at their bound | After its writer settles, preserve provisional source and record the ordinary partial result with its failure digest. Return it to the issuing architect under ordinary recovery bounds. A persisted result is replayed after restart without dispatching another writer; an unconfirmed settlement blocks replacement work. |
+| Required change outside the assignment or to an established obligation | Return to the module architect for a scoped assignment or recorded obligation revision. |
 
 An invocation's idle bound measures the session's silence, not the harness's
 work. A command the harness runs for the session, such as a shell call,
@@ -947,14 +959,14 @@ holds the idle bound for the command's own timeout plus a
 margin, because that timeout already bounds it; the invocation's absolute
 bound is unchanged, so every command stays bounded.
 
-An engineer's failure is its local architect's decision, and the architect
+A module engineer's failure is its module architect's decision, and the architect
 decides without reading a transcript. Before it is briefed the harness
 records a digest from what it already holds: why the session ended, the call
 in flight with the end of a command's output, what the session changed and
 whether it is uncommitted, what it said last and where its transcript is. A
 failure analyst then reads the transcript, the command outputs and the patch
 in a reader session of its own and submits a short account: what the
-engineer was attempting, what it finished, what it was doing when it ended,
+module engineer was attempting, what it finished, what it was doing when it ended,
 the cause as a bound too tight, an environment problem, a problem in the
 work, agent behavior or unknown, and a recommendation. An analysis that fails
 leaves the digest alone and never fails the run. The architect then assigns a
@@ -993,13 +1005,13 @@ The harness monitors model context usage in tokens and applies a policy by sessi
 
 | Session role | Context policy |
 | --- | --- |
-| Module engineer | Return to the local architect at the context threshold; no compaction. |
+| Module engineer | Return to the module architect at the context threshold; no compaction. |
 | Contract sub-session | Return to its caller at the context threshold; no compaction. |
-| Global architect decision fork | Return partial findings and explicit gaps at the context threshold; no compaction. |
-| Local architect or initial global analysis | Allow compaction and record every occurrence. |
-| Long-lived global architect context | Append briefs without inference; any required reorientation or compaction is deferred to the next requested fork invocation. |
+| Plan architect decision fork | Return partial findings and explicit gaps at the context threshold; no compaction. |
+| Module architect or initial global analysis | Allow compaction and record every occurrence. |
+| Long-lived plan architect context | Append briefs without inference; any required reorientation or compaction is deferred to the next requested fork invocation. |
 
-Each engineer or architect-decision invocation has a configurable context
+Each module engineer or architect-decision invocation has a configurable context
 threshold, leaving room below the model's context limit for a final report.
 The measurement is current
 model context usage, including cached context, rather than cumulative tokens spent.
@@ -1009,7 +1021,7 @@ execution boundaries rather than an exact token ceiling.
 
 When the threshold is reached, the harness stops further implementation and
 exploration, lets already-running tool work settle, and allows one final
-response without tools. The engineer reports changes made, verification
+response without tools. The module engineer reports changes made, verification
 performed, unfinished work and findings useful to its successor. The invocation
 returns `context_budget_reached` with that report and the observed usage:
 
@@ -1019,20 +1031,20 @@ working -> reporting -> returned(context_budget_reached)
 
 The harness persists this as an incomplete outcome. If reporting fails, it
 still returns the outcome with the available execution evidence and files;
-unfinished changes are not assumed to pass verification. A capability engineer
+unfinished changes are not assumed to pass verification. A capability-assigned module engineer
 that returns incomplete leaves its task unfinished; its coordinator assigns
 recovery and requires a structured result before handback.
 
 An architect decision fork that reaches its budget uses the same bounded
 reporting mechanism, returning partial findings and unresolved questions to the
 harness. This is not an accepted placement and does not trigger a parent model
-call. Apply bounded retry or return an unresolved outcome to the local architect.
+call. Apply bounded retry or return an unresolved outcome to the module architect.
 Inherited context counts toward the budget. If it leaves insufficient room,
 reorient from durable records or compact the seed as part of the next requested
 fork invocation, recording any compaction. Appending a brief never triggers this
 maintenance by itself; do not repeatedly retry an oversized context unchanged.
 
-The local architect uses an engineer's result to plan a fresh invocation. It may
+The module architect uses a module engineer's result to plan a fresh invocation. It may
 narrow the goal, delegate an excluded child subtree, or continue the remaining work with
 the same scope. Reaching the threshold does not by itself prove the scope was
 too broad: accumulated debugging or test output can also consume the budget.
@@ -1047,42 +1059,42 @@ request), success or failure, and context usage before and after where available
 Unavailable measurements remain explicit. Budget-return records include the
 configured threshold and observed usage.
 
-Measurements include compactions per session by role, the proportion of engineer
+Measurements include compactions per session by role, the proportion of module engineer
 invocations reaching their budget, decision-fork budget returns, and
 repeated budget returns for the same work item or placement request. Compaction
 is a diagnostic signal of context pressure, not an
-automatic failure: an initial analysis and a global architect or local architect
+automatic failure: an initial analysis and a plan architect or module architect
 serving many requests have different expectations. Repeated context exhaustion
 without meaningful progress is stronger evidence that decomposition needs revision.
-Replacing engineer compaction with fresh invocations must not hide that signal.
+Replacing module engineer compaction with fresh invocations must not hide that signal.
 
 ## 9. Example: an email button
 
-1. The global architect assigns the customer-page email action to
+1. The plan architect assigns the customer-page email action to
    `web/customer-page`. It hypothesizes shared email delivery for customer and
    invoice use cases, tentatively owned by `notifications`, and records that
    rationale. Only the entry assignment starts work; deeper hypotheses remain
    reviewable guidance.
-2. That work item's local architect receives the delivery hypothesis and its
+2. That work item's module architect receives the delivery hypothesis and its
    rationale. It keeps button rendering local, records that refinement, and
    finds existing customer data and a missing server operation. It
-   asks the global architect to resolve that need. The harness refreshes the
+   asks the plan architect to resolve that need. The harness refreshes the
    view and forks the accumulated architect context. The fork investigates and
    chooses the capability and server owner. The harness records that decision
    and appends its brief to the parent without invoking the model there. The
-   local architect receives the decision and plans the page's iterations.
-3. An engineer implementing the action records a capability request with the
+   module architect receives the decision and plans the page's iterations.
+3. A module engineer implementing the action records a capability request with the
    page's actual calling code, behavioral examples and partial source. The
-   local architect checks existing interfaces, then delegates the new server
+   module architect checks existing interfaces, then delegates the new server
    behavior to a fresh capability architect.
 4. That architect reads the page and server evidence, revises one plan and
-   assigns separate scoped engineers to the server and page. If an existing
+   assigns separate scoped module engineers to the server and page. If an existing
    notification service changes a guarantee used by another consumer, its
    owner receives a compatibility assignment and the original need remains
    linked through the plan revisions.
 5. The architect verifies the real server behavior and page interaction
    against current source, checks affected guarantees and requests handback.
-   The page engineer resumes its original assignment. The server's separate
+   The page module engineer resumes its original assignment. The server's separate
    entry work item later replans against the intervening changes and retains
    its own completion gate.
 6. Final composition checks the feature as a whole.
@@ -1126,7 +1138,7 @@ Previously completed work can reopen when requirements or evidence change.
 Superseded hypotheses leave the active progress list without being marked
 completed. Existing capabilities can satisfy a need through verified reuse.
 Provider progress does not replace verification of each consumer's requirements.
-These projections require no extra global architect calls or context updates.
+These projections require no extra plan architect calls or context updates.
 Whole-run completion still depends on original acceptance and all required
 obligations, rather than a count of completed capability nodes.
 
@@ -1161,7 +1173,7 @@ defines the current gates.
 
 1. **Provider scheduling and shared obligations.** How are readiness, revision
    identity and cycle detection represented with the smallest durable model?
-2. **Breaking-change isolation.** Can the local architect's initial analysis identify
+2. **Breaking-change isolation.** Can the module architect's initial analysis identify
    affected consumers and isolate and order ordinary breaking iterations well
    enough for every completed iteration to pass global checks, establishing a
    verified baseline for dependent non-breaking work?
@@ -1170,13 +1182,13 @@ defines the current gates.
    records preserve consistency without excessive parent context growth? What
    are the total token and latency costs, and how often is reorientation needed?
    Does combining the architect view and local source remain manageable for
-   local architects?
+   module architects?
 4. **Work-item granularity.** When should related entry capabilities in one
    module share a work item? Keep this a planning judgment rather than requiring
    one item for every capability or one permanent item per module.
 5. **Hypothesis feedback and local authority.** Do relevant hypotheses and
    rationales improve local choices without becoming implicit obligations?
-   Can local architects distinguish routine subtree decomposition from a
+   Can module architects distinguish routine subtree decomposition from a
    shared placement question, and act on material hypothesis revisions?
 6. **Contract artifact placement and execution.** Where do the interface,
    conformance suite and fake live so that consumer and provider verification
@@ -1185,20 +1197,20 @@ defines the current gates.
 The first experiment should exercise one consumer, one real delegation and
 verification on return, including a restart after contract registration.
 Check that the first assignment is executable without a detailed full-work-item
-breakdown, that the engineer chooses its implementation steps, and that a
+breakdown, that the module engineer chooses its implementation steps, and that a
 recommended split of remaining work informs the next local assignment while
 preserving unfinished obligations. Include a small case requiring only one
 iteration to check that decomposition is not imposed unnecessarily.
 It should also resolve two sequential placement requests in forks without a
 diff baseline. The first revises a deeper hypothesis and records a newly placed
 capability; the second inherits its brief and finds that capability in the
-registry instead of inventing a duplicate. Give the local architect a hypothesis
+registry instead of inventing a duplicate. Give the module architect a hypothesis
 with an external owner and multiple anticipated consumers; check that it uses
 the rationale, makes a routine local refinement without an extra global call
 or parent-context append, and refers counterevidence about shared placement
 to a global fork. Check that a later fork finds a locally registered, still
 unimplemented capability without a prior briefing. Verify a
-material hypothesis revision reaches affected local architects before dependent
+material hypothesis revision reaches affected module architects before dependent
 work is assigned, without adding speculative work or replacing accepted contracts.
 Include an unrelated change, a contradicted assumption and an alternative
 outside the suggested owner.
@@ -1213,7 +1225,7 @@ separately without blocking the experiment.
 Check that fake files and exports, including re-exports, follow the naming
 convention, and that the architect can identify the intended provider from the
 agreement without treating the visible fake as completed implementation.
-Exercise a failed module gate followed by an engineer repair, a global failure
+Exercise a failed module gate followed by a module engineer repair, a global failure
 at work-item completion requiring a new local assignment, and breaking work
 that remains green at every accepted iteration. Check exact-owner versus
 included-subtree test selection, contract conformance obligations, unavailable

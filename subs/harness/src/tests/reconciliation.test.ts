@@ -27,7 +27,7 @@ vi.mock('node:child_process', async original =>
 /*
  * Work-item reconciliation (Plan 12 iteration 5): at a completion request
  * the work item's reviews settle, and the CheckFindings they raised are
- * assessed by one fork of the local architect, at the point after that
+ * assessed by one fork of the module architect, at the point after that
  * request, in one submission. The assessment is committed before its brief
  * is appended to the architect's own session; a correction goes through the
  * ordinary iteration, gate and review; later rounds keep to the floor; and

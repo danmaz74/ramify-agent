@@ -5,7 +5,7 @@ import {
 import { StubClient, type StubRun } from './stub-client.js';
 
 /*
- * Answers of a run started with the engineer breakpoint, as the harness
+ * Answers of a run started with the module engineer breakpoint, as the harness
  * gives them, each parsed by its protocol schema.
  */
 
@@ -29,7 +29,7 @@ export function pause(extra: Partial<BreakpointState> = {}): BreakpointState {
   return breakpointStateSchema.parse({
     kind: 'breakpoint', planId: debugPlanId, runId: debugRunId, pauseId: 'bp-0001', revision: 1, cursor: 14, state: 'paused', role: 'engineer',
     work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, goal: 'Attach a note to a review', nextAction: 'execute the iteration',
-    taskState: 'pending', summary: 'The engineer for wi-001.i01 is prepared and waits for resume.',
+    taskState: 'pending', summary: 'The module engineer for wi-001.i01 is prepared and waits for resume.',
     ...extra,
   });
 }
@@ -60,7 +60,7 @@ export function inspection(occurrence: BreakpointState, run: RunSnapshot = debug
     inspection: {
       ...occurrence, kind: 'inspection', preview: true,
       input: {
-        roleInstructions: 'You are the engineer of this iteration.',
+        roleInstructions: 'You are the module engineer of this iteration.',
         message: `Implement ${occurrence.work.iteration ?? 'the task'} at revision ${occurrence.revision}.`,
         inherited: [{ key: 'plan', kind: 'plan', text: 'The plan text.', source: 'plans/review-notes/plan.md', revision: null }],
         additions: [{ key: 'gate-failure', kind: 'gate', text: 'The last gate failed.', source: null, revision: 'ga-0002' }],

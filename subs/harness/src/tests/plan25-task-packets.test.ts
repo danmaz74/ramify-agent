@@ -132,7 +132,7 @@ test('S05: in a capability run, every local architect orientation, selection and
   const variants: string[] = [];
   await runAcceptedHandback('revision', cleanups, false, async ({ root, planId, runId }) => {
     const { constructed, unconstructed, undelivered } = await stepDeliveries(root, planId, runId, ['local-architect', 'context-selector']);
-    // The capability qualification turns are local architect invocations outside the first set:
+    // The capability qualification turns are module architect invocations outside the first set:
     // the run builds them inline, and an import refuses them with that reason.
     for (const { invocation } of unconstructed) {
       const delivered = await readRecordedOperation(join(root, 'plans', '.harness', 'session-operations'), runId, invocation);

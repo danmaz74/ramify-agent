@@ -101,7 +101,7 @@ describe('closing is the last write', () => {
   test('the closing event of the run is last, and nothing follows it', async () => {
     const { events } = await recordedAt('');
     const order = events.map((event: RunEvent) => event.type);
-    // The analysis's three invocations (intake, initial architect, checker)
+    // The analysis's three invocations (intake, plan architect, checker)
     // are all closed before it is accepted.
     const beforeAcceptance = order.slice(0, order.indexOf('analysis-accepted'));
     expect(beforeAcceptance.filter(type => type === 'invocation-started')).toHaveLength(3);

@@ -138,9 +138,9 @@ describe('what a passed gate bound', () => {
 
 describe('continuation deltas', () => {
   test('a section is the same value whatever blank lines end it, so it is not sent again', () => {
-    const sections = taskSupportSections('# Goal\nG\n\n## The bounds of an engineer\n\nB\n\n\n', ['G']);
-    expect(sections.at(-1)).toEqual({ key: 'support:## The bounds of an engineer:0', text: '## The bounds of an engineer\n\nB' });
-    expect(taskSupportSections('# Goal\nG\n\n## The bounds of an engineer\n\nB\n', ['G'])).toEqual(sections);
+    const sections = taskSupportSections('# Goal\nG\n\n## The bounds of a module engineer\n\nB\n\n\n', ['G']);
+    expect(sections.at(-1)).toEqual({ key: 'support:## The bounds of a module engineer:0', text: '## The bounds of a module engineer\n\nB' });
+    expect(taskSupportSections('# Goal\nG\n\n## The bounds of a module engineer\n\nB\n', ['G'])).toEqual(sections);
   });
 
   test('a fork that retains its source\'s sections withdraws none of them', () => {

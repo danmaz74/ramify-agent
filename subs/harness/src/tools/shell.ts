@@ -9,9 +9,9 @@ import { classifyShellTestRun, shellTestDirectories, type FocusedCucumberSelecti
 import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type MutationOrder, type MutationSnapshot } from '../hooks/mutation-order.js';
 
 /*
- * The engineer's shell.
+ * The module engineer's shell.
  *
- * By decision 12 of the core records proposal an engineer has a shell, and
+ * By decision 12 of the core records proposal a module engineer has a shell, and
  * the implementation's own is withheld: what it receives is this harness
  * tool, run through the lifted executor. The command gets its own process
  * group, a built environment, a bounded timeout and an 8 KiB tail; the

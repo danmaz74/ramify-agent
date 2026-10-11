@@ -273,7 +273,7 @@ describe('S15: gate subjects, refusals and the in-place diagnosis', () => {
     expect(ambiguous).toMatchObject({ exitStatus: 2, attempt: null });
     expect(ambiguous.lines.join('\n')).toContain(`more than one completion proposal could be meant: ${first} (${workItem}.i01), ${second} (${workItem}.i01)`);
     expect((await gate({ checkpoint: 'iteration', invocation: 'inv-0099' })).lines.join('\n'))
-      .toContain('invocation inv-0099 is not an engineer\'s accepted completion proposal');
+      .toContain('invocation inv-0099 is not a module engineer\'s accepted completion proposal');
     expect((await gate({ checkpoint: 'readiness', invocation: first })).exitStatus).toBe(2);
     expect((await gate({ checkpoint: 'work-item' })).lines.join('\n')).toContain('holds no completion request awaiting its work-item gate');
     expect((await gate({ checkpoint: 'final' })).exitStatus).toBe(2);
@@ -459,7 +459,7 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
       const derive = (invocation: string, out = join(scratch, 'engineer.json')) => runStepCommandWith({
         command: 'inputs', role: 'engineer', fromRun: run, invocation: undefined, assignmentOf: invocation, out,
       }, { ramify: new FakeRamifyCli(), git: { currentHead: async () => 'base-9' }, configuredAudit: passingAudit(), index: readDeclaredTree });
-      // Until `after` records the assignment, there is none to derive the engineer's inputs from.
+      // Until `after` records the assignment, there is none to derive the module engineer's inputs from.
       expect(await derive(architect)).toMatchObject({ exitStatus: 2,
         stderr: `Refused: the manual run records no assignment by ${architect}; \`step after --invocation ${architect}\` records it\n` });
       const assigned = await after(run, architect, { git });
@@ -467,14 +467,14 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
       expect(assigned.applied.join('\n')).toContain(`work-item-started ${workLayout.item(item)}`);
       expect(assigned.applied).toContainEqual(`outline revision 1 of ${item}`);
       expect(assigned.applied).toContainEqual(`assignment ${item}.i01: ${join(run, iterationLayout.assignment(item, 1))}`);
-      expect(assigned.notRun).toEqual([`scheduling the engineer of ${item}.i01; a run starts it from the assignment record`]);
+      expect(assigned.notRun).toEqual([`scheduling the module engineer of ${item}.i01; a run starts it from the assignment record`]);
       const assignedEvent = (await runEventsOnDisk(source.root, source.planId, 'm-arch')).find(event => event.type === 'iteration-assigned');
       expect(assignedEvent?.data).toMatchObject({ workItem: item, iteration: `${item}.i01`, invocation: architect });
       const log = await readFile(join(run, runLayout.events), 'utf8');
       expect((await after(run, architect, { git })).applied).toEqual([`nothing more: ${item}.i01 was already assigned by ${architect}`]);
       expect(await readFile(join(run, runLayout.events), 'utf8')).toBe(log);
 
-      // The engineer's inputs, derived from the recorded assignment as the run derives them on acceptance.
+      // The module engineer's inputs, derived from the recorded assignment as the run derives them on acceptance.
       const derived = await derive(architect);
       expect(derived.exitStatus, derived.stderr).toBe(0);
       const engineerPath = join(scratch, 'engineer.json');
@@ -490,9 +490,9 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
       const rendered = await runStepCommandWith({ command: 'render', inputs: engineerPath, projectRoot: source.root });
       expect(rendered.exitStatus, rendered.stderr).toBe(0);
       expect(rendered.stdout).toContain('Raise the note limit to 500.');
-      // The architect's invocation is not an engineer's assignment, and a submission other than assign makes none.
+      // The architect's invocation is not a module engineer's assignment, and a submission other than assign makes none.
       expect((await derive(architect.replace(/\d+$/u, '9999'))).stderr).toContain('records no invocation');
-      // The engineer of that iteration reports partial work: its result, and the architect's next-turn inputs.
+      // The module engineer of that iteration reports partial work: its result, and the architect's next-turn inputs.
       const engineer = invocationOf(await stepHere(engineerPath,
         [{ kind: 'tool', tool: 'consult_architect', input: { message: 'Manual question to my assigning architect' } }, { kind: 'message', text: 'Manual engineer resumed its assignment' }, { kind: 'submit', input: partialReport(['Read the limit.'], ['Raise it to 500.']) }]));
       const manualLog = await RunLog.open(join(run, runLayout.events), 'm-arch');
@@ -507,13 +507,13 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
       const recordedEngineer = parseStepInputs(await readFile(join(run, runLayout.stepInputs(engineer)), 'utf8'));
       expect(recordedEngineer.role === 'engineer' && recordedEngineer.consultation).toEqual(engineerInputs.consultation);
       // Once its engineer started, the first inputs are no longer derived.
-      expect((await derive(architect, join(scratch, 'again.json'))).stderr).toContain(`the engineer of ${item}.i01 has started already (${engineer})`);
+      expect((await derive(architect, join(scratch, 'again.json'))).stderr).toContain(`the module engineer of ${item}.i01 has started already (${engineer})`);
       const reported = await after(run, engineer, { git });
       expect(reported.exitStatus, reported.lines.join('\n')).toBe(0);
       expect(reported.applied).toContainEqual(`the result of ${item}.i01: partial, ${join(run, iterationLayout.result(item, 1))}`);
       const nextPath = join(run, 'invocations', engineer, 'next-turn-inputs.json');
-      expect(reported.applied).toContainEqual(`the local architect's next-turn inputs: ${nextPath}`);
-      expect(reported.notRun).toEqual([`the local architect's next turn, which a run continues with ${item}.i01's result`]);
+      expect(reported.applied).toContainEqual(`the module architect's next-turn inputs: ${nextPath}`);
+      expect(reported.notRun).toEqual([`the module architect's next turn, which a run continues with ${item}.i01's result`]);
       const next = parseStepInputs(await readFile(nextPath, 'utf8'));
       if (next.role !== 'local-architect' || next.phase !== 'work-turn') throw new Error('not a work turn');
       expect(next).toMatchObject({ attempt: 2, run: { planId: source.planId, runId: 'm-arch' },
@@ -600,8 +600,8 @@ describe('S25: after an engineer\'s unsuitable report or capability need', () =>
     expect(await json(join(run, iterationLayout.result(workItem, 1)))).toMatchObject({ outcome: 'unsuitable',
       findings: ['unsuitable (scope): The limit is owned elsewhere.'], gate: null, commit: null });
     expect(reported.notRun).toEqual([
-      expect.stringMatching(new RegExp(`^the local architect's next-turn inputs: ${workItem}\\.i01 was assigned .*, whose work turn inputs this manual run does not hold$`, 'u')),
-      `the local architect's next turn, which a run continues with ${workItem}.i01's result`,
+      expect.stringMatching(new RegExp(`^the module architect's next-turn inputs: ${workItem}\\.i01 was assigned .*, whose work turn inputs this manual run does not hold$`, 'u')),
+      `the module architect's next turn, which a run continues with ${workItem}.i01's result`,
     ]);
     const log = await readFile(join(run, runLayout.events), 'utf8');
     expect((await after(run, engineer, { git })).applied).toEqual([`nothing more for the close: ${workItem}.i01 was already closed unsuitable`]);
@@ -634,7 +634,7 @@ describe('S25: after an engineer\'s unsuitable report or capability need', () =>
     const needed = await after(run, engineer, { git, provisionalSourceGit: sourceGit });
     expect(needed.exitStatus, needed.lines.join('\n')).toBe(0);
     expect(needed.applied).toEqual([expect.stringMatching(new RegExp(`^the provisional source of ${engineer} for request need-001: 1 changed path, ${run}/capabilities/snapshots/`, 'u'))]);
-    expect(needed.notRun).toEqual([`the capability workflow of ${workItem}'s need in ${workItem}.i01: its request record, its architect and its return to the engineer`]);
+    expect(needed.notRun).toEqual([`the capability workflow of ${workItem}'s need in ${workItem}.i01: its request record, its architect and its return to the module engineer`]);
     const log = await readFile(join(run, runLayout.events), 'utf8');
     const repeated = await after(run, engineer, { git, provisionalSourceGit: sourceGit });
     expect(repeated.applied, repeated.lines.join('\n')).toEqual(needed.applied);

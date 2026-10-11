@@ -3,7 +3,7 @@
 Local and capability architects submit the same complete assignment body. The
 shared builder and iteration executor prepare each selected owner's current
 ordinary/testing API views, enforce scope, capture candidate commits, run the
-same checks, return repairs to the engineer and request the same reviews.
+same checks, return repairs to the module engineer and request the same reviews.
 Capability coordination adds the consumer/provider context and a task owner for
 sequence, limits, nested dependencies and final handback. Partial or failed
 iterations remain partial or failed even after later work succeeds.
@@ -18,7 +18,7 @@ carries no coverage state, and the handback cites no evidence. The harness
 checks the non-test boundaries (no active assignment or child, the current
 plan revision and candidate, the task gate, reviews and reconciliation), never
 a cited file, an executed test or a provider/consumer test inventory. A
-handback completes neither the requesting engineer's assignment nor its
+handback completes neither the requesting module engineer's assignment nor its
 architect's scenarios, which that architect assesses and reports separately.
 
 Both architects inspect source and Git through the same read-only tools. Current
@@ -207,7 +207,7 @@ hiding or measured complexity justifies it.
     the composed verdict and the provider's result and published check
     results. A `pass` is a pass; `fail`, a failed harness rule or a declared
     setup command that exited non-zero (`setup-command-failed`) fails the
-    attempt, the engineer's to repair; an `indeterminate` verdict, a failed,
+    attempt, the module engineer's to repair; an `indeterminate` verdict, a failed,
     cancelled or refused request is not verified, never a pass, with cause
     `timeout` when the provider or the gate's own bound timed it out and
     `infrastructure` otherwise. Applicable evidence the provider reuses
@@ -232,13 +232,13 @@ hiding or measured complexity justifies it.
     attempt followed, and the check itself is left out of the scope
     comparison, because a command of the whole project would otherwise call
     every module violation a failure outside the assignment. A failed Ramify
-    check returns to the local architect whatever scope its findings lie in:
+    check returns to the module architect whatever scope its findings lie in:
     what a module may import is the architect's to arrange with the owner,
-    and an engineer given the same brief again cannot widen it. A type check
+    and a module engineer given the same brief again cannot widen it. A type check
     whose output format the project declares in `ramify-agent.json`
     (`"typeCheck": { "output": "tsc" }`) is attributed the same way: every
     error `tsc` names inside the write scope makes the failure in scope, the
-    engineer's to repair, and any error outside it makes it
+    module engineer's to repair, and any error outside it makes it
     `outside-assignment`. Output that is truncated, holds a line the reader
     cannot read, or names no error keeps the attribution by which commands
     failed, as does a type check without the declaration. No test output is
@@ -275,7 +275,7 @@ hiding or measured complexity justifies it.
     output. A setup command that did not pass is named with its declared
     name, its argv, its exit code, where its complete output is and the end
     of what it printed, followed by one line naming the commands it kept
-    from running. The local architect also receives what a module violation
+    from running. The module architect also receives what a module violation
     leaves it to decide.
 - `run/`: implementation runs. A run is a job, and the only durable authority
   of one is its `events.jsonl`: one flushed line is one transition, carrying
@@ -360,14 +360,14 @@ hiding or measured complexity justifies it.
     identity and reason. Unsupported or unavailable sources fail explicitly;
     only named source-backed reconstruction may establish a new session. Each invocation writes its session's
     transcript beside its observations: its start before the session
-    starts, and its end and point after the log's. An engineer or contract
+    starts, and its end and point after the log's. A module engineer or contract
     session that ends without a result, by a bound, a provider error, an
     adapter fault, stopping on its own or rejected submissions at their
     bound, ends its iteration and not the run: the iteration closes
     `partial` with the failure, its interruption and its invocation as a
     finding, what the session wrote stays uncommitted in the tree, and the
-    local architect's next turn reads it pre-analyzed (see `work/failure.ts`
-    below). The work item's `maxIterationsPerWorkItem` bounds an engineer
+    module architect's next turn reads it pre-analyzed (see `work/failure.ts`
+    below). The work item's `maxIterationsPerWorkItem` bounds a module engineer
     that keeps failing. A writer release that could not be confirmed still
     ends the run `agent-failed`, since no writer and no gate may follow it.
     Every other role's failed invocation still ends the run, except a
@@ -382,7 +382,7 @@ hiding or measured complexity justifies it.
     harness's work and not the session's silence: it holds the idle bound
     for the command's own timeout plus a margin of one minute. Its release
     starts the idle bound afresh, and the absolute bound is unchanged, so
-    every command stays bounded. An engineer's idle and absolute bounds are
+    every command stays bounded. A module engineer's idle and absolute bounds are
     its iteration's: the policy's, or what its assignment raised them to.
     It also keeps the calls in flight, at the moment a bound fires, and the
     session's last assistant text, which a failure digest reads.
@@ -405,7 +405,7 @@ hiding or measured complexity justifies it.
     manual run's `step gate` and `step after` call the same code.
 - `analysis/`: the run's initial analysis, which turns the plan into what the
   run needs before any work is assigned.
-  - `submission.ts`: the initial architect's submission, its strict schema
+  - `submission.ts`: the plan architect's submission, its strict schema
     and every rule the schema cannot hold: slugs unique in the run, an owner
     the view has or a module proposal whose parent it has, with a
     non-conflicting direct-child directory under that parent's `subs/` whose
@@ -419,7 +419,7 @@ hiding or measured complexity justifies it.
     scenarios' feature file.
   - `records.ts`: the `Hypothesis` and the `RegistryEntry`. A hypothesis is a
     forecast and nothing more: it has no reference to a work item, and
-    nothing references it but a decision and a local architect's input.
+    nothing references it but a decision and a module architect's input.
     Revision 1 is never rewritten. Its `change` has no value for extending a
     capability: an extension is forecast as `create`, and
     `changesExistingSymbols` says whether implementing it is expected to
@@ -435,11 +435,11 @@ hiding or measured complexity justifies it.
 - `architecture/`: capability identity and placement, resolved in sequential
   forks of one long-lived architect context. The initial analysis session
   becomes that context; it is never invoked for a decision.
-  - `records.ts`: the `PlacementRequest` a local architect makes and the
+  - `records.ts`: the `PlacementRequest` a module architect makes and the
     `PlacementDecision` one fork commits, with where each is materialized and
     how their identifiers are derived. A decision that replaces an earlier
     one says so in `revises`, with what it affects.
-  - `submission.ts`: what a fork submits, what a local architect submits when
+  - `submission.ts`: what a fork submits, what a module architect submits when
     it decides within its own authority, and what it submits when it cannot.
     The three carry the same decision body, and the rules beyond the schema
     are shared: an owner the refreshed view has or one a proposal creates
@@ -467,17 +467,17 @@ hiding or measured complexity justifies it.
   - `session.ts`: what one fork is given — the focused request, the
     refreshed view's identity, the registry and the decision log. It is not
     given the view's contents: the fork reads what it needs itself.
-- `work/`: module work items and their local architects.
+- `work/`: module work items and their module architects.
   - `records.ts`: the `WorkItem` and the `WorkItemOutline`, and where each is
     materialized beneath the run.
-  - `submission.ts`: what a local architect submits, and the rules beyond its
+  - `submission.ts`: what a module architect submits, and the rules beyond its
     schema. It offers `assign`, which commits an outline revision, the
     placement this architect decided itself and one iteration assignment;
-    `request-placement`, which asks the global architect where a capability
+    `request-placement`, which asks the plan architect where a capability
     belongs; `request-completion`, which commits an outline and asks for the
     work item's gate; `yield-for-providers`, which names the open
     requirements this work item waits for; and `unresolved`, which states a
-    conflict rather than weakening the request, for the global architect to
+    conflict rather than weakening the request, for the plan architect to
     answer.
   - `assignment.ts`: the assignment body an architect submits, with JSON
     schema descriptions of `included`, `extra`, `read` and `authorizations`,
@@ -494,17 +494,17 @@ hiding or measured complexity justifies it.
     guarantee the outline records as broken, and only it may state the
     explicitly broad base `{ modules, rationale }`, whose rationale may not
     be blank. An authorization names a guarded path and arrives with the
-    outline revision that records it. Its optional `bounds` raise an
-    engineer's command maximum, idle bound and absolute bound for the
+    outline revision that records it. Its optional `bounds` raise a
+    module engineer's command maximum, idle bound and absolute bound for the
     iteration, each with a reason: raised above the policy's value, at most
     the policy's ceiling, and a command never longer than the invocation
     that runs it.
   - `iterations.ts`: the `IterationAssignment` with its captured
     `WriteScope` and the bounds it raised, the `IterationResult` and the
     notice a created or removed module becomes, and where each is
-    materialized beneath the run. A result an engineer's failure closed
+    materialized beneath the run. A result a module engineer's failure closed
     carries `failure`: the `FailureDigest` and the `FailureAnalysis`.
-  - `failure.ts`: an engineer that ended without a result, as its local
+  - `failure.ts`: a module engineer that ended without a result, as its module
     architect learns of it, in two layers. The digest is the harness's own,
     bounded as a gate summary is: why the session ended, the call in flight
     with the last 30 lines of a command's output, what it changed and
@@ -537,17 +537,17 @@ hiding or measured complexity justifies it.
     `defaultWriteScopeOf` states, for an architect's briefing, an owner's
     directory, its immediate child modules, its owned nested-project roots
     and the guarded files beneath it.
-  - `engineer.ts`: what an engineer submits and the briefing it starts
-    from. An engineer has no test tool of its own: the briefing says, as
+  - `engineer.ts`: what a module engineer submits and the briefing it starts
+    from. A module engineer has no test tool of its own: the briefing says, as
     text, that the gate commits a candidate and asks the project's committed
     audit about it, names the assigned owners and their test areas, and
     lists the scenarios it must bind. To see particular tests run, the
-    engineer names their files to the project's runner through `shell`,
+    module engineer names their files to the project's runner through `shell`,
     which the `tools/` directory owns and which refuses a whole-suite run. `contract-needed` is how it reports that the
     behavior it needs is owned elsewhere: the need is stated as behavior, its
     turn ends there, and no session of its own is started for it.
     `break-discovered` reports that the goal needs a break; it returns to the
-    local architect and is refused to an engineer already working the
+    module architect and is refused to a module engineer already working the
     planned break.
   - `frontier.ts`: which hypothesis revisions each work item receives at a
     coordination point.
@@ -557,27 +557,27 @@ hiding or measured complexity justifies it.
     expect a capability elsewhere is told when that forecast is withdrawn.
   - `committed.ts`: the records a run has committed, read from the log rather
     than from the files, and validated again as they are read back.
-  - `session.ts`: what a local architect is given for one work item: the
+  - `session.ts`: what a module architect is given for one work item: the
     goal, its requirement and acceptance references, its module's onboarding
     and API view, the hypotheses it received with their rationales, the
     registry, and the placement decided for it — its own, and the
     consequences of a decision that names it. Its "Default write scope"
     block names the owner's directory, the only directories `included` may
     name and the guarded files beneath it. Where a view cannot be materialized the message says so, so
-    that absence is never read as a refusal. It states an engineer's bounds
-    and their ceilings, and after an engineer that ended without a result,
+    that absence is never read as a refusal. It states a module engineer's bounds
+    and their ceilings, and after a module engineer that ended without a result,
     the digest, then the analysis, then the architect's options: a fresh
     iteration, a completion request or `unresolved`, and, where a bound
     ended it, which bound and that it may be raised up to its ceiling.
   - `scenario-briefing.ts`: what the briefings say of a work item's
-    scenarios (architecture §6). The local architect is given every
+    scenarios (architecture §6). The module architect is given every
     scenario of its entry with its ID, state, text, feature file and, for a
-    sub-scenario, the integration scenario it came from; the engineer each
+    sub-scenario, the integration scenario it came from; the module engineer each
     one not done, the ones `assignment.obligations` names under "Scenarios
     to bind", the rules of binding and the request for named imports of
-    another owner's step files; an integration item's engineer its scenario
+    another owner's step files; an integration item's module engineer its scenario
     and the step files it imports. A provider or follow-up work item's
-    briefings say nothing about scenarios. The engineer's proposal must bind
+    briefings say nothing about scenarios. The module engineer's proposal must bind
     exactly the obligations `assignment.obligations` names (`work/engineer.ts`
     renders them under "Obligations to bind").
 - `contracts/`: one agreement between a consumer and a provider, and the
@@ -587,7 +587,7 @@ hiding or measured complexity justifies it.
     to it. A second consumer of the same agreement adds its requirement and
     nothing else, which is why a shared obligation is one provider execution
     per revision while each consumer verifies separately.
-  - `submission.ts`: the need an engineer reports, stated as behavior and
+  - `submission.ts`: the need a module engineer reports, stated as behavior and
     never as an interface, and what the contract sub-session submits.
     `established` registers; `incomplete` registers nothing. Neither carries
     the contract, its revision, the obligation, the requirement or the
@@ -679,11 +679,11 @@ hiding or measured complexity justifies it.
   `{{writeScope}}` and hashed with the package. The admitted task packet is retained
   in its immutable operation correlation; invocation records expose its actual
   delivery manifest. Each current task selects its effective procedure key/hash,
-  and inherited role/tool prefixes remain intact. The contract package is an engineer's with the contract skill
-  beside the module architect's: the role is an engineer, and the skill is
-  what makes the invocation a contract iteration. An engineer's prompt
+  and inherited role/tool prefixes remain intact. The contract package is a module engineer's with the contract skill
+  beside the module architect's: the role is a module engineer, and the skill is
+  what makes the invocation a contract iteration. A module engineer's prompt
   states the longest one of its commands may run, its iteration's. The
-  failure analyst's package reads what a failed engineer left and submits
+  failure analyst's package reads what a failed module engineer left and submits
   one short account; like a reviewer it reads and writes nothing else.
 - `guard/`: the write guard. A write is intercepted before it executes: the
   one target its action names is resolved against the invocation's working directory
@@ -707,7 +707,7 @@ hiding or measured complexity justifies it.
   seen afterwards, in the tree and in `outsideScope`, and every invocation
   that used the shell carries the `unguarded-shell` coverage gap.
 - `tools/`: the harness's own tools that are not one role's. `shell.ts` is
-  the shell an engineer receives in place of the implementation's own: one
+  the shell a module engineer receives in place of the implementation's own: one
   command through the lifted executor, in its own process group, with a
   environment built from the same allowlist as every other child, a timeout
   it may be given up to its session's maximum (the policy's
@@ -738,7 +738,7 @@ hiding or measured complexity justifies it.
   learns to ignore the hook ignores the one message that matters. Only a
   complete check that could not run itself leaves a gap to state. A finding
   this invocation has already been told about is not newly introduced, so it
-  is not reported at the engineer twice. A finding clears only on the
+  is not reported at the module engineer twice. A finding clears only on the
   provider's coverage: a check that analyzed its file, or that file's
   deletion, and no longer reports it, or a covering revision that lists it
   as removed; naming a not-analyzed or not-checked path clears nothing.
@@ -818,11 +818,11 @@ hiding or measured complexity justifies it.
     appends and the budget), its end and its point. A failed write is one
     coverage gap in the invocation's observations and never fails the
     session.
-- `sessions/`: one engineer session on one module, from a prompt a person
+- `sessions/`: one module engineer session on one module, from a prompt a person
   writes, outside any run; the root's `session` command runs it.
   - `single.ts`: `runSingleSession` takes the project lock, resolves the
     module in the architect view before any agent starts, and gives the
-    engineer the equipment an implementation run gives its engineers
+    module engineer the equipment an implementation run gives its module engineers
     (`work/engineer-equipment.ts`). The prompt is the iteration's goal; the
     write scope is the module's own contents plus the extra paths. It runs on
     the invocation runner (`steps/runner.ts`) in a manual run at
@@ -899,13 +899,13 @@ Its `prepareReview` API returns the briefing, tools and a validator bound to
 that attempt's delivered patches and actual tool answers. `src/reviews/` retains
 durable review envelopes, scheduling, run-log projections, concern provenance
 and work-item reconciliation. Every iteration that
-closes accepted after an engineer's passing gate has one request per review
+closes accepted after a module engineer's passing gate has one request per review
 question, code, scope and design, recorded before the driver passes it,
 keyed by the iteration, its audited commit, the question and the review
 policy; recovery records a request the log is owed. Each request binds the
 question's own inputs by hash and the point its reviewer starts from. Code
 review starts fresh. Scope review binds the plan excerpts its assignment
-cites and forks the local architect at the point that produced the
+cites and forks the module architect at the point that produced the
 assignment, which `iteration-assigned` records; the `outline-revised` that
 commits a completion request records the point after it. Design review
 binds a small selection of guidance from the candidate (its principles
@@ -950,7 +950,7 @@ what is left as not verified at the deadline and stopping those readers
 only; the queue stays open. An empty attention set goes to the work item's
 gate with no agent call. Otherwise one round records its basis (the audited
 source, the settled requests, the attention set in risk and credibility
-order, and the round's correction floor) and forks the local architect at
+order, and the round's correction floor) and forks the module architect at
 the original accepted completion-request point. A genuinely missing source
 uses only the explicitly recorded, source-backed reconciliation reconstruction;
 unsupported or corrupt history remains a failure. Its one submission relates, disposes of each signal and
@@ -969,7 +969,7 @@ otherwise the work item completes naming each signal it leaves unresolved.
 
 A gate's scenario results produce no CheckFinding. They are read from the
 raw runner output its audit published, for display only: a failed tracked
-scenario stays on its gate attempt, where the same engineer session answers
+scenario stays on its gate attempt, where the same module engineer session answers
 it with the gate's digest, and a passing gate withdraws no report.
 
 `src/projections/check-findings.ts` answers the CheckFinding protocol from
@@ -1012,7 +1012,7 @@ that has ended accepts none.
   branch and no commit, and a restart marks it interrupted like any other
   phase. The wait is not counted against `runAbsoluteMs`. The snapshot
   reports `review`: `not-reviewed`, or who approved, when and `duringRun`.
-- **The phases.** One invocation of the initial architect, then readiness,
+- **The phases.** One invocation of the plan architect, then readiness,
   then the work items, then the final gate. The frontier is read again on
   every round, because a delegation creates work items while the run runs.
   `invocation-started` is appended before the model operation is admitted and
@@ -1045,18 +1045,18 @@ that has ended accepts none.
   evidence is revalidated and the affected investigation repeats; two
   revisions are never combined. A fork that cannot decide returns findings
   and gaps, which consume one retry of `forkRetriesPerRequest` and are never
-  appended; exhaustion returns an unresolved outcome to the local architect.
-- **An unresolved request.** A local architect's `unresolved` answer is
+  appended; exhaustion returns an unresolved outcome to the module architect.
+- **An unresolved request.** A module architect's `unresolved` answer is
   recorded as an `UnresolvedRequest` and forks the architect context like a
   placement request. The fork answers with a placement `decision`, whose
-  constraints name only what a local architect can assign; a `deviation`,
+  constraints name only what a module architect can assign; a `deviation`,
   recorded beside the plan, which the work item goes on under; `environment`,
   when the conflict lies in how the gate or the harness runs; or
   `nothing-possible`, which fails the run. An `environment` answer carries a
   bounded diagnosis and a suggestion for the operator. `environment-reported`
   commits the `EnvironmentProblem` and its CheckFinding, and the run holds the
   work item until the operator answers: `resume`, or a waiver, returns the
-  work item to its continued local architect with the diagnosis and the
+  work item to its continued module architect with the diagnosis and the
   operator's note, to retry from its last outline; `end` fails the run. Nothing
   is placed, no deviation is recorded and the plan file is untouched. The run
   snapshot's `environmentProblems` states each one with its work item,
@@ -1072,15 +1072,15 @@ that has ended accepts none.
   it. A parent that can no longer be read raises the generation through
   `global-context-rebuilt`, which clears what was pending; the next fork is
   started fresh and oriented from the hypotheses, the registry and the
-  decisions. `decision-delivered` returns the decision to the local architect
+  decisions. `decision-delivered` returns the decision to the module architect
   that asked, before it plans anything further.
-- **A contract sub-session.** An engineer that needs behavior outside its
+- **A contract sub-session.** A module engineer that needs behavior outside its
   scope submits `contract-needed` with the need stated as behavior; its turn
   ends there and no nested live session is started. The harness resolves the
   owner from the registry and commits a `contract` assignment through
-  `contract-requested`, whose `requestedBy` names the engineer's iteration.
+  `contract-requested`, whose `requestedBy` names the module engineer's iteration.
   That assignment is a committed record, so a caller that dies discovers the
-  outcome without the original reply. The sub-session is an engineer
+  outcome without the original reply. The sub-session is a module engineer
   invocation with the contract skill, scoped to the requesting consumer, the
   contract, its conformance suite, its fake, the injection sites the need
   names (files of the consumer or of the provider that hold the fake, and
@@ -1109,17 +1109,17 @@ that has ended accepts none.
   obligation, and the final gate waits for every latest requirement revision.
 - **A dependency cycle.** The graph's nodes are capabilities. A capability
   that transitively depends on itself appends `dependency-cycle-detected`,
-  returns once to the local architect of the work item whose registration
+  returns once to the module architect of the work item whose registration
   closed it, and is a notice the person sees whether or not the re-plan
   resolved it. The same cycle detected again fails the run with
   `dependency-cycle`.
-- **Local placement authority.** A local architect places work within its own
+- **Local placement authority.** A module architect places work within its own
   subtree when the choice refines that subtree's established responsibility.
   Such a decision is committed with the assignment, with `authority: 'local'`
   and no request, and is discoverable from the registry: nothing is appended
   to the architect context for it, and a later fork finds the capability
   there. Physical containment alone does not make a capability local.
-- **The local architect.** One continuing session per work item: each turn
+- **The module architect.** One continuing session per work item: each turn
   after the first continues its durable recorded point with the current task
   and revision-bound updates. The policy permits compaction; the preserving Pi
   implementation conservatively disables actual compaction. `request-completion` commits an outline and runs the
@@ -1127,13 +1127,13 @@ that has ended accepts none.
   outcome, because a goal existing behavior already satisfies is verified
   reuse and the gate is what verifies it. `unresolved` states the conflict
   and its evidence rather than weakening the request, and a fork of the
-  global architect answers it. A failing gate
+  plan architect answers it. A failing gate
   returns to the same architect, which may revise its outline; exhaustion of
   `repairRoundsPerWorkItemGate` fails the run with `repair-exhausted` and the
   original cause preserved.
-- **An engineer that ends without a result.** A bound, a provider error, an
+- **A module engineer that ends without a result.** A bound, a provider error, an
   adapter fault, a session that stops on its own and rejected submissions at
-  their bound all end the iteration `partial` and return to the local
+  their bound all end the iteration `partial` and return to the module
   architect; only an unconfirmed writer release, and the run's own limits,
   end the run. Before the architect is briefed the harness records the
   failure digest and runs one `failure-analyst` invocation, a reader with
@@ -1141,9 +1141,9 @@ that has ended accepts none.
   at ten minutes; both go into the iteration's result. The architect may
   raise the next iteration's bounds in `assignment.bounds`, up to the
   policy's ceilings: 30 minutes for a command, 30 for the idle bound and 3
-  hours for an invocation. They apply to every engineer invocation of that
+  hours for an invocation. They apply to every module engineer invocation of that
   iteration, budget returns included, and the shell's schema and the
-  engineer's prompt state the command maximum. `runAbsoluteMs` is
+  module engineer's prompt state the command maximum. `runAbsoluteMs` is
   unchanged.
 - **Readiness.** The project root, stale scratch removed, a clean git
   repository, the compiler configuration, the project's configuration, the
@@ -1180,7 +1180,7 @@ that has ended accepts none.
   project's tests and scenarios are checks of its committed audit
   definition, and nothing in `ramify-agent.json` names them.
 - **The feature files.** Once readiness has passed and the run branch
-  exists, and before the first local architect starts, the harness renders
+  exists, and before the first module architect starts, the harness renders
   every tracked feature file from the scenario records and their states
   (`run/feature-files.ts`, with the `scenarios` child's
   `renderFeatureFiles`), writes it and commits it as "Scenarios of
@@ -1209,14 +1209,14 @@ that has ended accepts none.
   does Vitest. A gate's audit verdict decides the gate. The tracked
   scenario results are read from the check's raw runner output by their
   identity tags (`checks/scenario-results.ts`) for display only: they reach
-  the engineer in the gate's digest and the pages beside each scenario's
+  the module engineer in the gate's digest and the pages beside each scenario's
   state, and a failure is repaired like failing tests.
 - **Scenario states** (architecture §7 to §9). A tracked scenario's state is
   its obligation status, `pending`, `bound` or `done`, folded with every
   other obligation in `work/obligations.ts`. A local or capability
   assignment names the obligations its iteration must bind in
   `assignment.obligations`; the judge accepts only obligations the assigning
-  architect is responsible for. An engineer's `completion-proposed` binds
+  architect is responsible for. A module engineer's `completion-proposed` binds
   each of them exactly once in `bindings: { id, fakes }[]`; a proposal that
   leaves one out is rejected naming the missing IDs under the per-turn bound,
   before any commit, audit or review, and a `partial` report is exempt. An
@@ -1230,7 +1230,7 @@ that has ended accepts none.
   the next gate commit, materialization or rewording renders the files. A
   gate's scenario results are raw evidence beside the state: its
   failures, with their steps and the runner's complete diagnostics, reach
-  the engineer and architect without an inferred cause.
+  the module engineer and architect without an inferred cause.
 - **Integration work items** (architecture §10, `work/integration.ts`). The
   `obligation-reported` that reports the last sub-scenario of an integration
   scenario `done` commits, in the same transaction, a work item with origin
@@ -1238,13 +1238,13 @@ that has ended accepts none.
   ancestor of the sub-scenarios' owners. A `bound` sub-scenario is not
   enough. It is committed after every earlier item, so it queues behind the
   current one; `work-item-started` names every item's `origin`, and an
-  integration item's `scenario`. Its local architect's briefing carries the
+  integration item's `scenario`. Its module architect's briefing carries the
   scenario, the sub-scenarios with their owners, each owner's step files as
   the tree holds them (`src/tests/steps/`, or a testing module's
-  `src/steps/`), and the scope its engineer must be given: the ancestor with
+  `src/steps/`), and the scope its module engineer must be given: the ancestor with
   the child on each path to a sub-scenario's owner included, which the
   assignment's judge requires. The architect assigns the scenario; the
-  engineer writes a step file at the ancestor that imports the
+  module engineer writes a step file at the ancestor that imports the
   sub-scenarios' step files by name, adds the `expose-test` declarations
   along each path and binds it, and the architect reports it done. A failure
   of the integration scenario reaches the repair round as the raw failure
@@ -1288,7 +1288,7 @@ that has ended accepts none.
   duplicate. A gate whose audit completed is answered from the provider's
   published records, a nested one through its recorded invocation receipt,
   and nothing runs again. The tree is outside every transaction and is never
-  restored: an engineer interrupted mid-edit leaves a dirty tree, and
+  restored: a module engineer interrupted mid-edit leaves a dirty tree, and
   `git diff` shows the work that is not yet accepted.
 - **Measurement.** The baseline `B` is frozen from the run's first snapshot,
   before `job.json` is written, because `job.json` names it. Every invocation
@@ -1297,7 +1297,7 @@ that has ended accepts none.
 
 ## Quick pi tests
 
-The `session` command is also the quick pi test: one real engineer session
+The `session` command is also the quick pi test: one real module engineer session
 on a prepared copy of the fixture, with the equipment a run uses, to observe
 how a model reacts to one harness text, tool or refusal in about a minute.
 The root [README](../../README.md#quick-pi-tests) shows how to prepare a copy
@@ -1398,7 +1398,7 @@ The run's own tests are beside them.
   call arguments through the scripted Git, and whose work-item gates
   implement the scenario each completion request declared; re-rendering and its idempotence; the
   commit's lookup on recovery; the guarded list; a feature file that differs
-  at a gate as a guarded change; and an engineer whose edits of a feature
+  at a gate as a guarded change; and a module engineer whose edits of a feature
   file and of `ramify-agent.json` are refused, whose shell change is a
   guarded change, and whose file the gate's commit restores. The crash
   between the commit and its record is the recovery table's
@@ -1414,7 +1414,7 @@ The run's own tests are beside them.
   complete one that follows, a partial report under the same assignment,
   a rejected request answered by an assignment in the same turn, the
   rejection bound, and the final gate whose raw scenario results never
-  decide completion. Scripted local architects in every lifecycle test
+  decide completion. Scripted module architects in every lifecycle test
   report their entry's scenarios, or their integration scenario, `done`
   with their completion requests (`helpers/declarations.ts`), and the
   scripted runners report the scenarios a selection reaches as passed.
@@ -1443,10 +1443,10 @@ The run's own tests are beside them.
   (`helpers/badge-scenarios.ts`), and the final gate's full audit passes
   them.
 - `scenario-briefings.test.ts` covers what the agents are told of
-  scenarios: the local architect's section per scenario, the engineer's
+  scenarios: the module architect's section per scenario, the module engineer's
   "Scenarios to bind" and "Obligations to bind", other scenarios not done
-  and the rules, the integration engineer's section and a provider's
-  silence; `assignment.obligations`' judge; that an engineer is told the
+  and the rules, the integration module engineer's section and a provider's
+  silence; `assignment.obligations`' judge; that a module engineer is told the
   gate's audit runs its scenarios and is offered no scope test tool; and the
   diagnostics rendered from the raw runner output of a configured scenario
   check, failing and passing.
@@ -1459,7 +1459,7 @@ The run's own tests are beside them.
   kinds in distinct directories, a `Hypothesis` with no reference to a work
   item, and a projection that leaves every file and the log's version exactly
   as it found them.
-- `compaction.test.ts` compacts during an initial analysis and during a local
+- `compaction.test.ts` compacts during an initial analysis and during a module
   architect session and reads the observations back.
 - `run-commands.test.ts` covers the three command rules for `start-run` and
   `stop-job`; `review-stop.test.ts` covers the stop, its approval, a stop and
@@ -1491,7 +1491,7 @@ The run's own tests are beside them.
   `module-creation.test.ts` drive runs that assign, work and gate real
   iterations: a real defect repaired with `edit` and the one commit that
   follows, repair that exhausts, a failure outside the last scope that
-  returns to the local architect, a module created from an accepted
+  returns to the module architect, a module created from an accepted
   proposal, and a second iteration that rewrites nothing.
 - `scenario-projections.test.ts` reads the scenario list, the review, the
   entries' scenario counts, a gate's scenario summary and the events'
@@ -1502,13 +1502,13 @@ The run's own tests are beside them.
   changed while the gate ran that joins it, a crash on either side of the
   commit that still makes exactly one, and the message as a pure function of
   the records.
-- `engineer-submission.test.ts` breaks the engineer's schema, its rules and
+- `engineer-submission.test.ts` breaks the module engineer's schema, its rules and
   its own test tool's input; `line-events.test.ts` covers what a writer
   changed and the session counts.
 - `engineer-failures.test.ts` composes runs on the scripted fake, with no
-  process: an engineer ended by its absolute bound in the middle of a shell
+  process: a module engineer ended by its absolute bound in the middle of a shell
   command, its digest with the command's tail and its analysis in the next
-  briefing, the architect raising the bound, and the next engineer's shell
+  briefing, the architect raising the bound, and the next module engineer's shell
   taking the larger timeout; an analysis that fails or ends without a
   submission, which leaves the digest alone; every judged cause; each
   refused `bounds` value; and a hold under raised bounds, which lasts the
@@ -1522,7 +1522,7 @@ The run's own tests are beside them.
   file that falls back to a complete check, and a mutation whose changed set
   is unknown. `read-excursions.test.ts` covers the soft read boundary.
 - `neutral-actions.test.ts` shows that activity is read from each call's
-  action, and runs one engineer turn twice: once with the port's own tool
+  action, and runs one module engineer turn twice: once with the port's own tool
   names and once as an executor whose read tool is `Read` with `file_path`
   and whose write tools are named otherwise again. Both leave the same
   reads, searches, excursions, guard decisions and mutations.
@@ -1580,12 +1580,12 @@ and exploration. Benefit assessment belongs to Dan; these changes add no trial
 or performance threshold. [Plan 24](../../docs/plans/24-orientation-for-context-selection/main-plan.md)
 records implementation and qualification.
 
-Optional explicit `startingPoints` on orientation, assignment and engineer results
+Optional explicit `startingPoints` on orientation, assignment and module engineer results
 use the named `support:starting-points` section. The harness records producer,
 work-item/iteration/invocation and source-boundary origins; exact path/note pairs
 coalesce with every origin. Pointers are unverified navigation help, carrying no
 scope, obligation or satisfaction authority. Retained orientation is inherited;
-fresh fallback supplies available recorded pointers. Engineers receive selected
+fresh fallback supplies available recorded pointers. Module engineers receive selected
 assignment pointers, architects receive labeled result pointers, and reviewers
 receive pointers for their exact candidate. Snapshot filters omit inaccessible,
 absent, symlink, generated-view and run-record hints using captured entries.

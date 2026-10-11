@@ -81,7 +81,7 @@ function invocation(writer: TranscriptWriter, id: string) {
   return { transcript, gaps };
 }
 
-const start = (systemPrompt = 'You are the engineer.', prompt = 'Raise the note limit to 500.'): InvocationStart => ({
+const start = (systemPrompt = 'You are the module engineer.', prompt = 'Raise the note limit to 500.'): InvocationStart => ({
   role: 'engineer', work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, start: 'opened', requested: 'fresh',
   executor: 'scripted', model: null, systemPrompt, prompt,
 });
@@ -171,7 +171,7 @@ describe('a transcript', () => {
     const { root, store, writer } = await directory();
     const file = `${'export const noteLimit = 500;\n'.repeat(400)}`;
     expect(Buffer.byteLength(file)).toBeGreaterThan(inlineBytes);
-    const systemPrompt = 'You are the engineer. Work only inside your scope.';
+    const systemPrompt = 'You are the module engineer. Work only inside your scope.';
 
     const first = invocation(writer(), 'inv-0001');
     await first.transcript.started(start(systemPrompt));

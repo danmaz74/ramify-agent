@@ -35,7 +35,7 @@ import {
 } from './inputs.js';
 
 /*
- * The local architect's steps: its orientation, the selection of its work
+ * The module architect's steps: its orientation, the selection of its work
  * item's elements by a selector that forks it, and its work turns. The run
  * builds each of these invocations through these constructors, and
  * `step render` renders the same construction.
@@ -43,7 +43,7 @@ import {
 
 const readers = ['read', 'grep', 'ls'] as const;
 
-/** The task kind of a local architect's turn, from why it continues its session. */
+/** The task kind of a module architect's turn, from why it continues its session. */
 function workTurnKind(continuing: ContinueReason | undefined): TaskKind {
   return continuing === 'completion-refused' ? 'completion' : continuing === 'repair' ? 'repair' : 'assignment';
 }
@@ -85,9 +85,9 @@ export interface ConstructedOrientationStep extends ConstructedStepCommon {
   readonly validate: (input: unknown) => SubmissionValidation<WorkOrientationSubmission>;
 }
 
-/** Builds the local architect's orientation from its inputs. Nothing is read or written. */
+/** Builds the module architect's orientation from its inputs. Nothing is read or written. */
 export function constructOrientationStep(value: unknown, environment: StepEnvironment): ConstructedOrientationStep {
-  const inputs = expect(value, (entry): entry is OrientationStepInputs => entry.role === 'local-architect' && entry.phase === 'orientation', 'local architect orientation');
+  const inputs = expect(value, (entry): entry is OrientationStepInputs => entry.role === 'local-architect' && entry.phase === 'orientation', 'module architect orientation');
   const { projectRoot } = environment;
   const loaded = loadedPackage(environment, 'local-architect');
   const workingDirectory = projectLocation(environment, inputs.workingDirectory);
@@ -144,7 +144,7 @@ export function constructSelectorStep(value: unknown, environment: StepEnvironme
   const prompt = contextSelectorMessage(forked ? inputs.update : inputs.packet, inputs.catalog, capturedPlan);
   const limits = invocationLimits(inputs.limits, {});
   const submission = {
-    toolName: contextSelectorToolName, description: 'Select, by ID, the elements an engineer working this work item must keep in view.',
+    toolName: contextSelectorToolName, description: 'Select, by ID, the elements a module engineer working this work item must keep in view.',
     inputSchema: contextSelectorJsonSchema, submissionSchema: 'ramify-agent.context-selector-submission/1',
   };
   // A fork inherits the briefing, the known facts and the starting points of the session it forks.
@@ -203,9 +203,9 @@ function workTurnViews(environment: StepEnvironment, inputs: WorkTurnStepInputs)
     coverage: view.coverage === null ? [] : [apiCoverageStatement(view.coverage)] }));
 }
 
-/** Builds one local architect work turn from its inputs. Nothing is read or written. */
+/** Builds one module architect work turn from its inputs. Nothing is read or written. */
 export function constructWorkTurnStep(value: unknown, environment: StepEnvironment): ConstructedWorkTurnStep {
-  const inputs = expect(value, (entry): entry is WorkTurnStepInputs => entry.role === 'local-architect' && entry.phase === 'work-turn', 'local architect work turn');
+  const inputs = expect(value, (entry): entry is WorkTurnStepInputs => entry.role === 'local-architect' && entry.phase === 'work-turn', 'module architect work turn');
   const { projectRoot } = environment;
   const loaded = loadedPackage(environment, 'local-architect');
   const workingDirectory = projectLocation(environment, inputs.workingDirectory);
@@ -304,14 +304,14 @@ export function workEvidenceOf(step: Pick<ConstructedWorkTurnStep, 'inputs'>, in
 /** What judging a work turn's submission answers: the verdict, what a rejected completion left unreported, and the scope an assignment captured. */
 export interface WorkTurnJudgement {
   readonly verdict: SubmissionValidation<LocalArchitectSubmission>;
-  /** What a completion request the local architect's rules rejected left without a done report; undefined where they accepted it. */
+  /** What a completion request the module architect's rules rejected left without a done report; undefined where they accepted it. */
   readonly unreported: readonly string[] | undefined;
   readonly prepared?: { readonly body: AssignmentBody; readonly scope: WriteScope } | undefined;
 }
 
 /**
  * Judges one work-turn submission as the run does: the historical workflow
- * the capability workflow retired, the local architect's rules over the
+ * the capability workflow retired, the module architect's rules over the
  * step's evidence, and, for an assignment, the scope preparation the
  * provider answers. Nothing is committed.
  */

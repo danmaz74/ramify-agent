@@ -76,7 +76,7 @@ The agent doing the work receives the relevant failures and their complete
 diagnostics, investigates them and makes the repairs. It asks its architect
 when it needs a scope or architectural decision. The harness does not infer
 repair responsibility from test locations, failure counts or comparison with
-a second test run. It records audit results and enforces execution and write boundaries. The local architect reads those results and the implementation and tests, assesses whether the requirement is satisfied, and reports its judgment to the harness, which trusts and records it.
+a second test run. It records audit results and enforces execution and write boundaries. The module architect reads those results and the implementation and tests, assesses whether the requirement is satisfied, and reports its judgment to the harness, which trusts and records it.
 
 ### Bounded Context Is What Makes Agents Efficient
 
@@ -108,7 +108,7 @@ check. Each invocation retrieves only the information needed for that goal.
 
 A focused goal may require coordinated changes to several artifacts. A fresh
 capability architect may read relevant consumer and provider source and evidence
-for one bounded task without inheriting either local architect's full history.
+for one bounded task without inheriting either module architect's full history.
 It continues within the task and returns a concise brief after verification.
 
 The division of work should also facilitate integration and maintain a clean
@@ -192,7 +192,7 @@ breaking change necessary.
 
 ### Every Agent Scope Is a Cut on the Module Tree
 
-An architect's read and design context can span several modules. Each engineer
+An architect's read and design context can span several modules. Each module engineer
 has a separate module write scope. A capability architect's authority to
 coordinate several owners does not combine their write scopes or change their
 module responsibilities. Ramify supplies the evidence for choosing each scope
@@ -227,7 +227,7 @@ The phase also records what only the global view can supply:
   the module that needs it;
 - seams: where modules in different branches must agree on an interface.
 
-Finer detail is left to the engineer who reads the code.
+Finer detail is left to the module engineer who reads the code.
 
 ### Vertical Work Is Not Split Artificially
 
@@ -242,9 +242,11 @@ that must be understood together at that abstraction level; it is assessed
 qualitatively rather than computed from source size. That assessment guides
 the choice. Work decomposition is not 1:1 with module decomposition.
 
-### Every Engineer Uses the Same Iteration Lifecycle
+<a id="every-engineer-uses-the-same-iteration-lifecycle"></a>
 
-The issuing architect's context differs; assignment preparation, engineer tools,
+### Every Module Engineer Uses the Same Iteration Lifecycle
+
+The issuing architect's context differs; assignment preparation, module engineer tools,
 API views, gates, candidate commits, reviews, repair and recovery do not. A
 capability architect knows both consumer and provider and returns a verified
 bounded result to its caller. It uses the ordinary executor and result records.
@@ -253,7 +255,7 @@ replay tool does not replace those existing inspection surfaces.
 
 ### Horizontal Work Uses Separate Agents Joined by a Contract
 
-Implementation in different branches uses separate scoped engineers. A fresh
+Implementation in different branches uses separate scoped module engineers. A fresh
 capability architect coordinates the interface, provider implementation,
 affected consumers and requesting consumer under one durable task. It reads
 the relevant source and evidence, revises the design as findings develop, and
@@ -268,7 +270,7 @@ remove an earlier guarantee.
 
 ### Fakes and Tests Guide Delegation
 
-An engineer's capability request records required behavior, actual or
+A module engineer's capability request records required behavior, actual or
 prospective usage, known constraints and examples. Pseudocode and proposed
 signatures remain provisional. The original need survives plan and API
 revisions. Executable evidence develops with the design, and real provider
@@ -294,7 +296,7 @@ retiring it means re-plumbing its consumer. The agreement names the real
 export each fake stands for, and the implementing assignments and their gates
 verify exposure parity while it is used. Every source change remains within
 the assigned module scope; a fake file does not create an exception allowing
-an engineer to write in another owner's internals.
+a module engineer to write in another owner's internals.
 
 Retiring a fake is the harness's and its agents' concern: verification
 replaces it with the real provider and removes its exposure with it. Ramify,
@@ -303,9 +305,9 @@ the build and the audit stay out of it.
 ### A Plan's Acceptance Is Its Scenarios
 
 A plan's acceptance is a set of Gherkin scenarios: the plan's own, and those
-the initial architect writes for each entry capability. Their text is frozen
+the plan architect writes for each entry capability. Their text is frozen
 when the analysis is accepted. Agents bind them late, with step definitions.
-Only the global architect's recorded plan-deviation process may reword a
+Only the plan architect's recorded plan-deviation process may reword a
 pending scenario; bound or completed scenarios remain protected. The captured
 plan and frozen catalog retain their original text. Only the harness writes a
 feature file or moves a scenario's state.
@@ -337,7 +339,7 @@ required gate into an option.
 
 ### Work Starts at the Consumer; Integration Happens on the Return
 
-Work begins at the highest consumer of the feature. An engineer records a
+Work begins at the highest consumer of the feature. A module engineer records a
 capability request when required behavior is outside its scope, preserving its
 partial candidate and original examples. The qualified task coordinates
 provider work, compatibility repairs and real consumer integration. A nested
@@ -353,7 +355,7 @@ the work starts and how it reaches them.
 
 ### Need-to-Know Does Not Forbid Asking
 
-An engineer never holds the global view, but it can ask the architect whether
+A module engineer never holds the global view, but it can ask the architect whether
 behavior exists and whether its module may use it.
 
 Ownership and placement decisions belong to the architect. Structural changes
@@ -374,9 +376,9 @@ A need discovered during work costs what its kind requires:
 
 | Discovery | Cost |
 | --- | --- |
-| Exists and is available | None; the engineer uses it. |
+| Exists and is available | None; the module engineer uses it. |
 | Exists but is not available | The exposure declarations along the path, proposed by the architect. |
-| Missing; its owner is within the agent's scope | None; the engineer implements it. |
+| Missing; its owner is within the agent's scope | None; the module engineer implements it. |
 | Missing; its owner is elsewhere | An architect decision, then a new seam or a changed scope. |
 | The planned ownership is wrong | A person's decision. |
 
@@ -384,11 +386,11 @@ The harness never treats every discovery as a reason to pause the run.
 
 ### State Lives in the Repository
 
-A blocked engineer records its need and may leave failing tests, stubs, staged
+A blocked module engineer records its need and may leave failing tests, stubs, staged
 edits or untracked source. The harness captures the dirty candidate and its
 attribution after the writer settles and before suspension. Fresh recovery
 uses the durable request, plan, source and results; it cannot discard the
-candidate or invent a completed engineer result.
+candidate or invent a completed module engineer result.
 
 Only the next iteration's goal is fixed; later iterations are decided from
 the state reached. Resuming a session is an optimization, never a requirement
@@ -436,10 +438,12 @@ environment. A violation reaches the agent as an ordinary error.
 A runtime failure, such as a crashed session or malformed output, is never a
 semantic outcome.
 
-### An Engineer's Failure Is Its Architect's Decision
+<a id="an-engineers-failure-is-its-architects-decision"></a>
 
-An engineer that ends without a result ends its iteration, not the run. Its
-local architect decides what comes next; only what the harness itself cannot
+### A Module Engineer's Failure Is Its Architect's Decision
+
+A module engineer that ends without a result ends its iteration, not the run. Its
+module architect decides what comes next; only what the harness itself cannot
 continue from ends the run.
 
 ### Agent Invocations Should Be Considered Idempotent

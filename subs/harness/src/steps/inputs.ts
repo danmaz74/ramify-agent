@@ -52,7 +52,7 @@ const text = z.string().min(1);
 /** A durable session point reference, as the session operations record it. */
 const pointReferenceSchema = z.string().refine(ref => readSessionPointReference(ref) !== null, 'a recorded session point reference');
 
-/** One scenario as an engineer's briefing carries it. */
+/** One scenario as a module engineer's briefing carries it. */
 const briefedScenarioSchema = z.object({
   id: text, name: text, state: scenarioStateSchema, file: relativePath, source: z.array(z.string()), partOf: z.string().nullable(),
 }).strict();
@@ -86,7 +86,7 @@ const focusedCommandSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('unavailable'), reason: text }).strict(),
 ]);
 
-/** What the run told the engineer of one written module's API views. */
+/** What the run told the module engineer of one written module's API views. */
 const apiViewsSchema = z.object({
   module: text,
   views: z.array(z.object({ area: text, path: projectPathSchema, revision: text, coverage: z.number().nullable() }).strict()),
@@ -134,7 +134,7 @@ const runProvenanceSchema = z.object({
 
 /**
  * Inputs authored without a run: the work item, the outline revisions and
- * the assignment an author supplied, each judged as the local architect's
+ * the assignment an author supplied, each judged as the module architect's
  * output. The assignment is the inputs' own; the work item and the outlines
  * are carried here, so the manual run that executes the inputs records all
  * three before its invocation starts.
@@ -148,7 +148,7 @@ const authoredProvenanceSchema = z.object({
 
 /**
  * Engineer inputs derived from an assignment a manual run recorded: the
- * local architect invocation whose accepted `assign` made it, and the
+ * module architect invocation whose accepted `assign` made it, and the
  * assignment record `step after` committed for it.
  */
 const assignmentProvenanceSchema = z.object({
@@ -162,7 +162,7 @@ const provenanceSchema = z.union([runProvenanceSchema, authoredProvenanceSchema,
 export type StepProvenance = z.infer<typeof provenanceSchema>;
 export type RunProvenance = z.infer<typeof runProvenanceSchema>;
 
-/** The fields every engineer start shares: the fresh inputs. */
+/** The fields every module engineer start shares: the fresh inputs. */
 const engineerFields = {
   consultation: consultationInputsSchema.nullable().optional(),
   schema: z.literal(stepInputsSchemaId),
@@ -178,7 +178,7 @@ const engineerFields = {
   base: text,
   /** The tree a capability task's iteration starts from, where it has one. */
   candidateBefore: text.optional(),
-  /** Whether the run coordinates capability needs, which selects the handback the engineer may submit. */
+  /** Whether the run coordinates capability needs, which selects the handback the module engineer may submit. */
   capabilityWorkflow: z.boolean(),
   /** Whether the run's policy offers the capability submission. */
   capabilityPolicy: z.boolean(),
@@ -198,7 +198,7 @@ const engineerFields = {
   guidance: z.string().optional(),
   startingPoints: startingPointGroupSchema.nullable(),
   known: knownFactsSchema,
-  /** Files the harness protects, refused to the engineer whatever its scope: the run's own and the unauthorized guarded ones. */
+  /** Files the harness protects, refused to the module engineer whatever its scope: the run's own and the unauthorized guarded ones. */
   protectedFiles: z.object({ harness: z.array(projectPathSchema), unauthorized: z.array(projectPathSchema) }).strict(),
   bounds: z.object({ idleMs: z.int().positive(), absoluteMs: z.int().positive(), commandTimeoutMs: z.int().positive() }).strict(),
   limits: runPolicySchema.shape.limits,
@@ -227,7 +227,7 @@ const resumedEngineerSchema = z.object({
   start: z.object({ kind: z.literal('resumed-after-handback'), session: text, point: pointReferenceSchema }).strict(),
 }).strict();
 
-/** The engineer's inputs: fresh, a repair continuing its session, or resumed after a capability handback. */
+/** The module engineer's inputs: fresh, a repair continuing its session, or resumed after a capability handback. */
 export const engineerStepInputsSchema = z.union([freshEngineerSchema, repairEngineerSchema, resumedEngineerSchema]);
 export type EngineerStepInputs = z.infer<typeof engineerStepInputsSchema>;
 export type EngineerStart = EngineerStepInputs['start']['kind'];
@@ -252,7 +252,7 @@ const commonFields = {
 };
 
 /**
- * The local architect's briefing of one work item, as the run collected it:
+ * The module architect's briefing of one work item, as the run collected it:
  * the work item and its outlines as their records, the rest as captured
  * facts. The runtime locations it is rendered with are not part of it: the
  * project root and the run directory come from the environment and the
@@ -298,7 +298,7 @@ const orientationFields = {
   architectView: z.array(environmentViewSchema),
 };
 
-/** The local architect's orientation: always a fresh start, before any assignment. */
+/** The module architect's orientation: always a fresh start, before any assignment. */
 const orientationSchema = z.object({ ...orientationFields, start: z.object({ kind: z.literal('fresh') }).strict() }).strict();
 
 const selectorFields = {
@@ -531,7 +531,7 @@ function validateAs<R extends StepInputs>(value: unknown, matches: (inputs: Step
 export const validateEngineerInputs = (value: unknown): EngineerStepInputs =>
   validateAs(value, (inputs): inputs is EngineerStepInputs => inputs.role === 'engineer', 'engineer');
 export const validateWorkTurnInputs = (value: unknown): WorkTurnStepInputs =>
-  validateAs(value, (inputs): inputs is WorkTurnStepInputs => inputs.role === 'local-architect' && inputs.phase === 'work-turn', 'local architect work-turn');
+  validateAs(value, (inputs): inputs is WorkTurnStepInputs => inputs.role === 'local-architect' && inputs.phase === 'work-turn', 'module architect work-turn');
 export const validateSelectorInputs = (value: unknown): SelectorStepInputs =>
   validateAs(value, (inputs): inputs is SelectorStepInputs => inputs.role === 'context-selector', 'context selector');
 export const validateReviewInputs = (value: unknown): ReviewStepInputs =>
@@ -539,7 +539,7 @@ export const validateReviewInputs = (value: unknown): ReviewStepInputs =>
 export const validateDesignOrientationInputs = (value: unknown): DesignOrientationStepInputs =>
   validateAs(value, (inputs): inputs is DesignOrientationStepInputs => inputs.role === 'reviewer' && inputs.question === 'design-orientation', 'design orientation');
 export const validateOrientationInputs = (value: unknown): OrientationStepInputs =>
-  validateAs(value, (inputs): inputs is OrientationStepInputs => inputs.role === 'local-architect' && inputs.phase === 'orientation', 'local architect orientation');
+  validateAs(value, (inputs): inputs is OrientationStepInputs => inputs.role === 'local-architect' && inputs.phase === 'orientation', 'module architect orientation');
 
 /** The bytes step inputs are written as. */
 export function serializeStepInputs(inputs: StepInputs): string {

@@ -39,7 +39,7 @@ const hashedRefSchema = z.object({ ref: text, hash: sha256Schema }).strict();
 /**
  * The session point a review starts from. Code review never forks, so its
  * key cannot change when forks are introduced for the other questions. A
- * scope review names the local architect's pinned point at the assignment,
+ * scope review names the module architect's pinned point at the assignment,
  * or why none was captured. A design review names the orientation of its
  * guidance selection by key: the orientation is made by the first attempt
  * that needs it, and every design review of the same key forks it.

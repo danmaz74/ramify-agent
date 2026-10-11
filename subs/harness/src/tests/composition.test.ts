@@ -183,7 +183,7 @@ describe('the composed runs', () => {
     const events = run.service.events(plan, run.runId)!;
     const engineers = events.filter(event => event.type === 'invocation-started' && event.data.role === 'engineer');
     expect(engineers).toHaveLength(1);
-    if (engineers[0]?.type !== 'invocation-started') throw new Error('Missing original engineer');
+    if (engineers[0]?.type !== 'invocation-started') throw new Error('Missing original module engineer');
     const engineer = engineers[0].data.invocation;
     const ended = events.find(event => event.type === 'invocation-ended' && event.data.invocation === engineer);
     expect(ended).toMatchObject({ data: { ended: 'context-budget-reached', submission: null } });
@@ -637,7 +637,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'submission engineer[capability-needed].request.examples[].designation', values: ['pseudocode'], file: 'subs/harness/src/tests/capability-delegation.test.ts', test: 'CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and keeps A and B separate' },
   { union: 'query events.events[].refs[].kind', values: ['capability-request', 'capability-task', 'capability-assignment'], file: 'subs/harness/src/tests/capability-tasks-projection.test.ts', test: 'CA23: capability event references identify requests, tasks and assignments' },
   // Plan 21 iteration 5: registrations and reports in driven local and capability runs. Every architect submission
-  // shares one registrations/reports schema, so it is named after its first site, the local architect's assign.
+  // shares one registrations/reports schema, so it is named after its first site, the module architect's assign.
   { union: 'run log.type', values: ['obligation-registered', 'obligation-reported'], file: 'subs/harness/src/tests/local-architect-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: an invalid report is refused before any effect; the accepted one records the test, the judgments and the where text as written' },
   { union: 'run log[obligation-registered].data.kind', values: ['scenario', 'test'], file: 'subs/harness/src/tests/capability-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: a capability architect registers a case and a test and reports during coordination; the run records exactly that' },
   { union: 'run log[obligation-registered].data.responsible.kind', values: ['work-item'], file: 'subs/harness/src/tests/local-architect-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: an invalid report is refused before any effect; the accepted one records the test, the judgments and the where text as written' },
@@ -654,7 +654,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   // Plan 12: CheckFindings committed through a driven run's own transition, and iteration reviews.
   { union: 'run log.type', values: ['check-findings-recorded'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
   { union: 'run log[check-findings-recorded].data.cause.kind', values: ['producer'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
-  // H7: an unresolved request the global architect answers with a plan deviation, which may reword a pending scenario.
+  // H7: an unresolved request the plan architect answers with a plan deviation, which may reword a pending scenario.
   { union: 'run log.type', values: ['plan-deviation-recorded'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
   { union: 'run log[invocation-started].data.continues.reason', values: ['deviation-recorded'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
   { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['plan-deviation'], file: 'subs/harness/src/tests/plan-deviations.test.ts', test: 'the deviation is recorded, the work item goes on under it, and the run completes with it to review' },
@@ -663,7 +663,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   // A fake's parity: the real export each fake stands for, exposed to the parent in a run, re-exposed to descendants at registration.
   { union: 'record ramify-agent.contract/2.artifacts.fake[].standsFor[].exposure.to[]', values: ['parent'], file: 'subs/harness/src/tests/fake-exposure-parity.test.ts', test: 'a contract that re-exposes its fake where the real export will not be fails the gate in scope, and a repair that removes it passes' },
   { union: 'record ramify-agent.contract/2.artifacts.fake[].standsFor[].exposure.to[]', values: ['descendants'], file: 'subs/harness/src/tests/fake-exposure-parity.test.ts', test: 'the registered contract records what each fake stands for, as submitted' },
-  // An unresolved request the global architect answers with an environment problem, which holds the run for the operator.
+  // An unresolved request the plan architect answers with an environment problem, which holds the run for the operator.
   { union: 'run log.type', values: ['environment-reported'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
   { union: 'run log[invocation-started].data.continues.reason', values: ['environment-resumed'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
   { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.observation.kind', values: ['environment-problem'], file: 'subs/harness/src/tests/environment-problems.test.ts', test: 'the run holds with the diagnosis in its status; a resume returns the work item to its local architect, and the run completes' },
@@ -876,7 +876,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.scenario/1.origin.kind', values: ['plan'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'analysis-accepted commits one pending scenario record per scenario, with IDs, owners, hashes and the integration owner' },
   // The composed runs start without the review stop.
   { union: 'run log.type', values: ['review-requested', 'analysis-approved'], file: 'subs/harness/src/tests/review-stop.test.ts', test: 'waits at awaiting-review holding the project, and an approval continues it to completion' },
-  // The composed runs' architects report their scenarios done without an engineer binding them.
+  // The composed runs' architects report their scenarios done without a module engineer binding them.
   { union: 'run log.type', values: ['obligation-bound'], file: 'subs/harness/src/tests/scenario-states.test.ts', test: 'a binding makes a scenario bound and takes its tag off before the gate that selects it; a done report finishes it, directly from pending too; the final gate runs every scenario in full mode' },
   { union: 'run log[work-item-started].data.origin', values: ['verification'], file: 'subs/harness/src/tests/contract-revision-scripted.test.ts', test: 'two consumers complete revision 1, a third revises it, and the follow-ups finish the run' },
   { union: 'run log[work-item-started].data.origin', values: ['integration'], file: 'subs/harness/src/tests/integration-scenarios.test.ts', test: 'PB3-D07 created by the last sub-scenario\'s done report and not before, at the common ancestor, queued, briefed, bound at the ancestor, reported done by its architect, and completed' },
@@ -889,7 +889,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   // Where a failed gate's cause was read from: a Ramify report in a driven
   // run, a declared tsc output and both together at a gate of their own.
   { union: 'run log[analysis-accepted].data.warnings[].kind', values: ['names-view-symbol', 'names-view-file', 'sub-scenario-shares-no-step', 'duplicate-architect-steps'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'with an architect view: a module\'s own directory and testing area, and every warning, by scenario ID' },
-  // An engineer that ends without a result returns to its architect, digested and analyzed first.
+  // A module engineer that ends without a result returns to its architect, digested and analyzed first.
   { union: 'run log[debug-pausing].data.role', values: ['failure-analyst'], file: 'subs/harness/src/tests/engineer-failures.test.ts', test: 'is digested and analyzed before its architect is briefed, which raises the bound, and the next engineer\'s shell takes the larger timeout' },
   { union: 'record ramify-agent.iteration-result/1.failure.analysis.outcome', values: ['analyzed'], file: 'subs/harness/src/tests/engineer-failures.test.ts', test: 'is digested and analyzed before its architect is briefed, which raises the bound, and the next engineer\'s shell takes the larger timeout' },
   { union: 'record ramify-agent.iteration-result/1.failure.analysis[analyzed].cause', values: ['bound-too-tight'], file: 'subs/harness/src/tests/engineer-failures.test.ts', test: 'is digested and analyzed before its architect is briefed, which raises the bound, and the next engineer\'s shell takes the larger timeout' },

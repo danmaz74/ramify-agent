@@ -10,12 +10,19 @@ never depends on it. It lived in the toolkit repository's `ramify-agent/`
 directory until Plan 32 extracted it into this repository. See
 [AGENTS.md](AGENTS.md) for the working rules and development workflow.
 
+The [glossary](docs/glossary.md#plan-architect) names the roles: a **plan
+architect** handles the plan's architecture, **module architects** coordinate
+module work items, **capability architects** coordinate delegated capability
+tasks, and **module engineers** implement scoped iterations. Stored role values
+and CLI selectors keep their existing spellings; see the
+[role-name mapping](docs/harness.spec.md#role-names).
+
 ## Modules
 
 - `harness`: the only writer, and the owner of the public contracts of the
   behavior it implements. The project lock, implementation runs with their
   event logs and records, the initial analysis on Ramify's views, work items
-  and their local architects, the completion gates, recovery, plan discovery
+  and their module architects, the completion gates, recovery, plan discovery
   and the HTTP adapter.
   - `src/interfaces/protocol/evidence.ts`: the vocabulary of the evidence a
     run works from — module paths, digests, citations, view identities, the
@@ -30,7 +37,7 @@ directory until Plan 32 extracted it into this repository. See
 
 The root owns the command line (`src/cli.ts`, `src/main.ts`), which starts
 the harness's server with the web client's build output, runs single
-engineer sessions and runs one harness step at a time.
+module engineer sessions and runs one harness step at a time.
 
 ## Commands
 
@@ -85,7 +92,9 @@ provide:
 Credentials stay in pi's agent directory (`~/.pi/agent/auth.json`, or
 `PI_CODING_AGENT_DIR`).
 
-### Engineer breakpoints on a live server
+<a id="engineer-breakpoints-on-a-live-server"></a>
+
+### Module engineer breakpoints on a live server
 
 Prepare a real target worktree and a useful plan under `plans/<plan>/plan.md`
 with its project-declared toolchain and checks. Keep `serve` alive in a separate
@@ -97,7 +106,7 @@ records without automatically continuing them.
 The first pause comes only after intake, initial architecture, planning and a
 passing readiness audit of the target's baseline, which takes tens of minutes
 and several model invocations; a red baseline ends the run before any
-engineer is prepared, so qualify the baseline first. The attached launcher
+module engineer is prepared, so qualify the baseline first. The attached launcher
 waits for that first pause. Every debugger wait defaults to 20 minutes; pass
 `--timeout-ms` for a longer one, or after a timeout continue with `debug wait`
 from the returned `runId` and `cursor`.
@@ -134,12 +143,12 @@ npm run build:web
 npm run serve -- --project "$TARGET" --agent pi --model "$RAMIFY_MODEL" --port 4180
 ```
 
-Open the printed address and the plan, check "Stop before each engineer
+Open the printed address and the plan, check "Stop before each module engineer
 starts" and press "Start a run". The Run page polls the run; at the first pause
 a banner and a header badge say "Paused at a breakpoint", and "Open the
 Debugger" opens the Debugger area. There, "Read the prepared input" shows the
 same preview as `debug inspect`; "Send message" sends the text area to the
-paused engineer, and the conversation shows its answer once it settles;
+paused module engineer, and the conversation shows its answer once it settles;
 "Resume" releases the pause, carrying the text area as its message when there
 is any. The UI sends the same commands with the current pause ID and revision,
 and shows each refusal as the harness states it. The live-server policy above
@@ -149,15 +158,15 @@ test:browser:breakpoint-debugger` drives this path in Chromium over answers a
 scripted run exported.
 
 Inspect presents the normal effective input as a preview. Messages use ordinary
-engineer tools and submission validation; a plain explanatory return leaves the
+module engineer tools and submission validation; a plain explanatory return leaves the
 task pending. An accepted submission or terminal invocation result is held for
 resume, and further messages are refused. Resume handles a held result once or
 executes the pending task; after explanatory chat, supply an explicit instruction
-to implement. A later repair or capability engineer can reach a new occurrence.
+to implement. A later repair or capability-assigned module engineer can reach a new occurrence.
 
 A launch or wait result has `kind` `breakpoint` or `terminal`, with the run's
 `current` interaction state and `run` snapshot beside it. A message result has
-`kind` `exchange` with the engineer's `answer`, its submission `verdicts`,
+`kind` `exchange` with the module engineer's `answer`, its submission `verdicts`,
 `evidence` references and the task's `taskState` (`pending`, `accepted` or
 `terminal`). Resume returns its release acknowledgement immediately. Wait drains
 retained pages before polling and can report a historical reached pause; every
@@ -180,7 +189,7 @@ owned-server launcher remains available; `--break` requires attachment.
 Stop a paused run as any run: post the ordinary `stop-job` command for its
 plan and job to `/api/v1/commands`; there is no `debug stop`.
 
-`session` runs one engineer session on one module of a project, from a
+`session` runs one module engineer session on one module of a project, from a
 prompt a person writes, without planning a run:
 
 ```text
@@ -192,11 +201,11 @@ ramify-agent session --project <root> --module <module-path>
 
 The module is named by its declared-name path, as the architect view names
 it, or by its project-relative directory; an unknown module is refused
-before any model call. The engineer gets what an implementation run gives
-its engineers: the engineer prompt, the module's API views, the write guard,
+before any model call. The module engineer gets what an implementation run gives
+its module engineers: the module engineer prompt, the module's API views, the write guard,
 the Ramify hook check after each edit, the shell, which runs named test
 files and refuses a whole-suite run, and the validated submission. The prompt becomes the iteration's goal. The
-engineer may write the assigned owner's ordinary contents, with provider
+module engineer may write the assigned owner's ordinary contents, with provider
 exclusions enforced at writes and candidate validation. A directory `--write`
 includes one whole immediate child or declared owned nested project, carrying
 the session task as its instructions. Guarded configuration needs recorded
@@ -277,7 +286,7 @@ ramify-agent step inputs --role engineer --project <root> --work-item <file> [--
 ramify-agent step inputs --role <engineer|local-architect|context-selector|reviewer> --from-run <run dir> --invocation <id>
                          [--work-item <file>] [--outline <file>] [--assignment <file>] [--selection <file>] [--review-request <file>] [--out <file>]
 ramify-agent step inputs --role reviewer --from-run <manual run dir> --request <review request id> [--out <file>]
-ramify-agent step inputs --role engineer --from-run <manual run dir> --assignment-of <local architect invocation id> [--out <file>]
+ramify-agent step inputs --role engineer --from-run <manual run dir> --assignment-of <module architect invocation id> [--out <file>]
 ramify-agent step render --inputs <file> [--project <root>] [--invocation <id>]
 ramify-agent step run    --inputs <file> --run <project>/plans/<plan>/.harness/jobs/<run>
                          [--agent pi [--model <provider/model[:level]>] | --agent fake --script <file>]
@@ -288,17 +297,17 @@ ramify-agent step after  --run <manual run dir> --invocation <id>
 `step inputs` writes one `ramify-agent.step-inputs/1` file, to `--out` or
 standard output, and describes it on standard error:
 
-- **Authored** (`--project`): engineer inputs from a work item
+- **Authored** (`--project`): module engineer inputs from a work item
   (`ramify-agent.work-item/1`), an optional first outline and an assignment
-  written as the local architect's `assign` submission envelope. The
-  assignment is judged as the output of the local architect's first work
+  written as the module architect's `assign` submission envelope. The
+  assignment is judged as the output of the module architect's first work
   turn of that work item, with the same schema, work-item validation, scope
   preparation and current view, registry and audit inputs a run uses. A
   failure is refused with the validator's errors. Without a run there is no
   element catalog or decision record, so a work item or assignment that
   cites plan elements or carries local decisions is refused.
-- **From a run** (`--from-run`, `--invocation`): one recorded engineer,
-  local architect, context selector or reviewer invocation, imported as a
+- **From a run** (`--from-run`, `--invocation`): one recorded module engineer,
+  module architect, context selector or reviewer invocation, imported as a
   fresh start with the complete briefing. No provider history is imported;
   the original start is kept as provenance. Authored files replace parts of
   the recorded inputs, each judged as its producing role's output. The line
@@ -309,8 +318,8 @@ standard output, and describes it on standard error:
 - **A review request** (`--request`): a code, scope or design review of a
   request the manual run recorded, composed from its records and the
   audited candidate.
-- **An assignment** (`--assignment-of`): the first, fresh engineer inputs of
-  the assignment a local architect's accepted `assign` made, once
+- **An assignment** (`--assignment-of`): the first, fresh module engineer inputs of
+  the assignment a module architect's accepted `assign` made, once
   `step after` recorded it, derived as a run derives them on acceptance.
 
 `step render` prints the role instructions, the message, each tool
@@ -353,14 +362,14 @@ that does it:
 
 | Submission | Applied | Not run |
 | --- | --- | --- |
-| local architect `assign` | obligation and scenario reports, the outline and the iteration assignment | the engineer's session |
-| local architect `request-completion` | obligation and scenario reports, completion blockers and the outline revision | review settlement, reconciliation, the work-item gate and completion |
-| engineer `completion-proposed` | the proposal's bindings; after a passing committed iteration gate on the current candidate, its ownership evidence, the iteration's close and the review requests | gates, repair and review sessions; the close and the reviews while no qualifying gate exists, with the next action |
-| engineer `partial`, `unsuitable` | the result and the local architect's next-turn inputs | the architect's session |
-| engineer `capability-needed` | the provisional-source capture | the capability workflow |
+| module architect `assign` | obligation and scenario reports, the outline and the iteration assignment | the module engineer's session |
+| module architect `request-completion` | obligation and scenario reports, completion blockers and the outline revision | review settlement, reconciliation, the work-item gate and completion |
+| module engineer `completion-proposed` | the proposal's bindings; after a passing committed iteration gate on the current candidate, its ownership evidence, the iteration's close and the review requests | gates, repair and review sessions; the close and the reviews while no qualifying gate exists, with the next action |
+| module engineer `partial`, `unsuitable` | the result and the module architect's next-turn inputs | the architect's session |
+| module engineer `capability-needed` | the provisional-source capture | the capability workflow |
 
 A missing, failed, stale or diagnosis-only gate never closes an iteration as
-accepted. Reviewer, global architect and `contract-needed` submissions are
+accepted. Reviewer, plan architect and `contract-needed` submissions are
 reported as not run; a reviewer step's terminal attempt settles its request
 during `step run` itself. Repeating `after` for the same invocation commits nothing twice
 and says `nothing more`. An error prints `Error:` with its cause and
@@ -378,7 +387,7 @@ anything until the previous writer has settled. Exit statuses:
 
 ### A manual flow
 
-A local architect's work turn imported from a run feeds the engineer:
+A module architect's work turn imported from a run feeds the module engineer:
 
 ```sh
 step inputs --role local-architect --from-run <run dir> --invocation <work turn> --out turn.json
@@ -393,7 +402,7 @@ step inputs --role reviewer --from-run <manual run> --request rq-0001 --out revi
 step run    --inputs review.json --run <manual run> --agent pi
 ```
 
-Authored engineer inputs start the same flow at the engineer's step.
+Authored module engineer inputs start the same flow at the module engineer's step.
 
 A failed step leaves its edits in the tree, and nothing restores an earlier
 tree. Before retrying a step, reset the tree yourself, for example with
@@ -452,7 +461,7 @@ is not wanted:
 npm run trial -- prepare --into /tmp/quick-pi
 ```
 
-A forced violation: the engineer is told to import `formatFinding`, which
+A forced violation: the module engineer is told to import `formatFinding`, which
 `pure-ui`, beneath the reviews module's `ui` child, keeps internal and which
 no exposed signature names. The hook check's violation text is appended to
 the edit's result, and a `completion-proposed` submission is refused while
@@ -490,9 +499,9 @@ ramify-agent is licensed under the GNU General Public License, version 3 only
 
 ## Inspect architect consultations
 
-An eligible engineer can use `consult_architect({ message })` to ask the local
-or capability architect that assigned its work. A local architect can ask its
-recorded global architect; a local consultation answering an engineer can do
+An eligible module engineer can use `consult_architect({ message })` to ask the local
+or capability architect that assigned its work. A module architect can ask its
+recorded plan architect; a local consultation answering a module engineer can do
 this too. Capability and global consultation forks answer directly. This is
 advice: it changes no assignment or architectural decision. Each call forks the
 recorded delegation point; current files and generated views may differ from
@@ -502,9 +511,9 @@ calls stop both consultation levels; an uncertain interrupted effect is retained
 without an implicit retry. A completed effect replay uses its existing answer.
 
 Local orientation, assignment, completion and repair turns can consult global.
-Engineers keep their original assigning point through repair and capability
-handback; a nested capability engineer asks its own assigning coordinator.
-Ordinary capability coordinators, contract engineers, reviewers, nonfunctional
+Module engineers keep their original assigning point through repair and capability
+handback; a nested capability-assigned module engineer asks its own assigning coordinator.
+Ordinary capability coordinators, module engineers working on contracts, reviewers, nonfunctional
 and selector sessions have no consultation tool. Standalone and imported steps
 without same-run architect history explain unavailable consultation. Independent
 questions fork the same recorded point; include earlier exchanges in a follow-up

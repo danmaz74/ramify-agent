@@ -82,7 +82,7 @@ kinds, and two kinds that are not requirements:
   something the candidate must satisfy. Nothing assesses a recommendation.
   An architect that adopts one turns it into a constraint of its own
   assignment, and that constraint carries the architect's authority, not
-  the source's; an engineer that departs from one says so in its result
+  the source's; a module engineer that departs from one says so in its result
   and owes nothing more.
 
 - **Context** comes from the plan and explains the situation the plan
@@ -161,8 +161,8 @@ functional requirement is implemented, some non-functional requirements
 bear on it and most do not, and which ones is a judgement about this work
 in this module. These rules govern that judgement:
 
-- **The selection is made by a fork of the warmed-up local architect.** After
-  the local architect has oriented on its work item and read its module, a
+- **The selection is made by a fork of the warmed-up module architect.** After
+  the module architect has oriented on its work item and read its module, a
   read-only fork of that session reads the catalog's non-functional
   requirements and recommendations and selects the relevant ones, each with its reason,
   its conditions and its uncertainty. The fork sees what the parent read
@@ -180,22 +180,22 @@ in this module. These rules govern that judgement:
   document to settle a doubt, but nothing it says is resolved by the
   harness, and no locator, heading or line range passes through it.
 - **It is made once per work item, before the first assignment.** The
-  package is rendered once into the local architect's session and cited by
+  package is rendered once into the module architect's session and cited by
   its ID afterwards; a continued turn never repeats its body. The one event
   that repeats the selection is a placement decision that adds an owner to
   the work item, since the relevant fixed requirements may change with the
   module; the new package supersedes the old for later assignments.
-- **An assignment cites a subset.** The local architect names, by ID, the
+- **An assignment cites a subset.** The module architect names, by ID, the
   elements of the work-item package that one iteration must honor. The
-  engineer, the contract engineer and the scope reviewer of that iteration
+  module engineer, the module engineer working on a contract and the scope reviewer of that iteration
   receive exactly that subset, rendered by the same function, and a
   contract iteration inherits its requester's subset.
 - **Assessment is not selected.** When the functional work is done, the
   non-functional coordinator receives every non-functional element of the
   catalog, from the plan and from principles alike, and assesses each
-  against the candidate. Selection is about what an engineer must keep in
+  against the candidate. Selection is about what a module engineer must keep in
   view while working; assessment is about what the plan must satisfy. A
-  repair engineer receives the subset the coordinator cites.
+  repair module engineer receives the subset the coordinator cites.
 - **The rendering is one function.** Every package, for whichever consumer,
   is produced by the same package creator from the frozen catalog and a
   list of IDs, with the run's plan deviations rendered after the elements

@@ -158,12 +158,12 @@ function describe(event: SessionProgress): string {
       return `… ${clip(event.text.trim(), 800)}`;
     case 'harness-text':
       return event.kind === 'refusal'
-        ? `◆ ${event.tool} refused; the engineer is told:\n${indent(event.text)}`
+        ? `◆ ${event.tool} refused; the module engineer is told:\n${indent(event.text)}`
         : `◆ Appended to the ${event.tool} result:\n${indent(event.text)}`;
     case 'submission':
       return [
         `◆ Submission:\n${indent(JSON.stringify(event.input, null, 2))}`,
-        event.accepted ? `◆ Accepted; the engineer is told:\n${indent(event.answer)}` : `◆ Rejected; the engineer is told:\n${indent(event.answer)}`,
+        event.accepted ? `◆ Accepted; the module engineer is told:\n${indent(event.answer)}` : `◆ Rejected; the module engineer is told:\n${indent(event.answer)}`,
       ].join('\n');
     case 'gate-started':
       return '\nRunning the iteration checkpoint over the module. It never commits.';

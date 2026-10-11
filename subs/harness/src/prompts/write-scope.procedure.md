@@ -1,7 +1,7 @@
-<!-- ramify-agent architect write-scope section, version 1. Every architect procedure that assigns a write scope includes it. -->
-`assignment.scope` decides what the assigned engineer may write:
+<!-- ramify-agent architect write-scope section, version 2. Every architect procedure that assigns a write scope includes it. -->
+`assignment.scope` decides what the assigned module engineer may write:
 
-- `base.module` names the owner. The base gives the engineer that owner's
+- `base.module` names the owner. The base gives the module engineer that owner's
   whole own contents: `module.ramify`, `README.md`, all of `src/`, including
   `src/tests/` with its unit tests and the step definitions in
   `src/tests/steps/`, `src/interfaces/` and the scratch directory `src/tmp/`,
@@ -23,9 +23,9 @@
   in an excluded region or in a nested project the scope does not include is
   refused.
 - `read` is recorded only. It limits nothing, widens nothing, and the
-  engineer does not see it.
+  module engineer does not see it.
 - Guarded files are writable only when `assignment.authorizations` names each
-  one with its rationale; a local architect's submission also carries an
+  one with its rationale; a module architect's submission also carries an
   `outline` revision that records why. An authorization stands for that one
   iteration. Guarded files are the package manifests and lockfiles,
   `.gitignore`, `tsconfig.json`, Vite, Vitest and Cucumber configuration and

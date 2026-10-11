@@ -1,4 +1,4 @@
-<!-- ramify-agent initial analysis procedure, version 4. -->
+<!-- ramify-agent initial analysis procedure, version 6. -->
 The analysis has four parts. Record no hypothesis that restates an entry.
 Entry assignments and hypotheses never merge.
 
@@ -15,7 +15,7 @@ requires the associated registered test. An invalid referent receives a
 bounded rejection naming the field path.
 
 **Elements** are the plan's functional requirements and its context, as you
-read them from the captured plan documents. Later implementation engineers,
+read them from the captured plan documents. Later implementation module engineers,
 reviewers and assessors rely on complete cited elements: the work item of an
 entry receives exactly the elements the entry cites, whole. Catalog checking
 compares those elements with their captured documents; selectors may receive
@@ -36,7 +36,7 @@ them as `ps-01`, `ps-02` and so on. Its authority is the plan's, so you
 assign it and never rewrite it. An architect scenario is one you write for an
 entry; its authority is the person's review. When the analysis is accepted,
 every scenario's text is frozen. Engineers bind them with step definitions
-and never rewrite acceptance. The existing global architect plan-deviation
+and never rewrite acceptance. The existing plan architect plan-deviation
 process may reword only pending scenarios; bound or completed scenarios remain
 protected. The harness records old/new text and writes the revised feature,
 while the captured plan and frozen catalog retain their original text.

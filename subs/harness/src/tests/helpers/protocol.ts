@@ -13,13 +13,13 @@ import { initRepository, testPolicy } from './runs.js';
 
 /*
  * One run with something in every area of the Run page: an entry whose
- * owner exists, an entry that proposes a module the engineer creates, a
+ * owner exists, an entry that proposes a module the module engineer creates, a
  * hypothesis, a read outside the scope, a guarded edit, an unguarded shell
  * write outside the scope, iteration and work-item gates, and a final gate
  * whose output is longer than the tail a client receives.
  *
  * Nothing in it is simulated: every submission goes through the judge, every
- * command is spawned, and the module is created by the engineer's writes and
+ * command is spawned, and the module is created by the module engineer's writes and
  * read from the accepted commit.
  */
 

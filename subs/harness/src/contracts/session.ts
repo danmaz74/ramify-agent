@@ -5,7 +5,7 @@ import { contractToolName, type NeedAsBehavior } from './submission.js';
 /*
  * The contract sub-session's first message.
  *
- * It is an engineer invocation with the contract skill, not another persona.
+ * It is a module engineer invocation with the contract skill, not another persona.
  * What keeps the agreement from serving one side is what this message asks
  * it to read and to produce: both sides of the seam, the executable evidence
  * the consumer already has, and a fake the consumer's own tests run against
@@ -17,7 +17,7 @@ export interface ContractBriefing {
   readonly projectRoot: string;
   /** The commit `git diff` compares against: the last accepted boundary. */
   readonly base: string;
-  /** The need, as the requesting engineer wrote it; absent for a revision. */
+  /** The need, as the requesting module engineer wrote it; absent for a revision. */
   readonly need?: NeedAsBehavior | undefined;
   /** The agreement this session revises, where it revises one. */
   readonly revision?: RevisionBriefing | undefined;

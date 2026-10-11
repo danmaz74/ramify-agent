@@ -90,7 +90,7 @@ async function readResult(root: string, runId: string, number: number): Promise<
   return JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', number)), 'utf8')) as IterationResult;
 }
 
-/** One accepted iteration over the notes module, with whatever the engineer does. */
+/** One accepted iteration over the notes module, with whatever the module engineer does. */
 function onePass(steps: Parameters<typeof submit>[1][] = []) {
   return {
     'initial-architect': [submit(analysis([entry('review-note', notes)]))],
@@ -99,7 +99,7 @@ function onePass(steps: Parameters<typeof submit>[1][] = []) {
   };
 }
 
-/** The store the engineer writes, and the entry Git reports for it. */
+/** The store the module engineer writes, and the entry Git reports for it. */
 const storePath = `${notesDirectory}/src/store.ts`;
 
 /** What Git reports the created notes module added. */

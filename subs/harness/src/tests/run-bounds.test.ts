@@ -130,8 +130,8 @@ describe('an implementation that cannot start a session', () => {
 
 describe('the bounds on the whole run', () => {
   test('a run that has made maxInvocationsPerRun invocations starts no further one and fails limit-exceeded', async () => {
-    // The analysis's three invocations (intake, initial architect, checker)
-    // reach the bound; the local architect's would pass it.
+    // The analysis's three invocations (intake, plan architect, checker)
+    // reach the bound; the module architect's would pass it.
     const { root, runId, service } = await run(byRole({
       'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
       'local-architect': [submit(requestCompletion())],
@@ -157,8 +157,8 @@ describe('the bounds on the whole run', () => {
     const timed: AgentPort = {
       name: scripted.name,
       support: scripted.support,
-      // The analysis's three sessions (intake, initial architect, checker)
-      // together pass the bound, at the boundary before the local architect's.
+      // The analysis's three sessions (intake, plan architect, checker)
+      // together pass the bound, at the boundary before the module architect's.
       bindSessionStore(store) { const operations = scripted.bindSessionStore(store); return { ...operations, async continue(input) {
         current = new Date(current.getTime() + 67);
         return operations.continue(input);
@@ -191,8 +191,8 @@ describe('the bounds on the whole run', () => {
  * session's silence. The first real toolkit run lost three hours when a
  * shell call given ten minutes was killed at the five-minute idle bound, and
  * the run failed with its engineer. The idle bound is now held for a
- * command's own timeout and a margin, and an engineer that fails returns its
- * iteration to the local architect.
+ * command's own timeout and a margin, and a module engineer that fails returns its
+ * iteration to the module architect.
  */
 
 /** A session that ends only when it is stopped, and says when that was. */
@@ -323,7 +323,7 @@ describe('an engineer that ends without a result', () => {
     expect(prompts).toHaveLength(2);
     expect(prompts[1]).toContain('`wi-001.i01` ended `partial`, with nothing committed.');
     expect(prompts[1]).toContain(
-      `the engineer of wi-001.i01 ended without a result (idle-timeout: No port event for 300 ms; invocation ${engineer.invocation})`,
+      `the module engineer of wi-001.i01 ended without a result (idle-timeout: No port event for 300 ms; invocation ${engineer.invocation})`,
     );
   }, 120_000);
 

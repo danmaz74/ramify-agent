@@ -95,10 +95,10 @@ export interface StepGateResult {
 interface Subject {
   readonly item?: WorkItem | undefined;
   readonly assignment?: IterationAssignment | undefined;
-  /** The invocation that proposed it: an engineer's completion, a local architect's completion request, or none. */
+  /** The invocation that proposed it: a module engineer's completion, a module architect's completion request, or none. */
   readonly invocation: string | null;
   readonly summary?: string | undefined;
-  /** The engineer's proposal's bindings, applied before an iteration's audit. */
+  /** The module engineer's proposal's bindings, applied before an iteration's audit. */
   readonly bindings?: readonly import('../work/obligations.js').ObligationBinding[] | undefined;
 }
 
@@ -319,7 +319,7 @@ async function subjectOf(run: ManualRun, checkpoint: StepGateCheckpoint, invocat
         }
       }
       if (invocation !== undefined && proposals.length === 0) {
-        throw new Refused(`invocation ${invocation} is not an engineer's accepted completion proposal of an iteration that is still open in this manual run`);
+        throw new Refused(`invocation ${invocation} is not a module engineer's accepted completion proposal of an iteration that is still open in this manual run`);
       }
       if (proposals.length === 0) throw new Refused('the manual run holds no accepted completion proposal of an open iteration; an iteration gate audits a proposal');
       if (proposals.length > 1) {
@@ -343,9 +343,9 @@ async function subjectOf(run: ManualRun, checkpoint: StepGateCheckpoint, invocat
         .map(event => attemptOf(run, event.data.gate)?.proposedBy));
       const pending = invocation === undefined ? requests.filter(event => !passed.has(event.data.invocation)) : requests;
       if (invocation !== undefined && pending.length === 0) {
-        throw new Refused(`invocation ${invocation} recorded no completion request in this manual run; \`step after\` records a local architect's completion request`);
+        throw new Refused(`invocation ${invocation} recorded no completion request in this manual run; \`step after\` records a module architect's completion request`);
       }
-      if (pending.length === 0) throw new Refused('the manual run holds no completion request awaiting its work-item gate; `step after` records one from a local architect\'s request-completion');
+      if (pending.length === 0) throw new Refused('the manual run holds no completion request awaiting its work-item gate; `step after` records one from a module architect\'s request-completion');
       if (pending.length > 1) {
         throw new Refused(`more than one completion request could be meant: ${pending.map(event => `${event.data.invocation} (${event.data.workItem})`).join(', ')}; name one with --invocation`);
       }

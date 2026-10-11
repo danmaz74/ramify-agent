@@ -16,7 +16,7 @@ import {
 const exec = promisify(execFile);
 
 /*
- * The shell an engineer receives.
+ * The shell a module engineer receives.
  *
  * It is a harness tool run through the lifted executor, never the
  * implementation's own: its own process group, a clean environment, a

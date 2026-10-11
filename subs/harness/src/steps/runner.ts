@@ -195,7 +195,7 @@ export interface InvocationRequest<T> {
   /** A tighter absolute bound than the run policy's, such as a review attempt's. */
   readonly absoluteMs?: number | undefined;
   /**
-   * An engineer's effective command, idle and absolute bounds, which replace the policy's:
+   * A module engineer's effective command, idle and absolute bounds, which replace the policy's:
    * the policy's defaults, or what its assignment raised them to.
    */
   readonly bounds?: { readonly idleMs: number; readonly absoluteMs: number; readonly commandTimeoutMs?: number } | undefined;
@@ -415,7 +415,7 @@ export class InvocationRunner<R extends RunnerRun> {
     const briefs = run.log.all('brief-appended')
       .filter(event => event.data.session === session && event.sequence > ended)
       .map(event => event.data.decision);
-    // A reconciliation's brief is appended to the local architect's own
+    // A reconciliation's brief is appended to the module architect's own
     // session; the append is the executor's and names no harness point.
     const reconciled = run.log.all('reconciliation-brief-appended')
       .filter(event => event.data.session === session && event.sequence > ended && (event.data.outcome === 'appended' || event.data.outcome === 'already-present'))

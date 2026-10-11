@@ -1,3 +1,4 @@
+import { roleDisplayName } from '../interfaces/protocol/runs.js';
 import type { BuiltinTool, WriteTool } from '../../subs/agent/src/interfaces/port.js';
 import type { SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { TaskPacket } from '../prompts/tasks.js';
@@ -102,7 +103,7 @@ function additionText(addition: DeliveredInput): string {
 
 /** The rendering as a person or an agent reads it. */
 export function renderedText(rendered: RenderedStep): string {
-  const head = `Step: ${rendered.role}, start ${rendered.requested}${rendered.point === null ? '' : ` from ${rendered.point}`}`;
+  const head = `Step: ${roleDisplayName(rendered.role)}, start ${rendered.requested}${rendered.point === null ? '' : ` from ${rendered.point}`}`;
   const schema = [rule(`Submission schema (${rendered.packet.submissionTool})`), JSON.stringify(rendered.submissionSchema, null, 2)];
   if (rendered.rendered !== 'fresh') {
     return [head, '',

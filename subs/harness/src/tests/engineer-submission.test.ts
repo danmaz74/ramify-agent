@@ -20,7 +20,7 @@ import { addModule, assign, byRole, completionProposed, edit, installMiniRunner,
 import { openRuns as openRunsWithGit, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 
 /*
- * Everything an engineer tells the harness is validated JSON: the strict
+ * Everything a module engineer tells the harness is validated JSON: the strict
  * schema, then the rules the schema cannot hold. A failure changes nothing,
  * every error names its path, a corrected input is accepted, and the bound
  * ends the invocation as `invalid-submission`.
@@ -194,7 +194,7 @@ describe('a rejected submission in a run', () => {
       ].join('\n'),
     });
     await installMiniRunner(fixture.root);
-    // Every command the engineer's shell runs is answered here, in this
+    // Every command the module engineer's shell runs is answered here, in this
     // process, and recorded.
     const commands: CommandRequest[] = [];
     const { service, agent } = await openRuns(fixture.root, {
@@ -254,7 +254,7 @@ describe('a rejected submission in a run', () => {
   }, 300_000);
 
   // The bound ends the invocation and not the run: the iteration closes
-  // partial, and its local architect decides on the digest and the analysis.
+  // partial, and its module architect decides on the digest and the analysis.
   const returnedCheckpoints = [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'] as const;
 
   test('a rule the schema cannot hold is answered the same way, and the bound ends the invocation', async () => {
@@ -329,7 +329,7 @@ describe('a rejected submission in a run', () => {
 
     const engineer = agent!.sessions.find(session => session.spec.role === 'engineer')!;
     const [ran, refused] = engineer.results.filter(result => result.tool === shellToolName);
-    // The named run is the command the engineer gave, and its answer is the
+    // The named run is the command the module engineer gave, and its answer is the
     // command's own exit code and output.
     expect(ran!.isError).toBe(false);
     expect(ran!.text).toContain('ok 1 - the limit is the one the plan asks for');
@@ -390,7 +390,7 @@ describe('a Ramify module violation in a run', () => {
     });
     const { service, agent } = await openRunsWithGit(root, {
       inputs: treeInputs(), git, candidates: finalCandidate(root, 'fixed-source').candidates, ramify,
-      // The engineer's writes are what Git reports once the feature files are committed.
+      // The module engineer's writes are what Git reports once the feature files are committed.
       afterWrite: async write => { if (write === 'scenarios-materialized') git.givenWrites(); },
       script: byRole({
         'initial-architect': [submit(analysis([entry('review-note', notes)]))],
@@ -419,7 +419,7 @@ describe('a Ramify module violation in a run', () => {
     expect(refusal.accepted).toBe(false);
     expect(refusal.errors.join('\n')).toContain('RAMIFY MODULE VIOLATION still standing; the iteration gate fails on it.');
     expect(engineer.verdicts[1]).toMatchObject({ accepted: true });
-    // The edit that fixed it checked clean, so it told the engineer nothing about Ramify.
+    // The edit that fixed it checked clean, so it told the module engineer nothing about Ramify.
     expect(fixed!.text).not.toContain('RAMIFY');
     expect(checked).toHaveBeenCalledTimes(2);
     expect(completed).toHaveBeenCalledTimes(2);

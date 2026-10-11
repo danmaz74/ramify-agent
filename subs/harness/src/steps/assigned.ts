@@ -28,7 +28,7 @@ import { readManualRun, type ManualRun } from './manual.js';
 import { acceptedSubmission, submissionValue } from './manual-hosts.js';
 
 /*
- * Engineer inputs from an assignment a manual run recorded: the local
+ * Engineer inputs from an assignment a manual run recorded: the module
  * architect's accepted `assign` and the assignment record `step after`
  * committed for it, collected as the run collects them for the first
  * invocation of an accepted assignment. The facts a run reads from its own
@@ -46,10 +46,10 @@ export type AssignedEngineerResult =
 const refused = (reason: string): AssignedEngineerResult => ({ status: 'refused', reason });
 const message = (error: unknown): string => error instanceof Error ? error.message : String(error);
 
-/** The engineer inputs of the assignment one local architect invocation of a manual run made. Nothing is written. */
+/** The module engineer inputs of the assignment one module architect invocation of a manual run made. Nothing is written. */
 export async function engineerInputsFromAssignment(options: {
   readonly runDirectory: string;
-  /** The local architect invocation whose accepted `assign` made the assignment. */
+  /** The module architect invocation whose accepted `assign` made the assignment. */
   readonly invocation: string;
   readonly ports: AuthoringPorts;
 }): Promise<AssignedEngineerResult> {
@@ -61,16 +61,16 @@ export async function engineerInputsFromAssignment(options: {
   // The accepted submission, checked against the hash its end recorded.
   const accepted = await acceptedSubmission(run, invocation);
   if (!accepted.ok) return refused(accepted.reason);
-  if (accepted.role !== 'local-architect') return refused(`invocation ${invocation} is a ${accepted.role}'s, not a local architect's`);
+  if (accepted.role !== 'local-architect') return refused(`invocation ${invocation} is a ${accepted.role}'s, not a module architect's`);
   const parsed = localArchitectSubmissionSchema.safeParse(submissionValue(accepted.raw));
-  if (!parsed.success) return refused(`the accepted submission of ${invocation} is not a local architect submission this harness reads`);
+  if (!parsed.success) return refused(`the accepted submission of ${invocation} is not a module architect submission this harness reads`);
   const submission = parsed.data;
   if (submission.kind !== 'assign') return refused(`the accepted submission of ${invocation} is a ${submission.kind}, not an assign`);
 
   // The work turn it answered.
   let turn: WorkTurnStepInputs;
   try { turn = validateWorkTurnInputs(parseStepInputs(await readFile(run.path(runLayout.stepInputs(invocation)), 'utf8'))); }
-  catch (error) { return refused(`the step inputs of ${invocation} are not a readable local architect work turn: ${message(error)}`); }
+  catch (error) { return refused(`the step inputs of ${invocation} are not a readable module architect work turn: ${message(error)}`); }
 
   // The assignment `step after` recorded for it, which must be this submission's.
   const assigned = run.log.all('iteration-assigned').find(event => event.data.invocation === invocation);
@@ -95,18 +95,18 @@ export async function engineerInputsFromAssignment(options: {
   // Only the first, fresh invocation of the iteration.
   const started = run.log.all('invocation-started').filter(event => event.data.role === 'engineer' && event.data.work.iteration === assignment.id);
   if (started.length > 0) {
-    return refused(`the engineer of ${assignment.id} has started already (${started.map(event => event.data.invocation).join(', ')}); its next inputs continue from that engineer's records, which this form does not derive`);
+    return refused(`the module engineer of ${assignment.id} has started already (${started.map(event => event.data.invocation).join(', ')}); its next inputs continue from that engineer's records, which this form does not derive`);
   }
   if (run.log.all('iteration-closed').some(event => event.data.iteration === assignment.id)) return refused(`${assignment.id} is closed`);
 
   try {
     return { status: 'derived', inputs: await collect(run, projectRoot, { item, assignment, invocation, capabilityWorkflow: turn.capabilityWorkflow }, ports) };
   } catch (error) {
-    return refused(`the engineer inputs cannot be collected for ${assignment.id}: ${message(error)}`);
+    return refused(`the module engineer inputs cannot be collected for ${assignment.id}: ${message(error)}`);
   }
 }
 
-/** The engineer inputs, collected as the run collects them for the first invocation of an accepted assignment. */
+/** The module engineer inputs, collected as the run collects them for the first invocation of an accepted assignment. */
 async function collect(run: ManualRun, projectRoot: string, subject: {
   readonly item: WorkItem; readonly assignment: IterationAssignment; readonly invocation: string; readonly capabilityWorkflow: boolean;
 }, ports: AuthoringPorts): Promise<EngineerStepInputs> {

@@ -15,7 +15,7 @@ import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { installTestRunner, onlyRun, openRuns, runPath, startRun } from './helpers/runs.js';
 
 /*
- * The API view a local architect's turns carry. The view is materialized for
+ * The API view a module architect's turns carry. The view is materialized for
  * the work item's first turn; one that could not be materialized is
  * materialized again for a later turn, so a continued session never receives
  * a failure the project has outgrown. Ramify is a fake whose answers the test
@@ -122,7 +122,7 @@ describe('the API view of a local architect\'s continued turns', () => {
     const activity = (await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.observations('inv-0006')), 'utf8'))
       .trim().split('\n').map(line => JSON.parse(line) as { type: string; data: { activity?: { kind: string; path?: string } } });
     expect(activity).toContainEqual(expect.objectContaining({ type: 'activity', data: { activity: expect.objectContaining({ kind: 'read', path: `${notesDirectory}/src/notes.ts` }) } }));
-    // The architect's first turn, the engineer's briefing and the architect's second turn each materialized it.
+    // The architect's first turn, the module engineer's briefing and the architect's second turn each materialized it.
     expect(ramify.apiFrom).toEqual([notesDirectory, notesDirectory, notesDirectory]);
     scripted.assertComplete();
   }, 120_000);

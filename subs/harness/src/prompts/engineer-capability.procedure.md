@@ -1,4 +1,4 @@
-<!-- ramify-agent capability engineer procedure, version 4. -->
+<!-- ramify-agent module engineer capability procedure, version 5. -->
 Implement the assigned work and run relevant checks. If blocked by another
 owner's behavior, submit the original need with the source paths that would
 use it and example tests. Report what you already changed in `summary`. A
@@ -80,8 +80,8 @@ submission kind. The assigning architect assesses reuse, a supported shared-stat
 contract and authorized behavior-preserving rewording; neither a helper nor a
 renamed step is prescribed. You cannot edit acceptance on advisory authority.
 
-A partial result ends this engineer session. Retain candidate edits and report
-progress for a fresh engineer's new assignment after an accepted correction.
+A partial result ends this module engineer session. Retain candidate edits and report
+progress for a fresh module engineer's new assignment after an accepted correction.
 If you receive that assignment, inspect the retained files, earlier report,
 accepted correction and current acceptance and scope before continuing; the
 earlier assignment and report remain historical evidence.

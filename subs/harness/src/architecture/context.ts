@@ -55,7 +55,7 @@ export function globalContext(source: ContextSource): GlobalContext {
   const since = rebuilds.at(-1)?.sequence ?? 0;
 
   const started = of('invocation-started');
-  // The parent of one generation: the initial architect, or the first fork
+  // The parent of one generation: the plan architect, or the first fork
   // started within that generation.
   const parentOf = (of: number) => {
     const from = of === 1 ? 0 : rebuilds[of - 2]!.sequence;

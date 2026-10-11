@@ -22,7 +22,7 @@ proposes the level and the assessing architect may correct it.
 
 ### Working a signal is a cost; spend where the return is highest
 
-No signal is skipped. The local architect spends at least a little attention
+No signal is skipped. The module architect spends at least a little attention
 on every signal of its work item; a low-risk, low-credibility signal earns a
 one-line waiver, and a high-risk, credible one earns a repair.
 
@@ -80,7 +80,7 @@ and the earlier judgment stays inspectable.
 A waiver states that the signal is understood and the code stays as it is. It
 records who waived, why, and the risk accepted. The user can waive any
 signal. An agent can waive a signal when it has authority over every module
-the signal concerns: the local architect for its own module, the global
+the signal concerns: the module architect for its own module, the plan
 architect for the project.
 
 A waived signal stays settled when the same issue is raised again; the new

@@ -143,7 +143,7 @@ describe('a hook check after a settled mutation', () => {
     expect(result.checks.map(check => check.mode)).toEqual(['changed', 'complete']);
     expect(result.checks[0]!.outcome).toBe('not-checked');
     expect(result.checks[1]).toMatchObject({ outcome: 'findings', newFindings: 1, provider: { schema: 'ramify.analysis/3', revision: 'input/1:scripted' }, dispositions: [] });
-    // What the engineer is told is the complete check's own answer, and not
+    // What the module engineer is told is the complete check's own answer, and not
     // that the changed form it replaced verified nothing.
     expect(result.text).toContain('RAMIFY MODULE VIOLATION');
     expect(result.text).not.toContain('Nothing was verified');
@@ -513,7 +513,7 @@ describe('what the engineer is told about a Ramify module violation', () => {
       `- ${mcp}:13 imports \`ToolResult\` from src/interfaces/protocol.ts (module \`collection-review\`), which does not expose it to your module. \`import type\` counts too.`,
       'Fix: drop the import and use what your API view, named in your assignment, lists instead. If nothing there serves, submit `unsuitable` with reason `scope`, naming `ToolResult` and its owner: the architect decides whether it is exposed. Say so if a symbol you already receive mentions it in its signature; that is an incomplete exposure. Never copy or derive it, and `collection-review`\'s module.ramify is outside your write scope. `completion-proposed` is refused while this stands.',
     ].join('\n'));
-    // The report is kept for the record, but the engineer is not sent to it.
+    // The report is kept for the record, but the module engineer is not sent to it.
     expect(result.text).not.toContain(root);
   });
 

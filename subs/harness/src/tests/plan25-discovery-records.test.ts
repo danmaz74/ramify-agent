@@ -53,7 +53,7 @@ describe('D1–D3: optional explicit discovery records', () => {
   });
 
   test('omitted legacy orientation bytes and hash are unchanged, while explicit pairs are retained in its existing packet', () => {
-    const text = '# Work orientation wi-001\n\n## Local architect briefing\n\nLegacy briefing\n\n## Local architect orientation\n\nFocus: The caller\nCurrent understanding: It omits tone.\nOpen questions:\nNone recorded.';
+    const text = '# Work orientation wi-001\n\n## Module architect briefing\n\nLegacy briefing\n\n## Module architect orientation\n\nFocus: The caller\nCurrent understanding: It omits tone.\nOpen questions:\nNone recorded.';
     expect(orientationPacket({ workItem: 'wi-001', briefing: 'Legacy briefing', submission: orientation })).toEqual({ text, hash: digest(text) });
     const packet = orientationPacket({ workItem: 'wi-001', briefing: 'Legacy briefing', submission: { ...orientation, startingPoints: points } });
     for (const point of points) expect(packet.text).toContain(JSON.stringify(point));

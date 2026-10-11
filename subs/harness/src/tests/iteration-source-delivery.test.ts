@@ -119,7 +119,7 @@ test('an assigned non-functional element reaches the engineer once per session, 
   expect(text).toContain('### nfr-001: non-functional requirement of the plan from plans/revision-diff/plan.md');
   expect(text).toContain('stated: for the service');
   expect(text).not.toContain(advice);
-  // The assignment cites its whole work-item package, so the local architect's package and the engineer's are the same bytes.
+  // The assignment cites its whole work-item package, so the module architect's package and the module engineer's are the same bytes.
   expect(events.find(event => event.type === 'context-selection-recorded')?.data.packageHash).toBe(assignment.source!.hash);
   const organizing = agent.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
   expect(organizing.map(session => session.start.mode)).toEqual(['fresh', 'continue']);

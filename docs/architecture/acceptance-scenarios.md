@@ -19,7 +19,7 @@ the project's committed audit of its candidate commit, and the provider
 selects that check and narrows it by ownership as it narrows Vitest. The
 tracked scenario results are read from the raw runner output for display
 only. `ramify-agent.json` has no `acceptance` section, readiness has no
-acceptance steps, and an engineer has no scoped test tool. Sections 0, 4 and
+acceptance steps, and a module engineer has no scoped test tool. Sections 0, 4 and
 6 to 11 and [the scenario check](#the-scenario-check) describe that model;
 decisions 4, 6 and 7 at the end record the v1 choices it replaced.
 
@@ -57,7 +57,7 @@ and `unresolved` run states do not exist there yet.
 ## The design in one page
 
 - **The plan's scenarios are extracted by the harness** when the plan is
-  captured, from its fenced `gherkin` blocks. The initial architect assigns
+  captured, from its fenced `gherkin` blocks. The plan architect assigns
   each one to an entry or decomposes it, and writes scenarios for every entry
   that has none. The harness verifies the form of that assignment.
 - **Scenario text freezes when the analysis is accepted.** In v1 no agent
@@ -78,10 +78,10 @@ and `unresolved` run states do not exist there yet.
   `pending`, `bound`, `done`. The `@ramify-pending` tag marks only the first
   in the source. Each state is entered by one accepted submission, and only
   the harness edits a feature file.
-- **An engineer binds** the obligations its assignment names, in its
+- **A module engineer binds** the obligations its assignment names, in its
   completion proposal, each with the fakes the binding relies on. A proposal
   that leaves one out is refused, naming it.
-- **The responsible local architect reports a scenario `done`**, directly
+- **The responsible module architect reports a scenario `done`**, directly
   from `pending` where existing step definitions bind it, and only that
   architect's revision moves it back to `bound`. No gate result, repair exit,
   yield or source change moves a state.
@@ -94,7 +94,7 @@ and `unresolved` run states do not exist there yet.
   ownership. Sharing a step definition with another owner is an ordinary
   testing import, exposed with `expose-test`, which Ramify verifies.
 - **An integration scenario gets a work item at the common ancestor** once
-  its sub-scenarios are reported done. Its engineer imports the
+  its sub-scenarios are reported done. Its module engineer imports the
   sub-scenarios' step definitions there, through `expose-test`, and a failure
   of the scenario is that work item's to resolve.
 - **The harness reads the raw runner output the audit published** and
@@ -118,7 +118,7 @@ They are defined in the [glossary](../glossary.md).
 | --- | --- |
 | Scenario | One Gherkin `Scenario` or `Scenario Outline` the harness tracks as a requirement of the plan. |
 | Plan scenario | A scenario written in the plan, extracted by the harness. Its authority is the plan's. |
-| Architect scenario | A scenario the initial architect writes for one entry. Its authority is the person's review. |
+| Architect scenario | A scenario the plan architect writes for one entry. Its authority is the person's review. |
 | Entry scenario | A scenario assigned to exactly one entry capability. Every plan scenario that is not an integration scenario, and every architect scenario, is one. |
 | Integration scenario | A plan scenario that combines several entries. It has sub-scenarios, and an integration work item at their owners' common ancestor binds it once they are reported done. |
 | Sub-scenario | An entry scenario the architect derived from an integration scenario, ideally by picking its steps verbatim. |
@@ -137,9 +137,9 @@ They are defined in the [glossary](../glossary.md).
   [refactoring and debugging analysis](../analysis/2026-09-23-refactoring-and-debugging-plans.md).
 - Guarding step definitions once their scenario passes. Step files grow
   across iterations, so a file hash cannot tell a weakened assertion from a
-  new step. The local architect's assessment is the v1 control.
+  new step. The module architect's assessment is the v1 control.
 - Scenarios an agent proposes during the run. Edge cases beyond the plan go
-  in the engineer's own tests.
+  in the module engineer's own tests.
 - Revising the analysis with a note at the review stop, and continuing a
   stopped run's branch.
 - Composition duties for the integration work item beyond binding its one
@@ -204,7 +204,7 @@ What the harness derives without configuration:
 
 | Convention | Rule |
 | --- | --- |
-| Step definitions | Under a module's `src/tests/steps/`, or a testing module's `src/steps/`. The engineer's briefing names the owner's directory. |
+| Step definitions | Under a module's `src/tests/steps/`, or a testing module's `src/steps/`. The module engineer's briefing names the owner's directory. |
 | Feature files | Under a module's `src/tests/features/`, or a testing module's `src/features/`. The harness writes the plan's files beneath them; the project's committed profile must collect them. |
 | Shared step definitions | A step definition lives in the module whose scenarios it binds. A module that needs another owner's definitions imports them by name from a step file that owner exposes with `expose-test`, re-exposed along the path as any testing symbol is. A step text defined twice within one run is `ambiguous` and fails the check. |
 | World and driver | Exposed to descendants through `expose-test`, so step definitions in any module build on them under ordinary Ramify rules. |
@@ -258,7 +258,7 @@ command named `build` is shown as the build.
 Once a setup command has not passed, no check of the audit runs after it. A
 setup command that ran and exited non-zero fails a committing gate as
 `check-failed`: after readiness passed, the change since the last passing
-state is the assignment's own, so the engineer repairs it, briefed with the
+state is the assignment's own, so the module engineer repairs it, briefed with the
 gate's digest. One that timed out is `not-verified` with cause `timeout`;
 one that could not start or was stopped is infrastructure. At readiness, a
 setup command that exits non-zero fails readiness with the end of its
@@ -295,7 +295,7 @@ its examples. A block that does not parse is a captured limitation, listed in
 the architect's briefing and in the run record, never a failure: the plan is
 the person's and the harness never edits it.
 
-The initial architect's briefing lists the plan scenarios by ID, with their
+The plan architect's briefing lists the plan scenarios by ID, with their
 text and references. A plan with no `gherkin` block has none, and the
 architect writes every scenario.
 
@@ -365,7 +365,7 @@ origin, sub-scenarios or parent, name, source lines and a hash of those lines.
 An integration scenario's owner is the lowest common ancestor of its
 sub-scenarios' owners. Text is frozen from here on.
 
-The analysis procedure for the initial architect gains the corresponding
+The analysis procedure for the plan architect gains the corresponding
 steps: read the plan scenarios first, since their `When` steps name what the
 outside does; match them to entries; decompose integration scenarios by
 picking steps verbatim and bridging what a slice removed; write scenarios for
@@ -428,7 +428,7 @@ project whose committed audit has no Cucumber check runs no scenario.
 ### 5. Materialization
 
 Once readiness has passed and the run branch exists, the harness materializes
-the feature files and commits them, before the first local architect starts:
+the feature files and commits them, before the first module architect starts:
 
 ```text
 readiness-passed -> createBranch -> materialize -> commit "Scenarios of <planId>"
@@ -490,7 +490,7 @@ decides what the configured scenario check runs.
 
 ### 6. A work item
 
-The local architect's briefing gains a section per entry scenario of its work
+The module architect's briefing gains a section per entry scenario of its work
 item: ID, state, text, file path and, for a sub-scenario, the integration
 scenario it came from, and lists every obligation it is responsible for with
 its status, revision, binding fakes and last report. Its procedure changes in
@@ -501,11 +501,11 @@ completion request; otherwise assign an iteration that binds them.
 
 `assignment.obligations` is optional: the IDs of the obligations the
 iteration must bind, scenarios and registered tests of the assigning
-architect alike. They reach the engineer under "Obligations to bind", and a
+architect alike. They reach the module engineer under "Obligations to bind", and a
 scenario's text under "Scenarios to bind". The assignment is binding, not
-informative: the engineer's completion proposal must bind every one.
+informative: the module engineer's completion proposal must bind every one.
 
-The engineer's briefing carries, for each scenario of its work item's entry
+The module engineer's briefing carries, for each scenario of its work item's entry
 that is not `done`, the text, the feature file's path, the state, and three
 rules: write step definitions in `src/tests/steps/` of a module within the
 write scope; never edit a feature file; bind each assigned scenario in the
@@ -537,7 +537,7 @@ that still carries its pending tag is excluded by the committed profile.
 See [the scenario check](#the-scenario-check).
 
 A pass leaves every state as it is: a bound scenario stays `bound` until its
-architect reports it. On a failure the same engineer session continues with the gate's
+architect reports it. On a failure the same module engineer session continues with the gate's
 digest: the audit's checks, the end of what each failing one printed and
 every tracked scenario result read from the raw runner output, with no cause
 inferred. Exhaustion, a placement request
@@ -583,9 +583,9 @@ of binding that one scenario. It is a work item like any other, with origin
 `integration` and the scenario's ID in place of an entry capability, and it
 queues behind the current work item, since work items run one at a time.
 
-Its local architect assigns the scenario to an engineer whose scope is the
+Its module architect assigns the scenario to a module engineer whose scope is the
 ancestor with the children on the paths to the sub-scenarios' owners
-included. The engineer writes a step file at the ancestor that imports, by
+included. The module engineer writes a step file at the ancestor that imports, by
 name, the step files the sub-scenarios' owners wrote, adds the `expose-test`
 declarations along each path, and binds the scenario. The verbatim rule
 guarantees that those imported definitions bind every step, so the
@@ -600,7 +600,7 @@ one per integration scenario, created when it becomes due.
 When the scenario fails, the failure reaches the work item's repair rounds
 raw, with every result read from the runner's output; the harness
 generates no composition diagnosis and names no suspect step. The agents
-investigate it, through the ordinary repair rounds, then the local
+investigate it, through the ordinary repair rounds, then the module
 architect's placement and delegation paths, or `unresolved`. The run cannot
 complete around it: the work item must complete like every other.
 
@@ -681,10 +681,10 @@ report or a CheckFinding.
 **Binding is recorded, not policed.** Each scenario's `binding` names the
 file of every definition that bound a step. A definition outside the owner's
 own step files reached the run through an import, which Ramify verified, or
-through the project's profile; the local architect sees it in the gate
+through the project's profile; the module architect sees it in the gate
 section, which is enough for v1. A symbol-free import of another owner's
 step file loads it without exposure under the source interpretation rules,
-so the engineer's briefing asks for a named import.
+so the module engineer's briefing asks for a named import.
 
 **Diagnostics.** The gate's digest names the audit request, its modes, the
 composed verdict and any reuse, then each published check: one line where
@@ -771,7 +771,7 @@ on `start-run`.
 | Change | Where |
 | --- | --- |
 | Gherkin parsing, plan scenario extraction, form rules, feature rendering | A new module `subs/harness/subs/scenarios`, pure functions with no I/O, the one importer of `@cucumber/gherkin` and `@cucumber/messages`. The harness receives its exports, as it receives the audit adapter's. |
-| Integration work items | `work/records.ts` gains the origin; `run/service.ts` creates the item with the done report of its last sub-scenario and briefs its local architect with the scenario, its sub-scenarios and their owners' step files. |
+| Integration work items | `work/records.ts` gains the origin; `run/service.ts` creates the item with the done report of its last sub-scenario and briefs its module architect with the scenario, its sub-scenarios and their owners' step files. |
 | The project configuration: schema, reading, validation, capture into `job.json` | A new `run/project-config.ts` in the harness, with the schema in `run/records.ts` beside the run policy; `subs/evidence` reads the file. |
 | Plan capture | `run/service.ts` where `input/plan.md` is written; the plan scenarios join the analysis briefing in `analysisMessage`. |
 | Submission `/2`, validation, acceptance | `analysis/submission.ts`, `analysis/accept.ts`; the records under a new `scenarios/` layout entry in `run/records.ts`. |
@@ -783,7 +783,7 @@ on `start-run`.
 | Bindings and reports | `work/engineer.ts`, `work/obligations.ts`, `work/submission.ts`, and the acceptance paths in `run/service.ts`. |
 | The check kind, its policy and command | `checks/checkpoint.ts`, `checks/records.ts`, `checks/verify.ts`, `run/policy.ts`, `checks/execution.ts` for the in-place runner, `subs/audit/src/check-execution.ts` for the executor. |
 | State transitions at gates and events | `run/service.ts`, `run/log.ts`. |
-| Briefings and procedures | `src/prompts/*` at version 2 for the initial architect, local architect and engineer; `work/session.ts`, `work/engineer.ts`. |
+| Briefings and procedures | `src/prompts/*` at version 2 for the plan architect, module architect and module engineer; `work/session.ts`, `work/engineer.ts`. |
 | Projections, protocol, web | `projections/progress.ts`, `projections/queries.ts`, `interfaces/protocol/runs.ts`, `http/app.ts`, `subs/web`. |
 | Fixture | `fixtures/collection-review`: `ramify-agent.json`, the step and feature directories, and a scripted configured audit in the tests that drive it. |
 
@@ -814,7 +814,7 @@ alternative and decided the same day:
 1. Decided by Dan, 2026-09-23: a declaration made while a requirement is open
    is accepted and the scenario keeps its pending tag; the tag comes off only
    when the scenario would run without fakes. `bound` is that state's name.
-2. Decided by Dan, 2026-09-23: a local architect may declare scenarios that
+2. Decided by Dan, 2026-09-23: a module architect may declare scenarios that
    existing step definitions already bind, in its completion request, so
    verified reuse still needs no iteration; the work-item gate is the judge.
 3. Decided by Dan, 2026-09-23: no escape from the verbatim rule for steps an
@@ -832,7 +832,7 @@ alternative and decided the same day:
    and not objected to: an integration work item at the common ancestor in
    v1, which also owns a composition failure.
 7. Following from 6: binding is recorded from the message stream and shown to
-   the local architect, not policed by a harness rule.
+   the module architect, not policed by a harness rule.
 8. Decided by Dan, 2026-09-23: the tag names `@ramify-pending` and
    `@ramify-sc-NNN`, and the path `src/tests/features/<planId>/`.
 9. Decided by Dan, 2026-09-23: no agent-proposed scenarios and no guarded

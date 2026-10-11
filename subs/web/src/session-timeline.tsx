@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useId, useMemo, type ReactNode } from 'react';
 import type {
   RunSessionView, RunSessionsResponse, SessionAppend, SessionInvocation, SessionRef, SessionSuspension,
@@ -360,11 +361,11 @@ export function SessionTimeline({ planId, runId, answer }: {
             const ref = refOf(session.session);
             return (
               <div key={session.session} className={`timeline-lane timeline-lane-${session.state}`} style={{ height: laneHeight }} role="group"
-                aria-label={`${session.session} ${session.role}, ${session.state}`}>
+                aria-label={`${session.session} ${roleLabel(session.role)}, ${session.state}`}>
                 <div className="timeline-lane-label" style={{ width: labelWidth }}>
                   <a href={sessionHref(ref)}><code>{session.session}</code></a>
                   <SessionState state={session.state} />
-                  <span className="timeline-lane-role">{session.role}</span>
+                  <span className="timeline-lane-role">{roleLabel(session.role)}</span>
                 </div>
                 {layout.segments.filter(segment => segment.session === session.session).map(segment => {
                   const { invocation } = segment;
@@ -430,7 +431,7 @@ function SessionItem({ session, refOf }: { readonly session: RunSessionView; rea
   return (
     <li className="timeline-list-session">
       <p>
-        <a href={sessionHref(ref)}><code>{session.session}</code> {session.role}</a> <SessionState state={session.state} />
+        <a href={sessionHref(ref)}><code>{session.session}</code> {roleLabel(session.role)}</a> <SessionState state={session.state} />
         {session.finished && <span className="muted"> {session.finished}</span>}
         <span className="muted"> · {reachText(session.reaches)}</span>
       </p>

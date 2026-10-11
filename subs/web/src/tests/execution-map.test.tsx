@@ -117,7 +117,7 @@ test('the layout stacks each card below the previous one by its own height, and 
 test('a local architect marker opens a floating transcript with its full module path', async () => {
   view();
   const canvas = await screen.findByLabelText('Zoomable execution canvas');
-  fireEvent.click(within(canvas).getByRole('button', { name: /Status local architect, session/ }));
+  fireEvent.click(within(canvas).getByRole('button', { name: /Status module architect, session/ }));
   const floating = await screen.findByLabelText('Transcript window ses-local-status');
   expect(within(floating).getByText(/project\/ui/)).toBeTruthy();
   expect(within(floating).getByRole('link', { name: 'Open full page' }).getAttribute('href')).toContain('/sessions/ses-local-status');
@@ -143,8 +143,8 @@ test('roots, coverage, complete shelf, Now, keyboard buttons, details and indepe
   expect(within(canvas).getByRole('button', { name: /status-badge, capability/ }).querySelectorAll('.execution-dots i')).toHaveLength(1);
   fireEvent.click(within(canvas).getByRole('button', { name: 'Expand status-badge' }));
   expect(within(canvas).getByRole('button', { name: /Renders the status badge, scenario/ })).toBeTruthy();
-  expect(within(canvas).getByText(/Local architect lane · 2 invocations across the work item/)).toBeTruthy();
-  expect(within(canvas).getByRole('button', { name: /Status local architect, session/ }).querySelector('svg')).toBeTruthy();
+  expect(within(canvas).getByText(/Module architect lane · 2 invocations across the work item/)).toBeTruthy();
+  expect(within(canvas).getByRole('button', { name: /Status module architect, session/ }).querySelector('svg')).toBeTruthy();
   fireEvent.click(within(canvas).getByRole('button', { name: /Renders the status badge, scenario/ }));
   expect(await screen.findByText(/Given a valid status/)).toBeTruthy();
   expect(screen.getByText(/No recorded gate result/)).toBeTruthy();
@@ -344,7 +344,7 @@ test('a missing module reads Run-wide only for run-wide elements, and Module not
     : node.key === work.key ? { ...work, module: null } : node));
   expect(within(within(canvas).getByRole('button', { name: /Status iteration gate, failed, gate/ })).getByText('Module not recorded')).toBeTruthy();
   expect(within(within(canvas).getByRole('button', { name: /^Implement status badge, work-item/ })).getByText('Module not recorded')).toBeTruthy();
-  expect(within(within(canvas).getByRole('button', { name: /^Initial architect, session/ })).getByText('Run-wide')).toBeTruthy();
+  expect(within(within(canvas).getByRole('button', { name: /^Plan architect, session/ })).getByText('Run-wide')).toBeTruthy();
 });
 
 test('a drag that starts on a card pans the canvas: its buttons refuse a node drag, not a pan', async () => {

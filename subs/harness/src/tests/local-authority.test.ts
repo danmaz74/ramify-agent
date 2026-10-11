@@ -19,8 +19,8 @@ vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 
 /*
- * What a local architect decides for itself, and what it brings to the
- * global architect.
+ * What a module architect decides for itself, and what it brings to the
+ * plan architect.
  *
  * A choice that refines its own subtree's responsibility is recorded with
  * its assignment, discoverable from the registry, and nothing is appended to

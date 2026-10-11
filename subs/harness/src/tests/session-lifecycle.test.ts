@@ -13,9 +13,9 @@ vi.mock('node:child_process', async original =>
 
 /*
  * The sessions of one scripted run, derived from its log after every event:
- * a local architect continued across a placement request, an iteration and
+ * a module architect continued across a placement request, an iteration and
  * a yield; a global fork of the architect context, whose brief is appended
- * back to it; an engineer iteration whose need opens a contract sub-session;
+ * back to it; a module engineer iteration whose need opens a contract sub-session;
  * a provider engineer continued for a repair after its first gate failed;
  * and the resumed consumer's fresh architect. Every invocation belongs to a
  * session, and the final run holds no suspended session. Every start that
@@ -154,7 +154,7 @@ describe('ST01, ST02, ST03: the sessions of a scripted run', () => {
     // The session-finished of run end precedes the run's final event.
     expect(events.slice(-2).map(event => event.type)).toEqual(['session-finished', 'job-completed']);
     // The fork is a fork of the architect context, and the repair a
-    // continuation of the engineer whose gate failed.
+    // continuation of the module engineer whose gate failed.
     const invocation = async (id: string) => JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.invocation(id)), 'utf8')) as Invocation;
     expect((await invocation('inv-0007')).session).toMatchObject({ requested: 'fork', actual: 'fork' });
     expect(await invocation('inv-0016')).toMatchObject({ work: { iteration: 'wi-002.i01' }, attempt: 2, session: { requested: 'continued' } });

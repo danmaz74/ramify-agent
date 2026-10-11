@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useCallback, useEffect, useState } from 'react';
 import type {
   BreakpointState, DebugExchange, DebugInspection, DebugIntervention, DebugStateResponse, RunSnapshot,
@@ -110,7 +111,7 @@ function StatePanel({ run, debug, error }: { readonly run: RunSnapshot; readonly
   return (
     <section className="panel" aria-labelledby="debug-state-heading">
       <h2 id="debug-state-heading">Breakpoint state</h2>
-      <p className="muted">This run stops before each engineer starts. Stop stays in the Overview; this area does not stop the run.</p>
+      <p className="muted">This run stops before each module engineer starts. Stop stays in the Overview; this area does not stop the run.</p>
       {error && (
         <p className="failure" role="alert">
           The debugger state could not be read: {error.message}. {debug ? 'What is shown is the last state read. ' : ''}The next interval reads it again.
@@ -134,8 +135,8 @@ function stateText(run: RunSnapshot, debug: DebugStateResponse | undefined, curr
   if (current === null) return 'The run is working toward its next breakpoint.';
   switch (current.state) {
     case 'pausing': return 'The run is pausing: admitted work settles before the pause.';
-    case 'paused': return 'The run is paused before the engineer starts.';
-    case 'exchanging': return 'An exchange is in progress: the engineer is answering a message.';
+    case 'paused': return 'The run is paused before the module engineer starts.';
+    case 'exchanging': return 'An exchange is in progress: the module engineer is answering a message.';
   }
 }
 
@@ -143,7 +144,7 @@ function PauseFacts({ current }: { readonly current: BreakpointState }) {
   const { work } = current;
   return (
     <dl className="facts" aria-label="Pause facts">
-      <div><dt>Role</dt><dd>{current.role}</dd></div>
+      <div><dt>Role</dt><dd>{roleLabel(current.role)}</dd></div>
       {work.workItem && <div><dt>Work item</dt><dd>{work.workItem}</dd></div>}
       {work.iteration && <div><dt>Iteration</dt><dd>{work.iteration}</dd></div>}
       {work.request && <div><dt>Request</dt><dd>{work.request}</dd></div>}
@@ -190,7 +191,7 @@ function PreparedInput({ client, run, current }: { readonly client: ProtocolClie
           {state.status === 'reading' ? 'Reading…' : preview ? 'Read the prepared input again' : 'Read the prepared input'}
         </button>
       </header>
-      <p className="muted">A preview of the input the harness prepared for the engineer, read only on request. It is not evidence of what the engineer received.</p>
+      <p className="muted">A preview of the input the harness prepared for the module engineer, read only on request. It is not evidence of what the module engineer received.</p>
       {state.status === 'failed' && <p className="failure" role="alert">The prepared input could not be read: {state.message}</p>}
       {preview && (
         <div className="debug-preview" aria-label="Prepared input preview">
@@ -298,13 +299,13 @@ function Exchange({ run, exchange }: { readonly run: RunSnapshot; readonly excha
     : undefined;
   return (
     <div className={`debug-exchange debug-exchange-${exchange.status}`}>
-      {exchange.status === 'admitted' && <p className="muted">The engineer is answering.</p>}
+      {exchange.status === 'admitted' && <p className="muted">The module engineer is answering.</p>}
       {(exchange.status === 'stopped' || exchange.status === 'interrupted') && (
         <p className="failure">The exchange was {exchange.status}{exchange.error ? `: ${exchange.error}` : '.'}</p>
       )}
       {exchange.status === 'settled' && (
         <>
-          <p><strong>The engineer answered:</strong></p>
+          <p><strong>The module engineer answered:</strong></p>
           <p className="debug-text debug-answer">{exchange.answer ?? ''}</p>
           {exchange.verdicts.length > 0 && (
             <ul className="debug-verdicts" aria-label="Verdicts">
@@ -372,7 +373,7 @@ function Composer({ client, run, current, onChanged }: {
     <section className="panel" aria-labelledby="debug-composer-heading">
       <h2 id="debug-composer-heading">Message or resume</h2>
       <form className="debug-composer" aria-label="Debugger composer" onSubmit={event => { event.preventDefault(); if (canSend) void submit('message'); }}>
-        <textarea name="message" aria-label="Message to the engineer" rows={4} value={text} onChange={event => setText(event.target.value)} disabled={run.state !== 'running'} />
+        <textarea name="message" aria-label="Message to the module engineer" rows={4} value={text} onChange={event => setText(event.target.value)} disabled={run.state !== 'running'} />
         <div className="debug-composer-actions">
           <button type="submit" disabled={!canSend}>Send message</button>
           <button type="button" onClick={() => void submit('resume')} disabled={!canResume}>Resume</button>

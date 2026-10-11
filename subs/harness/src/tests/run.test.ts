@@ -14,7 +14,7 @@ import { runLayout } from '../run/records.js';
 
 /*
  * The smallest coherent run: one with no entry capabilities. It starts,
- * extracts its catalog beside the initial architect (the intake, the
+ * extracts its catalog beside the plan architect (the intake, the
  * architect, and the one plan document's checker), passes readiness, passes its final gate and
  * completes, with no client connected: the file system alone is watched.
  */
@@ -98,7 +98,7 @@ describe('an implementation run with no entry capabilities', () => {
     expect(snapshot.counts.invocations).toBe(3);
     expect(snapshot.counts.readinessAttempts).toBe(1);
 
-    // The intake, the initial architect and the plan document's checker,
+    // The intake, the plan architect and the plan document's checker,
     // each a fresh session, and each submitted.
     expect(agent!.sessions.map(session => [session.spec.role, session.spec.submission.name])).toEqual([
       ['catalog-extractor', 'submit_intake'], ['initial-architect', 'submit_initial_analysis'], ['catalog-extractor', 'submit_catalog_check'],
@@ -244,7 +244,7 @@ describe('an implementation run with no entry capabilities', () => {
     cleanups.push(() => service.close());
 
     const receipt = await service.execute(startRun('review-notes'));
-    // The intake is the default turn; the initial architect's is the one that stalls.
+    // The intake is the default turn; the plan architect's is the one that stalls.
     const architect = () => agent!.sessions.find(session => session.spec.role === 'initial-architect');
     await until(() => architect() !== undefined);
     await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version));

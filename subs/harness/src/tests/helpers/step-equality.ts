@@ -21,7 +21,7 @@ export interface EngineerDelivery {
 }
 
 /**
- * Every engineer invocation of a finished scripted run, rendered again by the
+ * Every module engineer invocation of a finished scripted run, rendered again by the
  * engineer constructor from the inputs the run recorded before it started.
  * The scripted agent declares no built-ins of its own, so the run delivered
  * pi's, as the render does.

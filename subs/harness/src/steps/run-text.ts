@@ -1,3 +1,4 @@
+import { roleDisplayName } from '../interfaces/protocol/runs.js';
 import type { StepRunProgress, StepRunSummary } from './run.js';
 
 /*
@@ -29,7 +30,7 @@ function describe(event: StepRunProgress): string {
     case 'step-started': {
       const start = event.start;
       return [
-        `Step: ${event.role}${event.variant === null ? '' : ` ${event.variant}`}, invocation ${event.invocation}, session ${event.session}`,
+        `Step: ${roleDisplayName(event.role)}${event.variant === null ? '' : ` ${event.variant}`}, invocation ${event.invocation}, session ${event.session}`,
         `Run: ${event.run}${event.created ? ' (created)' : ''}`,
         `Base: ${event.base === '' ? 'none' : event.base}; ${event.dirty ? `the tree differed from it at start in ${event.startingChanged.length} path(s): ${clip(event.startingChanged.join(', '), 400)}` : 'the tree matched it at start'}.`,
         `Start: ${start.actual}${start.actual === start.requested ? '' : ` (the inputs asked for ${start.requested})`}${start.reason === null ? '' : `, because ${start.reason}`}.`,

@@ -1,3 +1,4 @@
+import { roleLabel } from './execution-map-tokens.js';
 import { useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { ModuleTreeCanvas, type ModuleTreeCanvasNode } from 'ramify.ts/module-tree';
@@ -111,7 +112,7 @@ export function ExecutionModules({ map, selectedModule, highlightedModules, onSe
         {row && <><CapturedLines lines={row.lines} scale={scale} />
           {row.lines.gaps.length > 0 && <p>Coverage gaps: {row.lines.gaps.join('; ')}</p>}
           {row.lines.binary.paths > 0 && <p>{row.lines.binary.paths} binary path{row.lines.binary.paths === 1 ? '' : 's'} captured without line counts.</p>}
-          <p>Direct relations: {row.direct.length ? row.direct.map(relation => `${relation.element} (${relation.role})`).join('; ') : 'none'}.</p></>}
+          <p>Direct relations: {row.direct.length ? row.direct.map(relation => `${relation.element} (${roleLabel(relation.role)})`).join('; ') : 'none'}.</p></>}
         <p>{directMatches.size} directly related execution node{directMatches.size === 1 ? '' : 's'}; {hiddenMatches.size} hidden in collapsed branches.</p>
         {direct.length > 0 && <ul aria-label="Direct execution matches">{direct.map(node => <li key={node.key}>
           <button type="button" onClick={() => onJump(node.key)}>{node.label} · {node.kind}{hiddenMatches.has(node.key) ? ' · hidden; reveal' : ''}</button>

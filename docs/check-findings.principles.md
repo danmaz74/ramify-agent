@@ -68,7 +68,7 @@ absence of a semantic defect.
 
 ### Routine settlement needs no person
 
-The default path is that the existing engineer, architect and gate
+The default path is that the existing module engineer, architect and gate
 responsibilities assess a signal, repair or waive it, and verify the claim.
 The system may choose a reasonable interpretation when evidence is incomplete
 or a tension with guidance is weak; it records the choice and its uncertainty

@@ -53,7 +53,7 @@ function script(starts: string[], capabilityPrompts: string[] = [], qualificatio
     ]));
     if (spec.submission.name === 'submit_work_item_result') {
       localTurns += 1;
-      if (localTurns > 1) throw new Error('B local architect was dispatched while X owns the stack');
+      if (localTurns > 1) throw new Error('B module architect was dispatched while X owns the stack');
       return submit(assign(a, { goal: 'Render the richer B fact in A.' }, outline()));
     }
     if (spec.submission.name === 'submit_capability_qualification') {
@@ -215,7 +215,7 @@ test('an unsafe scratch override refuses capability source capture until the sam
   expect(events.filter(event => event.type === 'capability-requested')).toHaveLength(1);
   expect(events.filter(event => event.type === 'gate-attempted')).toHaveLength(0);
   const engineer = events.find(event => event.type === 'invocation-started' && event.data.role === 'engineer');
-  if (engineer?.type !== 'invocation-started') throw new Error('The engineer did not start');
+  if (engineer?.type !== 'invocation-started') throw new Error('The module engineer did not start');
   const outcome = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
     runLayout.outcome(engineer.data.invocation)), 'utf8')) as InvocationOutcome;
   expect(outcome.rejectedSubmissions).toBe(1);
@@ -586,7 +586,7 @@ test('a restart with an unqualified pending request qualifies it fresh and recor
   expect(recovered!.data.start).toBe('opened');
   const recoveredRecord = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.invocation(recovered!.data.invocation)), 'utf8')) as Invocation;
   expect(recoveredRecord.session).toEqual({ requested: 'continued', actual: 'fresh', ref: '',
-    degradedReason: expect.stringContaining('The local architect session point is unavailable') });
+    degradedReason: expect.stringContaining('The module architect session point is unavailable') });
   expect(recoveredRecord.attempt).toBe(2);
   const recoveredOutcome = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.outcome(recovered!.data.invocation)), 'utf8')) as InvocationOutcome;
   expect(recoveredOutcome.ended).toBe('submitted');

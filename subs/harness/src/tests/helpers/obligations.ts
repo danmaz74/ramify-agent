@@ -49,7 +49,7 @@ export function fixtureProjection(events: readonly ObligationEventLine[] = []) {
   return obligationsOf({ scenarios: fixtureScenarios, workItems: fixtureWorkItems, events: [delegated, ...events] });
 }
 
-/** wi-001's local architect, judging against the fixture projection. */
+/** wi-001's module architect, judging against the fixture projection. */
 export function localContext(events: readonly ObligationEventLine[] = [], id = 'wi-001'): ObligationContext {
   return { actor: { kind: 'work-item', id }, projection: fixtureProjection(events) };
 }

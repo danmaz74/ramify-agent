@@ -23,12 +23,12 @@ import { byRole, submit, treeInputs } from './helpers/iterations.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unchanged-run.js';
 
 /*
- * A local architect answers `unresolved` because its gate keeps failing on
- * something its engineers cannot change, and the global architect answers
+ * A module architect answers `unresolved` because its gate keeps failing on
+ * something its engineers cannot change, and the plan architect answers
  * `environment`: the conflict lies in how the gate or the harness runs.
  * Nothing is placed, no deviation is recorded and the plan is untouched.
  * The run holds the work item for the operator, and its status says why.
- * The operator's resumption returns the work item to its local architect
+ * The operator's resumption returns the work item to its module architect
  * with the diagnosis; their answer `end` ends the run.
  */
 
@@ -155,7 +155,7 @@ describe('an unresolved request answered with an environment problem', () => {
     await opened.service.settled(plan, runId);
     expect(onlyRun(opened.service, plan).state).toBe('completed');
 
-    // The local architect that asked was continued with the briefing, and retried from its outline.
+    // The module architect that asked was continued with the briefing, and retried from its outline.
     const architects = agent.sessions.filter(session => session.spec.submission.name === localArchitectToolName);
     expect(architects).toHaveLength(3);
     expect(architects[1]!.start.mode).toBe('continue');

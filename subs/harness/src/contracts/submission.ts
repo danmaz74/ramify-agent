@@ -11,7 +11,7 @@ import { ancestorsOf, ownerOf } from './parity.js';
 import { contractAuthoritySchema, contractModeSchema, standsForSchema } from './records.js';
 
 /*
- * What an engineer writes when the behavior it needs is outside its scope,
+ * What a module engineer writes when the behavior it needs is outside its scope,
  * and what the contract sub-session submits when its work is done.
  *
  * The need is written as behavior and not as an interface: use cases,

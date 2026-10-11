@@ -180,7 +180,7 @@ describe('C1: a run completes with no client, and a client attached afterwards r
       const resumed = await allEvents(first, runId, half);
       expect(resumed.events).toEqual(read.events.slice(half));
 
-      // The notices come first on the Run page: the module the engineer
+      // The notices come first on the Run page: the module the module engineer
       // created, read from the accepted commit, with the statement that no
       // placement decision proposed it.
       expect(run.notices).toHaveLength(1);
@@ -459,7 +459,7 @@ describe('commands over HTTP', () => {
       resume();
       await closing;
       // The static script leaves the intake (inv-0001) to its default turn;
-      // the initial architect's session, inv-0002, observes its context.
+      // the plan architect's session, inv-0002, observes its context.
       const observations = await readFile(runPath(root, plan, receipt.jobId, runLayout.observations('inv-0002')), 'utf8');
       await new Promise<void>(resolve => setImmediate(resolve));
 

@@ -8,12 +8,15 @@ scope implementation remains pending.
 ## Purpose
 
 Define the vocabulary of the [harness principles](harness.principles.md) and
-the [harness architecture](architecture.md). Those documents contain the rules
-and the design; this companion defines their terms.
+the [harness architecture](architecture/autonomous-implementation-loop.md).
+Those documents contain the rules and the design; this companion defines their terms.
 
 Ramify's own vocabulary is defined in the toolkit's
 [model glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/glossary.md) and
 [agents glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/glossary.md) and is not repeated here.
+
+Harness role names below describe responsibility within a run; the toolkit's broader **module architect** term describes an
+agent with a global architectural view.
 
 Use **test-shaped file** as defined in ramify-audit's
 glossary: `ramify-audit:docs/glossary.md#test-shaped-file`. This reference names
@@ -42,7 +45,7 @@ specification, which stays authoritative over it.
 
 To **translate** a [semantic specification](#semantic-specification) is to
 write an [executable specification](#executable-specification) of it. The
-one who translates is whoever writes that code, usually an engineer; it is
+one who translates is whoever writes that code, usually a module engineer; it is
 not a role.
 
 ## Interpretation
@@ -131,7 +134,7 @@ end at the same symbol. An existing capability is never revised to cover more.
 
 ## Capability request
 
-A **capability request** is an engineer's recorded need for behavior outside
+A **capability request** is a module engineer's recorded need for behavior outside
 its current implementation scope, including usage, known constraints and
 examples.
 
@@ -146,6 +149,22 @@ and real consumer verification.
 A **capability plan** is the versioned design, work and evidence record of one
 [capability task](#capability-task).
 
+## Plan architect
+
+A **plan architect** is the agent responsible for a [plan](#plan)'s
+architectural decomposition and decisions about shared or uncertain capability
+ownership.
+
+## Module architect
+
+A **module architect** is the agent responsible for planning and assessing
+iterations of one module [work item](#work-item).
+
+## Module engineer
+
+A **module engineer** is the agent responsible for implementing an assigned
+iteration within its goal and module write scope.
+
 ## Capability architect
 
 A **capability architect** is the agent coordinating one
@@ -155,7 +174,7 @@ A **capability architect** is the agent coordinating one
 
 A **handback** is the accepted return of a
 [capability task](#capability-task) result, on its capability architect's done
-report, to its suspended parent coordinator and requesting engineer.
+report, to its suspended parent coordinator and requesting module engineer.
 
 ## Contract
 
@@ -271,7 +290,7 @@ and a lost session repeats it.
 
 **Initial orientation** is the [orientation](#orientation) a fresh session
 performs from its initial context before its first task action. The harness
-records two kinds as submissions: a **work orientation**, the local
+records two kinds as submissions: a **work orientation**, the module
 architect's first turn for a [work item](#work-item), and a **design
 orientation**, a reviewer's reading of the design guidance a review selects.
 
@@ -326,7 +345,7 @@ extracted by the harness; its authority is the plan's.
 
 ## Architect scenario
 
-An **architect scenario** is a [scenario](#scenario) the initial architect
+An **architect scenario** is a [scenario](#scenario) the plan architect
 writes for one entry capability; its authority is the person's review.
 
 ## Entry scenario
@@ -343,7 +362,7 @@ at the common ancestor of its [sub-scenarios](#sub-scenario)' owners.
 
 ## Sub-scenario
 
-A **sub-scenario** is an [entry scenario](#entry-scenario) the initial
+A **sub-scenario** is an [entry scenario](#entry-scenario) the plan
 architect derived from an [integration scenario](#integration-scenario),
 ideally by picking its steps verbatim.
 

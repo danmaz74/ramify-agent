@@ -286,7 +286,7 @@ async function eventTypes(path: string): Promise<string[]> {
   return types;
 }
 
-/** One entry capability, one hypothesis, and a local architect that asks for completion. */
+/** One entry capability, one hypothesis, and a module architect that asks for completion. */
 function oneWorkItem(assignRoot = false): OpenRunsOptions['script'] {
   const submitted = analysis(
     [entry('reviewer-note', 'collection-review/workspace/reviews')],
@@ -313,11 +313,11 @@ async function reopen(root: string, agent?: OpenRunsOptions['agent']) {
   return reopened;
 }
 
-/** The capability of the one entry, and the request the local architect makes for it. */
+/** The capability of the one entry, and the request the module architect makes for it. */
 const placementCapability = 'reviewer-note';
 
 /**
- * A run that makes one placement request: one entry capability, a local
+ * A run that makes one placement request: one entry capability, a module
  * architect that asks where it belongs, and a fork that decides.
  */
 function placementPlan(brief = 'The capability stays where the registry places it.') {
@@ -576,7 +576,7 @@ describe('the recovery table', () => {
     const delivered = events.filter(event => event.type === 'decision-delivered');
     expect(delivered).toHaveLength(1);
     expect(delivered[0]!.data).toEqual({ decision: 'gd-001', workItem: 'wi-001' });
-    // Recovery called no agent: the local architect's next turn belongs to a
+    // Recovery called no agent: the module architect's next turn belongs to a
     // run that is started again.
     expect(agent.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result')).toHaveLength(1);
   }, 180_000);
@@ -919,7 +919,7 @@ describe('the boundaries of an iteration', () => {
     expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
   }, 180_000);
 
-  /** An engineer that writes through the unguarded shell before it submits. */
+  /** A module engineer that writes through the unguarded shell before it submits. */
   function oneShellIteration(projectRoot: string, marker: string): OpenRunsOptions['script'] {
     return byRole({
       'initial-architect': [submitStep(analysis([entry('review-note', notes)]))],

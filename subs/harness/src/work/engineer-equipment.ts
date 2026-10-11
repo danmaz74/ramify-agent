@@ -23,11 +23,11 @@ import { createShellTool, shellInputSchemaFor, shellMaxTimeoutMs, shellToolName,
 /*
  * The equipment of one implementation session: the shell, the write guard and the hook check that runs after each mutating
  * call. It is built from explicit inputs and knows nothing of a run, so an
- * implementation run and a standalone session give an engineer the same
+ * implementation run and a standalone session give a module engineer the same
  * tools, guarded the same way and recorded in the same observations.
  */
 
-/** The implementation's own built-ins an engineer is given: reading, and the guarded `edit` and `write`. */
+/** The implementation's own built-ins a module engineer is given: reading, and the guarded `edit` and `write`. */
 export const engineerBuiltinTools = ['read', 'grep', 'ls', 'edit', 'write'] as const satisfies readonly (BuiltinTool | WriteTool)[];
 
 /** What an invocation's equipment is built from. */
@@ -70,7 +70,7 @@ export interface Equipment {
   readonly drained?: (() => Promise<void>) | undefined;
 }
 
-/** Everything the engineer equipment is built from; none of it names a run. */
+/** Everything the module engineer equipment is built from; none of it names a run. */
 export interface EngineerEquipmentInputs {
   /** External command execution. Tests script outcomes; actual process tests use the default. */
   readonly commandExecution?: CommandRunner | undefined;
@@ -157,7 +157,7 @@ export interface EngineerEquipment {
 
 /**
  * The tools, the guard and the post-write hook of one implementation
- * session. An ordinary engineer and a contract sub-session are given the
+ * session. An ordinary module engineer and a contract sub-session are given the
  * same equipment: what differs between them is the scope they may write
  * and the submission they end with, never what they can do.
  */
@@ -373,7 +373,7 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
   };
   /**
    * The fresh check one claimed completion is judged against. It runs while
-   * the session is still open, so the engineer can act on the answer, and it
+   * the session is still open, so the module engineer can act on the answer, and it
    * covers the write scope rather than the paths the mutations named. A
    * check that could not run leaves the findings the hook checks saw as they
    * were: the submission proceeds to the gate, whose complete check answers.

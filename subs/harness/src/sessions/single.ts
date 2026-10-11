@@ -114,7 +114,7 @@ export interface SessionSummary {
   readonly standingViolations: readonly HookFinding[];
   /** Every uncommitted path when the session settled. */
   readonly changed: readonly string[];
-  /** A path changed by the harness while preparing scratch, rather than by the engineer. */
+  /** A path changed by the harness while preparing scratch, rather than by the module engineer. */
   readonly harnessChanged: readonly string[];
   /** Indexed scratch kept at session end; it must be removed from the index before readiness. */
   readonly preservedTracked: readonly string[];
@@ -138,7 +138,7 @@ export type SessionProgress =
       readonly directory: string;
       readonly records: string;
       readonly scope: { readonly roots: readonly string[]; readonly files: readonly string[] };
-      /** The iteration message the engineer starts from. */
+      /** The iteration message the module engineer starts from. */
       readonly message: string;
     }
   | { readonly type: 'tool-call'; readonly callId: string; readonly tool: string; readonly input: unknown }
@@ -290,7 +290,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   }
   const workingDirectory = await engineerWorkingDirectory(projectRoot, scope, initial, git)
     .catch(error => ({ error: message(error) }));
-  if (typeof workingDirectory !== 'string') return notStarted(`The engineer cannot start in the module's src directory: ${workingDirectory.error}`);
+  if (typeof workingDirectory !== 'string') return notStarted(`The module engineer cannot start in the module's src directory: ${workingDirectory.error}`);
   let scratchSettled = false;
   let settlementConfirmed = true;
   let closeOperations: (() => Promise<boolean>) | undefined;
@@ -316,7 +316,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   const { limits } = policy;
   const { packages } = await loadPromptPackages();
   const loaded = packages.get('engineer');
-  if (loaded === undefined) return notStarted('No prompt package is loaded for the engineer.');
+  if (loaded === undefined) return notStarted('No prompt package is loaded for the module engineer.');
 
   const views = await iterationApiViews(ramify, projectRoot, initial, scope.base);
 

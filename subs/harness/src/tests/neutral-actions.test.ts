@@ -75,7 +75,7 @@ const notesDirectory = 'subs/workspace/subs/reviews/subs/notes';
 const outside = 'subs/workspace/subs/shared-ui/src/status-badge.tsx';
 const store = `${notesDirectory}/src/store.ts`;
 
-/** The engineer's calls as one executor names them. */
+/** The module engineer's calls as one executor names them. */
 interface Naming {
   readonly options: ScriptedAgentOptions;
   read(path: string): ScriptStep;

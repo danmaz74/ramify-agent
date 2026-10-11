@@ -34,7 +34,7 @@ function sampleCatalog(): ElementCatalog {
 
 const catalog = sampleCatalog();
 const planDeviations: PackageDeviation[] = [
-  { id: 'pd-001', amends: ['fr-001'], authority: 'The global architect, for wi-001', text: 'Serve the lookup from the cache only.' },
+  { id: 'pd-001', amends: ['fr-001'], authority: 'The plan architect, for wi-001', text: 'Serve the lookup from the cache only.' },
 ];
 const identity = { workItem: 'wi-001', orientationInvocation: 'inv-orient', orientationPoint: 'point-1', selectorInvocation: 'inv-select', degraded: false };
 const source = { catalog, workItemElements: ['fr-001', 'fr-002', 'ctx-001'], planDeviations };

@@ -204,7 +204,7 @@ test('a live session\'s timeline grows as the run\'s version moves', async () =>
   client.runSessions.set(runId, lineageAnswer(ended, 17));
   client.runs.set(runId, { snapshot: snapshot({ version: 17 }), events: [] });
   await screen.findByRole('link', { name: /^Chapter 1 of ses-0005: inv-0006, opened in place of ses-0003 \(reconstructed\), submitted/ });
-  expect(screen.getByRole('group', { name: /^ses-0005 / }).getAttribute('aria-label')).toBe('ses-0005 engineer, finished');
+  expect(screen.getByRole('group', { name: /^ses-0005 / }).getAttribute('aria-label')).toBe('ses-0005 Module engineer, finished');
 });
 
 

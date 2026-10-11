@@ -18,7 +18,7 @@ export type BuiltinTool = 'read' | 'grep' | 'ls' | 'find';
 
 /**
  * The mutating tools an implementation provides itself. A shell is never one
- * of them: the shell an engineer receives is a harness tool.
+ * of them: the shell a module engineer receives is a harness tool.
  */
 export type WriteTool = 'edit' | 'write';
 

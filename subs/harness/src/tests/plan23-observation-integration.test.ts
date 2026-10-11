@@ -44,7 +44,7 @@ async function observed() {
     context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, excursions: new ExcursionWatcher({ projectRoot: directory.path, index: null, scope: undefined }), judge: { countImplementationRejection: () => async () => {} } });
   recorder.identify(identity); return { directory, path, observations, recorder };
 }
-/** An engineer's edit: the first mutating call, which reads and searches before it are not. */
+/** A module engineer's edit: the first mutating call, which reads and searches before it are not. */
 async function edited(recorder: PortEventRecorder, callId: string, seconds: number) {
   await recorder.record({ type: 'tool-started', tool: 'edit', callId, input: {}, action: { kind: 'write', paths: ['src/a.ts'] }, mutating: true, execution: identity, observation: { sourceId: `${callId}:start`, at: t(seconds) } });
   await recorder.record({ type: 'tool-finished', tool: 'edit', callId, isError: false, reachedTool: true, execution: identity, observation: { sourceId: `${callId}:end`, at: t(seconds + 1), elapsedMs: 10 } });

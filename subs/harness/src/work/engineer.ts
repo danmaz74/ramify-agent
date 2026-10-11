@@ -18,18 +18,18 @@ import type { RegistryEntry } from '../analysis/records.js';
 import type { AffectedDocument } from 'ramify.ts/cli';
 
 /*
- * The engineer: what it submits, the one harness tool it is given, and the
+ * The module engineer: what it submits, the one harness tool it is given, and the
  * briefing it starts from.
  *
  * Its submission is provisional. A proposal of completion is a request for
  * the gate, never a verdict: the harness runs the checks and owns the
- * outcome. A recommendation is read by the local architect and never widens
+ * outcome. A recommendation is read by the module architect and never widens
  * a scope or discharges an obligation.
  *
  * `edit` and `write` are the implementation's own built-ins, behind the
  * write guard. The `shell` tool arrives in iteration 7.
  *
- * `contract-needed` is how an engineer reports that the behavior it needs is
+ * `contract-needed` is how a module engineer reports that the behavior it needs is
  * outside its scope. Its turn ends there: no nested live session is started,
  * and the harness answers with a contract iteration of its own. The need is
  * written as behavior, never as an interface, because naming the design
@@ -39,20 +39,20 @@ import type { AffectedDocument } from 'ramify.ts/cli';
 const text = z.string().min(1);
 
 /**
- * Why an engineer reports its assignment unsuitable. `obligation-change` and
+ * Why a module engineer reports its assignment unsuitable. `obligation-change` and
  * `unplaced-need` arrive with the iterations that act on them: a reason no
  * iteration can act on is not offered.
  *
- * `break-discovered` is how an engineer reports that the work it was given
+ * `break-discovered` is how a module engineer reports that the work it was given
  * cannot be done without breaking a guarantee somebody else relies on. Its
  * turn ends there: it does not switch approach, widen its writes or adapt
- * the consumers itself, and the work item's local architect revises the
- * remaining iterations. An engineer already working a `breaking` iteration
+ * the consumers itself, and the work item's module architect revises the
+ * remaining iterations. A module engineer already working a `breaking` iteration
  * has nothing to discover, so the reason is refused for one.
  *
- * `provider-cannot-conform` is offered only to an engineer whose assignment
+ * `provider-cannot-conform` is offered only to a module engineer whose assignment
  * owes a real-provider obligation. It is the provider's report that the
- * agreement cannot be met as it stands, and it reaches the consumer's local
+ * agreement cannot be met as it stands, and it reaches the consumer's module
  * architect as `revision-needed`. Any other engineer using it is refused.
  */
 export const unsuitableReasonSchema = z.enum(['scope', 'break-discovered', 'provider-cannot-conform']);
@@ -60,7 +60,7 @@ export const unsuitableReasonSchema = z.enum(['scope', 'break-discovered', 'prov
 export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('completion-proposed'),
-    /** The engineer's own words. They enter the accepted commit's message and nothing else does. */
+    /** The module engineer's own words. They enter the accepted commit's message and nothing else does. */
     summary: text,
     findings: z.array(text),
     startingPoints: startingPointsSchema,
@@ -68,7 +68,7 @@ export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
     /**
      * One binding for every obligation the assignment names, each once, with
      * the fake class or export names the binding relies on (none by
-     * default). A binding is the engineer's declaration that its step
+     * default). A binding is the module engineer's declaration that its step
      * definitions or test exist; whether they are right is the gate's audit
      * and the architect's to find. It is never the architect's report.
      */
@@ -90,7 +90,7 @@ export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('contract-needed'),
     /** The need, stated as behavior. The contract iteration designs the interface. */
     need: needAsBehaviorSchema,
-    /** Where the engineer believes the behavior belongs; the harness resolves the owner itself. */
+    /** Where the module engineer believes the behavior belongs; the harness resolves the owner itself. */
     suggestedProvider: modulePathSchema.optional(),
     /**
      * The files where the fake must be injected, when they are known: in this
@@ -100,7 +100,7 @@ export const engineerSubmissionSchema = z.discriminatedUnion('kind', [
      * contract iteration may write exactly those files beyond its scope.
      */
     injectionSites: z.array(text).optional(),
-    /** What this iteration did before it stopped, in the engineer's own words. */
+    /** What this iteration did before it stopped, in the module engineer's own words. */
     summary: text,
   }).strict(),
   z.object({
@@ -130,7 +130,7 @@ export const engineerToolName = 'submit_iteration_result';
  * What one accepted submission is answered with, by kind. Only a proposal of
  * completion asks for the gate; an accepted `partial`, `unsuitable` or
  * `contract-needed` report is a report, and answering it with completed work
- * tells the engineer something that is not so.
+ * tells the module engineer something that is not so.
  *
  * `checkNotRun` is the reason the fresh Ramify check over the write scope
  * could not run, where it could not. It is stated rather than passed over: a
@@ -145,9 +145,9 @@ export function iterationAcceptance(kind: EngineerSubmission['kind'], checkNotRu
     case 'completion-proposed':
       return `The submission was accepted and recorded. The iteration gate commits the candidate before running the complete required checks and owns the verdict; a commit alone is not acceptance.${note} Nothing more is asked of you in this session.`;
     case 'partial':
-      return 'The report was accepted and recorded. The work is not complete: the local architect reads what is unfinished and decides what follows. Nothing more is asked of you in this session.';
+      return 'The report was accepted and recorded. The work is not complete: the module architect reads what is unfinished and decides what follows. Nothing more is asked of you in this session.';
     case 'unsuitable':
-      return 'The report was accepted and recorded. This iteration closes on it, unverified and uncommitted, and the local architect decides what follows. Nothing more is asked of you in this session.';
+      return 'The report was accepted and recorded. This iteration closes on it, unverified and uncommitted, and the module architect decides what follows. Nothing more is asked of you in this session.';
     case 'contract-needed':
       return 'The report was accepted and recorded. This iteration closes with what it did, and the harness answers the need you named with a contract iteration of its own. Nothing more is asked of you in this session.';
     case 'capability-needed':
@@ -155,7 +155,7 @@ export function iterationAcceptance(kind: EngineerSubmission['kind'], checkNotRu
   }
 }
 
-/** What the submission tool tells the engineer about itself. */
+/** What the submission tool tells the module engineer about itself. */
 export const engineerSubmissionDescription = 'End your turn with the result of this iteration. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.';
 
 /**
@@ -282,7 +282,7 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
   }
 
   // An injection site opens one file of the provider to the contract
-  // iteration, so it is judged here, where the engineer can still correct it.
+  // iteration, so it is judged here, where the module engineer can still correct it.
   if (value.kind === 'contract-needed') {
     const seams = evidence.seams;
     const provider = seams?.providerOf(value.need.capability);
@@ -304,7 +304,7 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
   }
 
   // The provider's report is offered only where there is an agreement to
-  // report against. An engineer that owes no real-provider obligation has
+  // report against. A module engineer that owes no real-provider obligation has
   // nothing it could fail to conform to, and the reason is not parsed from
   // free text: it is refused here.
   if (value.kind === 'unsuitable' && value.reason === 'provider-cannot-conform'
@@ -521,7 +521,7 @@ export function iterationMessage(briefing: IterationBriefing): string {
   return lines.join('\n');
 }
 
-/** One obligation an assignment names, as the engineer is told of it. */
+/** One obligation an assignment names, as the module engineer is told of it. */
 export interface AssignedObligation {
   readonly id: string;
   /** What it is: a scenario's name, a delegated outcome, a registered case or test; null where nothing more is known. */

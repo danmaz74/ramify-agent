@@ -40,8 +40,8 @@ test('ST09: the Sessions page lists live and suspended sessions first, across ru
   const closed = screen.getByRole('heading', { name: 'Finished and interrupted' }).closest('section')!;
   expect(within(open).getAllByRole('listitem').map(item => item.querySelector('.session-state')!.textContent)).toEqual(['live', 'suspended']);
   expect(within(closed).getAllByRole('listitem').map(item => item.querySelector('.session-state')!.textContent)).toEqual(['interrupted', 'finished']);
-  expect(within(open).getByRole('link', { name: 'ses-0002 engineer' }).getAttribute('href')).toBe(`#/plans/${planId}/runs/${runId}/sessions/ses-0002`);
-  expect(within(closed).getByRole('link', { name: `${standaloneId} engineer` }).getAttribute('href')).toBe(`#/sessions/standalone/${standaloneId}`);
+  expect(within(open).getByRole('link', { name: 'ses-0002 Module engineer' }).getAttribute('href')).toBe(`#/plans/${planId}/runs/${runId}/sessions/ses-0002`);
+  expect(within(closed).getByRole('link', { name: `${standaloneId} Module engineer` }).getAttribute('href')).toBe(`#/sessions/standalone/${standaloneId}`);
   expect(within(closed).getAllByRole('listitem')[0]!.textContent).toContain('Standalone session');
   expect(within(closed).getAllByRole('listitem')[1]!.textContent).toContain('work-closed');
   expect(within(open).getAllByRole('listitem')[0]!.textContent).toContain('work item wi-001, capability send-button, module shop/reviews');

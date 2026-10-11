@@ -58,8 +58,8 @@ function sampleCatalog(): ElementCatalog {
 }
 
 const planDeviations: PackageDeviation[] = [
-  { id: 'pd-001', amends: ['fr-001'], authority: 'Recorded by the global architect for wi-001.', text: 'Render packages from IDs and a deviation list.' },
-  { id: 'pd-002', amends: ['nfr-001', 'fr-002'], authority: 'Recorded by the global architect for wi-002.', text: 'Allow up to 8 MiB.' },
+  { id: 'pd-001', amends: ['fr-001'], authority: 'Recorded by the plan architect for wi-001.', text: 'Render packages from IDs and a deviation list.' },
+  { id: 'pd-002', amends: ['nfr-001', 'fr-002'], authority: 'Recorded by the plan architect for wi-002.', text: 'Allow up to 8 MiB.' },
 ];
 
 describe('element catalog', () => {
@@ -222,7 +222,7 @@ describe('createPackage', () => {
     expect(result.text.indexOf('## Plan deviations')).toBeGreaterThan(result.text.indexOf('### rec-001'));
     expect(result.text.endsWith([
       '## Plan deviations', '', deviationNotice, '',
-      '### pd-002 amends nfr-001, fr-002', '', 'Authority: Recorded by the global architect for wi-002.', '', '> Allow up to 8 MiB.', '',
+      '### pd-002 amends nfr-001, fr-002', '', 'Authority: Recorded by the plan architect for wi-002.', '', '> Allow up to 8 MiB.', '',
     ].join('\n'))).toBe(true);
   });
 

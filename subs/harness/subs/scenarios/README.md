@@ -1,7 +1,7 @@
 # scenarios
 
 Holds what the harness knows about acceptance scenarios as pure functions:
-extracting plan scenarios from a Markdown plan, the form rules of the initial
+extracting plan scenarios from a Markdown plan, the form rules of the plan
 architect's scenarios, the `ramify-agent.scenario/1` record and its
 numbering, the reducer from scenario events to states and the rendering of
 the tracked feature files. The project's own Cucumber configuration runs the
@@ -70,7 +70,7 @@ entry scenario's owner is its entry's; an integration scenario's is the
 
 `applyScenarioEvent` and `reduceScenarioStates` derive the three states,
 `pending`, `bound` and `done`, from the two accepted-submission events, from
-every scenario `pending`. `obligation-bound`, an engineer's accepted binding,
+every scenario `pending`. `obligation-bound`, a module engineer's accepted binding,
 makes a scenario `bound` and leaves a `done` one `done`; `obligation-reported`,
 its responsible architect's accepted report, sets the judgment, `done` or the
 revision back to `bound`. An event naming another kind of obligation changes

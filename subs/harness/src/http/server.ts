@@ -19,7 +19,7 @@ import { createApp } from './app.js';
 /**
  * The agent a run is started with. `pi` is pi with the person's own login.
  * `fake` is the scripted fake, chosen explicitly and never the default: its
- * initial architect submits an analysis with no entry capability, so the
+ * plan architect submits an analysis with no entry capability, so the
  * run it drives exercises the lifecycle, readiness and the final gate over
  * the project's own commands, and changes no source. A test of this module
  * may supply an implementation of its own.

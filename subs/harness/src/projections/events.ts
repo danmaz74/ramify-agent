@@ -1,4 +1,4 @@
-import { runQueryLimits, type ProjectedRunEvent, type RunEventPage, type RunEventRefKind } from '../interfaces/protocol/runs.js';
+import { roleDisplayName, runQueryLimits, type ProjectedRunEvent, type RunEventPage, type RunEventRefKind } from '../interfaces/protocol/runs.js';
 import type { RunEvent, RunEventOf } from '../run/log.js';
 import type { SessionPoint } from '../run/records.js';
 import { pointLabel } from '../run/sessions.js';
@@ -35,11 +35,11 @@ export function projectEvent(event: RunEvent): ProjectedRunEvent {
 function describe(event: RunEvent): [string, Ref[]] {
   switch (event.type) {
     case 'debug-pausing':
-      return [`Settling the run before ${event.data.role}: ${event.data.goal}`, workRefs(event.data.work)];
+      return [`Settling the run before ${roleDisplayName(event.data.role).toLowerCase()}: ${event.data.goal}`, workRefs(event.data.work)];
     case 'debug-paused':
-      return [`Breakpoint ${event.data.pauseId} reached; the prepared engineer awaits resume`, []];
+      return [`Breakpoint ${event.data.pauseId} reached; the prepared module engineer awaits resume`, []];
     case 'debug-exchange-admitted':
-      return [`Breakpoint ${event.data.pauseId}: engineer exchange admitted (${event.data.command.commandId})`, []];
+      return [`Breakpoint ${event.data.pauseId}: module engineer exchange admitted (${event.data.command.commandId})`, []];
     case 'debug-exchange-settled':
       return [event.data.result.summary, ref('invocation', event.data.result.invocation)];
     case 'debug-resumed':
@@ -49,7 +49,7 @@ function describe(event: RunEvent): [string, Ref[]] {
     case 'session-opened': {
       const { fork, replaces, requestedBy } = event.data;
       return [
-        `The ${event.data.role} session ${event.data.session} opened on ${event.data.executor}${event.data.model === null ? '' : `, model ${event.data.model}`}`
+        `The ${roleDisplayName(event.data.role).toLowerCase()} session ${event.data.session} opened on ${event.data.executor}${event.data.model === null ? '' : `, model ${event.data.model}`}`
           + (fork === undefined ? '' : `, forked from ${pointLabel(fork.from)} (${fork.reason}${fork.generation === undefined ? '' : `, generation ${fork.generation}`})`)
           + (replaces === undefined ? '' : `, in place of ${replaces.session} (${replaces.reason})`)
           + (requestedBy === undefined ? '' : `, requested by ${requestedBy.invocation} (${requestedBy.reason})`),
@@ -66,7 +66,7 @@ function describe(event: RunEvent): [string, Ref[]] {
     case 'invocation-started': {
       const continues = event.data.continues;
       return [
-        `The ${event.data.role} invocation ${event.data.invocation} started, ${event.data.start === 'opened' ? 'opening' : 'continuing'} session ${event.data.session}`
+        `The ${roleDisplayName(event.data.role).toLowerCase()} invocation ${event.data.invocation} started, ${event.data.start === 'opened' ? 'opening' : 'continuing'} session ${event.data.session}`
           + (continues === undefined ? '' : ` from ${pointLabel(continues.from)} (${continues.reason})`),
         [...ref('invocation', event.data.invocation), ...ref('session', event.data.session), ...pointRefs(continues?.from)],
       ];
@@ -126,7 +126,7 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`The fork for ${event.data.request} returned partial findings (retry ${event.data.retry})`, [...ref('request', event.data.request), ...ref('invocation', event.data.invocation)]];
     case 'unresolved-requested':
       return [
-        `${event.data.workItem} reported that its request cannot be met as stated; the global architect answers ${event.data.request}`,
+        `${event.data.workItem} reported that its request cannot be met as stated; the plan architect answers ${event.data.request}`,
         [...ref('request', event.data.request), ...ref('work-item', event.data.workItem), ...ref('invocation', event.data.invocation)],
       ];
     case 'plan-deviation-recorded':
@@ -136,7 +136,7 @@ function describe(event: RunEvent): [string, Ref[]] {
       ];
     case 'environment-reported':
       return [
-        `The global architect answered ${event.data.request} with environment problem ${event.data.problem}: the run holds ${event.data.workItem} until you resume it or end the run`,
+        `The plan architect answered ${event.data.request} with environment problem ${event.data.problem}: the run holds ${event.data.workItem} until you resume it or end the run`,
         [...ref('request', event.data.request), ...ref('work-item', event.data.workItem), ...ref('invocation', event.data.invocation)],
       ];
     case 'scenarios-rewording':
@@ -149,10 +149,10 @@ function describe(event: RunEvent): [string, Ref[]] {
         [...ref('decision', event.data.decision), ...ref('request', event.data.request), ...ref('work-item', event.data.workItem)],
       ];
     case 'brief-appended':
-      return [`The brief of ${event.data.decision} reached the global architect's context (${event.data.outcome})`, [...ref('decision', event.data.decision), ...ref('session', event.data.session)]];
+      return [`The brief of ${event.data.decision} reached the plan architect's context (${event.data.outcome})`, [...ref('decision', event.data.decision), ...ref('session', event.data.session)]];
     case 'brief-not-appended': return [`Decision ${event.data.decision}: parent briefing unavailable (${event.data.reason})`, ref('decision', event.data.decision)];
     case 'global-context-rebuilt':
-      return [`The global architect's context was rebuilt (generation ${event.data.generation}): ${event.data.reason}`, []];
+      return [`The plan architect's context was rebuilt (generation ${event.data.generation}): ${event.data.reason}`, []];
     case 'decision-delivered':
       return [`Decision ${event.data.decision} was delivered to ${event.data.workItem}`, [...ref('decision', event.data.decision), ...ref('work-item', event.data.workItem)]];
     case 'outline-revised':
@@ -238,12 +238,12 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`${featureFiles(event.data.files.length)} on the run branch`, ref('commit', event.data.commit)];
     case 'obligation-registered':
       return [
-        `${event.data.responsible.kind === 'work-item' ? 'The local architect of' : 'The capability architect of'} ${event.data.responsible.id} registered ${event.data.id}: ${event.data.kind === 'test' ? `required test "${event.data.description ?? ''}"` : `case ${event.data.case ?? ''}`}`,
+        `${event.data.responsible.kind === 'work-item' ? 'The module architect of' : 'The capability architect of'} ${event.data.responsible.id} registered ${event.data.id}: ${event.data.kind === 'test' ? `required test "${event.data.description ?? ''}"` : `case ${event.data.case ?? ''}`}`,
         [...ref(event.data.responsible.kind === 'work-item' ? 'work-item' : 'capability-task', event.data.responsible.id), ...ref('invocation', event.data.by)],
       ];
     case 'obligation-bound':
       return [
-        `An engineer bound ${event.data.id}, relying on ${event.data.fakes.length === 0 ? 'no fakes' : `fakes ${event.data.fakes.join(', ')}`}`,
+        `A module engineer bound ${event.data.id}, relying on ${event.data.fakes.length === 0 ? 'no fakes' : `fakes ${event.data.fakes.join(', ')}`}`,
         [...obligationRef(event.data.id), ...ref('invocation', event.data.by)],
       ];
     case 'obligation-reported':
@@ -300,7 +300,7 @@ function describe(event: RunEvent): [string, Ref[]] {
       ];
     }
     case 'reconciliation-brief-appended':
-      return [`The brief of ${event.data.reconciliation} reached the local architect's session (${event.data.outcome}${event.data.reason === null ? '' : `: ${event.data.reason}`})`, ref('session', event.data.session)];
+      return [`The brief of ${event.data.reconciliation} reached the module architect's session (${event.data.outcome}${event.data.reason === null ? '' : `: ${event.data.reason}`})`, ref('session', event.data.session)];
     case 'reconciliation-refused':
       return [`${event.data.reconciliation === null ? `${event.data.workItem}'s completion` : `Reconciliation ${event.data.reconciliation}`} was refused at its ${event.data.stage}: ${event.data.reason}`, ref('work-item', event.data.workItem)];
     case 'document-manifest-committed':

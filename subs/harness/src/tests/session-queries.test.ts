@@ -142,8 +142,8 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
       });
       expect(views.get(session.id)!.invocations.map(invocation => invocation.invocation)).toEqual(session.invocations);
     }
-    // The analysis's intake and the initial architect both reach the run;
-    // the architect context is the initial architect's session.
+    // The analysis's intake and the plan architect both reach the run;
+    // the architect context is the plan architect's session.
     expect(views.get('ses-0001')).toMatchObject({ role: 'catalog-extractor', reaches: { kind: 'run' } });
     expect(views.get('ses-0002')).toMatchObject({ role: 'initial-architect', reaches: { kind: 'run' } });
     const fork = [...views.values()].find(view => view.role === 'global-fork')!;

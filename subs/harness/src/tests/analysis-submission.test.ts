@@ -19,7 +19,7 @@ import { extractPlanScenarios } from '../../subs/scenarios/src/extraction.js';
 import { join } from 'node:path';
 
 /*
- * Everything the initial architect tells the harness is validated JSON: the
+ * Everything the plan architect tells the harness is validated JSON: the
  * strict schema, then the rules the schema cannot hold. A failure changes
  * nothing, every error names its path, a corrected input is accepted, and
  * the bound ends the invocation as `invalid-submission`.
@@ -552,7 +552,7 @@ describe('the prompt package', () => {
     const { manifest } = await loadPromptPackages({ capabilityWorkflow: false });
     expect(Object.keys(manifest.packages).sort()).toEqual(['catalog-extractor', 'context-selector', 'contract-engineer', 'engineer', 'failure-analyst', 'global-fork', 'initial-architect', 'local-architect', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer', 'reviewer']);
     const initial = manifest.packages['initial-architect']!;
-    expect(initial.package).toBe('initial-architect/5');
+    expect(initial.package).toBe('initial-architect/6');
     expect(initial.submissionKinds).toEqual(['initial-analysis']);
     expect(initial.files.map(file => file.kind).sort()).toEqual(expect.arrayContaining(['procedure', 'skill', 'submission-schema', 'system']));
     expect(initial.hash).toMatch(/^[0-9a-f]{64}$/);
@@ -561,31 +561,31 @@ describe('the prompt package', () => {
     // produces, and no other.
     // The catalog extractor's three turns are three submissions of one package.
     const extractor = manifest.packages['catalog-extractor']!;
-    expect(extractor.package).toBe('catalog-extractor/1');
+    expect(extractor.package).toBe('catalog-extractor/2');
     expect(extractor.submissionKinds).toEqual(['intake', 'principle-extraction', 'catalog-check']);
     expect(extractor.files.filter(file => file.kind === 'procedure').map(file => file.path.split('/').at(-1)).sort())
       .toEqual(['check.procedure.md', 'intake.procedure.md', 'principles.procedure.md']);
     expect(extractor.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const local = manifest.packages['local-architect']!;
-    expect(local.package).toBe('local-architect/16');
+    expect(local.package).toBe('local-architect/19');
     // The reconciliation fork's submission is the package's second.
     expect(local.submissionKinds).toEqual(['assign', 'request-placement', 'request-completion', 'yield-for-providers', 'unresolved', 'reconciliation', 'work-orientation']);
 
     const fork = manifest.packages['global-fork']!;
-    expect(fork.package).toBe('global-fork/6');
+    expect(fork.package).toBe('global-fork/7');
     expect(fork.submissionKinds).toEqual(['decision', 'partial', 'deviation', 'nothing-possible', 'environment']);
     expect(fork.hash).toMatch(/^[0-9a-f]{64}$/);
 
     const engineer = manifest.packages['engineer']!;
-    expect(engineer.package).toBe('engineer/13');
+    expect(engineer.package).toBe('engineer/16');
     expect(engineer.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'contract-needed']);
     expect(engineer.hash).toMatch(/^[0-9a-f]{64}$/);
 
-    // The contract sub-session is an engineer invocation with the contract
+    // The contract sub-session is a module engineer invocation with the contract
     // skill, and the skill is a file of its package like any other.
     const contract = manifest.packages['contract-engineer']!;
-    expect(contract.package).toBe('contract-engineer/3');
+    expect(contract.package).toBe('contract-engineer/4');
     expect(contract.submissionKinds).toEqual(['established', 'incomplete']);
     expect(contract.files.some(file => file.kind === 'skill' && file.path.endsWith('contract.skill.md'))).toBe(true);
     expect(contract.hash).toMatch(/^[0-9a-f]{64}$/);
@@ -593,7 +593,7 @@ describe('the prompt package', () => {
     // A reviewer submits its review; a design orientation submits what it
     // read. One procedure per question, each a file the hash covers.
     const reviewer = manifest.packages['reviewer']!;
-    expect(reviewer.package).toBe('reviewer/4');
+    expect(reviewer.package).toBe('reviewer/5');
     expect(reviewer.submissionKinds).toEqual(['review', 'orientation']);
     const procedures = reviewer.files.filter(file => file.kind === 'procedure').map(file => file.path.split('/').at(-1)).sort();
     expect(procedures).toEqual(['code-review.procedure.md', 'design-review.procedure.md', 'scope-review.procedure.md']);
@@ -603,7 +603,7 @@ describe('the prompt package', () => {
     // A failure analyst reads what a failed engineer left and submits one
     // account; its system prompt and procedure are files of its package.
     const analyst = manifest.packages['failure-analyst']!;
-    expect(analyst.package).toBe('failure-analyst/1');
+    expect(analyst.package).toBe('failure-analyst/2');
     expect(analyst.submissionKinds).toEqual(['failure-analysis']);
     expect(analyst.files.filter(file => file.kind !== 'skill').map(file => file.path.split('/').at(-1)).sort())
       .toEqual(['failure-analysis.procedure.md', 'failure-analysis.schema.json', 'failure-analyst.system.md']);
@@ -612,9 +612,9 @@ describe('the prompt package', () => {
   test('new runs offer capability coordination without the retired contract package', async () => {
     const { manifest } = await loadPromptPackages();
     expect(manifest.packages['contract-engineer']).toBeUndefined();
-    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/5');
-    expect(manifest.packages['context-selector']?.package).toBe('context-selector/3');
-    expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/4');
+    expect(manifest.packages['capability-architect']?.package).toBe('capability-architect/6');
+    expect(manifest.packages['context-selector']?.package).toBe('context-selector/4');
+    expect(manifest.packages['nonfunctional-coordinator']?.package).toBe('nonfunctional-coordinator/5');
     expect(manifest.packages['engineer']?.submissionKinds).toEqual(['completion-proposed', 'partial', 'unsuitable', 'capability-needed']);
     expect(manifest.packages['local-architect']?.submissionKinds).toEqual([
       'assign', 'request-placement', 'request-completion', 'unresolved', 'reconciliation', 'work-orientation',
@@ -633,8 +633,8 @@ describe('the prompt package', () => {
     expect(current.packages.get('local-architect')!.procedure).not.toContain('Keep source and tests with their owners');
     expect(section).toContain('A directory inside the owner, such as its `src/tests`, is already part of\n  the base and is refused');
     expect(section).toContain('An included child module brings its whole subtree:');
-    expect(current.packages.get('local-architect')!.package).toBe('local-architect/15');
-    expect(current.packages.get('engineer')!.package).toBe('engineer/12');
+    expect(current.packages.get('local-architect')!.package).toBe('local-architect/18');
+    expect(current.packages.get('engineer')!.package).toBe('engineer/15');
     expect(current.packages.get('engineer')!.procedure).toContain('`edit` and `write` refuse those files unless your');
   });
 

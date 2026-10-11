@@ -130,7 +130,7 @@ export interface CommandRequest {
  * here, in this one place, or passed as an addition by the caller that knows
  * about it.
  *
- * This applies to the engineer's `shell` tool as well, and deliberately: that
+ * This applies to the module engineer's `shell` tool as well, and deliberately: that
  * tool runs a command the agent wrote, so a broader environment for it would
  * hand an arbitrary command every secret of the session. Whether a project
  * whose own tooling needs more than this gets a wider environment for

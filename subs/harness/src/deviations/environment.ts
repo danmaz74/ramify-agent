@@ -10,7 +10,7 @@ import { deviationLayout, type EnvironmentProblem, type UnresolvedRequest } from
 /*
  * The CheckFinding of an environment problem: the run's, since it concerns
  * how the gate or the harness runs rather than any work item's code. Its
- * report is the global architect's diagnosis, credited as agent-generated,
+ * report is the plan architect's diagnosis, credited as agent-generated,
  * with the operator's remedy it suggests; it is high risk. The harness asks
  * the operator at once to resume the run or end it, and the work item whose
  * request it answers waits for that answer.
@@ -71,9 +71,9 @@ export function environmentCommands(
     },
     judgment: {
       actor: { kind: 'agent', role: 'global-architect', invocation: problem.invocation },
-      consequence: bounded(`${problem.workItem} waits until the operator answers: the global architect finds its conflict lies in how the gate or the harness runs, not in the plan or the architecture`),
+      consequence: bounded(`${problem.workItem} waits until the operator answers: the plan architect finds its conflict lies in how the gate or the harness runs, not in the plan or the architecture`),
       rationale: bounded(problem.diagnosis),
-      uncertainty: 'The global architect\'s diagnosis; the harness verified none of it',
+      uncertainty: 'The plan architect\'s diagnosis; the harness verified none of it',
       remedy: bounded(problem.suggestion),
       risk: 'high',
       ground: { ref: record, hash },
@@ -90,7 +90,7 @@ export function environmentCommands(
     decision: {
       actor: { kind: 'harness', reason: 'an environment problem is the operator\'s to correct' },
       source,
-      rationale: bounded(`The global architect reports an environment problem for ${problem.request}: ${problem.diagnosis}`),
+      rationale: bounded(`The plan architect reports an environment problem for ${problem.request}: ${problem.diagnosis}`),
       evidence: [{ kind: 'environment-problem', ref: record, hash }],
       communication: { mode: 'quiet' },
       decision: {
@@ -101,7 +101,7 @@ export function environmentCommands(
           {
             id: environmentOptions.resume,
             summary: 'Resume the run',
-            consequence: `${problem.workItem} returns to its local architect with this diagnosis and your note, and retries from its last outline. Correct the environment first.`,
+            consequence: `${problem.workItem} returns to its module architect with this diagnosis and your note, and retries from its last outline. Correct the environment first.`,
           },
           {
             id: environmentOptions.end,

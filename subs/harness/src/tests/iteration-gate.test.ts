@@ -318,7 +318,7 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
       },
     });
     cleanups.push(() => opened.service.close());
-    // The engineer's session is forgotten between the failing gate and the
+    // The module engineer's session is forgotten between the failing gate and the
     // repair, exactly as an implementation that can no longer read it would.
     const agent = opened.agent!;
     const receipt = await opened.service.execute(startRun('review-notes'));
@@ -392,7 +392,7 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
     expect(iterationGates.map(gate => gate.cause)).toEqual(['timeout', 'timeout']);
     expect(iterationGates.map(gate => gate.infrastructureAttempt)).toEqual([0, 1]);
     expect(iterationGates.map(gate => gate.next)).toEqual(['retry-infrastructure', 'exhausted']);
-    // A timeout is never repaired by the engineer: the same invocation is the
+    // A timeout is never repaired by the module engineer: the same invocation is the
     // proposer of both attempts.
     expect(new Set(iterationGates.map(gate => gate.proposedBy)).size).toBe(1);
 

@@ -14,7 +14,7 @@ import { gitService } from '../../subs/evidence/src/git.js';
  * next check, and a late result cannot complete the work it was superseded
  * on.
  *
- * Discarding a reply is not shutdown. The command an engineer left running
+ * Discarding a reply is not shutdown. The command a module engineer left running
  * is ended with its process group before anything else may write or check,
  * and what it would have written never arrives. What the session produced
  * after the stop is kept for diagnosis with `disposition: 'superseded'`, and
@@ -102,7 +102,7 @@ describe('a tool that writes after cancellation', () => {
     // No second writer was acquired after the released one.
     expect(types.filter(type => type === 'writer-acquired')).toHaveLength(1);
 
-    // The engineer's invocation is retained, and it applies to nothing.
+    // The module engineer's invocation is retained, and it applies to nothing.
     const engineer = events.filter(event => event.type === 'invocation-started')
       .map(event => (event.data as { invocation: string; role: string }))
       .find(data => data.role === 'engineer')!;

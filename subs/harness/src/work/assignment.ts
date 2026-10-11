@@ -13,7 +13,7 @@ import type { EngineerBounds } from '../run/policy.js';
 import { startingPointsSchema } from './starting-points.js';
 
 /*
- * The assignment a local architect submits, and the rules the schema cannot
+ * The assignment a module architect submits, and the rules the schema cannot
  * hold.
  *
  * It carries no test selection, no gate and no guarded hashes: those are
@@ -29,13 +29,13 @@ import { startingPointsSchema } from './starting-points.js';
 const text = z.string().min(1);
 
 /**
- * The kinds a local architect may assign. `integration` arrives with a later
+ * The kinds a module architect may assign. `integration` arrives with a later
  * iteration.
  *
  * `contract` is the direct revision of an agreement this work item consumes:
  * it names the agreement in `revisesContract` and its rationale in
  * `approach`, and the harness supplies the revision number, the scope and
- * the gate. It is not how a sub-session is asked for; an engineer's
+ * the gate. It is not how a sub-session is asked for; a module engineer's
  * `contract-needed` does that.
  *
  * `breaking` is an ordinary agentic iteration that changes a guarantee the
@@ -60,7 +60,7 @@ export const scopeBaseBodySchema = z.union([
     module: modulePathSchema,
     /** Direct children whose complete subtree is included, and owned nested-project roots. */
     included: z.array(z.object({ directory: text, reason: text, instructions: text }).strict()).describe(
-      'Whole trees beyond the base, normally []. The base already gives the engineer the owner\'s whole own contents: '
+      'Whole trees beyond the base, normally []. The base already gives the module engineer the owner\'s whole own contents: '
       + 'module.ramify, README.md and all of src/, including src/tests/ and src/interfaces/. Each entry names exactly one '
       + 'immediate child module directory or one owned nested-project root, with a reason and instructions. An included '
       + 'child brings its whole subtree, every descendant module included, so a descendant never needs its own entry. '
@@ -104,7 +104,7 @@ export const scopeBodySchema = z.object({
   ),
   /** The declared read scope beyond the base: recorded with the assignment, and nothing more. */
   read: z.array(modulePathSchema).describe(
-    'Modules you expect the engineer to read beyond the base. Recorded only: it limits nothing, widens nothing, and the engineer does not see it.',
+    'Modules you expect the module engineer to read beyond the base. Recorded only: it limits nothing, widens nothing, and the module engineer does not see it.',
   ),
   rationale: text,
 }).strict();
@@ -127,7 +127,7 @@ export const assignmentBodySchema = z.object({
    * with the plan deviations recorded so far.
    */
   citedElements: z.array(text).describe(
-    'Plan-catalog element IDs the engineer must honor, such as fr-001 or nfr-001. Work-item assignments use their '
+    'Plan-catalog element IDs the module engineer must honor, such as fr-001 or nfr-001. Work-item assignments use their '
     + 'selected package; capability assignments may cite the full frozen run catalog. Capability example and use-case '
     + 'IDs such as need-001.ex01 are request context, not plan-catalog elements, and do not belong here. '
     + 'Plan deviations are supplied separately by the harness.',
@@ -144,13 +144,13 @@ export const assignmentBodySchema = z.object({
   /**
    * Guarded paths this iteration is allowed to change, each with the reason
    * the request establishes. The harness names the record that authorizes
-   * each one; a submission never does, and an engineer never authorizes
+   * each one; a submission never does, and a module engineer never authorizes
    * anything. An authorization stands for this iteration alone.
    */
   authorizations: z.array(z.object({ path: text, rationale: text }).strict()).optional().describe(
     'Guarded files this iteration may change, each with its rationale: package manifests and lockfiles, .gitignore, '
     + 'tsconfig.json, test-runner and Cucumber configuration, the audit definition and its inputs, and contract artifacts. '
-    + 'A local architect\'s submission carries an outline revision that records them. One iteration only. Feature files, '
+    + 'A module architect\'s submission carries an outline revision that records them. One iteration only. Feature files, '
     + 'ramify-agent.json and captured plan documents are never writable.',
   ),
   /**
@@ -161,7 +161,7 @@ export const assignmentBodySchema = z.object({
   /**
    * The registered obligations this architect delegates to the iteration's
    * engineer: scenarios, delegated outcomes, cases or tests it reports on.
-   * The engineer's completion proposal binds every one, naming the fakes
+   * The module engineer's completion proposal binds every one, naming the fakes
    * each binding relies on, or reports partial.
    */
   obligations: z.array(text).optional(),
@@ -169,7 +169,7 @@ export const assignmentBodySchema = z.object({
    * Bounds this iteration's engineers need beyond the policy's, each with
    * its reason: the longest one shell command may run, the idle bound and
    * the absolute bound of each invocation. Each is raised, never lowered,
-   * and at most the policy's ceiling; they apply to every engineer
+   * and at most the policy's ceiling; they apply to every module engineer
    * invocation of the iteration.
    */
   bounds: assignedBoundsSchema.optional(),
@@ -458,7 +458,7 @@ export function assignmentErrors(body: AssignmentBody, evidence: AssignmentEvide
     }
   }
 
-  // The obligations named for the engineer are this architect's own: an
+  // The obligations named for the module engineer are this architect's own: an
   // iteration binds nothing another architect reports on.
   if (body.obligations !== undefined && body.obligations.length > 0) {
     errors.push(...(evidence.obligations === undefined

@@ -61,7 +61,7 @@ behavior over stale examples. Run these examples from the harness package
 directory with absolute paths. Set `RAMIFY_MODEL` to the selected provider/model;
 omit `--model` only when intentionally using the configured default.
 
-- **One engineer assignment:**
+- **One module engineer assignment:**
 
   ```sh
   npm run session -- --project /path/to/target-worktree \
@@ -70,14 +70,14 @@ omit `--model` only when intentionally using the configured default.
   ```
 
   Give a concrete goal, plan pointers, constraints and expected evidence. The
-  command constructs an assignment from your prompt. The engineer normally
+  command constructs an assignment from your prompt. The module engineer normally
   writes only the assigned owner's ordinary contents; repeat
   `--write <project-relative-path>` for authorized additions, with a directory
   selecting one whole immediate child module or declared owned nested project.
   Guarded configuration still needs its own authority. A scope refusal may mean
   the assignment needs correction, not that the harness is broken. `--gate`
   performs in-place diagnosis, not a full run's committed configured audit.
-  This exercises engineer equipment and submissions. You supply decomposition
+  This exercises module engineer equipment and submissions. You supply decomposition
   and follow-up; the session does not run architects, capability delegation,
   automatic reviews or committed gates.
 
@@ -92,7 +92,7 @@ omit `--model` only when intentionally using the configured default.
   project and plan: their defaults select fixture work. Ignore its fixture-only
   `trial verify` suggestion; verify the real project with its own checks.
 
-- **Engineer breakpoints on a full run:** host the target independently, then
+- **Module engineer breakpoints on a full run:** host the target independently, then
   attach a short-lived client. The hosting process selects the model; attached
   clients cannot override it. Use the installed model supported by the selected
   adapter and its session preservation implementation.
@@ -111,11 +111,11 @@ omit `--model` only when intentionally using the configured default.
   readiness audit, so the launcher needs a long `--timeout-ms`; after a timeout,
   `debug wait` from the returned cursor instead of starting again.
   Supply any instruction not to edit or submit in the question itself. The
-  engineer keeps ordinary tools, scope and submission authority. Follow-up
+  module engineer keeps ordinary tools, scope and submission authority. Follow-up
   messages use the returned current revision and retain the logical session.
   If chat remains pending, explicitly say “now implement” in the proceed file.
   An accepted result is held until resume and refuses replacement messages.
-  Each new engineer operation, including repair or capability work, can pause
+  Each new module engineer operation, including repair or capability work, can pause
   again. Inspect current state before acting on a retained historical receipt.
   Waiting defaults to 20 minutes; raise `--timeout-ms` for a long wait.
   A timeout or client exit does not cancel the command. Retry the identical
@@ -123,7 +123,7 @@ omit `--model` only when intentionally using the configured default.
   interrupts unfinished debug-enabled runs instead of replaying them.
   The web UI is an alternative to the `real-session` launcher and the `debug`
   commands: after `npm run build:web`, serve as above, open the plan, check
-  "Stop before each engineer starts" and start the run; the Run page's
+  "Stop before each module engineer starts" and start the run; the Run page's
   Debugger area reads the prepared input, sends messages, shows each answer
   and resumes, with the same commands and refusals. Stop stays in the
   Overview. See the README's breakpoint section.
