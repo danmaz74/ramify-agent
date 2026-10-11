@@ -4290,7 +4290,13 @@ export class RunService {
     const records = committedRecords(run.log.ledger.replay());
     const item = records.workItems.find(item => item.id === request.work.workItem);
     const goal = request.task?.goal ?? item?.goal ?? `Read the captured plan for ${run.record.planId} and perform the current ${kind} task.`;
-    const requirements = request.task?.requirements ?? [new TextDecoder().decode(await readFile(run.path(runLayout.capturedPlan)))];
+    // The plan is delivered once, whole, in its plan block; the requirements
+    // point to it. A continued or forked session already holds the block.
+    const requirements = request.task?.requirements ?? [planPointer(run.record.planId)];
+    const planSections = request.task?.requirements === undefined && request.start.mode === 'fresh' && !request.prompt.includes('\n<plan>\n')
+      ? [{ key: 'support:plan', text: capturedPlanBlock(run.record.planId,
+        this.capturedPlanPath(run), new TextDecoder().decode(await readFile(run.path(runLayout.capturedPlan)))).join('\n') }]
+      : [];
     const groups = [...request.task?.startingPointGroups ?? []];
     if (request.role === 'engineer' && request.work.iteration !== undefined) {
       const assignment = records.assignments.get(request.work.iteration);
@@ -4311,7 +4317,7 @@ export class RunService {
       || (request.role === 'context-selector' && request.start.mode === 'fresh')
       ? await this.knownProjectFacts(run, request.task?.modules ?? (item === undefined ? [] : [item.module])) : undefined;
     return composeTaskBrief(this.projectRoot, { kind, work: request.work, goal, requirements, prompt: request.prompt,
-      omit: request.task?.omit ?? [], literalSections: request.task?.literalSections ?? [], startingPointGroups: groups, known,
+      omit: request.task?.omit ?? [], literalSections: [...planSections, ...request.task?.literalSections ?? []], startingPointGroups: groups, known,
       retainInheritedSections: request.role === 'context-selector' && request.start.mode === 'fork',
       consultationSubmissionSchema: request.task?.consultationSubmissionSchema,
       environment: { projectRoot: this.projectRoot, workingDirectory: spec.scope.workingDirectory,
@@ -4394,7 +4400,10 @@ export class RunService {
     const plan = new TextDecoder().decode(await readFile(run.path(runLayout.capturedPlan)));
     const evidence: AnalysisEvidence = { index: run.index, catalog, incorporation, documents, registeredTests: new Set([...this.obligationProjection(run).obligations.values()].filter(item => item.kind === 'test').map(item => item.id)), planScenarios: run.record.planScenarios.scenarios };
     const systemPrompt = renderInitialArchitectPrompt(loaded, this.projectRoot);
-    const prompt = analysisMessage(run.record, plan, inputs, incorporatedExtraction(evidence));
+    const view = run.record.manifest.architectView;
+    // The limits name the records they mark where the index is read; otherwise they stay as counted.
+    const coverage = view.status !== 'materialized' ? [] : run.index === null ? view.coverageLimits : describeCoverageLimits(view.coverageLimits, coverageRecordsOf(run.index));
+    const prompt = analysisMessage(run.record, plan, this.capturedPlanPath(run), inputs, incorporatedExtraction(evidence), coverage);
     const scope = baselineScope(
       this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',
       // Each invocation's own package and the plan are its support documents.
@@ -4403,7 +4412,7 @@ export class RunService {
 
     const result = await this.runInvocation<InitialAnalysisSubmission>(run, agent, {
       role: 'initial-architect',
-      task: { kind: 'initial-analysis', goal: intake.value.goal, requirements: [plan], literalSections: [{ key: 'support:accepted-intake', text: `Accepted intake classifications and incorporation: ${JSON.stringify({ catalog, incorporation })}` }] },
+      task: { kind: 'initial-analysis', goal: intake.value.goal, requirements: [planPointer(run.record.planId, 'Implement')], literalSections: [{ key: 'support:accepted-intake', text: `Accepted intake classifications and incorporation: ${JSON.stringify({ catalog, incorporation })}` }] },
       work: {},
       attempt: 1,
       loaded,
@@ -9957,6 +9966,11 @@ export class RunService {
       coverage: [...directory.coverage === null ? [] : [apiCoverageStatement(directory.coverage)], ...index === 0 ? named : []] }));
   }
 
+  /** The frozen plan's project-relative path. */
+  private capturedPlanPath(run: Run): string {
+    return relative(this.projectRoot, run.path(runLayout.capturedPlan)).split(sep).join('/');
+  }
+
   /** The bounds one iteration's engineers run under: the policy's, and what its assignment raised. */
   private engineerBounds(run: Run, assignment: IterationAssignment): EngineerBounds {
     return engineerBoundsFor(run.record.policy.limits, assignment);
@@ -11071,19 +11085,34 @@ function callerPauseMs(events: readonly RunEvent[], now: number): number {
   return total;
 }
 
-function analysisMessage(record: RunRecord, plan: string, inputs: ExtractionInputs, planScenarios: PlanScenarioExtraction): string {
-  const view = record.manifest.architectView;
-  const source = record.manifest.source;
-  const accompanying = inputs.manifest.documents.filter(document => document.kind === 'plan' && document.id !== inputs.manifest.root);
+/** The one requirement of a task the plan block carries whole. */
+export function planPointer(planId: string, verb?: string): string {
+  return verb === undefined ? `The plan "${planId}", delivered whole in the plan block below.` : `${verb} the plan "${planId}", delivered whole in the plan block below.`;
+}
+
+/**
+ * The plan block: the captured plan verbatim, delivered once, with where the
+ * frozen file is. The live plan file is not the run's input.
+ */
+export function capturedPlanBlock(planId: string, capturedPath: string, plan: string, document?: string): string[] {
   return [
-    `# Plan "${record.planId}"`,
+    `# Plan "${planId}"`,
     '',
-    `The plan, as \`plans/${record.planId}/plan.md\` read when this run started (${inputs.manifest.root}):`,
+    `The plan${document === undefined ? '' : ` (${document})`}, frozen when this run started. The live file \`plans/${planId}/plan.md\` may have changed since and is not this run's input; if you need the frozen file itself, it is at \`${capturedPath}\`.`,
     '',
     '<plan>',
     plan.trim(),
     '</plan>',
     '',
+  ];
+}
+
+function analysisMessage(record: RunRecord, plan: string, capturedPath: string, inputs: ExtractionInputs, planScenarios: PlanScenarioExtraction, coverage: readonly string[]): string {
+  const view = record.manifest.architectView;
+  const source = record.manifest.source;
+  const accompanying = inputs.manifest.documents.filter(document => document.kind === 'plan' && document.id !== inputs.manifest.root);
+  return [
+    ...capturedPlanBlock(record.planId, capturedPath, plan, inputs.manifest.root),
     ...(accompanying.length === 0 ? [] : [
       '# Accompanying plan documents', '',
       'Read each in full at its captured file; its functional and context elements are yours to submit as well:', '',
@@ -11096,7 +11125,7 @@ function analysisMessage(record: RunRecord, plan: string, inputs: ExtractionInpu
       ? `- Architect view: \`.ramify-architect/\`, revision \`${view.revision}\`, input \`${view.input}\`.`
       : '- Architect view: none was materialized for this run, so every claim about the module tree is yours to establish from the source.',
     view.status === 'materialized'
-      ? `- Coverage limits the view reports: ${view.coverageLimits.length ? view.coverageLimits.join('; ') : 'none'}.`
+      ? `- Coverage limits the view reports: ${coverage.length ? coverage.join('; ') : 'none'}.`
       : '- Coverage limits: unknown.',
     `- Source: ${source === null ? 'not a git checkout' : `commit ${source.commit}${source.dirty ? ', with uncommitted changes, which the views include' : ''}`}.`,
     '',

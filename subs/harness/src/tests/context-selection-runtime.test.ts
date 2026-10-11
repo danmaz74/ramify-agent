@@ -7,7 +7,7 @@ import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import type { SubmittedElement } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { readAcceptedEvidence } from '../analysis/evidence.js';
-import { intakeToolName } from '../analysis/extraction.js';
+import { checkToolName, intakeToolName } from '../analysis/extraction.js';
 import { readRecordedContextSelection } from '../context-selection/recorded.js';
 import { contextSelectorToolName } from '../context-selection/submissions.js';
 import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
@@ -98,7 +98,20 @@ test('one oriented local context selects once, appends the work-item package onc
   expect(appends[0]!.data.outcome).toBe('appended');
   expect(events.filter(event => event.type === 'context-package-prompt-bound')).toHaveLength(0);
   expect(agent.sessions.filter(session => session.spec.submission.name === 'submit_work_orientation')).toHaveLength(1);
+  // The plan is delivered once, whole, in its block; the requirement points to it.
+  expect(agent.sessions.some(session => session.spec.submission.name === intakeToolName)).toBe(true);
+  for (const tool of [intakeToolName, checkToolName]) {
+    const extracting = agent.sessions.find(session => session.spec.submission.name === tool);
+    if (extracting === undefined) continue;
+    const delivered = [...extracting.inherited, extracting.spec.prompt].join('\n');
+    expect(delivered.split('\n<plan>\n'), tool).toHaveLength(2);
+    expect(delivered).toContain('# Block brief:support:plan\n# Plan "revision-diff"\n');
+    expect(delivered).toContain('frozen when this run started');
+    expect(delivered).toContain('- The plan "revision-diff", delivered whole in the plan block below.');
+    expect(extracting.spec.prompt).not.toContain(' for {}');
+  }
   const initial = agent.sessions.find(session => session.spec.role === 'initial-architect')!;
+  expect(initial.spec.prompt.split('\n<plan>\n')).toHaveLength(2);
   expect(initial.spec.prompt).toContain('argv ["cucumber-js","--config","cucumber.json","--profile","integration"]');
   expect(initial.spec.prompt).toContain(`Configuration/support pointer: \`${fixture.root}/cucumber.json\``);
   const orienting = agent.sessions.find(session => session.spec.submission.name === 'submit_work_orientation')!;
