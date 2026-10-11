@@ -9,7 +9,9 @@ import { readAcceptedEvidence } from '../analysis/evidence.js';
 import { intakeToolName } from '../analysis/extraction.js';
 import { contextSelectorToolName, workOrientationToolName } from '../context-selection/submissions.js';
 import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
-import type { RunEvent } from '../run/log.js';
+import type { RunEvent, RunEventOf } from '../run/log.js';
+import { readRecordedContextSelection } from '../context-selection/recorded.js';
+import { withSelectionReasons } from '../run/service.js';
 import { runLayout, runRecordSchema } from '../run/records.js';
 import { iterationAssignmentSchema, iterationLayout } from '../work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -63,7 +65,11 @@ async function assignmentPackage(root: string, jobId: string, events: readonly R
   const rendered = createPackage({ catalog: evidence.catalog, planDeviations: [], elements: assignment.source!.elements, deviations: assignment.source!.deviations });
   if ('unavailable' in rendered) throw new Error('The assignment package does not render');
   expect(rendered.hash).toBe(assignment.source!.hash);
-  return { assignment, text: rendered.text };
+  // A reader receives it with the selector's reason for each element its work item's selection holds.
+  const selected = events.filter((event): event is RunEventOf<'context-selection-recorded'> => event.type === 'context-selection-recorded' && event.data.workItem === workItem).at(-1)!;
+  const selection = await readRecordedContextSelection(directory, selected, evidence.catalog, []);
+  if (selection.status !== 'available') throw new Error(selection.reason);
+  return { assignment, text: rendered.text, delivered: withSelectionReasons(rendered.text, selection.selection.selected) };
 }
 
 const quote = 'The service must preserve a 30 second timeout.';
@@ -105,7 +111,7 @@ test('an assigned non-functional element reaches the engineer once per session, 
   await opened.service.settled('revision-diff', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'revision-diff', receipt.jobId);
   expect(onlyRun(opened.service, 'revision-diff').state, JSON.stringify({ failures: events.filter(event => event.type === 'job-failed'), sessions: agent.sessions.map(session => [session.spec.role, session.spec.submission.name, session.start, session.verdicts, session.outcome]) })).toBe('completed');
-  const { assignment, text } = await assignmentPackage(fixture.root, receipt.jobId, events, 'wi-001', 1);
+  const { assignment, text, delivered } = await assignmentPackage(fixture.root, receipt.jobId, events, 'wi-001', 1);
   expect(assignment.source).toMatchObject({ elements: ['fr-001', 'fr-002', 'nfr-001'], deviations: [] });
   expect(assignment).not.toHaveProperty('citedItems');
   expect(assignment).not.toHaveProperty('requirementRefs');
@@ -117,7 +123,8 @@ test('an assigned non-functional element reaches the engineer once per session, 
   expect(events.find(event => event.type === 'context-selection-recorded')?.data.packageHash).toBe(assignment.source!.hash);
   const organizing = agent.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
   expect(organizing.map(session => session.start.mode)).toEqual(['fresh', 'continue']);
-  expect(organizing[0]!.spec.prompt).toContain(text);
+  expect(organizing[0]!.spec.prompt).toContain(delivered);
+  expect(delivered).toContain('Why it is in view: ');
   // A continued turn names the package by hash and never repeats its body.
   expect(organizing[1]!.spec.prompt).not.toContain(quote);
   expect(organizing[1]!.spec.prompt).not.toContain('# Your work-item package');
@@ -126,7 +133,7 @@ test('an assigned non-functional element reaches the engineer once per session, 
   const engineers = agent.sessions.filter(session => session.spec.role === 'engineer');
   expect(engineers.map(session => session.start.mode)).toEqual(['fresh', 'continue']);
   expect(engineers[0]!.spec.prompt).toContain(`## What the plan asks of this iteration\n\nThe elements your assignment cites`);
-  expect(engineers[0]!.spec.prompt).toContain(text.trimEnd());
+  expect(engineers[0]!.spec.prompt).toContain(delivered.trimEnd());
   expect(engineers[1]!.spec.prompt).not.toContain(quote);
   for (const engineer of engineers) expect(engineer.spec.prompt).not.toContain(advice);
   // PB3-T07: no scoped test tool; the briefing names the scenarios to bind
@@ -195,7 +202,7 @@ test('a contract requested by an engineer inherits the requester\'s assignment p
   expect(contract.assignment.kind).toBe('contract');
   expect(contract.assignment.source).toEqual(requester.assignment.source);
   const engineer = agent.sessions.find(session => session.spec.role === 'engineer');
-  expect(engineer?.spec.prompt).toContain(requester.text.trimEnd());
+  expect(engineer?.spec.prompt).toContain(requester.delivered.trimEnd());
   const contractSession = agent.sessions.find(session => session.spec.role === 'contract-engineer');
-  expect(contractSession?.spec.prompt).toContain(requester.text.trimEnd());
+  expect(contractSession?.spec.prompt).toContain(requester.delivered.trimEnd());
 }, 120_000);

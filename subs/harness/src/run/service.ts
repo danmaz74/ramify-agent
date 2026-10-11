@@ -99,8 +99,8 @@ import { assessedElements, bindCoordinatorAssessment, coordinatorAssessmentJsonS
   nonfunctionalRepairSubmissionSchema,
   type CoordinatorAssessmentSubmission, type CoordinatorAction, type CoordinatorInvestigation, type NonfunctionalRepairSubmission } from '../nonfunctional/submissions.js';
 import { coordinatorAssessmentPrompt, coordinatorActionPrompt, repairPrompt } from '../nonfunctional/prompts.js';
-import { contextSelectionSchema } from '../context-selection/contracts.js';
-import { readRecordedContextSelection } from '../context-selection/recorded.js';
+import { contextSelectionSchema, type ContextSelection } from '../context-selection/contracts.js';
+import { readRecordedContextSelection, type RecordedContextSelection } from '../context-selection/recorded.js';
 import { citePackage, deliverPackage } from '../context-selection/delivery.js';
 import { orientationPacket, prepareContextSelection, workOrientationSubmissionSchema, workOrientationToolName, type ContextSelectorSubmission, type SelectionSource, type WorkOrientationSubmission } from '../context-selection/submissions.js';
 import { documentChanges, readCapturedDocuments } from './document-inputs.js';
@@ -984,20 +984,36 @@ export class RunService {
     return cited.citation;
   }
 
-  /** Render a cited package again from the frozen catalog and the record's IDs alone. */
-  private async packageText(run: Run, cited: PackageCitation): Promise<string> {
+  /**
+   * Render a cited package again from the frozen catalog and the record's
+   * IDs alone. Given its work item, the package an engineer receives also
+   * carries why the work item's current selection put each element in view.
+   */
+  private async packageText(run: Run, cited: PackageCitation, workItem?: string): Promise<string> {
     const delivered = deliverPackage(await this.frozenCatalog(run), this.planDeviationsOf(run), cited);
     if (delivered.status === 'unavailable') throw new EvidenceUnavailableError(delivered.reason);
-    return delivered.text;
+    if (workItem === undefined) return delivered.text;
+    const selection = await this.currentSelection(run, workItem);
+    return selection === null ? delivered.text : withSelectionReasons(delivered.text, selection.selection.selected);
   }
 
   /** A work item's current selection: the latest one recorded, which supersedes any earlier. */
   private async currentSelection(run: Run, workItem: string) {
     const event = run.log.all('context-selection-recorded').filter(entry => entry.data.workItem === workItem).at(-1);
     if (event === undefined) return null;
-    const recorded = await readRecordedContextSelection(run.directory, event, await this.frozenCatalog(run), this.planDeviationsOf(run));
+    const recorded = await this.recordedSelection(run, event, await this.frozenCatalog(run));
     if (recorded.status === 'unavailable') throw new EvidenceUnavailableError(recorded.reason);
     return { event, ...recorded };
+  }
+
+  /**
+   * A recorded selection whose package, verified against its citation, is
+   * delivered with the selector's reason, conditions and uncertainty for
+   * each element it selected.
+   */
+  private async recordedSelection(run: Run, event: RunEventOf<'context-selection-recorded'>, catalog: ElementCatalog): Promise<RecordedContextSelection> {
+    const recorded = await readRecordedContextSelection(run.directory, event, catalog, this.planDeviationsOf(run));
+    return recorded.status === 'unavailable' ? recorded : { ...recorded, packageText: withSelectionReasons(recorded.packageText, recorded.selection.selected) };
   }
 
   /** A record body as the log committed it, never the materialized file. */
@@ -2589,7 +2605,7 @@ export class RunService {
           this.warn(`Run ${run.record.jobId}: context append ${pending.key} lacks its agent or verified selection`);
           continue;
         }
-        const recorded = await readRecordedContextSelection(run.directory, selected, evidence.catalog, this.planDeviationsOf(run));
+        const recorded = await this.recordedSelection(run, selected, evidence.catalog);
         if (recorded.status === 'unavailable') {
           this.warn(`Run ${run.record.jobId}: context append ${pending.key} is unavailable: ${recorded.reason}`);
           continue;
@@ -4992,7 +5008,7 @@ export class RunService {
       await this.fail(run, 'invalid-submission', `No valid context selection was obtained for ${item.id} within the captured retry bound`);
       return { kind: 'failed' };
     }
-    const recorded = await readRecordedContextSelection(run.directory, selectionEvent, evidence.catalog, this.planDeviationsOf(run));
+    const recorded = await this.recordedSelection(run, selectionEvent, evidence.catalog);
     if (recorded.status === 'unavailable') {
       await this.fail(run, 'inputs-changed', `The recorded context selection of ${item.id} is unavailable: ${recorded.reason}`, [selectionEvent.data.selection]);
       return { kind: 'failed' };
@@ -5077,7 +5093,7 @@ export class RunService {
         await this.fail(run, 'invalid-submission', `No valid context selection was obtained for ${item.id} within the captured retry bound`);
         return null;
       }
-      const recorded = await readRecordedContextSelection(run.directory, selected, catalog, this.planDeviationsOf(run));
+      const recorded = await this.recordedSelection(run, selected, catalog);
       if (recorded.status === 'unavailable') throw new EvidenceUnavailableError(recorded.reason);
       return { selection: selected.data.selection, citation: recorded.selection.package, text: recorded.packageText };
     } catch (error) {
@@ -7496,7 +7512,7 @@ export class RunService {
         await this.fail(run, 'inputs-changed', `The expanded owner context of ${task.id} could not be selected`);
         return null;
       }
-      const delivered = await readRecordedContextSelection(run.directory, expanded, catalog, this.planDeviationsOf(run));
+      const delivered = await this.recordedSelection(run, expanded, catalog);
       if (delivered.status === 'unavailable') {
         await this.fail(run, 'inputs-changed', `The expanded owner package of ${task.id} is unavailable: ${delivered.reason}`);
         return null;
@@ -8513,7 +8529,7 @@ export class RunService {
       // holds it from its first prompt.
       let assignmentPackage: string | undefined;
       try {
-        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source);
+        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source, assignment.workItem);
       } catch (error) {
         await this.fail(run, 'inputs-changed', `The assignment package of ${assignment.id} cannot be delivered: ${message(error)}`);
         return null;
@@ -9180,7 +9196,7 @@ export class RunService {
       // The requester's assignment package reaches the session once.
       let assignmentPackage: string | undefined;
       try {
-        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source);
+        if (assignment.source !== undefined) assignmentPackage = await this.packageText(run, assignment.source, assignment.workItem);
       } catch (error) {
         await this.fail(run, 'inputs-changed', `The assignment package of contract ${assignment.id} cannot be delivered: ${message(error)}`);
         return null;
@@ -11107,6 +11123,52 @@ function callerPauseMs(events: readonly RunEvent[], now: number): number {
   let end = Number.NEGATIVE_INFINITY;
   for (const [from, to] of intervals) { total += Math.max(0, to - Math.max(from, end)); end = Math.max(end, to); }
   return total;
+}
+
+/**
+ * A verified package as its reader receives it: each element the selection
+ * holds says why it is in view, and its `Conditions:` and `Uncertainty:`
+ * lines appear only where the plan or the selector recorded some. The plan's
+ * own conditions come first; the selector's follow, marked as its reading.
+ * Elements the selection does not name, and plan deviations, are unchanged.
+ */
+export function withSelectionReasons(text: string, selected: ContextSelection['selected']): string {
+  const reasons = new Map(selected.map(entry => [entry.id, entry]));
+  const lines = text.replace(/\n$/u, '').split('\n');
+  const out: string[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const heading = /^### ([^\s:]+): /u.exec(lines[index]!);
+    const entry = heading === null ? undefined : reasons.get(heading[1]!);
+    if (entry === undefined) { out.push(lines[index]!); index++; continue; }
+    let end = index + 1;
+    while (end < lines.length && !/^#{2,3} /u.test(lines[end]!)) end++;
+    const segment = lines.slice(index, end);
+    const conditionsAt = segment.findIndex(line => line.startsWith('Conditions:'));
+    const uncertaintyAt = segment.findIndex(line => line.startsWith('Uncertainty:'));
+    if (conditionsAt < 0 || uncertaintyAt < conditionsAt) { out.push(...segment); index = end; continue; }
+    const trimmed = (block: readonly string[]) => {
+      const kept = [...block];
+      while (kept.length > 0 && kept.at(-1)!.trim() === '') kept.pop();
+      return kept;
+    };
+    const planConditions = trimmed(segment.slice(conditionsAt, uncertaintyAt));
+    const planUncertainty = trimmed(segment.slice(uncertaintyAt));
+    const conditions = [
+      ...(planConditions[0] === 'Conditions: none recorded.' ? [] : planConditions.slice(1)),
+      ...entry.conditions.map(condition => `- selection: ${condition.replace(/\n/gu, '\n  ')}`),
+    ];
+    const uncertainty = [
+      ...(planUncertainty[0] === 'Uncertainty: none recorded.' ? [] : [planUncertainty.join('\n').slice('Uncertainty: '.length)]),
+      ...(entry.uncertainty.trim() === '' ? [] : [`${entry.uncertainty.trim()} (the selection's reading)`]),
+    ];
+    out.push(...trimmed(segment.slice(0, conditionsAt)), '', `Why it is in view: ${entry.reason}`);
+    if (conditions.length > 0) out.push('', 'Conditions:', ...conditions);
+    if (uncertainty.length > 0) out.push('', `Uncertainty: ${uncertainty.join('\n')}`);
+    if (end < lines.length) out.push('');
+    index = end;
+  }
+  return `${out.join('\n')}\n`;
 }
 
 /** The one requirement of a task the plan block carries whole. */

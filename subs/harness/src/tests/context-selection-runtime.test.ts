@@ -8,6 +8,7 @@ import type { SubmittedElement } from '../../subs/plan-evidence/src/interfaces/c
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { readAcceptedEvidence } from '../analysis/evidence.js';
 import { checkToolName, intakeToolName } from '../analysis/extraction.js';
+import { withSelectionReasons } from '../run/service.js';
 import { readRecordedContextSelection } from '../context-selection/recorded.js';
 import { contextSelectorToolName } from '../context-selection/submissions.js';
 import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
@@ -202,7 +203,10 @@ test('a selected non-functional element and recommendation reach the runtime pac
   expect(recorded.packageText).toContain('Tentative suggestion.');
   expect(recorded.packageText.indexOf('## Recommendations')).toBeGreaterThan(recorded.packageText.indexOf('## Non-functional requirements of the plan'));
   const organizing = agent.sessions.find(session => session.spec.submission.name === 'submit_work_item_result');
-  expect(organizing?.inherited).toContain(`# Block brief:support:work-item-package\nCurrent value; replaces any earlier value for this key.\n${recorded.packageText}`);
+  // The package is delivered with the selector's reason for each element it selected.
+  const delivered = withSelectionReasons(recorded.packageText, recorded.selection.selected);
+  expect(delivered).toContain('Why it is in view: ');
+  expect(organizing?.inherited).toContain(`# Block brief:support:work-item-package\nCurrent value; replaces any earlier value for this key.\n${delivered}`);
   expect(organizing?.spec.prompt).not.toContain(texts[0]);
 }, 120_000);
 
