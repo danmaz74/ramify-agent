@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -285,11 +285,13 @@ describe('Plan 23 shell mutation settlement', () => {
   });
   test('H02: a focused command whose prepared files changed before dispatch ends its record, is observed as refused and reaches no executor or check', async () => {
     const root = await workspace(); const config = join(root, 'cucumber-focused.json'); const prepared = '{"ramify-focused":{}}'; await writeFile(config, prepared);
-    const selection = { cwd: root, config, profile: 'ramify-focused', paths: [join(root, 'features/A.feature')], configurationIdentity: createHash('sha256').update(prepared).digest('hex') };
+    const feature = join(root, 'features/A.feature'); const featureBody = 'Feature: A\n  Scenario: selected case\n    Then it passes\n';
+    await mkdir(join(root, 'features')); await writeFile(feature, featureBody);
+    const selection = { cwd: root, config, profile: 'ramify-focused', paths: [feature], configurationIdentity: createHash('sha256').update(prepared).digest('hex') };
     const command = `cd '${root}' && cucumber-js --config 'cucumber-focused.json' --profile 'ramify-focused'`;
     const phases: string[] = []; const ended: ShellResult[] = []; const refusals: string[] = [];
     const shell = createShellTool({ workingDirectory: root, judge: async () => ({ ok: true }), outputFile: n => join(root, 'output', `${n}.log`),
-      focusedCommands: [{ shellCommand: command, selection, environment: {}, sourceFiles: {} }],
+      focusedCommands: [{ shellCommand: command, selection, environment: {}, sourceFiles: { [feature]: createHash('sha256').update(featureBody).digest('hex') } }],
       starting: async () => { phases.push('starting'); await writeFile(config, '{"default":{}}'); }, ended: async (_call, result) => { phases.push('ended'); ended.push(result); },
       refused: async text => { refusals.push(text); }, commandExecution: async () => { phases.push('command'); return commandResult(); },
       mutation: { worktree: root, snapshot: async () => inventory({}), settled: async () => { phases.push('settled'); return null; } } });

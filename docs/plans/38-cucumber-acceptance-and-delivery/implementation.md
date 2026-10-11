@@ -144,8 +144,45 @@ Historical first-call new/cache-read token observations are retained for context
 No comparable changed-prompt model trial exists. Byte changes establish no token,
 cost or accuracy gain. No such gain is claimed.
 
-The required committed qualification command is
+At the initial implementation handoff, committed qualification had not run:
+repository instructions required explicit commit authority and the checkout
+contained pre-existing user changes. The user subsequently authorized commit and
+audit. No push or remote synchronization occurred.
+
+## Committed qualification
+
+Implementation commit `498dec676e04f4776c11d9929538df3b55cf21dd` was prepared
+without the unrelated checkout changes. A clean detached worktree at
+`/workspaces/worktrees/plan38-qualification-498dec6` received its own `npm ci`;
+installed Ramify 0.4.2 matched the exact pin. The command was
 `node_modules/.bin/ramify-audit audit --cwd . --json`, with default scope and all
-configured projects retained. It has not run for this implementation: repository
-instructions require explicit commit authority, and the checkout also contains
-pre-existing user changes. No commit, push or remote synchronization occurred.
+configured projects retained. The auditor automatically selected full mode:
+44 distinct changed paths exceeded its drift limit of 25 since the successful
+full audit at `bf95975aaa00d402cdd1ce02be33263b4edb2328`. No override was used.
+
+The first committed audit failed: 3,195 tests passed, three failed and two were
+skipped across 358 files (354 passed, three failed and one skipped). Patch
+integrity, type-check, structural check and web build passed. The configured
+Cucumber check succeeded with zero scenarios and zero steps; that provides no
+scenario acceptance. The three failed files were:
+
+- `subs/harness/src/tests/capability-delegation.test.ts`: an old whole-prompt
+  assertion rejected the new selected-package pointer heading.
+- `subs/harness/src/tests/local-architect-submission.test.ts`: an old
+  whole-prompt assertion rejected the retained write-scope block identity.
+- `subs/harness/src/tests/plan23-mutation-order.test.ts`: its focused-command
+  fixture selected a nonexistent feature, so project-containment validation
+  correctly refused it before the intended configuration-change dispatch check.
+
+The first audit is retained in
+`refs/audited/runs/2026-10-11T20-51-09Z-498dec676`, report commit
+`b2631f89f818bf733fa9a4ffcb4e3a0554eb5780`. Its local output is
+`/tmp/ramify-agent-audit-498dec6.json`. Repairs preserve the tests' original
+claims: full bodies remain inherited once with explicit retained mappings, and
+the mutation fixture supplies an existing hashed feature before changing its
+configuration at dispatch. The two complete retained-context files passed
+59/59 tests, and the complete mutation-order file passed 26/26. The retained
+context checks read actual emitted packets and their source points, verify exact
+effective body/hash/revision/input mappings, and distinguish body delivery from
+retained pointers. No production code changed during these repairs. Committed
+requalification remains pending.

@@ -16,6 +16,9 @@ import type { CapabilityRequest, CapabilityTask } from '../capability/records.js
 import { runLayout, type Invocation, type InvocationOutcome } from '../run/records.js';
 import { z } from 'zod';
 import { capabilityActionSchema } from '../capability/submission.js';
+import { readPointContext, readRecordedOperation } from '../run/session-operations.js';
+import { exactInputHash } from '../prompts/delivered-manifest.js';
+import { effectiveBlocks } from '../prompts/blocks.js';
 
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('./helpers/process-guard.js');
@@ -140,9 +143,36 @@ test('CA01 CA03 CA04 CA28 CA30 CA32: request reaches one fresh architect and kee
   expect(capabilityPrompts[0]).toContain('B owns the source fact. A integrates its calling code.');
   expect(capabilityPrompts[1]).toContain('B owns the source fact. A integrates its calling code.');
   const currentArchitect = opened.agent!.sessions.filter(session => session.spec.role === 'capability-architect')[1]!;
-  expect(currentArchitect.spec.prompt).not.toContain('# Selected plan package ');
-  expect(currentArchitect.inherited.filter(text => text.includes('# Selected plan package '))).toHaveLength(1);
-  expect(currentArchitect.spec.prompt).not.toContain('Original request:');
+  const operation = async (position: number) => {
+    const started = capabilityStarts[position]!;
+    if (started.type !== 'invocation-started') throw new Error('Missing capability invocation');
+    const retained = await readRecordedOperation(join(fixture.root, 'plans/.harness/session-operations'), receipt.jobId, started.data.invocation);
+    if (retained === null) throw new Error('Missing delivered capability packet');
+    return retained;
+  };
+  const initialPacket = (await operation(0)).packet;
+  const continued = await operation(1);
+  const continuedPacket = continued.packet;
+  if (continued.source === null) throw new Error('Continued capability invocation lost its source point');
+  const context = await readPointContext(join(fixture.root, 'plans/.harness/session-operations'), receipt.jobId, continued.source);
+  const effective = effectiveBlocks(context.inherited);
+  for (const key of ['brief:support:work-item-package', 'brief:support:capability-request', 'brief:support:capability-plan']) {
+    const original = initialPacket.additions.find(input => input.block?.key === key && input.block.effect === 'set')!;
+    expect(original, key).toBeDefined();
+    const body = original.text.slice(original.text.indexOf('\n') + 1);
+    expect(initialPacket.message.split(body), key).toHaveLength(2);
+    expect(continuedPacket.message, key).not.toContain(body);
+    expect(continuedPacket.additions.filter(input => input.block?.key === key), key).toEqual([]);
+    expect(effective.get(key), key).toEqual(original);
+    expect(currentArchitect.inherited.join('\n\n').split(original.text), key).toHaveLength(2);
+    expect(continuedPacket.manifest.entries.filter(input => input.block?.key === key && input.delivery === 'inherited'))
+      .toEqual([expect.objectContaining({ hash: exactInputHash(original.text), revision: original.revision, block: { key, effect: 'set' } })]);
+    expect(continuedPacket.message).toContain(`${key}: original delivery revision ${original.revision}`);
+    expect(continuedPacket.message).toContain(`SHA-256 ${exactInputHash(original.text)}; original input ${original.key}`);
+  }
+  expect(continuedPacket.message).toContain('Complete current body is in support:work-item-package.');
+  expect(initialPacket.message).toContain('# Plan context package');
+  expect(initialPacket.message).toContain('"originalExamples": [\n    "need-001.ex01"');
   expect(capabilityStarts[1]?.type === 'invocation-started' ? capabilityStarts[1].data.session : null)
     .toBe(capabilityStarts[0]?.type === 'invocation-started' ? capabilityStarts[0].data.session : null);
   expect(starts.filter(start => start.startsWith('local-architect:submit_work_item_result'))).toHaveLength(1);

@@ -25,6 +25,9 @@ import { obligationsOf } from '../work/obligations.js';
 import { trackedScenarios } from '../run/feature-files.js';
 import { committedRecords } from '../work/committed.js';
 import { RunLog } from '../run/log.js';
+import { readPointContext, readRecordedOperation } from '../run/session-operations.js';
+import { exactInputHash } from '../prompts/delivered-manifest.js';
+import { effectiveBlocks } from '../prompts/blocks.js';
 
 /*
  * Everything a module architect tells the harness is validated JSON: the
@@ -757,10 +760,30 @@ describe('a rejected submission in a run', () => {
     assign(reviews, { scope: { base: { module: reviews, included: scope.included ?? [] }, extra: scope.extra ?? [], read: [], rationale: 'r' } }, outline());
 
   test('the briefing states the default write scope: the owner directory and the only directories included may name', async () => {
-    const { agent } = await run([requestCompletion()], [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
+    const { root, runId, agent } = await run([requestCompletion()], [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
     const inheritedScope = local.inherited.join('\n\n');
-    expect(local.spec.prompt).not.toContain('## Default write scope');
+    const events = await runEventsOnDisk(root, 'review-notes', runId);
+    const started = events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect').at(-1)!;
+    if (started.type !== 'invocation-started') throw new Error('Missing local architect invocation');
+    const operation = await readRecordedOperation(join(root, 'plans/.harness/session-operations'), runId, started.data.invocation);
+    if (operation === null) throw new Error('Missing delivered local architect packet');
+    const key = 'brief:support:## Default write scope:0';
+    const inherited = operation.packet.manifest.entries.filter(input => input.block?.key === key && input.delivery === 'inherited');
+    expect(inherited).toHaveLength(1);
+    expect(operation.packet.additions.filter(input => input.block?.key === key)).toEqual([]);
+    if (operation.source === null) throw new Error('Local architect invocation lost its source point');
+    const context = await readPointContext(join(root, 'plans/.harness/session-operations'), runId, operation.source);
+    const original = effectiveBlocks(context.inherited).get(key)!;
+    expect(original).toBeDefined();
+    expect(exactInputHash(original.text)).toBe(inherited[0]!.hash);
+    expect(original).toMatchObject({ key: inherited[0]!.key, revision: inherited[0]!.revision, block: { key, effect: 'set' } });
+    expect(inheritedScope.split(original.text)).toHaveLength(2);
+    const body = original.text.slice(original.text.indexOf('\n') + 1);
+    expect(inheritedScope.split(body)).toHaveLength(2);
+    expect(operation.packet.message).not.toContain(body);
+    expect(operation.packet.message).toContain(`${key}: original delivery revision ${inherited[0]!.revision}`);
+    expect(operation.packet.message).toContain(`SHA-256 ${inherited[0]!.hash}; original input ${inherited[0]!.key}`);
     expect(inheritedScope).toContain('## Default write scope');
     expect(inheritedScope).toContain(`- \`${reviews}\`: the base gives its engineer \`${reviewsDirectory}/\` whole`);
     expect(inheritedScope).toContain(`  - Immediate child modules: \`${reviewsDirectory}/subs/core\` (\`${reviews}/core\`), \`${reviewsDirectory}/subs/ui\` (\`${reviews}/ui\`), \`${reviewsDirectory}/subs/validation\` (\`${reviews}/validation\`).`);
