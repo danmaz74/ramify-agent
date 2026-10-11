@@ -298,7 +298,7 @@ describe('configured committed execution over F2 (runner truth)', () => {
     expect(rebased.audit?.fallbackReason).not.toBeNull();
 
     await evidence('iteration9-f2-runner-truth', {
-      schema: 'plan21.iteration9.f2/1', providerVersion: 'ramify-audit@0.7.2', ramifyVersion: 'ramify.ts@0.4.1',
+      schema: 'plan21.iteration9.f2/1', providerVersion: 'ramify-audit@0.8.0', ramifyVersion: 'ramify.ts@0.4.3',
       commits: { baseline: f2.head, grandChange, ambiguous, readme, repaired, rootAndGrand, sibling, runner, restored, policy },
       gates: { baseline: digest(baseline), partial: digest(partial), failing: digest(failing), zero: digest(zero), fixed: digest(fixed), outer: digest(outer), collision: digest(collision), widened: digest(widened), healed: digest(healed), refused: digest(refused), rebased: digest(rebased) },
     });

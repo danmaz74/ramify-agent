@@ -210,7 +210,7 @@ describe('a full nested final audit over F4 (PB3-E05)', () => {
     expect((await fixture.runs()).engine).toBe(executions.engine);
 
     await evidence('iteration10-f4-nested-final', {
-      schema: 'plan21.iteration10.f4-nested/1', providerVersion: 'ramify-audit@0.7.2', ramifyVersion: 'ramify.ts@0.4.1',
+      schema: 'plan21.iteration10.f4-nested/1', providerVersion: 'ramify-audit@0.8.0', ramifyVersion: 'ramify.ts@0.4.3',
       commits: { failing: repository.head, repaired, docs },
       gates: { failing: digest(failing), passing: digest(passing), reused: digest(reused) },
       grandchildRecord: toolsRecord, briefing, executions: await fixture.runs(),

@@ -49,8 +49,8 @@ function completed(shape: Shape = {}): Completed {
     requestId: 'run:ga-0001',
     runId: 'provider-run',
     summary: {
-      evidenceSchemaVersion: shape.schema ?? 4,
-      producer: { name: shape.producer ?? 'ramify-audit', version: '0.7.2' },
+      evidenceSchemaVersion: shape.schema ?? 5,
+      producer: { name: shape.producer ?? 'ramify-audit', version: '0.8.0' },
       sourceCommit: shape.sourceCommit ?? made,
       overall: 'pass',
       mode: { requestedMode: partial ? 'ramify-partial' : 'full', resolution: 'defaulted', executedMode: shape.executedMode ?? 'full' },
@@ -98,8 +98,9 @@ describe('a completed audit as a gate\'s answer', () => {
   });
 
   it('refuses old-schema or foreign evidence, so it never stands as a passing answer or baseline', () => {
-    expect(refusal(completed({ schema: 3 }))).toBe('the result is not schema-4 ramify-audit evidence');
-    expect(refusal(completed({ producer: 'other-auditor' }))).toBe('the result is not schema-4 ramify-audit evidence');
+    expect(refusal(completed({ schema: 4 }))).toBe('the result is not schema-5 ramify-audit evidence');
+    expect(refusal(completed({ schema: 3 }))).toBe('the result is not schema-5 ramify-audit evidence');
+    expect(refusal(completed({ producer: 'other-auditor' }))).toBe('the result is not schema-5 ramify-audit evidence');
   });
 
   it('refuses evidence of another project, definition or check universe', () => {
@@ -172,8 +173,8 @@ describe('a nested invocation as a gate\'s answer', () => {
       .toBe('nested project engine: the result audited project other, not engine');
     expect(accounted(invocation([project('.', completed()), project('engine', nestedRecord({ sourceCommit: earlier }))])))
       .toBe(`nested project engine: the result does not answer source ${made}`);
-    expect(accounted(invocation([project('.', completed()), project('engine', nestedRecord({ schema: 3 }))])))
-      .toBe('nested project engine: the result is not schema-4 ramify-audit evidence');
+    expect(accounted(invocation([project('.', completed()), project('engine', nestedRecord({ schema: 4 }))])))
+      .toBe('nested project engine: the result is not schema-5 ramify-audit evidence');
   });
 
   it('keeps a root pass beside a composed nested failure, so the invocation verdict, not the root\'s, decides', () => {

@@ -1,7 +1,7 @@
 # audit
 
 Implements the harness's in-process adapter to `ramify-audit`, pinned at
-version 0.7.2. It hides the library, its evidence model, repository lease,
+version 0.8.0. It hides the library, its evidence model, repository lease,
 isolated worktree, publication refs and Git environment from the rest of
 the harness. The harness owns gate policy and durable run state; this child
 reads the project's committed audit definition, asks the installed provider
@@ -57,7 +57,7 @@ Neither mode forces a fresh run. Where the provider returns applicable
 evidence of an earlier commit, every later change ignored by that record's
 policy, the result keeps both source identities, the report refs and the
 ignored changed paths. A completed result that does not answer the request
-is `refused` and never a pass: evidence that is not schema-4 ramify-audit
+is `refused` and never a pass: evidence that is not schema-5 ramify-audit
 evidence, of another project, definition or check universe, of another
 commit, a partial chain for a full request, or a selected check without its
 record. `configuredFullRecovery` names the provider failures that qualify a
@@ -95,7 +95,7 @@ the gate and every durable record.
 
 ## Dependency
 
-`ramify-audit` is pinned to the exact version 0.7.2 from the private proxy
+`ramify-audit` is pinned to the exact version 0.8.0 from the private proxy
 registry this package's `.npmrc` names, which also serves the other
 dependencies. It is MIT-licensed. No other module imports it. The existing
 `legacy-peer-deps=true` setting remains necessary for npm 10.9's Vitest peer
