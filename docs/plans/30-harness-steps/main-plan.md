@@ -367,13 +367,13 @@ Follow the [testing specification](../../testing.spec.md). Ordinary tests use
 the scripted agent, scripted Git and fixtures; none launches a model, Git,
 Ramify or the audit. Each iteration runs `npm run type-check`,
 the changed owners' focused tests and `npm run check:self` from
-`ramify-agent/`.
+the repository root.
 
 Take a baseline full audit from the clean committed implementation base and
 qualify the final committed candidate from the repository root:
 
 ```sh
-ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --full --nested --json
+node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
 ```
 
 No other whole-suite run. Iteration 5 applies a real plan, or a bounded

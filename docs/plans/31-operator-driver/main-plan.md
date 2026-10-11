@@ -257,11 +257,11 @@ harness checks from real implementation evidence.
 Follow the [testing specification](../../testing.spec.md). Ordinary tests
 drive the mailbox in process with a test-controlled operator; no model, Git,
 Ramify or audit is launched. Each iteration runs `npm run type-check`, the
-changed owners' focused tests and `npm run check:self` from `ramify-agent/`.
+changed owners' focused tests and `npm run check:self` from the repository root.
 Baseline and final full audits use:
 
 ```sh
-ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --full --nested --json
+node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
 ```
 
 Iteration 3 applies real planned work in an agent-created project worktree.

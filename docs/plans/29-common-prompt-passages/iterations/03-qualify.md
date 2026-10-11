@@ -19,7 +19,7 @@ performance or semantic-benefit claim.
 - Own Q01–Q03. Exercise scripted joined workflows with fresh/continued/forked
   input, a repair, a legacy admitted operation and ordinary fresh fallback.
   Preserve the entire configured full-audit scope.
-- Run the focused integrated checks from `ramify-agent/`:
+- Run the focused integrated checks from the repository root:
 
   ```sh
   npm run test:quick -- subs/harness/src/tests/plan25-combined-delivery.test.ts subs/harness/src/tests/plan23-task-prompts.test.ts subs/harness/src/tests/nonfunctional-submissions.test.ts subs/harness/src/tests/nonfunctional-repair.test.ts

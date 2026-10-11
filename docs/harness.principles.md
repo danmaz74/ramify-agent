@@ -12,9 +12,9 @@ Ramify project efficiently while respecting its modularity model. They are
 listed in decreasing order of importance.
 
 The toolkit's
-[importability principles](../../docs/model/cross-module-importability.principles.md)
+[importability principles](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/cross-module-importability.principles.md)
 define what a module may import, and its
-[module architect principles](../../docs/agents/module-architect.principles.md)
+[module architect principles](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/module-architect.principles.md)
 define the evidence Ramify supplies to an agent with a global view. This
 document redefines neither.
 

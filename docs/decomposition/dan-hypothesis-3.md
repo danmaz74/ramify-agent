@@ -128,7 +128,7 @@ the sole authority for architectural decisions.
 ### Refresh evidence before resuming the architect
 
 This design assumes Ramify supplies the proposed
-[architect-view diff mechanism](../../../docs/architecture/architect-view-diff.spec.md).
+[architect-view diff mechanism](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/architect-view-diff.spec.md).
 That toolkit feature is specified separately and is not yet implemented. Ramify
 produces factual differences; the harness chooses the baseline and supplies the
 request context. The harness does not implement a second view-diff engine.

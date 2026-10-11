@@ -42,7 +42,7 @@ enforcement, persistence and transcript entries equal to pi's.
 
 Own O01–O06 and O16. In-process tests drive the mailbox with a test operator writing
 actions into a temporary directory; the scripted engine helpers supply guard,
-judge and store. Run the owner's tests from `ramify-agent/` with
+judge and store. Run the owner's tests from the repository root with
 `npm run test:quick -- <files>`, then `npm run type-check` and
 `npm run check:self`.
 

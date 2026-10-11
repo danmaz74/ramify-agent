@@ -43,7 +43,7 @@ inheritance and without newly emitted JSON environment blocks.
 ## Verification
 
 Own D01–D10 and retain C01–C06. Use scripted process boundaries. Run affected
-composition tests and the focused delivery surfaces from `ramify-agent/`:
+composition tests and the focused delivery surfaces from the repository root:
 
 ```sh
 npm run test:quick -- subs/harness/src/tests/plan25-task-packets.test.ts subs/harness/src/tests/plan25-blocks.test.ts subs/harness/src/tests/plan25-block-sessions.test.ts subs/harness/src/tests/plan25-discovery-delivery.test.ts subs/harness/src/tests/review-diff-delivery.test.ts subs/harness/src/tests/plan25-nfr-context.test.ts

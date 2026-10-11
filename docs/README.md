@@ -17,7 +17,7 @@ Design documents for the separate agent harness:
   advisory questions from engineers to local architects and local architects
   to the global architect, using forks of their delegation context
 - [Plan 32: independent repository and persistent development workspace](plans/32-repository-extraction/main-plan.md),
-  proposed: preserve history and local work, extract the agent, provide one
+  in implementation, iterations 1–2 complete: preserve history and local work, extract the agent, provide one
   devcontainer with persistent sibling Ramify and ramify-audit checkouts,
   qualify the new workspace and complete the repository cutover
 - [Plan 30: harness steps as a library and a CLI](plans/30-harness-steps/main-plan.md),
@@ -256,9 +256,9 @@ Design documents for the separate agent harness:
 - [Plan 2C consumer review](reviews/2026-09-19-plan2c-consumer-review.md)
 
 What Ramify provides to agents is described in the toolkit's
-[agents documents](../../docs/agents/README.md).
+[agents documents](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/README.md).
 
-[Plan 2C](../../docs/plans/iteration-2c-module-measurements/main-plan.md) stays in
+[Plan 2C](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/iteration-2c-module-measurements/main-plan.md) stays in
 Ramify and publishes generic project facts. The dependency goes from this
 project to Ramify only; agent activity and KPIs are measured here.
 
@@ -275,3 +275,16 @@ comparison. They are not current and are read only on request; its
 - [Declared task blocks](analysis/2026-10-09-declared-task-blocks.md),
   proposed rule that each task declares its prompt blocks and receives only
   those its session does not already hold; evidence from the Plan 25 run
+
+## Historical links
+
+Until Plan 32, this project was the `ramify-agent/` directory of the Ramify
+toolkit repository. Historical analyses, reviews, spikes, results, receipts
+and completed plans keep their original commands, paths, hashes and relative
+links. A relative link there that leaves this repository's root refers to the
+toolkit: resolve it as if this repository were the `ramify-agent/` directory of
+<https://github.com/danmaz74/ramify/tree/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5>.
+Commands such as `ramify-agent/node_modules/.bin/ramify-audit audit
+--project-root ramify-agent` ran from that repository's root; current commands
+run from this repository's root. Current documents link toolkit documents as
+pinned GitHub URLs.

@@ -1,5 +1,6 @@
 # CLAUDE.md - ramify-agent
 
-Read [AGENTS.md](AGENTS.md). It holds the shared instructions for this
-directory and overrides the toolkit's `CLAUDE.md` where they differ: the
-toolkit's roadmap, plans and cucumber-viz workflow do not apply under `ramify-agent/`.
+Read [AGENTS.md](AGENTS.md). It holds the complete shared instructions for
+this repository, including its writing conventions and development workflow.
+The Ramify toolkit's instructions, roadmap, plans and cucumber-viz workflow do
+not apply here.

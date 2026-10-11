@@ -223,11 +223,11 @@ facts, their authority and physical delivery; avoid giant prose snapshots that
 only mirror the new implementation.
 
 Take a baseline full audit from the clean committed implementation base. After
-focused checks and `npm run type-check` / `npm run check:self` in `ramify-agent/`,
+focused checks and `npm run type-check` / `npm run check:self` at the repository root,
 qualify the final clean committed integration candidate from the repository root:
 
 ```sh
-ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --full --nested --json
+node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
 ```
 
 The audit retains every configured project. Unrun, blocked and skipped checks

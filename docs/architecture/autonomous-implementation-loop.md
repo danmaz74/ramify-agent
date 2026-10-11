@@ -333,7 +333,7 @@ or incomplete fork is not appended as an accepted placement decision.
 
 ### Optional diffs and recovery
 
-Ramify's proposed [architect-view diff mechanism](../../../docs/architecture/architect-view-diff.spec.md)
+Ramify's proposed [architect-view diff mechanism](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/architect-view-diff.spec.md)
 can help the fork find removals or changes cheaply. If available, its baseline
 and target identities must be explicit and its target must match the refreshed
 view. The fork may search it without carrying unrelated changes into the parent
@@ -840,8 +840,8 @@ replace behavioral tests, the harness's write-scope controls or the original
 acceptance conditions.
 
 Use the installed Ramify CLI's
-[hook and complete check contract](../../../docs/architecture/cli-invocation.spec.md#hook-and-complete-checks).
-The existing [post-write example](../../../examples/hooks/README.md) adapts
+[hook and complete check contract](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/cli-invocation.spec.md#hook-and-complete-checks).
+The existing [post-write example](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/examples/hooks/README.md) adapts
 Claude Code events; the harness needs equivalent integration with pi's tool
 lifecycle. It must explicitly install that integration, because automatic
 extension discovery is disabled in the current pi adapter. No toolkit source

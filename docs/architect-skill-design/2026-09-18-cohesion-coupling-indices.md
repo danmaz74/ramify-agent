@@ -3,7 +3,7 @@
 **Date:** 2026-09-18. **Status:** proposal, revised after review. No
 guideline, metric schema or view field is adopted by this document. It
 proposes the criterion the
-[module architect](../../../docs/agents/module-architect.principles.md) evaluates a
+[module architect](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/module-architect.principles.md) evaluates a
 module against, and the indices Ramify could publish so the architect cites
 numbers rather than impressions. Its practical goal is to inform the
 evidence and decision procedures of a module architect skill or collection
@@ -29,7 +29,7 @@ during the skill discussion is not proposed as guidelines.
 
 ## What exists
 
-The [modularity report](../../../docs/architecture/modularity-report.spec.md) already
+The [modularity report](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/modularity-report.spec.md) already
 computes, per exact owner and where defined per subtree, the material for
 most of the indices below: boundary locality (section 1), contract breadth (2), interface
 economy (3), the behavioral estimate (4), stability direction (5), cycle
@@ -43,7 +43,7 @@ counts, ratios, sample sufficiency and Git provenance. Its values do not
 use `Metric<T>`. Neither report flags values as good or bad; that is a
 review judgment.
 
-The [architect view](../../../docs/architecture/architect-view.spec.md) publishes a
+The [architect view](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/architect-view.spec.md) publishes a
 `metrics` block in each module's `module.json`, which may be unavailable
 in the first delivery, with no index field names fixed.
 
@@ -152,7 +152,7 @@ trials find no use beyond connectedness.
    independent-change share beside pairwise affinity, under the same
    sufficiency rules and provenance. Reference density, if kept, joins
    section 7 with the definition above.
-3. The [skill plan](../../../docs/plans/module-architect-skill/main-plan.md)'s
+3. The [skill plan](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/module-architect-skill/main-plan.md)'s
    refactoring procedure cites indices instead of raw counts, and its
    candidate-feature table's "module metrics" row is replaced by this
    list.
@@ -169,8 +169,8 @@ and will change with the trials. Proposed location and name:
 `docs/agents/modular-architecture.principles.md`, beside the module
 architect principles, since it is the architect's reference rather than a
 rule of the importability model. Its vocabulary is the existing
-[agents glossary](../../../docs/agents/glossary.md) and the
-[dependency glossary](../../../docs/architecture/dependency-glossary.md).
+[agents glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/glossary.md) and the
+[dependency glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/dependency-glossary.md).
 
 The full proposed text follows. It is not created by this document.
 
@@ -183,10 +183,10 @@ The full proposed text follows. It is not created by this document.
 > ## Purpose
 >
 > Define what makes a module tree well structured. The
-> [importability principles](../../../docs/model/cross-module-importability.principles.md)
+> [importability principles](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/cross-module-importability.principles.md)
 > define what a module may import; this document defines what a module
 > should be. It is the reference for the
-> [module architect](../../../docs/agents/module-architect.principles.md) and for anyone
+> [module architect](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/module-architect.principles.md) and for anyone
 > reviewing a boundary, a placement or a move. Ramify measures evidence for
 > these principles and flags nothing; judging a module against them is a
 > person's or an agent's work.

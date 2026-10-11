@@ -53,7 +53,7 @@ current files, but history keeps them.
 
 ### 4. Plan 2E, self-sufficient diagnostics (toolkit)
 
-[Plan 2E](../../docs/plans/iteration-2e-diagnostic-messages/main-plan.md),
+[Plan 2E](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/iteration-2e-diagnostic-messages/main-plan.md),
 awaiting contract review.
 
 - [ ] RD-1: may a finding carry a proposed declaration, in its own field under

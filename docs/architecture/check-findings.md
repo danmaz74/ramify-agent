@@ -872,7 +872,7 @@ proposed module.
 
 Module-architect references used: `discovery.md`, `placement.md`,
 `cognitive-decomposition.md`, `access.md` and `report.md`. The project
-[contract-ownership principle](../../../docs/agents/module-architect.principles.md#contracts-follow-responsibility)
+[contract-ownership principle](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/module-architect.principles.md#contracts-follow-responsibility)
 governs the placement decision. Inspected implementation sources were
 `subs/harness/src/run/{service,log,mutations}.ts`,
 `subs/harness/src/checks/accepted.ts`, the ledger's `src/ledger.ts`, and the

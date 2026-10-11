@@ -44,9 +44,9 @@ would mix assignment, scope, obligations, equipment and scheduling. Moving
 review, contract and gate responsibilities. Neither is part of this extraction.
 
 Apply [Local Engineering, Global Architecture and Contracts Follow
-Responsibility](../../../../docs/agents/module-architect.principles.md), the
-[importability principles](../../../../docs/model/cross-module-importability.principles.md)
-and the [module description specification](../../../../docs/model/module-description.spec.md).
+Responsibility](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/module-architect.principles.md), the
+[importability principles](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/cross-module-importability.principles.md)
+and the [module description specification](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/module-description.spec.md).
 
 ## Required ownership
 
@@ -264,8 +264,7 @@ Feature: A child owns the harness query and projection implementation
 
 Use two distinct checkouts: a fixed, prepared bootstrap checkout that runs the
 already-working ramify-agent, and a target checkout that receives the refactor.
-The served project root is the target's `ramify-agent/` directory, not the
-containing toolkit project. Keep the bootstrap process and its loaded code
+The served project root is the target checkout's root. Keep the bootstrap process and its loaded code
 stable while the target implementation changes.
 
 Select a clean implementation base that includes the adjacent changes intended
@@ -284,12 +283,12 @@ relocation does not preserve relative links.
 Record the source path and hash with the run's retained input provenance. The
 copy is execution input, not an independently maintained plan or status tree.
 
-From the bootstrap checkout's `ramify-agent/`, serve the target through the
+From the bootstrap checkout's root, serve the target through the
 existing command, substituting the prepared target's absolute path and an
 available port:
 
 ```sh
-npm run serve -- --project /absolute/target/ramify-agent --port 4302 --agent pi
+npm run serve -- --project /absolute/target --port 4302 --agent pi
 ```
 
 Use the existing client to select `projections-extraction` and start the run,
@@ -307,11 +306,11 @@ the post-move paths obtained from configured discovery. Native checks, when
 affected, use the existing registered boundary project. Do not run a direct
 whole suite in place of the audit.
 
-The final candidate must be clean and committed. From the containing repository
+The final candidate must be clean and committed. From the target checkout's
 root, use its installed audit CLI and committed configuration:
 
 ```sh
-ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --full --nested --json
+node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
 ```
 
 The configured checks include patch integrity, type checks, the complete test
@@ -334,7 +333,7 @@ health, live self-execution result or performance improvement.
 
 ## Read first in the selected target
 
-All source paths below are relative to the target `ramify-agent/` project root.
+All source paths below are relative to the target checkout's root.
 
 - `AGENTS.md`, `docs/harness.principles.md` and `docs/testing.spec.md`.
 - `subs/harness/README.md`, `subs/harness/module.ramify` and the root

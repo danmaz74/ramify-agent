@@ -43,7 +43,7 @@ runtime dispatch. Decide wording by inspecting what an agent would receive.
 
 Own C01–C06. Extend existing pure prompt tests with exact facts and semantic
 distinctions that must survive rendering. Run focused checks from
-`ramify-agent/`, starting with:
+the repository root, starting with:
 
 ```sh
 npm run test:quick -- subs/harness/src/tests/plan23-task-prompts.test.ts subs/harness/src/tests/engineer-briefing.test.ts subs/harness/src/tests/scenario-briefings.test.ts

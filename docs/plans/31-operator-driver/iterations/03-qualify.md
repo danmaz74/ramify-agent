@@ -34,7 +34,7 @@ describes the feature, and the harness candidate passes its configured full audi
 - Final audit from the clean committed candidate:
 
   ```sh
-  ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --full --nested --json
+  node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
   ```
 
 ## Verification

@@ -38,7 +38,7 @@ claiming that every collection requirement below is implemented.
 
 ## Ownership and dependency
 
-[Ramify Plan 2C](../../docs/plans/iteration-2c-module-measurements/main-plan.md)
+[Ramify Plan 2C](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/iteration-2c-module-measurements/main-plan.md)
 will produce `ramify.measure/1`, per-module inventory context-size summaries in
 the architect view, and a file/owner inventory. ramify-agent consumes the installed CLI and
 generated files. It never imports toolkit internals or builds another project
@@ -58,7 +58,7 @@ ramify-agent. Ramify is never taught which harness or model consumed its data.
 | Behavioral dependencies and visible original-symbol evidence | Change attribution, owner/seam/reuse drift and adaptation causes |
 | Check outcomes | Run acceptance, KPI formulas, coverage and browser/API presentation |
 
-Existing scaffolding in `ramify-agent/` provides `harness` and `web`.
+Existing scaffolding in this project provides `harness` and `web`.
 The harness acquires evidence, computes KPIs and owns the wire shapes it
 publishes; the web renders returned values. A future CLI receives the same values. No
 client performs independent KPI calculation or writes authoritative records.

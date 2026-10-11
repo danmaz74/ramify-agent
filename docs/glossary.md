@@ -12,8 +12,8 @@ the [harness architecture](architecture.md). Those documents contain the rules
 and the design; this companion defines their terms.
 
 Ramify's own vocabulary is defined in the toolkit's
-[model glossary](../../docs/model/glossary.md) and
-[agents glossary](../../docs/agents/glossary.md) and is not repeated here.
+[model glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/glossary.md) and
+[agents glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/glossary.md) and is not repeated here.
 
 Use **test-shaped file** as defined in ramify-audit's
 glossary: `ramify-audit:docs/glossary.md#test-shaped-file`. This reference names
@@ -98,7 +98,7 @@ A **capability** is a named unit of decomposition that agents use while
 planning: an ability the software provides or is expected to provide.
 
 The term is the toolkit's
-([agents glossary](../../docs/agents/glossary.md#capability)); this entry adds
+([agents glossary](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/glossary.md#capability)); this entry adds
 how the harness treats it. A capability is not an object of the project. Its
 name is ephemeral: it exists in a plan's records and is never materialized in
 the project's source, declarations or documentation. Only an agent maps a

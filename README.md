@@ -4,10 +4,11 @@ An agent harness for Ramify projects: it plans a feature against the project's
 module architecture and runs implementation sessions scoped to modules or
 subtrees, measuring where agents worked.
 
-It is a separate consumer of [ramify.ts](../README.md). It depends on the
-toolkit through its package surface and CLI; the toolkit never depends on it.
-It lives in this repository during initial development and moves to its own
-repository later. See [AGENTS.md](AGENTS.md) for the working rules.
+It is a separate consumer of [ramify.ts](https://github.com/danmaz74/ramify).
+It depends on the toolkit through its package surface and CLI; the toolkit
+never depends on it. It lived in the toolkit repository's `ramify-agent/`
+directory until Plan 32 extracted it into this repository. See
+[AGENTS.md](AGENTS.md) for the working rules and development workflow.
 
 ## Modules
 
@@ -33,18 +34,19 @@ engineer sessions and runs one harness step at a time.
 
 ## Commands
 
-Run from `ramify-agent/`. `ramify.ts` and `ramify-audit` are exact pins from
-the registry `.npmrc` names, not the surrounding checkout. To take a new
-toolkit release, run `npm install --save-exact ramify.ts@<version>` and commit
-the manifest and lockfile.
+Run from the repository root. `ramify.ts` and `ramify-audit` are exact pins
+from the registry `.npmrc` names, never a nearby toolkit or audit checkout.
+Prepare a fresh clone or worktree with `npm ci`. To take a new toolkit
+release, run `npm install --save-exact ramify.ts@<version>` and commit the
+manifest and lockfile.
 
-The project's suite audit uses the committed `ramify-audit.json`. From the
-repository root, run `ramify-agent/node_modules/.bin/ramify-audit audit
---project-root ramify-agent --cwd . --json`. The audited commit supplies the
-checks; audit evidence is stored under ramify-agent's own refs.
+The project's suite audit uses the committed `ramify-audit.json`. From a
+clean committed checkout, run `node_modules/.bin/ramify-audit audit --cwd .
+--json`. The audited commit supplies the checks; audit evidence is stored
+under this repository's own refs.
 
 ```sh
-npm install
+npm ci
 npm run type-check
 npm test
 npm run check:self
@@ -69,7 +71,7 @@ so serve a copy of the fixture, never the fixture itself.
 A run on a real pi session needs a pi login, which the harness does not
 provide:
 
-1. From `ramify-agent/`, run `npx pi` (pi 0.87.1, the pinned dependency).
+1. From the repository root, run `npx pi` (pi 0.87.1, the pinned dependency).
 2. Type `/login` and choose a subscription, such as Claude Pro/Max or
    ChatGPT Plus/Pro (Codex). pi's own documentation says Claude Pro/Max usage
    from a third-party harness is billed as extra usage, per token.
@@ -216,12 +218,12 @@ passed; 1 when the session ended any other way or the gate did not pass; 2
 when the session could not start. The agent is pi unless `--agent fake
 --script <file>` chooses the
 scripted fake on a JSON array of its steps, with no model. Relative paths
-given to `npm run session` resolve from `ramify-agent/`.
+given to `npm run session` resolve from the repository root.
 
-`trial` prepares and checks the live trial on the toolkit: a disposable clone
-of its committed state with the trial plan added, and afterwards a comparison
-showing that the run's initial analysis left the clone's source,
-`module.ramify` files and `plan.md` unchanged.
+`trial` prepares and checks the loop trial: a disposable copy of the
+`collection-review` fixture with its own toolchain installed and a baseline
+commit, and afterwards a comparison holding every changed file to a write
+scope or recorded out-of-scope change of the run.
 
 ## Steps
 
@@ -231,7 +233,7 @@ receive, run that role once with the harness's own equipment, guard, hook,
 judge and bounds, run the gate the harness would run, and apply what the
 harness records after the submission. Each step reads its inputs from files
 and writes the records a run writes, so it can be run again after a harness
-fix. The usage below is `src/cli.ts`'s; run it from `ramify-agent/` as
+fix. The usage below is `src/cli.ts`'s; run it from the repository root as
 `npx tsx src/main.ts step ...`. Relative paths resolve from the current
 directory, so name the target project's files by absolute path.
 

@@ -47,7 +47,7 @@ runner's original configured discovery. Existing fixture and scratch exclusions,
 Node/JSDOM environments, React deduplication/inlining and machine-lock setup stay
 in effect.
 
-Run commands from `ramify-agent/`:
+Run commands from the repository root:
 
 | Command | Selection |
 | --- | --- |
@@ -62,7 +62,7 @@ four workers. It never selects quick tests alone. For full qualification, start
 from a clean committed candidate at the repository root and run:
 
 ```sh
-ramify-agent/node_modules/.bin/ramify-audit audit --project-root ramify-agent --cwd . --full --nested --json
+node_modules/.bin/ramify-audit audit --cwd . --full --nested --json
 ```
 
 Do not run another direct whole suite where audit discipline applies. Skipped,

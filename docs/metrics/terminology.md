@@ -45,11 +45,11 @@ describing what is defined versus what was observed.
 The explorer heuristic combines equally weighted owned-file and distinct
 provider-module counts, then divides by the maximum raw value over the modules
 in the supplied model, using zero when the maximum is zero. Its
-[projection](../../../subs/service-api/src/project-view.ts) still computes
-`approximateIcs`. The [older view-model document](../../../docs/plans/iteration-6-project-explorer/view-model.md)
-calls it approximate complexity. The [later graph delivery](../../../docs/plans/iteration-6d-behavioral-dependency-diagram/iterations/iteration6-results.md)
+[projection](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/subs/service-api/src/project-view.ts) still computes
+`approximateIcs`. The [older view-model document](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/iteration-6-project-explorer/view-model.md)
+calls it approximate complexity. The [later graph delivery](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/iteration-6d-behavioral-dependency-diagram/iterations/iteration6-results.md)
 removed the complexity pill and its use in node sizing; the
-[current radial graph](../../../subs/presentation/subs/project-view/src/ModuleGraphRadial.tsx)
+[current radial graph](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/subs/presentation/subs/project-view/src/ModuleGraphRadial.tsx)
 sizes nodes from owned source-file counts. Removal from that visualization is
 distinct from removal of the projection field.
 
@@ -66,7 +66,7 @@ meaning for the abbreviation.
 | Starting search-space size (source-line proxy) | `S0` in `token-efficiency/1` | Whole eligible baseline source, in nonblank lines; a proxy for potential starting search-space size. |
 | Declared search-space size (inventory-byte proxy) | `S_s` or `S_e` in the [older KPI contract](../measurements-and-kpis.md), computed under `scope-size/1` | Assigned inventory/view/support components in bytes; neither actual exploration nor model tokens. |
 | Root scope-byte baseline | `B` in the older KPI contract | A frozen byte universe that includes more kinds of content than `S0`; the two baselines are not interchangeable. |
-| Inventory context size | `contextSize` buckets in Ramify measurements and the [modularity report](../../../docs/architecture/modularity-report.spec.md) | Named counts and bytes for exact owners or subtrees; each surface defines its included buckets. |
+| Inventory context size | `contextSize` buckets in Ramify measurements and the [modularity report](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/modularity-report.spec.md) | Named counts and bytes for exact owners or subtrees; each surface defines its included buckets. |
 | Model context usage | Context observations in the [agent observation schema](../../subs/harness/src/run/observations.ts) | Tokens occupying context at an observation point; cumulative tokens spent are a different quantity. |
 | Actual exploration | Reads, searches and information exposed during execution | An activity concept; its measurement is deferred for the new token-efficiency policy. |
 
@@ -128,7 +128,7 @@ Cohesion and coupling are architectural concepts. Boundary locality, internal
 connectedness, contract breadth, interface use, fan-in/fan-out, structural
 instability, cycle structure and change affinity are named metrics that can
 inform assessments of them. Their definitions remain in the
-[modularity specification](../../../docs/architecture/modularity-report.spec.md).
+[modularity specification](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/architecture/modularity-report.spec.md).
 
 The [cohesion/coupling proposal](../architect-skill-design/2026-09-18-cohesion-coupling-indices.md)
 also considers independent-change share and reference density. A proposal to

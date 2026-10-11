@@ -23,9 +23,9 @@ helps the architect make justified choices on real projects; update this
 index when adding an alternative. Shared metric definitions remain in
 their owning specifications.
 
-The [module architect principles](../../../docs/agents/module-architect.principles.md)
+The [module architect principles](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/agents/module-architect.principles.md)
 define the architect's role and Ramify's evidence boundary. The
-[module architect skill plan](../../../docs/plans/module-architect-skill/main-plan.md)
+[module architect skill plan](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/plans/module-architect-skill/main-plan.md)
 provides the current delivery and trial proposal. These alternatives inform
 the skill's decision procedures; whether they become one skill or several
 remains a design choice.
