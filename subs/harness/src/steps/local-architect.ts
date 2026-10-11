@@ -22,7 +22,7 @@ import type { Hypothesis, RegistryEntry } from '../analysis/records.js';
 import type { PlacementDecision } from '../architecture/records.js';
 import type { Obligation } from '../work/obligations.js';
 import { checkWriteScope, type WriteScope } from '../work/scope.js';
-import { workItemMessage, type WorkItemBriefing } from '../work/session.js';
+import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../work/session.js';
 import type { StartingPointGroup } from '../work/starting-inputs.js';
 import {
   capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unreportedByCompletion, validateLocalArchitect,
@@ -190,6 +190,19 @@ export interface ConstructedWorkTurnStep extends ConstructedStepCommon {
   readonly task: { readonly kind: TaskKind; readonly goal: string; readonly requirements: readonly string[]; readonly omit: readonly string[] };
 }
 
+/**
+ * The views a work turn is told of: the listing its orientation was given,
+ * the module's existing API view directories with the coverage limits named,
+ * where the inputs carry it, so a session that holds the orientation's block
+ * is not told of it again. Otherwise the briefing's API views, each with
+ * what its coverage count means.
+ */
+function workTurnViews(environment: StepEnvironment, inputs: WorkTurnStepInputs): ReturnType<typeof architectViews> {
+  if (inputs.architectView !== undefined) return architectViews(environment, inputs.architectView);
+  return (inputs.briefing.views.evidence?.views ?? []).map(view => ({ path: view.path, revision: view.revision, modules: [inputs.briefing.item.module],
+    coverage: view.coverage === null ? [] : [apiCoverageStatement(view.coverage)] }));
+}
+
 /** Builds one local architect work turn from its inputs. Nothing is read or written. */
 export function constructWorkTurnStep(value: unknown, environment: StepEnvironment): ConstructedWorkTurnStep {
   const inputs = expect(value, (entry): entry is WorkTurnStepInputs => entry.role === 'local-architect' && entry.phase === 'work-turn', 'local architect work turn');
@@ -232,8 +245,7 @@ export function constructWorkTurnStep(value: unknown, environment: StepEnvironme
     startingPointGroups: groups, known: knownFacts(inputs.known),
     environment: { projectRoot, workingDirectory, candidate: null, snapshot: null, limits,
       availableTools: [...readers, ...tools.map(tool => tool.name), submission.toolName],
-      views: (inputs.briefing.views.evidence?.views ?? []).map(view => ({ path: view.path, revision: view.revision, modules: [inputs.briefing.item.module],
-        coverage: view.coverage === null ? [] : [`${view.coverage} coverage limits`] })),
+      views: workTurnViews(environment, inputs),
       supportPaths: deliveredSupportPaths(loaded, kind), cucumberConfiguration: null },
   });
   return {

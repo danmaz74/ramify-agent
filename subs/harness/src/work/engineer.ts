@@ -13,6 +13,7 @@ import { engineerScenarioSection, type EngineerScenarios } from './scenario-brie
 import { scopePaths } from './scope.js';
 import type { TestArea } from '../run/project-config.js';
 import { startingPointsSchema } from './starting-points.js';
+import { apiCoverageStatement } from './session.js';
 
 /*
  * The engineer: what it submits, the one harness tool it is given, and the
@@ -404,7 +405,7 @@ export function iterationMessage(briefing: IterationBriefing): string {
       for (const view of entry.views) {
         lines.push(`- \`${entry.module}\` (${view.area}): \`${view.path}/\` (project-relative; open \`${briefing.projectRoot}/${view.path}/\` from this cwd); revision \`${view.revision}\`; ${view.coverage === null
           ? 'coverage complete, so a symbol it does not list is not importable'
-          : `coverage limits: ${view.coverage}, so absence is not proof`}.`);
+          : `coverage limits: ${apiCoverageStatement(view.coverage)}`}.`);
       }
     }
     lines.push('', briefing.capabilityWorkflow === true

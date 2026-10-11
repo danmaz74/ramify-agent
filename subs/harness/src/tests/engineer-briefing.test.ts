@@ -90,6 +90,16 @@ describe('what an engineer is told about the Ramify project it works in', () => 
     expect(text).toContain('reported with `unsuitable`, reason `scope`');
   });
 
+  test('a view with coverage limits says what its count means', () => {
+    const text = iterationMessage({
+      assignment: assignment(),
+      projectRoot: '/p',
+      base: 'abc',
+      views: [{ module: 'app/reviews', views: [{ area: 'src', path: 'subs/reviews/src/.ramify', revision: 'rev/1:current:2', coverage: 2 }], unavailable: null }],
+    });
+    expect(text).toContain('revision `rev/1:current:2`; coverage limits: 2 source-analysis limits that may have left a received API out of this view, so absence is not proof of unavailability.');
+  });
+
   test('a module without a view is told that absence is not permission', () => {
     const text = iterationMessage({
       assignment: assignment(),
