@@ -35,7 +35,7 @@ describe('assignment element citations', () => {
     expect(assignmentErrors(body(['fr-001', 'nfr-001']), evidence)).toEqual([]);
     const errors = assignmentErrors(body(['fr-001', 'Request', 'nfr-009', 'fr-001']), evidence);
     expect(errors.map(error => error.path)).toEqual(['assignment.citedElements.1', 'assignment.citedElements.2', 'assignment.citedElements.3']);
-    expect(errors[0]).toMatchObject({ message: '"Request" is not an element of this work item\'s package', expected: 'an element ID of the work-item package' });
+    expect(errors[0]).toMatchObject({ message: '"Request" is not an allowed plan-catalog element for this assignment; capability examples and use cases are separate request context', expected: 'an allowed plan-catalog element ID' });
     expect(errors[2]).toMatchObject({ message: '"fr-001" is cited more than once' });
     // A run without a catalog has no package to judge against.
     expect(assignmentErrors(body(['nfr-009']), { ...evidence, package: undefined })).toEqual([]);

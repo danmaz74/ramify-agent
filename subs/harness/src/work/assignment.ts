@@ -120,7 +120,12 @@ export const assignmentBodySchema = z.object({
    * ID: its engineer, contract engineer and reviewers receive exactly these,
    * with the plan deviations recorded so far.
    */
-  citedElements: z.array(text),
+  citedElements: z.array(text).describe(
+    'Plan-catalog element IDs the engineer must honor, such as fr-001 or nfr-001. Work-item assignments use their '
+    + 'selected package; capability assignments may cite the full frozen run catalog. Capability example and use-case '
+    + 'IDs such as need-001.ex01 are request context, not plan-catalog elements, and do not belong here. '
+    + 'Plan deviations are supplied separately by the harness.',
+  ),
   externalCapabilities: z.array(z.object({
     capability: slugSchema,
     owner: modulePathSchema,
@@ -193,7 +198,7 @@ export interface AssignmentEvidence {
   readonly obligations?: (ObligationContext & { readonly registrations?: readonly ObligationRegistration[] | undefined }) | undefined;
   /** The policy's engineer bounds and their ceilings, which `bounds` is judged against. */
   readonly bounds?: { readonly defaults: EngineerBounds; readonly ceilings: EngineerBounds } | undefined;
-  /** The element IDs of the work item's package, which `citedElements` is judged against; absent where the run has none. */
+  /** Allowed plan element IDs: the selected work-item package or the full frozen catalog for a capability task. Absent where the run has no catalog. */
   readonly package?: ReadonlySet<string> | undefined;
 }
 
@@ -217,8 +222,8 @@ export function assignmentErrors(body: AssignmentBody, evidence: AssignmentEvide
   const cited = new Set<string>();
   body.citedElements.forEach((id, position) => {
     if (evidence.package !== undefined && !evidence.package.has(id)) errors.push({
-      path: `assignment.citedElements.${position}`, message: `"${id}" is not an element of this work item's package`,
-      expected: 'an element ID of the work-item package',
+      path: `assignment.citedElements.${position}`, message: `"${id}" is not an allowed plan-catalog element for this assignment; capability examples and use cases are separate request context`,
+      expected: 'an allowed plan-catalog element ID',
     });
     if (cited.has(id)) errors.push({
       path: `assignment.citedElements.${position}`, message: `"${id}" is cited more than once`,

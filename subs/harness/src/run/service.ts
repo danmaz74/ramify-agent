@@ -7543,6 +7543,16 @@ export class RunService {
       await this.fail(run, 'internal', 'No capability architect package was captured');
       return null;
     }
+    // Capability work may involve owners beyond the parent's selected package.
+    // Use the same active catalog membership as package construction, excluding
+    // request examples and use cases even when their IDs occur in the task plan.
+    let packageElements: ReadonlySet<string>;
+    try {
+      packageElements = new Set((await this.frozenCatalog(run)).elements.map(element => element.id));
+    } catch (error) {
+      await this.fail(run, 'inputs-changed', `The plan catalog of capability task ${task.id} is unavailable: ${message(error)}`);
+      return null;
+    }
     const selectedHash = sha256(selected);
     let coordinatorPoint: string | undefined = resume?.point;
     let coordinatorSession: SessionId | undefined = resume?.session;
@@ -7572,6 +7582,7 @@ export class RunService {
       const problems = [...capabilityAuthorizationErrors(body.authorizations, capabilityGuardedPolicy(this.requiredArtifacts(records))), ...assignmentErrors(body, {
         index: run.index, registry: new Map(records.registry.map(entry => [entry.capability, entry])),
         outline: null, capabilityCompatibility: plan.compatibility,
+        package: packageElements,
         guardedPaths: capabilityGuardedPolicy(this.requiredArtifacts(records)),
         revising: true, bounds: engineerBoundsOf(run.record.policy.limits),
         obligations: { actor: capabilityActor(), projection: this.obligationProjection(run), registrations: checked.value.registrations },
@@ -8235,9 +8246,17 @@ export class RunService {
     if (assignment === undefined) {
       const index = await this.refreshIndex(run);
       const body = action.assignment;
+      let packageElements: ReadonlySet<string>;
+      try {
+        packageElements = new Set((await this.frozenCatalog(run)).elements.map(element => element.id));
+      } catch (error) {
+        await this.fail(run, 'inputs-changed', `Capability assignment ${id} package is unavailable: ${message(error)}`);
+        return null;
+      }
       const problems = [...capabilityAuthorizationErrors(body.authorizations, capabilityGuardedPolicy(this.requiredArtifacts(records))), ...assignmentErrors(body, {
         index, registry: new Map(records.registry.map(entry => [entry.capability, entry])),
         outline: null, capabilityCompatibility: plan.compatibility,
+        package: packageElements,
         guardedPaths: capabilityGuardedPolicy(this.requiredArtifacts(records)),
         revising: true, bounds: engineerBoundsOf(run.record.policy.limits),
         // The action's registrations were recorded on acceptance, before it.

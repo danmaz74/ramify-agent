@@ -1,4 +1,4 @@
-<!-- ramify-agent capability architect procedure, version 6. -->
+<!-- ramify-agent capability architect procedure, version 7. -->
 Read the original need and its provisional source first. Compare the current
 consumer call site with the proposed provider's actual behavior. Read prior
 decisions of every affected owner. Treat a registry name as a clue, never as
@@ -17,6 +17,12 @@ engineer: stage, kind, goal, approach, scope, selected requirement elements,
 external capabilities, completion evidence, and any obligations the engineer
 must bind, authorizations or raised bounds. The harness supplies the task
 sequence, plan basis and gate policy.
+
+`assignment.citedElements` names only elements of the frozen plan catalog,
+such as `fr-001` and `nfr-001`. A capability assignment may cite catalog elements
+beyond its parent's selected package. Original example and capability use-case
+IDs, such as `need-001.ex01`, remain request and capability-plan context; keep
+them in those fields rather than adding them to `citedElements`.
 
 {{writeScope}}
 
