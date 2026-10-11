@@ -635,7 +635,8 @@ export async function verifyAvailableAppend(name: 'context-package-append-reques
     const current = await adapter.operations.inspect(original.runId, original.point.sessionId);
     const addition = current!.additions.filter(addition => addition.key === key);
     const expectedText = section === undefined ? text
-      : `# Block brief:${section}\nCurrent value; replaces any earlier value for this key.\n${text}`;
+      // The session has not been delivered the package's key: a first delivery replaces nothing.
+      : `# Block brief:${section}\n${text}`;
     expect(addition).toEqual([{ key, kind: 'brief', text: expectedText,
       revision: section === undefined ? null : expect.stringMatching(/^[a-f0-9]{64}$/u) }]);
     if (section !== undefined) {
