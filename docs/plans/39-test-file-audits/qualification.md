@@ -1,8 +1,8 @@
 # Plan 39 release and consumer qualification
 
-Implementation and qualification completed on 2026-10-11. Consumer integration
-is left to the parent review. No branches were pushed and no Dolt remote sync
-was run. The single-file demonstration commit remains on its separate branch.
+Implementation and qualification completed on 2026-10-11. The consumer adopts
+the released pins and schema-5 evidence gate. No branches were pushed and no
+Dolt remote sync was run. The single-file demonstration commit remains on its separate branch.
 
 ## Released providers
 

@@ -3,8 +3,8 @@
 Design documents for the separate agent harness:
 
 - [Plan 39: run changed tests individually](plans/39-test-file-audits/main-plan.md),
-  sequential implementation in progress: Ramify file facts, direct test selection
-  and evidence in ramify-audit, verification and released-pin adoption
+  implemented, released and qualified: Ramify file facts, direct test selection
+  and evidence in ramify-audit, exact provider pins and a one-file consumer witness
 - [Plan 38: Cucumber acceptance and delivery](plans/38-cucumber-acceptance-and-delivery/main-plan.md),
   implemented and qualified by a composed committed default audit:
   explicit capability-feature evidence,

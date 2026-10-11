@@ -1,7 +1,7 @@
 # Plan 39: run changed tests individually
 
-**Status:** implementation and qualification complete, 2026-10-11; final
-consumer integration pending parent review. **Tracking:** `ramify-agent-wy8`.
+**Status:** implemented, integrated and qualified, 2026-10-11.
+**Tracking:** `ramify-agent-wy8`.
 See the [release and consumer qualification receipt](qualification.md).
 Execute the following steps sequentially across Ramify, ramify-audit and
 ramify-agent, with one Sol subagent per step as requested.
