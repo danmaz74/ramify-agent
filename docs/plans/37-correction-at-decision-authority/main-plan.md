@@ -1,7 +1,7 @@
 # Plan 37: Correction at the responsible decision authority
 
-**Date:** 2026-10-11. **Status:** implementation prepared and focused checks
-passed; qualification of a clean committed candidate remains pending in Beads.
+**Date:** 2026-10-11. **Status:** implemented and qualified; the composed
+committed default audit passed at `fefb0b0` with Plan 38. Beads records status.
 **Target:** ramify-agent. **Execution:** ramify-agent architects derive work
 items, owner assignments and iterations from this plan and the chosen base.
 

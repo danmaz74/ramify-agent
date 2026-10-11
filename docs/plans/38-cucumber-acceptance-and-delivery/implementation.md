@@ -1,8 +1,8 @@
 # Plan 38 implementation receipt
 
 **Date:** 2026-10-11. **Base:** `afe2db4`.
-**Status:** implementation prepared; focused verification recorded below;
-qualification of a clean committed candidate remains pending.
+**Status:** implemented and qualified; the composed committed default audit
+passed at `fefb0b0`. Beads records status.
 
 The user requested implementation with one agent per iteration. Four separate
 agents implemented four serial iterations in the existing checkout. No harness
@@ -185,7 +185,7 @@ configuration at dispatch. The two complete retained-context files passed
 context checks read actual emitted packets and their source points, verify exact
 effective body/hash/revision/input mappings, and distinguish body delivery from
 retained pointers. No production code changed during these repairs. Committed
-requalification remains pending.
+requalification remained pending at that stage.
 
 Repair commit `fbd4ed995b34563d88e04bbceda1a3b7116dc3f7` received its own clean
 worktree and `npm ci`. The same default audit command selected partial mode and
@@ -194,7 +194,7 @@ rerun passed 2,805 tests, failed one and skipped the two opt-in fixture trials
 across 324 selected files (322 passed, one failed and one skipped). The other
 five configured checks passed. The remaining failure reproduced the earlier
 local correction cleanup rejection, `job is at version 84, not 83`, in
-`decision-correction-workflow.test.ts`; its cause is under investigation.
+`decision-correction-workflow.test.ts`, prompting the investigation below.
 The report is retained in
 `refs/audited/runs/2026-10-11T21-06-01Z-fbd4ed995`, report commit
 `25662d200940e4bbb07fb5f1ef09af15df6c7da3`, and local output
@@ -218,4 +218,33 @@ Production command/version fencing, timeouts and workflow semantics remain
 unchanged; no retry was added. A final four-file regression with four workers
 passed 73/73 tests across correction, acceptance, delegation and local submission.
 Temporary diagnostic instrumentation was removed; committed requalification
-remains pending.
+remained pending at that stage.
+
+The final implementation candidate,
+`fefb0b0499ab44e75ebbd9f345e9b326b2896912`, passed the same default audit
+command from a clean worktree with its own dependencies. The auditor selected
+partial mode and composed it with the first full audit through the preceding
+partial audit: chain depth two, **zero outstanding failures**, verdict **pass**.
+All six configured checks passed. The selected Vitest execution passed 2,806
+tests with zero failures and two existing opt-in fixture trials skipped across
+324 files (323 passed, one skipped). These counts describe this selected run,
+not a new standalone full-suite execution. The Cucumber check again ran zero
+scenarios and zero steps; it establishes no scenario acceptance. The native
+Cucumber witnesses passed within the configured Vitest execution.
+
+The final report is retained in
+`refs/audited/runs/2026-10-11T21-25-28Z-fefb0b049`, report commit
+`8592f3eda315d7dfbee7f23f75c002151f7986a3`, and local output
+`/tmp/ramify-agent-audit-fefb0b0.json`. Audit coordination waited 120,871 ms for
+the shared test lock held by a separate Plan 39 provider audit, then resumed;
+no lock override was used. Retrieve permanent evidence with:
+
+```sh
+git notes --ref=audit show fefb0b0499ab44e75ebbd9f345e9b326b2896912
+git show refs/audited/runs/2026-10-11T21-25-28Z-fefb0b049:reports/audit/summary.json
+```
+
+This qualifies the Plan 38 implementation and the preserved Plan 37 correction
+workflow. The unrelated Plan 39 documentation commit and the checkout's
+pre-existing analysis and Plan 36 edits were preserved. No push or remote
+synchronization was performed.

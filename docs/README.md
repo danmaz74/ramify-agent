@@ -6,12 +6,12 @@ Design documents for the separate agent harness:
   sequential implementation in progress: Ramify file facts, direct test selection
   and evidence in ramify-audit, verification and released-pin adoption
 - [Plan 38: Cucumber acceptance and delivery](plans/38-cucumber-acceptance-and-delivery/main-plan.md),
-  implemented with focused verification; committed qualification pending:
+  implemented and qualified by a composed committed default audit:
   explicit capability-feature evidence,
   faithful Gherkin acceptance elements, retained context and delegated
   acceptance; preserves and qualifies Plan 37's committed correction workflow
 - [Plan 37: correction at the responsible decision authority](plans/37-correction-at-decision-authority/main-plan.md),
-  implemented with focused verification; committed qualification pending:
+  implemented and qualified with Plan 38 by a composed committed default audit:
   Cucumber binding discovery and returning
   contradictions to the authority that can revise the choice or delegate its
   correction; separates finding `.16` from Plan 36
