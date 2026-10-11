@@ -15,6 +15,7 @@ import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
 import type { RunEvent, RunEventOf } from '../run/log.js';
 import { HarnessSessionOperations } from '../run/session-operations.js';
 import { exactInputHash } from '../prompts/delivered-manifest.js';
+import { replacementBanner } from '../prompts/blocks.js';
 import { runLayout, runRecordSchema } from '../run/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios, defaultTurn, withDefaultTurns } from './helpers/declarations.js';
@@ -142,9 +143,12 @@ test('one oriented local context selects once, appends the work-item package onc
   expect(organizing).toHaveLength(1);
   expect(organizing[0]!.start.mode).toBe('continue');
   expect(organizing[0]!.spec.prompt).toContain('Build on the module reading and understanding already in this session.');
-  // The appended block preserves the package body once; the current brief selects its content hash.
-  const packageBlock = `# Block brief:support:work-item-package\nCurrent value; replaces any earlier value for this key.\n${recorded.packageText}`;
+  // The appended block preserves the package body once; the current brief
+  // selects its content hash. A first delivery of the key replaces nothing,
+  // so it carries no replacement banner.
+  const packageBlock = `# Block brief:support:work-item-package\n${recorded.packageText}`;
   expect(organizing[0]!.inherited.filter(text => text === packageBlock)).toHaveLength(1);
+  expect(organizing[0]!.inherited.filter(text => text.startsWith('# Block brief:support:work-item-package\n')).join('\n')).not.toContain(replacementBanner);
   expect(organizing[0]!.spec.prompt).not.toContain(recorded.packageText);
   const operation = events.find(event => event.type === 'invocation-started' && event.data.role === 'local-architect' && event.data.start === 'continued');
   if (!operation || operation.type !== 'invocation-started') throw new Error('Expected organizing continuation');
@@ -207,7 +211,7 @@ test('a selected non-functional element and recommendation reach the runtime pac
   // The package is delivered with the selector's reason for each element it selected.
   const delivered = withSelectionReasons(recorded.packageText, recorded.selection.selected);
   expect(delivered).toContain('Why it is in view: ');
-  expect(organizing?.inherited).toContain(`# Block brief:support:work-item-package\nCurrent value; replaces any earlier value for this key.\n${delivered}`);
+  expect(organizing?.inherited).toContain(`# Block brief:support:work-item-package\n${delivered}`);
   expect(organizing?.spec.prompt).not.toContain(texts[0]);
 }, 120_000);
 

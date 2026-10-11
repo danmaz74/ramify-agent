@@ -212,7 +212,7 @@ describe('three questions over one candidate', () => {
     const selection = eventsOf(events, 'context-selection-recorded')[0]!;
     const whole = await assignmentPackage(root, runId, events, 1);
     expect(whole.source.hash).toBe(selection.data.packageHash);
-    const workPackageBlock = `# Block brief:support:work-item-package\nCurrent value; replaces any earlier value for this key.\n${whole.text}`;
+    const workPackageBlock = `# Block brief:support:work-item-package\n${whole.text}`;
     expect(sessionOf('rq-0005').inherited.filter(text => text === workPackageBlock)).toHaveLength(1);
     expect(sessionOf('rq-0008').inherited.filter(text => text === workPackageBlock)).toHaveLength(1);
     expect(sessionOf('rq-0005').inherited).not.toContain('LATER ARCHITECT TURN');

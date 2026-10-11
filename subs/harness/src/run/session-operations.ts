@@ -8,7 +8,7 @@ import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
 import { openSessionStore, type LedgerSessionStore } from './session-store.js';
 import { buildTaskPacket, type TaskEnvironment, type TaskKind, type TaskPacket } from '../prompts/tasks.js';
 import { buildBriefingDelivery, createBriefingOccurrence, taskBriefingRevision, type BriefingRevision } from '../prompts/briefings.js';
-import { renderBlockSet } from '../prompts/blocks.js';
+import { deliveredBefore, renderBlockSet, setsBody } from '../prompts/blocks.js';
 import { buildDeliveredManifest, exactInputHash, type DeliveredInput } from '../prompts/delivered-manifest.js';
 import type { LoadedPackage } from '../prompts/packages.js';
 import { deliveredManifestViewSchema } from '../interfaces/protocol/runs.js';
@@ -19,7 +19,7 @@ export interface HarnessTaskBrief {
   readonly goal: string;
   readonly requirements: readonly string[];
   readonly sections: BriefingRevision['sections'];
-  /** Selector forks keep the parent's known facts; their new task adds only selection inputs. */
+  /** A fork that keeps its source's sections, withdrawing none: a selector, a design review of its orientation, a consultation. */
   readonly retainInheritedSections?: boolean;
   readonly environment: TaskEnvironment;
   readonly consultationSubmissionSchema?: string;
@@ -184,9 +184,11 @@ export function composeOperationPacket(input: {
   const { prior } = input;
   const originalSections = input.brief.sections;
   const selected = prior?.history.find(entry => entry.revision === prior.revision) ?? null;
-  // Selector forks retain known facts; other callers declare structural withdrawals.
+  // A fork whose brief retains its source's sections (a selector, a design
+  // review of its orientation, a consultation) keeps them; every other start
+  // withdraws the inherited sections its brief does not carry.
   const sections = [...originalSections, ...(selected?.sections ?? []).filter(section => !['goal', 'requirements'].includes(section.key) && !originalSections.some(current => current.key === section.key))
-    .map(section => input.brief.retainInheritedSections && input.role === 'context-selector' && input.mode === 'fork'
+    .map(section => input.brief.retainInheritedSections && input.mode === 'fork'
       ? section : { key: section.key, text: '', effect: 'remove' as const })];
   const current = createBriefingOccurrence({ previous: selected,
     operationId: input.operationId, sections: taskBriefingRevision({ revision: 'construction', goal: input.brief.goal, requirements: input.brief.requirements, sections }).sections });
@@ -426,7 +428,7 @@ export class HarnessSessionOperations {
     if (!retained && originalInput) {
       if (originalInput.runId !== runId || originalInput.operationId !== operationId || originalInput.sessionId !== sessionId || originalInput.additions.length !== 1) throw new Error('Invalid original append identity');
       const addition = originalInput.additions[0]!;
-      if (addition.key !== key || (addition.text !== text && addition.text !== renderBlockSet(`brief:${briefingSectionKey}`, text))) throw new Error('Conflicting harness session correlation');
+      if (addition.key !== key || (addition.text !== text && !setsBody(addition.text, `brief:${briefingSectionKey}`, text))) throw new Error('Conflicting harness session correlation');
       const replay = await this.operations.appendContext(originalInput);
       if (replay.status !== 'completed' || !replay.point) throw new Error(replay.reason ?? `Context append ${replay.status}`);
       const recorded = await this.read<Context>(this.path('points', [runId, replay.point]));
@@ -447,7 +449,10 @@ export class HarnessSessionOperations {
         revision = current.revision;
         if (revision !== previous.revision) history = [...history, current];
       }
-      const delivered: DeliveredInput = { key: `append:${key}`, kind: 'brief', text: originalInput?.additions[0]?.text ?? (briefingSectionKey === undefined ? text : renderBlockSet(`brief:${briefingSectionKey}`, text)), source: null,
+      // The replacement banner frames only a key this session was delivered before.
+      const blockKey = `brief:${briefingSectionKey}`;
+      const delivered: DeliveredInput = { key: `append:${key}`, kind: 'brief', text: originalInput?.additions[0]?.text
+        ?? (briefingSectionKey === undefined ? text : renderBlockSet(blockKey, text, deliveredBefore(base.inherited, blockKey))), source: null,
         revision: originalInput ? originalInput.additions[0]!.revision : briefingSectionKey === undefined ? null : revision,
         ...(briefingSectionKey === undefined || originalInput?.additions[0]?.text === text ? {} : { block: { key: `brief:${briefingSectionKey}`, effect: 'set' as const } }) };
       return { point: base.point, context: { ...base, history, revision }, input: delivered, text, sectionKey: briefingSectionKey ?? null };

@@ -152,6 +152,20 @@ test('I04: named discovery append survives restart and immutable retry without d
   expect(context.inherited.filter(item => item.key === 'append:discovery-a')).toHaveLength(1);
 });
 
+test('an appended briefing section carries the replacement banner only where the session was delivered its key before', async () => {
+  const { root, adapter } = await open(); const a = await turn(adapter, request('before-append'));
+  const fresh = await adapter.append(a.ref, 'package:1', 'PACKAGE ONE', 'support:work-item-package');
+  if (!('ref' in fresh)) throw new Error('No accepted append point');
+  const bText = startingPointsSection([group('B')], { projectRoot: '/project' })!.text;
+  const replacing = await adapter.append(fresh.ref, 'discovery-b', bText, 'support:starting-points');
+  if (!('ref' in replacing)) throw new Error('No accepted B append point');
+  const inherited = (await contextAt(root, replacing.ref)).inherited;
+  // The session has not seen the package's key: its first delivery replaces nothing.
+  expect(inherited.find(item => item.key === 'append:package:1')!.text).toBe('# Block brief:support:work-item-package\nPACKAGE ONE');
+  // The starting points were delivered with the turn, so the append replaces them.
+  expect(inherited.find(item => item.key === 'append:discovery-b')!.text).toBe(set(bText));
+});
+
 test('I04: prepared and uncommitted failure cannot establish delivered discoveries', async () => {
   const { adapter } = await open();
   await expect(adapter.start({ ...request('prepared'), prepared: async () => { throw new Error('prepared only'); } })).rejects.toThrow('prepared only');

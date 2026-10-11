@@ -5,6 +5,7 @@ import { buildBriefingDelivery, taskBriefingRevision } from '../prompts/briefing
 import { scenarioFilePointers, taskObjective } from '../run/task-brief.js';
 import { capturedPlanBlock, groupedPassedScenarioLines, planPointer, withSelectionReasons } from '../run/service.js';
 import { taskSupportSections } from '../work/task-support.js';
+import { composeOperationPacket } from '../run/session-operations.js';
 import type { ScenarioResult } from '../checks/scenario-results.js';
 import type { Role } from '../interfaces/protocol/runs.js';
 
@@ -154,5 +155,23 @@ describe('continuation deltas', () => {
       briefing: buildBriefingDelivery({ mode: 'fork', current: r2, inheritedRevision: 'r1', history: [r1] }) });
     expect(fork(false).message).toContain('# Block brief:support:design-guidance\nWithdrawn');
     expect(fork(true).message).not.toContain('Withdrawn');
+  });
+
+  test('a reviewer fork that retains its source\'s sections records no withdrawal of them; a fork that does not withdraws them', () => {
+    const loaded = packages.get('reviewer')!;
+    const r1 = taskBriefingRevision({ revision: 'r1', goal: 'G', requirements: ['R'], sections: [{ key: 'support:design-guidance', text: 'Guidance' }] });
+    const env = environment({ availableTools: ['snapshot_read', 'submit_orientation', 'submit_review'] });
+    const first = buildTaskPacket({ loaded, kind: 'design-orientation', objective: 'Orient', goal: 'G', requirements: ['R'], environment: env, inherited: [], inheritedPoint: null,
+      supplyRoleInstructions: true, briefing: buildBriefingDelivery({ mode: 'fresh', current: r1, inheritedRevision: null, history: [] }) });
+    const point = { sessionId: 'orientation', kind: 'turn' as const, turn: 1, checkpoint: 'c1' };
+    const fork = (retainInheritedSections: boolean) => composeOperationPacket({ runId: 'run', operationId: 'design-review', loaded, role: 'reviewer', mode: 'fork',
+      brief: { kind: 'design', objective: 'Review', goal: 'G', requirements: ['R'], sections: [], environment: env, ...(retainInheritedSections ? { retainInheritedSections } : {}) },
+      workingDirectory: env.workingDirectory, builtinDeclarations: [], tools: [{ name: 'snapshot_read' }, { name: 'submit_orientation' }], submissionName: 'submit_review',
+      source: point, prior: { point, inherited: first.additions, history: [r1], revision: 'r1' } });
+    const guidance = (retain: boolean) => fork(retain).current.sections.find(section => section.key === 'support:design-guidance');
+    expect(guidance(true)).toEqual({ key: 'support:design-guidance', text: 'Guidance' });
+    expect(fork(true).packet.message).not.toContain('Withdrawn');
+    expect(guidance(false)).toMatchObject({ text: '', effect: 'remove' });
+    expect(fork(false).packet.message).toContain('# Block brief:support:design-guidance\nWithdrawn');
   });
 });
