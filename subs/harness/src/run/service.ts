@@ -858,6 +858,7 @@ export class RunService {
       queue: policy.queue,
       unsettled: () => unsettledRequests(run.log.events).map(request => request.id),
       attempt: request => this.runReviewAttempt(run, agent, packages, request),
+      prepare: request => this.prepareReview(run, agent, packages, request),
       overflow: async request => {
         await this.finishUnsettledReviews(run, () => ({ reason: 'queue-overflow', detail: `More than ${policy.queue} review requests were waiting; this one was not run` }), [request]);
       },
@@ -873,6 +874,29 @@ export class RunService {
       warn: text => this.warn(`Run ${run.record.jobId}: ${text}`),
     });
     run.reviews.wake();
+  }
+
+  /**
+   * Starts a waiting design request's orientation before the request has a
+   * slot: the orientation reads only the captured guidance, so it need not
+   * wait for the readers ahead of it. The attempt that later forks it finds
+   * it recorded or still being made. Nothing here settles the request; a
+   * failure is met again, and recorded, by that attempt.
+   */
+  private async prepareReview(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, id: string): Promise<void> {
+    const state = reviewStateOf(run.log.events).get(id);
+    if (state === undefined || state.settledBy !== null) return;
+    if (this.closed || this.ignoring(run) || run.reviews?.accepting !== true) return;
+    const loaded = packages.get('reviewer');
+    if (loaded?.reviewer === undefined) return;
+    const request = reviewRequestSchema.parse(this.committedBody(run, reviewLayout.request(id)));
+    const point = request.forkPoint;
+    if (request.key.kind !== 'design' || point.kind !== 'orientation' || request.inputsUnavailable !== undefined) return;
+    if (request.guidance.length === 0 || run.log.all('review-orientation-recorded').some(event => event.data.key === point.key)) return;
+    const texts = await Promise.all(request.guidance.map(entry => this.candidates.readBlob(this.projectRoot, request.key.candidate, entry.ref)));
+    const guidance = boundInputs(request.guidance.map((entry, index) => ({ ref: entry.ref, hash: sha256(texts[index]!), text: texts[index]! })), request.guidance);
+    if (this.closed || this.ignoring(run) || run.reviews?.accepting !== true) return;
+    await this.orientation(run, agent, loaded, request, guidance);
   }
 
   /**
