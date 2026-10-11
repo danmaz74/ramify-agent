@@ -1,4 +1,4 @@
-import { join, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { TestArea } from '../run/project-config.js';
 import { resolveSnapshotPath, type CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import type { StartingPoint } from './starting-points.js';
@@ -41,27 +41,43 @@ export function startingPointsSection(groups: readonly StartingPointGroup[], inp
   ].join('\n') };
 }
 
-/** Known command declarations rendered as facts, without acquiring effective configuration. */
+/**
+ * Known command declarations rendered as information, without acquiring
+ * effective configuration. The gate runs them; nothing here asks a reader to
+ * run or open anything. Paths are project-relative unless they lie outside
+ * the project root.
+ */
 export function declaredCheckInputs(input: {
   readonly projectRoot: string;
   readonly checks: readonly unknown[];
   readonly paths?: readonly string[];
   readonly snapshot?: boolean;
 }): string {
-  const path = (value: string) => input.snapshot ? value : resolve(input.projectRoot, value);
+  const path = (value: string) => {
+    const within = relative(input.projectRoot, resolve(input.projectRoot, value));
+    return within === '' ? '.' : within === '..' || within.startsWith(`..${sep}`) || isAbsolute(within) ? resolve(input.projectRoot, value) : within;
+  };
+  const word = (value: string) => /^[\w@%+=:,./-]+$/u.test(value) ? value : JSON.stringify(value);
   const lines: string[] = [];
+  let located = (input.paths ?? []).length > 0;
   for (const check of input.checks) {
     const declared = check as { id?: string; executor?: { kind?: string; commands?: readonly { cmd: string; args?: readonly string[]; cwd?: string; env?: Record<string, string>; parser?: string }[] } };
     if (declared.executor?.kind !== 'command') continue;
     for (const command of declared.executor.commands ?? []) {
-      lines.push(`- ${declared.id ?? 'Declared check'}${command.parser ? ` (${command.parser})` : ''}: argv ${JSON.stringify([command.cmd, ...command.args ?? []])}; cwd \`${path(command.cwd ?? '.')}\`${command.env ? `; environment names: ${Object.keys(command.env).sort().join(', ')}` : ''}.`);
+      const cwd = path(command.cwd ?? '.');
+      if (cwd !== '.') located = true;
+      lines.push(`- ${declared.id ?? 'Declared check'}${command.parser ? ` (${command.parser})` : ''}: \`${[command.cmd, ...command.args ?? []].map(word).join(' ')}\``
+        + `${cwd === '.' ? '' : ` in \`${cwd}\``}${command.env ? `; environment names: ${Object.keys(command.env).sort().join(', ')}` : ''}`);
     }
   }
-  for (const value of input.paths ?? []) lines.push(`- Configuration/support pointer: \`${path(value)}\`.`);
-  if (lines.length === 0) return '';
-  return ['## Declared project checks', '', ...lines, '', input.snapshot
-    ? 'Read these project-relative references with snapshot_read/snapshot_list in the audited candidate. Commands describe the declared setup; this reader does not execute them.'
-    : 'These are declared checks, not a focused command. Inspect their configuration for how to run particular tests. The gate runs the audit; shell refuses whole suites and watch mode.', ''].join('\n');
+  const configured = (input.paths ?? []).map(value => `\`${path(value)}\``);
+  if (lines.length === 0 && configured.length === 0) return '';
+  const listed = configured.length < 2 ? configured.join('') : `${configured.slice(0, -1).join(', ')} and ${configured.at(-1)}`;
+  return ['## Declared project checks', '',
+    lines.length === 0 ? 'The gate runs the project\'s checks; nothing here is a command for you to run.' : 'The gate runs these; nothing here is a command for you to run.',
+    ...lines.length === 0 ? [] : ['', ...lines],
+    ...configured.length === 0 ? [] : ['', `${lines.length === 0 ? 'The checks are' : 'They are'} configured in ${listed}. Open one only when a concern, or a focused command you need, depends on it.`],
+    ...located ? ['', input.snapshot ? 'Paths are project-relative, in the audited candidate.' : 'Paths are relative to the project root.'] : [], ''].join('\n');
 }
 
 /** Module paths already known to the caller; API references describe observed directories only. */

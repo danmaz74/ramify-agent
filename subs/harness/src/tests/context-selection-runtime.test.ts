@@ -99,8 +99,9 @@ test('one oriented local context selects once, appends the work-item package onc
   expect(events.filter(event => event.type === 'context-package-prompt-bound')).toHaveLength(0);
   expect(agent.sessions.filter(session => session.spec.submission.name === 'submit_work_orientation')).toHaveLength(1);
   const initial = agent.sessions.find(session => session.spec.role === 'initial-architect')!;
-  expect(initial.spec.prompt).toContain('argv ["cucumber-js","--config","cucumber.json","--profile","integration"]');
-  expect(initial.spec.prompt).toContain(`Configuration/support pointer: \`${fixture.root}/cucumber.json\``);
+  expect(initial.spec.prompt).toContain('`cucumber-js --config cucumber.json --profile integration`');
+  expect(initial.spec.prompt).toMatch(/They are configured in [^\n]*`cucumber\.json`[^\n]*\. Open one only when a concern, or a focused command you need, depends on it\./u);
+  expect(initial.spec.prompt).toContain('The gate runs these; nothing here is a command for you to run.');
   const orienting = agent.sessions.find(session => session.spec.submission.name === 'submit_work_orientation')!;
   expect(orienting.spec.prompt).toContain('The plan asks for review-summary-request.');
   expect(orienting.spec.prompt).toContain('The plan asks for review-summary-acceptance.');

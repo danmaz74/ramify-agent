@@ -22,16 +22,33 @@ function assignment(): IterationAssignment {
 }
 
 describe('what an engineer is told about the Ramify project it works in', () => {
-  test('known setup renders the declared project runner and rooted references without an invented focused command', () => {
+  test('known setup renders the declared project runner and project-relative references as information, without an invented focused command', () => {
     const setup = declaredCheckInputs({ projectRoot: '/p', paths: ['ramify-audit.json', 'checks/cucumber.json'], checks: [
       { id: 'scenario-check', executor: { kind: 'command', commands: [{ cmd: 'npm', args: ['run', 'acceptance', '--', '--profile', 'integration'], cwd: 'checks', parser: 'cucumber', env: { WORLD: 'secret-value' } }] } },
     ] });
     const message = iterationMessage({ assignment: assignment(), projectRoot: '/p', workingDirectory: '/p/subs/reviews/src', base: 'abc', setup });
-    expect(message).toContain('argv ["npm","run","acceptance","--","--profile","integration"]; cwd `/p/checks`');
-    expect(message).toContain('`/p/checks/cucumber.json`');
-    expect(message).toContain('environment names: WORLD');
+    expect(setup).toBe([
+      '## Declared project checks', '',
+      'The gate runs these; nothing here is a command for you to run.', '',
+      '- scenario-check (cucumber): `npm run acceptance -- --profile integration` in `checks`; environment names: WORLD', '',
+      'They are configured in `ramify-audit.json` and `checks/cucumber.json`. Open one only when a concern, or a focused command you need, depends on it.', '',
+      'Paths are relative to the project root.', '',
+    ].join('\n'));
+    expect(message).toContain(setup.trimEnd());
     expect(message).not.toContain('secret-value'); expect(message).not.toContain('npx vitest');
+    expect(message).not.toMatch(/Inspect their configuration|Read these/u);
     expect(declaredCheckInputs({ projectRoot: '/p', checks: [] })).toBe('');
+    // The snapshot variant reads the same; a path outside the project stays absolute, and an argument with a space is quoted.
+    expect(declaredCheckInputs({ projectRoot: '/p', snapshot: true, paths: ['package.json'], checks: [
+      { id: 'structure', executor: { kind: 'command', commands: [{ cmd: '/tools/bin/ramify', args: ['check', '--name', 'a b'] }] } },
+    ] })).toBe([
+      '## Declared project checks', '',
+      'The gate runs these; nothing here is a command for you to run.', '',
+      '- structure: `/tools/bin/ramify check --name "a b"`', '',
+      'They are configured in `package.json`. Open one only when a concern, or a focused command you need, depends on it.', '',
+      'Paths are project-relative, in the audited candidate.', '',
+    ].join('\n'));
+    expect(declaredCheckInputs({ projectRoot: '/p', checks: [], paths: [] })).toBe('');
   });
 
   test('module pointers keep module-cwd and selector-workspace references rooted and testing modules use their known test area', () => {

@@ -1,4 +1,4 @@
-<!-- ramify-agent local architect capability procedure, version 7. -->
+<!-- ramify-agent local architect capability procedure, version 8. -->
 Plan this work item's ordinary goal and review each assigned engineer result.
 Build on the module reading and understanding already in this session.
 Explore further as needed for the selected package and current task. If
@@ -54,17 +54,29 @@ cannot be met within current authority. Do not silently weaken an existing
 consumer guarantee. Record a breaking change and its affected consumers in
 the outline when the request requires one.
 
-Name in `assignment.obligations` the obligations an iteration must bind. Its
-engineer's completion proposal binds each in `bindings`, with the fakes the
-binding relies on, or is refused naming the missing ones; a binding makes an
-obligation `bound`, and only your report makes it `done`. A completion request
-that leaves a scenario or registered test not reported `done` is rejected
-naming it, and you answer in the same turn. The required gate runs against current source; a passing earlier check is not a
-verdict on a later candidate. `request-completion` is refused while a
-capability request is pending, a delegated task is stopped or lacks an
-accepted current handback, or any ordinary scenario/review/gate requirement
-remains. Correct the cited blocker and submit again; never infer completion
-from a capability architect's submission alone.
+List in `assignment.obligations` the obligations the iteration must bind. The
+engineer's completion proposal names each one in `bindings`, with any fake it
+relies on. A proposal that misses one is refused and told which. A binding
+makes an obligation `bound`. Only your report makes it `done`.
+
+A `request-completion` has two parts: a `summary`, and your `reports` on
+every scenario and registered test of the work item. Add `outline` only if
+you are changing the plan. Without it, the last committed outline stays.
+
+The harness rejects a completion request when:
+
+- a scenario or registered test is not reported `done`. It names the one
+  missing; answer in the same turn.
+- a capability request is still pending.
+- a delegated task is stopped, or has no accepted handback yet.
+
+Reviews that are still running do not block it: the work-item gate waits
+for them to finish.
+
+The gate runs against the current source. A check that passed earlier says
+nothing about a later candidate. Do not treat a capability architect's
+submission as proof the work is complete. When a request is refused, fix
+what it names and submit again.
 
 In assignment `startingPoints`, optionally select a few useful source, test,
 support, caller or API-view locations you already encountered, with a short

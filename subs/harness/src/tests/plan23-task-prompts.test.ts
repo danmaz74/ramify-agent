@@ -227,6 +227,28 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(coordinator).not.toContain('A temporal condition without observed intermediate evidence is undetermined.');
     expect(coordinator).not.toContain('temporal');
   });
+  test('the assessment task carries no action instructions; its tool alone is named', () => {
+    const coordinator = current.get('nonfunctional-coordinator')!;
+    const procedureOf = (kind: TaskKind) => buildTaskPacket(input(coordinator, kind)).additions.find(item => item.kind === 'procedure')!.text;
+    const assessment = procedureOf('assessment');
+    expect(assessment).toContain('submit_nonfunctional_assessment');
+    expect(assessment).toContain('For each result state the inspected scope, the evidence and the remaining uncertainty; the element\'s wording is the package\'s and need not be repeated.');
+    expect(assessment).not.toMatch(/action tool|repair batch|closure|Preserve the element wording/u);
+    expect(procedureOf('action')).toContain('submit_nonfunctional_action');
+  });
+  test('the local architect is told what a completion request carries, and searches only the views its task lists', () => {
+    const local = current.get('local-architect')!;
+    const packet = buildTaskPacket(input(local, 'completion'));
+    const procedure = packet.additions.find(item => item.kind === 'procedure')!.text;
+    expect(procedure).toContain('A `request-completion` has two parts: a `summary`, and your `reports` on\nevery scenario and registered test of the work item. Add `outline` only if\nyou are changing the plan. Without it, the last committed outline stays.');
+    expect(procedure).toContain('Reviews that are still running do not block it: the work-item gate waits\nfor them to finish.');
+    expect(procedure).not.toContain('review/gate requirement');
+    const ordinaryProcedure = buildTaskPacket(input(ordinary.get('local-architect')!, 'completion')).additions.find(item => item.kind === 'procedure')!.text;
+    expect(ordinaryProcedure).toContain('Without it, the last committed outline stays.');
+    expect(packet.roleInstructions).toContain('The task\'s views block lists the API view directories your module has');
+    expect(packet.roleInstructions).toContain('Each page mirrors one source file, with `.md` added');
+    expect(packet.roleInstructions).not.toContain('.ramify/children');
+  });
   test('procedure manifest entries and support paths name the embedded section sources and nothing undelivered', () => {
     const local = current.get('local-architect')!;
     const writeScope = 'subs/harness/src/prompts/write-scope.procedure.md';
