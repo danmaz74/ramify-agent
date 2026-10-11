@@ -1,15 +1,27 @@
 # Lineage measurements
 
 **Status:** implemented by [Plan 9](../plans/09-session-model-and-transcripts/main-plan.md),
-iteration 10; not an empirical validation claim. **Policy identifier:**
-`lineage/1`.
+iteration 10; the local-fork group was added after the gpt-6.1-sol
+postmortem of 11 October 2026. Not an empirical validation claim. **Policy identifier:** `lineage/2`.
 
 This policy follows the [measurement principles](measurement-principles.md)
 and uses the [metrics glossary](glossary.md). It compares segments by the
 start their executor made: what a fork inherits and costs against a fresh
 start, how a continued session grows, what a repair costs, how often starts
 degrade and sessions are replaced, and how many forks each context generation
-serves. It is versioned apart from `kpi/1` and reads no scope size.
+and the local sessions serve. It is versioned apart from `kpi/1` and reads no
+scope size.
+
+## Versions
+
+`lineage/2` adds the `fork.local` group and `forks-served.local`. Every
+measurement of `lineage/1` keeps its definition, so a value of one ID is
+comparable across the two versions. The identifier still changes, because it
+names the set of measurements: a response kept under `lineage/1` lists no
+local-fork group, and without a new identifier a reader could not tell a
+policy that had no such group from a run that had no local fork, whose group
+is `not-applicable`. The metrics response accepts both identifiers; a run is
+measured under `lineage/2`.
 
 ## Inputs
 
@@ -18,6 +30,7 @@ serves. It is versioned apart from `kpi/1` and reads no scope size.
 | Requested start | `invocation-ended.degraded.requested` when present; otherwise `session-opened.fork` and `invocation-started.start`/`continues` |
 | Actual start | The requested start, or the `degraded` relation of `invocation-ended`; unknown where the outcome records no start |
 | Context generation | A fork's `fork.generation`; generation 1 with the initial architect, and each `global-context-rebuilt` generation |
+| Fork source | A forked session's `session-opened.fork.from.session`, and the `role` of that session's own `session-opened` |
 | Starting context size | The first `context` observation of the invocation's observation log |
 | Usage | The input, cache-read, cache-write and output tokens of `outcome.json` |
 
@@ -37,6 +50,7 @@ start where the actual one is unknown.
 | Group | Segments |
 | --- | --- |
 | `fork.generation-<g>` | Forks of context generation `g` |
+| `fork.local` | Forks whose source session is not the initial architect's or a global fork's: a scope review, design review, context selection or reconciliation forked from a local architect |
 | `fresh-fork` | Global-fork segments whose start was fresh, including ordinary fallback and historical rebuild starts |
 | `repair` | Continued segments whose reason is `repair` |
 | `fresh-engineer` | Engineer segments whose start was fresh, reconstructions included |
@@ -45,7 +59,7 @@ Each group has one measurement per segment cost measure: `start-context`,
 `input`, `cache-read`, `cache-write` and `output`, such as
 `fork.generation-1.cache-read`. The value is the mean per segment, with the sum
 as numerator and the segment count as denominator. A generation is listed
-whether or not it served a fork.
+whether or not it served a fork, and so is `fork.local`.
 
 ## Measurements
 
@@ -56,6 +70,7 @@ whether or not it served a fork.
 | `degraded-starts`, `degraded-starts.continue`, `degraded-starts.fork` | degraded starts per requested start | Degraded starts over requested continuations and forks whose actual start is known; the executor's reasons are the evidence |
 | `replacements.reconstructed`, `replacements.context-rebuilt` | replacements per session | Sessions that replace another for the reason, over every session of the run |
 | `forks-served.generation-<g>` | forks | Forks of generation `g` whose actual start was a fork |
+| `forks-served.local` | forks | Local forks whose actual start was a fork; the evidence names each fork's source session |
 
 ## States
 
@@ -73,6 +88,8 @@ whether or not it served a fork.
 A fork or continuation the executor made fresh inherited nothing. It is
 measured as a fresh start of its role, counted among the degraded starts, and
 excluded from fork cost, continuation growth, repair cost and forks served.
+A separate fresh fallback records no fork relation, so it names no source and
+is in no local-fork measurement; `degraded-starts.fork` counts it.
 The next continuation of its session grows from it.
 
 The same rule reaches `kpi/1`. `session-weighted-total` sums each session's

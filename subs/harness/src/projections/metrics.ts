@@ -4,16 +4,17 @@ import { verifySetupLineIdentities, type RecordedSetupDelta, type SetupAddedLine
 import { scratchIgnoreRule } from '../work/scratch.js';
 import type { CandidateSource, ChangeHistory, LineCommit } from '../../subs/evidence/src/git.js';
 import { acceptedCommit } from '../checks/accepted.js';
-import { deliveredManifestViewSchema, operationIdentitySchema, scopeSizeViewSchema, recordedChargeSchema, type InvocationEvaluation, type InvocationEfficiency, type MetricsResponse } from '../interfaces/protocol/runs.js';
+import { deliveredManifestViewSchema, operationIdentitySchema, scopeSizeViewSchema, recordedChargeSchema, type InvocationEvaluation, type InvocationEfficiency, type MetricsResponse, type Role, type SearchCountsView } from '../interfaces/protocol/runs.js';
 import { baselineScope, rootModuleOfSnapshot, scopeSize } from '../kpi/capture.js';
 import { deliveredChange, type DeliveredChange } from '../kpi/delivered.js';
 import { guardingReport } from '../kpi/guarding.js';
-import { lineageMetrics, lineagePolicyVersion } from '../kpi/lineage.js';
+import { lineageMetrics, lineagePolicyVersion, type LineageInputs } from '../kpi/lineage.js';
 import { comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion, type InvocationFacts } from '../kpi/metrics.js';
-import { explorationDetails } from '../kpi/exploration.js';
+import { explorationDetails, type SearchCount, type SearchCounts } from '../kpi/exploration.js';
 import { invocationTiming } from '../kpi/efficiency.js';
 import { observationSchema, type Observation } from '../run/observations.js';
 import { invocationSessions } from '../run/sessions.js';
+import type { RunEvent } from '../run/log.js';
 import {
   lineEventSummarySchema, measurementSnapshotSchema, runLayout,
   type Invocation, type InvocationOutcome, type LineEventSummary, type MeasurementSnapshot,
@@ -351,9 +352,10 @@ export async function metricsOf(view: RunView, history?: RunHistory): Promise<Me
   // started in, never by an executor's ref: a ref names a point in the
   // history, and each invocation of a continued session ends at another.
   const sessions = invocationSessions(view.events);
+  const reviews = reviewRequestsOf(view.events);
   const logs = new Map<string, readonly Observation[] | { unavailable: string }>();
   for (const invocation of view.records.invocations.values()) logs.set(invocation.id, await observationsOf(view, invocation.id));
-  const lineage = lineageInputsOf(view, logs);
+  const lineage = withForkSources(lineageInputsOf(view, logs), view.events);
   const histories = modelHistories(lineage);
   const facts: InvocationFacts[] = [];
   const evaluations: InvocationEvaluation[] = [];
@@ -370,6 +372,8 @@ export async function metricsOf(view: RunView, history?: RunHistory): Promise<Me
       role: invocation.role,
       workItem: invocation.work.workItem ?? null,
       iteration: invocation.work.iteration ?? null,
+      // The work identity's own request: `kpi/1` groups budget returns by
+      // it, so a reviewer's review request joins only its evaluation.
       request: invocation.work.request ?? null,
       writer: invocation.writer,
       // Its `invocation-started` commits the invocation record, so every
@@ -384,7 +388,7 @@ export async function metricsOf(view: RunView, history?: RunHistory): Promise<Me
     });
 
     if (Array.isArray(observations)) merged.push(...scoped(invocation.id, observations as readonly Observation[]));
-    evaluations.push(evaluationOf({ invocation, outcome, observations, lines }));
+    evaluations.push(evaluationOf({ invocation, outcome, observations, lines, request: reviews.get(invocation.id) }));
   }
 
   // One report over every invocation's observations: the tools guarded,
@@ -448,6 +452,42 @@ export interface EvaluationInputs {
   readonly observations: readonly Observation[] | { unavailable: string };
   /** Its line events; null for an invocation that held no writer. */
   readonly lines: InvocationFacts['lines'];
+  /** The review request a reviewer's `review-attempt-started` names, where its work identity names none. */
+  readonly request?: string | undefined;
+}
+
+/**
+ * The lineage inputs with each fork's source session and its role, from the
+ * `session-opened` events: the local-fork group is told apart by the role of
+ * the session a fork was taken from.
+ */
+export function withForkSources(inputs: LineageInputs, events: readonly RunEvent[]): LineageInputs {
+  const roles = new Map<string, Role>();
+  const sources = new Map<string, string>();
+  for (const event of events) {
+    if (event.type !== 'session-opened') continue;
+    roles.set(event.data.session, event.data.role);
+    if (event.data.fork !== undefined) sources.set(event.data.session, event.data.fork.from.session);
+  }
+  return {
+    ...inputs,
+    segments: inputs.segments.map(segment => {
+      const from = segment.requested === 'fork' && segment.previous === null ? sources.get(segment.session) : undefined;
+      const role = from === undefined ? undefined : roles.get(from);
+      return { ...segment, source: from === undefined || role === undefined ? null : { session: from, role } };
+    }),
+  };
+}
+
+/**
+ * The review request each reviewer invocation served, from the
+ * `review-attempt-started` that names both. A reviewer's work identity names
+ * its work item or iteration, never the request.
+ */
+export function reviewRequestsOf(events: readonly RunEvent[]): ReadonlyMap<string, string> {
+  const requests = new Map<string, string>();
+  for (const event of events) if (event.type === 'review-attempt-started') requests.set(event.data.invocation, event.data.request);
+  return requests;
 }
 
 /** Immutable measurements use original invocation boundaries and recorded source facts only. */
@@ -505,16 +545,22 @@ function efficiencyOf({ invocation, outcome, observations }: EvaluationInputs): 
   return { operation: operation.success ? operation.data : null, manifest: manifest.success ? manifest.data : null,
     declared: declared.success ? declared.data : null, readScope: readScope.success ? readScope.data : null,
     exploration: { metrics: { ...exploration.metrics, coverage: [...exploration.metrics.coverage] }, zeroMatchSearches: exploration.zeroMatchSearches,
+      searches: searchCountsView(exploration.searches),
       observations: exploration.observations.map(row => ({ ...row, requestedScope: [...row.requestedScope], resolvedScope: row.resolvedScope === null ? null : [...row.resolvedScope], files: row.files === null ? null : [...row.files], coverage: [...row.coverage] })) },
     timing: { ...timing, toolElapsedMs: completeTools ? toolSubtotalMs : null, toolSubtotalMs, modelSubtotalMs: modelValues.reduce<number>((sum, value) => sum + (value ?? 0), 0), checkSubtotalMs: 0, coverage: [...timing.coverage] }, charges: charges.map(charge => recordedChargeSchema.parse(charge)), chargeTotal: completeCharges ? chargeSubtotal : null, chargeSubtotal, coverage: [...coverage],
     units: { scope: 'bytes', returned: 'UTF-8 output bytes', duration: 'ms', charge: 'USD' } };
+}
+
+function searchCountsView(searches: SearchCounts): SearchCountsView {
+  const count = (value: SearchCount) => ({ state: value.state, known: value.known, coverage: { ...value.coverage } });
+  return { completed: searches.completed, failed: searches.failed, broad: count(searches.broad), outsideScope: count(searches.outsideScope), zeroMatch: count(searches.zeroMatch) };
 }
 
 /**
  * One invocation's evaluation evidence: guarding, what changed outside its
  * scope, hook checks, reads outside it, lines and tokens. It is pure.
  */
-export function evaluationOf({ invocation, outcome, observations, lines }: EvaluationInputs): InvocationEvaluation {
+export function evaluationOf({ invocation, outcome, observations, lines, request }: EvaluationInputs): InvocationEvaluation {
   const log = Array.isArray(observations) ? observations as readonly Observation[] : [];
   const report = guardingReport(log);
   const hooks = log.filter((line): line is Extract<Observation, { type: 'hook-check' }> => line.type === 'hook-check');
@@ -523,7 +569,7 @@ export function evaluationOf({ invocation, outcome, observations, lines }: Evalu
     role: invocation.role,
     workItem: invocation.work.workItem ?? null,
     iteration: invocation.work.iteration ?? null,
-    request: invocation.work.request ?? null,
+    request: invocation.work.request ?? request ?? null,
     ended: outcome?.ended ?? null,
     writer: invocation.writer,
     efficiency: efficiencyOf({ invocation, outcome, observations, lines }),
@@ -562,6 +608,7 @@ export async function invocationEvaluation(view: RunView, invocation: Invocation
     outcome: view.records.outcomes.get(invocation.id) ?? null,
     observations: await observationsOf(view, invocation.id),
     lines: await linesOf(view, invocation),
+    request: reviewRequestsOf(view.events).get(invocation.id),
   });
 }
 

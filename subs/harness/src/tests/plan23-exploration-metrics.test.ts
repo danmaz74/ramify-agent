@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { explorationDetails, explorationIdentity, explorationMetrics, type ExplorationObservation } from '../kpi/exploration.js';
+import { declaredRoots, explorationDetails, explorationIdentity, explorationMetrics, type ExplorationObservation } from '../kpi/exploration.js';
+import { architectIndex, moduleEntry } from './helpers/views.js';
 import { estimateRecordedCharge, invocationTiming } from '../kpi/efficiency.js';
 
 const observation = (id: string, extra: Partial<ExplorationObservation> = {}): ExplorationObservation => ({
@@ -46,6 +47,54 @@ describe('Plan23 F6 exploration over recorded calls only', () => {
     const first = fixture[0]!;
     expect(explorationMetrics([first, { ...first, returnedBytes: 11 }])).toMatchObject({ reads: 0, returnedBytes: 0, coverage: [expect.stringContaining('conflicting observations')] });
     expect(explorationMetrics([observation('t', { elapsedMs: null, startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:00.010Z' })]).toolElapsedMs).toBe(10);
+  });
+});
+
+describe('search counts publish their coverage', () => {
+  const search = (id: string, extra: Partial<ExplorationObservation> = {}) => observation(id, { kind: 'search', files: ['a.ts'], ...extra });
+
+  test('an unknown outside-scope status makes the count partial with its known subtotal, never zero', () => {
+    const { metrics, searches } = explorationDetails([
+      search('s1', { outsideScope: true }), search('s2', { outsideScope: false }),
+      search('s3', { outsideScope: null }), search('s4', { outsideScope: null }),
+    ]);
+    expect(metrics.outsideScopeSearches).toBe(1);
+    expect(searches.outsideScope).toEqual({ state: 'partial', known: 1, coverage: { covered: 2, total: 4 } });
+    expect(searches.broad).toEqual({ state: 'measured', known: 0, coverage: { covered: 4, total: 4 } });
+  });
+
+  test('no known status is unavailable, and no search is not applicable', () => {
+    expect(explorationDetails([search('s1', { outsideScope: null, broad: null })]).searches)
+      .toMatchObject({ outsideScope: { state: 'unavailable', known: 0, coverage: { covered: 0, total: 1 } }, broad: { state: 'unavailable' } });
+    expect(explorationDetails([observation('r1')]).searches)
+      .toMatchObject({ completed: 0, failed: 0, outsideScope: { state: 'not-applicable', coverage: { covered: 0, total: 0 } } });
+  });
+
+  test('a failed search is counted apart and is not a zero-match search; unknown matches leave zero matches partial', () => {
+    const { searches, zeroMatchSearches } = explorationDetails([
+      search('found', { files: ['a.ts'] }), search('none', { files: [] }), search('unknown', { files: null }),
+      search('missing-path', { outcome: 'failed', files: [], resolvedScope: null }),
+    ]);
+    expect(searches).toMatchObject({ completed: 3, failed: 1 });
+    expect(zeroMatchSearches).toBe(1);
+    expect(searches.zeroMatch).toEqual({ state: 'partial', known: 1, coverage: { covered: 2, total: 3 } });
+  });
+});
+
+describe('the roots a reader is judged against', () => {
+  const index = { revision: 'r', input: 'i', symbols: new Map(),
+    modules: architectIndex([moduleEntry('shop', '', null), moduleEntry('shop/orders', 'subs/orders', 'shop')]).modules };
+  const scope = { exactOwners: ['shop/orders'], subtrees: [], apiViews: true, architectView: true, supportDocuments: [] };
+
+  test('the selected modules\' directories, the global view and the named locations', () => {
+    expect(declaredRoots(index, { ...scope, locations: [{ path: 'scripts/x.ts', bytes: 1 }] })).toEqual(['subs/orders', '.ramify-architect', 'scripts/x.ts']);
+    expect(declaredRoots(index, { ...scope, exactOwners: [], subtrees: ['shop'], architectView: false })).toEqual(['.']);
+  });
+
+  test('without a declared scope, a view, or a placeable module, there is nothing to judge against', () => {
+    expect(declaredRoots(index, undefined)).toEqual([]);
+    expect(declaredRoots(null, scope)).toEqual([]);
+    expect(declaredRoots(index, { ...scope, exactOwners: ['shop/nowhere'] })).toEqual([]);
   });
 });
 

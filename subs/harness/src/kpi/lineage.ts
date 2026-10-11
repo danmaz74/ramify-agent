@@ -2,9 +2,10 @@ import type { LineageMetric, Role } from '../interfaces/protocol/runs.js';
 import { replaceReasonSchema, type ContinueReason, type DegradeRelation, type ReplaceRelation } from '../run/records.js';
 
 /*
- * The lineage measurements, `lineage/1`: what forks, continuations and
+ * The lineage measurements, `lineage/2`: what forks, continuations and
  * repairs cost, how often starts degrade and sessions are replaced, and how
- * many forks each context generation serves. The metrics glossary defines
+ * many forks each context generation and the local sessions serve. `lineage/1`
+ * had no local-fork group; every measurement it had keeps its definition. The metrics glossary defines
  * each one and `docs/metrics/lineage.md` states its calculation.
  *
  * Every segment is classified by the start its executor made, not the one
@@ -20,7 +21,7 @@ import { replaceReasonSchema, type ContinueReason, type DegradeRelation, type Re
  * no segment is `not-applicable`; usage categories stay separate.
  */
 
-export const lineagePolicyVersion = 'lineage/1' as const;
+export const lineagePolicyVersion = 'lineage/2' as const;
 
 /** How a segment starts: fresh, continuing its session, or forked from another. */
 export type StartKind = 'fresh' | 'continue' | 'fork';
@@ -48,6 +49,13 @@ export interface SegmentFacts {
   readonly continues: ContinueReason | null;
   /** The context generation a forked session's first segment forked from; null otherwise. */
   readonly generation: number | null;
+  /**
+   * The session a forked session's first segment forked from, with its
+   * role; null for any other segment or where the log does not name it.
+   * Absent where the inputs were built without it, and then no fork is
+   * known to be local.
+   */
+  readonly source?: { readonly session: string; readonly role: Role } | null | undefined;
   /** The segment before it in its session; null for a first segment. */
   readonly previous: string | null;
   /** The tokens of its first context observation, or why that is unknown. */
@@ -134,10 +142,18 @@ function profile(prefix: string, group: readonly SegmentFacts[], empty: string):
 
 const ended = (inputs: LineageInputs) => inputs.segments.filter(segment => segment.ended);
 
+/** The roles whose sessions hold the global architect's context. */
+const globalRoles: readonly Role[] = ['initial-architect', 'global-fork'];
+
+/** A fork of a local session: its source is not one of the global architect's sessions. */
+const localFork = (segment: SegmentFacts): boolean =>
+  segment.requested === 'fork' && segment.source != null && !globalRoles.includes(segment.source.role);
+
 /**
  * A fork's inherited context and cost by the generation it forked, beside
  * the global forks that started fresh: after a rebuild, or where the
- * executor could not fork.
+ * executor could not fork. Forks of a local session, such as a review or a
+ * context selection forked from a local architect, are a group of their own.
  */
 function forkCost(inputs: LineageInputs): LineageMetric[] {
   const segments = ended(inputs);
@@ -146,12 +162,17 @@ function forkCost(inputs: LineageInputs): LineageMetric[] {
     segments.filter(segment => startOf(segment) === 'fork' && segment.generation === generation),
     `No fork of generation ${generation} ended`,
   ));
+  const local = profile(
+    'fork.local',
+    segments.filter(segment => startOf(segment) === 'fork' && localFork(segment)),
+    'No fork of a local session ended',
+  );
   const fresh = profile(
     'fresh-fork',
     segments.filter(segment => segment.role === 'global-fork' && startOf(segment) === 'fresh'),
     'No global fork started fresh',
   );
-  return [...byGeneration, ...fresh];
+  return [...byGeneration, ...local, ...fresh];
 }
 
 /** Each continued segment's start context less its previous segment's, per continuation. */
@@ -219,25 +240,36 @@ function replacements(inputs: LineageInputs): LineageMetric[] {
   });
 }
 
-/** The forks each context generation served: ended forks of it the executor made, a degraded one excluded. */
+/** The forks one source served: ended forks of it the executor made, a degraded one excluded. */
+function served(id: string, requested: readonly SegmentFacts[], source: string, named: boolean): LineageMetric {
+  const unit = 'forks';
+  const made = requested.filter(segment => segment.actual === 'fork');
+  const unknown = requested.filter(segment => segment.actual === null);
+  const evidence = [
+    // A local fork names the session it was taken from; a generation is its own source.
+    ...made.map(segment => `${segment.session} (${segment.invocation})${named && segment.source != null ? ` from ${segment.source.session}` : ''}`),
+    ...requested.filter(segment => segment.actual !== null && segment.actual !== 'fork').map(segment => `${segment.session} (${segment.invocation}) asked for a fork and started ${segment.actual}`),
+    ...unknown.map(segment => `${segment.session} (${segment.invocation}): its start is unknown: ${segment.unknown ?? 'it was not recorded'}`),
+  ];
+  const coverage = { covered: requested.length - unknown.length, total: requested.length };
+  if (unknown.length > 0) {
+    return measurement({ id, unit, state: 'partial', numerator: made.length, coverage, evidence, note: `Counted over ${coverage.covered} of ${coverage.total} forks of ${source} whose start is known` });
+  }
+  return measurement({ id, unit, state: 'measured', value: made.length, numerator: made.length, coverage, evidence });
+}
+
+/** The forks each context generation served, and those the local sessions served. */
 function forksServed(inputs: LineageInputs): LineageMetric[] {
-  return inputs.generations.map(generation => {
-    const id = `forks-served.generation-${generation}`;
-    const unit = 'forks';
-    const requested = ended(inputs).filter(segment => segment.requested === 'fork' && segment.generation === generation);
-    const served = requested.filter(segment => segment.actual === 'fork');
-    const unknown = requested.filter(segment => segment.actual === null);
-    const evidence = [
-      ...served.map(segment => `${segment.session} (${segment.invocation})`),
-      ...requested.filter(segment => segment.actual !== null && segment.actual !== 'fork').map(segment => `${segment.session} (${segment.invocation}) asked for a fork and started ${segment.actual}`),
-      ...unknown.map(segment => `${segment.session} (${segment.invocation}): its start is unknown: ${segment.unknown ?? 'it was not recorded'}`),
-    ];
-    const coverage = { covered: requested.length - unknown.length, total: requested.length };
-    if (unknown.length > 0) {
-      return measurement({ id, unit, state: 'partial', numerator: served.length, coverage, evidence, note: `Counted over ${coverage.covered} of ${coverage.total} forks of this generation whose start is known` });
-    }
-    return measurement({ id, unit, state: 'measured', value: served.length, numerator: served.length, coverage, evidence });
-  });
+  const segments = ended(inputs);
+  return [
+    ...inputs.generations.map(generation => served(
+      `forks-served.generation-${generation}`,
+      segments.filter(segment => segment.requested === 'fork' && segment.generation === generation),
+      'this generation',
+      false,
+    )),
+    served('forks-served.local', segments.filter(localFork), 'a local session', true),
+  ];
 }
 
 /** Every lineage measurement of a run, in the order of the glossary. */

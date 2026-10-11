@@ -125,6 +125,35 @@ describe('Plan 23 F6 durable observation integration', () => {
     expect(evaluationOf({ invocation, outcome, observations: reopened.observations, lines: null }).efficiency).toEqual(projected);
     expect(f.recorder.usage).toEqual({ input: 100, cacheRead: 40, cacheWrite: 10, output: 20, total: 170 });
   });
+  test('a search the tool resolved nothing for is judged by the path it asked for, and failed apart from completed', async () => {
+    const f = await observed();
+    // "Path not found": the tool ran, answered with an error and reported no resolved scope.
+    await f.recorder.record({ type: 'tool-started', tool: 'grep', callId: 'missing', input: {}, action: { kind: 'search', path: 'docs/absent', glob: null, pattern: 'x' }, mutating: false, execution: identity, observation: { sourceId: 'missing:start', at: t(1) } });
+    await f.recorder.record({ type: 'tool-finished', tool: 'grep', callId: 'missing', isError: true, reachedTool: true, errorText: 'Path not found', execution: identity,
+      observation: { sourceId: 'missing:end', at: t(2), elapsedMs: 5, returnedBytes: 14, files: null, resolvedScope: null, coverage: [] } });
+    await explored(f.recorder, 's1', 'search', join(f.directory.path, 'src', 'sub'), 0, [], 3);
+    await f.recorder.drain();
+    const rows = f.observations.observations.filter(row => row.type === 'exploration');
+    expect(rows.map(row => row.type === 'exploration' ? [row.data.callId, row.data.outcome, row.data.outsideScope] : null)).toEqual([['missing', 'failed', true], ['s1', 'completed', false]]);
+    const { searches } = evaluationOf({ invocation, outcome, observations: f.observations.observations, lines: null }).efficiency!.exploration;
+    expect(searches).toEqual({ completed: 1, failed: 1,
+      broad: { state: 'measured', known: 1, coverage: { covered: 2, total: 2 } },
+      outsideScope: { state: 'measured', known: 1, coverage: { covered: 2, total: 2 } },
+      zeroMatch: { state: 'measured', known: 1, coverage: { covered: 1, total: 1 } } });
+  });
+  test('an invocation with no declared roots leaves outside-scope status unknown, and its count unavailable rather than zero', async () => {
+    const directory = await temporaryDirectory(); cleanups.push(directory.remove);
+    const observations = await ObservationLog.open(join(directory.path, 'observations.jsonl'));
+    const recorder = new PortEventRecorder({ projectRoot: directory.path, observations, invocation: { id: 'inv-1', role: 'reviewer', startedAt: t(0), submissionTool: 'submit_review', declaredPaths: [] },
+      context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, excursions: new ExcursionWatcher({ projectRoot: directory.path, index: null, scope: undefined }), judge: { countImplementationRejection: () => async () => {} } });
+    recorder.identify(identity);
+    await explored(recorder, 's1', 'search', join(directory.path, 'src'), 0, ['src/a.ts'], 1);
+    await recorder.drain();
+    const exploration = evaluationOf({ invocation: { ...invocation, role: 'reviewer', writer: false }, outcome, observations: observations.observations, lines: null }).efficiency!.exploration;
+    expect(exploration.observations[0]!.outsideScope).toBeNull();
+    expect(exploration.searches!.outsideScope).toEqual({ state: 'unavailable', known: 0, coverage: { covered: 0, total: 1 } });
+    expect(invocationEfficiencySchema.parse(evaluationOf({ invocation: { ...invocation, role: 'reviewer', writer: false }, outcome, observations: observations.observations, lines: null }).efficiency).exploration.searches).toBeDefined();
+  });
   test('an invocation of no tool calls has a tool duration of 0 ms, one of an unreadable log none, and an incomplete one names its single known subtotal', async () => {
     const f = await observed(); await f.recorder.record(usageEvent); await f.recorder.drain();
     const none = evaluationOf({ invocation, outcome, observations: f.observations.observations, lines: null }).efficiency!;

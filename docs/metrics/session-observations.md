@@ -18,7 +18,7 @@ corresponding timing, usage and exploration details.
 
 | Observation | Existing location |
 | --- | --- |
-| Role and work identity | `invocation.json`: `role`, `work`; metrics evaluation also exposes role, work item, iteration and request. |
+| Role and work identity | `invocation.json`: `role`, `work`; metrics evaluation also exposes role, work item, iteration and request. A reviewer's `request` is the review request its `review-attempt-started` names. |
 | Task kind and procedure | The retained packet's current task section starts with `# Current task: <kind>` and selects `procedure:<role>:<family>` with its exact framed SHA-256. That body can be inherited rather than appended. See the correlation lookup below. |
 | Actual instruction inputs | `invocation.json.prompt.manifest`, also `evaluation.efficiency.manifest`, preserves ordered inherited/appended entries, bytes, hashes, sources and inherited point. `/1` and `/2` are readable; new packets use `/2` with optional logical block key/effect. |
 | Briefing updates | The operation correlation's `context.history` retains ordered occurrence revisions and optional canonical `contentHash`; `context.revision` selects the current occurrence. Equal content hashes can name distinct A → B → A occurrences. Packet additions record actual set/remove effects. |
@@ -27,7 +27,8 @@ corresponding timing, usage and exploration details.
 | Fresh fallback reason | `session.invocations[].degraded.reason`, recorded start/outcome reasons, and the failed predecessor's outcome. Global append loss also appears as `brief-not-appended` in `events.jsonl`. |
 | Elapsed time | `outcome.json.elapsedMs`; metrics `efficiency.timing.elapsedMs`, from recorded invocation boundaries. Milestone, model and tool durations have their own fields and coverage. |
 | Provider usage | `outcome.json.usage`: `input`, `cacheRead`, `cacheWrite`, `output`, `total`, or `{ unavailable: ... }`. `observations.jsonl` retains per-call `usage` rows. Recorded charges, when supplied, expose `newInputTokens`, `cachedInputTokens`, `cacheWriteTokens` and `outputTokens` under `efficiency.charges[]`. |
-| Exploration | `efficiency.exploration.metrics`: reads, unique files, repeated reads, searches, broad/outside-scope searches, returned bytes and observed elapsed sum; `zeroMatchSearches` and original observations sit beside it. |
+| Exploration | `efficiency.exploration.metrics`: reads, unique files, repeated reads, searches, broad/outside-scope searches, returned bytes and observed elapsed sum; `zeroMatchSearches` and original observations sit beside it. `efficiency.exploration.searches` counts completed and failed searches, and gives the broad, outside-scope and zero-match counts each with its state and coverage. |
+| Rejected submissions | `observations.jsonl` rows of type `rejection`: `callId`, `target`, `attempt` and the errors. `callId` is the submission call's, as its `tool-start` row names it; rows recorded before it was passed have `''`. |
 | All tool calls | `observations.jsonl` rows of type `tool-start`; count their distinct `data.callId` within an invocation. Tool durations are separate `tool-duration` rows. Read/search subsets are the exploration counts above. |
 
 To locate a retained task packet, read `invocation.json.sessionOperation.runId`
@@ -70,8 +71,21 @@ The existing projection deduplicates them and excludes conflicting observations;
 raw log analysis should likewise count original calls once. Returned output bytes
 are not scanned/source bytes. Wall time is not the sum of parallel tool calls.
 
-Run-level `lineage.metrics` groups actual fresh/continue/fork starts and preserves
-degradation reasons. Its requested-start counts use `degraded.requested` for
+A call's `outsideScope` compares the scope it reached, or the path it asked for
+where the tool reported none, with the invocation's roots: a writer's guarded
+roots, or the directories of the modules a reader's declared scope selects, with
+the global view where its profile includes it. Where neither is known the status
+is `null`. The `metrics` counts of broad and outside-scope searches count only the
+searches known to be so; read them with `searches`, whose `known` is the value
+only where the state is `measured`. A count with an unknown status is `partial`
+with its known subtotal and coverage, or `unavailable` where no status is known,
+never zero. A zero-match count is over completed searches whose matched files
+were reported; a failed search, such as a path that does not exist, is counted
+apart and matched nothing because it searched nothing.
+
+Run-level `lineage.metrics` groups actual fresh/continue/fork starts, with forks
+of a local session in their own `fork.local` group, and preserves degradation
+reasons. Its requested-start counts use `degraded.requested` for
 separate fresh fallback invocations, while the operation remains fresh; [lineage measurements](lineage.md) defines those aggregates
 and their historical generation/replacement inputs. Historical values remain
 readable even though new context losses do not build replacement parents.

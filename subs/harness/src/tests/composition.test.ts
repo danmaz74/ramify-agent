@@ -985,6 +985,10 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'An earlier run\'s snapshot stays readable, but the harness now captures scope-size/2 only; the KPIs refuse a scope-size/1 size, which the KPI tests construct.',
   },
   {
+    union: 'query metrics.lineage.policyVersion', values: ['lineage/1'],
+    reason: 'A metrics response kept from before the local-fork group stays readable, but every run is now measured under lineage/2; nothing produces a lineage/1 response.',
+  },
+  {
     union: 'record ramify-agent.invocation/1.scope.size.policy', values: ['scope-size/1'],
     reason: 'An earlier run\'s invocation sizes stay readable, but the harness now measures under scope-size/2 only; the KPI tests construct a scope-size/1 size to show it is refused.',
   },

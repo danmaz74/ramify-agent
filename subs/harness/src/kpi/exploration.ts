@@ -1,3 +1,6 @@
+import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
+import type { DeclaredScope } from './capture.js';
+
 /** The frozen C6 observation wire. No environment values or file content are retained. */
 export interface ExplorationObservation {
   readonly id: string;
@@ -21,7 +24,11 @@ export interface ExplorationObservation {
   readonly coverage: readonly string[];
 }
 
-/** Numbers are known subtotals whenever coverage lists a collection limit. */
+/**
+ * Numbers are known subtotals whenever coverage lists a collection limit.
+ * `broadSearches` and `outsideScopeSearches` count the searches known to be
+ * so; `SearchCounts` states how many statuses are known.
+ */
 export interface ExplorationMetrics {
   readonly reads: number;
   readonly uniqueFilesRead: number;
@@ -32,6 +39,41 @@ export interface ExplorationMetrics {
   readonly outsideScopeSearches: number;
   readonly toolElapsedMs: number;
   readonly coverage: readonly string[];
+}
+
+/**
+ * One search count with its coverage. A search whose status is unknown is
+ * missing evidence, never a search without the property: `known` is the
+ * value only where the count is `measured`, and the known subtotal
+ * otherwise.
+ */
+export interface SearchCount {
+  /** `measured` where every status is known, `partial` where some are, `unavailable` where none is, `not-applicable` with no search to count. */
+  readonly state: 'measured' | 'partial' | 'unavailable' | 'not-applicable';
+  /** Searches known to have the property. */
+  readonly known: number;
+  /** Searches whose status is known, of the searches the count is over. */
+  readonly coverage: { readonly covered: number; readonly total: number };
+}
+
+/** What the search calls came to, beside the frozen metrics wire. */
+export interface SearchCounts {
+  /** Searches whose tool ran and returned a result. */
+  readonly completed: number;
+  /** Searches whose tool ran and answered with an error, such as a path that does not exist. */
+  readonly failed: number;
+  /** Over every search: the requested scope is the project root or a recursive glob. */
+  readonly broad: SearchCount;
+  /** Over every search: the searched scope leaves the invocation's declared scope. */
+  readonly outsideScope: SearchCount;
+  /** Over completed searches: no file matched. A failed search matched nothing because it searched nothing. */
+  readonly zeroMatch: SearchCount;
+}
+
+/** A count over `total` searches, `covered` of them with a known status. */
+export function searchCount(known: number, covered: number, total: number): SearchCount {
+  const state = total === 0 ? 'not-applicable' : covered === total ? 'measured' : covered === 0 ? 'unavailable' : 'partial';
+  return { state, known, coverage: { covered, total } };
 }
 
 /** Durable source identity survives transcript replay and inheritance. */
@@ -51,7 +93,9 @@ export function observedElapsedMs(observation: ExplorationObservation): number |
  * Extra details stay outside the frozen public metrics wire. Empty observed files mean zero matches, never zero scanned bytes. */
 export function explorationDetails(input: readonly ExplorationObservation[], collectionLimits: readonly string[] = []): {
   readonly metrics: ExplorationMetrics;
+  /** The known subtotal of `searches.zeroMatch`, kept for existing readers. */
   readonly zeroMatchSearches: number;
+  readonly searches: SearchCounts;
   readonly observations: readonly ExplorationObservation[];
 } {
   const coverage = new Set(collectionLimits);
@@ -72,6 +116,7 @@ export function explorationDetails(input: readonly ExplorationObservation[], col
   const observations = [...unique].filter(([key]) => !conflicts.has(key)).map(([, observation]) => observation);
   const files = new Set<string>();
   let reads = 0, repeatedReads = 0, returnedBytes = 0, searches = 0, broadSearches = 0, outsideScopeSearches = 0, toolElapsedMs = 0, zeroMatchSearches = 0;
+  let completedSearches = 0, failedSearches = 0, broadKnown = 0, outsideKnown = 0, matchesKnown = 0;
   for (const observation of observations) {
     const key = explorationIdentity(observation);
     for (const reason of observation.coverage) coverage.add(`${key}: ${reason}`);
@@ -91,18 +136,58 @@ export function explorationDetails(input: readonly ExplorationObservation[], col
       }
     } else {
       searches += 1;
-      if (observation.files === null) coverage.add(`${key}: matched files unknown`);
-      else if (observation.files.length === 0) zeroMatchSearches += 1;
+      if (observation.outcome === 'completed') {
+        completedSearches += 1;
+        if (observation.files === null) coverage.add(`${key}: matched files unknown`);
+        else {
+          matchesKnown += 1;
+          if (observation.files.length === 0) zeroMatchSearches += 1;
+        }
+      } else if (observation.outcome === 'failed') failedSearches += 1;
       if (observation.broad === null) coverage.add(`${key}: search breadth unknown`);
-      else if (observation.broad) broadSearches += 1;
+      else {
+        broadKnown += 1;
+        if (observation.broad) broadSearches += 1;
+      }
       if (observation.outsideScope === null) coverage.add(`${key}: outside-scope status unknown`);
-      else if (observation.outsideScope) outsideScopeSearches += 1;
+      else {
+        outsideKnown += 1;
+        if (observation.outsideScope) outsideScopeSearches += 1;
+      }
     }
   }
-  return { metrics: { reads, uniqueFilesRead: files.size, repeatedReads, returnedBytes, searches, broadSearches,
-    outsideScopeSearches, toolElapsedMs, coverage: [...coverage] }, zeroMatchSearches, observations };
+  return {
+    metrics: { reads, uniqueFilesRead: files.size, repeatedReads, returnedBytes, searches, broadSearches,
+      outsideScopeSearches, toolElapsedMs, coverage: [...coverage] },
+    zeroMatchSearches,
+    searches: {
+      completed: completedSearches, failed: failedSearches,
+      broad: searchCount(broadSearches, broadKnown, searches),
+      outsideScope: searchCount(outsideScopeSearches, outsideKnown, searches),
+      zeroMatch: searchCount(zeroMatchSearches, matchesKnown, completedSearches),
+    },
+    observations,
+  };
 }
 
 export function explorationMetrics(input: readonly ExplorationObservation[], collectionLimits: readonly string[] = []): ExplorationMetrics {
   return explorationDetails(input, collectionLimits).metrics;
+}
+
+/**
+ * The project-relative roots an invocation without a write scope is judged
+ * against for outside-scope status: the directories of the modules its
+ * declared scope selects, the global view where its profile includes it, and
+ * the further locations it names. Empty where the scope selects nothing or
+ * the architect view is unknown, which leaves the status unknown.
+ */
+export function declaredRoots(index: ArchitectIndex | null, scope: DeclaredScope | undefined): string[] {
+  if (scope === undefined) return [];
+  const modules = [...scope.exactOwners, ...scope.subtrees];
+  const entries = modules.map(module => index?.modules.get(module));
+  // A selected module the view cannot place leaves every status unknown,
+  // rather than calling a read inside it outside.
+  if (entries.some(entry => entry === undefined)) return [];
+  const directories = entries.map(entry => entry!.dir.replace(/\/+$/, '') || '.');
+  return [...new Set([...directories, ...(scope.architectView ? ['.ramify-architect'] : []), ...(scope.locations ?? []).map(location => location.path)])];
 }

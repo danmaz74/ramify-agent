@@ -28,6 +28,11 @@ export interface UsageTotals {
 
 export interface PortEventRecorderOptions {
   readonly projectRoot: string;
+  /**
+   * `declaredPaths` are the roots a call's outside-scope status is judged
+   * against: a writer's guarded roots, or a reader's declared module
+   * directories. Without any, the status is unknown.
+   */
   readonly invocation?: { readonly id: string; readonly role: string; readonly startedAt: string; readonly submissionTool: string; readonly declaredPaths: readonly string[] };
   /** Where the port resolves relative tool paths. Defaults to project root for readers. */
   readonly workingDirectory?: string | undefined;
@@ -229,7 +234,11 @@ export class PortEventRecorder {
     const resolved = facts?.resolvedScope?.map(path => this.path(path)) ?? null;
     const files = facts?.files?.map(path => this.path(path)) ?? null;
     const roots = invocation.declaredPaths.map(path => this.path(path));
-    const outside = resolved === null || roots.length === 0 ? null : resolved.some(path => !roots.some(root => root === '.' || path === root || path.startsWith(`${root}/`)));
+    // What the call reached, or, where the tool reported no resolved scope,
+    // the path it asked for; a glob is a pattern within that path.
+    const requested = beginning?.type === 'tool-start' ? beginning.data.requestedScope : [];
+    const searched = resolved ?? (requested.length > 0 ? [requested[0]!] : null);
+    const outside = searched === null || roots.length === 0 ? null : searched.some(path => !roots.some(root => root === '.' || path === root || path.startsWith(`${root}/`)));
     const coverage = [...(facts?.coverage ?? []), ...(finish.event.replayed ? ['Known effect replay; original finish/duration unavailable where not recorded'] : []),
       ...(sourceMissing(start) ? ['Producer source event key unavailable; call identity only'] : []), ...(result?.textOnly === false ? ['Non-text returned bytes unavailable'] : [])];
     const observation: ExplorationObservation = { id: `${invocation.id}:${callId}:${start.action.kind}`, invocationId: invocation.id, operationId: this.identity.operationId, role: invocation.role,
