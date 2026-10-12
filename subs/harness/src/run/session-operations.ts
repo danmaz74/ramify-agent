@@ -214,6 +214,32 @@ export function composeOperationPacket(input: {
 
 /** Harness correlations are immutable; provider bytes and execution intent remain in the injected ledger store. */
 export class HarnessSessionOperations {
+  /** Unacknowledged mutating effects forbid successor dispatch until independently reconciled. */
+  async unresolvedEffects(runId: string, operationId: string): Promise<string[]> {
+    const operation = await this.store.read(runId, `operation:${operationId}`);
+    if (!operation) return [];
+    const effects = operation.body['effects'];
+    if (!Array.isArray(effects)) throw new Error('Original effect journal is unreadable');
+    return effects.filter((effect: { phase?: string }) => effect.phase === 'intent').map((effect: { callId: string }) => effect.callId);
+  }
+  /** Reconcile a dead owner's pending operation by fencing it, without dispatch. */
+  async stopOriginal(runId: string, operationId: string, boundMs: number): Promise<boolean> {
+    const identity = await this.operations.operationIdentity(runId, operationId);
+    if (!identity) return true;
+    const stopping = this.operations.stop({ runId, operationId, sessionId: identity.sessionId });
+    const key = JSON.stringify([runId, operationId]);
+    this.pending.set(stopping, runId);
+    void stopping.then(() => { this.pending.delete(stopping); this.unconfirmed.delete(key); }, () => { this.pending.delete(stopping); this.unconfirmed.add(key); });
+    const observed = await settleSessionEquipment(() => stopping.then(() => undefined), boundMs);
+    if (!observed) this.unconfirmed.add(key);
+    return observed && (await this.unresolvedEffects(runId, operationId)).length === 0;
+  }
+  async completedPoint(runId: string, operationId: string): Promise<string | null> {
+    const operation = await this.store.read(runId, `operation:${operationId}`);
+    const receipt = operation?.body['receipt'] as { point?: AgentSessionPoint | null } | undefined;
+    const point = receipt?.point;
+    return point && await this.operations.inspect(runId, point.sessionId, point) ? sessionPointReference(runId, point) : null;
+  }
   private readonly pending = new Map<Promise<unknown>, string>();
   private readonly unconfirmed = new Set<string>();
   private constructor(private readonly directory: string, private readonly store: LedgerSessionStore, readonly operations: SessionOperations, private readonly agent: AgentPort) {}

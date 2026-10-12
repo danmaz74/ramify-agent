@@ -1,5 +1,5 @@
 import type { JobState } from '../../harness/src/interfaces/protocol/jobs.js';
-import type { LineageMetric, Metric, RunPlanDeviations } from '../../harness/src/interfaces/protocol/runs.js';
+import type { LineageMetric, Metric, RunPlanDeviations, RunSnapshot } from '../../harness/src/interfaces/protocol/runs.js';
 import type { SessionReach, ShownSessionState } from '../../harness/src/interfaces/protocol/sessions.js';
 
 /*
@@ -25,11 +25,11 @@ export function counted(count: number, singular: string, plural = `${singular}s`
  * deviations never reads plainly completed: it is completed with the
  * deviations still to review.
  */
-export function RunState({ state, planDeviations }: { readonly state: JobState; readonly planDeviations?: RunPlanDeviations | undefined }) {
+export function RunState({ state, planDeviations, recovery }: { readonly state: JobState; readonly planDeviations?: RunPlanDeviations | undefined; readonly recovery?: RunSnapshot['recovery'] }) {
   const deviated = state === 'completed' && planDeviations !== undefined && planDeviations.recorded > 0;
   return (
     <span className={`badge run-state run-state-${state}${deviated ? ' run-state-deviated' : ''}`}>
-      {deviated ? `completed with ${counted(planDeviations.toReview, 'plan deviation')} to review` : stateLabels[state]}
+      {state === 'running' && recovery ? recovery.state === 'paused' ? 'paused for recovery' : 'settling for recovery' : deviated ? `completed with ${counted(planDeviations.toReview, 'plan deviation')} to review` : stateLabels[state]}
     </span>
   );
 }

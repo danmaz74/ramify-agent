@@ -67,6 +67,7 @@ export class ReviewQueue {
   private readonly waiters = new Set<() => void>();
   private open = true;
   private suspensions = 0;
+  private freezingSuspensions = 0;
   /** Credits belong to waiting requests, never to an already admitted attempt. */
   private readonly credits = new Map<string, { base: number; ms: number }>();
   private readonly frozen = new Map<string, { base: number; at: number }>();
@@ -92,7 +93,7 @@ export class ReviewQueue {
    */
   wake(): void {
     if (!this.open) return;
-    if (this.suspensions > 0) { this.freezeWaiting(); return; }
+    if (this.suspensions > 0) { if (this.freezingSuspensions > 0) this.freezeWaiting(); return; }
     const now = this.options.now?.() ?? Date.now();
     const attemptMs = this.options.attemptMs ?? 0;
     const busy = (request: string) => this.running.has(request) || this.finishing.has(request) || this.parked.has(request);
@@ -140,16 +141,18 @@ export class ReviewQueue {
   }
 
   /** Reversible admission barrier; expiry, overflow and completion wakes stay suspended too. */
-  suspend(): () => void {
+  suspend(preserveWaiting = true): () => void {
+    if (preserveWaiting) this.freezingSuspensions++;
     if (this.suspensions++ === 0) {
       clearTimeout(this.timer);
       this.timer = undefined;
-      this.freezeWaiting();
+      if (preserveWaiting) this.freezeWaiting();
     }
     let released = false;
     return () => {
       if (released) return;
       released = true;
+      if (preserveWaiting) this.freezingSuspensions--;
       if (--this.suspensions !== 0) return;
       const now = this.options.now?.() ?? Date.now();
       for (const [request, frozen] of this.frozen) {
@@ -238,6 +241,16 @@ export class ReviewQueue {
       await Promise.all(pending);
       if (this.running.size === 0 && this.finishing.size === 0
         && [...this.preparing.values()].every(task => pending.includes(task))) return;
+    }
+  }
+
+  /** Settle peer pipelines while their recovery owners remain parked. */
+  async settledExcept(excluded: (request: string) => boolean, changed: () => Promise<void>): Promise<void> {
+    for (;;) {
+      const pending = [...this.running, ...this.finishing, ...this.preparing].filter(([request]) => !excluded(request)).map(([, task]) => task);
+      if (pending.length === 0) return;
+      const completed = await Promise.race([Promise.all(pending).then(() => true), changed().then(() => false)]);
+      if (completed) return;
     }
   }
 }

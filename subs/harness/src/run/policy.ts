@@ -194,6 +194,7 @@ export function defaultRunPolicy(options: RunPolicyOptions): RunPolicy {
   return runPolicySchema.parse({
     version: runPolicyVersion,
     contract: 'plan21-whole-owner-and-architect-reporting/1',
+    recovery: { version: 'operation-recovery/1', automaticRetries: 2, baseDelayMs: 250, maxDelayMs: 5000 },
     limits: defaultLimits,
     context,
     transcript: defaultTranscriptPolicy,

@@ -171,11 +171,15 @@ export async function placementDecisions(scope: GuardedScope, cwd: string, paths
 export async function placementOutcome(
   scope: GuardedScope, cwd: string, paths: readonly string[], recovery = false,
 ): Promise<{ readonly allowed: boolean[]; readonly unknown?: boolean[]; readonly failureStatus?: string; readonly ownershipFailure?: Extract<OwnershipQueryResult, { status: 'unavailable' }>; readonly error?: string }> {
+  // No observed paths need placement; no provider answer is claimed for them.
+  if (paths.length === 0) return { allowed: [] };
   const targets = await Promise.all(paths.map(async path => ({ logical: resolve(cwd, path), target: await resolveRealTarget(cwd, path) })));
   const requested = targets.flatMap(({ logical, target }) => target.ok ? [logical, target.resolved] : []);
   if (scope.placement === undefined || scope.projectRoot === undefined) return { allowed: paths.map(() => false) };
   let answers = new Map<string, boolean>();
-  {
+  // Unresolved targets still retain their per-path unknown placement below.
+  // They do not turn an empty effective query into the provider's default '.'.
+  if (requested.length > 0) {
     const relativePaths = [...new Set(requested.map(path => relative(scope.projectRoot, path).split('\\').join('/') || '.'))];
     try { answers = new Map((await scope.placement(relativePaths)).map(answer => [resolve(scope.projectRoot, answer.path), answer.allowed])); }
     catch (error) {

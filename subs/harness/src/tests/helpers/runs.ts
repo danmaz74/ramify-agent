@@ -97,11 +97,13 @@ export function exitsAfter(failFrom: number, cwd: string, counter: string, timeo
 }
 
 export interface TestPolicyOptions {
+  /** Opt into new-policy recovery. Existing lifecycle fixtures retain their historical captured policy. */
+  readonly recovery?: boolean;
   /** Which of the standalone diagnosis's commands fails, and with which code. */
   readonly failing?: 'typeCheck' | 'ramifyCheck' | undefined;
   /** Runs the installed Ramify CLI for the complete check instead of a cheap command. */
   readonly realRamifyCheck?: boolean | undefined;
-  /** A command whose executable is not there, which is never recoverable. */
+  /** A command whose executable is not there; historical fixtures retain their terminal handling. */
   readonly missingCommand?: 'typeCheck' | undefined;
   /**
    * The review policy the run captures. A test policy requests no reviews
@@ -113,8 +115,9 @@ export interface TestPolicyOptions {
 
 /**
  * A policy over one project whose standalone commands are cheap. Its limits
- * and its context policies are the hardcoded ones: only the commands differ,
- * and a run records the policy it ran under, so what it ran is in `job.json`.
+ * and its context policies are the hardcoded ones. Existing scenarios explicitly
+ * model policies captured before operation recovery; new-policy witnesses opt in
+ * with `recovery: true`. Each run records its policy in `job.json`.
  * A run's gates run no policy command: they ask the configured audit.
  */
 export function testPolicy(projectRoot: string, options: TestPolicyOptions = {}): RunPolicy {
@@ -128,9 +131,10 @@ export function testPolicy(projectRoot: string, options: TestPolicyOptions = {})
     }
     return exits(options.failing === name ? 1 : 0, projectRoot);
   };
-  const { reviews: _reviews, ...unreviewed } = base;
+  const { reviews: _reviews, recovery: capturedRecovery, ...unreviewed } = base;
   return {
     ...unreviewed,
+    ...(options.recovery === true ? { recovery: capturedRecovery } : {}),
     version: 'run-policy/7',
     // These fixture runs exercise the contract engineer, which the default
     // policy omits from its context and prompt manifest, so they capture it.

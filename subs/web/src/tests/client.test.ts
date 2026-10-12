@@ -164,3 +164,14 @@ test('U03: the debug queries request their protocol paths, validate the answers 
     await expect(read).rejects.toMatchObject({ kind: 'protocol', code: 'conflict', message: 'This is not a live breakpoint occurrence' });
   }
 });
+
+test('recovery query encodes identity and validates paused occurrences and absent state', async () => {
+  const urls: string[] = [];
+  const client = createProtocolClient('http://h', async input => {
+    urls.push(String(input));
+    return new Response(JSON.stringify(urls.length === 1 ? null : { occurrenceId: 'rec-1' }), { status: 200 });
+  });
+  expect(await client.getRecoveryInspection('plan name', 'run 1')).toBeNull();
+  await expect(client.getRecoveryInspection('plan name', 'run 1')).rejects.toMatchObject({ kind: 'invalid-response' });
+  expect(urls).toEqual(['http://h/api/v1/plans/plan%20name/runs/run%201/recovery', 'http://h/api/v1/plans/plan%20name/runs/run%201/recovery']);
+});

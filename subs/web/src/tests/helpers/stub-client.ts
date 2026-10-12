@@ -8,7 +8,7 @@ import type { ExecutionCapabilityDetail, ExecutionScenarioDetail } from '../../.
 import type { Receipt } from '../../../../harness/src/interfaces/protocol/jobs.js';
 import type { PlanDocument, PlanEntry } from '../../../../harness/src/interfaces/protocol/queries.js';
 import type {
-  AnalysisResponse, CapabilityListResponse, DebugExchangeResponse, DebugInspectionResponse, DebugStateResponse, DecisionListResponse, GateView, MetricsResponse, ModuleCapabilityComparisonResponse, ProjectedRunEvent,
+  RecoveryInspection, AnalysisResponse, CapabilityListResponse, DebugExchangeResponse, DebugInspectionResponse, DebugStateResponse, DecisionListResponse, GateView, MetricsResponse, ModuleCapabilityComparisonResponse, ProjectedRunEvent,
   MergeReadinessResponse, RunCommandInput, RunEventPage, RunListResponse, RunSnapshot, ScenarioListResponse, WorkItemListResponse, WorkItemResponse,
 } from '../../../../harness/src/interfaces/protocol/runs.js';
 import type {
@@ -24,6 +24,7 @@ export const project: ProjectInfo = { name: 'collection-review', root: '/work/co
 /** A run as the stub answers it, with every query's answer. */
 export interface StubRun {
   snapshot: RunSnapshot;
+  recovery?: RecoveryInspection | null;
   events: ProjectedRunEvent[];
   analysis?: AnalysisResponse;
   decisions?: DecisionListResponse;
@@ -202,6 +203,10 @@ export class StubClient implements ProtocolClient {
     return this.answer(runId, current => current.reviews?.[workItem ?? ''], `reviews of ${workItem ?? 'the run'}`);
   }
   async getMetrics(_planId: string, runId: string) { this.calls.push(`getMetrics:${runId}`); return this.answer(runId, run => run.metrics, 'metrics'); }
+  async getRecoveryInspection(_planId: string, runId: string): Promise<RecoveryInspection | null> {
+    this.calls.push(`getRecoveryInspection:${runId}`);
+    return this.run(runId).recovery ?? null;
+  }
   async getDebugState(_planId: string, runId: string) { this.calls.push(`getDebugState:${runId}`); return this.answer(runId, run => run.debug, 'debug state'); }
   async getDebugInspection(_planId: string, runId: string, pauseId: string) {
     this.calls.push(`getDebugInspection:${runId}:${pauseId}`);

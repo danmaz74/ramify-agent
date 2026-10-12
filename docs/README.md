@@ -2,6 +2,11 @@
 
 Design documents for the separate agent harness:
 
+- [Plan 41: interrupted-operation recovery and empty mutations](plans/41-interruption-recovery/main-plan.md),
+  implemented, final qualification in progress: bounded retries, durable
+  same-run pause/resume for new runs with admission of external repairs,
+  retained accepted work and honest classification when no paths changed;
+  [implementation results](plans/41-interruption-recovery/implementation-results.md)
 - [Plan 40: implementation through temporarily invalid projects](plans/40-invalid-project-recovery/main-plan.md),
   implemented, qualified and merged: recorded repair authority, architect
   continuation and honest candidate qualification; the checkpoint evaluation

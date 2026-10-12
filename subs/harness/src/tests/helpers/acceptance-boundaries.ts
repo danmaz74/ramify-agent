@@ -6,6 +6,7 @@ import { acceptanceInitialFiles } from './acceptance-files.js';
 import { completionCheckDeadlineMs } from '../../hooks/post-write.js';
 import { testPolicy } from './runs.js';
 import { FakeRamifyCli } from './fake-ramify.js';
+import { createHash } from 'node:crypto';
 import { rootDescription } from './root-description.js';
 import type { CandidateSource } from '../../../subs/evidence/src/git.js';
 import type { ProvisionalSourceGit } from '../../../subs/evidence/src/provisional-git.js';
@@ -26,7 +27,7 @@ const allChanges = [...suspendedChanges, ...providerChanges, ...consumerChanges,
 const handbackChanges = [...providerChanges, ...consumerChanges, ...exposedChanges, ...integratedChanges].sort((a, b) => a.path.localeCompare(b.path));
 
 /** Explicit external answers for this multi-owner workflow, never inferred from live source. */
-export function acceptanceBoundaries(root: string, mode: string) {
+export function acceptanceBoundaries(root: string, mode: string, recovery = false) {
   let state: Stage = 'initial';
   let head = initial;
   let branch: string | undefined;
@@ -79,6 +80,8 @@ export function acceptanceBoundaries(root: string, mode: string) {
     return [...answer];
   }
   const git = fixtureScratchGit(mockGit({
+    ...(recovery ? { async recoveryStatus(project: string) { expect(project).toBe(root); return { index: `retained-index:${head}:${trees[state]}`, staged: [], unstaged: pending(head).map(entry => entry.path), untracked: [] }; },
+      async isAncestor(project: string, accepted: string, current: string) { expect(project).toBe(root); const chain = [initial, scenarios, integrated, corrected]; expect(chain).toContain(accepted); expect(chain).toContain(current); return chain.indexOf(accepted) <= chain.indexOf(current); } } : {}),
     async currentHead(project) { expect(project).toBe(root); return head; },
     async isCleanRepository(project) { expect(project).toBe(root); return true; },
     async createRunBranch(project, runId) { expect(project).toBe(root); const next = `ramify-agent-run/${runId}`; const created = branch === undefined; expect(branch ?? next).toBe(next); branch = next; return { branch, created }; },
@@ -125,9 +128,14 @@ export function acceptanceBoundaries(root: string, mode: string) {
     [integrated]: { tree: trees.integrated, files: integratedFiles, base: scenarios, changes: allChanges },
     [corrected]: { tree: trees.corrected, files: correctedFiles, base: integrated, changes: correctedChanges },
   };
+  if (recovery) for (const definition of Object.values(definitions)) definitions[definition.tree] ??= definition;
   const source = scriptedCandidates(root, definitions);
   const candidateAnswers: CandidateSource = {
     ...source,
+    ...(recovery ? { async treeEntries(project: string, candidate: string) { return Promise.all((await source.treeEntries(project, candidate)).map(async entry => {
+      const bytes = await source.readBlob(project, candidate, entry.path);
+      return { ...entry, objectId: createHash('sha1').update(`blob ${Buffer.byteLength(bytes)}\0${bytes}`).digest('hex') };
+    })); } } : {}),
     async diffNameStatus(project, from, to) { expect(project).toBe(root); return statedDiff(from, to); },
     async diffPatch(project, from, to, path) {
       const definition = definitions[to]; expect(definition).toBeDefined();
@@ -159,7 +167,7 @@ export function acceptanceBoundaries(root: string, mode: string) {
   }, { scenarios: false });
   const audit = retain({ ...auditAnswers,
     async read(project: string, commit: string) {
-      expect(project).toBe(root); expect([initial, integrated, corrected]).toContain(commit);
+      expect(project).toBe(root); expect(recovery ? Object.keys(definitions) : [initial, integrated, corrected]).toContain(commit);
       return auditAnswers.read(project, commit);
     },
     async run(input: Parameters<typeof auditAnswers.run>[0]) {

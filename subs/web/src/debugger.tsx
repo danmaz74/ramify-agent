@@ -118,7 +118,7 @@ function StatePanel({ run, debug, error }: { readonly run: RunSnapshot; readonly
         </p>
       )}
       <p className="debug-state-line">{stateText(run, debug, current)}</p>
-      {run.state !== 'running' && <p>Terminal state: <RunState state={run.state} planDeviations={run.planDeviations} /></p>}
+      {run.state !== 'running' && <p>Terminal state: <RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} /></p>}
       {current && (
         <>
           <PauseFacts current={current} />

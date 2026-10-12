@@ -484,7 +484,7 @@ export type SessionOutcome =
   /** The agent stopped without an accepted submission. */
   | { readonly kind: 'ended'; readonly message?: string | undefined }
   /** The session could not continue: a crash, a provider error or malformed output. */
-  | { readonly kind: 'failed'; readonly error: string }
+  | { readonly kind: 'failed'; readonly error: string; readonly evidence?: InterruptionEvidence }
   /** The session ended because `stop` was called. */
   | { readonly kind: 'stopped' }
   /**
@@ -493,6 +493,28 @@ export type SessionOutcome =
    * observation that reached the budget; `report` is that final response.
    */
   | { readonly kind: 'context-budget-reached'; readonly tokens: number | null; readonly report?: string | undefined };
+
+/** Structured provider or adapter evidence. Diagnostics never determine eligibility. */
+export interface InterruptionEvidence {
+  readonly classification: 'transport' | 'permanent' | 'unknown' | 'adapter-fault' | 'preparation' | 'check-execution';
+  readonly diagnostic: string;
+  readonly code?: string;
+  readonly status?: number;
+  readonly retryAfterMs?: number;
+}
+
+/** Classify structured native errors without interpreting their message. */
+export function interruptionEvidence(error: unknown, fallback: InterruptionEvidence['classification'] = 'unknown'): InterruptionEvidence {
+  const diagnostic = error instanceof Error ? error.message : String(error);
+  if (error === null || typeof error !== 'object') return { classification: fallback, diagnostic };
+  const native = error as { code?: unknown; status?: unknown; statusCode?: unknown; retryAfterMs?: unknown };
+  const code = typeof native.code === 'string' ? native.code : undefined;
+  const status = typeof native.status === 'number' ? native.status : typeof native.statusCode === 'number' ? native.statusCode : undefined;
+  const classification = status === 401 || status === 403 || status === 400 || status === 404 || code === 'ERR_INVALID_API_KEY' ? 'permanent'
+    : status === 408 || status === 429 || status !== undefined && status >= 500 && status <= 599 || code !== undefined && ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT'].includes(code) ? 'transport' : fallback;
+  return { classification, diagnostic, ...(code === undefined ? {} : { code }), ...(status === undefined ? {} : { status }),
+    ...(typeof native.retryAfterMs === 'number' && Number.isFinite(native.retryAfterMs) && native.retryAfterMs >= 0 ? { retryAfterMs: native.retryAfterMs } : {}) };
+}
 
 export interface AgentSession {
   /** Settles once, when the session ends. It never rejects. */

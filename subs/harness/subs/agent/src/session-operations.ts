@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { interruptionEvidence } from './interfaces/port.js';
 import { SessionDriverUnavailableError } from './interfaces/session-operations.js';
 import type { GuardedCall, SessionOutcome, SubmissionVerdict, ToolResult } from './interfaces/port.js';
 import type {
@@ -531,7 +532,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
         resolveReceipt(value);
       } catch (error) {
         if (stopped) return;
-        try { const value = await serial(() => settle(key, { kind: 'failed', error: errorText(error) }, errorText(error), error instanceof SessionDriverUnavailableError)); resolveReceipt(value); }
+        try { const value = await serial(() => settle(key, { kind: 'failed', error: errorText(error), evidence: interruptionEvidence(error, 'adapter-fault') }, errorText(error), error instanceof SessionDriverUnavailableError)); resolveReceipt(value); }
         catch (storageError) { rejectReceipt(storageError); }
       } finally {
         admissionClosed = true;

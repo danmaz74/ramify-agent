@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { externalRepairAdmissionSchema } from '../run/recovery-admission.js';
 import { findingsOf, sentenceOf, type HookFinding } from '../hooks/post-write.js';
 import type { GateAttempt, GateCommandRecord } from './records.js';
 import { scenarioResultsOf, untrackedScenarioCounts, type ScenarioResult } from './scenario-results.js';
@@ -83,6 +84,16 @@ export async function gateDiagnostics(
   waiting: ReadonlyMap<number, string> = new Map(),
 ): Promise<GateDiagnostics> {
   const summary: string[] = [];
+  const applicability = gate.provider?.result as { status?: unknown; reason?: unknown; admission?: unknown } | undefined;
+  if (applicability?.status === 'applicability-refused') {
+    const parsed = externalRepairAdmissionSchema.safeParse(applicability.admission);
+    const admission = parsed.success ? parsed.data : undefined;
+    summary.push(`- Candidate applicability requires the responsible architect's reassessment: ${String(applicability.reason ?? 'The admitted external repair changed its prerequisites')}`);
+    if (admission?.declaration) summary.push(`- Operator repair explanation: ${admission.declaration.explanation}`);
+    if (admission?.changes.length) summary.push(`- Observed operator changes: ${admission.changes.map(change => change.path).join(', ')}`);
+    if (admission) summary.push(`- Repaired candidate: ${admission.after.candidate.tree}; earlier decisions and qualification remain evidence for their original candidate.`);
+    summary.push('- Reassess affected obligations and qualify the current candidate before accepting completion. This repair gives subsequent agents no additional write scope.');
+  }
   if (gate.audit !== undefined) summary.push(...auditLines(gate, names, waiting));
   // The commands a setup command that did not pass kept from running are
   // named once, after it: they report nothing about the source.

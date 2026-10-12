@@ -71,6 +71,7 @@ export function snapshotOf(view: RunView): RunSnapshot {
     environmentProblems: environmentProblemsOf(view.entries),
     automaticRepairs: automaticRepairsOf(view),
     breakpoint: internal.breakpoint,
+    recovery: internal.recovery,
   };
 }
 

@@ -17,6 +17,19 @@ const base: RoundDecisionInput = {
 };
 
 describe('nonfunctional round decision', () => {
+  it('an admitted external candidate change uses the next remaining round without rewriting prior closure', () => {
+    const original = closed(1, 'satisfied');
+    const ended = { ...base, candidate: null, closedRounds: [original] };
+    expect(decideNonfunctionalRound(ended)).toEqual({ action: 'stop', closedRounds: 1, outcome: 'satisfied' });
+    expect(decideNonfunctionalRound({ ...ended, externalContinuations: [1] })).toEqual({ action: 'prepare-candidate', round: 2, phase: 'initial' });
+    expect(original.outcome).toBe('satisfied');
+    expect(() => decideNonfunctionalRound({ ...ended, maxRounds: 1, externalContinuations: [1] })).toThrow('remaining allowance');
+    expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [1, 1] })).toThrow('distinct spent rounds');
+    expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [2] })).toThrow('distinct spent rounds');
+    const exhausted = { ...ended, maxRounds: 2, closedRounds: [original, closed(2, 'satisfied')], externalContinuations: [1] };
+    expect(decideNonfunctionalRound(exhausted)).toEqual({ action: 'stop', closedRounds: 2, outcome: 'satisfied' });
+    expect(() => decideNonfunctionalRound({ ...exhausted, externalContinuations: [] })).toThrow('only a continuing round');
+  });
   it('requires explicit complete matching evidence, including for an empty catalog', () => {
     expect(decideNonfunctionalRound({ ...base, candidate: null }).action).toBe('prepare-candidate');
     expect(decideNonfunctionalRound(base)).toEqual({ action: 'assess', round: 1, phase: 'initial' });

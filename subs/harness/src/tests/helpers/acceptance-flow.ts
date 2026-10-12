@@ -34,7 +34,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   'gate-restart' | 'gate-intent-restart' | 'gate-committing-restart' |
   'review-restart' | 'review-submission-restart' | 'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>, realBoundary = false,
   /** Inspects the settled run of the full revision flow. */
-  inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>): Promise<void> {
+  inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false): Promise<void> {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   if (realBoundary) {
     await mkdir(join(fixture.root, 'subs/a/src/tests/steps'), { recursive: true });
@@ -59,7 +59,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     await mkdir(join(fixture.root, 'node_modules/@cucumber'), { recursive: true });
     await symlink(join(process.cwd(), 'node_modules/@cucumber/cucumber'), join(fixture.root, 'node_modules/@cucumber/cucumber'));
   }
-  const external = realBoundary ? undefined : acceptanceBoundaries(fixture.root, mode);
+  const external = realBoundary ? undefined : acceptanceBoundaries(fixture.root, mode, infrastructureRecovery);
   if (external !== undefined) cleanups.push(async () => external.assertComplete());
   let architect = 0;
   let reviewer = 0;
@@ -264,9 +264,19 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     : {});
   const gateContexts: string[] = [];
   let inheritedAuthorityChecked = false;
+  let infrastructureInterrupted = false;
   const options = { git: external?.git ?? gitService, ...(external === undefined ? {} : { candidates: external.candidates, ramify: external.ramify, provisionalSourceGit: external.sourceGit }), script: scripted, inputs: treeInputs(),
 
-    configuredAudit: mode === 'repair-exhaustion' ? { read: realChecks.read, async run(input: ConfiguredAuditInput) {
+    configuredAudit: infrastructureRecovery ? { read: realChecks.read, async run(input: ConfiguredAuditInput) {
+        if (!infrastructureInterrupted && await gateCheckpoint(fixture.root, input) === 'work-item') {
+          infrastructureInterrupted = true;
+          return { status: 'failed' as const, requestId: `${input.runId}:${input.attemptId}`, mode: input.mode, nested: input.nested ?? false, projects: null, discovery: null,
+            requestedSourceCommit: input.sourceCommit, auditedSourceCommit: null, reused: false, reuse: null, requestedMode: null, executedMode: null,
+            fallbackReason: null, verdict: null, reportCommit: null, runRef: null, treeRef: null, definition: { path: input.configuration.path, blob: input.configuration.blob },
+            detail: 'Settled combined capability check service is unavailable', provider: { status: 'failed', error: { code: 'ENOENT', message: 'Settled combined capability check service is unavailable', retryable: false } }, checks: {} };
+        }
+        return realChecks.run(input);
+      } } : mode === 'repair-exhaustion' ? { read: realChecks.read, async run(input: ConfiguredAuditInput) {
         const checkpoint = await gateCheckpoint(fixture.root, input);
         gateContexts.push(`${input.attemptId}:${checkpoint}`);
         // The exhaustion fixture states a failure only for the bounded
@@ -351,7 +361,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       }
     },
     policy: root => {
-      const base = testPolicy(root);
+      const base = testPolicy(root, { recovery: infrastructureRecovery });
       return { ...base, reviews: testReviewPolicy(), commands: { ...base.commands,
         typeCheck: checkCommand({ argv: [join(process.cwd(), 'node_modules/.bin/tsc'), '--noEmit', '-p', 'tsconfig.json'], cwd: root, timeoutMs: 30_000 }),
         ramifyCheck: base.commands.ramifyCheck,
@@ -383,6 +393,21 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     };
   }
   const receipt = await opened.service.execute(startRun('need'));
+  if (infrastructureRecovery) {
+    await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'operation-recovery-paused'), 30_000);
+    const paused = (await opened.service.recoveryInspection('need', receipt.jobId))!;
+    expect(paused).toMatchObject({ boundary: { kind: 'gate', checkpoint: 'work-item', work: { workItem: 'cap-001' } }, evidence: { classification: 'check-execution' } });
+    const before = (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started' && event.data.role === 'engineer');
+    await opened.service.execute({ commandId: 'restore-combined-capability-check', expectedVersion: 0, type: 'resume-recovery', payload: {
+      planId: 'need', jobId: receipt.jobId, occurrenceId: paused.occurrenceId, expectedRevision: paused.revision,
+      repair: { areas: ['environment'], explanation: 'Restored the combined capability check service for the already accepted handback request' } } });
+    await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'capability-handed-back'), 30_000);
+    const handed = (opened.service.events('need', receipt.jobId) ?? []).find(event => event.type === 'capability-handed-back')!;
+    const after = (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.sequence < handed.sequence && event.type === 'invocation-started' && event.data.role === 'engineer');
+    expect(after).toEqual(before);
+    const gates = (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'work-item');
+    expect(gates.map(event => event.type === 'gate-attempted' ? event.data.verdict : '')).toEqual(['not-verified', 'passed']);
+  }
   if (mode === 'verify-restart' || mode === 'gate-restart' || mode === 'gate-intent-restart' ||
     mode === 'gate-committing-restart' || mode === 'review-restart' || mode === 'review-submission-restart' ||
     mode === 'concern-submission-restart') {

@@ -34,6 +34,14 @@ export function projectEvent(event: RunEvent): ProjectedRunEvent {
 
 function describe(event: RunEvent): [string, Ref[]] {
   switch (event.type) {
+    case 'operation-recovery-attempt':
+      return [`Recovery group ${event.data.group}, attempt ${event.data.attempt}: ${event.data.invocation}`, ref('invocation', event.data.invocation)];
+    case 'operation-recovery-pausing':
+      return [`Settling run for recovery ${event.data.occurrenceId}`, []];
+    case 'operation-recovery-paused':
+      return [`Recovery ${event.data.occurrenceId} awaits explicit resume`, []];
+    case 'operation-recovery-resumed':
+      return [`Recovery ${event.data.occurrenceId} admitted group ${event.data.group} by ${event.data.command.commandId}`, []];
     case 'debug-pausing':
       return [`Settling the run before ${roleDisplayName(event.data.role).toLowerCase()}: ${event.data.goal}`, workRefs(event.data.work)];
     case 'debug-paused':
@@ -93,6 +101,10 @@ function describe(event: RunEvent): [string, Ref[]] {
         `${event.data.reviewer} approved the analysis${event.data.duringRun ? ' while the run was working' : ''}${event.data.note === null ? '' : `: ${event.data.note}`}`,
         [],
       ];
+    case 'readiness-preparation-started':
+      return [`Readiness preparation ${event.data.key} started (attempt ${event.data.attempt})`, []];
+    case 'readiness-preparation-completed':
+      return [`Readiness preparation ${event.data.key} completed (attempt ${event.data.attempt}); retained setup effects will not be repeated`, []];
     case 'readiness-passed':
       return [`Readiness passed at attempt ${event.data.attempt}`, ref('gate', event.data.gate)];
     case 'readiness-failed':
@@ -321,6 +333,8 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`Candidate ${event.data.candidate} prepared`, []];
     case 'nonfunctional-phase-started':
       return [`Non-functional assessment phase started with ${event.data.maxRounds} round${event.data.maxRounds === 1 ? '' : 's'}`, []];
+    case 'nonfunctional-final-invalidated':
+      return [`External repair ${event.data.occurrenceId} requires fresh assessment after round ${event.data.round}`, []];
     case 'nonfunctional-assessed':
       return [`Non-functional assessment ${event.data.assessment} recorded for round ${event.data.round}`, []];
     case 'nonfunctional-investigated':
@@ -369,6 +383,10 @@ function describe(event: RunEvent): [string, Ref[]] {
       return ['A stop was requested', []];
     case 'scratch-setting-up':
       return ['The harness is preparing ignored module scratch', []];
+    case 'readiness-repair-committing':
+      return [`Readiness repair ${event.data.id} is committing its admitted candidate`, []];
+    case 'readiness-repair-committed':
+      return [`Readiness repair ${event.data.id} committed its admitted candidate`, ref('commit', event.data.commit)];
     case 'scratch-setup-complete':
       return [event.data.commit === null ? 'Module scratch ignore rule verified' : 'Module scratch ignore rule committed', ref('commit', event.data.commit)];
     case 'scratch-preserved':

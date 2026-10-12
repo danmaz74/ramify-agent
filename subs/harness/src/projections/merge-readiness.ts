@@ -122,6 +122,9 @@ export function mergeReadinessOf(view: RunView, evidence: AcceptedEvidence): Mer
   }
 
   const findings = replayCheckFindingState(view.entries).findings;
+  // Phase replay authenticates each external invalidation. Its earlier
+  // deviations remain evidence, but do not describe the current candidate.
+  const invalidated = new Set(view.events.filter(event => event.type === 'nonfunctional-final-invalidated').map(event => event.data.assessment));
   const deviations: ReadinessDeviation[] = [];
   const paths = new Map(evidence.manifest.documents.map(document => [document.id, document]));
   for (const line of view.entries) {
@@ -170,6 +173,7 @@ export function mergeReadinessOf(view: RunView, evidence: AcceptedEvidence): Mer
     if (current && !authenticUserCommand(view, record.checkFinding, current)) {
       return unavailable(`Deviation ${record.id} has no accepted current user command`);
     }
+    if (nfr && invalidated.has((record as Extract<typeof record, { origin: unknown }>).origin.assessment)) continue;
     deviations.push({ origin: nfr ? (record as Extract<typeof record, { origin: unknown }>).origin : {
       kind: 'work-item-conflict', request: (record as Exclude<typeof record, { origin: unknown }>).request,
       workItem: (record as Exclude<typeof record, { origin: unknown }>).workItem,

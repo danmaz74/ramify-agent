@@ -9,6 +9,7 @@ import { runRepairExportCommand } from '../subs/harness/src/run/repair-export-co
 import { runStepCommand } from '../subs/harness/src/steps/command.js';
 import { isProjectLockError } from '../subs/harness/src/store/lock.js';
 import { parseCommandLine, usage, UsageError, type CommandLine } from './cli.js';
+import { runRecoveryCommand } from './recovery-client.js';
 import { runDebugCommand, printControlResult } from './debug-client.js';
 
 // The web module builds into dist/web beside this package's root; the root
@@ -29,6 +30,11 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   if (commandLine.command === 'session') return session(commandLine);
   if (commandLine.command === 'step') return step(commandLine);
+  if (commandLine.command === 'recovery') {
+    const result = await runRecoveryCommand(commandLine.recovery);
+    printControlResult(result, commandLine.recovery.json);
+    return result.exitStatus;
+  }
   if (commandLine.command === 'debug') {
     const result = await runDebugCommand(commandLine.debug);
     printControlResult(result, commandLine.debug.json);

@@ -1,7 +1,9 @@
-import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths,
+import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths,
   type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair-preparation.js';
 import { repairIncidentRecordSchema, repairResultSchema, repairIncidentId, type RepairIncidentRecord, type RepairResult, type RepairIncidentStage } from './repair-records.js';
 import { createRepairExportPayload, exportRepairIncident, repairExportPayloadPath, repairExternalRef, repairProjectKey, type RepairExportConfiguration } from './repair-export.js';
+import { verifiedRepairDeltas } from './repair-gate.js';
+import { checkpointPolicies } from '../checks/checkpoint.js';
 import { checkContinuationScope } from '../work/inherited-scope.js';
 import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { OwnershipAuthorityError, ownershipAuthorityFor } from '../work/ownership-authority.js';
@@ -112,6 +114,12 @@ import { readRecordedContextSelection, type RecordedContextSelection } from '../
 import { citePackage, deliverPackage } from '../context-selection/delivery.js';
 import { orientationPacket, prepareContextSelection, workOrientationSubmissionSchema, workOrientationToolName, type ContextSelectorSubmission, type SelectionSource, type WorkOrientationSubmission } from '../context-selection/submissions.js';
 import { documentChanges, readCapturedDocuments } from './document-inputs.js';
+import { captureInstalledRecoveryRuntime } from './recovery-runtime.js';
+import { captureRecoveryCandidate, recoveryHash, recoveryRuntimeSchema, repairDispatchBlockers, validateExternalRepair, type RecoveryIdentity, type RecoveryRuntime } from './recovery-admission.js';
+import { commitReadinessRepair, readinessRepairOperationPath, readinessRepairOperationSchema } from './readiness-commit.js';
+import { operationRecoverySchema, type OperationRecovery, type RecoveryBoundary } from './records.js';
+import { recoveryInspectionSchema, type RecoveryInspection } from '../interfaces/protocol/runs.js';
+import type { InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import { composeTaskBrief, type KnownProjectFacts } from './task-brief.js';
 import { constructEngineerStep, engineerStepInputsOf, type ConstructedEngineerStep } from '../steps/engineer.js';
 import {
@@ -119,7 +127,7 @@ import {
   type InvocationRequest, type InvocationResult, type LiveInvocation, type RunnerHost, type RunnerRun, type SessionKeeping,
 } from '../steps/runner.js';
 import { knownFactsInputs } from '../steps/constructed.js';
-import { projectPath, serializeStepInputs, stepInputsSchemaId, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs,
+import { projectPath, serializeStepInputs, stepInputsSchemaId, validateStepInputs, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs,
   type EngineerStepInputs, type KnownFactsInputs, type OrientationStepInputs, type ProjectPath, type StepInputs } from '../steps/inputs.js';
 import { constructStep, freshFallback } from '../steps/construct.js';
 import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs,
@@ -216,7 +224,7 @@ import { gateDiagnostics, type GateAudience } from '../checks/diagnostics.js';
 import { scenarioResultsOf, type ScenarioResult } from '../checks/scenario-results.js';
 import { concernBindings, finishReview, requestedStartOf, reviewOutcome, sameWorkItem, type ConcernBinding } from './review-finish.js';
 import { AfterHandling, assignedCount, completionBlockers, authorizedScope, evidenceFor, requiredArtifacts, bindingsOf, capabilityBlockersOf, integrationItemsDue, obligationOwedBy, obligationProjection, openRequirementsOf, pendingCorrection, verifiedRequirements, type HandlingHost } from './after-handling.js';
-import { CandidateDriftError, CommittingGates, readinessAuditOutcome, writeScopePaths, type GateHost } from './committing-gate.js';
+import { CandidateDriftError, CandidateReassessmentRequired, CommittingGates, readinessAuditOutcome, writeScopePaths, type GateHost } from './committing-gate.js';
 import { capturePlan, EvidenceUnavailableError, type RunInputs } from './inputs.js';
 import { extractPlanScenarios, type PlanScenarioExtraction } from '../../subs/scenarios/src/extraction.js';
 import type { RenderedFeatureFile } from '../../subs/scenarios/src/rendering.js';
@@ -388,6 +396,8 @@ export interface RunServiceOptions {
   readonly afterWrite?: ((write: RunWrite, runId: string) => Promise<void>) | undefined;
   /** The wall clock. Tests control it at invocation boundaries. */
   readonly now?: (() => Date) | undefined;
+  /** Trusted installed-runtime evidence seam. Production hashes its installed implementation. */
+  readonly recoveryRuntime?: (() => Promise<RecoveryRuntime>) | undefined;
   readonly warn?: ((message: string) => void) | undefined;
 }
 
@@ -517,6 +527,11 @@ class ScratchSetupRefusal extends Error {
 }
 
 class Run implements RunnerRun {
+  recoveryPause: OperationRecovery | undefined;
+  recoveryRestart = false;
+  startupRecovery = false;
+  recoveryReviewRelease: (() => void) | undefined;
+  readonly recoveryReviewPipelines = new Set<string>();
   restoring = false;
   readonly restoredInvocations = new Set<string>();
   readonly mutex = new Mutex();
@@ -558,7 +573,7 @@ class Run implements RunnerRun {
   readonly writer: WriterOwnership;
   index: ArchitectIndex | null = null;
   /** Wakes a driver waiting at the review stop, to read the log again. */
-  private wake: (() => void) | undefined;
+  private readonly wake = new Set<() => void>();
   /** The content store the run's transcripts name their large bodies in. */
   readonly store: ContentStore;
   /** One transcript writer per session, so each session's entries keep one order. */
@@ -599,14 +614,18 @@ class Run implements RunnerRun {
   }
 
   /** Settles at the next `notify`: an approval, a stop or the service closing. */
-  changed(): Promise<void> {
-    return new Promise(resolve => { this.wake = resolve; });
+  changed(signal?: AbortSignal): Promise<void> {
+    return new Promise(resolve => {
+      const done = () => { this.wake.delete(done); signal?.removeEventListener('abort', done); resolve(); };
+      if (signal?.aborted) { resolve(); return; }
+      this.wake.add(done); signal?.addEventListener('abort', done, { once: true });
+    });
   }
 
   notify(): void {
-    const wake = this.wake;
-    this.wake = undefined;
-    wake?.();
+    const wakes = [...this.wake];
+    this.wake.clear();
+    for (const wake of wakes) wake();
   }
 
   /** An absolute path beneath the run's directory, from a layout path. */
@@ -628,6 +647,7 @@ export class RunService {
   private sessionOperations: Promise<HarnessSessionOperations> | undefined;
   private closed = false;
   private closing: Promise<void> | undefined;
+  private readonly runningRuntime: Promise<RecoveryRuntime>;
 
   private readonly repairIncidentExport: RepairExportConfiguration | undefined;
   private readonly git: GitService;
@@ -637,6 +657,9 @@ export class RunService {
   get candidateSource(): CandidateSource { return this.candidates; }
 
   private constructor(private readonly options: RunServiceOptions, private readonly workflow: CapabilityWorkflow | null) {
+    this.runningRuntime = this.readRecoveryRuntime();
+    // Retain a rejection for explicit inspection without an unhandled startup promise.
+    void this.runningRuntime.catch(() => undefined);
     this.repairIncidentExport = options.repairIncidentExport === undefined ? undefined : { ...options.repairIncidentExport };
     this.git = options.git ?? gitService;
     this.candidates = options.candidates ?? gitCandidateSource;
@@ -686,6 +709,8 @@ export class RunService {
       harnessFiles: run => service.harnessFiles(run),
       // The provider's definition as the run captured it, whatever the candidate commit holds.
       auditDefinition: async run => {
+        const recovered = service.latestOperationRecovery(run)?.admission;
+        if (recovered?.admitted) return recovered.after.configuration.policy as import('../../subs/audit/src/check-execution.js').CommittedAuditConfiguration;
         const captured = run.record.auditConfiguration;
         if (captured === undefined || 'invalid' in captured) {
           throw new Error(`The run carries no committed audit definition: ${captured === undefined ? 'none was captured' : captured.invalid}`);
@@ -696,7 +721,45 @@ export class RunService {
       get candidates() { return service.candidates; },
       refreshIndex: run => service.refreshIndex(run),
       ignoring: run => service.ignoring(run),
+      recoverGate: (run, attempt, diagnostic, group, attempts) => service.waitOperationRecovery(run,
+        { kind: 'gate', checkpoint: attempt.checkpoint, work: { ...attempt.subject }, candidate: attempt.audited ?? attempt.head },
+        { classification: 'check-execution', diagnostic }, attempts, attempt.infrastructureAttempt, group),
+      awaitGateAdmission: (run, resumedGroup = false) => service.awaitGateAdmission(run, resumedGroup),
+      retryGateDelay: async (run, milliseconds) => {
+        const deadline = Date.now() + milliseconds;
+        while (!service.ignoring(run) && Date.now() < deadline) {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          await Promise.race([run.changed(), new Promise<void>(resolve => { timer = setTimeout(resolve, Math.max(0, deadline - Date.now())); })]);
+          if (timer !== undefined) clearTimeout(timer);
+        }
+        return !service.ignoring(run);
+      },
     };
+  }
+
+  /** Gate dispatch waits for peer recovery and revalidates an explicitly admitted attempt group. */
+  private async awaitGateAdmission(run: Run, resumedGroup: boolean): Promise<boolean> {
+    if (run.policy.recovery === undefined) return true;
+    for (;;) {
+      while (run.recoveryPause && !this.ignoring(run)) {
+        const changed = run.changed();
+        if (!run.recoveryPause) break;
+        await changed;
+      }
+      if (this.ignoring(run)) return false;
+      const now = this.now().getTime();
+      const activeMs = now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now);
+      if (activeMs > run.policy.limits.runAbsoluteMs) {
+        await this.fail(run, 'limit-exceeded', `Gate dispatch has spent ${activeMs} ms of the captured ${run.policy.limits.runAbsoluteMs} ms execution bound`);
+        return false;
+      }
+      const recovery = this.latestOperationRecovery(run);
+      if (!resumedGroup || recovery?.state !== 'resumed' || !recovery.admission) return true;
+      const blockers = repairDispatchBlockers(recovery.admission, await this.captureRecoveryIdentity(run));
+      if (blockers.length === 0) return true;
+      if (!await this.waitOperationRecovery(run, recovery.boundary, { classification: 'preparation', diagnostic: blockers.join('; ') },
+        recovery.attempts, recovery.automaticAttempts, recovery.group, true, recovery.admission.after)) return false;
+    }
   }
 
   /** The invocation runner every role's invocation of every run goes through. */
@@ -744,6 +807,15 @@ export class RunService {
     const age = now - Date.parse(run.record.createdAt) - callerPauseMs(run.log.events, now);
     if (invocations + 1 > limits.maxInvocationsPerRun) return `The run has made ${invocations} invocations; the policy allows ${limits.maxInvocationsPerRun}`;
     if (age > limits.runAbsoluteMs) return `The run has run for ${age} ms; the policy allows ${limits.runAbsoluteMs}`;
+    return null;
+  }
+
+  /** Checks consume active time without reserving another model invocation. */
+  private executionTimeRefusal(run: Run): string | null {
+    const now = this.now().getTime();
+    const age = now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now);
+    if (age > run.policy.limits.runAbsoluteMs) return `The run has run for ${age} ms; the policy allows ${run.policy.limits.runAbsoluteMs}`;
+    if (run.log.count('invocation-started') > run.policy.limits.maxInvocationsPerRun) return 'The captured whole-run invocation allowance is exhausted';
     return null;
   }
 
@@ -826,6 +898,7 @@ export class RunService {
         if (reason !== null) await run.log.append({ type: 'session-finished', data: { session: session.id, reason } });
       }
       await run.log.append(terminal);
+      run.notify();
       return 'committed';
     });
   }
@@ -939,7 +1012,19 @@ export class RunService {
       ...(completion === undefined ? [] : [Date.parse(completion.at) + policy.settleMs]),
       ...(run.settleDeadline === undefined ? [] : [run.settleDeadline]),
     ];
-    return deadlines.length === 0 ? null : Math.min(...deadlines);
+    if (deadlines.length === 0) return null;
+    let pausedAt: number | undefined; let credit = 0;
+    for (const event of run.log.events) {
+      if (event.type === 'operation-recovery-paused') {
+        const record = operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision)));
+        if (record.waitingReviews?.some(waiting => waiting.request === id)) pausedAt = Date.parse(event.at);
+      }
+      if ((event.type === 'operation-recovery-resumed' || ['job-stopped', 'job-failed', 'job-interrupted', 'job-completed'].includes(event.type)) && pausedAt !== undefined) {
+        credit += Math.max(0, Date.parse(event.at) - pausedAt); pausedAt = undefined;
+      }
+    }
+    if (pausedAt !== undefined) credit += Math.max(0, this.now().getTime() - pausedAt);
+    return Math.min(...deadlines) + credit;
   }
 
   /**
@@ -1189,6 +1274,7 @@ export class RunService {
     /** Set when the request was settled before this attempt's start could be recorded. */
     let fenced = false;
     const result = await this.runInvocation<ReviewSubmission>(run, agent, {
+      recoveryReviewRequest: id,
       role: step.role,
       brief: step.brief,
       context: step.context,
@@ -1215,6 +1301,7 @@ export class RunService {
       equip: () => ({ builtinTools: [...step.equipment.builtinTools], tools: [...prepared.tools.definitions] }),
       // The start is recorded only for a request still unsettled, under the
       // mutex its deadline settles it under; a settled one's reader never starts.
+      singleAdmission: true,
       onStarted: async (invocation, session) => {
         const at = this.now();
         const recorded = await run.mutex.run(async () => {
@@ -1235,8 +1322,9 @@ export class RunService {
     const attemptBody = {
       ...base,
       startedAt: started?.at ?? null,
-      invocation: started?.invocation ?? null,
-      session: started?.session ?? null,
+      invocation: result.id || started?.invocation || null,
+      session: result.session || started?.session || null,
+      transportInvocations: run.log.all('operation-recovery-attempt').filter(event => event.data.invocation === result.id || started !== undefined && this.transportAncestor(run, event.data.invocation, started.invocation)).map(event => event.data.invocation),
       // What the executor answered, never what was asked: a fork it could
       // not take is a fresh start, and is never measured as a fork.
       actualStart: result.actual === undefined ? null : result.actual === 'fork' ? 'fork' as const : 'fresh' as const,
@@ -1251,6 +1339,12 @@ export class RunService {
     return committed === 'committed';
   }
 
+  private transportAncestor(run: Run, id: string, ancestor: string): boolean {
+    const seen = new Set<string>(); let current: string | undefined = id;
+    while (current && !seen.has(current)) { if (current === ancestor) return true; seen.add(current); current = this.invocationRecord(run, current).body.recoveryPredecessor; }
+    return false;
+  }
+
   /** Finish an accepted reader turn whose terminal review record was interrupted.
    * Its submitted bytes and settled outcome are durable; the candidate is
    * immutable, so concern grounds are recovered from that same audited tree. */
@@ -1259,7 +1353,7 @@ export class RunService {
   ): Promise<boolean | null> {
     const pending = state.attempts.at(-1);
     if (pending?.started === null || pending?.started === undefined || pending.finished !== null) return null;
-    const invocation = pending.started.invocation;
+    const invocation = run.log.all('invocation-ended').filter(event => event.data.ended === 'submitted' && this.transportAncestor(run, event.data.invocation, pending.started!.invocation)).at(-1)?.data.invocation ?? pending.started.invocation;
     const ended = run.log.all('invocation-ended').find(event => event.data.invocation === invocation);
     if (ended?.data.ended !== 'submitted') return null;
     const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(invocation)));
@@ -1301,7 +1395,8 @@ export class RunService {
     const attempt = {
       id: pending.id, request: request.id, queuedAt: previous?.finished?.at ?? state.recordedAt,
       requestedStart: requestedStartOf(request),
-      startedAt: pending.started.at, invocation, session: pending.started.session,
+      startedAt: pending.started.at, invocation, session: ended.data.session,
+      transportInvocations: run.log.all('operation-recovery-attempt').filter(event => this.transportAncestor(run, event.data.invocation, pending.started!.invocation)).map(event => event.data.invocation),
       actualStart: outcome.data.session.mode === 'fork' ? 'fork' as const : 'fresh' as const,
     };
     return await this.finishReview(run, request, attempt, result, true, submission, bindings) === 'committed';
@@ -1419,6 +1514,7 @@ export class RunService {
       architectView: this.architectViewInputs(run), start: { kind: 'fresh' },
     }, { projectRoot: this.projectRoot, packages: new Map([['reviewer', loaded]]) });
     const result = await this.runInvocation<OrientationSubmission>(run, agent, {
+      recoveryReviewRequest: request.id,
       role: step.role,
       brief: step.brief,
       context: step.context,
@@ -2425,6 +2521,75 @@ export class RunService {
         }
       }
 
+      if (!run.log.terminal && run.policy.recovery !== undefined && run.stopRequested) {
+        for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
+        const settled = !run.writer.isUnsettled && run.log.all('invocation-started').every(started => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation))); return outcome.success && outcome.data.settled.confirmed; });
+        await this.endRun(run, { type: 'job-stopped', data: { settled } }, 'run-ended');
+        continue;
+      }
+      if (!run.log.terminal && run.policy.recovery !== undefined) {
+        const recovery = this.latestOperationRecovery(run);
+        if (recovery && recovery.state !== 'resumed') {
+          run.recoveryPause = recovery;
+          run.recoveryRestart = true;
+          // A service restart is never a new authorization to attempt this operation.
+          for (const event of run.log.all('operation-recovery-resumed')) this.commands.remember(event.data.command);
+          for (const event of run.log.events) if (event.type === 'job-started' || event.type === 'stop-requested' || event.type === 'analysis-approved') this.commands.remember(event.data.command);
+          if (recovery.state === 'pausing') {
+            run.recoveryPause = undefined;
+            await this.waitOperationRecovery(run, recovery.boundary, recovery.evidence, recovery.attempts, recovery.automaticAttempts, recovery.group, false);
+          }
+          continue;
+        }
+        const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
+        const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
+        const latestAttempt = run.log.all('operation-recovery-attempt').at(-1);
+        const lastOutcome = latestAttempt === undefined ? undefined : invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(latestAttempt.data.invocation)));
+        const interruptedGroup = latestAttempt && lastOutcome?.success && lastOutcome.data.ended === 'failed' && !['absolute-timeout', 'idle-timeout'].includes(lastOutcome.data.interruption ?? '')
+          && (recovery?.state !== 'resumed' || latestAttempt.data.group >= recovery.group) ? latestAttempt : undefined;
+        const unfinished = [];
+        for (const event of pending) if (!(await operations?.acceptance(run.jobId, event.data.invocation))) unfinished.push(event);
+        if (unfinished.length > 0) {
+          let safe = true;
+          for (const event of pending) {
+            try { if (await operations?.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs) === false) safe = false; }
+            catch (error) { safe = false; this.warn(`Original operation settlement failed: ${message(error)}`); }
+          }
+          if (!safe) {
+            await this.fail(run, 'writer-unsettled', 'Startup interruption retains an unresolved effect or an unreconciled accepted operation');
+            report.interrupted.push(run.key); continue;
+          }
+          for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
+          const event = unfinished.at(-1)!;
+          const invocation = this.invocationRecord(run, event.data.invocation).body;
+          const ended = invocationOutcomeSchema.parse(this.committedBody(run, runLayout.outcome(event.data.invocation)));
+          if (!ended.settled.confirmed) { await this.fail(run, 'writer-unsettled', 'Startup writer settlement is unavailable'); report.interrupted.push(run.key); continue; }
+          const mode = invocation.session.requested;
+          const start: RecoveryBoundary['start'] = mode === 'fresh' ? { mode: 'fresh' } : mode === 'fork' ? { mode: 'fork', from: invocation.session.from } : { mode: 'continue', ref: invocation.session.from };
+          await this.waitOperationRecovery(run, { kind: 'invocation', role: invocation.role, work: invocation.work, invocation: invocation.id,
+            source: invocation.session.from ?? null, start, session: event.data.session,
+            requestHash: sha256(canonicalJson({ role: invocation.role, work: invocation.work, prompt: invocation.prompt.requestedInputsHash })) },
+            { classification: 'unknown', diagnostic: 'The service stopped during this original operation; no accepted result was found and no automatic attempt was authorized by restart' },
+            unfinished.map(event => event.data.invocation), 0, recovery?.group ?? 0, false);
+          continue;
+        }
+        if (pending.length === 0 && interruptedGroup && !run.log.events.slice(interruptedGroup.sequence).some(event => ['iteration-closed', 'review-attempt-finished', 'work-item-completed'].includes(event.type))) {
+          const invocation = this.invocationRecord(run, interruptedGroup.data.invocation).body;
+          const outcome = invocationOutcomeSchema.parse(this.committedBody(run, runLayout.outcome(invocation.id)));
+          const start: RecoveryBoundary['start'] = invocation.session.requested === 'fresh' ? { mode: 'fresh' }
+            : invocation.session.requested === 'fork' ? { mode: 'fork', from: invocation.session.from } : { mode: 'continue', ref: invocation.session.from };
+          const attempts = run.log.all('operation-recovery-attempt').filter(event => event.data.requestHash === interruptedGroup.data.requestHash).map(event => event.data.invocation);
+          await this.waitOperationRecovery(run, { kind: 'invocation', role: invocation.role, work: invocation.work, invocation: invocation.id,
+            source: invocation.session.from ?? null, start, requestHash: interruptedGroup.data.requestHash },
+            outcome.interruptionEvidence ?? { classification: 'unknown', diagnostic: outcome.error ?? 'The service stopped between interrupted attempts' },
+            attempts, interruptedGroup.data.attempt, interruptedGroup.data.group, false);
+          continue;
+        }
+        // Accepted destinations can reconcile through their exact original owning
+        // tasks; the next missing operation is held by the startup admission guard.
+        if (pending.length > 0) run.startupRecovery = true;
+      }
+
       if (!run.log.terminal && this.workflow !== null && run.record.policy.version === capabilityRunPolicyVersion) {
         try {
           await this.reconcileSuspendedCapabilityRequest(run);
@@ -2541,6 +2706,7 @@ export class RunService {
         if (event.type === 'job-started' || event.type === 'stop-requested' || event.type === 'analysis-approved' || event.type === 'debug-resumed' || event.type === 'debug-exchange-admitted') {
           this.commands.remember(event.data.command);
         }
+        if (event.type === 'operation-recovery-resumed') this.commands.remember(event.data.command);
         if (event.type === 'check-findings-recorded' && event.data.cause.kind === 'user-command') this.commands.remember(event.data.cause.command);
       }
     }
@@ -2593,8 +2759,7 @@ export class RunService {
   }
 
   private async resumeNonfunctionalPhase(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): Promise<void> {
-    const binding = await this.assessNonfunctional(run, agent, packages);
-    if (binding !== null && !this.ignoring(run) && await this.recordNonfunctionalDeviations(run, binding)) await this.finalGate(run, binding);
+    await this.qualifyFinal(run, agent, packages);
   }
 
   /**
@@ -2608,6 +2773,15 @@ export class RunService {
     const performed: string[] = [];
     for (const pending of run.log.ledger.pendingEffects()) {
       const event = pending.event;
+      if (event.type === 'readiness-repair-committing') {
+        const entry = run.log.ledger.replay().find(entry => entry.transaction.event.sequence === pending.sequence);
+        const records = entry?.transaction.records.filter(record => record.path === readinessRepairOperationPath(event.data.id)) ?? [];
+        if (records.length !== 1) throw new Error('Readiness repair effect has no uniquely committed operation');
+        const operation = readinessRepairOperationSchema.parse(records[0]!.body);
+        await commitReadinessRepair(run, this.gateHost(), this.gates, operation);
+        performed.push(`the authenticated readiness repair commit ${event.data.id}`);
+        continue;
+      }
       if (event.type === 'decision-accepted') {
         // The decision is committed and its brief is not in the parent
         // context yet. The append is keyed by the decision, so performing it
@@ -2713,7 +2887,14 @@ export class RunService {
         continue;
       }
       const operation = read.value as GateOperation;
-      const recovered = await this.gates.commitGate(run, preparedGate(operation), undefined, undefined, undefined, operation.message);
+      let binding: { candidateId: string; assessment: Assessment } | undefined;
+      if (operation.finalAssessment !== undefined) {
+        const assessment = assessmentSchema.parse(this.committedBody(run, runLayout.assessment(operation.finalAssessment.assessment)));
+        if (assessment.id !== operation.finalAssessment.assessment || assessment.candidate.tree !== operation.finalAssessment.tree || operation.checkpoint !== 'final') throw new Error('The pending final effect has an incompatible captured assessment prerequisite');
+        if ((await this.previewCandidateTree()).tree !== operation.finalAssessment.tree) throw new Error('The pending final effect candidate changed after its retained assessment; responsible reassessment is required before any commit or audit replay');
+        binding = { candidateId: operation.finalAssessment.candidate, assessment };
+      }
+      const recovered = await this.gates.commitGate(run, preparedGate(operation), undefined, undefined, undefined, operation.message, binding);
       performed.push(recovered.commit === null && recovered.audited === null
         ? `the failed preflight of gate ${event.data.gate}` : `the commit and audit of gate ${event.data.gate}`);
     }
@@ -2746,7 +2927,10 @@ export class RunService {
           else this.warn(`Run ${run.record.jobId}: process group ${event.data.pid} cannot be authenticated after restart; it will not be signalled`);
         }
       }
-      const settled = await run.writer.release(id).catch(() => ({ confirmed: false, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] }));
+      const priorReleases = run.log.all('writer-released').filter(event => event.data.invocation === id);
+      const settled = acquired && !released ? await run.writer.release(id).catch(() => ({ confirmed: false, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] }))
+        : { confirmed: !acquired || priorReleases.length === 1 && priorReleases[0]!.data.confirmed, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] };
+      if (run.policy.recovery !== undefined && acquired && !released) await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
       // Observations are appended without a transaction, by decision 2, so
       // the last of an invocation the harness was interrupted in may be
       // missing. The gap is recorded rather than left to be read as an
@@ -2758,13 +2942,31 @@ export class RunService {
           detail: 'the harness stopped while this invocation was running, so its last observations may be missing',
         },
       }).catch(error => this.warn(`Run ${run.record.jobId}: ${id}'s truncation gap was not recorded: ${message(error)}`));
+      if (run.policy.recovery && this.options.agent) {
+        const operations = await this.operations(this.options.agent);
+        const accepted = await operations.acceptance(run.jobId, id);
+        if (accepted) {
+          const bytes = await readIfExists(run.path(runLayout.submission(id)));
+          if (!bytes || sha256(bytes) !== accepted.submissionHash) throw new Error(`Accepted submission ${id} cannot be authenticated after interruption`);
+          const { schema, ...value } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+          if (schema !== accepted.schema || canonicalJson(value) !== canonicalJson(accepted.value)) throw new Error(`Accepted destination ${id} changed`);
+          const ref = await operations.completedPoint(run.jobId, id) ?? '';
+          const mode = this.invocationRecord(run, id).body.session.actual;
+          await this.endInvocation(run, id, started.data.session, kept, {
+            ended: 'submitted', disposition: 'applied', submission: { hash: accepted.submissionHash }, rejectedSubmissions: 0,
+            session: { ref, mode }, sessionOperation: { runId: run.jobId, operationId: id, point: readSessionPointReference(ref)?.point ?? null },
+            settled, outsideScope: [], usage: { unavailable: 'The service stopped after acceptance; original provider usage is unavailable' }, elapsedMs: 0,
+          });
+          closed.push(id); continue;
+        }
+      }
       await this.endInvocation(run, id, started.data.session, finished('interrupted'), {
         ended: 'failed',
         interruption: 'session-lost',
         disposition: 'incomplete',
         submission: null,
         rejectedSubmissions: 0,
-        settled: { ...settled, confirmed: false },
+        settled: { ...settled, confirmed: run.policy.recovery !== undefined ? settled.confirmed : false },
         outsideScope: [],
         usage: { unavailable: 'the harness stopped while the session was running' },
         elapsedMs: 0,
@@ -2949,7 +3151,7 @@ export class RunService {
       if (this.closed) throw new CommandRejection('unavailable', 'The harness is shutting down');
       const admitted = this.commands.admit(command);
       if (admitted.kind === 'repeat') return admitted.receipt;
-      if (command.type !== 'start-run' && command.type !== 'stop-job' && command.type !== 'debug-resume' && command.type !== 'debug-message') {
+      if (command.type !== 'start-run' && command.type !== 'stop-job' && command.type !== 'debug-resume' && command.type !== 'debug-message' && command.type !== 'resume-recovery') {
         const subject = this.runs.get(key(command.payload.planId, command.payload.jobId));
         if (subject?.debugPause !== undefined) throw new CommandRejection('busy', 'This run is suspended at an execution breakpoint');
       }
@@ -2959,6 +3161,7 @@ export class RunService {
         case 'approve-analysis': return this.approve(command, admitted.contentHash);
         case 'debug-message': return this.messageDebug(command, admitted.contentHash);
         case 'debug-resume': return this.resumeDebug(command, admitted.contentHash);
+        case 'resume-recovery': return this.resumeRecovery(command, admitted.contentHash);
         case 'respond-to-check-finding':
         case 'waive-check-finding':
         case 'revoke-check-finding-waiver':
@@ -3500,10 +3703,38 @@ export class RunService {
     await this.settleReviews(run);
     if (this.ignoring(run)) return;
 
-    const nonfunctional = await this.assessNonfunctional(run, agent, packages);
-    if (nonfunctional === null || this.ignoring(run)) return;
-    if (!await this.recordNonfunctionalDeviations(run, nonfunctional) || this.ignoring(run)) return;
-    await this.finalGate(run, nonfunctional);
+    await this.qualifyFinal(run, agent, packages);
+  }
+
+  /** A repaired candidate receives new semantic evidence within the remaining captured round allowance. */
+  private async qualifyFinal(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): Promise<void> {
+    while (!this.ignoring(run)) {
+      const binding = await this.assessNonfunctional(run, agent, packages);
+      if (binding === null || this.ignoring(run)) return;
+      if (!await this.recordNonfunctionalDeviations(run, binding) || this.ignoring(run)) return;
+      try { await this.finalGate(run, binding); return; }
+      catch (error) {
+        if (!(error instanceof CandidateReassessmentRequired)) throw error;
+        const recovery = this.latestOperationRecovery(run);
+        const replay = replayNonfunctionalPhase(run.log.ledger.replay(),
+          assessedElements(await this.frozenCatalog(run)), run.policy.limits.nonfunctionalRoundsPerPlan ?? 3);
+        const observed = await this.previewCandidateTree();
+        if (!replay.ok || !replay.value.final || !recovery?.admission?.admitted
+          || recovery.state !== 'resumed' || recovery.boundary.kind !== 'gate' || recovery.boundary.checkpoint !== 'final'
+          || !recovery.admission.requiresReassessment || observed.tree !== recovery.admission.after.candidate.tree
+          || replay.value.final.assessment.id !== binding.assessment.id) {
+          await this.fail(run, 'inputs-changed', 'Final reassessment has no applicable admitted repair and retained assessment'); return;
+        }
+        const spent = replay.value.input.closedRounds.length;
+        if (spent >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) {
+          await this.fail(run, 'repair-exhausted', 'External repair requires final reassessment, but the captured semantic round allowance is spent'); return;
+        }
+        await this.write(run, { type: 'nonfunctional-final-invalidated', data: {
+          occurrenceId: recovery.id, revision: recovery.revision, round: spent,
+          candidate: binding.candidateId, assessment: binding.assessment.id, tree: observed.tree,
+        } });
+      }
+    }
   }
 
   /** Prepare the actual eventual commit tree after all source-mutating rendering. */
@@ -3688,8 +3919,13 @@ export class RunService {
       const item = evidence.catalog.elements.find(candidate => candidate.id === result.nfr);
       const choice = choices.get(result.nfr);
       if (!item || !choice) return unavailable(`Fixed NFR ${result.nfr} has no accepted source or close choice`);
-      const previous = run.log.all('nonfunctional-deviation-recorded').filter(event => event.data.nfr === result.nfr);
-      if (previous.length > 1 || (previous.length === 1 && previous[0]!.data.assessment !== binding.assessment.id)) {
+      // Authenticated external continuations keep earlier assessment decisions
+      // as history. A new candidate receives its own deviation evidence.
+      const invalidated = new Set(run.log.all('nonfunctional-final-invalidated').map(event => event.data.assessment));
+      const history = run.log.all('nonfunctional-deviation-recorded').filter(event => event.data.nfr === result.nfr);
+      const previous = history.filter(event => event.data.assessment === binding.assessment.id);
+      if (previous.length > 1 || history.some(event => event.data.assessment !== binding.assessment.id
+        && !invalidated.has(event.data.assessment))) {
         return unavailable(`NFR ${result.nfr} has a conflicting recorded deviation`);
       }
       if (previous.length === 1) {
@@ -3712,7 +3948,8 @@ export class RunService {
       const id = `nfd-${String(run.log.count('nonfunctional-deviation-recorded') + 1).padStart(3, '0')}`;
       const committed = await commitCheckFindingChange(run, ({ log, state }) => {
         if (log.version !== version || log.terminal !== undefined) return { stale: 'The assessed candidate moved before deviation recording' };
-        if (log.all('nonfunctional-deviation-recorded').some(event => event.data.nfr === result.nfr)) {
+        if (log.all('nonfunctional-deviation-recorded').some(event => event.data.nfr === result.nfr
+          && event.data.assessment === binding.assessment.id)) {
           return { stale: `NFR ${result.nfr} was already recorded` };
         }
         const prepared = prepareNonfunctionalDeviation({ id, checkFinding: nextCheckFinding(state), item,
@@ -4143,6 +4380,348 @@ export class RunService {
 
   // Invocations
 
+  /** Recovery records are read from committed revisions, independently of the live driver. */
+  private latestOperationRecovery(run: Run): OperationRecovery | undefined {
+    const event = run.log.events.filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed'].includes(event.type)).at(-1);
+    if (!event || !('occurrenceId' in event.data)) return undefined;
+    return operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId as string, (event.data as { revision: number }).revision)));
+  }
+
+  private async readRecoveryRuntime(): Promise<RecoveryRuntime> {
+    return recoveryRuntimeSchema.parse(await (this.options.recoveryRuntime?.() ?? captureInstalledRecoveryRuntime(this.options.agent?.name ?? 'unavailable')));
+  }
+
+  private async captureRecoveryIdentity(run: Run): Promise<RecoveryIdentity> {
+    if (!run.log.ledger.matchesCommittedContent(await readFile(run.log.path))) throw new Error('Harness-owned durable ledger bytes changed');
+    const candidate = await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates);
+    const acceptedHead = this.accepted(run);
+    if (candidate.head !== acceptedHead && (this.git.isAncestor === undefined || !await this.git.isAncestor(this.projectRoot, acceptedHead, candidate.head))) throw new Error('Current target HEAD does not preserve the accepted Git history');
+    const captured = await readCapturedDocuments(run.directory, run.record.manifest);
+    const inputs = captured.manifest.documents.map(document => ({ path: document.path, hash: document.sha256 }));
+    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    for (const [role, loaded] of packages) {
+      if (run.record.prompts[role]?.hash !== loaded.hash) throw new Error(`Captured prompt package changed: ${role}`);
+      inputs.push({ path: `prompt:${role}`, hash: loaded.hash });
+    }
+    const documents = await documentChanges(this.projectRoot, run.planId, run.directory, run.record.manifest);
+    if (documents.length > 0) throw new Error(`Captured inputs changed: ${documents.join('; ')}`);
+    const latest = new Map<string, { path: string; body: unknown }>();
+    for (const entry of run.log.ledger.replay()) for (const record of entry.transaction.records) if (!record.path.startsWith('operation-recoveries/')) latest.set(record.path, record);
+    const durable = [];
+    for (const [path, record] of latest) {
+      const bytes = await readFile(run.path(path));
+      const parsed: unknown = JSON.parse(bytes.toString('utf8'));
+      if (canonicalJson(parsed) !== canonicalJson(record.body)) throw new Error(`Harness-owned durable record changed: ${path}`);
+      durable.push({ path, hash: sha256(bytes) });
+    }
+    durable.push({ path: runLayout.record, hash: sha256(await readFile(run.path(runLayout.record))) });
+    const config = await this.options.configuredAudit.read(this.projectRoot, candidate.tree);
+    const configurationBytes = await readIfExists(join(this.projectRoot, config.path));
+    const { sourceCommit: _configurationSource, ...configurationPolicy } = config;
+    const runtime = await this.runningRuntime;
+    const installed = await this.readRecoveryRuntime();
+    if (recoveryHash(runtime) !== recoveryHash(installed)) throw new Error('Installed runtime changed while this service was running; restart the service before declaring the runtime repair');
+    return { candidate, runtime,
+      configuration: { identity: recoveryHash({ config: configurationPolicy, bytes: configurationBytes === undefined ? null : sha256(configurationBytes) }), policy: config },
+      capturedInputs: inputs.sort((a, b) => a.path.localeCompare(b.path)), durableIdentity: recoveryHash(durable), acceptedHead: this.accepted(run) };
+  }
+
+  private async recoveryBlockers(run: Run, recovery: OperationRecovery, declared = false): Promise<string[]> {
+    const blockers = [...recovery.prerequisites];
+    if (run.log.terminal || run.stopRequested || this.closed) blockers.push('Stop or service shutdown takes precedence');
+    if (!run.policy.recovery) blockers.push('This historical policy does not authorize interruption recovery');
+    if (!declared && ['permanent', 'adapter-fault', 'preparation', 'check-execution'].includes(recovery.evidence.classification)) blockers.push('This nontransport obstruction requires an external repair declaration');
+    if (recovery.state !== 'paused' || !recovery.settled) blockers.push('Ordinary writers and tools have not reached a confirmed pause');
+    if (run.writer.isUnsettled || run.live.size > 0) blockers.push('Writer or tool settlement is unavailable');
+    const reservesInvocation = recovery.boundary.kind === 'invocation' || recovery.boundary.kind === 'preparation';
+    const refusal = reservesInvocation ? this.invocationRefusal(run) : this.executionTimeRefusal(run);
+    if (refusal !== null) blockers.push(refusal);
+    const repair = this.latestRepairIncident(run);
+    if (repair && ['admitted', 'running', 'interrupted', 'blocked', 'unverified'].includes(repair.stage)) blockers.push('An unfinished automatic root repair requires manual attention');
+    if (!recovery.boundary.reconstruction && recovery.boundary.source && this.options.agent && !(await (await this.operations(this.options.agent)).hasPoint(run.jobId, recovery.boundary.source))) blockers.push('The exact recorded session source is unavailable');
+    if (recovery.boundary.reconstruction) {
+      try {
+        const inputs = validateStepInputs(recovery.boundary.reconstruction.inputs);
+        if (recoveryHash(inputs) !== recovery.boundary.reconstruction.inputsHash || inputs.role !== recovery.boundary.role) blockers.push('Named source reconstruction inputs changed or name another role');
+      } catch (error) { blockers.push(`Named source reconstruction is unavailable: ${message(error)}`); }
+    }
+    if (this.options.agent) {
+      try {
+        const operations = await this.operations(this.options.agent);
+        for (const id of recovery.attempts.filter(id => /^inv-/u.test(id))) {
+          if ((await operations.unresolvedEffects(run.jobId, id)).length > 0) blockers.push(`Invocation ${id} retains an unknown external effect`);
+          const original = await operations.originalOperation(run.jobId, id);
+          const recorded = this.invocationRecord(run, id).body;
+          if (recorded.prompt.inputsHash && (!original || recorded.prompt.inputsHash !== inputsHash([original.packet.roleInstructions, original.packet.message]))) blockers.push(`Original operation ${id} inputs are unavailable or changed`);
+        }
+      } catch (error) { blockers.push(`Original session/effect records cannot be authenticated: ${message(error)}`); }
+    }
+    return blockers;
+  }
+
+  /** Read-only inspection never launches or prepares an agent operation. */
+  async recoveryInspection(planId: string, runId: string): Promise<RecoveryInspection | null> {
+    const run = this.runs.get(key(planId, runId)); if (!run) return null;
+    const recovery = run.recoveryPause ?? this.latestOperationRecovery(run);
+    if (!recovery || recovery.state === 'resumed' || run.log.terminal) return null;
+    const blockers = await this.recoveryBlockers(run, recovery);
+    let observations: Partial<RecoveryInspection> = {};
+    try {
+      const current = await this.captureRecoveryIdentity(run);
+      if (!recovery.identity) blockers.push('Settled recovery identity is unavailable');
+      else {
+        const compared = validateExternalRepair(recovery.identity, current);
+        blockers.push(...compared.blockers);
+        observations = { changes: compared.changes.map(change => ({ path: change.path, before: change.before.hash, after: change.after.hash })),
+          runtime: { before: recovery.identity.runtime.harness + '/' + recovery.identity.runtime.provider, current: current.runtime.harness + '/' + current.runtime.provider,
+            compatible: recoveryHash(recovery.identity.runtime.contracts) === recoveryHash(current.runtime.contracts) },
+          configuration: { before: recovery.identity.configuration.identity, current: current.configuration.identity,
+            compatible: !compared.blockers.some(blocker => blocker.includes('required checks')) },
+          repairRequired: [...compared.blockers, ...blockers].some(blocker => blocker.includes('declaration')) };
+      }
+    } catch (error) { blockers.push(message(error)); }
+    const now = this.now().getTime();
+    const { kind, role, work, invocation, source, candidate, checkpoint } = recovery.boundary;
+    return recoveryInspectionSchema.parse({ planId, runId, cursor: run.log.version, occurrenceId: recovery.id, revision: recovery.revision,
+      state: recovery.state, boundary: { kind, ...(role === undefined ? {} : { role }), ...(work === undefined ? {} : { work }),
+        ...(invocation === undefined ? {} : { invocation }), ...(source ? { source } : {}), ...(candidate === undefined ? {} : { candidate }),
+        ...(checkpoint === undefined ? {} : { checkpoint }) },
+      evidence: { classification: recovery.evidence.classification, diagnostic: recovery.evidence.diagnostic,
+        ...(recovery.evidence.code === undefined ? {} : { code: recovery.evidence.code }),
+        ...(recovery.evidence.status === undefined ? {} : { status: recovery.evidence.status }),
+        ...(recovery.evidence.retryAfterMs === undefined ? {} : { retryAfterMs: recovery.evidence.retryAfterMs }) },
+      group: recovery.group, automaticAttempts: recovery.automaticAttempts, attempts: recovery.attempts, pausedAt: recovery.pausedAt,
+      canResume: blockers.length === 0, blockers: [...new Set(blockers)], remaining: {
+        invocations: Math.max(0, run.policy.limits.maxInvocationsPerRun - run.log.count('invocation-started')),
+        activeMs: Math.max(0, run.policy.limits.runAbsoluteMs - (now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now))) },
+      retained: { candidate: recovery.candidate, partialPaths: recovery.partialPaths },
+      totalInvocations: run.log.count('invocation-started'),
+      timing: { activeMs: Math.max(0, now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now)),
+        pausedMs: callerPauseMs(run.log.events, now), currentPauseMs: recovery.pausedAt === null ? 0 : Math.max(0, now - Date.parse(recovery.pausedAt)) },
+      ...observations });
+  }
+
+  /** Publish a usable pause only after admitted operations and their effects settle. */
+  private async waitOperationRecovery(run: Run, boundary: RecoveryBoundary, evidence: InterruptionEvidence,
+    attempts: readonly string[], automaticAttempts: number, group = 0, wait = true, expectedIdentity?: RecoveryIdentity): Promise<boolean> {
+    if (!run.policy.recovery || this.ignoring(run)) return false;
+    // Another admitted reader may fail while the first operation is settling.
+    // It retains its own outcome and waits for the current occurrence to finish.
+    if (boundary.reviewRequest && !run.recoveryReviewPipelines.has(boundary.reviewRequest)) { run.recoveryReviewPipelines.add(boundary.reviewRequest); run.notify(); }
+    while (run.recoveryPause) { const changed = run.changed(); if (this.ignoring(run)) return false; await changed; }
+    const id = `opr-${String(run.log.count('operation-recovery-pausing') + 1).padStart(4, '0')}`;
+    const recovery: OperationRecovery = { schema: 'ramify-agent.operation-recovery/1', id, revision: 1, state: 'pausing', boundary, evidence,
+      group, automaticAttempts, attempts: [...attempts], pausedAt: null, settled: false, candidate: { head: '', tree: '' }, partialPaths: [], prerequisites: [] };
+    run.recoveryPause = recovery;
+    run.recoveryReviewRelease = run.reviews?.suspend(false);
+    await this.write(run, { type: 'operation-recovery-pausing', data: { occurrenceId: id, revision: 1 } },
+      [{ path: runLayout.operationRecovery(id), id, revision: 1, body: recovery }]);
+    if (boundary.kind !== 'gate') await run.gating;
+    if (boundary.kind !== 'readiness') await run.readiness?.settled;
+    while (run.live.size > 0) await Promise.all([...run.live.values()].map(live => live.done));
+    await run.reviews?.settledExcept(id => run.recoveryReviewPipelines.has(id), () => run.changed());
+    if (this.ignoring(run)) return false;
+    run.writer.requireSettled('Interruption recovery requires confirmed writer settlement');
+    const unresolvedPreparation = run.log.all('readiness-preparation-started').find(started => !run.log.all('readiness-preparation-completed').some(completed => completed.sequence > started.sequence && completed.data.attempt === started.data.attempt && completed.data.key === started.data.key));
+    if (unresolvedPreparation) { await this.fail(run, 'writer-unsettled', `Readiness setup effect ${unresolvedPreparation.data.key} has no independently confirmed completion`); return false; }
+    const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
+    for (const started of run.log.all('invocation-started')) {
+      const body = this.committedBody(run, runLayout.outcome(started.data.invocation));
+      const outcome = invocationOutcomeSchema.safeParse(body);
+      if (!outcome.success || !outcome.data.settled.confirmed || operations && (await operations.unresolvedEffects(run.jobId, started.data.invocation)).length > 0) {
+        await this.fail(run, 'writer-unsettled', `Invocation ${started.data.invocation} has unconfirmed settlement or an unresolved effect; no usable recovery pause is published`); return false;
+      }
+    }
+    if (operations?.settlementConfirmed(run.jobId) === false) { await this.fail(run, 'writer-unsettled', 'Session effects did not confirm settlement'); return false; }
+    const refusal = boundary.kind === 'gate' || boundary.kind === 'readiness' ? this.executionTimeRefusal(run) : this.invocationRefusal(run);
+    if (refusal !== null) { await this.fail(run, 'limit-exceeded', refusal); return false; }
+    try {
+      const observed = await this.captureRecoveryIdentity(run);
+      recovery.identity = expectedIdentity ?? observed;
+      recovery.candidate = { head: recovery.identity.candidate.head, tree: recovery.identity.candidate.tree };
+      recovery.partialPaths = expectedIdentity === undefined ? await this.git.changedPaths(this.projectRoot, this.accepted(run))
+        : [...this.latestOperationRecovery(run)?.partialPaths ?? []];
+    } catch (error) { await this.fail(run, 'recovery-exhausted', `Recovery identity cannot be authenticated: ${message(error)}`); return false; }
+    await run.mutex.run(async () => {
+      if (this.ignoring(run)) return;
+      recovery.state = 'paused'; recovery.revision++; recovery.settled = true; recovery.pausedAt = this.now().toISOString();
+      recovery.waitingReviews = unsettledRequests(run.log.events).filter(request => !run.reviews?.active.includes(request.id)).flatMap(request => {
+        const deadline = this.reviewDeadline(run, request.id); const remainingMs = deadline === null ? null : deadline - this.now().getTime();
+        return remainingMs !== null && remainingMs >= (run.policy.reviews?.attemptMs ?? 0) ? [{ request: request.id, remainingMs }] : [];
+      });
+      await commitRecord(run.log.ledger, { event: run.log.next({ type: 'operation-recovery-paused', data: { occurrenceId: id, revision: recovery.revision } }, this.now()),
+        records: [{ path: runLayout.operationRecovery(id, recovery.revision), id, revision: recovery.revision, body: recovery }] });
+    });
+    run.notify();
+    if (!wait) { run.recoveryRestart = true; return false; }
+    while (run.recoveryPause === recovery && !this.ignoring(run)) { const changed = run.changed(); if (run.recoveryPause !== recovery) break; await changed; }
+    if (this.ignoring(run)) return false;
+    if (boundary.reviewRequest) run.recoveryReviewPipelines.delete(boundary.reviewRequest);
+    return true;
+  }
+
+  private async resumeRecovery(command: Extract<RunCommand, { type: 'resume-recovery' }>, contentHash: string): Promise<Receipt> {
+    const { planId, jobId, occurrenceId, expectedRevision, repair } = command.payload;
+    this.refuseEarlierPolicy(planId, jobId);
+    const run = this.runs.get(key(planId, jobId));
+    if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan ${planId}`);
+    const receipt = await run.mutex.run(async () => {
+      const recovery = run.recoveryPause;
+      if (!recovery || recovery.id !== occurrenceId) throw new CommandRejection('conflict', 'This is not the current recovery occurrence');
+      if (recovery.revision !== expectedRevision) throw new CommandRejection('stale-version', `Recovery is at revision ${recovery.revision}`, recovery.revision);
+      const blockers = await this.recoveryBlockers(run, recovery, repair !== undefined);
+      let identity: RecoveryIdentity | undefined;
+      try { identity = await this.captureRecoveryIdentity(run); } catch (error) { blockers.push(message(error)); }
+      if (!recovery.identity || !identity) blockers.push('Authenticated settled recovery identities are unavailable');
+      const admission = recovery.identity && identity ? validateExternalRepair(recovery.identity, identity, repair) : undefined;
+      blockers.push(...admission?.blockers ?? []);
+      if (admission && (admission.requiresReassessment || admission.before.candidate.tree !== admission.after.candidate.tree) && recovery.boundary.checkpoint === 'final' && run.log.count('nonfunctional-round-closed') >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) blockers.push('The retained final candidate needs responsible reassessment, but its captured non-functional round allowance is exhausted');
+      if (blockers.length > 0) throw new CommandRejection('conflict', blockers.join('; '), recovery.revision);
+      const at = this.now();
+      const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
+      const resumed = operationRecoverySchema.parse({ ...recovery, state: 'resumed', revision: recovery.revision + 1, group: recovery.group + 1, admission });
+      await commitRecord(run.log.ledger, { event: run.log.next({ type: 'operation-recovery-resumed', data: { occurrenceId, revision: resumed.revision, group: resumed.group, command: accepted } }, at),
+        records: [{ path: runLayout.operationRecovery(occurrenceId, resumed.revision), id: occurrenceId, revision: resumed.revision, body: resumed }] });
+      this.commands.remember(accepted); run.recoveryPause = undefined;
+      return accepted.receipt;
+    });
+    run.recoveryReviewRelease?.(); run.recoveryReviewRelease = undefined;
+    run.notify();
+    if (run.recoveryRestart) {
+      run.recoveryRestart = false;
+      await this.startRecoveredDriver(run);
+    }
+    return receipt;
+  }
+
+  private async startRecoveredDriver(run: Run): Promise<void> {
+    if (this.ignoring(run) || !this.options.agent) return;
+    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
+    const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
+    run.restoring = true;
+    run.done = this.drive(run, this.options.agent, packages, baseline, true)
+      .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted', `Recovery continuation failed: ${message(error)}`))
+      .catch(error => this.warn(`Run ${run.jobId}: ${message(error)}`));
+  }
+
+  /** A transport attempt group is independent of semantic role and request budgets. */
+  private async recoverableInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+    const policy = run.policy.recovery;
+    if (!policy || request.task?.kind === 'automatic-repair' || request.work.automaticRepair) return this.runner.runInvocation(run, agent, request);
+    while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
+    if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
+    if (run.startupRecovery) {
+      const candidate = run.log.all('invocation-started').find(event => event.data.role === request.role && canonicalJson(event.data.work) === canonicalJson(request.work)
+        && !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
+      const accepted = candidate && await (await this.operations(agent)).acceptance(run.jobId, candidate.data.invocation);
+      if (!accepted) {
+        const ready = await this.waitOperationRecovery(run, { kind: 'invocation', role: request.role, work: request.work, source: request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from,
+          start: request.start, ...(request.session === undefined ? {} : { session: request.session }),
+          requestHash: sha256(canonicalJson({ role: request.role, work: request.work, tool: request.toolName, prompt: request.prompt, system: request.systemPrompt })) },
+          { classification: 'unknown', diagnostic: 'Durable acceptance was reconciled after restart; further ordinary execution waits for explicit authorization' }, [], 0);
+        if (!ready) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' };
+        run.startupRecovery = false;
+      }
+    }
+    const prior = this.latestOperationRecovery(run);
+    const consumed = prior?.state === 'resumed' && run.log.all('operation-recovery-attempt').some(event => event.data.group === prior.group && event.data.requestHash === prior.boundary.requestHash && (() => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(event.data.invocation))); return outcome.success && outcome.data.ended !== 'failed'; })());
+    const resumed = prior?.state === 'resumed' && !consumed && prior.boundary.kind === 'invocation' && prior.boundary.role === request.role && (prior.boundary.tool === undefined || prior.boundary.tool === request.toolName) && canonicalJson(prior.boundary.work) === canonicalJson(request.work) ? prior : undefined;
+    const requestHash = resumed?.boundary.requestHash ?? sha256(canonicalJson({ role: request.role, work: request.work, tool: request.toolName, prompt: request.prompt, system: request.systemPrompt }));
+    let group = resumed?.group ?? 0;
+    let current = resumed?.boundary.start ? { ...request, start: resumed.boundary.start as SessionStart, session: resumed.boundary.session,
+      originalInvocation: undefined, restore: false, recoveryPredecessor: resumed.attempts.at(-1) } : request;
+    if (resumed?.boundary.reconstruction?.inputs !== undefined) {
+      const retained = validateStepInputs(resumed.boundary.reconstruction.inputs);
+      const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+      current = { ...current, allowFreshFallback: true, fallback: () => {
+        const step = constructStep(retained, { projectRoot: this.projectRoot, packages });
+        return { prompt: step.prompt, brief: step.brief, stepInputs: step.before.inputs };
+      } };
+    }
+    if (resumed?.boundary.start?.mode === 'continue' && resumed.boundary.start.ref) {
+      const original = run.log.all('invocation-started').find(event => event.data.invocation === resumed.attempts[0]);
+      if (original?.data.continues) current = { ...current, start: { mode: 'fork', from: resumed.boundary.start.ref }, session: undefined, continuing: undefined,
+        fork: { from: original.data.continues.from, briefs: original.data.continues.briefs, reason: 'interruption-recovery' },
+        degraded: { requested: 'continued', reason: 'Recovery forks the exact captured continuation source' } };
+    }
+    if (resumed?.admission?.declaration) current = { ...current,
+      callerText: `External repair admitted for the retained operation. ${resumed.admission.declaration.explanation}\nObserved changes: ${resumed.admission.changes.map(change => change.path).join(', ') || 'No source delta'}. Verify the diagnosis and keep the captured authority.`,
+      task: request.task ? { ...request.task, candidate: resumed.admission.after.candidate.tree } : undefined,
+      brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: resumed.admission.after.candidate.tree } } : undefined,
+      ...(request.singleAdmission ? { onStarted: undefined } : {}) };
+    const all = [...resumed?.attempts ?? []];
+    let usedMs = all.reduce((total, id) => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(id))); return total + (outcome.success ? outcome.data.elapsedMs : 0); }, 0);
+    const groupEvents = run.log.all('operation-recovery-attempt').filter(event => event.data.requestHash === requestHash && event.data.group === group);
+    let automatic = Math.max(0, ...groupEvents.map(event => event.data.attempt));
+    for (;;) {
+      while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
+      if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
+      if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' };
+      const applicable = this.latestOperationRecovery(run);
+      if (applicable?.state === 'resumed' && applicable.group === group && applicable.boundary.requestHash === requestHash && applicable.admission && automatic === 0) {
+        const blockers = repairDispatchBlockers(applicable.admission, await this.captureRecoveryIdentity(run));
+        if (blockers.length > 0) { if (!await this.waitOperationRecovery(run, applicable.boundary, { classification: 'preparation', diagnostic: blockers.join('; ') }, all, automatic, group, true, applicable.admission.after)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; group++; continue; }
+      }
+      const beforeInvocations = run.log.count('invocation-started');
+      const result = await this.runner.runInvocation(run, agent, { ...current, recoveryGroup: group,
+        onStarted: async (id, session) => {
+          // Admission is durable before provider dispatch and before the caller's
+          // semantic start callback, so a crash cannot renew this attempt.
+          if (!run.log.all('operation-recovery-attempt').some(event => event.data.invocation === id && event.data.group === group)) await this.write(run,
+            { type: 'operation-recovery-attempt', data: { requestHash, group, attempt: automatic, invocation: id, predecessor: this.invocationRecord(run, id).body.recoveryPredecessor ?? null } });
+          await current.onStarted?.(id, session);
+        } });
+      if (result.id !== '') {
+        const produced = run.log.all('invocation-started').slice(beforeInvocations).map(event => event.data.invocation);
+        if (produced.length === 0) produced.push(result.id);
+        for (const id of produced) {
+          if (!all.includes(id)) all.push(id);
+          if (!run.log.all('operation-recovery-attempt').some(event => event.data.invocation === id && event.data.group === group)) await this.write(run,
+            { type: 'operation-recovery-attempt', data: { requestHash, group, attempt: automatic, invocation: id, predecessor: this.invocationRecord(run, id).body.recoveryPredecessor ?? null } });
+        }
+      }
+      usedMs += result.elapsedMs ?? 0;
+      if (result.ended !== 'failed' || result.interruption === 'idle-timeout' || result.interruption === 'absolute-timeout' || this.ignoring(run)) return result;
+      if (result.settlementConfirmed !== true) { await this.fail(run, 'writer-unsettled', `Interrupted invocation ${result.id} did not confirm settlement`); return result; }
+      const unresolved = await (await this.operations(agent)).unresolvedEffects(run.jobId, result.id);
+      if (unresolved.length > 0) { await this.fail(run, 'writer-unsettled', `Invocation ${result.id} retains unknown external effects: ${unresolved.join(', ')}`); return result; }
+      const evidence = result.interruptionEvidence ?? { classification: 'unknown' as const, diagnostic: result.error ?? 'Provider interruption has insufficient structured classification evidence' };
+      const reconstruction = request.fallback?.('Recovery source reconstruction');
+      const boundary: RecoveryBoundary = { kind: 'invocation', role: request.role, work: request.work, invocation: result.id,
+        source: request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from,
+        requestHash, start: request.start, ...(request.recoveryReviewRequest === undefined ? {} : { reviewRequest: request.recoveryReviewRequest }), ...(request.session === undefined ? {} : { session: request.session }), tool: request.toolName,
+        ...(reconstruction ? { reconstruction: { name: 'fresh-step-construction', mode: 'fresh', inputsHash: recoveryHash(reconstruction.stepInputs), inputs: reconstruction.stepInputs } } : {}) };
+      if (evidence.classification !== 'transport' || automatic >= policy.automaticRetries) {
+        if (!await this.waitOperationRecovery(run, boundary, evidence, all, automatic, group)) return { ...result, ended: 'stopped', outcomeKind: 'stopped', value: undefined };
+        group++; automatic = 0;
+      } else {
+        automatic++;
+        const delay = Math.min(policy.maxDelayMs, Math.max(policy.baseDelayMs * 2 ** (automatic - 1), evidence.retryAfterMs ?? 0));
+        usedMs += delay;
+        await Promise.race([new Promise<void>(resolve => { const timer = setTimeout(resolve, delay); void run.changed().then(() => { clearTimeout(timer); resolve(); }); }), ...(request.signal ? [new Promise<void>(resolve => request.signal!.addEventListener('abort', () => resolve(), { once: true }))] : [])]);
+        if (this.ignoring(run) || request.signal?.aborted) return { ...result, ended: 'stopped', outcomeKind: 'stopped', value: undefined };
+      }
+      if (request.absoluteMs !== undefined && usedMs >= request.absoluteMs) return { ...result, interruption: 'absolute-timeout', error: 'The logical attempt exhausted its captured execution budget' };
+      // A successor gets a new identity and reuses only the original exact source.
+      const admitted = this.latestOperationRecovery(run);
+      const originalStart = request.start;
+      const originalEvent = run.log.all('invocation-started').find(event => event.data.invocation === result.id);
+      const exactContinue = originalStart.mode === 'continue' && originalEvent?.data.continues;
+      current = { ...request, originalInvocation: undefined, restore: false, recoveryPredecessor: result.id, recoveryGroup: group,
+        ...(request.singleAdmission ? { onStarted: undefined } : {}),
+        ...(exactContinue ? { start: { mode: 'fork', from: originalStart.ref }, session: undefined, continuing: undefined,
+          fork: { from: exactContinue.from, briefs: exactContinue.briefs, reason: 'interruption-recovery' },
+          degraded: { requested: 'continued', reason: 'Recovery forks the exact captured continuation source after the interrupted turn made its latest point unavailable' } } : {}),
+        ...(admitted?.state === 'resumed' && admitted.admission?.declaration ? {
+          callerText: `External repair admitted for this retained operation. ${admitted.admission.declaration.explanation}\nChanged areas: ${admitted.admission.declaration.areas.join(', ')}.\nObserved changes: ${admitted.admission.changes.map(change => change.path).join(', ') || 'No source delta'}.\nThe diagnosis remains unverified; preserve authority and verify the repaired operation.`,
+          task: request.task ? { ...request.task, candidate: admitted.admission.after.candidate.tree } : undefined,
+          brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: admitted.admission.after.candidate.tree } } : undefined,
+        } : {}),
+        attempt: request.attempt, ...(request.absoluteMs === undefined ? {} : { absoluteMs: Math.max(1, request.absoluteMs - usedMs) }), allowFreshFallback: request.fallback !== undefined ? request.allowFreshFallback : false };
+    }
+  }
+
   /** One invocation, through the invocation runner every role shares. */
   private async runInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (run.record.breakpoint !== undefined && ['engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role)) {
@@ -4151,7 +4730,7 @@ export class RunService {
       run.debugPrepared = {
         inspect: () => this.runner.preview(run, agent, current),
         exchange: async text => {
-          const result = await this.runner.runInvocation(run, agent, { ...current, callerText: text, pendingPlainReturn: true });
+          const result = await this.recoverableInvocation(run, agent, { ...current, callerText: text, pendingPlainReturn: true });
           if (result.pending) {
             // Both the agent point and harness briefing ancestry were retained by
             // ordinary operations; continue that exact point with current bindings.
@@ -4166,9 +4745,9 @@ export class RunService {
       };
       if (!await this.pauseEngineer(run, request)) return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '', kept: false };
       if (held !== undefined) return held;
-      return this.runner.runInvocation(run, agent, current);
+      return this.recoverableInvocation(run, agent, current);
     }
-    return this.runner.runInvocation(run, agent, request);
+    return this.recoverableInvocation(run, agent, request);
   }
 
   /** Park before invocation admission, outside all mutexes and invocation cleanup. */
@@ -4245,6 +4824,8 @@ export class RunService {
     const matched = [];
     for (const event of candidates) {
       const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(event.data.invocation)));
+      const closed = run.log.all('invocation-ended').find(item => item.data.invocation === event.data.invocation);
+      if (closed && closed.data.ended !== 'submitted') continue;
       if (record.prompt.hash !== request.loaded.hash || request.originalInvocation !== event.data.invocation && record.prompt.requestedInputsHash !== inputsHash([request.systemPrompt, request.prompt, ...(request.callerText === undefined ? [] : [request.callerText])])) continue;
       const packet = await (await this.operations(agent)).packet(run.record.jobId, event.data.invocation);
       if (packet && packet.submissionTool !== request.toolName) continue;
@@ -5533,7 +6114,29 @@ export class RunService {
       }
     }
 
-    if (run.restoring) {
+    const retainedRecovery = this.latestOperationRecovery(run);
+    const preparationRecovery = retainedRecovery?.state === 'resumed' && retainedRecovery.boundary.kind === 'preparation'
+      && retainedRecovery.boundary.role === 'local-architect' && retainedRecovery.boundary.work?.workItem === item.id ? retainedRecovery : undefined;
+    const retainedPreparation = preparationRecovery?.boundary.requestHash?.startsWith('prep-')
+      ? repairPreparationSchema.parse(this.committedBody(run, runLayout.repairPreparation(preparationRecovery.boundary.requestHash))) : undefined;
+    if (run.restoring && preparationRecovery !== undefined) {
+      // This boundary has no local invocation to replay. Reconstruct its pure
+      // preparation from the accepted partial and original session source.
+      attempt = (retainedPreparation?.attempt ?? Number(preparationRecovery.boundary.requestHash?.split(':').at(-1) ?? 1)) - 1;
+      if (!Number.isSafeInteger(attempt) || attempt < 0) throw new Error('Pending local preparation has no valid captured attempt');
+      sessionRef = preparationRecovery.boundary.source ?? undefined;
+      session = preparationRecovery.boundary.session;
+      if (retainedPreparation?.originalAssignment) {
+        lastAssignment = initialRecords.assignments.get(retainedPreparation.originalAssignment);
+        lastResult = initialRecords.results.get(retainedPreparation.originalAssignment);
+        if (lastAssignment === undefined || lastResult?.outcome !== 'partial') throw new Error('Pending local preparation lost its original accepted partial');
+      }
+      continuing = lastResult === undefined ? (sessionRef === undefined ? undefined : 'context-selected') : 'iteration-closed';
+      const selection = await this.currentSelection(run, item.id);
+      if (selection) contextPackage = { text: selection.packageText, selection: selection.event.data.selection, citation: selection.selection.package };
+    }
+
+    if (run.restoring && preparationRecovery === undefined) {
       const main: typeof run.log.events[number][] = [];
       for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' && event.data.work.workItem === item.id)) {
         const packet = await (await this.operations(agent)).packet(run.record.jobId, event.data.invocation);
@@ -5699,9 +6302,17 @@ export class RunService {
       const projection = this.obligationProjection(run);
       const plain = <V>(value: V): V => JSON.parse(JSON.stringify(value)) as V;
       let step: ConstructedWorkTurnStep;
-      const preparation = lastResult?.outcome !== 'partial' ? undefined : await this.recordRepairPreparation(run, item, attempt, lastAssignment, lastResult);
+      const preparation = preparationRecovery !== undefined && attempt === retainedPreparation?.attempt ? retainedPreparation
+        : lastResult?.outcome !== 'partial' ? undefined : await this.recordRepairPreparation(run, item, attempt, lastAssignment, lastResult);
       let repaired: { incident: RepairIncidentRecord; delta: RepairDelta } | undefined;
+      let refreshPreparation = false;
       const prepareTurn = async (): Promise<ConstructedWorkTurnStep> => {
+        if (refreshPreparation) {
+          index = await this.refreshIndex(run);
+          views = await apiViewsOf(this.options.ramify, this.projectRoot, run.index, item.module);
+          briefing = { ...briefing, views, defaultWriteScope: await this.defaultWriteScopes(index, [item.module], guardedFiles.filter(file => file.hash !== null).map(file => file.path)) };
+          refreshPreparation = false;
+        }
         const turn = validateWorkTurnInputs({
           schema: stepInputsSchemaId, role: 'local-architect', phase: 'work-turn', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
           work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits,
@@ -5730,47 +6341,100 @@ export class RunService {
         });
         return constructWorkTurnStep(turn, { projectRoot: this.projectRoot, packages });
       };
-      try {
-        step = await prepareTurn();
-      } catch (error) {
-        if (preparation === undefined) {
-          await this.fail(run, 'inputs-changed', `The work-item package of ${item.id} cannot be rendered: ${message(error)}`);
-          return null;
+      const recoveringPreparation = preparationRecovery !== undefined && attempt === (retainedPreparation?.attempt ?? Number(preparationRecovery.boundary.requestHash?.split(':').at(-1) ?? 1));
+      let externallyRetried = recoveringPreparation;
+      let preparationGroup = recoveringPreparation ? preparationRecovery!.group : 0;
+      const repairEvidence = () => {
+        const recovery = this.latestOperationRecovery(run);
+        return recovery?.state === 'resumed' && recovery.admission?.declaration
+          ? `External preparation repair admitted: ${recovery.admission.declaration.explanation}. Observed changes: ${recovery.admission.changes.map(change => change.path).join(', ') || 'No source delta'}. Verify the correction under the original authority.` : undefined;
+      };
+      if (recoveringPreparation) intervening = [intervening, repairEvidence()].filter(value => value !== undefined).join('\n\n');
+      const finishPreparation = async (): Promise<boolean> => {
+        if (preparation !== undefined && !run.log.all('repair-preparation-consumed').some(event => event.data.preparation === preparation.id)) {
+          await this.write(run, { type: 'repair-preparation-consumed', data: { preparation: preparation.id, workItem: item.id } });
+          await this.afterWrite('repair-preparation-consumed', run.record.jobId);
         }
-        let answer: Awaited<ReturnType<RunService['automaticProjectRepair']>>;
+        const admitted = this.latestOperationRecovery(run);
+        if (admitted?.state !== 'resumed' || admitted.boundary.kind !== 'preparation' || admitted.boundary.work?.workItem !== item.id || admitted.boundary.requestHash !== (preparation?.id ?? `local-architect-work-turn:${attempt}`) || !admitted.admission) return true;
+        let current: RecoveryIdentity;
+        try { current = await this.captureRecoveryIdentity(run); }
+        catch (error) { await this.fail(run, 'recovery-exhausted', `Prepared recovery identity cannot be authenticated: ${message(error)}`); return false; }
+        // Pure preparation may append authenticated internal records. These are
+        // expected progress; candidate, runtime and captured inputs stay bound.
+        const expected = { ...admitted.admission.after, durableIdentity: current.durableIdentity };
+        const blockers = repairDispatchBlockers({ ...admitted.admission, after: expected }, current);
+        if (blockers.length === 0) return true;
+        if (!await this.waitOperationRecovery(run, admitted.boundary, { classification: 'preparation', diagnostic: blockers.join('; ') },
+          admitted.attempts, admitted.automaticAttempts, admitted.group, true, expected)) return false;
+        preparationGroup = admitted.group + 1;
+        externallyRetried = true;
+        refreshPreparation = true;
+        intervening = [intervening, repairEvidence()].filter(value => value !== undefined).join('\n\n');
+        return false;
+      };
+      while (true) {
+        if (this.ignoring(run)) return null;
         try {
-          answer = await this.automaticProjectRepair(run, agent, packages, baseline, preparation, error, async report => {
-          // Prepared assignments and old action sessions are not reused after repair.
-          sessionRef = undefined; session = undefined; originalLocalInvocation = undefined;
-          packageUndelivered = true;
-          intervening = [intervening, `Automatic repair restored preparation. Original iteration ${lastResult!.iteration} remains partial. Repair report: ${JSON.stringify(report)}. Reassess the current candidate and assign remaining work through ordinary authority.`].filter(value => value !== undefined).join('\n\n');
-          index = await this.refreshIndex(run);
-          packageInPrompt = contextPackage !== undefined;
-          views = await apiViewsOf(this.options.ramify, this.projectRoot, run.index, item.module);
-          briefing = { ...briefing, views };
-          return await prepareTurn();
-          });
-        } catch (repairError) {
-          if (!this.ignoring(run)) {
-            const active = this.latestRepairIncident(run);
-            if (active !== undefined && ['admitted', 'running'].includes(active.stage)) {
-              const started = run.log.all('invocation-started').find(event => event.data.work.automaticRepair === active.incident.incidentId);
-              await this.persistRepairIncident(run, { ...active.incident, revision: active.incident.revision + 1,
-                invocation: started?.data.invocation ?? null, session: started?.data.session ?? null, endedAt: this.now().toISOString(),
-                verification: { verified: false, reason: `Repair workflow could not settle: ${message(repairError)}`, evidence: [] },
-                continuation: { delivered: false, reason: 'Repair workflow failed before verified handback; manual attention required', evidence: [] } }, 'unverified');
-            }
-            await this.fail(run, run.writer.blocked === undefined ? 'inputs-changed' : 'writer-unsettled',
-              `Original architect obstruction: ${message(error)}. Automatic repair workflow failed: ${message(repairError)}`);
+          step = await prepareTurn();
+          if (!await finishPreparation()) continue;
+          break;
+        } catch (error) {
+          const semantic = error instanceof OwnershipUnavailableError || error instanceof OwnershipAuthorityError || error instanceof z.ZodError;
+          if ((run.policy.recovery && semantic) || (!run.policy.recovery && preparation === undefined)) {
+            await this.fail(run, 'inputs-changed', `The work-item package of ${item.id} cannot be rendered: ${message(error)}`);
+            return null;
           }
-          return null;
+          let answer: Awaited<ReturnType<RunService['automaticProjectRepair']>> | undefined;
+          if (preparation !== undefined && !externallyRetried) {
+            try {
+              answer = await this.automaticProjectRepair(run, agent, packages, baseline, preparation, error, async report => {
+                // Prepared assignments and old action sessions are not reused after repair.
+                sessionRef = undefined; session = undefined; originalLocalInvocation = undefined;
+                packageUndelivered = true;
+                intervening = [intervening, `Automatic repair restored preparation. Original iteration ${lastResult!.iteration} remains partial. Repair report: ${JSON.stringify(report)}. Reassess the current candidate and assign remaining work through ordinary authority.`].filter(value => value !== undefined).join('\n\n');
+                index = await this.refreshIndex(run);
+                packageInPrompt = contextPackage !== undefined;
+                views = await apiViewsOf(this.options.ramify, this.projectRoot, run.index, item.module);
+                briefing = { ...briefing, views };
+                return await prepareTurn();
+              });
+            } catch (repairError) {
+              if (!this.ignoring(run)) {
+                const active = this.latestRepairIncident(run);
+                if (active !== undefined && ['admitted', 'running'].includes(active.stage)) {
+                  const started = run.log.all('invocation-started').find(event => event.data.work.automaticRepair === active.incident.incidentId);
+                  await this.persistRepairIncident(run, { ...active.incident, revision: active.incident.revision + 1,
+                    invocation: started?.data.invocation ?? null, session: started?.data.session ?? null, endedAt: this.now().toISOString(),
+                    verification: { verified: false, reason: `Repair workflow could not settle: ${message(repairError)}`, evidence: [] },
+                    continuation: { delivered: false, reason: 'Repair workflow failed before verified handback; manual attention required', evidence: [] } }, 'unverified');
+                }
+                await this.fail(run, run.writer.blocked === undefined ? 'inputs-changed' : 'writer-unsettled',
+                  `Original architect obstruction: ${message(error)}. Automatic repair workflow failed: ${message(repairError)}`);
+              }
+              return null;
+            }
+          }
+          if (answer === null) return null;
+          if (answer !== undefined && !('refusal' in answer)) {
+            step = answer.step; repaired = answer;
+            if (!await finishPreparation()) continue;
+            break;
+          }
+          const diagnostic = `The work-item package of ${item.id} cannot be rendered: ${message(error)}` +
+            (answer !== undefined && 'refusal' in answer ? `. Automatic repair refused: ${answer.refusal}` : '');
+          if (!await this.waitOperationRecovery(run, { kind: 'preparation', role: 'local-architect', work: { workItem: item.id },
+            source: sessionRef ?? null, ...(session === undefined ? {} : { session }),
+            requestHash: preparation?.id ?? `local-architect-work-turn:${attempt}` },
+            { classification: 'preparation', diagnostic }, [], 0, preparationGroup)) return null;
+          preparationGroup++;
+          externallyRetried = true;
+          refreshPreparation = true;
+          // Admission retries this pure preparation, preserving the partial result
+          // and the recorded refusal. It creates no new root-repair authority.
+          intervening = [intervening, repairEvidence(), await this.continuationEvidence(run, { workItem: item.id }, run.index)]
+            .filter(value => value !== undefined).join('\n\n');
         }
-        if (answer === null) return null;
-        step = answer.step; repaired = answer;
-      }
-      if (preparation !== undefined) {
-        await this.write(run, { type: 'repair-preparation-consumed', data: { preparation: preparation.id, workItem: item.id } });
-        await this.afterWrite('repair-preparation-consumed', run.record.jobId);
       }
       packageUndelivered = false;
       // A finding is delivered once: the next turn of this same architect
@@ -5817,7 +6481,7 @@ export class RunService {
         inputSchema: step.submission.inputSchema,
         submissionSchema: step.submission.submissionSchema,
         equip: () => ({ builtinTools: [...step.equipment.builtinTools], tools: [createGitInspectionTool(this.projectRoot)] }),
-        ...(!packageInPrompt ? {} : { onStarted: async (invocation: string, destination: SessionId) => {
+        ...(!packageInPrompt ? {} : { singleAdmission: true, onStarted: async (invocation: string, destination: SessionId) => {
           await this.write(run, { type: 'context-package-prompt-bound', data: {
             workItem: item.id, selection: contextPackage!.selection, packageHash: contextPackage!.citation.hash,
             invocation, session: destination,
@@ -10483,6 +11147,9 @@ export class RunService {
   private async reachReadinessOwned(run: Run, signal: AbortSignal): Promise<boolean> {
     if (run.log.find('readiness-passed')) return true;
     const bound = run.record.policy.limits.readinessRecoveries;
+    let group = this.latestOperationRecovery(run)?.boundary.kind === 'readiness' ? this.latestOperationRecovery(run)!.group : 0;
+    const groupStart = group === 0 ? 0 : run.log.all('operation-recovery-resumed').at(-1)?.sequence ?? 0;
+    let groupSpent = run.log.all('readiness-failed').filter(event => event.sequence > groupStart && event.data.recovery !== null).length;
 
     for (;;) {
       if (this.ignoring(run)) return false;
@@ -10493,7 +11160,32 @@ export class RunService {
       // Readiness runs on the branch the project is on. Its last step
       // creates the run branch, once the repository is clean and the
       // baseline passed; a branch git refuses fails readiness there.
-      const head = await this.git.currentHead(this.projectRoot);
+      let head = await this.git.currentHead(this.projectRoot);
+      const admission = this.latestOperationRecovery(run)?.admission;
+      const auditConfiguration = admission?.admitted
+        ? { config: admission.after.configuration.policy as Extract<RunRecord['auditConfiguration'], { config: unknown }>['config'] }
+        : run.record.auditConfiguration;
+      if (admission?.admitted && !await this.git.isCleanRepository(this.projectRoot)) {
+        const occurrence = this.latestOperationRecovery(run)!;
+        const current = await this.previewCandidateTree();
+        if (current.tree !== admission.after.candidate.tree) {
+          if (!await this.waitOperationRecovery(run, { kind: 'readiness', checkpoint: 'readiness', candidate: admission.after.candidate.tree },
+            { classification: 'preparation', diagnostic: 'Readiness candidate changed after external repair admission' }, occurrence.attempts,
+            occurrence.automaticAttempts, occurrence.group, true, admission.after)) return false;
+          continue;
+        }
+        const id = `readiness-${occurrence.id}-${occurrence.revision}`;
+        head = await commitReadinessRepair(run, this.gateHost(), this.gates, { schema: 'ramify-agent.readiness-repair-operation/1', id,
+          occurrenceId: occurrence.id, revision: occurrence.revision, head, tree: current.tree,
+          message: `Retain admitted readiness repair ${occurrence.id}\n\nRamify-Run: ${run.jobId}\nRamify-Gate: ${id}\n` });
+      }
+      const completedPreparation = run.log.all('readiness-preparation-completed').filter(event => event.data.passed).map(event => event.data.key);
+      const unresolved = run.log.all('readiness-preparation-started').filter(event => !run.log.all('readiness-preparation-completed')
+        .some(completion => completion.sequence > event.sequence && completion.data.key === event.data.key && completion.data.attempt === event.data.attempt));
+      if (unresolved.length > 0) {
+        await this.fail(run, 'writer-unsettled', 'Readiness preparation has an unconfirmed command effect; reconcile it before further execution');
+        return false;
+      }
       await this.write(run, { type: 'gate-started', data: { gate: gateId, checkpoint: 'readiness' } });
       let result = await runReadiness(this.options.configuredAudit, {
         runId: run.record.jobId,
@@ -10503,13 +11195,16 @@ export class RunService {
         gateId,
         policy: run.record.policy,
         projectConfig: run.record.projectConfig,
-        auditConfiguration: run.record.auditConfiguration,
+        auditConfiguration,
         index: run.index,
         ramify: this.options.ramify,
         git: this.git,
         head,
         signal,
         commandExecution: this.options.commandExecution,
+        completedPreparation,
+        preparationStarted: key => this.write(run, { type: 'readiness-preparation-started', data: { key, attempt: attemptNumber } }).then(() => undefined),
+        preparationCompleted: (key, passed) => this.write(run, { type: 'readiness-preparation-completed', data: { key, attempt: attemptNumber, passed } }).then(() => undefined),
         started: this.gates.commandStarted(run, gateId, 'readiness'),
         waiting: this.gates.commandWaiting(run, gateId, 'readiness'),
       });
@@ -10536,9 +11231,9 @@ export class RunService {
       }
 
       const step = failingStep(result.attempt);
-      const plan = signal.aborted || this.ignoring(run) ? null : recoveryFor(result.attempt, result.gate, run.record.policy);
+      const plan = signal.aborted || this.ignoring(run) ? null : recoveryFor(result.attempt, result.gate, run.record.policy, result.obstruction);
       const spent = run.log.all('readiness-failed').filter(event => event.data.recovery !== null).length;
-      const recoverable = plan !== null && spent < bound && !signal.aborted && !this.ignoring(run);
+      const recoverable = plan !== null && (group === 0 ? spent : groupSpent) < bound && !signal.aborted && !this.ignoring(run);
 
       let recovery = null;
       if (recoverable) {
@@ -10548,13 +11243,14 @@ export class RunService {
           plan,
           projectRoot: this.projectRoot,
           policy: run.record.policy,
-          auditConfiguration: run.record.auditConfiguration,
+          auditConfiguration,
           ramify: this.options.ramify,
           commandExecution: this.options.commandExecution,
           count: spent + 1,
           directory: run.path('recoveries'),
           signal,
         });
+        groupSpent += 1;
       }
 
       const attempt = withRecovery(result.attempt, recovery?.id ?? null);
@@ -10573,6 +11269,14 @@ export class RunService {
       if (signal.aborted || this.ignoring(run)) return false;
 
       if (final) {
+        if (result.obstruction !== undefined && run.policy.recovery) {
+          const resumed = await this.waitOperationRecovery(run, { kind: 'readiness', checkpoint: 'readiness', candidate: head },
+            { classification: 'check-execution', diagnostic: result.obstruction.diagnostic },
+            run.log.all('readiness-failed').map(event => String(event.data.attempt)), spent + (recovery === null ? 0 : 1), group);
+          if (!resumed) return false;
+          group += 1; groupSpent = 0;
+          continue;
+        }
         await this.fail(run, readinessFailureReason(step?.step), `Readiness failed at ${step?.step ?? 'an unknown step'} after ${attemptNumber} attempt${attemptNumber === 1 ? '' : 's'}: ${step?.detail ?? ''}`,
           [runLayout.readiness(attemptNumber), ...(result.gate === null ? [] : [runLayout.gate(gateId)])]);
         return false;
@@ -10619,12 +11323,18 @@ export class RunService {
     }
     const beforeGate = await this.previewCandidateTree();
     if (beforeGate.tree !== binding.assessment.candidate.tree) {
+      const recovery = this.latestOperationRecovery(run);
+      if (recovery?.state === 'resumed' && recovery.boundary.kind === 'gate' && recovery.boundary.checkpoint === 'final'
+        && recovery.admission?.admitted && recovery.admission.requiresReassessment
+        && recovery.admission.after.candidate.tree === beforeGate.tree) {
+        throw new CandidateReassessmentRequired('The externally repaired final candidate needs fresh assessment');
+      }
       await this.fail(run, 'inputs-changed', 'The source tree changed after non-functional assessment', [runLayout.assessment(binding.assessment.id)]);
       return;
     }
-    const previousFinal = run.log.all('gate-attempted').find(event => event.data.checkpoint === 'final');
-    const gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount(run) + 1);
-    let attempt: GateAttempt;
+    const previousFinal = run.log.all('gate-attempted').filter(event => event.data.checkpoint === 'final').at(-1);
+    let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount(run) + 1);
+    let attempt!: GateAttempt;
     if (previousFinal !== undefined) {
       const recorded = await readCommitted(run.log.ledger, runLayout.gate(gateId), runSchemas.gate);
       if (recorded.kind !== 'valid') {
@@ -10632,7 +11342,9 @@ export class RunService {
         return;
       }
       attempt = recorded.value;
-    } else {
+    }
+    if (previousFinal === undefined || (attempt!.verdict !== 'passed' && run.policy.recovery)) {
+      if (previousFinal !== undefined) gateId = gateAttemptId(this.gates.gateCount(run) + 1);
       const head = await this.git.currentHead(this.projectRoot);
       try {
         attempt = await this.gates.committingCheckpoint(run, {
@@ -10651,6 +11363,7 @@ export class RunService {
         return;
       }
     }
+    gateId = attempt!.id;
 
     if (attempt.audited !== null && attempt.evidence !== null) {
       const auditedTree = await this.candidates.commitTree(this.projectRoot, attempt.audited);
@@ -10708,7 +11421,7 @@ export class RunService {
     // never plainly: the count is of those still awaiting the person.
     const deviations = [
       ...run.log.all('plan-deviation-recorded').map(event => event.data.checkFinding),
-      ...run.log.all('nonfunctional-deviation-recorded').map(event => event.data.checkFinding),
+      ...run.log.all('nonfunctional-deviation-recorded').filter(event => event.data.assessment === binding.assessment.id).map(event => event.data.checkFinding),
     ];
     const findings = checkFindingStateOf(run.log.ledger).findings;
     const toReview = deviations.filter(id => findings.get(id)?.pendingUserDecision != null).length;
@@ -10977,7 +11690,7 @@ export class RunService {
     const number = assignment === undefined ? 0 : Number.parseInt(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2), 10);
     let candidate: { head: string; tree: string } | null = null;
     let candidatePaths: string[] = [], candidateFailure: string | null = null;
-    if (run.log.find('repair-assignment-recorded') !== undefined) {
+    if (run.policy.recovery || run.log.find('repair-assignment-recorded') !== undefined) {
       try {
         candidate = await this.previewCandidateTree();
         candidatePaths = await this.git.changedPaths(this.projectRoot, this.accepted(run));
@@ -11038,7 +11751,7 @@ export class RunService {
   /** One bounded writer, admitted only for a matching pure preparation after an accepted partial. */
   private async automaticProjectRepair(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot,
     preparation: RepairPreparation, obstruction: unknown, prepare: (report: RepairResult) => Promise<ConstructedWorkTurnStep>):
-    Promise<{ step: ConstructedWorkTurnStep; incident: RepairIncidentRecord; delta: RepairDelta } | null> {
+    Promise<{ step: ConstructedWorkTurnStep; incident: RepairIncidentRecord; delta: RepairDelta } | { refusal: string } | null> {
     const id = repairIncidentId(new Set(run.log.all('repair-incident-recorded').map(event => event.data.incidentId)).size + 1);
     const assignment = automaticRepairAssignmentSchema.safeParse(this.committedBody(run, runLayout.contingentRepairAssignment));
     const original = preparation.originalAssignment === null ? undefined : committedRecords(run.log.ledger.replay()).assignments.get(preparation.originalAssignment);
@@ -11049,10 +11762,10 @@ export class RunService {
     if (reason === null && (!durableTarget.success || JSON.stringify(durableTarget.data) !== JSON.stringify(preparation)
       || run.log.all('repair-preparation-recorded').at(-1)?.data.preparation !== preparation.id
       || run.log.all('repair-preparation-consumed').some(event => event.data.preparation === preparation.id))) reason = 'Preparation target is missing, mismatched or already consumed';
-    if (reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) reason = 'The run has spent its one automatic repair invocation';
-    if (reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) reason = 'No matching architect-recorded contingent root assignment is available';
+    if (!run.policy.recovery && reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) reason = 'The run has spent its one automatic repair invocation';
+    if (!run.policy.recovery && reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) reason = 'No matching architect-recorded contingent root assignment is available';
     if (reason === null && (original === undefined || originalOutcome === undefined || originalOutcome.ended !== 'submitted' ||
-      originalOutcome.outsideScope.length > 0 || (originalOutcome.unknownPlacement?.length ?? 0) > 0 || !originalOutcome.settled.confirmed)) reason = 'Original partial candidate has unavailable or refused assignment provenance';
+      (!run.policy.recovery && originalOutcome.outsideScope.length > 0) || (originalOutcome.unknownPlacement?.length ?? 0) > 0 || !originalOutcome.settled.confirmed)) reason = 'Original partial candidate has unavailable or refused assignment provenance';
     const previousWriters = run.log.all('writer-acquired');
     if (reason === null && previousWriters.some(writer => {
       const release = run.log.all('writer-released').filter(event => event.data.invocation === writer.data.invocation);
@@ -11069,9 +11782,24 @@ export class RunService {
       if (reason === null && (preparation.candidateBefore === null || tree !== preparation.candidateBefore.tree || head !== preparation.candidateBefore.head)) reason = 'Candidate changed after the recorded preparation target';
       if (reason === null && original !== undefined) {
         const guarded = await this.engineerGuard(run, original);
+        const retainedRepairPaths = new Set<string>();
+        if (run.policy.recovery) {
+          const ledger = run.log.ledger.replay();
+          for (const repair of verifiedRepairDeltas(ledger).filter(repair => !ledger.some(entry => entry.sequence > repair.sequence
+            && entry.transaction.event.type === 'gate-attempted' && entry.transaction.event.data.verdict === 'passed'
+            && Object.entries(checkpointPolicies).some(([checkpoint, policy]) => entry.transaction.event.type === 'gate-attempted'
+              && entry.transaction.event.data.checkpoint === checkpoint && policy.committing)))) {
+            const repairGuard = guardedScopeOf(repair.assignment.scope, await deniedFiles(this.projectRoot,
+              [...await this.deniedFiles(run), ...repair.assignment.guarded.map(file => file.path)]), this.options.ramify, undefined, this.ownershipAuthority(run, repair.assignment));
+            for (const path of await unchangedRepairPaths(this.projectRoot, repair.delta)) {
+              if ((await decideWrite(repairGuard, this.projectRoot, { kind: 'write', paths: [path] })).verdict === 'allowed') retainedRepairPaths.add(path);
+            }
+          }
+        }
+        if (originalOutcome?.outsideScope.some(path => !retainedRepairPaths.has(path))) reason = 'Original partial candidate has unavailable or refused assignment provenance';
         for (const path of dirty) {
           const decision = await decideWrite(guarded, this.projectRoot, { kind: 'write', paths: [path] });
-          if (decision.verdict !== 'allowed') { reason = `Pre-repair candidate ${path} is outside its original assignment: ${decision.reason}`; break; }
+          if (reason === null && decision.verdict !== 'allowed' && !retainedRepairPaths.has(path)) { reason = `Pre-repair candidate ${path} is outside its original assignment: ${decision.reason}`; break; }
         }
       }
       if (reason === null && assignment.success) {
@@ -11084,6 +11812,17 @@ export class RunService {
         before = [...new Map([...await captureRepairSource(this.projectRoot, assignment.data.scope), ...await captureRepairFiles(this.projectRoot, dirty)].map(file => [file.path, file])).values()].sort((a, b) => a.path.localeCompare(b.path));
       }
     } catch (error) { reason ??= `Candidate and repair authority cannot be established: ${message(error)}`; }
+    let eligibleRefusal = false;
+    if (reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) {
+      reason = 'The run has spent its one automatic repair invocation';
+      const previous = this.latestRepairIncident(run);
+      eligibleRefusal = previous?.stage === 'continued' && previous.incident.verification?.verified === true && previous.incident.continuation?.delivered === true;
+    }
+    if (reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) {
+      reason = 'No matching architect-recorded contingent root assignment is available';
+      // A malformed committed assignment is corrupt state, not missing authority.
+      eligibleRefusal = this.committedBody(run, runLayout.contingentRepairAssignment) === undefined;
+    }
     let incident = repairIncidentRecordSchema.parse({ schema: 'ramify-agent.repair-incident/1', incidentId: id, revision: 1,
       createdAt: this.now().toISOString(), preparation: { id: preparation.id, path: runLayout.repairPreparation(preparation.id) },
       operation: preparation.operation, workItem: preparation.workItem, originalInvocation: preparation.originalInvocation,
@@ -11098,6 +11837,7 @@ export class RunService {
       export: { externalRef: repairExternalRef(repairProjectKey(this.projectRoot), run.record.jobId, id), state: 'pending', issueId: null, reason: 'Not exported', attemptedAt: null } });
     incident = await this.persistRepairIncident(run, incident, reason === null ? 'admitted' : 'refused');
     if (reason !== null || !assignment.success || original === undefined) {
+      if (run.policy.recovery && eligibleRefusal && reason !== null) return { refusal: reason };
       await this.fail(run, 'inputs-changed', `Architect preparation failed: ${message(obstruction)}. Automatic repair refused: ${reason}`);
       return null;
     }
@@ -11618,20 +12358,25 @@ function callerPauseMs(events: readonly RunEvent[], now: number): number {
   const intervals: Array<[number, number]> = [];
   let review: number | undefined;
   let debug: number | undefined;
+  let recovery: number | undefined;
   for (const event of events) {
     const at = Date.parse(event.at);
     if (event.type === 'review-requested') review = at;
     if (event.type === 'analysis-approved' && review !== undefined) { intervals.push([review, at]); review = undefined; }
+    if (event.type === 'operation-recovery-paused') recovery ??= at;
+    if (event.type === 'operation-recovery-resumed' && recovery !== undefined) { intervals.push([recovery, at]); recovery = undefined; }
     if (event.type === 'debug-paused' || event.type === 'debug-exchange-settled') debug ??= at;
     if ((event.type === 'debug-resumed' || event.type === 'debug-exchange-admitted') && debug !== undefined) { intervals.push([debug, at]); debug = undefined; }
     if (['job-stopped', 'job-failed', 'job-interrupted', 'job-completed'].includes(event.type)) {
       if (review !== undefined) intervals.push([review, at]);
       if (debug !== undefined) intervals.push([debug, at]);
-      review = debug = undefined;
+      if (recovery !== undefined) intervals.push([recovery, at]);
+      review = debug = recovery = undefined;
     }
   }
   if (review !== undefined) intervals.push([review, now]);
   if (debug !== undefined) intervals.push([debug, now]);
+  if (recovery !== undefined) intervals.push([recovery, now]);
   intervals.sort(([a], [b]) => a - b);
   let total = 0;
   let end = Number.NEGATIVE_INFINITY;

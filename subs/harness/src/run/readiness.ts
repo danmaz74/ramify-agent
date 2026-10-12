@@ -1,7 +1,9 @@
 import { mkdir, realpath, stat } from 'node:fs/promises';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { GateCommandStarted } from '../checks/execution.js';
 import { configuredFullRecovery, sameAuditPolicy, type CommittedAuditConfiguration, type ConfiguredAuditPort, type ConfiguredFullAuditResult } from '../../subs/audit/src/check-execution.js';
+import { recoveryHash } from './recovery-admission.js';
+import { checkExecutionObstruction, type CheckExecutionObstruction } from './recovery-checks.js';
 import { checkpointPolicies, installOperation, setupChecks } from '../checks/checkpoint.js';
 import { configuredAuditRecord } from '../checks/gate.js';
 import { checkCommand, checkCommandEnvironment } from '../checks/records.js';
@@ -42,9 +44,13 @@ interface StepResult {
   readonly step: ReadinessStep;
   readonly outcome: 'passed' | 'failed' | 'not-verified';
   readonly detail: string;
+  readonly obstruction?: CheckExecutionObstruction;
 }
 
 export interface ReadinessRequest {
+  readonly completedPreparation?: readonly string[];
+  readonly preparationStarted?: (key: string) => Promise<void>;
+  readonly preparationCompleted?: (key: string, passed: boolean) => Promise<void>;
   /** The run whose branch the last step creates. */
   readonly runId: string;
   /** The count of committed readiness attempts, this one included. */
@@ -73,6 +79,7 @@ export interface ReadinessRequest {
 
 /** What one readiness attempt established, with the gate that ran the baseline. */
 export interface ReadinessResult {
+  readonly obstruction?: CheckExecutionObstruction;
   readonly attempt: ReadinessAttempt;
   /** The baseline gate, or null when an earlier step stopped the attempt before it. */
   readonly gate: GateAttempt | null;
@@ -131,7 +138,7 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
     for (const step of ['declared-preparation', 'configured-full-audit', 'run-branch'] as const) {
       steps.push({ step, outcome: 'not-verified', detail: `not reached: ${blocked.step} did not pass` });
     }
-    return { attempt: attemptRecord(request, steps, nested, null), gate: null };
+    return { attempt: attemptRecord(request, steps, nested, null), gate: null, ...(blocked.obstruction === undefined ? {} : { obstruction: blocked.obstruction }) };
   }
   const prepared = await declaredPreparationStep(request, config!);
   steps.push(prepared);
@@ -139,7 +146,7 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
   if (prepared.outcome !== 'passed') {
     steps.push({ step: 'configured-full-audit', outcome: 'not-verified', detail: 'not reached: declared preparation did not pass' });
     steps.push({ step: 'run-branch', outcome: 'not-verified', detail: 'not reached: declared preparation did not pass' });
-    return { attempt: attemptRecord(request, steps, nested, null), gate: null };
+    return { attempt: attemptRecord(request, steps, nested, null), gate: null, ...(prepared.obstruction === undefined ? {} : { obstruction: prepared.obstruction }) };
   }
   const bound = new PausableDeadline(policy.limits.runAbsoluteMs);
   let releaseWait: (() => void) | undefined;
@@ -174,7 +181,8 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
     ? await runBranchStep(projectRoot, request.runId, request.signal, request.git ?? gitService)
     : { step: 'run-branch', outcome: 'not-verified', detail: `not reached: ${failed.step} did not pass` });
 
-  return { attempt: attemptRecord(request, steps, nested, gate, audit), gate };
+  const obstruction = checkExecutionObstruction(gate);
+  return { attempt: attemptRecord(request, steps, nested, gate, audit), gate, ...(obstruction === null ? {} : { obstruction }) };
 }
 
 /** Retain the interrupted step and name every later readiness step as unverified. */
@@ -196,7 +204,8 @@ function declaredPackagesStep(
   const required = configuration.workspace.packageDirectoriesDeclared && configuration.workspace.linkNodeModules;
   const missing = required ? packages.filter(entry => !entry.installed).map(entry => entry.directory) : [];
   return missing.length > 0
-    ? { step: 'declared-packages', outcome: 'failed', detail: `Declared package installation missing: ${missing.map(directory => directory || '.').join(', ')}` }
+    ? { step: 'declared-packages', outcome: 'failed', detail: `Declared package installation missing: ${missing.map(directory => directory || '.').join(', ')}`,
+      obstruction: { diagnostic: `Required package dependencies are unavailable: ${missing.map(directory => directory || '.').join(', ')}`, automatic: false } }
     : { step: 'declared-packages', outcome: 'passed', detail: `${packages.length} declared package directories; ${required ? 'all installed' : 'optional root dependency link'}` };
 }
 
@@ -214,7 +223,7 @@ async function declaredPreparationStep(
   }
   const agentSetup = 'config' in request.projectConfig ? request.projectConfig.config.setup ?? [] : [];
   const auditSetup = commands.map(command => ({ name: command.name, command: [...command.argv], cwd: command.cwd, timeoutMs: command.timeoutMs, env: command.env }));
-  const normalized = (value: { command: readonly string[]; cwd?: string | undefined; timeoutMs?: number | undefined; env?: Readonly<Record<string, string>> | undefined }) => JSON.stringify({ command: value.command, cwd: value.cwd ?? '.', timeoutMs: value.timeoutMs ?? 600_000, env: value.env ?? {} });
+  const normalized = (value: { command: readonly string[]; cwd?: string | undefined; timeoutMs?: number | undefined; env?: Readonly<Record<string, string>> | undefined }) => JSON.stringify({ command: [basename(value.command[0] ?? ''), ...value.command.slice(1)], cwd: value.cwd ?? '.', timeoutMs: value.timeoutMs ?? 600_000, env: value.env ?? {} });
   if (agentSetup.length > 0 && JSON.stringify(agentSetup.map(normalized)) !== JSON.stringify(auditSetup.map(normalized))) {
     return { step: 'declared-preparation', outcome: 'failed', detail: 'ramify-agent.json setup conflicts with committed ramify-audit.json workspace setupCommands; reconcile them and start a new run' };
   }
@@ -229,16 +238,23 @@ async function declaredPreparationStep(
   if (refused !== null) return { step: 'declared-preparation', outcome: 'failed', detail: refused };
   await mkdir(request.gateDirectory, { recursive: true });
   for (const [index, check] of setup.entries()) {
+    const key = recoveryHash({ preparation: configuration.workspace.setupCommands, position: index, command: check.command });
+    if (request.completedPreparation?.includes(key)) continue;
     if (request.signal?.aborted) return { step: 'declared-preparation', outcome: 'not-verified', detail: 'declared preparation was cancelled' };
     const outputFile = join(request.gateDirectory, `${String(index + 1).padStart(2, '0')}-preparation.log`);
     await request.started?.({ kind: 'setup', ...(check.name === undefined ? {} : { name: check.name }), position: index + 1, total: setup.length });
+    await request.preparationStarted?.(key);
     const run = await (request.commandExecution ?? runCommand)({ argv: check.command.argv, cwd: check.command.cwd,
       env: checkCommandEnvironment(check.command), timeoutMs: check.command.timeoutMs, outputFile,
       ...(request.signal === undefined ? {} : { signal: request.signal }) });
+    await request.preparationCompleted?.(key, run.outcome.kind === 'completed' && run.outcome.exitCode === 0);
     if (run.outcome.kind !== 'completed' || run.outcome.exitCode !== 0) {
       const ending = run.outcome.kind === 'completed' ? `exited ${run.outcome.exitCode}` : run.outcome.kind;
       return { step: 'declared-preparation', outcome: run.outcome.kind === 'completed' ? 'failed' : 'not-verified',
-        detail: `${check.name ?? check.command.argv.join(' ')} ${ending}; ${run.output.tail}` };
+        detail: `${check.name ?? check.command.argv.join(' ')} ${ending}; ${run.output.tail}`,
+        ...(run.outcome.kind === 'runner-error' || run.outcome.kind === 'timed-out' ? { obstruction: {
+          diagnostic: `Preparation ${run.outcome.kind}: ${run.outcome.kind === 'runner-error' ? run.outcome.error.message : String(run.outcome.timeoutMs)}`,
+          automatic: run.outcome.kind === 'timed-out' } } : {}) };
     }
   }
   return { step: 'declared-preparation', outcome: 'passed', detail: `${setup.length} committed setup command${setup.length === 1 ? '' : 's'} passed in the run working tree` };
@@ -451,7 +467,8 @@ async function ramifyDaemonStep(request: ReadinessRequest): Promise<StepResult> 
   }
   if (run.code !== 0) {
     const detail = `${run.stderr}\n${run.stdout}`.trim();
-    return { step: 'ramify-daemon', outcome: 'failed', detail: `the Ramify command line did not answer: \`ramify --version\` exited with ${run.code}${detail === '' ? '' : `: ${detail.slice(-400)}`}` };
+    return { step: 'ramify-daemon', outcome: 'failed', detail: `the Ramify command line did not answer: \`ramify --version\` exited with ${run.code}${detail === '' ? '' : `: ${detail.slice(-400)}`}`,
+      obstruction: { diagnostic: `Ramify availability preflight exited with ${run.code}; ${detail}`, automatic: false } };
   }
   return { step: 'ramify-daemon', outcome: 'passed', detail: `the Ramify command line answers: ${run.stdout.trim()}` };
 }
@@ -472,7 +489,7 @@ export interface RecoveryPlan {
  * answers the same, and neither is a code-repair assignment either. Only a
  * recoverable failure consumes a recovery attempt.
  */
-export function recoveryFor(attempt: ReadinessAttempt, gate: GateAttempt | null, _policy: RunPolicy): RecoveryPlan | null {
+export function recoveryFor(attempt: ReadinessAttempt, gate: GateAttempt | null, policy: RunPolicy, obstruction?: CheckExecutionObstruction): RecoveryPlan | null {
   const failing = failingStep(attempt);
   if (failing === undefined) return null;
   if (failing.step === 'declared-packages') {
@@ -482,6 +499,7 @@ export function recoveryFor(attempt: ReadinessAttempt, gate: GateAttempt | null,
   }
   if (failing.step === 'ramify-daemon') return { cause: 'daemon-unavailable', action: 'restart-daemon', directories: [] };
   if (failing.step === 'declared-preparation' && failing.outcome === 'not-verified') {
+    if (policy.recovery) return obstruction?.automatic === true ? { cause: 'timeout', action: 'rerun-command', directories: [] } : null;
     if (failing.detail.includes('timed-out')) return { cause: 'timeout', action: 'rerun-command', directories: [] };
     if (failing.detail.includes('runner-error')) return { cause: 'infrastructure', action: 'rerun-command', directories: [] };
   }

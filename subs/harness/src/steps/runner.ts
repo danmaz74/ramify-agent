@@ -7,7 +7,7 @@ import { effectiveBlocks } from '../prompts/blocks.js';
 import type { DebugInspection } from '../interfaces/protocol/runs.js';
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';
-import type { AgentPort, AgentSession, JsonSchema, SessionSpec, SessionStart } from '../../subs/agent/src/interfaces/port.js';
+import { interruptionEvidence, type AgentPort, type AgentSession, type JsonSchema, type SessionSpec, type SessionStart, type InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import type { GitService } from '../../subs/evidence/src/git.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
@@ -107,6 +107,12 @@ export type InvocationProgress =
 
 /** What one invocation is: its role, its work, its prompt and the one submission it may make. */
 export interface InvocationRequest<T> {
+  /** Scheduler request that owns this reviewer or design-orientation pipeline. */
+  readonly recoveryReviewRequest?: string;
+  /** A semantic admission callback is called only once across transport successors. */
+  readonly singleAdmission?: boolean;
+  readonly recoveryPredecessor?: string;
+  readonly recoveryGroup?: number;
   /** Consultation forks must never silently lose their pinned source. */
   readonly allowFreshFallback?: boolean;
   readonly consultationPackages?: ReadonlyMap<string, LoadedPackage>;
@@ -240,6 +246,7 @@ export interface InvocationRequest<T> {
 
 /** What one invocation ended with. `value` is present only for an accepted submission. */
 export interface InvocationResult<T> {
+  readonly interruptionEvidence?: InterruptionEvidence;
   readonly id: string;
   readonly ended: InvocationOutcome['ended'];
   readonly value: T | undefined;
@@ -353,9 +360,10 @@ function requestedSession<T>(request: InvocationRequest<T>): Invocation['session
   if (request.degraded !== undefined) {
     return {
       requested: request.degraded.requested,
-      actual: request.start.mode === 'continue' ? 'continued' : 'fresh',
+      actual: request.start.mode === 'continue' ? 'continued' : request.start.mode === 'fork' ? 'fork' : 'fresh',
       ref: '',
       degradedReason: request.degraded.reason,
+      ...(request.start.mode === 'fresh' ? {} : { from: request.start.mode === 'continue' ? request.start.ref : request.start.from }),
     };
   }
   if (request.start.mode === 'continue') {
@@ -462,11 +470,12 @@ export class InvocationRunner<R extends RunnerRun> {
   async runInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (request.signal?.aborted === true) return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '' as SessionId, kept: false, notStarted: true, error: 'Stopped by the caller before dispatch' };
     const result = await this.invokeOnce(run, agent, request);
-    if (request.allowFreshFallback === false || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.()) return result;
+    if (request.allowFreshFallback === false || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.() || run.policy.recovery !== undefined && request.fallback === undefined) return result;
     const reason = result.error ?? 'The retained session is unavailable';
     const fresh = request.fallback?.(reason);
     return this.invokeOnce(run, agent, {
       ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined,
+      ...(run.policy.recovery === undefined ? {} : { recoveryPredecessor: result.id }),
       continuing: undefined, fork: undefined, replaces: undefined,
       prompt: fresh?.prompt ?? request.freshPrompt ?? request.prompt,
       ...(fresh === undefined ? {} : { brief: fresh.brief, stepInputs: fresh.stepInputs }),
@@ -528,6 +537,17 @@ export class InvocationRunner<R extends RunnerRun> {
     }
     try {
       return await this.runSession(run, agent, started, restored ? { ...request, restore: restored.hasIntent } : request);
+    } catch (error) {
+      // A preparation obstruction with no dispatched operation has no model or
+      // uncertain tool to replay. Retain its exception and prove settlement.
+      const operation = await (await this.host.operations(agent)).originalOperation(run.jobId, started.id);
+      if (operation !== null) throw error;
+      const settled = await this.settleSession(run, started.id, { settled: async () => 'settled' }, request.reader === true);
+      const evidence = interruptionEvidence(error, 'preparation');
+      await this.endInvocation(run, started.id, started.session, finished('not-kept'), { ...stoppedOutcome(), ended: 'failed',
+        interruption: 'adapter-fault', interruptionEvidence: evidence, error: message(error), settled }, undefined, started.transcript);
+      return { id: started.id, ended: 'failed', value: undefined, ref: '', outcomeKind: 'failed', session: started.session, kept: false,
+        interruption: 'adapter-fault', interruptionEvidence: evidence, error: message(error), settlementConfirmed: settled.confirmed, notStarted: true, elapsedMs: 0 };
     } finally {
       started.closed();
     }
@@ -620,6 +640,8 @@ export class InvocationRunner<R extends RunnerRun> {
       // Actual delivered size is committed by invocation-prepared, before events.
       scope: { ...request.scope, size: null },
       writer: request.writer === true,
+      ...(request.recoveryPredecessor === undefined ? {} : { recoveryPredecessor: request.recoveryPredecessor }),
+      ...(request.recoveryGroup === undefined ? {} : { recoveryGroup: request.recoveryGroup }),
       ...(request.candidateBefore === undefined ? {} : { candidateBefore: request.candidateBefore }),
       base: this.host.base(run),
       ...(request.startingTree === undefined ? {} : { startingTree: request.startingTree }),
@@ -863,7 +885,7 @@ export class InvocationRunner<R extends RunnerRun> {
       // Known reusable-context refusal occurs before dispatch. The ordinary
       // fresh fallback must first release the writer acquired for that attempt.
       let preflightSettlement = stoppedOutcome().settled;
-      if (interruption === 'session-lost' && run.writer.held === id) {
+      if (run.writer.held === id) {
         const toolsSettled = await settleSessionEquipment(equipment.settle, limits.stopSettleMs).catch(() => false);
         preflightSettlement = await run.writer.release(id, toolsSettled ? undefined : {
           settled: async () => 'timed-out',
@@ -876,12 +898,14 @@ export class InvocationRunner<R extends RunnerRun> {
         ...stoppedOutcome(),
         ended: 'failed',
         interruption,
+        interruptionEvidence: interruptionEvidence(error, interruption === 'session-lost' ? 'unknown' : 'adapter-fault'),
         error: failure,
         settled: preflightSettlement,
       }, undefined, transcript);
       return {
         id, ended: 'failed', value: undefined, ref: '', outcomeKind: 'failed', session, kept: keptAs.kept,
         interruption, error: failure, elapsedMs: 0, inFlight: [], lastText: null, notStarted: true,
+        interruptionEvidence: interruptionEvidence(error, interruption === 'session-lost' ? 'unknown' : 'adapter-fault'), settlementConfirmed: preflightSettlement.confirmed,
       };
     }
     const live = run.live.get(id);
@@ -911,6 +935,9 @@ export class InvocationRunner<R extends RunnerRun> {
     } finally {
       request.signal?.removeEventListener('abort', stop);
     }
+    // Acceptance is durable before the acknowledgement. A failed stream after
+    // that acceptance completes this transition without asking for another submission.
+    if (value !== undefined && submissionHash !== null && outcome.kind === 'failed') outcome = { kind: 'submitted', input: value };
     if (outcome.kind === 'submitted' && value === undefined) {
       const accepted = await (await this.host.operations(agent)).acceptance(run.jobId, id);
       const bytes = await readIfExists(run.path(runLayout.submission(id)));
@@ -920,6 +947,7 @@ export class InvocationRunner<R extends RunnerRun> {
       value = accepted.value as T; submissionHash = accepted.submissionHash;
     }
     const interruption = bounds.interruption ?? (agentSession.unavailableReason === undefined ? undefined : 'session-lost');
+    const structured = outcome.kind === 'failed' ? outcome.evidence ?? { classification: 'unknown' as const, diagnostic: outcome.error } : undefined;
     const inFlight = inFlightAtBound ?? recorder.inFlight();
     const elapsedMs = this.host.now().getTime() - startedAt;
     if (outcome.kind === 'context-budget-reached') {
@@ -988,6 +1016,7 @@ export class InvocationRunner<R extends RunnerRun> {
     await this.endInvocation(run, id, session, keptAs, {
       ended,
       ...(interruption === undefined ? {} : { interruption, error }),
+      ...(structured === undefined ? {} : { interruptionEvidence: structured }),
       // What the implementation answered, not what was asked for: a fork it
       // could not take is a fresh session, and the comparison of fork cost
       // must not be corrupted by one that silently became fresh.
@@ -1021,6 +1050,7 @@ export class InvocationRunner<R extends RunnerRun> {
       session,
       kept: keptAs.kept,
       ...(interruption === undefined ? {} : { interruption }),
+      ...(structured === undefined ? {} : { interruptionEvidence: structured }),
       ...(ended === 'failed' && error !== undefined ? { error } : {}),
       ...callerStop,
       actual: agentSession.start.mode,

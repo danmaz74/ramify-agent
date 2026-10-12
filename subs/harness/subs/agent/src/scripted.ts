@@ -87,7 +87,7 @@ export type ScriptStep =
   /** Calls the submission tool. Accepted ends the session; rejected continues with the next step. */
   | { readonly kind: 'submit'; readonly input: unknown }
   /** The session crashes. */
-  | { readonly kind: 'fail'; readonly error: string }
+  | { readonly kind: 'fail'; readonly error: string; readonly evidence?: import('./interfaces/port.js').InterruptionEvidence }
   /** The agent stops talking without submitting. */
   | { readonly kind: 'end'; readonly message?: string | undefined };
 
@@ -305,7 +305,7 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
               await never;
               break;
             case 'fail':
-              return { kind: 'failed', error: step.error };
+              return { kind: 'failed', error: step.error, ...(step.evidence === undefined ? {} : { evidence: step.evidence }) };
             case 'end':
               return { kind: 'ended', message: step.message };
             case 'tool': {
@@ -527,7 +527,7 @@ export type SessionScriptStep =
   | { readonly kind: 'submit'; readonly input: unknown; readonly callId?: string }
   | { readonly kind: 'message'; readonly payload: Readonly<Record<string, unknown>> }
   | { readonly kind: 'await'; readonly until: () => Promise<unknown> }
-  | { readonly kind: 'fail'; readonly error: string }
+  | { readonly kind: 'fail'; readonly error: string; readonly evidence?: import('./interfaces/port.js').InterruptionEvidence }
   | { readonly kind: 'end'; readonly message?: string };
 export type SessionScript = readonly SessionScriptStep[] | ((input: SessionDriverInvocation) => readonly SessionScriptStep[]);
 export function createScriptedSessionDriver(script: SessionScript): SessionOperationDriver {
@@ -540,7 +540,7 @@ export function createScriptedSessionDriver(script: SessionScript): SessionOpera
         const step = steps[index]!;
         const key = `${input.key.operationId}:step:${index}`;
         if (step.kind === 'await') { await settledOrAborted(step.until(), runtime.signal); continue; }
-        if (step.kind === 'fail') return { kind: 'failed', error: step.error };
+        if (step.kind === 'fail') return { kind: 'failed', error: step.error, ...(step.evidence === undefined ? {} : { evidence: step.evidence }) };
         if (step.kind === 'end') return step.message === undefined ? { kind: 'ended' } : { kind: 'ended', message: step.message };
         await runtime.persistPayload(key, new TextEncoder().encode(JSON.stringify(step)));
         if (step.kind === 'message') {

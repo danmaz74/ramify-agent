@@ -12,6 +12,8 @@ export interface RoundDecisionInput {
   /** Captured policy limit, from one to three rounds. */
   maxRounds: number;
   closedRounds: readonly ClosedRound[];
+  /** Operator repairs invalidate candidate applicability without renewing spent round allowance. */
+  externalContinuations?: readonly number[];
   candidate: Candidate | null;
   initial: Assessment | null;
   investigated: boolean;
@@ -51,6 +53,11 @@ function requireAssessment(
 /** Decide the next permitted step from committed round facts and fixed NFR IDs. */
 export function decideNonfunctionalRound(input: RoundDecisionInput): RoundDecision {
   const { nfrIds, maxRounds, closedRounds, candidate, initial, investigated, repairCommitted, reassessment } = input;
+  const external = new Set(input.externalContinuations ?? []);
+  if (external.size !== (input.externalContinuations?.length ?? 0)
+    || [...external].some(round => !Number.isInteger(round) || round < 1 || round >= maxRounds || round > closedRounds.length)) {
+    throw new Error('external continuations must name distinct spent rounds with remaining allowance');
+  }
   if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 3) {
     throw new Error('maximum rounds must be an integer from one to three');
   }
@@ -63,13 +70,13 @@ export function decideNonfunctionalRound(input: RoundDecisionInput): RoundDecisi
     if (Boolean(record.repair) !== Boolean(record.reassessment)) {
       throw new Error('closed repair requires reassessment, and reassessment requires repair');
     }
-    if (index < closedRounds.length - 1 && record.outcome !== 'continue') {
+    if (index < closedRounds.length - 1 && record.outcome !== 'continue' && !external.has(record.number)) {
       throw new Error('only a continuing round can have a successor');
     }
     if (record.number === maxRounds && record.outcome === 'continue') throw new Error('the final round cannot continue');
   });
   const lastOutcome = closedRounds.at(-1)?.outcome;
-  if (closedRounds.length === maxRounds || (lastOutcome !== undefined && lastOutcome !== 'continue')) {
+  if (closedRounds.length === maxRounds || (lastOutcome !== undefined && lastOutcome !== 'continue' && !external.has(closedRounds.length))) {
     if (candidate || initial || investigated || repairCommitted || reassessment) {
       throw new Error('a closed loop cannot have an open round');
     }

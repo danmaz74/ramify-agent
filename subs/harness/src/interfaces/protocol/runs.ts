@@ -134,6 +134,42 @@ export const debugExchangeSchema = breakpointStateSchema.extend({ kind: z.litera
 export type DebugExchange = z.infer<typeof debugExchangeSchema>;
 
 
+/** The operator's account of a repair made while execution was quiescent. */
+export const externalRepairDeclarationSchema = z.object({
+  areas: z.array(z.enum(['target', 'configuration', 'environment', 'runtime'])).min(1).max(4),
+  explanation: z.string().trim().min(1).max(8192),
+  evidence: z.array(z.string().max(8192)).max(32).optional(),
+}).strict();
+export type ExternalRepairDeclaration = z.infer<typeof externalRepairDeclarationSchema>;
+
+/** Authorizes one bounded attempt group at the current recovery occurrence. */
+export const recoveryResumeCommandSchema = z.object({
+  commandId: commandIdSchema, expectedVersion: jobVersionSchema.default(0), type: z.literal('resume-recovery'),
+  payload: z.object({ planId: planIdSchema, jobId: jobIdSchema, occurrenceId: z.string().min(1),
+    expectedRevision: z.int().positive(), repair: externalRepairDeclarationSchema.optional() }).strict(),
+}).strict();
+export type RecoveryResumeCommand = z.infer<typeof recoveryResumeCommandSchema>;
+
+/** The retained obstruction and current prerequisites for a person's next attempt. */
+export const recoveryInspectionSchema = z.object({
+  planId: planIdSchema, runId: runIdSchema, cursor: jobVersionSchema,
+  occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']),
+  boundary: z.object({ kind: z.enum(['invocation', 'preparation', 'readiness', 'gate']), role: roleSchema.optional(), checkpoint: z.string().optional(),
+    work: z.record(z.string(), z.string()).optional(), invocation: z.string().optional(), source: z.string().optional(), candidate: z.string().optional() }).strict(),
+  evidence: z.object({ classification: z.enum(['transport', 'permanent', 'unknown', 'adapter-fault', 'preparation', 'check-execution']),
+    diagnostic: z.string(), code: z.string().optional(), status: z.number().optional(), retryAfterMs: z.number().nonnegative().optional() }).strict(),
+  group: z.int().nonnegative(), automaticAttempts: z.int().nonnegative(), attempts: z.array(z.string()), pausedAt: z.string().nullable(),
+  canResume: z.boolean(), blockers: z.array(z.string()), repairRequired: z.boolean().optional(),
+  changes: z.array(z.object({ path: z.string(), before: z.string().nullable(), after: z.string().nullable() }).strict()).optional(),
+  runtime: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
+  configuration: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
+  remaining: z.object({ invocations: z.int().nonnegative(), activeMs: z.number().nonnegative() }).strict(),
+  totalInvocations: z.int().nonnegative().optional(),
+  timing: z.object({ activeMs: z.number().nonnegative(), pausedMs: z.number().nonnegative(), currentPauseMs: z.number().nonnegative() }).strict().optional(),
+  retained: z.object({ candidate: z.object({ tree: z.string(), head: z.string() }).strict(), partialPaths: z.array(z.string()) }).strict(),
+}).strict();
+export type RecoveryInspection = z.infer<typeof recoveryInspectionSchema>;
+
 /**
  * Starts an implementation run for a plan. It creates the run, so it expects
  * version 0. It carries nothing the harness will execute. With `reviewStop`
@@ -176,7 +212,7 @@ export type ApproveAnalysisCommand = z.infer<typeof approveAnalysisCommandSchema
  * revocation, each against a CheckFinding's revision.
  */
 export const runCommandSchema = z.discriminatedUnion('type', [
-  startRunCommandSchema, stopJobCommandSchema, approveAnalysisCommandSchema, debugResumeCommandSchema, debugMessageCommandSchema,
+  startRunCommandSchema, stopJobCommandSchema, approveAnalysisCommandSchema, debugResumeCommandSchema, debugMessageCommandSchema, recoveryResumeCommandSchema,
   respondToCheckFindingCommandSchema, waiveCheckFindingCommandSchema, revokeCheckFindingWaiverCommandSchema,
 ]);
 /** A command as the harness receives it, with every default applied. */
@@ -426,6 +462,8 @@ export const runSnapshotSchema = z.object({
   automaticRepairs: automaticRepairsSchema.default({ attempted: 0, refused: 0, incidents: [] }),
   /** The breakpoint the run was started with, or null. Answers that omit it parse as null. */
   breakpoint: breakpointSelectorSchema.nullable().default(null),
+  /** Recovery holds the ordinary phase while retaining its unfinished operation. Legacy responses omit it. */
+  recovery: z.object({ occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']) }).strict().nullable().optional(),
 }).strict();
 export type RunSnapshot = z.infer<typeof runSnapshotSchema>;
 
@@ -956,7 +994,7 @@ export const workItemResponseSchema = z.object({
       failure: z.object({ digest: z.array(z.string()), analysis: failureAnalysisSchema }).strict().nullable(),
     }).strict().nullable(),
     gates: z.array(gateSummary),
-    invocations: z.array(z.object({ id: text, role: roleSchema, ended: text.nullable(), outsideScope: z.array(text), unknownPlacement: z.array(text).optional(), placementFailure: text.optional(), outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional() }).strict()),
+    invocations: z.array(z.object({ id: text, role: roleSchema, ended: text.nullable(), recoveryPredecessor: text.optional(), recoveryGroup: count.optional(), outsideScope: z.array(text), unknownPlacement: z.array(text).optional(), placementFailure: text.optional(), outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional() }).strict()),
     /**
      * The assignment package its engineer and reviewers received: the IDs
      * the assignment cites and the text rendered again from them on this

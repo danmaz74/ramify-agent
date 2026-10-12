@@ -17,6 +17,7 @@ import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRep
 import { repairIncidentRecordSchema } from './repair-records.js';
 import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema } from './repair-preparation.js';
 import { repairExportPayloadSchema } from './repair-export.js';
+import { externalRepairAdmissionSchema, recoveryIdentitySchema } from './recovery-admission.js';
 
 /*
  * The durable records of one implementation run, and where each of them is
@@ -130,6 +131,9 @@ export type ReviewPolicy = z.infer<typeof reviewPolicySchema>;
 export const runPolicySchema = z.object({
   version: z.literal('run-policy/7'),
   contract: z.literal('plan21-whole-owner-and-architect-reporting/1'),
+  /** Absent in historical runs; only newly captured policies authorize recovery. */
+  recovery: z.object({ version: z.literal('operation-recovery/1'), automaticRetries: z.int().nonnegative(),
+    baseDelayMs: z.int().nonnegative(), maxDelayMs: z.int().positive() }).strict().optional(),
   limits: z.object({
     repairRoundsPerIteration: z.int().positive(),
     repairRoundsPerWorkItemGate: z.int().positive(),
@@ -216,6 +220,7 @@ export const runPolicySchema = z.object({
   }).strict(),
 }).strict();
 export type RunPolicy = z.infer<typeof runPolicySchema>;
+
 export type CheckCommandRecord = z.infer<typeof checkCommandSchema>;
 
 // The project's configuration.
@@ -604,6 +609,22 @@ export const invocationWorkSchema = z.object({ workItem: text.optional(), iterat
 }).strict();
 export type InvocationWork = z.infer<typeof invocationWorkSchema>;
 
+export const interruptionEvidenceSchema = z.object({ classification: z.enum(['transport', 'permanent', 'unknown', 'adapter-fault', 'preparation', 'check-execution']),
+  diagnostic: z.string(), code: z.string().optional(), status: z.number().optional(), retryAfterMs: z.number().nonnegative().optional() }).strict();
+export const recoveryBoundarySchema = z.object({ kind: z.enum(['invocation', 'preparation', 'readiness', 'gate']),
+  role: roleSchema.optional(), work: invocationWorkSchema.optional(), invocation: z.string().optional(), source: z.string().nullable().optional(),
+  candidate: z.string().optional(), checkpoint: z.string().optional(), requestHash: z.string().optional(),
+  start: z.object({ mode: z.enum(['fresh', 'continue', 'fork']), ref: z.string().optional(), from: z.string().optional() }).strict().optional(),
+  session: z.string().optional(), tool: z.string().optional(), reviewRequest: z.string().optional(),
+  reconstruction: z.object({ name: z.literal('fresh-step-construction'), inputsHash: z.string(), mode: z.literal('fresh'), inputs: z.unknown().optional() }).strict().optional() }).strict();
+export type RecoveryBoundary = z.infer<typeof recoveryBoundarySchema>;
+export const operationRecoverySchema = z.object({ schema: z.literal('ramify-agent.operation-recovery/1'), id: z.string(), revision: z.int().positive(),
+  state: z.enum(['pausing', 'paused', 'resumed']), boundary: recoveryBoundarySchema, evidence: interruptionEvidenceSchema,
+  group: z.int().nonnegative(), automaticAttempts: z.int().nonnegative(), attempts: z.array(z.string()), pausedAt: z.iso.datetime().nullable(),
+  settled: z.boolean(), candidate: z.object({ head: z.string(), tree: z.string() }).strict(), partialPaths: z.array(z.string()),
+  prerequisites: z.array(z.string()), waitingReviews: z.array(z.object({ request: z.string(), remainingMs: z.number().nonnegative() }).strict()).optional(), identity: recoveryIdentitySchema.optional(), admission: externalRepairAdmissionSchema.optional() }).strict();
+export type OperationRecovery = z.infer<typeof operationRecoverySchema>;
+
 // Lineage: how a session relates to others, by harness points and never by
 // an executor's ref.
 
@@ -645,7 +666,7 @@ export type ContinueReason = z.infer<typeof continueReasonSchema>;
  * point after its completion request; an unresolved request forks the
  * architect context, as a placement request does.
  */
-export const forkReasonSchema = z.enum(['placement-request', 'scope-review', 'design-orientation', 'reconciliation', 'unresolved-request', 'context-selection', 'capability-consultation', 'architect-consultation']);
+export const forkReasonSchema = z.enum(['interruption-recovery', 'placement-request', 'scope-review', 'design-orientation', 'reconciliation', 'unresolved-request', 'context-selection', 'capability-consultation', 'architect-consultation']);
 
 /** Why a session takes another's place: a lost engineer is reconstructed from records, or the architect context is rebuilt. */
 export const replaceReasonSchema = z.enum(['reconstructed', 'context-rebuilt']);
@@ -735,6 +756,8 @@ export const invocationSchema = z.object({
   /** Exact candidate tree before a writer started; absent where the writer was started without one. */
   candidateBefore: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u).optional(),
   supersedes: text.optional(),
+  recoveryPredecessor: text.optional(),
+  recoveryGroup: z.int().nonnegative().optional(),
   /** The latest passed committing checkpoint's audited hash when it started, or the run base before one exists. A manual run's is the commit HEAD named when it started. */
   base: z.string(),
   /**
@@ -756,6 +779,7 @@ export const invocationOutcomeSchema = z.object({
   /** Each one is a `rejection` observation with its errors. */
   rejectedSubmissions: z.int().nonnegative(),
   interruption: z.enum(['idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault']).optional(),
+  interruptionEvidence: interruptionEvidenceSchema.optional(),
   /** A superseded invocation's result is kept and never applied. */
   disposition: z.enum(['applied', 'superseded', 'incomplete']),
   /**
@@ -935,6 +959,8 @@ void _gateAttemptsAgree;
 /** Durable input for a committing gate, written before its commit and audit effect. */
 export const gateOperationSchema = z.object({
   schema: z.literal('ramify-agent.gate-operation/2'),
+  /** A new-policy final effect cannot outlive its exact assessed candidate. */
+  finalAssessment: z.object({ assessment: text, candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u) }).strict().optional(),
   checkpoint: z.enum(['iteration', 'contract', 'breaking-iteration', 'work-item', 'final']),
   request: z.object({
     id: text,
@@ -997,6 +1023,7 @@ export const runLayout = {
   scenario: (id: string): string => join('scenarios', `${id}.json`),
   readiness: (attempt: number): string => join('readiness', readinessDirectory(attempt), 'attempt.json'),
   readinessOutput: (attempt: number): string => join('readiness', readinessDirectory(attempt)),
+  operationRecovery: (id: string, revision = 1): string => join('operation-recoveries', id, `${revision}.json`),
   recovery: (id: RecoveryId): string => join('recoveries', `${id}.json`),
   repairIncident: (id: string, revision: number): string => join('repairs', 'incidents', id, `${revision}.json`),
   contingentRepairAssignment: join('repairs', 'assignment.json'),
@@ -1046,6 +1073,7 @@ export const runSchemas = {
   entries: { schema: 'ramify-agent.entry-assignments/1', body: entryAssignmentsSchema },
   scenario: { schema: 'ramify-agent.scenario/1', body: scenarioRecordSchema },
   readiness: { schema: 'ramify-agent.readiness-attempt/1', body: readinessAttemptSchema },
+  operationRecovery: { schema: 'ramify-agent.operation-recovery/1', body: operationRecoverySchema },
   recovery: { schema: 'ramify-agent.infrastructure-recovery/1', body: infrastructureRecoverySchema },
   repairIncident: { schema: 'ramify-agent.repair-incident/1', body: repairIncidentRecordSchema },
   automaticRepairAssignment: { schema: 'ramify-agent.automatic-repair-assignment/1', body: automaticRepairAssignmentSchema },

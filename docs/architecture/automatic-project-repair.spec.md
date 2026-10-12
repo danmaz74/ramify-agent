@@ -53,11 +53,22 @@ A thrown exception at this boundary admits repair only when all conditions hold:
 - The exception is not a typed ownership, historical-authority or schema
   validation outcome belonging to ordinary handling.
 
-Refusal is a retained incident and terminates with the original obstruction and
+Refusal is a retained incident. Under a captured operation-recovery policy, a
+refusal before a repair invocation starts can pause the pending ordinary
+preparation when inputs are readable, writers and tools have confirmed settlement
+and effects are reconciled. This includes a missing contingent assignment and
+a spent allowance following a successfully completed repair. Explicit external
+repair admission retries ordinary preparation, without launching the refused
+repair or replenishing its allowance. Corrupt state, unconfirmed settlement,
+unaccounted effects and prior unfinished, blocked or unverified repairs retain
+terminal handling. Other refusals terminate with the original obstruction and
 admission reason. Environment reports, exhausted correction attempts, test
 failures, rejected submissions, denied writes, session timeouts and user stops
-are not independent triggers. Failure before this boundary keeps existing error
-handling. The first version is deliberately restricted to this one boundary.
+are not independent triggers. Eligible ordinary preparation failures outside
+this automatic-repair boundary may await external repair under the
+[harness recovery contract](../harness.spec.md#recovery-waiting-and-explicit-resume).
+They do not independently authorize a repair engineer. Automatic project repair
+remains restricted to this one boundary.
 
 ## Invocation and verification
 

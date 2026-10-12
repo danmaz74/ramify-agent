@@ -87,6 +87,12 @@ export function runSessionViews(view: RunView): RunSessionView[] {
         resume(event.data.session, moment);
         invocations.set(event.data.invocation, {
           invocation: event.data.invocation,
+          ...(view.records.invocations.get(event.data.invocation)?.recoveryPredecessor === undefined ? {} : {
+            recoveryPredecessor: view.records.invocations.get(event.data.invocation)!.recoveryPredecessor,
+          }),
+          ...(view.records.invocations.get(event.data.invocation)?.recoveryGroup === undefined ? {} : {
+            recoveryGroup: view.records.invocations.get(event.data.invocation)!.recoveryGroup,
+          }),
           operation: (() => {
             const operation = view.records.invocations.get(event.data.invocation)?.sessionOperation;
             const point = view.records.outcomes.get(event.data.invocation)?.sessionOperation?.point;

@@ -5,6 +5,7 @@ import { runEventSchema } from '../run/log.js';
 import { runLayout } from '../run/records.js';
 import { replayNonfunctionalPhase } from '../run/nonfunctional-phase.js';
 import { decideNonfunctionalRound } from '../../subs/nonfunctional/src/rounds.js';
+import { recoveryHash, validateExternalRepair, type RecoveryIdentity } from '../run/recovery-admission.js';
 
 const oid = (character: string) => character.repeat(40);
 const hash = 'e'.repeat(64);
@@ -54,7 +55,46 @@ const closed = entry('nonfunctional-round-closed', { round: 1, record: 'nfr-roun
 const stream = [marker, prepared('cand-001', first, 2), assessed(initial, 'cand-001', 3), investigated, assigned, repaired,
   prepared('cand-002', second, 7), assessed(reassessed, 'cand-002', 8), closed];
 
+function externallyRepairedFinal() {
+  const policy = { sourceCommit: first.head, path: 'ramify-audit.json', blob: 'audit-blob', projectRoot: '.', checks: [], ignorePaths: [],
+    undetectedConfigFilesForcingFullAudit: [], workspace: { preparationId: 'nodejs', packageDirectoriesDeclared: true,
+      linkNodeModules: true, packageDirectories: ['.'], setupCommands: [] } };
+  const before: RecoveryIdentity = { candidate: { head: second.head, tree: second.tree, index: 'index', staged: [], unstaged: [], untracked: [],
+    files: [{ path: 'src/fixed.ts', hash: oid('d'), mode: '100644' }] },
+    runtime: { harness: 'harness', provider: 'provider', contracts: { policy: 'recovery/1', records: 'records/1', submissions: 'submission/1', equipment: 'equipment/1', authority: 'authority/1' } },
+    configuration: { identity: recoveryHash(policy), policy }, capturedInputs: [], durableIdentity: 'durable', acceptedHead: second.head };
+  const after = structuredClone(before);
+  after.candidate.tree = oid('f'); after.candidate.files[0]!.hash = oid('e');
+  const admission = validateExternalRepair(before, after, { areas: ['target'], explanation: 'Correct source after the settled final gate obstruction' });
+  const resumed = entry('operation-recovery-resumed', { occurrenceId: 'opr-0001', revision: 3, group: 1, command: {
+    commandId: 'operator-repair', contentHash: hash, receipt: { commandId: 'operator-repair', jobId: 'job-001', sequence: 10, acceptedAt: first.preparedAt },
+  } }, [record(runLayout.operationRecovery('opr-0001', 3), 'opr-0001', {
+    schema: 'ramify-agent.operation-recovery/1', id: 'opr-0001', revision: 3, state: 'resumed', boundary: { kind: 'gate', checkpoint: 'final' },
+    evidence: { classification: 'check-execution', diagnostic: 'Check executable missing' }, group: 1, automaticAttempts: 0,
+    attempts: [], pausedAt: first.preparedAt, settled: true, candidate: { head: second.head, tree: second.tree }, partialPaths: [], prerequisites: [], identity: before, admission,
+  })], 10);
+  // Recovery records have their own revision, unlike ordinary phase records.
+  const resumedEntry = { ...resumed, transaction: { ...resumed.transaction, records: resumed.transaction.records.map(value => ({ ...value, revision: 3 })) } };
+  const invalidated = entry('nonfunctional-final-invalidated', { occurrenceId: 'opr-0001', revision: 3, round: 1,
+    candidate: 'cand-002', assessment: 'nfa-002', tree: after.candidate.tree }, [], 11);
+  return { resumed: resumedEntry, invalidated, after };
+}
+
 describe('committed non-functional phase replay', () => {
+  it('authenticates external final invalidation and retains spent rounds and earlier assessment evidence', () => {
+    const external = externallyRepairedFinal();
+    const repaired = replayNonfunctionalPhase([...stream, external.resumed, external.invalidated], nfrIds, 3);
+    expect(repaired).toMatchObject({ ok: true, value: { final: null, input: {
+      closedRounds: [{ number: 1, outcome: 'satisfied', reassessment: 'nfa-002' }], externalContinuations: [1],
+    } } });
+    if (repaired.ok) expect(decideNonfunctionalRound(repaired.value.input)).toEqual({ action: 'prepare-candidate', round: 2, phase: 'initial' });
+    expect(replayNonfunctionalPhase([...stream, external.invalidated], nfrIds, 3)).toMatchObject({ ok: false, reason: expect.stringContaining('admitted resume') });
+    const wrong = entry('nonfunctional-final-invalidated', { occurrenceId: 'opr-0001', revision: 3, round: 1,
+      candidate: 'cand-002', assessment: 'nfa-002', tree: oid('9') }, [], 11);
+    expect(replayNonfunctionalPhase([...stream, external.resumed, wrong], nfrIds, 3)).toMatchObject({ ok: false, reason: expect.stringContaining('repaired final candidate') });
+    const exhaustedMarker = entry('nonfunctional-phase-started', { catalogHash: hash, maxRounds: 1 });
+    expect(replayNonfunctionalPhase([exhaustedMarker, ...stream.slice(1), external.resumed, external.invalidated], nfrIds, 1)).toMatchObject({ ok: false, reason: expect.stringContaining('remaining round allowance') });
+  });
   it('reconstructs valid crash prefixes and the next permitted step', () => {
     const expected = ['prepare-candidate', 'prepare-candidate', 'assess', 'investigate', 'repair-or-close', 'repair-or-close', 'prepare-candidate', 'assess', 'close', 'stop'];
     for (let length = 0; length <= stream.length; length += 1) {

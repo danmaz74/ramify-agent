@@ -75,6 +75,10 @@ placement and runtime failure retain distinct classifications and mutation
 attribution in invocation, event, metric and web evidence. Located project
 diagnostics remain useful when acquisition fails; a timeout or crash does not
 invent a source violation.
+Successfully observing no changed paths produces no placement evidence gap and
+requires no path-ownership acquisition. Failure to observe mutations remains a
+coverage gap. An empty turn does not settle ownership or verification for edits
+retained in the candidate from earlier work.
 
 Historical assignment authority can admit bounded repair while current ownership
 is unavailable, as specified by the

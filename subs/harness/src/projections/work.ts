@@ -211,7 +211,10 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
           .filter(invocation => invocation.work.iteration === assignment.id)
           .map(invocation => {
             const outcome = view.records.outcomes.get(invocation.id);
-            return { id: invocation.id, role: invocation.role, ended: outcome?.ended ?? null, outsideScope: [...(outcome?.outsideScope ?? [])], unknownPlacement: [...(outcome?.unknownPlacement ?? [])], ...(outcome?.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }), outsideScopeEvidence: scopeEvidence.get(invocation.id) ?? [] };
+            return { id: invocation.id, role: invocation.role, ended: outcome?.ended ?? null,
+              ...(invocation.recoveryPredecessor === undefined ? {} : { recoveryPredecessor: invocation.recoveryPredecessor }),
+              ...(invocation.recoveryGroup === undefined ? {} : { recoveryGroup: invocation.recoveryGroup }),
+              outsideScope: [...(outcome?.outsideScope ?? [])], unknownPlacement: [...(outcome?.unknownPlacement ?? [])], ...(outcome?.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }), outsideScopeEvidence: scopeEvidence.get(invocation.id) ?? [] };
           }),
         package: packageOf(assignment, evidence, planDeviations),
       };

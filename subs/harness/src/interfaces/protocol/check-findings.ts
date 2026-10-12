@@ -426,6 +426,7 @@ export type CheckFindingDetail = z.infer<typeof checkFindingDetailSchema>;
 /** One attempt of a review request. */
 export const reviewAttemptViewSchema = z.object({
   id: text,
+  transportInvocations: z.array(text).optional(),
   state: z.enum(['queued', 'running', 'finished']),
   invocation: z.string().nullable(),
   session: z.string().nullable(),

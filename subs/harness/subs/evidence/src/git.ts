@@ -1,4 +1,5 @@
 import { copyFile, lstat, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { runCommand, childEnvironment } from './run-command.js';
@@ -67,8 +68,8 @@ async function git(root: string, args: readonly string[], signal?: AbortSignal, 
     ...(stdin === undefined ? {} : { stdin }),
     ...(signal === undefined ? {} : { signal }),
   });
-  if (run.outcome.kind !== 'completed') {
-    throw new GitError(`\`${argv.join(' ')}\` did not complete: ${run.outcome.kind}`, { argv, outcome: run.outcome, output: run.output.tail });
+  if (run.outcome.kind !== 'completed' || run.output.truncated) {
+    throw new GitError(run.output.truncated ? `\`${argv.join(' ')}\` exceeded its output bound` : `\`${argv.join(' ')}\` did not complete: ${run.outcome.kind}`, { argv, outcome: run.outcome, output: run.output.tail });
   }
   return { exitCode: run.outcome.exitCode, stdout: run.stdout, stderr: run.stderr };
 }
@@ -956,6 +957,9 @@ export async function inspectGit(root: string, request: GitInspection, signal?: 
  * the project's root explicit, just as the command adapter does.
  */
 export interface GitService {
+  readonly isAncestor?: typeof isAncestor;
+  /** Exact recovery-only index and working-tree categories, from a read-only observation. */
+  readonly recoveryStatus?: typeof recoveryStatus;
   readonly trackedPaths: typeof trackedPaths;
   readonly ignoreStatus: typeof ignoreStatus;
   readonly previewCandidateTree: typeof previewCandidateTree;
@@ -976,12 +980,55 @@ export interface GitService {
 
 /** The process-backed adapter. Consumer tests should supply a scripted GitService. */
 export const gitService: GitService = {
+  isAncestor,
+  recoveryStatus,
   trackedPaths, ignoreStatus,
   previewCandidateTree: async (projectRoot, signal) => (await import('./candidate-tree.js')).previewCandidateTree(projectRoot, signal),
   currentHead, isCleanRepository, createRunBranch, commitAccepted,
   findCommitByTrailer, findCommitByTrailers, changedPaths, changedEntries,
   diffNameStatus, diffNumstat, commitNameStatus, worktreeLineChanges, worktreePatch,
 };
+
+/** Operator commits must retain the run's accepted history. */
+export async function isAncestor(root: string, ancestor: string, descendant: string): Promise<boolean> {
+  const result = await git(root, ['merge-base', '--is-ancestor', ancestor, descendant]);
+  if (result.exitCode === 0) return true;
+  if (result.exitCode === 1) return false;
+  throw new Error(`Git cannot establish retained accepted history: ${result.stderr.trim()}`);
+}
+
+export async function recoveryStatus(root: string): Promise<{ index: string; staged: string[]; unstaged: string[]; untracked: string[] }> {
+  const prefix = await projectPrefix(root);
+  const index = createHash('sha256').update((await gitOk(root, ['--no-optional-locks', 'ls-files', '--stage', '-z'])).stdout).digest('hex');
+  const status = (await gitOk(root, ['--no-optional-locks', 'status', '--porcelain=v1', '-z', '--untracked-files=all'])).stdout;
+  return { index, ...parseRecoveryStatus(status, prefix) };
+}
+
+/** Parse exact NUL-delimited status paths in the target project's own coordinates. */
+export function parseRecoveryStatus(status: string, prefix = ''): { staged: string[]; unstaged: string[]; untracked: string[] } {
+  if (status !== '' && !status.endsWith('\0')) throw new Error('Git returned incomplete recovery status');
+  const staged = new Set<string>(), unstaged = new Set<string>(), untracked = new Set<string>();
+  const fields = status.split('\0');
+  for (let offset = 0; offset < fields.length; offset += 1) {
+    const entry = fields[offset];
+    if (!entry) continue;
+    if (entry.length < 4 || entry[2] !== ' ') throw new Error('Git returned malformed recovery status');
+    const code = entry.slice(0, 2), path = projectPath(prefix, entry.slice(3));
+    if (code === '??') { if (path !== null) untracked.add(path); }
+    else {
+      if (path !== null && code[0] !== ' ') staged.add(path);
+      if (path !== null && code[1] !== ' ') unstaged.add(path);
+      if (code.includes('R') || code.includes('C')) {
+        const original = fields[++offset];
+        if (!original) throw new Error('Git recovery rename omits its original path');
+        const originalPath = projectPath(prefix, original);
+        if (originalPath !== null && code[0] !== ' ') staged.add(originalPath);
+        if (originalPath !== null && code[1] !== ' ') unstaged.add(originalPath);
+      }
+    }
+  }
+  return { staged: [...staged].sort(), unstaged: [...unstaged].sort(), untracked: [...untracked].sort() };
+}
 
 /** The commit the working directory is on, or '' where Git cannot say. */
 export async function currentHead(projectRoot: string): Promise<string> {

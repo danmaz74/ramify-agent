@@ -293,6 +293,7 @@ export function reviewListOf(view: RunView, query: { readonly workItem: string |
         const result = body?.result;
         return {
           id: attempt.id,
+          ...(body?.transportInvocations === undefined ? {} : { transportInvocations: body.transportInvocations }),
           state: attempt.finished !== null ? 'finished' : attempt.started !== null ? 'running' : 'queued',
           invocation: body?.invocation ?? attempt.started?.invocation ?? null,
           session: body?.session ?? attempt.started?.session ?? null,

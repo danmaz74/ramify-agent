@@ -39,6 +39,18 @@ describe('typed ownership evidence', () => {
     const body = answered(); body.paths = [{ path: '../elsewhere', ownership: { status: 'outside-project', module: null } }] as never;
     expect(decodeOwnershipQueryResult(run(body, 0), root, ['../elsewhere'])).toMatchObject({ status: 'answered', answer: { paths: [{ status: 'outside-project' }] } });
   });
+  it('queries explicit project roots while refusing root answers to empty or nonempty different requests', async () => {
+    const body = answered(); body.paths[0]!.path = '.';
+    const current = new ScriptedCli(true); replies.push(current);
+    current.declare({ argv: ['ownership', '--root', root, '--format', 'json', '--path', '.'], cwd: root, result: run(body, 0) });
+    expect((await current.queryOwnershipAnswer(root, ['.'])).paths.map(path => path.path)).toEqual(['.']);
+    for (const requested of [[], ['src/a.ts']]) {
+      expect(decodeOwnershipQueryResult(run(body, 0), root, requested)).toMatchObject({
+        status: 'unavailable', failureStatus: 'unsupported', stdout: JSON.stringify(body),
+        reason: expect.stringContaining('query did not answer exactly the requested paths'),
+      });
+    }
+  });
   it('refuses contradictory, unsupported and corrupted evidence without losing raw bytes', () => {
     const wrongDirectory = answered(); wrongDirectory.paths[0]!.ownership.directory = 'elsewhere';
     const wrongWarning = answered(); wrongWarning.warnings = [{ code: 'invented', message: 'm', path: 'src' }] as never;

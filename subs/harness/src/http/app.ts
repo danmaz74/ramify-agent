@@ -22,7 +22,7 @@ import {
   analysisResponseSchema, capabilityListResponseSchema, decisionListResponseSchema, gateResponseSchema,
   mergeReadinessResponseSchema, metricsResponseSchema, moduleCapabilityComparisonResponseSchema, runCommandSchema, runEventPageSchema, runListResponseSchema, runResponseSchema,
   scenarioListResponseSchema, workItemListResponseSchema, workItemResponseSchema,
-  debugStateResponseSchema, debugInspectionResponseSchema, debugExchangeResponseSchema, type BreakpointState, type DebugIntervention,
+  debugStateResponseSchema, debugInspectionResponseSchema, debugExchangeResponseSchema, recoveryInspectionSchema, type BreakpointState, type DebugIntervention,
 } from '../interfaces/protocol/runs.js';
 import {
   runSessionIdSchema, runSessionResponseSchema, runSessionsResponseSchema, sessionBodyResponseSchema, sessionListResponseSchema, sessionQueryLimits,
@@ -134,6 +134,12 @@ export function createApp(options: AppOptions): express.Express {
     const after = request.query['after'] ?? '0';
     if (typeof after !== 'string' || !/^\d{1,15}$/.test(after)) throw new ProtocolFailure('invalid-request', '"after" must be a sequence number');
     send(response, runEventPageSchema, await projected(() => queries.events(request.params.planId, request.params.runId, Number(after))));
+  });
+
+  app.get(`${apiPrefix}/plans/:planId/runs/:runId/recovery`, async (request: RunRequest, response) => {
+    const { planId, runId } = request.params;
+    await projected(() => queries.run(planId, runId));
+    send(response, recoveryInspectionSchema.nullable(), await runs.recoveryInspection(planId, runId));
   });
 
   app.get(`${apiPrefix}/plans/:planId/runs/:runId/debug`, async (request: RunRequest, response) => {

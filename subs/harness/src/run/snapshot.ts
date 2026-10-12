@@ -48,6 +48,7 @@ export interface RunSnapshot {
   readonly notices: readonly RunNotice[];
   /** The breakpoint the run was started with, or null. */
   readonly breakpoint: BreakpointSelector | null;
+  readonly recovery: { readonly occurrenceId: string; readonly revision: number; readonly state: 'pausing' | 'paused' } | null;
 }
 
 /**
@@ -92,6 +93,7 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
   const ended = events.find(event => stateOf[event.type] !== undefined);
 
   let phase: RunPhase = 'analysis';
+  let recovery: RunSnapshot['recovery'] = null;
   let stopRequested = false;
   let failure: RunSnapshot['failure'] = null;
   let currentInvocation: string | undefined;
@@ -114,6 +116,14 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
 
   for (const event of events) {
     switch (event.type) {
+      case 'operation-recovery-pausing':
+      case 'operation-recovery-paused':
+        recovery = { occurrenceId: event.data.occurrenceId, revision: event.data.revision,
+          state: event.type === 'operation-recovery-paused' ? 'paused' : 'pausing' };
+        break;
+      case 'operation-recovery-resumed':
+        recovery = null;
+        break;
       case 'invocation-started':
         invocations += 1;
         currentInvocation = event.data.invocation;
@@ -267,5 +277,6 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
     review,
     notices: resolvedNotices,
     breakpoint: record.breakpoint ?? null,
+    recovery: ended === undefined ? recovery : null,
   };
 }

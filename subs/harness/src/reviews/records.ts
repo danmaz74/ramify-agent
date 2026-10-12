@@ -113,6 +113,7 @@ export const reviewAttemptSchema = z.object({
   startedAt: z.iso.datetime().nullable(),
   finishedAt: z.iso.datetime(),
   invocation: text.nullable(),
+  transportInvocations: z.array(text).optional(),
   session: sessionIdSchema.nullable(),
   requestedStart: z.enum(['fresh', 'fork']),
   /** What the executor answered; null when no session ran. */
@@ -178,6 +179,7 @@ export const reviewOrientationSchema = z.object({
   /** The request whose attempt made it. */
   request: reviewRequestIdSchema,
   invocation: text.nullable(),
+  transportInvocations: z.array(text).optional(),
   session: sessionIdSchema.nullable(),
   /** The executor's pinned ref at the orientation's end; null when it did not orient. */
   ref: text.nullable(),
@@ -192,6 +194,7 @@ export const reviewOrientationRecordedDataSchema = z.object({
   key: sha256Schema,
   request: reviewRequestIdSchema,
   invocation: text.nullable(),
+  transportInvocations: z.array(text).optional(),
   session: sessionIdSchema.nullable(),
   outcome: z.enum(['oriented', 'failed']),
 }).strict();

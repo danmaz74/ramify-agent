@@ -12,6 +12,7 @@ import { type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence
 import { temporaryDirectory } from './helpers/fixture.js';
 import { mockGit } from './helpers/mock-git.js';
 import { repairExportFixture } from './helpers/repair-export-fixture.js';
+import { validateExternalRepair, type RecoveryIdentity } from '../run/recovery-admission.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });
@@ -65,7 +66,7 @@ async function fixture(priorOutside = false) {
     return { schemaVersion: 'ramify.ownership/1', ramifyVersion: 'scripted', root, inputId: 'current', scope: { configuration: 'tsconfig.json', ownership: { modules, exclusions: excluded ? [exclusion] : [] } }, paths: paths.map(path => excluded && path.startsWith('Beta/') ? { path, status: 'excluded', module: null, exclusion } : { path, status: 'owned', module: path.startsWith('Alpha/') ? 'Root/Alpha' : path.startsWith('Beta/') ? 'Root/Beta' : 'Root', exclusion: null }) };
   } } } as unknown as GateHost<GateRun>;
   const run = { base: 'base', log: { ledger: { replay: () => entries }, all: (type: string) => entries.map(entry => entry.transaction.event).filter(event => event.type === type) } } as unknown as GateRun;
-  return { root, entries, exclude: () => { excluded = true; }, acceptLaterCandidate: () => {
+  return { root, entries, host, run, append, exclude: () => { excluded = true; }, acceptLaterCandidate: () => {
     // Only the fields acceptedCommit reads; no gate execution is scripted here.
     append('gate-attempted', { gate: 'gate-001', checkpoint: 'iteration', verdict: 'passed', next: 'continue' }, [{ path: 'gate.json', id: 'gate-001', revision: 1,
       body: { schema: 'ramify-agent.gate-attempt/3', id: 'gate-001', checkpoint: 'iteration', audited: 'later-accepted' } }]);
@@ -79,6 +80,32 @@ async function fixture(priorOutside = false) {
 test('a verified repair delta covers exact sibling bytes at the resumed ordinary gate', async () => {
   const f = await fixture();
   expect(await f.outcome()).toMatchObject({ outcome: 'passed', violations: [] });
+});
+
+test('authenticated operator repair supplies exact sibling provenance without changing engineer scope', async () => {
+  const f = await fixture();
+  // This case uses the operator's correction, with no automatic repair handback.
+  f.entries.splice(1);
+  const config = { sourceCommit: 'base', path: 'ramify-audit.json', blob: 'config', projectRoot: '.', checks: [], ignorePaths: [],
+    undetectedConfigFilesForcingFullAudit: [], workspace: { preparationId: 'nodejs', packageDirectoriesDeclared: false, linkNodeModules: true, packageDirectories: [], setupCommands: [] } };
+  const before: RecoveryIdentity = { candidate: { head: 'base', tree: 'partial-tree', index: 'partial-index', staged: [], unstaged: ['Alpha/partial.ts'], untracked: [],
+    files: [{ path: 'Alpha/partial.ts', hash: 'partial', mode: '100644' }, { path: 'Beta/restored.ts', hash: 'broken', mode: '100644' }] },
+    runtime: { harness: 'harness', provider: 'provider', contracts: { policy: 'recovery/1', records: 'records/1', submissions: 'submissions/1', equipment: 'equipment/1', authority: 'authority/1' } },
+    configuration: { identity: 'config', policy: config }, capturedInputs: [], durableIdentity: 'original-records', acceptedHead: 'base' };
+  const after = structuredClone(before); after.candidate.tree = 'corrected-tree'; after.candidate.files[1]!.hash = 'operator-bytes';
+  const admission = validateExternalRepair(before, after, { areas: ['target'], explanation: 'Restore provider source while retaining the consumer partial' });
+  f.append('operation-recovery-resumed', { occurrenceId: 'opr-0001', revision: 3, group: 1,
+    command: { commandId: 'operator-resume', contentHash: 'command-hash', receipt: { commandId: 'operator-resume', jobId: 'run-1', sequence: f.entries.length + 1, acceptedAt: at } } }, [{ path: runLayout.operationRecovery('opr-0001', 3), id: 'opr-0001', revision: 3,
+      body: { schema: 'ramify-agent.operation-recovery/1', id: 'opr-0001', revision: 3, state: 'resumed', boundary: { kind: 'invocation' },
+        evidence: { classification: 'transport', diagnostic: 'Original interruption' }, group: 1, automaticAttempts: 2, attempts: ['inv-0001'], pausedAt: at,
+        settled: true, candidate: { head: 'base', tree: 'partial-tree' }, partialPaths: ['Alpha/partial.ts'], prerequisites: [], identity: before, admission } }]);
+  Object.assign(f.host, { previewCandidateTree: async () => ({ tree: 'corrected-tree' }), candidates: { treeEntries: async () => [
+    { path: 'Alpha/partial.ts', kind: 'file', bytes: 7, objectId: 'partial' }, { path: 'Beta/restored.ts', kind: 'file', bytes: 8, objectId: 'operator-bytes' },
+  ] } });
+  expect(await f.outcome()).toMatchObject({ outcome: 'passed', violations: [] });
+  expect((f.run.log.ledger.replay()[0]!.transaction.records[0]!.body as { scope: WriteScope }).scope.resolved.roots).toEqual([join(f.root, 'Alpha')]);
+  f.exclude();
+  expect(await f.outcome()).toMatchObject({ outcome: 'failed', violations: [{ path: 'Beta/restored.ts' }] });
 });
 test.each(['bytes', 'mode', 'symlink'] as const)('later %s changes cannot borrow repair authority', async kind => {
   const f = await fixture(); const path = join(f.root, 'Beta/restored.ts');

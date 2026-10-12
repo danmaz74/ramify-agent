@@ -52,7 +52,8 @@ export function mockGit(answers: Partial<GitService> = {}): Mocked<GitService> &
   const unexpected: string[] = [];
   const mock = { unexpected } as Mocked<GitService> & { readonly unexpected: string[] };
   const operations: readonly (keyof GitService)[] = [
-    'trackedPaths', 'ignoreStatus',
+    'isAncestor',
+    'recoveryStatus', 'trackedPaths', 'ignoreStatus',
     'previewCandidateTree',
     'currentHead', 'isCleanRepository', 'createRunBranch', 'commitAccepted',
     'findCommitByTrailer', 'findCommitByTrailers', 'changedPaths', 'changedEntries',

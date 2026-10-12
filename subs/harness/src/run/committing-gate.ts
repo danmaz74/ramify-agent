@@ -34,9 +34,11 @@ import { nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js'
 import { verifiedRepairDeltas } from './repair-gate.js';
 import { unchangedRepairPaths } from './repair-preparation.js';
 import { declaredModuleDirectories } from './project-config.js';
-import { gateAttemptId, gateAttemptSchema, runLayout, type GateOperation, type RecordRef, type RunPolicy } from './records.js';
+import { gateAttemptId, gateAttemptSchema, operationRecoverySchema, runLayout, type GateOperation, type RecordRef, type RunPolicy } from './records.js';
 import type { RunWrite } from './service.js';
 import type { WriterOwnership } from './writer.js';
+import { checkExecutionObstruction } from './recovery-checks.js';
+import { authenticatedExternalRepairs } from './recovery-gate.js';
 
 /*
  * The committing gate: verify a candidate before any effect, commit it on
@@ -50,6 +52,8 @@ const message = (error: unknown): string => (error instanceof Error ? error.mess
 
 /** A drift of the candidate between its assessment and its commit. */
 export class CandidateDriftError extends Error {}
+/** An admitted external change needs responsible assessment before qualification. */
+export class CandidateReassessmentRequired extends Error {}
 
 /** What a committing gate reads and writes of a run. */
 export interface GateRun {
@@ -70,6 +74,11 @@ export interface GateRun {
 
 /** What a run supplies to its committing gates. */
 export interface GateHost<R extends GateRun> {
+  /** Quiescent recovery and whole-run bounds govern dispatch, including a restored explicit group. */
+  awaitGateAdmission?(run: R, resumedGroup?: boolean): Promise<boolean>;
+  /** Settled check execution pauses the accepted producer's pending gate, without rerunning that producer. */
+  recoverGate?(run: R, attempt: GateAttempt, diagnostic: string, group: number, attempts: readonly string[]): Promise<boolean>;
+  retryGateDelay?(run: R, milliseconds: number): Promise<boolean>;
   readonly projectRoot: string;
   readonly git: GitService;
   readonly ramify: RamifyCli;
@@ -82,7 +91,7 @@ export interface GateHost<R extends GateRun> {
   /** The committed audit definition a gate of this run runs at its candidate commit; throws where there is none. */
   auditDefinition(run: R, sourceCommit: string): Promise<Parameters<ConfiguredAuditPort['run']>[0]['configuration']>;
   previewCandidateTree(): Promise<{ readonly tree: string }>;
-  readonly candidates: Pick<CandidateSource, 'commitTree'>;
+  readonly candidates: Pick<CandidateSource, 'commitTree'> & Partial<Pick<CandidateSource, 'treeEntries'>>;
   /** The module inventory as the project stands now, or null when it cannot be refreshed. */
   refreshIndex(run: R): Promise<ArchitectIndex | null>;
   /** Whether the run accepts nothing more: it is stopping, closing or has ended. */
@@ -100,6 +109,83 @@ export class CommittingGates<R extends GateRun> {
     summary?: string,
     modules?: readonly ModuleNotice[],
     goal?: string,
+    binding?: { candidateId: string; assessment: Assessment },
+  ): Promise<GateAttempt> {
+    if (this.host.awaitGateAdmission !== undefined && !await this.host.awaitGateAdmission(run)) {
+      throw new Error('Gate admission stopped before any commit or check effect');
+    }
+    const entries = run.log.ledger.replay();
+    const logicalSince = request.checkpoint === 'final' ? entries.filter(entry => entry.transaction.event.type === 'nonfunctional-final-invalidated').at(-1)?.sequence ?? 0 : 0;
+    const prior = entries.filter(entry => entry.sequence > logicalSince).flatMap(entry => entry.transaction.records.flatMap(record => {
+      const parsed = gateAttemptSchema.safeParse(record.body);
+      if (!parsed.success) return [];
+      const gate = parsed.data;
+      return gate.checkpoint === request.checkpoint && gate.proposedBy === (request.proposedBy ?? null)
+        && gate.repairRound === (request.repairRound ?? 0) && JSON.stringify(gate.subject) === JSON.stringify(request.subject ?? {})
+        ? [{ sequence: entry.sequence, gate }] : [];
+    }));
+    const resumed = [...entries].reverse().find(entry => entry.sequence > logicalSince && entry.transaction.event.type === 'operation-recovery-resumed'
+      && entry.transaction.records.some(record => {
+        const parsed = operationRecoverySchema.safeParse(record.body);
+        return parsed.success && parsed.data.boundary.kind === 'gate' && parsed.data.boundary.checkpoint === request.checkpoint
+          && parsed.data.boundary.work?.workItem === request.subject?.workItem && parsed.data.boundary.work?.iteration === request.subject?.iteration;
+      }));
+    const last = prior.at(-1);
+    let latestAttempt: GateAttempt | undefined = last?.gate;
+    const held = resumed?.transaction.records.map(record => operationRecoverySchema.safeParse(record.body)).find(result => result.success);
+    const attempts = prior.map(entry => entry.gate.id);
+    let current = request, group = held?.success ? held.data.group : 0;
+    let resumedGroup = last !== undefined && (resumed?.sequence ?? 0) > last.sequence;
+    let groupAttempts = Math.max(0, prior.filter(entry => entry.sequence > (resumed?.sequence ?? 0)).length - 1);
+    if (run.policy.recovery !== undefined && this.host.recoverGate !== undefined && last && last.gate.verdict !== 'passed') {
+      current = { ...current, id: (resumed?.sequence ?? 0) > last.sequence ? request.id : last.gate.id,
+        directory: run.path(runLayout.gateOutput((resumed?.sequence ?? 0) > last.sequence ? request.id : last.gate.id)),
+        infrastructureAttempt: last.gate.infrastructureAttempt + ((resumed?.sequence ?? 0) > last.sequence ? 1 : 0) };
+    }
+    for (;;) {
+      if (this.host.awaitGateAdmission !== undefined && !await this.host.awaitGateAdmission(run, resumedGroup)) {
+        if (latestAttempt !== undefined) return latestAttempt;
+        throw new Error('Gate scheduling ended before candidate execution was admitted');
+      }
+      resumedGroup = false;
+      const attempt = await this.committingCheckpointAttempt(run, current, summary, modules, goal, binding);
+      latestAttempt = attempt;
+      if (!attempts.includes(attempt.id)) attempts.push(attempt.id);
+      const obstruction = run.policy.recovery === undefined || this.host.recoverGate === undefined ? null : checkExecutionObstruction(attempt);
+      if (obstruction === null || this.host.ignoring(run)) return attempt;
+      if (obstruction.automatic && groupAttempts < run.policy.limits.infrastructureRetriesPerGate) {
+        groupAttempts += 1;
+        if (this.host.retryGateDelay !== undefined && !await this.host.retryGateDelay(run, Math.min(1000 * groupAttempts, 2000))) return attempt;
+      }
+      else {
+        if (!await this.host.recoverGate!(run, attempt, obstruction.diagnostic, group, attempts)) return attempt;
+        resumedGroup = true;
+        if (this.host.awaitGateAdmission !== undefined && !await this.host.awaitGateAdmission(run, true)) return attempt;
+        group += 1; groupAttempts = 0;
+        const admitted = authenticatedExternalRepairs(run.log.ledger.replay()).at(-1)?.admission;
+        const changedFinal = binding !== undefined && (await this.host.previewCandidateTree()).tree !== binding.assessment.candidate.tree;
+        if (admitted?.requiresReassessment || changedFinal) {
+          const id = gateAttemptId(this.gateCount(run) + 1);
+          const { audit: _oldAudit, provider: _oldProvider, ...historical } = attempt;
+          const refusal = gateAttemptSchema.parse({ ...historical, id, head: await this.host.git.currentHead(this.host.projectRoot),
+            commit: null, audited: null, evidence: null, infrastructureAttempt: attempt.infrastructureAttempt + 1,
+            verdict: 'not-verified', cause: 'unknown', next: 'return-to-local-architect', commands: [], guardedChanges: [],
+            provider: { result: { status: 'applicability-refused', reason: 'Admitted external repair changed the accepted candidate; responsible reassessment is required',
+              admission: admitted }, checks: {} } });
+          await this.host.write(run, { type: 'gate-attempted', data: { gate: id, checkpoint: refusal.checkpoint, verdict: refusal.verdict, next: refusal.next } },
+            [{ path: runLayout.gate(id), id, revision: 1, body: refusal }]);
+          if (binding !== undefined) throw new CandidateReassessmentRequired('The externally repaired final candidate needs fresh assessment');
+          return refusal;
+        }
+      }
+      current = { ...current, id: gateAttemptId(this.gateCount(run) + 1),
+        directory: run.path(runLayout.gateOutput(gateAttemptId(this.gateCount(run) + 1))),
+        head: await this.host.git.currentHead(this.host.projectRoot), infrastructureAttempt: (current.infrastructureAttempt ?? 0) + 1 };
+    }
+  }
+
+  private async committingCheckpointAttempt(
+    run: R, request: CheckpointRequest, summary?: string, modules?: readonly ModuleNotice[], goal?: string,
     binding?: { candidateId: string; assessment: Assessment },
   ): Promise<GateAttempt> {
     const scratch = await scratchSafetyRule(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
@@ -222,6 +308,41 @@ export class CommittingGates<R extends GateRun> {
         if (expected !== undefined && await this.renderedFeatureAllowed(path, expected, current)) permitted.add(path);
       }
       const harnessDenied = await deniedFiles(this.host.projectRoot, await this.host.harnessFiles(run));
+      const external = authenticatedExternalRepairs(ledger).filter(repair => !ledger.some(entry => entry.sequence > repair.sequence
+        && entry.transaction.event.type === 'gate-attempted' && entry.transaction.event.data.verdict === 'passed'
+        && Object.entries(checkpointPolicies).some(([checkpoint, policy]) => entry.transaction.event.type === 'gate-attempted'
+          && entry.transaction.event.data.checkpoint === checkpoint && policy.committing)));
+      if (external.length > 0) {
+        if (!this.host.candidates.treeEntries) throw new Error('External repair candidate object identities are unavailable');
+        const preview = await this.host.previewCandidateTree();
+        const entries = new Map((await this.host.candidates.treeEntries(this.host.projectRoot, preview.tree)).map(entry => [entry.path, entry]));
+        for (const repair of external) {
+          const dirtyBefore = [...new Set([...repair.admission.before.candidate.staged, ...repair.admission.before.candidate.unstaged, ...repair.admission.before.candidate.untracked])];
+          const originalPermitted = new Set<string>();
+          for (const origin of origins) {
+            const guard = guardedScopeOf(origin.scope, await deniedFiles(this.host.projectRoot,
+              [...harnessDenied, ...origin.guarded.filter(file => !origin.authorizations.some(entry => entry.path === file.path)).map(file => file.path)]), this.host.ramify, current);
+            const outside = new Set(await outsideScope(this.host.projectRoot, guard, dirtyBefore));
+            for (const path of dirtyBefore) if (!outside.has(path)) originalPermitted.add(path);
+          }
+          for (const change of repair.admission.changes) {
+            const path = change.path;
+            if (!changed.includes(path) || dirtyBefore.includes(path) && !originalPermitted.has(path)) continue;
+            const entry = entries.get(path);
+            const actualMode = entry === undefined ? null : ({ file: '100644', executable: '100755', symlink: '120000', submodule: '160000' } as const)[entry.kind];
+            if ((entry?.objectId ?? null) !== change.after.hash || actualMode !== change.after.mode || entry && !['file', 'executable'].includes(entry.kind)) continue;
+            const configurationCorrection = path === (repair.admission.after.configuration.policy as { path: string }).path
+              && repair.admission.declaration?.areas.includes('configuration');
+            if (harnessDenied.includes(path) && !configurationCorrection) continue;
+            if (origins.some(origin => origin.guarded.some(file => file.path === path)) && !configurationCorrection) continue;
+            const answer = current.paths.find(answer => answer.path === path);
+            if (answer?.status !== 'owned') continue;
+            const physical = await resolveRealTarget(this.host.projectRoot, path);
+            if (!physical.ok || physical.resolved !== resolve(this.host.projectRoot, path)) continue;
+            permitted.add(path);
+          }
+        }
+      }
       for (const repair of repairs) {
         const original = committed.assignments.get(repair.delta.originalAssignment);
         if (original === undefined) throw new Error('Automatic repair has no originating ordinary assignment');
@@ -347,7 +468,10 @@ export class CommittingGates<R extends GateRun> {
       ...(modules === undefined || modules.length === 0 ? {} : { modules }),
       ...(earlierAttempts(run, identity.id, identity.subject ?? {}).length === 0 ? {} : { earlier: earlierAttempts(run, identity.id, identity.subject ?? {}) }),
     });
-    const operation = gateOperation(prepared, message);
+    const operation: GateOperation = { ...gateOperation(prepared, message),
+      ...(run.policy.recovery !== undefined && binding !== undefined ? { finalAssessment: {
+        assessment: binding.assessment.id, candidate: binding.candidateId, tree: binding.assessment.candidate.tree,
+      } } : {}) };
     const effect = run.log.ledger.effect<{ readonly attempt: GateAttempt }>({
       key: `gate-commit:${identity.id}`,
       serialize: work => run.mutex.run(work),

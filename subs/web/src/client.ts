@@ -19,6 +19,7 @@ import {
   type ProjectResponse,
 } from '../../harness/src/interfaces/protocol/queries.js';
 import {
+  recoveryInspectionSchema, type RecoveryInspection,
   analysisResponseSchema, capabilityListResponseSchema, debugExchangeResponseSchema, debugInspectionResponseSchema, debugStateResponseSchema,
   decisionListResponseSchema, gateResponseSchema, mergeReadinessResponseSchema, metricsResponseSchema, moduleCapabilityComparisonResponseSchema, runEventPageSchema, runListResponseSchema, runResponseSchema,
   scenarioListResponseSchema, workItemListResponseSchema, workItemResponseSchema,
@@ -97,6 +98,7 @@ export interface ProtocolClient {
   getReviews(planId: string, runId: string, workItem?: string): Promise<ReviewListResponse>;
   getMetrics(planId: string, runId: string): Promise<MetricsResponse>;
   /** The run's current breakpoint interaction and every intervention of the run, read from the start of its log. */
+  getRecoveryInspection(planId: string, runId: string): Promise<RecoveryInspection | null>;
   getDebugState(planId: string, runId: string): Promise<DebugStateResponse>;
   /** The prepared input of a live breakpoint occurrence: a preview, not delivered input. */
   getDebugInspection(planId: string, runId: string, pauseId: string): Promise<DebugInspectionResponse>;
@@ -226,6 +228,7 @@ export function createProtocolClient(origin = '', fetchImpl: typeof fetch = (...
     getCheckFindingModules: (planId, runId) => get(protocolPaths.runCheckFindingModules(planId, runId), checkFindingModuleCountsSchema),
     getReviews: (planId, runId, workItem) => get(protocolPaths.runReviews(planId, runId, { workItem }), reviewListResponseSchema),
     getMetrics: (planId, runId) => get(protocolPaths.runMetrics(planId, runId), metricsResponseSchema),
+    getRecoveryInspection: (planId, runId) => get(protocolPaths.runRecovery(planId, runId), recoveryInspectionSchema.nullable()),
     getDebugState: (planId, runId) => get(protocolPaths.runDebug(planId, runId, 0), debugStateResponseSchema),
     getDebugInspection: (planId, runId, pauseId) => get(protocolPaths.runDebugInspect(planId, runId, pauseId), debugInspectionResponseSchema),
     getDebugExchange: (planId, runId, commandId) => get(protocolPaths.runDebugExchange(planId, runId, commandId), debugExchangeResponseSchema),

@@ -1,0 +1,314 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
+import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
+import { contextSelectorToolName, workOrientationToolName } from '../context-selection/submissions.js';
+import { localArchitectToolName } from '../work/submission.js';
+import { runLayout, type Invocation } from '../run/records.js';
+import { announcingAudit } from './helpers/direct-check-execution.js';
+import { declaringScenarios, withDefaultTurns } from './helpers/declarations.js';
+import {
+  committedGates, compositionCandidates, identityOf, logEvents, plan, scenarios,
+  statedCommands, type Scenario,
+} from './helpers/composition.js';
+import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
+import { installTestRunner, openRuns, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
+import { copyFixture } from './helpers/fixture.js';
+import { analysis, entry, requestCompletion } from './helpers/analysis.js';
+import { assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
+import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
+import { scenariosCommit } from './helpers/scripted-git.js';
+import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
+import { intakeToolName } from '../analysis/extraction.js';
+import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
+import { reviewScript, reviewTarget, candidates as reviewCandidates, revisionGates, base as reviewBase,
+  materialized as reviewMaterialized, store, notes, attemptRecord } from './helpers/reviews.js';
+import { gateGit, scenariosCommit as gateScenariosCommit } from './helpers/gate-git.js';
+import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
+import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
+import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
+import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
+import { SessionQueries } from '../projections/session-queries.js';
+import { RunQueries } from '../projections/queries.js';
+import { scenarioGit } from './helpers/recovery-git.js';
+
+vi.mock('node:child_process', async original =>
+  (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
+
+const cleanups: Array<() => Promise<void>> = [];
+afterEach(async () => {
+  try { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); expectNoProcesses(); }
+  finally { forgetExternalTools(); }
+});
+
+function recoveryPolicy(root: string) {
+  const policy = testPolicy(root, { recovery: true });
+  return { ...policy, recovery: { ...policy.recovery!, baseDelayMs: 0, maxDelayMs: 1 } };
+}
+
+/** The interruption precedes the fixture turn, so retry does not consume a semantic answer. */
+function interruptOnce(script: Script, matches: (spec: SessionSpec) => boolean): Script {
+  let interrupted = false;
+  return spec => {
+    if (!interrupted && matches(spec)) {
+      interrupted = true;
+      return [{ kind: 'fail', error: 'Scripted stream lost before submission', evidence: {
+        classification: 'transport', diagnostic: 'Scripted stream lost before submission', code: 'ECONNRESET',
+      } }];
+    }
+    return typeof script === 'function' ? script(spec) : script;
+  };
+}
+
+async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) => boolean) {
+  const target = await scenario.target();
+  cleanups.push(target.remove);
+  const declared = declaringScenarios(scenario.script(target.root));
+  // The outer wrapper includes extraction, orientation and selection callers that
+  // the composition's declaration helper answers through its default turns.
+  const agent = createScriptedAgent(matches ? interruptOnce(declared, matches) : declared);
+  const final = scenario.finalCandidate!;
+  // New-policy pure preparation captures the retained partial candidate before
+  // the next architect turn. The delegation has reached its first provider
+  // commit at that boundary; final qualification later observes source-03.
+  const preparationPreviews = scenario.name === 'iteration'
+    ? [{ repositoryRoot: target.root, head: final.head, tree: final.tree }]
+    : scenario.name === 'delegation' ? [{ repositoryRoot: target.root, head: 'source-01', tree: 'b'.repeat(40) }] : [];
+  const git = scenarioGit(target.root, { ...scenario.git,
+    ...(final === undefined ? {} : { previews: [...preparationPreviews,
+      ...Array.from({ length: 4 }, () => ({ repositoryRoot: target.root, head: final.head, tree: final.tree }))] }),
+  });
+  const commands = statedCommands(target.root, scenario.commands ?? []);
+  const opened = await openRuns(target.root, {
+    agent, git, candidates: compositionCandidates(target.root, scenario), inputs: scenario.inputs(),
+    configuredAudit: announcingAudit(), commandExecution: commands, policy: recoveryPolicy,
+  });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun(plan));
+  await opened.service.settled(plan, receipt.jobId);
+  commands.assertComplete(); git.assertComplete();
+  return { ...opened, agent, git, root: target.root, runId: receipt.jobId, events: await logEvents(target.root, receipt.jobId) };
+}
+
+describe('ordinary recovery through actual workflow callers', () => {
+  const cases = [
+    { caller: 'initial architect', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.role === 'initial-architect' },
+    { caller: 'catalog extraction', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.role === 'catalog-extractor' },
+    { caller: 'local orientation', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.submission.name === workOrientationToolName },
+    { caller: 'context selector fork', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.submission.name === contextSelectorToolName },
+    { caller: 'local organizing continuation', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.submission.name === localArchitectToolName && spec.session.mode === 'continue' },
+    { caller: 'engineer', scenario: scenarios.iteration, matches: (spec: SessionSpec) => spec.role === 'engineer' },
+    { caller: 'contract engineer', scenario: scenarios.delegation, matches: (spec: SessionSpec) => spec.role === 'contract-engineer' },
+    { caller: 'global placement fork', scenario: scenarios.placement, matches: (spec: SessionSpec) => spec.role === 'global-fork' },
+  ];
+  for (const { caller, scenario, matches } of cases) {
+    test(`${caller} retries the unfinished operation without repeating accepted transitions`, async () => {
+      const run = await composedCaller(scenario, matches);
+      expect(run.service.getRun(plan, run.runId)?.state).toBe(scenario.ends);
+      const failed = run.agent.sessions.filter(session => session.outcome?.kind === 'failed');
+      expect(failed).toHaveLength(1);
+      const first = failed[0]!;
+      const next = run.agent.sessions[run.agent.sessions.indexOf(first) + 1]!;
+      expect(next.spec.role).toBe(first.spec.role);
+      expect(next.spec.submission.name).toBe(first.spec.submission.name);
+      expect(next.outcome?.kind).toBe('submitted');
+      const attempts = run.events.filter(event => event.type === 'operation-recovery-attempt');
+      const successor = attempts.find(event => event.data.predecessor !== null)!;
+      expect(successor).toBeDefined();
+      expect(successor.data.attempt).toBe(1);
+      expect(attempts.filter(event => event.data.predecessor !== null)).toHaveLength(1);
+      const invocation = JSON.parse(await readFile(runPath(run.root, plan, run.runId, runLayout.invocation(successor.data.invocation)), 'utf8')) as Invocation;
+      expect(invocation.recoveryPredecessor).toBe(successor.data.predecessor);
+      expect(invocation.id).not.toBe(invocation.recoveryPredecessor);
+      const projected = await new SessionQueries(run.service).runSessions(plan, run.runId);
+      expect(projected.sessions.flatMap(session => session.invocations).find(value => value.invocation === invocation.id))
+        .toMatchObject({ recoveryPredecessor: invocation.recoveryPredecessor, recoveryGroup: invocation.recoveryGroup });
+      expect(run.events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
+      const identities = run.events.map(identityOf).filter(identity => identity !== null);
+      expect(new Set(identities).size, 'accepted transitions keep distinct durable identities').toBe(identities.length);
+      expect(committedGates(run.git)).toHaveLength(scenario.git.commits.filter(commit => commit.commit !== null).length);
+      expect(run.events.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
+    }, 60_000);
+  }
+
+  test('failure analyst retries its account before the responsible architect receives the retained digest', async () => {
+    const fixture = await copyFixture(); cleanups.push(fixture.remove);
+    await installTestRunner(fixture.root);
+    const reviews = 'collection-review/workspace/reviews';
+    const script = declaringScenarios(byRole({
+      'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
+      'local-architect': [submit(assign(reviews, {}, outline())), submit(requestCompletion())],
+      engineer: [[{ kind: 'end', message: 'The semantic result is unfinished.' }]],
+    }));
+    const agent = createScriptedAgent(interruptOnce(script, spec => spec.role === 'failure-analyst'));
+    const opened = await openUnchangedRuns(fixture.root, {
+      agent, inputs: treeInputs(), policy: recoveryPolicy,
+      unchangedCheckpoints: [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`],
+      previewCount: 5,
+    });
+    cleanups.push(() => opened.service.close());
+    const receipt = await opened.service.execute(startRun(plan));
+    await opened.service.settled(plan, receipt.jobId);
+    assertUnchangedGit();
+    expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
+    const analysts = agent.sessions.filter(session => session.spec.role === 'failure-analyst');
+    expect(analysts).toHaveLength(2);
+    expect(analysts.map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
+    expect(agent.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
+    const events = await logEvents(fixture.root, receipt.jobId);
+    expect(events.filter(event => event.type === 'iteration-closed')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'operation-recovery-attempt' && event.data.predecessor !== null)).toHaveLength(1);
+    expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
+  }, 60_000);
+
+  test('reviewer transport recovery retains one review attempt and its original deadline budget', async () => {
+    const root = await reviewTarget(cleanups);
+    const tree = 'c'.repeat(40);
+    const first = reviewCandidates()['revision-01']!;
+    const source = scriptedCandidates(root, { 'revision-01': { ...first, tree } });
+    const git = gateGit(root, { head: reviewBase, commits: [
+      gateScenariosCommit(plan, reviewMaterialized, reviewBase), revisionGates[0]!, { commit: null }, { commit: null },
+    ], previews: Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-01', tree })) });
+    let time = new Date('2026-10-12T12:00:00Z').getTime();
+    const script = declaringScenarios(reviewScript({
+      architect: [submit(assign(notes, {}, outline())), submit(requestCompletion())],
+      engineer: [submit(completionProposed('Added note store'), write(store, 'export const store = new Map(); // v1\n'))],
+      reviewers: { 'rq-0001': [
+        { kind: 'tool', tool: snapshotToolNames.diff, input: { path: store } },
+        { kind: 'submit', input: { inspected: [store], missing: [], concerns: [] } },
+      ] },
+    }));
+    const interrupted = interruptOnce(script, spec => {
+      if (spec.role !== 'reviewer') return false;
+      time += 25;
+      return true;
+    });
+    const agent = createScriptedAgent(interrupted);
+    const opened = await openRuns(root, { agent, git: git.git, candidates: source, inputs: treeInputs(), now: () => new Date(time),
+      policy: project => ({ ...recoveryPolicy(project), reviews: testReviewPolicy({ retries: 1 }) }) });
+    cleanups.push(() => opened.service.close());
+    const receipt = await opened.service.execute(startRun(plan));
+    await opened.service.settled(plan, receipt.jobId);
+    expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
+    git.assertComplete();
+    const events = await logEvents(root, receipt.jobId);
+    const starts = events.filter(event => event.type === 'review-attempt-started');
+    expect(starts).toHaveLength(1);
+    const attempt = await attemptRecord(root, receipt.jobId, starts[0]!.data.attempt);
+    expect(attempt.id).toBe(starts[0]!.data.attempt);
+    expect(attempt.settles).toBe(true);
+    expect(new Date(attempt.finishedAt).getTime() - new Date(attempt.startedAt!).getTime()).toBe(25);
+    expect(attempt.transportInvocations).toHaveLength(2);
+    expect(new Set(attempt.transportInvocations).size).toBe(2);
+    const projected = await new RunQueries(opened.service).reviews(plan, receipt.jobId, { workItem: null, after: null, limit: 100 });
+    expect(projected.requests[0]!.attempts[0]!.transportInvocations).toEqual(attempt.transportInvocations);
+    expect(agent.sessions.filter(session => session.spec.role === 'reviewer').map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
+    expect(events.filter(event => event.type === 'iteration-closed')).toHaveLength(1);
+    expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
+  }, 60_000);
+
+  test('semantic rejection and no submission do not consume automatic transport retries', async () => {
+    for (const scenario of [scenarios['invalid-analysis'], scenarios['no-submission']]) {
+      const run = await composedCaller(scenario);
+      expect(run.service.getRun(plan, run.runId)?.state).toBe('failed');
+      expect(run.agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(1);
+      expect(run.events.filter(event => event.type === 'operation-recovery-attempt').every(event => event.data.predecessor === null && event.data.attempt === 0)).toBe(true);
+      expect(run.events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
+    }
+  }, 60_000);
+
+  for (const tool of [coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName]) {
+    test(`nonfunctional ${tool} retries without repeating the accepted assessment or repair`, async () => {
+      const fixture = await copyFixture(); cleanups.push(fixture.remove);
+      const answers = nfrBoundaries(fixture.root, { repair: 'one-module' });
+      const obligation = 'The review must retain an audit record.';
+      const capturedPlan = join(fixture.root, 'plans/review-notes/plan.md');
+      await writeFile(capturedPlan, `${await readFile(capturedPlan, 'utf8')}\n${obligation}\n`);
+      const script = withDefaultTurns(spec => {
+        if (spec.submission.name === intakeToolName) return submit({ goal: obligation, elements: [
+          { key: 'audit', kind: 'non-functional', document: 'doc-001', text: obligation, conditions: [], uncertainty: '' },
+        ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
+        if (spec.role === 'initial-architect') return submit(analysis([]));
+        if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{
+          nfr: 'nfr-001', result: spec.prompt.includes('(after-repair)') ? 'satisfied' : 'not-satisfied',
+          inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Current source inspected'], uncertainty: '',
+        }] });
+        if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'],
+          startingModule: 'collection-review/workspace/reviews/core', task: 'Add audit record source', evidence: [], uncertainty: '' });
+        if (spec.submission.name === nonfunctionalRepairToolName) {
+          answers.repair();
+          return submit({ kind: 'completed', summary: 'Audit record added', evidence: ['new source'], remaining: [] },
+            write(join(fixture.root, 'subs/workspace/subs/reviews/subs/core/src/repair-recovery.ts'), 'export const auditRecord = true;\n'));
+        }
+        return [];
+      });
+      const agent = createScriptedAgent(interruptOnce(script, spec => spec.submission.name === tool));
+      const opened = await openRuns(fixture.root, { ...answers.options, agent, policy: recoveryPolicy });
+      cleanups.push(() => opened.service.close());
+      const receipt = await opened.service.execute(startRun(plan));
+      await opened.service.settled(plan, receipt.jobId);
+      answers.assertComplete();
+      expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
+      const events = await logEvents(fixture.root, receipt.jobId);
+      expect(events.filter(event => event.type === 'nonfunctional-phase-started')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
+      expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'nonfunctional-repair-committed')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'operation-recovery-attempt' && event.data.predecessor !== null)).toHaveLength(1);
+      expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
+      expect(agent.sessions.filter(session => session.spec.submission.name === tool && session.outcome?.kind === 'failed')).toHaveLength(1);
+    }, 60_000);
+  }
+
+  for (const boundary of ['qualification', 'fresh coordination', 'continued coordination']) {
+    test(`capability ${boundary} retries without repeating its source capture or delegation`, async () => {
+      const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
+      const answers = capabilityFlowBoundaries(fixture.root, 'report', 'a+b');
+      const a = 'capability-coordination/a', b = 'capability-coordination/b';
+      let coordination = 0;
+      const script = declaringScenarios(answers.script(spec => {
+        if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a), entry('b-entry', b)]));
+        if (spec.submission.name === localArchitectToolName) return submit(assign(a, {}, outline()));
+        if (spec.submission.name === 'submit_capability_qualification') {
+          const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+          return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b,
+            placementReason: 'B owns fact source', constraints: [], requirementRefs: [] });
+        }
+        if (spec.role === 'engineer') return [
+          edit('caller.ts', 'return `Fact: ${value}`;', 'return `Fresh fact: ${value}`;'),
+          ...submit({ kind: 'capability-needed', summary: 'A retains a provisional caller', request: {
+            need: 'Read B fact with source for A', usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Render richer result', prospective: false }],
+            constraints: [], knownInterface: { kind: 'none-known' }, examples: [{ title: 'A shows source', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
+          } }),
+        ];
+        if (spec.submission.name === 'submit_capability_action') {
+          if (++coordination > 2) return [{ kind: 'wait', ms: 60_000 }];
+          const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+          return submit({ kind: 'partial', task: ids[1], planRevision: Number(ids[2]), invocation: ids[3],
+            progress: 'Read retained consumer and provider evidence', unfinished: ['Implement provider'] });
+        }
+        return [];
+      }));
+      const agent = createScriptedAgent(interruptOnce(script, spec => (
+        boundary === 'qualification' ? spec.submission.name === 'submit_capability_qualification'
+          : spec.submission.name === 'submit_capability_action' && (boundary === 'continued coordination' ? spec.session.mode === 'continue' : spec.session.mode === 'fresh'))));
+      const opened = await openCapabilityRuns(fixture.root, { ...answers.options, agent, inputs: treeInputs(), policy: recoveryPolicy });
+      cleanups.push(() => opened.service.close());
+      const receipt = await opened.service.execute(startRun('need'));
+      await until(() => coordination > 2 || opened.service.getRun('need', receipt.jobId)?.state === 'failed', 10_000);
+      expect(opened.service.getRun('need', receipt.jobId)?.state).not.toBe('failed');
+      const current = opened.service.getRun('need', receipt.jobId)!;
+      await opened.service.execute(stopRun('need', receipt.jobId, current.version));
+      await opened.service.settled('need', receipt.jobId);
+      answers.assertComplete();
+      const events = opened.service.events('need', receipt.jobId)!;
+      expect(events.filter(event => event.type === 'capability-requested')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'capability-delegated')).toHaveLength(1);
+      expect(events.filter(event => event.type === 'operation-recovery-attempt' && event.data.predecessor !== null)).toHaveLength(1);
+      expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
+      expect(agent.sessions.filter(session => session.outcome?.kind === 'failed')).toHaveLength(1);
+      expect(agent.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
+    }, 60_000);
+  }
+});

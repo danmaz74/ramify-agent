@@ -115,9 +115,18 @@ and audit evidence for all candidate changes, including shell mutations. A
 historically admitted edit is insufficient. Unavailable placement is recorded
 separately from demonstrated outside-scope changes and execution failure. An
 established invalid project returns repairable diagnostics without an acceptance
-commit; infrastructure unavailability uses bounded handling and the existing
-environment outcome. Ownership and source analysis can recover independently;
+commit; infrastructure unavailability uses bounded handling and, for runs
+capturing operation recovery, the durable recovery contract below. Ownership
+and source analysis can recover independently;
 neither alone satisfies acceptance.
+A successfully observed empty mutation set needs no path-ownership query and
+records empty outside-scope and unknown-placement lists without an acquisition
+failure or provider answer. An unavailable mutation observation retains its
+failure and is never evidence that no paths changed. Nonempty unresolved targets
+retain unknown placement even when no physical target can be queried; nonempty
+queries still require answers for exactly their requested paths. An empty turn
+does not qualify accumulated candidate changes or waive the committing gate's
+explicit current project-ownership preflight.
 An owned-unwired tree is verified by its owner's tests; an included
 owned-nested-project tree needs its own nested audit at the plan's final
 gate, and each project's audit result is preserved separately.
@@ -275,6 +284,129 @@ ownership acquisition failure, located diagnostics and change summary, with
 complete failure and mutation evidence available through recorded pointers.
 Stage-one recovery uses current files and named mutation/Git comparisons. It
 does not claim a retained last-analyzable filesystem checkpoint.
+
+### Ordinary Operations Retain Recovery Evidence
+
+New runs capture an operation-recovery policy. Historical runs retain their
+captured policy and terminal meaning; service startup does not migrate them.
+The shared contract applies to ordinary architect, catalog, engineer, capability,
+review, failure-analysis, context-selection and non-functional operations,
+including fresh starts, continuations and forks. Automatic root repair remains
+subject to its separate manual-attention rule.
+
+Structured executor evidence distinguishes transport interruption, permanent
+provider rejection, unavailable classification and adapter faults. Diagnostics
+remain evidence, never semantic results. Only eligible transport interruption
+receives automatic retries: two after the initial attempt by default. Retry
+delays count as execution time and are cancellation-aware. The default delays
+are 250 ms and 500 ms; a provider hint can increase either delay up to the
+captured 5,000 ms ceiling. Provider-internal and review
+attempts remain explicitly accounted for without multiplying retry loops.
+Submission rejection, partial results, unresolved questions, context returns,
+stop and execution-bound exhaustion retain their ordinary handling.
+
+Each successor has a new invocation and session-operation identity linked to
+its predecessor. Reconciliation first establishes whether an accepted result
+or completed effect already exists. Accepted decisions, handbacks, iterations,
+commits and gates are not resubmitted. Incomplete streamed arguments have no
+submission verdict. Partial edits and their evidence remain available; uncertain
+mutating effects are not replayed. Continuation and fork use their recorded
+exact source, or a named source-backed reconstruction with recorded inputs and
+degraded mode. Missing source evidence is a prerequisite failure.
+
+### Recovery Waiting And Explicit Resume
+
+Exhausted transport recovery and eligible ordinary preparation, adapter,
+environment or check-execution obstructions can pause the same run. Assertion
+failure and semantic rejection alone do not create an infrastructure pause.
+Readiness and iteration, capability, work-item and final gates retain the pending
+boundary, accepted inputs, candidate/configuration identities and all spent
+attempts. Resume checks the unfinished prerequisite or qualifies the applicable
+candidate without requesting an accepted submission again. Changed prerequisites
+require correction or reassessment by their responsible authority.
+
+A usable pause requires readable compatible inputs and durable state, confirmed
+writer/tool settlement and reconciled effects. Ordinary scheduling quiesces;
+already admitted work settles under its bounds. Unsafe state, corrupt records,
+unfinished automatic root repair, stop and whole-run exhaustion retain explicit
+failure handling. Unknown effects remain blockers. Only fully reached operator
+waiting is excluded from active run time. Unrelated waiting review budgets retain
+their remaining allowance without renewing expired requests.
+
+Harness-owned inspection reports the obstruction, pending boundary, retained
+work, observed changes, compatibility, remaining allowances and resume blockers.
+Resume names the current occurrence and revision. Stable command identities
+deduplicate exact retries; conflicting content and stale occurrences are refused.
+Concurrent clients admit at most one successor group. An explicit resume
+authorizes another bounded attempt group, preserving total invocation, active
+time, semantic and repair budgets. Check boundaries use their own infrastructure
+policy without an additional model retry loop. Stop takes precedence.
+
+Recovery waiting survives service restart without authorizing execution. Startup
+reconciles durable progress before scheduling. Completed authenticated effects
+are reused only for their candidate and configuration; a lost acknowledgement
+does not duplicate a commit or gate transition. Debug-enabled runs retain the
+live-server exception below.
+
+### External Repairs Are Admitted With Operator Provenance
+
+An operator can repair while a run is quiescent, then declare changed areas,
+an explanation and optional diagnostic evidence in resume. Admission compares
+actual HEAD, candidate tree, staged, unstaged and untracked source changes,
+supported configuration and harness/provider identities with the settled pause.
+Environment-only repair requires no invented source delta and records no
+credentials. A declaration does not establish that the fix works.
+
+Admission retains original obstruction evidence and durably records the observed
+repair, operator command, compatibility, outstanding verification and continuation
+boundary before dispatch. Candidate/runtime changes after admission require
+revalidation. Exact duplicate commands and restart cannot admit or dispatch the
+same successor twice. Unexplained drift, modified frozen packages or durable
+records, incompatible policy and weakened acceptance checks are refused without
+launching a model or resetting files.
+
+Compatible harness fixes and supported operational configuration changes can be
+admitted without replacing the original captures. Required audit checks remain
+required; affected qualification must be renewed under the admitted configuration.
+Installed runtime identity is captured by the running service. Changed runtime
+bytes require restart before admission. Protected policy, durable record,
+submission, equipment and authority source hashes must remain exact; the service
+and recovery validators are protected authority. This conservative rule can
+admit an adapter fix while refusing a change to a validator.
+At readiness, admitted dirty source receives a journaled repair commit on the
+run branch after fresh ownership, protected-file and exclusion validation. The
+baseline audit verifies that exact commit and admitted configuration. A matching
+commit receipt reconciles a lost acknowledgement; completed setup effects remain
+recorded without another execution in the target working tree.
+External edits carry operator provenance separate from engineer and automatic
+repair deltas. Later gates authenticate those edits and enforce fresh ownership,
+protected files and excluded projects without enlarging subsequent agent scope
+or excusing an earlier violation. Earlier accepted evidence remains historical
+for its candidate; affected semantic choices return to the responsible architect
+and changed candidates require fresh qualification. External repair neither uses
+nor replenishes automatic repair authority or verified-delta consumption.
+
+A changed final candidate invalidates its previous assessment through a recorded
+operator-repair occurrence. Reassessment uses the next remaining captured
+non-functional round; prior closures and their spent allowance remain intact.
+Admission refuses a required final reassessment when no round remains.
+
+The CLI attaches to the service that owns the project lock:
+
+```sh
+npx tsx src/main.ts recovery inspect --server http://localhost:4180 --plan <plan-id> --run <run-id> --json
+npx tsx src/main.ts recovery resume --server http://localhost:4180 --plan <plan-id> --run <run-id> --occurrence <occurrence-id> --expected-revision <revision> --command-id <stable-command-id> --repair-file repair.json --json
+```
+
+Inspection launches no model. Resume uses the occurrence and revision returned
+by current inspection; `--repair-file` is optional for transport recovery and
+required for known nontransport repair. Its JSON contains `areas` (one or more
+of `target`, `configuration`, `environment`, `runtime`), `explanation`, and
+optional `evidence` references. For example, an environment-only correction is
+`{"areas":["environment"],"explanation":"Restored check-service access"}`.
+Keep the same command ID and payload after a lost reply; changed content requires
+a new command. The Run page exposes the same inspection, declaration and resume
+contract and preserves an uncertain command for identical retry.
 
 ### Execution Breakpoints Suspend The Whole Run
 

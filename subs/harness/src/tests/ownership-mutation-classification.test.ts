@@ -56,7 +56,7 @@ test.each(checkpointFailures)('a committing checkpoint with unavailable current 
     const audit = vi.fn(() => { throw new Error('unverified audit'); });
     const git = mockGit({ changedPaths: async () => changed, trackedPaths: async () => [], ignoreStatus: async () => [], commitAccepted: commit });
     const host = { projectRoot: fixture.path, git, ramify: { queryOwnershipAnswer: query }, configuredAudit: { run: audit }, write: async () => 'committed', afterWrite: async () => {} } as unknown as import('../run/committing-gate.js').GateHost<import('../run/committing-gate.js').GateRun>;
-    const run = { base: 'a'.repeat(40), jobId: 'run-test', planId: 'plan-test', log: { ledger: { replay: () => [] }, all: () => [] } } as unknown as import('../run/committing-gate.js').GateRun;
+    const run = { base: 'a'.repeat(40), jobId: 'run-test', planId: 'plan-test', policy: defaultRunPolicy({ projectRoot: fixture.path }), log: { ledger: { replay: () => [] }, all: () => [] } } as unknown as import('../run/committing-gate.js').GateRun;
     const result = await new CommittingGates(host).committingCheckpoint(run, { id: 'ga-0001', checkpoint: 'iteration', projectRoot: fixture.path, directory: join(fixture.path, 'gate'), head: run.base, policy: defaultRunPolicy({ projectRoot: fixture.path }) });
     expect(result).toMatchObject({ verdict: unavailable ? 'not-verified' : 'failed', cause: unavailable ? 'infrastructure' : 'check-failed', next: unavailable ? 'retry-infrastructure' : 'repair', commit: null, ownershipPreflight: { root: fixture.path, paths: changed.length === 0 ? ['.'] : changed, stdout: failure.stdout, failureStatus } });
     expect(result.rules?.filter(rule => rule.rule === 'write-scope')).toEqual([]);
@@ -78,6 +78,7 @@ test.each([false, true])('restart before candidate commit completes the existing
   const fixture = await temporaryDirectory();
   try {
     const { CommittingGates } = await import('../run/committing-gate.js');
+    const { defaultRunPolicy } = await import('../run/policy.js');
     const { mockGit } = await import('./helpers/mock-git.js');
     const { vi } = await import('vitest');
     const completed = vi.fn();
@@ -85,7 +86,7 @@ test.each([false, true])('restart before candidate commit completes the existing
     const audit = vi.fn(() => { throw new Error('unverified audit'); });
     const git = mockGit({ findCommitByTrailers: async () => null, changedPaths: async () => ['repair.ts'], commitAccepted: commit });
     const host = { projectRoot: fixture.path, git, ramify: { queryOwnershipAnswer: async () => { throw new OwnershipUnavailableError(unavailable ? { ...failure, failureStatus: 'execution-failed', exitCode: -1 } : failure); } }, configuredAudit: { run: audit }, afterWrite: async () => {} } as unknown as import('../run/committing-gate.js').GateHost<import('../run/committing-gate.js').GateRun>;
-    const run = { base: 'a'.repeat(40), jobId: 'run-test', planId: 'plan-test', log: { all: () => [], next: (event: unknown) => event, ledger: { replay: () => [], effect: async (request: { perform: () => Promise<{ attempt: import('../checks/records.js').GateAttempt }>; complete: (result: { attempt: import('../checks/records.js').GateAttempt }) => unknown }) => { const result = await request.perform(); completed(request.complete(result)); return result; } } } } as unknown as import('../run/committing-gate.js').GateRun;
+    const run = { base: 'a'.repeat(40), jobId: 'run-test', planId: 'plan-test', policy: defaultRunPolicy({ projectRoot: fixture.path }), log: { all: () => [], next: (event: unknown) => event, ledger: { replay: () => [], effect: async (request: { perform: () => Promise<{ attempt: import('../checks/records.js').GateAttempt }>; complete: (result: { attempt: import('../checks/records.js').GateAttempt }) => unknown }) => { const result = await request.perform(); completed(request.complete(result)); return result; } } } } as unknown as import('../run/committing-gate.js').GateRun;
     const prepared = await prepareGate('iteration', { id: 'ga-0001', runId: run.jobId, projectRoot: fixture.path, directory: join(fixture.path, 'gate'), head: run.base, checks: [], audit: { mode: 'full', timeoutMs: 1000 }, limits: { infrastructureRetries: 2 } });
     if ('schema' in prepared) throw new Error('expected prepared original gate');
     const result = await new CommittingGates(host).commitGate(run, prepared, undefined, undefined, undefined, 'recorded original message');

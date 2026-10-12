@@ -76,6 +76,14 @@ const invocationEndedFields = {
 
 /** One line of a run's event log. */
 export const runEventSchema = z.discriminatedUnion('type', [
+  event('operation-recovery-attempt', z.object({ requestHash: text, group: z.int().nonnegative(), attempt: z.int().nonnegative(), invocation: text, predecessor: text.nullable() }).strict()),
+  event('operation-recovery-pausing', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
+  event('operation-recovery-paused', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
+  event('operation-recovery-resumed', z.object({ occurrenceId: text, revision: z.int().positive(), group: z.int().positive(), command: acceptedCommandSchema }).strict()),
+  event('readiness-preparation-started', z.object({ key: text, attempt: z.int().positive() }).strict()),
+  event('readiness-preparation-completed', z.object({ key: text, attempt: z.int().positive(), passed: z.boolean() }).strict()),
+  event('readiness-repair-committing', z.object({ id: text, occurrenceId: text, revision: z.int().positive(), tree: text }).strict()),
+  event('readiness-repair-committed', z.object({ id: text, occurrenceId: text, revision: z.int().positive(), tree: text, commit: text }).strict()),
   event('repair-assignment-recorded', z.object({ assignment: text, invocation: text }).strict()),
   event('repair-preparation-recorded', z.object({ preparation: text, workItem: text, attempt: z.int().positive() }).strict()),
   event('repair-preparation-consumed', z.object({ preparation: text, workItem: text }).strict()),
@@ -201,6 +209,8 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('candidate-prepared', z.object({ candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
   /** Freezes the accepted catalog and captured round bound before the first candidate preview. */
   event('nonfunctional-phase-started', z.object({ catalogHash: z.string().regex(/^[0-9a-f]{64}$/), maxRounds: z.int().positive().max(3) }).strict()),
+  event('nonfunctional-final-invalidated', z.object({ occurrenceId: text, revision: z.int().positive(),
+    round: z.int().positive(), candidate: text, assessment: text, tree: text }).strict()),
   event('nonfunctional-assessed', z.object({ assessment: text, candidate: text, round: z.int().positive(), phase: z.enum(['initial', 'after-repair']) }).strict()),
   event('nonfunctional-investigated', z.object({ round: z.int().positive(), invocation: text, assessment: text,
     nfrs: z.array(text).optional(),

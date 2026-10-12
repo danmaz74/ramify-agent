@@ -7,7 +7,7 @@ import { type CommittedAuditConfiguration, type ConfiguredAuditInput, type Confi
 import { captureProjectConfig } from '../run/project-config.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { committedAuditConfigurationSchema, runLayout, type CommittedAuditConfigurationRecord, type InfrastructureRecovery, type ReadinessAttempt } from '../run/records.js';
-import { failingStep, performRecovery, recoveryFor, runReadiness } from '../run/readiness.js';
+import { failingStep, performRecovery, recoveryFor, runReadiness, type ReadinessRequest } from '../run/readiness.js';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 
@@ -89,7 +89,7 @@ function port(config: CommittedAuditConfiguration, answer?: Partial<ConfiguredFu
 }
 
 async function attempt(fixture: { root: string; head: string }, config: CommittedAuditConfiguration,
-  configured = port(config), runId = 'readiness-fixture') {
+  configured = port(config), runId = 'readiness-fixture', recovery: Partial<Pick<ReadinessRequest, 'completedPreparation' | 'preparationStarted' | 'preparationCompleted' | 'attempt' | 'gateId'>> = {}) {
   const output = await mkdtemp(join(tmpdir(), 'ramify-agent-declared-readiness-'));
   cleanups.push(() => rm(output, { recursive: true, force: true }));
   const result = await runReadiness(configured.adapter, {
@@ -97,6 +97,7 @@ async function attempt(fixture: { root: string; head: string }, config: Committe
     policy: defaultRunPolicy({ projectRoot: fixture.root }), projectConfig: await captureProjectConfig(fixture.root),
     auditConfiguration: { config: config as CommittedAuditConfigurationRecord }, index: null, ramify: boundaries.get(fixture.root)!.options.ramify, git: boundaries.get(fixture.root)!.options.git, head: fixture.head,
     commandExecution: boundaries.get(fixture.root)!.options.commandExecution,
+    ...recovery,
   });
   return { ...result, calls: configured.calls };
 }
@@ -134,6 +135,27 @@ function step(result: Awaited<ReturnType<typeof attempt>>, name: string) {
 }
 
 describe('declared preparation and configured full readiness', () => {
+  test('readiness resumes its audit prerequisite without repeating a committed setup effect', async () => {
+    const fixture = await project();
+    const command = { argv: ['build-tool', 'prepare'], cwd: '.', env: {}, timeoutMs: 30_000 };
+    const config = configuration(fixture, { setupCommands: [command] });
+    const execution = strictReadinessCommand(fixture.root, command, 1);
+    boundaries.get(fixture.root)!.command(execution.run); checks.push(execution.assertComplete);
+    let auditCalls = 0;
+    const adapter: ConfiguredAuditPort = { read: async () => config, run: async input => ++auditCalls === 1
+      ? resultOf(input, { status: 'failed', verdict: null, auditedSourceCommit: null, reportCommit: null, runRef: null, treeRef: null,
+        provider: { status: 'failed', error: { code: 'ENOENT', message: 'Required check executable missing', retryable: false } } })
+      : resultOf(input) };
+    const strict = strictReadinessAudit(adapter, fixture.root, config, ['ga-0001', 'ga-0002']); checks.push(strict.assertComplete);
+    const completed: string[] = [], started: string[] = [];
+    const callbacks = { completedPreparation: completed, preparationStarted: async (key: string) => { started.push(key); },
+      preparationCompleted: async (key: string, passed: boolean) => { if (passed) completed.push(key); } };
+    const first = await attempt(fixture, config, { adapter: strict.adapter, calls: [] }, 'readiness-fixture', callbacks);
+    expect(first.obstruction).toMatchObject({ automatic: false, diagnostic: expect.stringContaining('ENOENT') });
+    expect(first.attempt.verdict).toBe('failed'); expect(completed).toHaveLength(1);
+    const resumed = await attempt(fixture, config, { adapter: strict.adapter, calls: [] }, 'readiness-fixture', { ...callbacks, attempt: 2, gateId: 'ga-0002' });
+    expect(resumed.attempt.verdict).toBe('passed'); expect(started).toEqual(completed); expect(auditCalls).toBe(2);
+  });
   test('a setup-only deep package is required; an undeclared manifest creates no check', async () => {
     const deep = 'subs/a/subs/b/subs/c/subs/d/tools';
     const fixture = await project(async root => {
