@@ -88,6 +88,7 @@ describe('the run log', () => {
   test('every event type is written and read back, and the terminal ones are named', () => {
     const types = runEventSchema.options.map(option => option.shape.type.value);
     expect(types).toEqual([
+      'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
       'invocation-prepared', 'job-started', 'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed', 'session-opened', 'invocation-started', 'invocation-ended', 'session-finished', 'analysis-accepted',
       'document-manifest-committed', 'work-orientation-recorded', 'context-selection-recorded', 'context-package-append-requested', 'context-package-appended', 'context-package-prompt-bound', 'candidate-prepared', 'nonfunctional-phase-started', 'nonfunctional-assessed', 'nonfunctional-investigated', 'nonfunctional-repair-assigned', 'nonfunctional-repair-committed', 'nonfunctional-round-closed', 'nonfunctional-deviation-recorded', 'candidate-bound-to-gate',
       'capability-requested', 'capability-qualified', 'capability-delegated', 'capability-plan-revised', 'capability-coordinator-resumed',
@@ -972,6 +973,8 @@ describe('the run protocol a client reads', () => {
   test('every reference kind of a projected event has a producer among the run log\'s events', () => {
     const r = { id: 'x', revision: 1, hash: hash64 };
     const events: Array<[RunEvent['type'], unknown]> = [
+      ['repair-incident-recorded', { incidentId: 'apr-0001', revision: 1, stage: 'admitted' }],
+      ['repair-export-recorded', { incidentId: 'apr-0001', revision: 2, state: 'exported' }],
       ['placement-requested', { request: 'pr-001', workItem: 'wi-001', requester: 'm', capability: 'c' }],
       ['decision-accepted', { request: 'pr-001', decision: 'gd-001', workItem: 'wi-001', invocation: 'inv-0002', registry: 0, hypotheses: 0 }],
       ['iteration-closed', { workItem: 'wi-001', iteration: 'wi-001.i01', outcome: 'accepted', gate: 'ga-0001', commit: 'abc', notices: [] }],
