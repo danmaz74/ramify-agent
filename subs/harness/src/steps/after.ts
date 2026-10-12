@@ -395,7 +395,7 @@ async function afterProposal(handling: Handling, item: WorkItem, assignment: Ite
     const changes = await context.git.diffNameStatus(context.projectRoot, handling.gates.acceptedBefore(run, gate.id), gate.audited!);
     const paths = await placementPaths(context.projectRoot, changes.map(change => change.path));
     if (paths.length > 0) {
-      try { await context.ramify.queryOwnership(context.projectRoot, paths); }
+      try { await context.ramify.queryOwnershipAnswer(context.projectRoot, paths); }
       catch (error) { throw new Error(`The ownership of ${gate.audited}'s changes cannot be queried: ${message(error)}`); }
       handling.applied(`the ownership of ${paths.length} changed path${paths.length === 1 ? '' : 's'} of ${gate.audited}, as the provider answers it now`);
     }

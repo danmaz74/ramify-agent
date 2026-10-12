@@ -1,6 +1,9 @@
 import { relative, resolve } from 'node:path';
 import type { ToolAction } from '../../subs/agent/src/interfaces/port.js';
 import { isContained, resolveRealTarget } from './resolve-contained-path.js';
+import { OwnershipUnavailableError, OwnershipCancelledError, type OwnershipQueryResult } from '../../subs/evidence/src/ownership-evidence.js';
+import { OwnershipAuthorityError } from '../work/ownership-authority.js';
+import type { OwnershipEvidenceReference } from '../work/ownership-authority.js';
 
 /*
  * The write guard. A write is intercepted before it executes: the target its
@@ -28,6 +31,15 @@ export interface GuardedScope {
   readonly excluded?: readonly string[];
   readonly projectRoot: string;
   readonly placement: (paths: readonly string[]) => Promise<ReadonlyArray<{ path: string; allowed: boolean }>>;
+  readonly capturedPlacement?: (paths: readonly string[]) => ReadonlyArray<{ path: string; allowed: boolean }>;
+  readonly currentEvidence?: () => { assignment: string; reference: OwnershipEvidenceReference | null };
+  readonly retainUnavailable?: (failure: unknown) => Promise<{ hash: string; bytes: number }>;
+  /** Historical permission is queried only by explicitly typed recovery handling. */
+  readonly historicalPlacement?: (paths: readonly string[]) => Promise<{
+    readonly assignment: string;
+    readonly decisions: ReadonlyArray<{ readonly path: string; readonly allowed: boolean }>;
+    readonly reference: OwnershipEvidenceReference | null;
+  }>;
   /** Canonical directories whose whole contents the assignment may write. */
   readonly roots: readonly string[];
   /** Canonical single files the assignment may write, such as a declaration or a contract. */
@@ -58,6 +70,12 @@ export interface GuardDecisionRecord {
   readonly guarded?: true | undefined;
   /** Set when the ownership query threw, so no placement is known; the reason names the error. */
   readonly placementFailed?: true | undefined;
+  readonly basis?: 'current' | 'historical';
+  readonly assignment?: string;
+  readonly ownershipEvidence?: OwnershipEvidenceReference | null;
+  readonly ownershipFailure?: Extract<OwnershipQueryResult, { status: 'unavailable' }>;
+  readonly cancelled?: true;
+  readonly failureEvidence?: { hash: string; bytes: number };
 }
 
 /**
@@ -93,44 +111,44 @@ export async function decideWrite(
   if (!target.ok) {
     return { verdict: 'blocked-unresolved', requested, resolved: null, reason: target.reason };
   }
-  if (scope.denied?.includes(target.resolved) === true) {
-    return scope.guarded?.includes(target.resolved) === true
-      ? {
-        verdict: 'blocked-scope',
-        requested,
-        resolved: target.resolved,
-        reason: `${target.resolved} is a guarded file, and no authorization of this assignment names it`,
-        denied: true,
-        guarded: true,
-      }
-      : {
-        verdict: 'blocked-scope',
-        requested,
-        resolved: target.resolved,
-        reason: `${target.resolved} is written by the harness alone; no agent edits it`,
-        denied: true,
-      };
+  const candidates = [...new Set([resolve(workingDirectory, requested), target.resolved])];
+  const denied = candidates.find(path => scope.denied?.includes(path));
+  if (denied !== undefined) return { verdict: 'blocked-scope', requested, resolved: target.resolved,
+    reason: scope.guarded?.includes(denied) ? `${denied} is a guarded file, and no authorization of this assignment names it` : `${denied} is written by the harness alone; no agent edits it`, denied: true,
+    ...(scope.guarded?.includes(denied) ? { guarded: true as const } : {}) };
+  const relativePaths = candidates.map(path => relative(scope.projectRoot, path).split('\\').join('/') || '.');
+  if (!candidates.every(path => capturedLocation(scope, path)) ||
+      scope.capturedPlacement?.(relativePaths).some(answer => !answer.allowed)) {
+    return { verdict: 'blocked-scope', requested, resolved: target.resolved,
+      reason: 'The logical and physical targets must both satisfy the recorded boundary and its protections' };
   }
-  const boundary = await placementOutcome(scope, workingDirectory, [requested]);
-  if (boundary.error !== undefined) {
-    return { verdict: 'blocked-unresolved', requested, resolved: target.resolved,
-      reason: `the ownership query failed, so no placement of this target is known: ${boundary.error}`, placementFailed: true };
+  try {
+    const boundary = await placementOutcome(scope, workingDirectory, [requested], true);
+    if (boundary.error !== undefined) return { verdict: 'blocked-unresolved', requested, resolved: target.resolved,
+      reason: boundary.error, placementFailed: true };
+    if (boundary.allowed[0] && !(await sameTarget(workingDirectory, requested, target.resolved))) return { verdict: 'blocked-unresolved', requested, resolved: target.resolved, reason: 'The target changed while ownership was being acquired; no write was admitted' };
+    return { verdict: boundary.allowed[0] ? 'allowed' : 'blocked-scope', requested, resolved: target.resolved,
+      reason: boundary.allowed[0] ? 'Current ownership and the recorded boundary permit this target' : 'Current ownership refuses this target', basis: 'current', ...(scope.currentEvidence === undefined ? {} : { assignment: scope.currentEvidence().assignment, ownershipEvidence: scope.currentEvidence().reference }) };
+  } catch (error) {
+    if (error instanceof OwnershipCancelledError) return { verdict: 'blocked-unresolved', requested, resolved: target.resolved,
+      reason: 'The ownership query was cancelled before execution', cancelled: true };
+    if (!(error instanceof OwnershipUnavailableError)) throw error;
+    if (scope.historicalPlacement === undefined) return { verdict: 'blocked-unresolved', requested, resolved: target.resolved,
+      reason: `the ownership query failed: ${error.message}; no recorded repair authority is available`, placementFailed: true, ownershipFailure: error.result };
+    const failureEvidence = await scope.retainUnavailable?.(error.result);
+    let historical;
+    try { historical = await scope.historicalPlacement(relativePaths); }
+    catch (authorityError) {
+      if (!(authorityError instanceof OwnershipAuthorityError) || authorityError.kind !== 'missing') throw authorityError;
+      return { verdict: 'blocked-unresolved', requested, resolved: target.resolved, reason: authorityError.message,
+        placementFailed: true, ownershipFailure: error.result, ...(failureEvidence === undefined ? {} : { failureEvidence }) };
+    }
+    const allowed = relativePaths.every(path => historical.decisions.find(answer => answer.path === path)?.allowed === true);
+    if (allowed && !(await sameTarget(workingDirectory, requested, target.resolved))) return { verdict: 'blocked-unresolved', requested, resolved: target.resolved, reason: 'The target changed while recorded authority was being read; no write was admitted' };
+    return { verdict: allowed ? 'allowed' : 'blocked-scope', requested, resolved: target.resolved,
+      reason: allowed ? 'Recorded authority permits temporary repair while current ownership is unavailable' : 'Recorded authority refuses this target',
+      basis: 'historical', assignment: historical.assignment, ownershipEvidence: historical.reference, ownershipFailure: error.result, ...(failureEvidence === undefined ? {} : { failureEvidence }) };
   }
-  if (boundary.allowed[0] !== true) return { verdict: 'blocked-scope', requested, resolved: target.resolved,
-    reason: 'The current and captured ownership boundaries do not permit this target' };
-  if (scope.files.includes(target.resolved)) {
-    return { verdict: 'allowed', requested, resolved: target.resolved, reason: 'the write scope names this file' };
-  }
-  const root = scope.roots.find(candidate => isContained(candidate, target.resolved));
-  if (root !== undefined) {
-    return { verdict: 'allowed', requested, resolved: target.resolved, reason: `the write scope contains ${root}` };
-  }
-  return {
-    verdict: 'blocked-scope',
-    requested,
-    resolved: target.resolved,
-    reason: `${target.resolved} lies outside every location this assignment may write`,
-  };
 }
 
 /** All logical and physical candidates for a coherent provider query shared by a gate's originating scopes. */
@@ -151,8 +169,8 @@ export async function placementDecisions(scope: GuardedScope, cwd: string, paths
  * it rather than report a scope violation.
  */
 export async function placementOutcome(
-  scope: GuardedScope, cwd: string, paths: readonly string[],
-): Promise<{ readonly allowed: boolean[]; readonly error?: string }> {
+  scope: GuardedScope, cwd: string, paths: readonly string[], recovery = false,
+): Promise<{ readonly allowed: boolean[]; readonly unknown?: boolean[]; readonly failureStatus?: string; readonly ownershipFailure?: Extract<OwnershipQueryResult, { status: 'unavailable' }>; readonly error?: string }> {
   const targets = await Promise.all(paths.map(async path => ({ logical: resolve(cwd, path), target: await resolveRealTarget(cwd, path) })));
   const requested = targets.flatMap(({ logical, target }) => target.ok ? [logical, target.resolved] : []);
   if (scope.placement === undefined || scope.projectRoot === undefined) return { allowed: paths.map(() => false) };
@@ -160,10 +178,22 @@ export async function placementOutcome(
   {
     const relativePaths = [...new Set(requested.map(path => relative(scope.projectRoot, path).split('\\').join('/') || '.'))];
     try { answers = new Map((await scope.placement(relativePaths)).map(answer => [resolve(scope.projectRoot, answer.path), answer.allowed])); }
-    catch (error) { return { allowed: paths.map(() => false), error: error instanceof Error ? error.message : String(error) }; }
+    catch (error) {
+      if (error instanceof OwnershipUnavailableError && !recovery) {
+        const unknown = targets.map(({ logical, target }) => {
+          const candidates = target.ok ? [logical, target.resolved] : [logical];
+          return candidates.every(path => capturedLocation(scope, path)) &&
+            scope.capturedPlacement?.(candidates.map(path => relative(scope.projectRoot, path).split('\\').join('/') || '.'))
+              .every(answer => answer.allowed) !== false;
+        });
+        return { allowed: paths.map(() => false), unknown, ownershipFailure: error.result,
+          failureStatus: error.result.failureStatus, error: error.message };
+      }
+      throw error;
+    }
   }
-  return { allowed: targets.map(({ logical, target }) => target.ok && [logical, target.resolved].every(path =>
-    !scope.denied?.includes(path) && !scope.excluded?.some(excluded => path === excluded || isContained(excluded, path)) &&
+  return { unknown: targets.map(({ logical, target }) => !target.ok && capturedLocation(scope, logical)), allowed: targets.map(({ logical, target }) => target.ok && [logical, target.resolved].every(path =>
+    capturedLocation(scope, path) &&
     answers.get(path) === true)) };
 }
 
@@ -217,4 +247,20 @@ export function blockExplanation(decision: GuardDecisionRecord, scope: GuardedSc
     'Report the need in your submission, or ask for it through the delegation mechanism.',
     'Do not retry the same target: a retry does not widen the scope, and only a recorded assignment changes what you may write.',
   ].join('\n');
+}
+
+/** Local protections apply before any acquisition, including during repair. */
+function capturedLocation(scope: GuardedScope, path: string): boolean {
+  if (!isContained(scope.projectRoot, path)) return false;
+  const name = relative(scope.projectRoot, path).split('\\').join('/');
+  const parts = name.split('/');
+  if (parts.some(part => ['.git', 'node_modules', '.ramify', '.ramify-architect'].includes(part)) ||
+      /^plans\/(?:[^/]+\/)?\.harness(?:\/|$)/u.test(name)) return false;
+  if (scope.denied?.includes(path) || scope.excluded?.some(excluded => isContained(excluded, path))) return false;
+  return scope.files.includes(path) || scope.roots.some(root => isContained(root, path));
+}
+
+async function sameTarget(cwd: string, requested: string, expected: string): Promise<boolean> {
+  const current = await resolveRealTarget(cwd, requested);
+  return current.ok && current.resolved === expected;
 }

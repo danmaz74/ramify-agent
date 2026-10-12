@@ -21,7 +21,9 @@ import { createGitInspectionTool } from '../work/git-inspection.js';
 import type { Hypothesis, RegistryEntry } from '../analysis/records.js';
 import type { PlacementDecision } from '../architecture/records.js';
 import type { Obligation } from '../work/obligations.js';
-import { checkWriteScope, type WriteScope } from '../work/scope.js';
+import { type WriteScope } from '../work/scope.js';
+import { checkContinuationScope } from '../work/inherited-scope.js';
+import type { IterationAssignment } from '../work/iterations.js';
 import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../work/session.js';
 import type { StartingPointGroup } from '../work/starting-inputs.js';
 import {
@@ -317,7 +319,8 @@ export interface WorkTurnJudgement {
  * provider answers. Nothing is committed.
  */
 export async function judgeWorkTurn(step: Pick<ConstructedWorkTurnStep, 'inputs'>, input: unknown,
-  context: { readonly index: ArchitectIndex | null; readonly ramify: RamifyCli; readonly projectRoot: string }): Promise<WorkTurnJudgement> {
+  context: { readonly index: ArchitectIndex | null; readonly ramify: RamifyCli; readonly projectRoot: string;
+    readonly previousAssignment?: IterationAssignment | undefined; readonly validatePrevious?: () => Promise<void> }): Promise<WorkTurnJudgement> {
   const evidence = workEvidenceOf(step, context.index);
   const shaped = input as { kind?: unknown; assignment?: { kind?: unknown; revisesContract?: unknown } } | null;
   const historical = step.inputs.capabilityWorkflow && typeof input === 'object' && input !== null
@@ -326,12 +329,17 @@ export async function judgeWorkTurn(step: Pick<ConstructedWorkTurnStep, 'inputs'
     ? { ok: false, errors: [{ path: 'kind', message: 'The contract and provider-yield workflow is historical; use capability requests and scoped assignments' }] }
     : validateLocalArchitect(input, evidence);
   const unreported = verdict.ok ? undefined : unreportedByCompletion(input, evidence.obligations);
-  if (!verdict.ok || verdict.value.kind !== 'assign' || verdict.value.assignment.revisesContract !== undefined) return { verdict, unreported };
+  if (!verdict.ok || verdict.value.kind !== 'assign') return { verdict, unreported };
+  if (verdict.value.assignment.revisesContract !== undefined) {
+    if (context.index === null) return { verdict: { ok: false, errors: [{ path: 'assignment.revisesContract',
+      message: 'Current provider view unavailable; a newly captured contract revision requires current evidence. Repair the recorded boundary first, or report the exact missing provider authority through unresolved/environment handling.' }] }, unreported };
+    return { verdict, unreported };
+  }
   const body = verdict.value.assignment;
   const { scope } = step.inputs.validation;
-  const checked = await checkWriteScope({ ramify: context.ramify, projectRoot: context.projectRoot, index: context.index,
+  const checked = await checkContinuationScope({ ramify: context.ramify, projectRoot: context.projectRoot, index: context.index,
     view: scope.view, revision: scope.revision, base: body.scope.base, extra: body.scope.extra, read: body.scope.read,
-    bootstrap: assignmentBootstrap(context.index, evidence.registry, body), rationale: body.scope.rationale });
+    bootstrap: assignmentBootstrap(context.index, evidence.registry, body), rationale: body.scope.rationale }, body, context.previousAssignment, context.validatePrevious);
   if (checked.scope === null) return { verdict: { ok: false, errors: checked.errors }, unreported };
   return { verdict, unreported, prepared: { body, scope: checked.scope } };
 }

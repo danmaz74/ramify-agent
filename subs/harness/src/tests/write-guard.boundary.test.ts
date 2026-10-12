@@ -41,9 +41,9 @@ async function f1() {
   await symlink(join(root, 'subs/physical-b'), join(root, 'src/sibling'));
   const calls: Array<{ executable: string; argv: string[]; elapsedMs: number; answer: unknown }> = [];
   class F1RamifyCli extends RamifyCli {
-    override async queryOwnership(projectRoot: string, paths: readonly string[] = ['.']) {
-      const started = performance.now(); const answer = await super.queryOwnership(projectRoot, paths);
-      calls.push({ executable: join(process.cwd(), 'node_modules/.bin/ramify'), argv: ['affected', '--batch', '--root', projectRoot, '--format', 'json', ...paths.flatMap(path => ['--path', path])], elapsedMs: performance.now() - started, answer });
+    override async queryOwnershipAnswer(projectRoot: string, paths: readonly string[] = ['.']) {
+      const started = performance.now(); const answer = await super.queryOwnershipAnswer(projectRoot, paths);
+      calls.push({ executable: join(process.cwd(), 'node_modules/.bin/ramify'), argv: [...(this.ownershipCommandSupported ? ['ownership'] : ['affected', '--batch']), '--root', projectRoot, '--format', 'json', ...paths.flatMap(path => ['--path', path])], elapsedMs: performance.now() - started, answer });
       if (process.env.PLAN21_F1_EVIDENCE !== undefined) {
         const evidence = JSON.stringify({ label: 'F1 actual installed provider', root, fixtureFiles: files, nestedRoot: 'fixture/module.ramify: root module independent', calls }, null, 2);
         await writeFile(process.env.PLAN21_F1_EVIDENCE, evidence);
@@ -67,8 +67,9 @@ test('PB3-S01–S05 S09: F1 whole owners, named physical children, independent t
   expect(scope.resolved.included[1]!.projectInstructions).toContainEqual({ path: 'fixture/AGENTS.md', text: 'Use this independent project root for verification.' });
   const manifest = JSON.parse(await readFile(new URL('../../../../package.json', import.meta.url), 'utf8')) as { dependencies: Record<string, string> };
   expect(scope.resolved.ownership.ramifyVersion).toBe(manifest.dependencies['ramify.ts']);
-  const allowed = ['README.md', 'scripts/new.ts', 'docs/new.md', 'docs/new.ts', 'docs/new.mts', 'docs/new.mjs', 'docs/module.ramify', 'src/tmp/module.ramify', 'fixture/module.ramify', 'fixture/new.txt', 'dist/ordinary.txt', 'docs/dist/ordinary.txt', `${child}/notes.md`, `${child}/scripts/tool.ts`, `${child}/subs/other/src/new.ts`];
-  const blocked = ['subs/physical-b/src/b.ts', `${child}/project/new.txt`, `${child}/cache/new.txt`, 'cache/new.txt', 'cache/back/new.txt', 'src/escape/new.txt', 'src/sibling/src/new.ts', 'fixture/dist/absent.ts', '.git/new', 'node_modules/new', 'src/.ramify/new', 'fixture/.git/config', 'fixture/node_modules/new', 'fixture/src/.ramify/new', 'docs/.git/config', 'docs/node_modules/new', 'docs/src/.ramify/new', 'src/tmp/.git/config', 'src/tmp/node_modules/new', 'src/tmp/src/.ramify/new', 'cache/extra.txt'];
+  const allowed = ['README.md', 'scripts/new.ts', 'docs/new.md', 'docs/new.ts', 'docs/new.mts', 'docs/new.mjs', 'fixture/module.ramify', 'fixture/new.txt', 'dist/ordinary.txt', 'docs/dist/ordinary.txt', `${child}/notes.md`, `${child}/scripts/tool.ts`, `${child}/subs/other/src/new.ts`];
+  // An inert location's ownership does not authorize creation of a new module declaration.
+  const blocked = ['docs/module.ramify', 'src/tmp/module.ramify', 'subs/physical-b/src/b.ts', `${child}/project/new.txt`, `${child}/cache/new.txt`, 'cache/new.txt', 'cache/back/new.txt', 'src/escape/new.txt', 'src/sibling/src/new.ts', 'fixture/dist/absent.ts', '.git/new', 'node_modules/new', 'src/.ramify/new', 'fixture/.git/config', 'fixture/node_modules/new', 'fixture/src/.ramify/new', 'docs/.git/config', 'docs/node_modules/new', 'docs/src/.ramify/new', 'src/tmp/.git/config', 'src/tmp/node_modules/new', 'src/tmp/src/.ramify/new', 'cache/extra.txt'];
   const guard = guardedScopeOf(scope, [], ramify);
   const decisions = await placementDecisions(guard, root, [...allowed, ...blocked]);
   expect(Object.fromEntries([...allowed, ...blocked].map((path, index) => [path, decisions[index]]))).toEqual(Object.fromEntries([...allowed.map(path => [path, true]), ...blocked.map(path => [path, false])]));
@@ -107,7 +108,7 @@ test('PB3-S06: actual changed declarations narrow an invocation and restart; rem
 
 test('PB3-S07: unavailable placement and mismatched bootstrap identities cannot grant writes', async () => {
   const { root, index } = await project();
-  expect((await decideWrite({ revision: 1, roots: [root], files: [] } as unknown as GuardedScope, root, writing('README.md'))).verdict).toBe('blocked-scope');
+  expect((await decideWrite({ revision: 1, roots: [root], files: [], projectRoot: root, placement: async () => [] }, root, writing('README.md'))).verdict).toBe('blocked-scope');
   await expect(resolveWriteScope({ projectRoot: root, index, view: { status: 'placeholder' }, revision: 1,
     base: { module: 'shop/billing/notes', included: [] }, extra: [], read: [], rationale: 'r',
     bootstrap: [{ owner: 'shop/orders/notes', parent: 'shop/orders', directory: 'subs/orders/subs/physical', capability: { id: 'c', revision: 1, hash: 'h' } }] })).rejects.toThrow(/no assigned owner/u);

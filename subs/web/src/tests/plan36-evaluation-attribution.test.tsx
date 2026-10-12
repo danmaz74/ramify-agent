@@ -22,3 +22,10 @@ test('an older evaluation response presents attribution as unknown', () => {
   render(<EvaluationFacts evaluation={evaluation('inv-0012', { outsideScope: ['README.md'] })} />);
   expect(screen.getByLabelText('Evaluation of inv-0012').textContent).toContain('README.md: observed during inv-0012; attribution unknown');
 });
+
+test('unknown placement keeps snapshot attribution separate from known outside scope', () => {
+  render(<EvaluationFacts evaluation={evaluation('inv-0012', { outsideScope: ['foreign.ts'], unknownPlacement: ['repair.ts'], placementFailure: 'ownership unavailable', unknownPlacementEvidence: [{ path: 'repair.ts', attributable: false, observations: [{ number: 258, callId: null, observedBy: 'snapshot', attributable: false }], uncertainty: null }] })} />);
+  expect(screen.getByLabelText('Candidate differences with unknown placement').textContent).toContain('repair.ts: observed during inv-0012; not attributable');
+  expect(screen.getByLabelText('Candidate differences outside the write scope').textContent).toContain('foreign.ts');
+  expect(screen.getByLabelText('Candidate differences outside the write scope').textContent).not.toContain('repair.ts');
+});

@@ -958,6 +958,8 @@ export class InvocationRunner<R extends RunnerRun> {
     // only observation that sees a write no guard saw, and comparing it with
     // the scope is what fills `outsideScope`. Nothing here blocks anything.
     let outsideScope: string[] = [];
+    let unknownPlacement: string[] = [];
+    let placementFailure: string | undefined;
     let changed: string[] | undefined;
     if (request.writer === true) {
       const snapshot = await recordSettledSnapshot({
@@ -966,6 +968,8 @@ export class InvocationRunner<R extends RunnerRun> {
         scope: request.guarded,
       }, observations);
       outsideScope = [...snapshot.outsideScope];
+      unknownPlacement = [...snapshot.unknownPlacement];
+      placementFailure = snapshot.placementFailure;
       changed = [...snapshot.paths];
     }
 
@@ -999,6 +1003,8 @@ export class InvocationRunner<R extends RunnerRun> {
       ...(budget === undefined ? {} : { budget }),
       settled,
       outsideScope,
+      unknownPlacement,
+      ...(placementFailure === undefined ? {} : { placementFailure }),
       ...(candidateAfter === undefined ? {} : { candidateAfter }),
       usage: recorder.outcomeUsage(agent),
       elapsedMs,
@@ -1072,6 +1078,8 @@ export class InvocationRunner<R extends RunnerRun> {
     const outcome = invocationOutcomeSchema.parse({ schema: 'ramify-agent.invocation-outcome/1', invocation: id, ...body });
     const ended = {
       invocation: id, ended: outcome.ended, submission: outcome.submission?.hash ?? null, session,
+      ...(outcome.unknownPlacement === undefined ? {} : { unknownPlacement: outcome.unknownPlacement }),
+      ...(outcome.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }),
       ...(degraded === undefined ? {} : { degraded }),
     };
     // A session operation that settled without a point leaves nothing to

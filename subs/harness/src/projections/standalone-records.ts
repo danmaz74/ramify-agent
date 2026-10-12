@@ -114,6 +114,8 @@ export const sessionOutcomeSchema = z.object({
   preservedTracked: z.array(z.string()),
   /** Changed paths outside the write scope: the shell's writes pass no guard. */
   outsideScope: z.array(z.string()),
+  unknownPlacement: z.array(z.string()).optional(),
+  placementFailure: z.string().optional(),
   usage: invocationOutcomeSchema.shape.usage,
   elapsedMs: z.int().nonnegative(),
   /** The iteration checkpoint's verdict with the gate option, why it did not run, or null without it. */

@@ -1,3 +1,4 @@
+import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { lstat, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
@@ -8,7 +9,7 @@ import type { Transaction } from '../../subs/ledger/src/ledger.js';
 import type { RenderedFeatureFile } from '../../subs/scenarios/src/rendering.js';
 import { acceptedCommit } from '../checks/accepted.js';
 import type { GateCommandStarted } from '../checks/execution.js';
-import { executeConfiguredGate, type ConfiguredGateAudit, type GateRequest, type PreparedGate } from '../checks/gate.js';
+import { executeConfiguredGate, prepareGate, type ConfiguredGateAudit, type GateRequest, type PreparedGate } from '../checks/gate.js';
 import type { Checkpoint, GateAttempt, GateRuleRecord } from '../checks/records.js';
 import { placementPaths } from '../guard/write-guard.js';
 import { isContained, resolveRealTarget } from '../guard/resolve-contained-path.js';
@@ -27,7 +28,7 @@ import { committedBody } from '../steps/runner.js';
 import type { WorkItem } from '../work/records.js';
 import { commitForGate, commitMessage, prepareCheckpoint, type CheckpointRequest } from './gates.js';
 import type { RunEvent, RunEventInput, RunLog } from './log.js';
-import { outsideScope } from './mutations.js';
+import { outsideScope, MutationPlacementUnavailableError } from './mutations.js';
 import { nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
 import { declaredModuleDirectories } from './project-config.js';
 import { gateAttemptId, gateAttemptSchema, runLayout, type GateOperation, type RecordRef, type RunPolicy } from './records.js';
@@ -99,10 +100,12 @@ export class CommittingGates<R extends GateRun> {
     binding?: { candidateId: string; assessment: Assessment },
   ): Promise<GateAttempt> {
     const scratch = await scratchSafetyRule(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
-    const { rules: scopeRules, ownership } = await this.candidateAuthority(run, request);
+    const { rules: scopeRules, ownership, authorityUnavailable, ownershipPreflight } = await this.candidateAuthority(run, request);
     const prepared = await prepareCheckpoint({
       ...request,
       rules: [...(request.rules ?? []), scratch, ...scopeRules],
+      ...(ownershipPreflight === undefined ? {} : { ownershipPreflight: (({ status: _status, ...failure }) => failure)(ownershipPreflight) }),
+      ...(authorityUnavailable === undefined ? {} : { authorityUnavailable }),
     });
     if ('schema' in prepared) {
       await this.host.write(run, {
@@ -186,13 +189,17 @@ export class CommittingGates<R extends GateRun> {
       }
     }
     const scopeRules: GateRuleRecord[] = [];
-    let ownership: Awaited<ReturnType<RamifyCli['queryOwnership']>> | undefined;
+    let authorityUnavailable: string | undefined;
+    let ownershipPreflight: Extract<import('../../subs/evidence/src/ownership-evidence.js').OwnershipQueryResult, { status: 'unavailable' }> & { root: string; paths: string[] } | undefined;
+    let queriedPaths: string[] = [];
+    let ownership: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>> | undefined;
     try {
       const changed = await this.host.git.changedPaths(this.host.projectRoot, acceptedCommit(run.log.ledger.replay(), run.base));
       const paths = await placementPaths(this.host.projectRoot, [...changed, ...this.expectedFeatures(run).map(file => file.path)]);
       // One decoded answer and input identity for the entire gate, including
       // logical aliases and their real targets across every captured origin.
-      const current = paths.length === 0 ? undefined : await this.host.ramify.queryOwnership(this.host.projectRoot, paths);
+      queriedPaths = paths.length === 0 ? ['.'] : paths;
+      const current = await this.host.ramify.queryOwnershipAnswer(this.host.projectRoot, queriedPaths);
       ownership = current;
       await this.validateFeatureTargets(this.expectedFeatures(run), current);
       const permitted = new Set<string>();
@@ -251,9 +258,16 @@ export class CommittingGates<R extends GateRun> {
       scopeRules.push({ rule: 'write-scope', outcome: outside.length === 0 ? 'passed' : 'failed',
         violations: outside.map(path => ({ rule: 'write-scope', path, detail: 'Candidate change has no originating captured and current write authority' })) });
     } catch (error) {
-      scopeRules.push({ rule: 'write-scope', outcome: 'failed', violations: [{ rule: 'write-scope', path: '.', detail: `Candidate ownership is unavailable: ${message(error)}` }] });
+      if (error instanceof FeatureTargetScopeRefusal) {
+        scopeRules.push({ rule: 'write-scope', outcome: 'failed', violations: [{ rule: 'write-scope', path: error.path, detail: error.message }] });
+        return { rules: scopeRules, ownership, authorityUnavailable, ownershipPreflight };
+      }
+      if (error instanceof MutationPlacementUnavailableError) return { rules: scopeRules, ownership, authorityUnavailable: error.message, ownershipPreflight };
+      if (!(error instanceof OwnershipUnavailableError)) throw error;
+      ownershipPreflight = { ...error.result, root: this.host.projectRoot, paths: queriedPaths };
+      if (error.result.failureStatus !== 'invalid') authorityUnavailable = error.message;
     }
-    return { rules: scopeRules, ownership };
+    return { rules: scopeRules, ownership, authorityUnavailable, ownershipPreflight };
   }
 
   /**
@@ -279,7 +293,7 @@ export class CommittingGates<R extends GateRun> {
     goal?: string,
     recordedMessage?: string,
     binding?: { candidateId: string; assessment: Assessment },
-    ownership?: Awaited<ReturnType<RamifyCli['queryOwnership']>>,
+    ownership?: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>>,
   ): Promise<GateAttempt> {
     const identity = prepared.request;
     // A reader, a reviewer or a failure analyst, contributed nothing to the
@@ -312,22 +326,33 @@ export class CommittingGates<R extends GateRun> {
         // The feature files go into the gate's commit as the states now
         // render them; the guarded comparison before this effect judged the
         // tree against the rendering the assignment captured.
-        const commit = await commitForGate(this.host.projectRoot, run.jobId, identity.id, message, undefined, this.host.git, async () => {
-          let currentOwnership = ownership;
-          if (recordedMessage !== undefined) {
-            const candidate = await this.candidateAuthority(run, { checkpoint: prepared.checkpoint, subject: identity.subject });
-            const refusal = candidate.rules.find(rule => rule.outcome !== 'passed');
-            if (refusal !== undefined) throw new Error(`Recovered gate candidate has no current captured authority: ${refusal.violations.map(entry => `${entry.path}: ${entry.detail}`).join('; ')}`);
-            currentOwnership = candidate.ownership;
-          }
-          const rendering = await this.rerenderScenarios(run, currentOwnership);
-          if (binding !== undefined) {
-            if (rendering.written.length > 0) throw new CandidateDriftError('Final gate rendering changed the assessed candidate');
-            const current = await this.host.previewCandidateTree();
-            if (current.tree !== binding.assessment.candidate.tree) throw new CandidateDriftError('Final gate source changed after assessment');
-          }
-          await assertScratchSafe(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
-        });
+        let commit: string | null;
+        try {
+          commit = await commitForGate(this.host.projectRoot, run.jobId, identity.id, message, undefined, this.host.git, async () => {
+            let currentOwnership = ownership;
+            if (recordedMessage !== undefined) {
+              const candidate = await this.candidateAuthority(run, { checkpoint: prepared.checkpoint, subject: identity.subject });
+              const recovered = await prepareGate(prepared.checkpoint, {
+                ...identity,
+                rules: [...(identity.rules ?? []).filter(rule => rule.rule !== 'write-scope'), ...candidate.rules],
+                ...(candidate.ownershipPreflight === undefined ? {} : { ownershipPreflight: (({ status: _status, ...failure }) => failure)(candidate.ownershipPreflight) }),
+                ...(candidate.authorityUnavailable === undefined ? {} : { authorityUnavailable: candidate.authorityUnavailable }),
+              });
+              if ('schema' in recovered) throw new RecoveredGateRefusal(recovered);
+              currentOwnership = candidate.ownership;
+            }
+            const rendering = await this.rerenderScenarios(run, currentOwnership);
+            if (binding !== undefined) {
+              if (rendering.written.length > 0) throw new CandidateDriftError('Final gate rendering changed the assessed candidate');
+              const current = await this.host.previewCandidateTree();
+              if (current.tree !== binding.assessment.candidate.tree) throw new CandidateDriftError('Final gate source changed after assessment');
+            }
+            await assertScratchSafe(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
+          });
+        } catch (error) {
+          if (error instanceof RecoveredGateRefusal) return { attempt: error.attempt };
+          throw error;
+        }
         await this.host.afterWrite('gate-committing', run.jobId);
         const sourceCommit = commit ?? identity.head;
         const attempt = await executeConfiguredGate(this.configuredGateAudit(run), prepared, sourceCommit, commit,
@@ -435,28 +460,32 @@ export class CommittingGates<R extends GateRun> {
   }
 
   /** Exact ledger-owned feature bytes cannot borrow authority through an alias. */
-  async renderedFeatureAllowed(path: string, hash: string, answer?: Awaited<ReturnType<RamifyCli['queryOwnership']>>): Promise<boolean> {
+  async renderedFeatureAllowed(path: string, hash: string, answer?: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>>): Promise<boolean> {
     const logical = resolve(this.host.projectRoot, path);
     const target = await resolveRealTarget(this.host.projectRoot, path);
     if (!target.ok || target.resolved !== logical || !(await lstat(logical).catch(() => null))?.isFile()) return false;
-    const seed = answer?.selection.paths.find(seed => seed.path === path);
+    const seed = answer?.paths.find(seed => seed.path === path);
     if (seed?.status !== 'owned' || seed.exclusion !== null) return false;
     return sha256(await readFile(logical)) === hash;
   }
 
   /** Every producer write uses canonical ordinary targets from one coherent public answer. */
-  async validateFeatureTargets(expected: readonly RenderedFeatureFile[], ownership?: Awaited<ReturnType<RamifyCli['queryOwnership']>>) {
+  async validateFeatureTargets(expected: readonly RenderedFeatureFile[], ownership?: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>>) {
     const paths = expected.map(file => file.path);
-    const answer = ownership ?? (paths.length === 0 ? undefined : await this.host.ramify.queryOwnership(this.host.projectRoot, await placementPaths(this.host.projectRoot, paths)));
+    const answer = ownership ?? (paths.length === 0 ? undefined : await this.host.ramify.queryOwnershipAnswer(this.host.projectRoot, await placementPaths(this.host.projectRoot, paths)));
     for (const path of paths) {
       const target = await resolveRealTarget(this.host.projectRoot, path);
-      const seed = answer?.selection.paths.find(seed => seed.path === path);
+      if (!target.ok) throw new MutationPlacementUnavailableError(`Scenario producer target cannot be resolved: ${path}: ${target.reason}`);
+      const seed = answer?.paths.find(seed => seed.path === path);
       const info = await lstat(resolve(this.host.projectRoot, path)).catch(error => {
-        if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return null;
+        const code = (error as NodeJS.ErrnoException).code;
+        if (['ENOENT', 'ENOTDIR'].includes(code ?? '')) return null;
+        if (['EACCES', 'EPERM', 'EIO', 'ELOOP', 'ESTALE'].includes(code ?? '')) throw new MutationPlacementUnavailableError(`Scenario producer target cannot be inspected: ${path}: ${code}`);
         throw error;
       });
-      if (!target.ok || target.resolved !== resolve(this.host.projectRoot, path) || (info !== null && !info.isFile()) || seed?.status !== 'owned' || seed.exclusion !== null) {
-        throw new Error(`Scenario producer target is unavailable or outside ordinary ownership: ${path}`);
+      if (seed === undefined) throw new MutationPlacementUnavailableError(`Current ownership did not answer the scenario producer target: ${path}`);
+      if (target.resolved !== resolve(this.host.projectRoot, path) || (info !== null && !info.isFile()) || seed.status !== 'owned' || seed.exclusion !== null) {
+        throw new FeatureTargetScopeRefusal(path, `Scenario producer target is outside canonical ordinary ownership: ${path}`);
       }
     }
     return answer;
@@ -472,7 +501,7 @@ export class CommittingGates<R extends GateRun> {
    * those that differ from the states' rendering and reports whether a
    * commit is needed. Before materialization it writes nothing.
    */
-  async rerenderScenarios(run: R, ownership?: Awaited<ReturnType<RamifyCli['queryOwnership']>>): Promise<FeatureRerendering> {
+  async rerenderScenarios(run: R, ownership?: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>>): Promise<FeatureRerendering> {
     if (run.log.find('scenarios-materialized') === undefined) return { files: [], written: [], commitNeeded: false };
     const expected = this.expectedFeatures(run);
     await this.validateFeatureTargets(expected, ownership);
@@ -814,4 +843,14 @@ function moduleNameOf(index: ArchitectIndex | null, declaration: string): string
 export function writeScopePaths(projectRoot: string, assignment: IterationAssignment): string[] {
   const paths = scopePaths(projectRoot, assignment.scope);
   return [...paths.roots, ...paths.files];
+}
+
+/** A refused uncommitted recovered candidate completes its existing ledger effect. */
+class RecoveredGateRefusal extends Error {
+  constructor(readonly attempt: GateAttempt) { super(`Recovered gate ${attempt.id} did not qualify`); }
+}
+
+/** A demonstrated producer-target scope refusal, distinct from acquisition failure. */
+class FeatureTargetScopeRefusal extends Error {
+  constructor(readonly path: string, detail: string) { super(detail); }
 }

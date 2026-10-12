@@ -1,3 +1,6 @@
+import { checkContinuationScope } from '../work/inherited-scope.js';
+import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
+import { OwnershipAuthorityError, ownershipAuthorityFor } from '../work/ownership-authority.js';
 import { captureGlobalTarget, localConsultationInputs, engineerConsultationInputs } from '../consultations/targets.js';
 import { boundedNonfunctionalTools, nonfunctionalSourceAllows } from '../nonfunctional/submissions.js';
 import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from '../capability/authorization.js';
@@ -194,7 +197,7 @@ import {
 } from '../work/failure.js';
 import { isContained, resolveRealTarget } from '../guard/resolve-contained-path.js';
 import {
-  scopeConfigurationPaths, captureGuardedFiles, checkWriteScope, deniedFiles, guardedScopeOf, protectedScopeOf, injectionSiteRule, moduleOwning,
+  scopeConfigurationPaths, missingHistoricalAuthority, captureGuardedFiles, deniedFiles, guardedScopeOf, protectedScopeOf, injectionSiteRule, moduleOwning,
   resolveWriteScope, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles,
 } from '../work/scope.js';
 import { committedRecords, refOf } from '../work/committed.js';
@@ -2688,8 +2691,9 @@ export class RunService {
         continue;
       }
       const operation = read.value as GateOperation;
-      await this.gates.commitGate(run, preparedGate(operation), undefined, undefined, undefined, operation.message);
-      performed.push(`the commit and audit of gate ${event.data.gate}`);
+      const recovered = await this.gates.commitGate(run, preparedGate(operation), undefined, undefined, undefined, operation.message);
+      performed.push(recovered.commit === null && recovered.audited === null
+        ? `the failed preflight of gate ${event.data.gate}` : `the commit and audit of gate ${event.data.gate}`);
     }
     return performed;
   }
@@ -3884,10 +3888,10 @@ export class RunService {
     assessment: Assessment, candidateId: string, action: Extract<CoordinatorAction, { kind: 'repair' }>,
   ): Promise<boolean> {
     const id = `nfr-repair-${String(run.log.count('nonfunctional-repair-assigned') + 1).padStart(3, '0')}`;
-    const answer = await this.options.ramify.queryOwnership(this.projectRoot, ['.']);
+    const answer = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
     const scope = await resolveWriteScope({ projectRoot: this.projectRoot, ramify: this.options.ramify, index: await this.refreshIndex(run),
       view: run.record.manifest.architectView, revision: assessment.round,
-      base: { modules: answer.selection.scope.ownership.modules.map(module => module.id), rationale: 'The recorded coordinator authorized one project-wide non-functional repair batch' },
+      base: { modules: answer.scope.ownership.modules.map(module => module.id), rationale: 'The recorded coordinator authorized one project-wide non-functional repair batch' },
       extra: [], read: [], bootstrap: [], rationale: action.task });
     const assignment = nonfunctionalRepairAssignmentSchema.parse({
       schema: 'ramify-agent.nonfunctional-repair-assignment/1', id, round: assessment.round,
@@ -3913,7 +3917,7 @@ export class RunService {
     const index = await this.refreshIndex(run);
     const workingDirectory = await repairWorkingDirectory(this.projectRoot, assignment.startingModule, index);
     const guarded = guardedScopeOf(assignment.scope, await deniedFiles(this.projectRoot,
-      [...await this.deniedFiles(run), ...assignment.guarded.map(file => file.path)]), this.options.ramify);
+      [...await this.deniedFiles(run), ...assignment.guarded.map(file => file.path)]), this.options.ramify, undefined, this.ownershipAuthority(run, assignment));
     const commandTimeoutMs = engineerBoundsOf(run.record.policy.limits).defaults.commandTimeoutMs;
     const tools = this.implementationTools(run, { workingDirectory, scopeRevision: 1, guarded, commandTimeoutMs, submissions: { legalOutcomes: ['completed', 'partial'], completionOutcome: null } });
     // A writer like any other: its scope size from the frozen baseline, and
@@ -5655,6 +5659,8 @@ export class RunService {
           `This task did not complete ${item.id}. Reassess its prior outline, decisions and any unexecuted assignment against the current source before assigning it.`
         ).join('\n\n');
       }
+      const recovery = await this.continuationEvidence(run, { workItem: item.id }, index);
+      if (recovery !== undefined) intervening = [intervening, recovery].filter(value => value !== undefined).join('\n\n');
       // The turn is built from its inputs by the module architect's own
       // constructor, which `step render` uses too.
       const requirements = contextPackage === undefined
@@ -5752,7 +5758,8 @@ export class RunService {
         // accepted, so a scope the provider refuses is answered here with its
         // path and the turn's remaining attempts, and nothing of it is committed.
         validate: async input => {
-          const judged = await judgeWorkTurn(step, input, { index, ramify: this.options.ramify, projectRoot: this.projectRoot });
+          const previousAssignment = await this.continuationAssignment(run, { workItem: item.id });
+          const judged = await judgeWorkTurn(step, input, { index, ramify: this.options.ramify, projectRoot: this.projectRoot, previousAssignment, validatePrevious: async () => { if (previousAssignment !== undefined) await this.ownershipAuthority(run, previousAssignment).read(); } });
           // What the last rejected request left unreported, which an
           // exhausted turn's failure names.
           if (judged.unreported !== undefined) unreported = [...judged.unreported];
@@ -6509,12 +6516,21 @@ export class RunService {
         description: 'End this fork with its answer to the unresolved request: a placement decision, a plan deviation, an environment problem, nothing possible, or the findings and gaps of a fork that could not decide. The harness validates it; an invalid submission is returned with every error and its path.',
         inputSchema: forkJsonSchema,
         submissionSchema: 'ramify-agent.fork-submission/1',
-        validate: input => validateFork(input, placementEvidenceOf(current, index), {
+        validate: async input => {
+          const checked = validateFork(input, placementEvidenceOf(current, index), {
           kind: 'unresolved',
           elements: new Set(workElements.filter(element => !element.startsWith('ctx-'))),
           workItems: new Set(current.workItems.map(entry => entry.id)),
           scenarios: new Map(tracked.records.map(record => [record.id, tracked.states.get(record.id) ?? 'pending'])),
-        }),
+          });
+          if (!checked.ok || checked.value.kind !== 'deviation' || checked.value.deviation.scenarios.length === 0) return checked;
+          try { await this.gates.validateFeatureTargets(this.gates.expectedFeatures(run)); }
+          catch (error) {
+            if (!(error instanceof OwnershipUnavailableError)) throw error;
+            return { ok: false, errors: [{ path: 'deviation.scenarios', message: `Current ownership unavailable: ${error.message}. Generated-feature targets require fresh evidence before any deviation or producer effect; repair the recorded boundary first or report the missing authority through environment handling.` }] };
+          }
+          return checked;
+        },
         scope: {
           write: null,
           measurement: run.record.baseline && 'measurement' in run.record.baseline ? run.record.baseline.measurement : null,
@@ -7615,6 +7631,8 @@ export class RunService {
     let consumerPoint = request.continuation.point;
     let consumerSession: SessionId | undefined = request.continuation.session;
     for (let attempt = resume?.attempt ?? 1; attempt <= task.limits.maxInvocations; attempt += 1) {
+    const coordinatorIndex = await this.refreshIndex(run);
+    const recovery = await this.continuationEvidence(run, { task: task.id }, coordinatorIndex);
     // The task's architect may register a case of its current plan revision.
     const capabilityActor = (): ObligationActor => ({ kind: 'capability-task', id: task.id, useCases: new Set(plan.useCases.map(useCase => useCase.id)) });
     const currentBasis = () => {
@@ -7641,10 +7659,10 @@ export class RunService {
       })];
       // The scope is captured before the action is accepted, so a scope the
       // provider refuses is answered here with its path, under the turn's bound.
-      const scoped = problems.length > 0 ? null : await checkWriteScope({ ramify: this.options.ramify, projectRoot: this.projectRoot,
+      const scoped = problems.length > 0 ? null : await checkContinuationScope({ ramify: this.options.ramify, projectRoot: this.projectRoot,
         index: run.index, view: run.record.manifest.architectView,
         revision: replayCapabilityState(run.log.events).tasks.get(task.id)?.nextAssignmentSequence ?? 1,
-        base: body.scope.base, extra: body.scope.extra, read: body.scope.read, bootstrap: [], rationale: body.scope.rationale });
+        base: body.scope.base, extra: body.scope.extra, read: body.scope.read, bootstrap: [], rationale: body.scope.rationale }, body, await this.continuationAssignment(run, { task: task.id }), async () => { const previous = await this.continuationAssignment(run, { task: task.id }); if (previous !== undefined) await this.ownershipAuthority(run, previous).read(); });
       if (scoped?.scope != null) this.preparedScopes.set(body, scoped.scope);
       const errors = [...problems, ...(scoped?.errors ?? [])];
       return errors.length === 0 ? checked : { valid: false as const, issues: errors.map(problem => ({
@@ -7697,6 +7715,7 @@ export class RunService {
         ] }, work: { capabilityTask: task.id, request: request.id }, attempt,
       loaded, systemPrompt: renderCapabilityArchitectPrompt(loaded, this.projectRoot),
       prompt: [
+        ...(recovery === undefined ? [] : [recovery]),
         `# Capability task ${task.id}`, `Use task ${task.id}, planRevision ${plan.revision} and invocation ${coordinatorBasis} as your action basis.`,
         ...[
           `Current plan ${plan.task} revision ${plan.revision} is in support:capability-plan.`,
@@ -8442,6 +8461,7 @@ export class RunService {
       const completed = committedRecords(run.log.ledger.replay());
       const mutated = new Set<string>();
       const outside = new Set<string>();
+      const unknown = new Set<string>();
       for (const engineer of run.log.all('invocation-started').filter(event => event.data.role === 'engineer' && event.data.work.iteration === id)) {
         const started = completed.invocations.get(engineer.data.invocation);
         const writer = completed.outcomes.get(engineer.data.invocation);
@@ -8449,9 +8469,10 @@ export class RunService {
           for (const change of await this.git.diffNameStatus(this.projectRoot, started.candidateBefore, writer.candidateAfter)) mutated.add(change.path);
         }
         for (const path of writer?.outsideScope ?? []) if (mutated.has(path)) outside.add(path);
+        for (const path of writer?.unknownPlacement ?? []) if (mutated.has(path)) unknown.add(path);
       }
       await this.write(run, { type: 'capability-assignment-settled', data: {
-        task: task.id, assignment: id, outcome: stateOutcome, mutated: [...mutated].sort(), outsideScope: [...outside].sort(),
+        task: task.id, assignment: id, outcome: stateOutcome, mutated: [...mutated].sort(), outsideScope: [...outside].sort(), unknownPlacement: [...unknown].sort(),
         endingTree: (await this.previewCandidateTree()).tree,
       } });
       await this.afterWrite('capability-assignment-settled', run.record.jobId);
@@ -8644,7 +8665,7 @@ export class RunService {
         await this.fail(run, 'internal', `The module engineer of ${assignment.id} cannot be constructed from its inputs: ${message(error)}`);
         return null;
       }
-      const guarded = await protectedScopeOf(this.projectRoot, assignment.scope, step.equipment.protectedFiles, this.options.ramify);
+      const guarded = await protectedScopeOf(this.projectRoot, assignment.scope, step.equipment.protectedFiles, this.options.ramify, this.ownershipAuthority(run, assignment));
       const tools = this.implementationTools(run, {
         workingDirectory: step.equipment.workingDirectory,
         scopeRevision: step.equipment.scopeRevision,
@@ -8707,7 +8728,7 @@ export class RunService {
               consumer: step.validator.consumer,
               providerOf: capability => committedRecords(run.log.ledger.replay()).registry.find(entry => entry.capability === capability)?.owner,
             },
-          }, paths => this.options.ramify.queryOwnership(this.projectRoot, paths),
+          }, paths => this.options.ramify.queryOwnershipAnswer(this.projectRoot, paths),
           () => new Map(committedRecords(run.log.ledger.replay()).registry.map(entry => [entry.capability, entry])));
           // A capability-needed submission captures a provisional candidate
           // immediately after this invocation. Refuse unsafe scratch here so
@@ -10785,8 +10806,15 @@ export class RunService {
    * names are refused outright; the latter are marked, so the refusal says
    * that an architect's authorization would open them.
    */
+  private ownershipAuthority(run: Run, assignment: { readonly scope: WriteScope }) {
+    return ownershipAuthorityFor(assignment, run, async data => {
+      const result = await this.write(run, { type: 'ownership-evidence-retained', data });
+      if (result === 'ended') throw new Error('The run ended before ownership evidence settled');
+    });
+  }
+
   private async engineerGuard(run: Run, assignment: IterationAssignment) {
-    return protectedScopeOf(this.projectRoot, assignment.scope, await this.protectedFiles(run, assignment), this.options.ramify);
+    return protectedScopeOf(this.projectRoot, assignment.scope, await this.protectedFiles(run, assignment), this.options.ramify, this.ownershipAuthority(run, assignment));
   }
 
   /** The project-relative files one assignment's engineer may never write: the run's own, and the guarded files no authorization opened. */
@@ -10807,8 +10835,46 @@ export class RunService {
   }
 
   /** Committed audit preparation inputs, converted to paths in this project. */
+
+  /** Partial findings remain deliverable with historical views and explicit refresh limits. */
+  private async continuationEvidence(run: Run, coordinator: { workItem?: string; task?: string }, current: ArchitectIndex | null): Promise<string | undefined> {
+    const previous = await this.continuationAssignment(run, coordinator);
+    if (previous === undefined) return undefined;
+    const records = committedRecords(run.log.ledger.replay());
+    const result = records.results.get(previous.id);
+    if (result?.outcome !== 'partial') return undefined;
+    let authority = missingHistoricalAuthority(previous.scope).join(', ');
+    try { await this.ownershipAuthority(run, previous).read(); }
+    catch (error) {
+      if (!(error instanceof OwnershipAuthorityError) || error.kind !== 'missing') throw error;
+      authority = [authority, error.message].filter(Boolean).join('; ');
+    }
+    let changed: string;
+    try { changed = JSON.stringify(await this.git.changedPaths(this.projectRoot, this.accepted(run))); }
+    catch (error) { changed = `unavailable: ${message(error)}`; }
+    return [
+      'Retained partial result',
+      authority === '' ? 'Recorded boundary is available for bounded historical repair.' : `Historical repair authority unavailable: ${authority}.`,
+      current === null ? `Current architect view refresh unavailable. Retained views are historical (${run.index?.input ?? 'no retained view'}); absence does not establish current ownership.` : `Current architect view: ${current.input}.`,
+      `Previous durable assignment ${previous.id}: ${JSON.stringify(previous)}`,
+      `Partial findings: ${JSON.stringify(result.findings)}. Engineer reports: ${result.invocations.map(invocation => run.path(runLayout.submission(invocation))).join(', ')}.`,
+      `Changed paths compared with accepted Git boundary ${this.accepted(run)}: ${changed}.`,
+      'If ownership remains unavailable, assign the same or a narrower verified repair region. Expanded scope and new generated features require current ownership first. If recorded authority cannot repair the boundary, report the exact blocked targets and missing authority through unresolved/environment handling. Consultation remains advisory.',
+    ].join('\n');
+  }
+
+  /** Only durable assignments of this responsible coordinator supply repair authority. */
+  private async continuationAssignment(run: Run, coordinator: { workItem?: string; task?: string }): Promise<IterationAssignment | undefined> {
+    const assignments = [...committedRecords(run.log.ledger.replay()).assignments.values()];
+    const previous = assignments.filter(assignment => coordinator.task !== undefined
+      ? assignment.coordination?.kind === 'capability-task' && assignment.coordination.id === coordinator.task
+      : assignment.workItem === coordinator.workItem && assignment.coordination?.kind !== 'capability-task').at(-1);
+    return previous;
+  }
+
   private async auditPreparationPaths(run: Run): Promise<string[]> {
-    return auditPreparationPathsOf(this.options.ramify, this.projectRoot, run.record.auditConfiguration);
+    const captured = [...committedRecords(run.log.ledger.replay()).assignments.values()].flatMap(assignment => scopeConfigurationPaths(assignment.scope));
+    return auditPreparationPathsOf(this.options.ramify, this.projectRoot, run.record.auditConfiguration, captured, reason => this.warn(reason));
   }
 
   // Scenario states, architecture §7 to §9

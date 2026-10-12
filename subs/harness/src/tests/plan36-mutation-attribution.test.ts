@@ -114,3 +114,13 @@ test('corrupt mutation rows preserve known snapshot provenance and explicitly in
     attributable: null, observations: [], uncertainty: expect.stringContaining('Mutation evidence is incomplete'),
   });
 });
+
+test('unknown current placement retains mutation attribution without becoming an outside-scope metric', () => {
+  const unknown = invocationOutcomeSchema.parse({ ...outcome, outsideScope: [], unknownPlacement: paths, placementFailure: 'Invalid acquisition' });
+  const value = invocationEvaluationSchema.parse(evaluationOf({ invocation, outcome: unknown, observations: [snapshot], lines: null }));
+  expect(value.outsideScope).toEqual([]);
+  expect(value.outsideScopeEvidence).toEqual([]);
+  expect(value.unknownPlacement).toEqual(paths);
+  expect(value.placementFailure).toBe('Invalid acquisition');
+  expect(value.unknownPlacementEvidence).toEqual(paths.map(path => ({ path, attributable: false, observations: [{ number: 258, callId: null, observedBy: 'snapshot', attributable: false }], uncertainty: null })));
+});

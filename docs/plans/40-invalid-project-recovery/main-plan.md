@@ -48,17 +48,35 @@ Existing useful edits and historical reports remain intact.
 
 ## Delivery sequence
 
-Iterations 1–7 deliver and qualify stage one. Iteration 1 belongs to the
-independent Ramify repository; iterations 2–7 belong to ramify-agent. Perform
-them in order so each increment builds on an established contract. Consumer
-tests can script the proposed provider answers before release, but the exact
-published provider pin is required to complete iteration 2 and qualify stage one.
-No ramify-audit implementation change is prescribed.
+Iterations 1–7 deliver and qualify stage one. The user confirmed on 2026-10-12
+that a separate session owns the Ramify implementation. Treat iteration 1 as
+that external provider dependency; do not implement or publish it a second time.
+Iterations 2–7 belong to ramify-agent, with one Sol agent per iteration.
+
+Consumer development may proceed alongside the provider plan against the agreed
+serialized contracts, using scripted external answers and the currently released
+package surface. Keep consumer implementation handoffs ordered: adapter, durable
+boundary, repair, architect continuation, then gate classification. An iteration
+may hand off its independently tested implementation while its released-provider
+integration remains pending. No sibling-source imports, compiler aliases, linked
+dependencies or assumed unpublished version are permitted.
+
+The external provider's qualified release is required to close iteration 1,
+finish the exact-pin adoption in iteration 2, and qualify stage one in iteration
+7. Reconcile the final released contracts and rerun affected checks before
+claiming those gates. No ramify-audit implementation change is prescribed.
+
+The external provider gate was met on 2026-10-12: the configured default audit
+passed for implementation `f370d7d3e96820710585668aabb9ec23cea29d43`, and
+the registry published `ramify.ts@0.5.0` from release commit
+`26e382791ae64e52f179573054ff00ff03078700`. The release commit changes only
+the package version and lockfile relative to the implementation and its audit
+receipt. Consumer adoption and qualification remain separate gates.
 
 | Iteration | Deliverable | Depends on | Acceptance gate |
 | --- | --- | --- | --- |
-| 1 | Released independent ownership and useful failure evidence | Provider contract below | Provider qualification and published contract/release identity |
-| 2 | Exact provider adoption and typed evidence decoding | 1 | Explicit old/new schema handling and failure/cancellation regressions |
+| 1 | External release of independent ownership and useful failure evidence | Separate Ramify implementation | Provider qualification and published contract/release identity |
+| 2 | Typed evidence decoding, then exact provider adoption | Agreed contracts for development; 1 for adoption | Explicit old/new schema handling, failure/cancellation regressions and released pin |
 | 3 | Durable effective assignment authority | 2 | Faithful capture, narrowing and restart reconstruction |
 | 4 | Authorized multi-edit repair and engineer feedback | 3 | Recovery succeeds while all filesystem and assignment protections hold |
 | 5 | Architect continuation through invalid state | 4 | Partial reaches local and capability architects; bounded reassignment works |
@@ -76,12 +94,16 @@ must not disable repair or hold stage-one qualification open.
 
 ## Iteration 1: qualify and release the provider contract
 
-**Owner:** Ramify, in its own checkout. **Prerequisite:** none within this plan.
+**Owner:** the separate Ramify implementation session, in its own checkout.
+**Prerequisite:** none within this plan. This session consumes its release handoff
+and may share comparison evidence; it does not duplicate provider implementation.
 
-Ramify's companion proposal is
-`docs/architecture/analysis-failure-recovery.spec.md` in its independent
-checkout. That new document is not yet committed, so there is no immutable
-upstream link for it. The consumer requirements below are
+Ramify's [companion design](https://github.com/danmaz74/ramify/blob/f370d7d3e96820710585668aabb9ec23cea29d43/docs/architecture/analysis-failure-recovery.spec.md)
+and [adopted contracts](https://github.com/danmaz74/ramify/blob/f370d7d3e96820710585668aabb9ec23cea29d43/docs/plans/analysis-failure-recovery/contracts.md)
+are committed in its independently qualified implementation. Its
+[audit receipt](https://github.com/danmaz74/ramify/blob/5ae6890a6adb24dec3b94879b8e8257a601600d4/docs/plans/analysis-failure-recovery/audit-receipt.md)
+records the passing default audit of that candidate. Publication and the exact
+consumer pin remain separate gates. The consumer requirements below are
 self-contained. Existing upstream grounding is the
 [ownership principle](https://github.com/danmaz74/ramify/blob/6161e76dcd22e45213a59e19950762750ca03e60/docs/model/cross-module-importability.principles.md)
 and [inventory operation](https://github.com/danmaz74/ramify/blob/6161e76dcd22e45213a59e19950762750ca03e60/subs/analysis/src/inventory.ts).
@@ -125,7 +147,10 @@ to iteration 2; source-check success is never inferred from ownership success.
 
 ## Iteration 2: adopt the released provider and typed failure evidence
 
-**Owner:** harness evidence adapter. **Prerequisite:** iteration 1.
+**Owner:** harness evidence adapter. **Prerequisite:** agreed serialized contracts
+for independent development; iteration 1 for final pin adoption and qualification.
+The development handoff can unblock iterations 3–6 while release adoption remains
+explicitly pending.
 
 The harness consumes these through its CLI adapter and public types/schemas
 only. The evidence adapter returns typed answered/unavailable results for

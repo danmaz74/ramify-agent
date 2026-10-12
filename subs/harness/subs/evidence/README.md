@@ -43,7 +43,7 @@ the values come from the allowlist again when the command runs.
 `checkComplete` and `checkChanged` are Ramify's two check forms. The exit
 code gives the project verdict: 0 is checked with no findings, 1 is findings
 or an invalid revision, and 2 is not checked with the CLI's reason. Exit 2 is
-never a pass. The printed document is decoded strictly, `ramify.check/3` for
+never a pass. The printed document is decoded strictly, `ramify.check/3` or `ramify.check/4` for
 the changed form and `ramify.analysis/3` for the complete one: its root must
 be the checked project, the changed form must name each requested path once,
 and its outcome must agree with the exit code. Each named path keeps its
@@ -54,6 +54,25 @@ the bounded hook check and never falls back to a complete one; a cold daemon,
 an expired deadline or an uncovered configuration change is answered as not
 checked, which permits continued editing. A caller that needs a verdict runs
 `checkComplete`, rather than claiming hook coverage.
+
+`queryOwnershipResult` returns answered, unavailable or cancelled evidence. An
+answered result exposes the normalized root, input identity, configuration,
+ownership table and path classifications. An unavailable result retains the
+failure status, exit code, raw output, original parsed report and available
+located diagnostics, stages and recovery history. `queryOwnershipAnswer` refuses
+unavailable evidence with an error carrying that result; cancellation has a
+distinct error and cannot select recovery admission. Callers receive no current
+ownership answer on failure; bounded historical admission belongs to the harness
+guard.
+
+The installed registry release `ramify.ts@0.5.0` uses the independent batch
+`ownership` command and its public `ownershipDocumentSchema`. Launcher capability
+comes from the exact installed package identity, read once without per-write
+version processes. Custom executables require explicitly verified support;
+without it they use `affected --batch`, avoiding unsupported-command probes. Supported
+changed-check and generic failure schemas are decoded explicitly; old carriers
+do not acquire stages or recovery fields. An ownership answer never establishes
+a successful source check.
 
 ## Running one of the project's own commands
 

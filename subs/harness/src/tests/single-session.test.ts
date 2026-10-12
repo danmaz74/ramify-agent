@@ -148,8 +148,8 @@ describe('a single engineer session', () => {
     expect(answer).not.toContain('complete');
 
     // The stream: the start, the tool call, the submission and its answer, the summary.
-    expect(events.map(event => event.type)).toEqual(['started', 'tool-call', 'submission', 'summary']);
-    expect(events[2]).toMatchObject({ type: 'submission', accepted: true, answer });
+    expect(events.map(event => event.type)).toEqual(['started', 'tool-call', 'harness-text', 'submission', 'summary']);
+    expect(events.find(event => event.type === 'submission')).toMatchObject({ type: 'submission', accepted: true, answer });
     // The prompt is the goal; what the person did not give reads "not stated".
     const started = events[0] as Extract<SessionProgress, { type: 'started' }>;
     expect(started.message).toContain('# Goal\nRaise the note limit to 500.');
@@ -217,7 +217,7 @@ describe('a single engineer session', () => {
     const appended = events.filter(event => event.type === 'harness-text' && event.kind === 'appended');
     expect(appended).toHaveLength(2);
     expect((appended[1] as Extract<SessionProgress, { type: 'harness-text' }>).text)
-      .toBe(`Cleared: the Ramify module violation reported earlier (${notesSource}:1) no longer stands.`);
+      .toContain(`Cleared: the Ramify module violation reported earlier (${notesSource}:1) no longer stands.`);
     expect(events.filter(event => event.type === 'submission').map(event => (event.type === 'submission' ? event.accepted : null))).toEqual([false, true]);
   }, 120_000);
 

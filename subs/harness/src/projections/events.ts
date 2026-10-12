@@ -159,6 +159,8 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [event.data.unchanged === true
         ? `${event.data.workItem}'s completion request stands on outline revision ${event.data.revision}`
         : `${event.data.workItem}'s outline reached revision ${event.data.revision}`, ref('work-item', event.data.workItem)];
+    case 'ownership-evidence-retained':
+      return [`Ownership evidence retained for input ${event.data.inputId}`, []];
     case 'iteration-assigned':
       return [
         `Iteration ${event.data.iteration} (${event.data.kind}) was assigned`,

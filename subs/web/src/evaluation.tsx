@@ -52,6 +52,8 @@ export function EvaluationFacts({ evaluation }: { readonly evaluation: Invocatio
         <dt>Guarding</dt>
         <dd>
           {guardingText(evaluation)}
+          {(evaluation.unknownPlacement?.length ?? 0) > 0 && <ul className="warn" aria-label="Candidate differences with unknown placement">{evaluation.unknownPlacement!.map(path => <li key={path}><OutsideScopePath path={path} invocation={evaluation.invocation} evidence={evaluation.unknownPlacementEvidence?.find(entry => entry.path === path)} />; current placement unknown</li>)}</ul>}
+          {evaluation.placementFailure && <p>{evaluation.placementFailure}</p>}
           {evaluation.outsideScope.length > 0 && <ul className="warn" aria-label="Candidate differences outside the write scope">{evaluation.outsideScope.map(path => <li key={path}><OutsideScopePath path={path} invocation={evaluation.invocation} evidence={evaluation.outsideScopeEvidence?.find(entry => entry.path === path)} /></li>)}</ul>}
         </dd>
       </div>

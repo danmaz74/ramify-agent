@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
+import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { coverageLimitsOf, findModule, readArchitectMeta, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { PackageCitation } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import type { CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
@@ -98,17 +99,35 @@ export async function knownProjectFactsOf(projectRoot: string, index: ArchitectI
  */
 export async function defaultWriteScopesOf(ramify: RamifyCli, projectRoot: string, index: ArchitectIndex | null,
   modules: readonly string[], guarded: readonly string[]): Promise<DefaultWriteScope[]> {
-  const topology = await ramify.queryOwnership(projectRoot, ['.'])
-    .then(answer => answer.selection.scope.ownership, () => null);
+  const topology = await ramify.queryOwnershipAnswer(projectRoot, ['.'])
+    .then(answer => answer.scope.ownership, error => {
+      if (error instanceof OwnershipUnavailableError) return null;
+      throw error;
+    });
   return [...new Set(modules)].flatMap(module => defaultWriteScopeOf(index, module, topology, guarded) ?? []);
 }
 
 /** Committed audit preparation inputs, converted to paths in this project. */
-export async function auditPreparationPathsOf(ramify: RamifyCli, projectRoot: string, audit: RunRecord['auditConfiguration']): Promise<string[]> {
-  const answer = await ramify.queryOwnership(projectRoot, ['.']);
-  const configuration = relative(projectRoot, resolve(projectRoot, answer.selection.scope.configuration)).split(sep).join('/');
-  if (configuration === '' || configuration === '..' || configuration.startsWith('../')) throw new Error('Provider configuration is outside the captured project');
-  return [...new Set([configuration, ...(audit === undefined || !('config' in audit) ? [] : await auditPreparationPaths(audit.config, projectRoot))])];
+export async function auditPreparationPathsOf(ramify: RamifyCli, projectRoot: string, audit: RunRecord['auditConfiguration'],
+  captured: readonly string[] = [], unavailable?: (reason: string) => void): Promise<string[]> {
+  const paths = [...captured];
+  try {
+    if (captured.length > 0) return [...new Set([...paths.map(path => configurationPath(projectRoot, path)),
+      ...(audit === undefined || !('config' in audit) ? [] : await auditPreparationPaths(audit.config, projectRoot))])];
+    const answer = await ramify.queryOwnershipAnswer(projectRoot, ['.']);
+    paths.push(answer.scope.configuration);
+  } catch (error) {
+    if (!(error instanceof OwnershipUnavailableError)) throw error;
+    unavailable?.(`Current ownership is unavailable: ${error.message}; configuration protection uses captured paths${captured.length === 0 ? '; no assignment configuration authority is recorded' : ''}.`);
+  }
+  const configuration = paths.map(path => configurationPath(projectRoot, path));
+  return [...new Set([...configuration, ...(audit === undefined || !('config' in audit) ? [] : await auditPreparationPaths(audit.config, projectRoot))])];
+}
+
+function configurationPath(projectRoot: string, path: string): string {
+  const normalized = relative(projectRoot, resolve(projectRoot, path)).split(sep).join('/');
+  if (normalized === '' || normalized === '..' || normalized.startsWith('../')) throw new Error('Provider configuration is outside the captured project');
+  return normalized;
 }
 
 /**

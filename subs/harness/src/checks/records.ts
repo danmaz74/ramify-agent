@@ -1,3 +1,4 @@
+import type { OwnershipPreflight } from '../interfaces/protocol/runs.js';
 import { childEnvironment, environmentNames } from '../../subs/evidence/src/run-command.js';
 
 /*
@@ -311,6 +312,7 @@ export interface GateAttempt {
   readonly guardedChanges: Array<{ readonly path: string; readonly before: string | null; readonly after: string | null; readonly authorizedBy: RecordReference | null }>;
   /** Rules the harness verified itself. A checkpoint with none records none. */
   readonly rules?: GateRuleRecord[];
+  readonly ownershipPreflight?: OwnershipPreflight;
   /** An in-place diagnosis's commands; a committing gate plans none, so its list is empty. */
   readonly commands: GateCommandRecord[];
   readonly verdict: 'passed' | 'failed' | 'not-verified';

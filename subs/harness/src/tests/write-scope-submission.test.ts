@@ -1,9 +1,12 @@
+import { mkdir, writeFile, symlink } from 'node:fs/promises';
+import { join } from 'node:path';
+import { ownershipAnswerOfAffected, type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { guardedChildProcess, resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 vi.mock('node:child_process', async importOriginal => guardedChildProcess(await importOriginal<typeof import('node:child_process')>()));
 import type { AffectedDocument } from 'ramify.ts/cli';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import { checkWriteScope, defaultWriteScopeOf, type ScopeCapture } from '../work/scope.js';
+import { historicalScopeDecisions, missingHistoricalAuthority, checkWriteScope, defaultWriteScopeOf, type ScopeCapture } from '../work/scope.js';
 import { defaultWriteScopeSection } from '../work/session.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
@@ -41,6 +44,9 @@ class LiteralOwnership extends RamifyCli {
     super({ executable: '/nonexistent/no-ramify', timeoutMs: 0 });
   }
 
+  override async queryOwnershipAnswer(root: string, paths: readonly string[] = ['.']): Promise<OwnershipAnswer> {
+    return ownershipAnswerOfAffected(await this.queryOwnership(root, paths));
+  }
   override async queryOwnership(projectRoot: string, paths: readonly string[] = ['.']): Promise<AffectedDocument> {
     this.queries.push([...paths]);
     const inside = (path: string, directory: string) => directory === '.' || path === directory || path.startsWith(`${directory}/`);
@@ -165,4 +171,65 @@ test('the default write scope names the owner, the only valid included directori
     '',
   ].join('\n'));
   expect(defaultWriteScopeSection([{ ...scope, nestedProjects: null }]).join('\n')).toContain('Owned nested-project roots: unavailable, because the ownership query gave no answer.');
+});
+
+
+test('captured children stay closed while exact sibling extras retain their file authority', async () => {
+  const captured = await check({ extra: [{ path: 'subs/store/README.md', purpose: 'consumer' }] });
+  const scope = captured.scope!;
+  const root = scope.resolved.ownership.root;
+  expect(scope.resolved.excluded).toContain(`${root}/subs/ui/subs/widgets`);
+  expect(scope.resolved.excluded).not.toContain(`${root}/subs/store`);
+  const retained = { latest: null, reference: null, paths: new Map<string, boolean>() };
+  expect(historicalScopeDecisions(scope, retained, ['subs/ui/src/a.ts', 'subs/ui/subs/widgets/src/a.ts', 'subs/store/README.md', 'subs/store/src/a.ts', 'subs/ui/vendor/a.ts', 'subs/ui/tools/cli/a.ts']).map(item => item.allowed))
+    .toEqual([true, false, true, false, false, false]);
+  const older = { ...scope, resolved: { ...scope.resolved, boundaryVersion: undefined } };
+  expect(missingHistoricalAuthority(older)).toEqual(['verified non-included child directory capture']);
+  expect(() => historicalScopeDecisions(older, retained, ['subs/ui/src/a.ts'])).toThrow('Historical repair lacks');
+});
+
+test('fresh evidence can remove a temporary restriction but never expand the assignment', async () => {
+  const captured = await check({});
+  const scope = captured.scope!;
+  const root = scope.resolved.ownership.root;
+  const latest = await captured.ramify.queryOwnershipAnswer(root, ['subs/ui/src/a.ts', 'subs/store/src/a.ts']);
+  const retained = { latest, reference: null, paths: new Map([['subs/ui/src/a.ts', false]]) };
+  expect(historicalScopeDecisions(scope, retained, ['subs/ui/src/a.ts', 'subs/store/src/a.ts']).map(item => item.allowed)).toEqual([false, false]);
+  retained.paths.set('subs/ui/src/a.ts', true);
+  expect(historicalScopeDecisions(scope, retained, ['subs/ui/src/a.ts', 'subs/store/src/a.ts']).map(item => item.allowed)).toEqual([true, false]);
+});
+
+test('historical permission protects hard segments and unapproved declarations even in owned scratch', async () => {
+  const { scope } = await check({});
+  const retained = { latest: null, reference: null, paths: new Map<string, boolean>() };
+  const paths = ['subs/ui/.git/config', 'subs/ui/src/node_modules/x.ts', 'subs/ui/src/.ramify/x',
+    'subs/ui/.ramify-architect/x', 'subs/ui/.ramify.tmp-session/x', 'subs/ui/.ramify-architect.old-session/x',
+    'subs/ui/src/tmp/module.ramify', 'subs/ui/src/tmp/new/module.ramify', 'subs/ui/src/tmp/ordinary.ts'];
+  expect(historicalScopeDecisions(scope!, retained, paths).map(item => item.allowed)).toEqual([false, false, false, false, false, false, false, false, true]);
+});
+
+
+test('included nested projects retain existing declarations without following protected trees or aliases', async () => {
+  const directory = await temporaryDirectory(); cleanups.push(directory.remove);
+  const nested = 'subs/ui/tools/cli';
+  for (const path of [nested, `${nested}/subs/child`, `${nested}/.git`, `${nested}/node_modules/pkg`]) {
+    await mkdir(join(directory.path, path), { recursive: true });
+    await writeFile(join(directory.path, path, 'module.ramify'), 'captured declaration');
+  }
+  await symlink(join(directory.path, nested, '.git'), join(directory.path, nested, 'alias'), 'dir');
+  const result = await checkWriteScope({ projectRoot: directory.path, ramify: new LiteralOwnership(), index: null,
+    view: { status: 'placeholder' }, revision: 1, base: { module: 'app/ui', included: [entry(nested)] },
+    extra: [], read: [], bootstrap: [], rationale: 'nested project repair' });
+  expect(result.errors).toEqual([]);
+  const scope = result.scope!;
+  expect(scope.resolved.nestedDeclarations?.map(entry => entry.path).sort()).toEqual([`${nested}/module.ramify`, `${nested}/subs/child/module.ramify`]);
+  const paths = [`${nested}/module.ramify`, `${nested}/subs/child/module.ramify`, `${nested}/subs/new/module.ramify`, `${nested}/.git/module.ramify`, `${nested}/alias/module.ramify`];
+  expect(historicalScopeDecisions(scope, { latest: null, reference: null, paths: new Map() }, paths).map(entry => entry.allowed)).toEqual([true, true, false, false, false]);
+});
+
+test('explicit contract directory extras keep their existing owner region while nested exclusions remain closed', async () => {
+  const { scope, errors } = await check({ extra: [{ path: 'subs/store', purpose: 'contract', kind: 'directory' }] });
+  expect(errors).toEqual([]);
+  expect(scope!.resolved.excluded).not.toContain(`${scope!.resolved.ownership.root}/subs/store`);
+  expect(historicalScopeDecisions(scope!, { latest: null, reference: null, paths: new Map() }, ['subs/store/src/store.ts']).map(entry => entry.allowed)).toEqual([true]);
 });

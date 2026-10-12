@@ -9,7 +9,8 @@ import type {
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { ProjectCommands } from '../checks/checkpoint.js';
-import { blockExplanation, decideWrite, type GuardedScope } from '../guard/write-guard.js';
+import { resolveRealTarget } from '../guard/resolve-contained-path.js';
+import { blockExplanation, decideWrite, type GuardedScope, type GuardDecisionRecord } from '../guard/write-guard.js';
 import {
   completionCheckDeadlineMs, FindingsSeen, findingsOf, runHookCheck, type HookCheck, type HookFinding, type HookCheckReservation, type HookSubmissionPolicy,
 } from '../hooks/post-write.js';
@@ -209,11 +210,12 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
         standing.admit(findings);
       }
     })();
+    const ownershipNotices = new Set(session.observations.observations.flatMap(item => item.type === 'guard' && item.data.failureEvidence !== undefined ? [item.data.failureEvidence.hash] : []));
     const calls = new Map<number, ShellCallRecord>();
     // What each guarded call resolved to, which is what the mutation
     // observation of that call names.
     const queued = new Set<AbortController>();
-    const admitted = new Map<string, { lease: MutationLease; before: MutationSnapshot; reservation: HookCheckReservation; resolved: string | null }>();
+    const admitted = new Map<string, { lease: MutationLease; before: MutationSnapshot; reservation: HookCheckReservation; resolved: string | null; decision: GuardDecisionRecord }>();
     const commandIds = new Map<unknown, string[]>();
     const shellReservations = new Map<number, HookCheckReservation>();
     let stopping = false;
@@ -338,10 +340,15 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
           if (stopping) { lease.release(); return { allow: false, text: 'The equipment is stopped.' }; }
           await hydrate();
           const decision = await decideWrite(inputs.guarded, workingDirectory, call.action);
+          if (stopping) { lease.release(); return { allow: false, text: 'The write was cancelled before execution.' }; }
           await session.observations.record({ type: 'guard', data: {
             callId: call.callId, tool: call.tool, requested: decision.requested, resolved: decision.resolved,
             owner: decision.resolved === null ? null : ownerOf(inputs.index(), relative(projectRoot, decision.resolved)),
             scopeRevision: inputs.scopeRevision, verdict: decision.verdict, reason: decision.reason,
+            ...(decision.basis === undefined ? {} : { basis: decision.basis }),
+            ...(decision.assignment === undefined ? {} : { assignment: decision.assignment }),
+            ...(decision.ownershipEvidence === undefined ? {} : { ownershipEvidence: decision.ownershipEvidence }),
+            ...(decision.failureEvidence === undefined ? {} : { failureEvidence: decision.failureEvidence }),
           } });
           if (decision.verdict !== 'allowed') {
             lease.release();
@@ -349,7 +356,11 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
             session.transcript?.note({ kind: 'guard-denied', callId: call.callId, tool: call.tool, verdict: decision.verdict, requested: decision.requested, reason: decision.reason, text });
             return { allow: false, text };
           }
-          admitted.set(call.callId, { lease, before: await projectMutationSnapshot(projectRoot), reservation, resolved: decision.resolved });
+          const before = await projectMutationSnapshot(projectRoot);
+          if (stopping) { lease.release(); return { allow: false, text: 'The write was cancelled before execution.' }; }
+          const liveTarget = await resolveRealTarget(workingDirectory, decision.requested);
+          if (stopping || !liveTarget.ok || liveTarget.resolved !== decision.resolved) { lease.release(); return { allow: false, text: 'The target changed or the write was cancelled before execution.' }; }
+          admitted.set(call.callId, { lease, before, reservation, resolved: decision.resolved, decision });
           return { allow: true };
         } catch (error) { lease.release(); throw error; }
       },
@@ -366,7 +377,24 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
           // not the agent's claim, so it stands as the changed set where
           // the tree inventory could not be compared.
           const change: MutationChange = observed.kind === 'unknown' && !call.failed && entry.resolved !== null ? { kind: 'known', paths: [entry.resolved] } : observed;
-          return await observe(call.callId, call.tool, call.failed, change, entry.lease, entry.reservation);
+          const checked = await observe(call.callId, call.tool, call.failed, change, entry.lease, entry.reservation);
+          const decision = entry.decision;
+          const failure = decision.ownershipFailure;
+          const failureIdentity = decision.failureEvidence?.hash ?? (failure === undefined ? null : JSON.stringify(failure.decoded ?? failure.reason));
+          const newFailure = failureIdentity !== null && !ownershipNotices.has(failureIdentity);
+          if (failureIdentity !== null) ownershipNotices.add(failureIdentity);
+          const diagnostics = (newFailure ? failure?.decoded?.diagnostics : undefined)?.slice(0, 5).map(diagnostic => {
+            const location = 'location' in diagnostic ? diagnostic.location : null;
+            return `${location === null ? '' : `${location.file}:${location.line}:${location.column}: `}${diagnostic.code}: ${diagnostic.message}`;
+          }) ?? [];
+          const names = change.kind === 'known' ? change.paths.slice(0, 12).join(', ') || '(no net content change)' : 'unavailable';
+          const text = [
+            `Write basis: ${decision.basis ?? 'current'}${decision.assignment === undefined ? '' : `; assignment ${decision.assignment}`}${decision.ownershipEvidence == null ? '' : `; ownership evidence ${decision.ownershipEvidence.hash}`}.`,
+            ...(failure === undefined ? [] : [`Current ownership unavailable (${failure.failureStatus}): ${failure.reason}. Current placement was not established.${decision.failureEvidence === undefined ? '' : ` Complete failure evidence: blobs/${decision.failureEvidence.hash}, relative to the run or session record directory.`}`, ...diagnostics]),
+            `Change comparison: immediately preceding project mutation inventory; ${names}. Current files remain available through read tools.`,
+            checked?.text,
+          ].filter(Boolean).join('\n\n');
+          return { text };
         } finally { admitted.delete(call.callId); entry.lease.release(); }
       },
     };

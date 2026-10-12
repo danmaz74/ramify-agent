@@ -2,6 +2,10 @@
 
 Design documents for the separate agent harness:
 
+- [Plan 40: implementation through temporarily invalid projects](plans/40-invalid-project-recovery/main-plan.md),
+  in implementation: an external provider release and consumer iterations for
+  recorded repair authority, architect continuation and stage-one qualification;
+  a separate measurement gate precedes conditional checkpoint implementation
 - [Plan 39: run changed tests individually](plans/39-test-file-audits/main-plan.md),
   implemented, released and qualified: Ramify file facts, direct test selection
   and evidence in ramify-audit, exact provider pins and a one-file consumer witness

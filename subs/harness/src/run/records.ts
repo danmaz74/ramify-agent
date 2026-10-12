@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { join } from 'node:path';
 import { citationSchema, inputManifestSchema, modulePathSchema, sha256Schema, viewIdentitySchema } from '../interfaces/protocol/evidence.js';
 import { jobIdSchema, planIdSchema } from '../interfaces/protocol/ids.js';
-import { breakpointSelectorSchema, roleSchema, runAgentSchema, type Role } from '../interfaces/protocol/runs.js';
+import { breakpointSelectorSchema, ownershipPreflightSchema, roleSchema, runAgentSchema, type Role } from '../interfaces/protocol/runs.js';
 import { jobSchemaVersion, jobsDirectory } from '../jobs/records.js';
 import type { GateAttempt } from '../checks/records.js';
 import { planScenarioExtractionSchema } from '../../subs/scenarios/src/extraction.js';
@@ -781,6 +781,8 @@ export const invocationOutcomeSchema = z.object({
   }).strict(),
   /** Writers only: uncommitted changed paths outside the write scope when it settled. */
   outsideScope: z.array(z.string()),
+  unknownPlacement: z.array(z.string()).optional(),
+  placementFailure: z.string().optional(),
   /** Exact candidate tree after this writer settled; absent without a starting tree or when the scratch rule failed at settlement. */
   candidateAfter: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u).optional(),
   usage: z.union([usageSchema, z.object({ unavailable: text }).strict()]),
@@ -888,6 +890,7 @@ export const gateAttemptSchema = z.object({
     authorizedBy: recordRefSchema.nullable(),
   }).strict()),
   /** Rules the harness verified itself; absent for a checkpoint that has none. */
+  ownershipPreflight: ownershipPreflightSchema.optional(),
   rules: z.array(gateRuleSchema).optional(),
   commands: z.array(z.object({
     kind: checkKindSchema,

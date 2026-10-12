@@ -51,3 +51,7 @@ expose-src productionSourceGit, ProvisionalSourceGit from "provisional-git.ts" t
 
 // Strict scripted check replies remain testing source in their owning adapter.
 expose-test ScriptedCli, CliReply from "helpers/scripted-cli.ts" to parent
+
+// Current ownership and unavailable acquisition retain their original evidence.
+expose-src OwnershipAnswer, OwnershipPath, OwnershipQueryResult, RawOwnershipEvidence, OwnershipUnavailableError, OwnershipCancelledError, requireOwnershipAnswer, decodeOwnershipEvidenceAnswer, ownershipAnswerOfAffected from "ownership-evidence.ts" to parent
+expose-src ProviderFailureEvidence, RecoveryEvidence from "provider-evidence.ts" to parent

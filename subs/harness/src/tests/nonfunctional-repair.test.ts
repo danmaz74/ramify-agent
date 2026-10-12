@@ -35,6 +35,15 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   cleanups.push(fixture.remove);
   const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'two-modules' });
   answers.push(boundaryAnswers);
+  // Both normalized ownership carriers must survive the same driven assignment.
+  // This is scripted workflow evidence; the registered CLI witness proves installation.
+  const ramify = new Proxy(boundaryAnswers.options.ramify, { get(target, key, receiver) {
+    if (key !== 'queryOwnershipAnswer') return Reflect.get(target, key, receiver);
+    return async (root: string, paths?: readonly string[]) => {
+      const answer = await target.queryOwnershipAnswer(root, paths);
+      return debug ? { ...answer, schemaVersion: 'ramify.ownership/1' as const } : answer;
+    };
+  } });
   const plan = join(fixture.root, 'plans/review-notes/plan.md');
   const obligation = 'The review must retain an audit record.';
   const otherObligation = 'The catalog must expose the audit record.';
@@ -84,7 +93,7 @@ test.each([false, true])('one authorized repair edits two modules from the chose
       write(plan, 'forbidden plan change\n')); }
     return [];
   }));
-  const { service } = await openRuns(fixture.root, { ...boundaryAnswers.options, agent });
+  const { service } = await openRuns(fixture.root, { ...boundaryAnswers.options, ramify, agent });
   cleanups.push(() => service.close());
   const start = startRun('review-notes');
   if (start.type !== 'start-run') throw new Error('Unexpected command');
@@ -137,6 +146,10 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   expect(assessmentsOnDisk).toHaveLength(2);
   expect(events.filter(event => event.type === 'nonfunctional-investigated')).toMatchObject([{ data: { nfrs: ['nfr-001'] } }]);
   expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
+  const assigned = events.find(event => event.type === 'nonfunctional-repair-assigned')!;
+  const recordedAssignment = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId,
+    runLayout.nonfunctionalRepairAssignment(assigned.data.assignment)), 'utf8'));
+  expect(recordedAssignment.scope.resolved.ownership.provider).toBe(debug ? 'ramify.ownership/1' : 'ramify.affected-cli/4');
   expect(events.find(event => event.type === 'nonfunctional-investigated')!.sequence).toBeLessThan(
     events.find(event => event.type === 'nonfunctional-repair-assigned')!.sequence);
   const investigation = events.find(event => event.type === 'nonfunctional-investigated')!;

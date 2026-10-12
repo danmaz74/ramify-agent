@@ -79,6 +79,7 @@ async function stubRamify(): Promise<RamifyCli> {
   await chmod(executable, 0o755);
   class ProcessCheckWithScriptedOwnership extends RamifyCli {
     override queryOwnership = new FakeRamifyCli().queryOwnership;
+    override queryOwnershipAnswer = new FakeRamifyCli().queryOwnershipAnswer;
   }
   return new ProcessCheckWithScriptedOwnership({ executable, timeoutMs: 30_000 });
 }

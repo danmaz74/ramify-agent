@@ -1,3 +1,4 @@
+import { ownershipAuthorityFor } from '../work/ownership-authority.js';
 import { unavailableConsultation } from '../consultations/targets.js';
 import { mkdir, readFile, realpath } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
@@ -117,6 +118,8 @@ export interface StepRunSummary {
   /** Every path that differed from the base when the session settled. */
   readonly changed: readonly string[];
   readonly outsideScope: readonly string[];
+  readonly unknownPlacement?: readonly string[];
+  readonly placementFailure?: string;
   readonly settled: boolean;
   readonly usage: InvocationOutcome['usage'];
   readonly elapsedMs: number;
@@ -352,6 +355,8 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
       standingViolations: (prepared.standing?.() ?? []).map(finding => ({ code: finding.code, message: finding.message, file: finding.file, line: finding.line })),
       changed: [...(result.changed ?? [])],
       outsideScope: [...outcome.outsideScope],
+      unknownPlacement: [...(outcome.unknownPlacement ?? [])],
+      ...(outcome.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }),
       settled: outcome.settled.confirmed,
       usage: outcome.usage,
       elapsedMs: outcome.elapsedMs,
@@ -582,7 +587,11 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
   const authored = await recordAuthoredInputs(runner, run, step.inputs);
   if (authored !== null) throw new Refusal(authored);
 
-  const guarded = await protectedScopeOf(projectRoot, assignment.scope, step.equipment.protectedFiles, ramify);
+  const authority = ownershipAuthorityFor(assignment, run, async data => {
+    const result = await runner.write(run, { type: 'ownership-evidence-retained', data });
+    if (result === 'ended') throw new Error('The manual run ended before ownership evidence settled');
+  });
+  const guarded = await protectedScopeOf(projectRoot, assignment.scope, step.equipment.protectedFiles, ramify, authority);
   const tools = engineerEquipment({
     commandExecution: context.commandExecution,
     registerProcessGroup: async (invocation, pid, identity) => {
@@ -639,7 +648,7 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
         consumer: step.validator.consumer,
         providerOf: capability => committedRecords(run.log.ledger.replay()).registry.find(entry => entry.capability === capability)?.owner,
       },
-    }, paths => ramify.queryOwnership(projectRoot, paths),
+    }, paths => ramify.queryOwnershipAnswer(projectRoot, paths),
     () => new Map(committedRecords(run.log.ledger.replay()).registry.map(entry => [entry.capability, entry]))),
     acceptedText: value => {
       const check = tools.completionCheck();

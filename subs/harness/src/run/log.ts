@@ -11,6 +11,7 @@ import {
   replaceRelationSchema, requestRelationSchema, sessionFinishReasonSchema, sessionIdSchema,
 } from './records.js';
 import { moduleNoticeSchema } from '../work/iterations.js';
+import { ownershipEvidenceRetainedSchema } from '../work/ownership-authority.js';
 import { catalogFindingSchema, scenarioWarningSchema } from '../analysis/records.js';
 import { scenarioIdSchema } from '../../subs/scenarios/src/records.js';
 import { obligationBoundDataSchema, obligationRegisteredDataSchema, obligationReportedDataSchema } from '../work/obligations.js';
@@ -68,6 +69,8 @@ const invocationEndedFields = {
    * the end beside the actual start; the executor never silently changes modes.
    */
   degraded: degradeRelationSchema.optional(),
+  unknownPlacement: z.array(text).optional(),
+  placementFailure: text.optional(),
 };
 
 /** One line of a run's event log. */
@@ -221,7 +224,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('capability-assigned', z.object({ task: text, assignment: text, sequence: z.int().positive(), invocation: text,
     architectRef: architectRefSchema.nullable().optional(), corrects: text.optional() }).strict()),
   event('capability-assignment-settled', z.object({ task: text, assignment: text, outcome: z.enum(['accepted', 'partial', 'failed', 'interrupted']),
-    mutated: z.array(text).optional(), outsideScope: z.array(text).optional(), endingTree: text.optional() }).strict()),
+    mutated: z.array(text).optional(), outsideScope: z.array(text).optional(), unknownPlacement: z.array(text).optional(), endingTree: text.optional() }).strict()),
   event('capability-verification-started', z.object({ task: text, invocation: text, gate: text.optional() }).strict()),
   event('capability-handed-back', z.object({ task: text, handback: text, invocation: text }).strict()),
   event('capability-stopped', z.object({ task: text, reason: text }).strict()),
@@ -402,6 +405,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
    * derived gate and its guarded hashes. It licenses the module engineer that works
    * it.
    */
+  event('ownership-evidence-retained', ownershipEvidenceRetainedSchema),
   event('iteration-assigned', z.object({
     workItem: text,
     iteration: text,

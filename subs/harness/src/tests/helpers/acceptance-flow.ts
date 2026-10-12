@@ -289,7 +289,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         }
         const positive = await activeService!['gates'].candidateAuthority(active, request);
         expect(positive.rules.find(rule => rule.rule === 'write-scope')?.outcome).toBe('passed');
-        expect(positive.ownership?.selection.paths.filter(seed => paths.includes(seed.path)).map(seed => [seed.path, seed.status, seed.module, seed.exclusion]).sort()).toEqual(
+        expect(positive.ownership?.paths.filter(seed => paths.includes(seed.path)).map(seed => [seed.path, seed.status, seed.module, seed.exclusion]).sort()).toEqual(
           paths.map(path => [path, 'owned', path.startsWith('subs/b/') ? b : path.startsWith('subs/d/') ? d : p, null]).sort());
         const file = join(fixture.root, 'subs/b/src/fact.ts');
         const original = await readFile(file);

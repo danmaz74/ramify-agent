@@ -951,7 +951,7 @@ export const workItemResponseSchema = z.object({
       failure: z.object({ digest: z.array(z.string()), analysis: failureAnalysisSchema }).strict().nullable(),
     }).strict().nullable(),
     gates: z.array(gateSummary),
-    invocations: z.array(z.object({ id: text, role: roleSchema, ended: text.nullable(), outsideScope: z.array(text), outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional() }).strict()),
+    invocations: z.array(z.object({ id: text, role: roleSchema, ended: text.nullable(), outsideScope: z.array(text), unknownPlacement: z.array(text).optional(), placementFailure: text.optional(), outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional() }).strict()),
     /**
      * The assignment package its engineer and reviewers received: the IDs
      * the assignment cites and the text rendered again from them on this
@@ -1279,6 +1279,9 @@ export const gateScenarioResultViewSchema = z.object({
 export type GateScenarioResultView = z.infer<typeof gateScenarioResultViewSchema>;
 
 /** One gate attempt, with each command's output tail bounded at 8 KiB and its environment withheld. */
+export const ownershipPreflightSchema = z.object({ root: z.string(), paths: z.array(z.string()), failureStatus: z.enum(['invalid', 'incomplete', 'unavailable', 'unsupported', 'execution-failed']), reason: z.string(), exitCode: z.number(), stdout: z.string(), stderr: z.string(), report: z.unknown().optional(), decoded: z.unknown().optional() }).strict();
+export type OwnershipPreflight = z.infer<typeof ownershipPreflightSchema>;
+
 export const gateViewSchema = z.object({
   id: text,
   checkpoint: gateCheckpointSchema,
@@ -1305,6 +1308,7 @@ export const gateViewSchema = z.object({
     after: z.string().nullable(),
     authorizedBy: z.object({ id: z.string(), revision: count }).strict().nullable(),
   }).strict()),
+  ownershipPreflight: ownershipPreflightSchema.optional(),
   rules: z.array(z.object({
     rule: text,
     outcome: z.enum(['passed', 'failed']),
@@ -1572,9 +1576,9 @@ export const invocationEvaluationSchema = z.object({
   efficiency: invocationEfficiencySchema.optional(),
   guarding: guardingViewSchema,
   /** Writers only: uncommitted changed paths outside the write scope when it settled. */
-  outsideScope: z.array(text),
+  outsideScope: z.array(text), unknownPlacement: z.array(text).optional(), placementFailure: text.optional(),
   /** Optional for responses produced before mutation attribution was projected. */
-  outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional(),
+  outsideScopeEvidence: z.array(outsideScopeEvidenceSchema).optional(), unknownPlacementEvidence: z.array(outsideScopeEvidenceSchema).optional(),
   hookChecks: z.object({ passed: count, findings: count, notChecked: count, newFindings: count }).strict(),
   /** Modules this invocation read outside its declared scope, each once. */
   excursions: z.array(text),

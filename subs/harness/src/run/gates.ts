@@ -46,6 +46,9 @@ export interface CheckpointRequest {
   readonly authorizations?: readonly { readonly path: string; readonly by: RecordReference }[] | undefined;
   /** Rules the harness verified over the tree itself, such as a contract gate's fake naming. */
   readonly rules?: readonly GateRuleRecord[] | undefined;
+  /** Current candidate evidence unavailable; existing infrastructure bounds apply. */
+  readonly authorityUnavailable?: string | undefined;
+  readonly ownershipPreflight?: GateAttempt['ownershipPreflight'];
   /**
    * For a standalone diagnosis: the format the project declared for what its
    * type check prints, retained with the command's diagnostic evidence.
@@ -105,6 +108,8 @@ function gateRequest(request: CheckpointRequest): Omit<GateRequest, 'checks'> {
     ...(request.writeScope === undefined ? {} : { writeScope: request.writeScope }),
     ...(request.authorizations === undefined ? {} : { authorizations: request.authorizations }),
     ...(request.rules === undefined ? {} : { rules: request.rules }),
+    ...(request.ownershipPreflight === undefined ? {} : { ownershipPreflight: request.ownershipPreflight }),
+    ...(request.authorityUnavailable === undefined ? {} : { authorityUnavailable: request.authorityUnavailable }),
     limits: {
       repairRounds: request.checkpoint === 'work-item'
         ? request.policy.limits.repairRoundsPerWorkItemGate

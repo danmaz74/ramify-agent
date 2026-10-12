@@ -1,3 +1,4 @@
+import { ownershipAnswerOfAffected, type OwnershipAnswer } from '../../../subs/evidence/src/ownership-evidence.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AffectedDocument } from 'ramify.ts/cli';
@@ -59,6 +60,9 @@ export class FakeRamifyCli extends RamifyCli {
   }
 
   /** Explicitly scripted lifecycle placement; real installed F1 tests establish provider conformance. */
+  override async queryOwnershipAnswer(root: string, paths: readonly string[] = ['.']): Promise<OwnershipAnswer> {
+    return ownershipAnswerOfAffected(await this.queryOwnership(root, paths));
+  }
   override async queryOwnership(projectRoot: string, paths: readonly string[] = ['.']): Promise<AffectedDocument> {
     const index = await treeInputs().refresh(projectRoot);
     if (index === null) throw new Error('Scripted lifecycle fixture has no topology');

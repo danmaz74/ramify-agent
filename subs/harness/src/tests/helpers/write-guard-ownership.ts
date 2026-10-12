@@ -1,3 +1,4 @@
+import { ownershipAnswerOfAffected, type OwnershipAnswer } from '../../../subs/evidence/src/ownership-evidence.js';
 import type { AffectedDocument } from 'ramify.ts/cli';
 import { expect } from 'vitest';
 import { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
@@ -33,7 +34,10 @@ export function writeGuardOwnership(root: string, required: readonly (readonly s
   const pending = required.map(signature), failures: string[] = [];
   const calls: string[][] = [];
   class ScriptedOwnership extends RamifyCli {
-    override async queryOwnership(projectRoot: string, paths: readonly string[] = ['.']): Promise<AffectedDocument> {
+    override async queryOwnershipAnswer(root: string, paths: readonly string[] = ['.']): Promise<OwnershipAnswer> {
+    return ownershipAnswerOfAffected(await this.queryOwnership(root, paths));
+  }
+  override async queryOwnership(projectRoot: string, paths: readonly string[] = ['.']): Promise<AffectedDocument> {
       try {
         expect(projectRoot, 'ownership root').toBe(root);
         const next = signature(paths), index = pending.indexOf(next);

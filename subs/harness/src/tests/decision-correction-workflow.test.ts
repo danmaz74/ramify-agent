@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import type { Script } from '../../subs/agent/src/scripted.js';
@@ -6,7 +7,7 @@ import { analysis, entry } from './helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
 import { assign, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { forkDeviation, unresolved } from './helpers/placement.js';
+import { forkDeviation, forkEnvironment, unresolved } from './helpers/placement.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { commandResult } from './helpers/command-result.js';
 
@@ -32,7 +33,8 @@ afterEach(async () => {
   for (const answer of answers.splice(0)) answer.assertComplete();
 });
 
-for (const coordinator of ['local', 'capability'] as const) test(`${coordinator} correction preserves partial work and assigns a fresh engineer under current acceptance`, async () => {
+for (const ownership of ['current', 'unavailable'] as const)
+for (const coordinator of ['local', 'capability'] as const) test(`${coordinator} ${ownership} correction preserves partial work and assigns a fresh engineer under current acceptance`, async () => {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   await mkdir(join(fixture.root, 'src/tests'), { recursive: true });
   await writeFile(join(fixture.root, 'src/tests/stale.test.ts'), "expect('old');\n");
@@ -42,6 +44,25 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   await writeFile(join(fixture.root, 'support/global-review.steps.mjs'), "Then('the review passes with no findings', function () { return this.review.findings.length === 0; });\n");
   const boundary = capabilityFlowBoundaries(fixture.root, coordinator === 'local' ? 'local-correction' : 'correction'); answers.push(boundary);
   let engineer = 0, architect = 0;
+  let ownershipUnavailable = false;
+  const declarationPath = join(fixture.root, 'subs/a/module.ramify');
+  const originalDeclaration = await readFile(declarationPath, 'utf8');
+  const missingExportDeclaration = originalDeclaration + '\nexpose-src MissingCompanion from "caller.ts" to parent\n';
+  const missingExportDiagnostic = 'subs/a/module.ramify: MissingCompanion is not exported by src/caller.ts (missing-export)';
+  const git = { ...boundary.options.git, changedPaths: async (root: string, base?: string) => {
+    const paths = await boundary.options.git.changedPaths(root, base);
+    return (await readFile(declarationPath, 'utf8')) === originalDeclaration ? paths : [...new Set([...paths, 'subs/a/module.ramify'])];
+  } };
+  const originalOwnership = boundary.options.ramify.queryOwnershipAnswer.bind(boundary.options.ramify);
+  const queryOwnershipAnswer: typeof boundary.options.ramify.queryOwnershipAnswer = async (root, paths) => {
+    if (ownershipUnavailable) throw new OwnershipUnavailableError({ status: 'unavailable', failureStatus: 'invalid', reason: missingExportDiagnostic, exitCode: 1,
+      stdout: missingExportDiagnostic, stderr: '', report: null, decoded: { diagnostics: [{ id: 'scripted-missing-export', category: 'missing-export', code: 'missing-export', message: missingExportDiagnostic, location: null, related: [], importer: null, original: null, accessId: null }] } });
+    return originalOwnership(root, paths);
+  };
+  const ramify = new Proxy(boundary.options.ramify, { get(target, key, receiver) { return key === 'queryOwnershipAnswer' ? queryOwnershipAnswer : Reflect.get(target, key, receiver); } });
+  const inputs = treeInputs();
+  const originalRefresh = inputs.refresh;
+  inputs.refresh = async root => ownershipUnavailable ? null : originalRefresh(root);
   let originalAssignment = '', originalResult = '', capturedPlan = '', frozenCatalog = '';
   let replacementReceived = false;
   let prepared = 0;
@@ -49,7 +70,9 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   const parked = new Promise<void>(resolve => { coordinatorParked = resolve; });
   let releaseCoordinator!: () => void;
   const holdCoordinator = new Promise<void>(resolve => { releaseCoordinator = resolve; });
-  // This verifies workflow and immutable evidence; audit/Cucumber answers are scripted, not native binding execution.
+  // Symbolic reconstruction of the retained revision-preview missing-export failure:
+  // source names differ, and external ownership/audit/Cucumber answers are scripted.
+  // Original evidence: docs/analysis/2026-10-12-revision-preview-rerun.md, inv-0013.
   const script: Script = spec => {
     if (spec.role === 'initial-architect') {
       const analysed = analysis([entry('richer-a-fact', a), entry('b-entry', b)]);
@@ -74,9 +97,13 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
         examples: [{ title: 'source appears', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
       } }, edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'), write('extra.ts', "export const sourceHint = 'B';\n"),
       edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')"));
-      if (engineer === (coordinator === 'local' ? 1 : 2)) return submit({ kind: 'partial', done: [progress], unfinished: [remaining], findings: [conflict], startingPoints: points },
+      if (engineer === (coordinator === 'local' ? 1 : 2)) return submit({ kind: 'partial', done: [progress], unfinished: [remaining], findings: [conflict, ...(ownership === 'unavailable' ? [missingExportDiagnostic] : [])], startingPoints: points },
         { kind: 'tool', tool: 'read', input: { path: join(fixture.root, 'support/global-review.steps.mjs') } },
         ...(coordinator === 'local' ? [write('extra.ts', "export const sourceHint = 'B';\n"), edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')")] : []),
+        ...(ownership === 'unavailable' ? [write('../module.ramify', missingExportDeclaration),
+          { kind: 'await' as const, until: async () => { ownershipUnavailable = true; } },
+          write('caller.ts', retainedSource.replace('readable denial', 'intermediate repair')),
+          write('extra.ts', "export const sourceHint = 'B';\nexport const retainedUsefulCorrection = true;\n")] : []),
         write('caller.ts', retainedSource));
       expect(spec.prompt).toContain(progress);
       expect(spec.prompt).toContain(remaining);
@@ -93,7 +120,9 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       replacementReceived = true;
       return submit({ kind: 'completion-proposed', summary: 'Continued the retained implementation and verified corrected stored-record assertion', findings: [] },
         { kind: 'await', until: async () => { expect(await readFile(join(fixture.root, 'subs/a/src/caller.ts'), 'utf8')).toBe(retainedSource); } },
-        write('tests/caller.test.ts', assertionSource));
+        write('tests/caller.test.ts', assertionSource),
+        ...(ownership === 'unavailable' ? [write('../module.ramify', originalDeclaration)] : []),
+        { kind: 'await', until: async () => { ownershipUnavailable = false; } });
     }
     if (spec.submission.name === 'submit_work_item_result' && coordinator === 'capability') return submit(assign(a, {}, outline()));
     if (spec.role === (coordinator === 'local' ? 'local-architect' : 'capability-architect')) {
@@ -103,6 +132,13 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       if (architect === 1) { const choice = assign(a, { goal: 'Implement the existing stored-record review assertion', featureSelection }, coordinator === 'local' ? outline() : undefined); return submit(coordinator === 'local' ? choice : { ...basis, kind: 'assign', assignment: choice.assignment }); }
       if (architect === 2) {
         expect(spec.prompt).toContain(conflict);
+        if (ownership === 'unavailable') {
+          expect(spec.prompt).toContain('Current architect view refresh unavailable');
+          expect(spec.prompt).toContain('Previous durable assignment');
+          expect(spec.prompt).toContain('Changed paths compared with accepted Git boundary');
+          expect(spec.prompt).toContain(missingExportDiagnostic);
+        }
+        ownershipUnavailable = false;
         return [{ kind: 'await', until: async () => {
           const run = opened.service.listRuns('need')[0]!;
           const work = coordinator === 'local' ? 'wi-001' : 'cap-001';
@@ -115,6 +151,7 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
         } }, ...submit(coordinator === 'local' ? unresolved(conflict, [points[0]!.path]) : { ...basis, kind: 'unresolved', problem: conflict, evidence: [points[0]!.path] })];
       }
       if (architect === 3) {
+        ownershipUnavailable = ownership === 'unavailable';
         expect(spec.prompt).toContain('pd-001');
         expect(spec.prompt).toContain(corrected.at(-1)!);
         const assignment = assign(a, { goal: 'Continue retained work and verify the corrected stored-record assertion',
@@ -138,7 +175,7 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
         checks: input.configuration.checks.filter(check => (check as { id: string }).id !== declaredCheck.id) } });
     },
   };
-  const opened = await openCapabilityRuns(fixture.root, { ...boundary.options, configuredAudit, inputs: treeInputs(), script: boundary.script(script),
+  const opened = await openCapabilityRuns(fixture.root, { ...boundary.options, git, ramify, configuredAudit, inputs, script: boundary.script(script),
     commandExecution: async request => {
       prepared += 1;
       expect(request.stdin).toContain('cucumber.json');
@@ -171,6 +208,14 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   const assignment = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, `work-items/${work}/iterations/02/assignment.json`), 'utf8'));
   expect(assignment.featureSelection).toEqual(featureSelection);
   expect(assignment.scope.base.module).toBe(a);
+  if (ownership === 'unavailable') expect(assignment.scope.resolved.sourceAuthority).toMatch(/^[a-f0-9]{64}$/u);
+  if (ownership === 'unavailable') {
+    expect(await readFile(declarationPath, 'utf8')).toBe(originalDeclaration);
+    expect(await readFile(join(fixture.root, 'subs/a/src/extra.ts'), 'utf8')).toContain('retainedUsefulCorrection');
+    const outcome = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, `invocations/${partialStart.data.invocation}/outcome.json`), 'utf8'));
+    expect(outcome.outsideScope).toEqual([]);
+    expect(outcome.unknownPlacement).toContain('subs/a/module.ramify');
+  }
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, `work-items/${work}/iterations/01/result.json`), 'utf8')).toBe(originalResult);
   expect(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'input/plan.md'), 'utf8')).toBe(capturedPlan);
   const accepted = events.find(event => event.type === 'analysis-accepted')!;
@@ -190,5 +235,87 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
   expect(current.version).toBe(preparation.at(-1)!.sequence);
   await opened.service.execute(stopRun('need', receipt.jobId, current.version));
   releaseCoordinator();
+  await opened.service.settled('need', receipt.jobId);
+}, 60_000);
+
+for (const authority of ['absent', 'missing-blob'] as const)
+for (const coordinator of ['local', 'capability'] as const) test(`${coordinator} ${authority} repair authority reaches the environment path without issuing an assignment`, async () => {
+  const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
+  const boundary = capabilityFlowBoundaries(fixture.root, coordinator === 'local' ? 'no-authority' : 'delegation'); answers.push(boundary);
+  let unavailable = false;
+  const original = boundary.options.ramify.queryOwnershipAnswer.bind(boundary.options.ramify);
+  const query: typeof original = async (root, paths) => {
+    if (unavailable) throw new OwnershipUnavailableError({ status: 'unavailable', failureStatus: 'invalid', reason: 'invalid boundary configuration', exitCode: 1,
+      stdout: 'invalid boundary configuration', stderr: '', report: null, decoded: null });
+    return original(root, paths);
+  };
+  const ramify = new Proxy(boundary.options.ramify, { get(target, key, receiver) { return key === 'queryOwnershipAnswer' ? query : Reflect.get(target, key, receiver); } });
+  const blocked = 'subs/a/src/caller.ts has no recorded assignment boundary; current ownership is unavailable';
+  let assigningInvocation = '', engineers = 0, architects = 0;
+  let removedBlob = false;
+  const script: Script = spec => {
+    if (spec.role === 'initial-architect') return submit(analysis([entry('richer-a-fact', a), entry('b-entry', b)]));
+    if (spec.submission.name === 'submit_capability_qualification') {
+      const ids = [...spec.prompt.matchAll(/Use request (need-\d+) and invocation (inv-\d+)/gu)].at(-1)!;
+      return submit({ kind: 'delegate-capability', request: ids[1], invocation: ids[2], provider: b, placementReason: 'B owns the fact', constraints: [], requirementRefs: [] });
+    }
+    if (spec.role === 'engineer') {
+      engineers += 1;
+      if (coordinator === 'local' || engineers > 1) return submit({ kind: 'partial', done: [progress], unfinished: [remaining], findings: [blocked], startingPoints: points }, write('caller.ts', retainedSource));
+      return submit({ kind: 'capability-needed', summary: 'A needs the fact', request: {
+      need: 'Read a B fact and source in A', usage: [{ path: 'subs/a/src/caller.ts', symbol: 'renderA', use: 'Show source', prospective: false }],
+      constraints: [], knownInterface: { kind: 'none-known' }, examples: [{ title: 'fact', code: 'renderA()', designation: 'pseudocode' }],
+    } }, edit('caller.ts', 'Fact: ${value}', 'Fresh fact: ${value}'), write('extra.ts', "export const sourceHint = 'B';\n"),
+    edit('tests/caller.test.ts', "toBe('Fact: old')", "toBe('this test still fails')"));
+    }
+    if (spec.role === 'global-fork') return [
+      ...submit(forkDeviation({ amends: ['fr-002'], instead: 'Use a local expression after repairing the boundary.', why: blocked, rejected: [], loss: 'None', scenarios: [{ scenario: 'sc-001', source: corrected }] })),
+      ...submit(forkEnvironment(blocked, 'Restore boundary configuration or supply a verified assignment for the exact blocked target.')),
+    ];
+    if (spec.submission.name === 'submit_work_item_result' && coordinator === 'capability') return submit(assign(a, {}, outline()));
+    if (spec.role === (coordinator === 'local' ? 'local-architect' : 'capability-architect')) {
+      architects += 1;
+      const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1);
+      const basis = ids ? { task: ids[1], planRevision: Number(ids[2]), invocation: ids[3] } : {};
+      assigningInvocation = ids?.[3] ?? '';
+      const assignment = assign(a, {}, coordinator === 'local' ? outline() : undefined);
+      if (authority === 'missing-blob' && architects === 1) return submit(coordinator === 'local' ? assignment : { ...basis, kind: 'assign', assignment: assignment.assignment });
+      unavailable = true;
+      if (authority === 'missing-blob') expect(spec.prompt).toContain('Historical repair authority unavailable');
+      return [...submit(coordinator === 'local' ? assignment : { ...basis, kind: 'assign', assignment: assignment.assignment }),
+        ...submit(coordinator === 'local' ? unresolved(blocked, ['subs/a/src/caller.ts']) : { ...basis, kind: 'unresolved', problem: blocked, evidence: ['subs/a/src/caller.ts'] })];
+    }
+    return [];
+  };
+  const opened = await openCapabilityRuns(fixture.root, { ...boundary.options, ramify, inputs: treeInputs(), script: boundary.script(script),
+    afterWrite: async (write, runId) => {
+      if (authority !== 'missing-blob' || removedBlob || write !== 'iteration-closed') return;
+      const events = opened.service.events('need', runId) ?? [];
+      const closed = events.filter(event => event.type === 'iteration-closed').at(-1);
+      if (closed?.type !== 'iteration-closed' || closed.data.outcome !== 'partial') return;
+      const reference = events.filter(event => event.type === 'ownership-evidence-retained').at(-1);
+      if (reference?.type !== 'ownership-evidence-retained') throw new Error('Expected recorded ownership evidence');
+      await rm(runPath(fixture.root, 'need', runId, `blobs/${reference.data.hash}`));
+      removedBlob = true; unavailable = true;
+    },
+  });
+  cleanups.push(() => opened.service.close());
+  const receipt = await opened.service.execute(startRun('need'));
+  await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event => ['environment-reported', 'job-failed'].includes(event.type)), 40_000);
+  const events = opened.service.events('need', receipt.jobId)!;
+  expect(events.filter(event => event.type === 'job-failed'), JSON.stringify(events.slice(-8))).toEqual([]);
+  expect(events.some(event => event.type === 'environment-reported')).toBe(true);
+  expect(events.filter(event => event.type === (coordinator === 'local' ? 'iteration-assigned' : 'capability-assigned'))).toHaveLength(authority === 'missing-blob' ? 1 : 0);
+  expect(events.filter(event => event.type === 'plan-deviation-recorded')).toHaveLength(0);
+  const reportPath = runPath(fixture.root, 'need', receipt.jobId, 'environment/ep-001.json');
+  await until(async () => readFile(reportPath).then(() => true, error => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }));
+  const report = JSON.parse(await readFile(reportPath, 'utf8'));
+  expect(report.diagnosis).toBe(blocked);
+  expect(coordinator === 'local' || assigningInvocation !== '').toBe(true);
+  const current = opened.service.getRun('need', receipt.jobId)!;
+  await opened.service.execute(stopRun('need', receipt.jobId, current.version));
   await opened.service.settled('need', receipt.jobId);
 }, 60_000);

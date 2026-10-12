@@ -1,0 +1,1533 @@
+{
+  "schema": "ramify-agent.plan40-release-process-evidence/1",
+  "runs": [
+    {
+      "run": "released-focused17",
+      "cwd": "/workspaces/worktrees/ownership-recovery-agent",
+      "startInclusive": "2026-10-12T11:12:45Z",
+      "endExclusive": "2026-10-12T11:13:05Z",
+      "native": false,
+      "receipts": [
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/ownership-mutation-classification.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239550,
+          "startedAt": "2026-10-12T11:12:45.712Z",
+          "finishedAt": "2026-10-12T11:12:49.331Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/decision-correction-workflow.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239549,
+          "startedAt": "2026-10-12T11:12:45.712Z",
+          "finishedAt": "2026-10-12T11:13:01.997Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/ownership-authority.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239557,
+          "startedAt": "2026-10-12T11:12:45.713Z",
+          "finishedAt": "2026-10-12T11:12:48.431Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/write-guard.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239556,
+          "startedAt": "2026-10-12T11:12:45.714Z",
+          "finishedAt": "2026-10-12T11:12:46.366Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/plan36-mutation-attribution.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239624,
+          "startedAt": "2026-10-12T11:12:46.653Z",
+          "finishedAt": "2026-10-12T11:12:48.390Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/ownership-repair-equipment.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239647,
+          "startedAt": "2026-10-12T11:12:48.577Z",
+          "finishedAt": "2026-10-12T11:12:49.260Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/gate-not-verified.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239654,
+          "startedAt": "2026-10-12T11:12:48.612Z",
+          "finishedAt": "2026-10-12T11:12:48.815Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/write-scope-submission.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239666,
+          "startedAt": "2026-10-12T11:12:49.080Z",
+          "finishedAt": "2026-10-12T11:12:49.539Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/subs/evidence/src/tests/ownership-evidence.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239678,
+          "startedAt": "2026-10-12T11:12:49.445Z",
+          "finishedAt": "2026-10-12T11:12:49.642Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/ownership-repair-ledger.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239685,
+          "startedAt": "2026-10-12T11:12:49.518Z",
+          "finishedAt": "2026-10-12T11:12:50.908Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/ownership-repair-guard.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239697,
+          "startedAt": "2026-10-12T11:12:49.721Z",
+          "finishedAt": "2026-10-12T11:12:49.928Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/engineer-api-preparation.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239704,
+          "startedAt": "2026-10-12T11:12:49.844Z",
+          "finishedAt": "2026-10-12T11:12:50.225Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/subs/evidence/src/tests/ramify-cli.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239722,
+          "startedAt": "2026-10-12T11:12:50.114Z",
+          "finishedAt": "2026-10-12T11:12:50.331Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/inherited-scope.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239734,
+          "startedAt": "2026-10-12T11:12:50.389Z",
+          "finishedAt": "2026-10-12T11:12:50.758Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/gate-repair-routing.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239745,
+          "startedAt": "2026-10-12T11:12:50.514Z",
+          "finishedAt": "2026-10-12T11:12:52.410Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/project-facts-recovery.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239757,
+          "startedAt": "2026-10-12T11:12:50.940Z",
+          "finishedAt": "2026-10-12T11:12:51.257Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/web/src/tests/plan36-evaluation-attribution.test.tsx",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2239769,
+          "startedAt": "2026-10-12T11:12:52.142Z",
+          "finishedAt": "2026-10-12T11:12:52.559Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        }
+      ]
+    },
+    {
+      "run": "released-native4",
+      "cwd": "/workspaces/worktrees/ownership-recovery-agent",
+      "startInclusive": "2026-10-12T11:12:31Z",
+      "endExclusive": "2026-10-12T11:14:20Z",
+      "native": true,
+      "receipts": [
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/subs/evidence/src/tests/project-boundary.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": true,
+          "pid": 2239325,
+          "startedAt": "2026-10-12T11:12:31.880Z",
+          "finishedAt": "2026-10-12T11:14:03.157Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "affected",
+                "--batch",
+                "--root",
+                "/workspaces/worktrees/ownership-recovery-agent",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "docs/plan21-ownership.md",
+                "--path",
+                "docs/plan21-ownership.ts",
+                "--path",
+                "docs/plan21-ownership.mts",
+                "--path",
+                "docs/plan21-ownership.mjs",
+                "--path",
+                "scripts/browser-acceptance/run.ts",
+                "--path",
+                "subs/harness/fixtures/collection-review/src/example.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "."
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "."
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "daemon",
+                "stop"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--batch",
+                "--root",
+                "/tmp/ramify-evidence-miDbif",
+                "--format",
+                "json"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--batch",
+                "--root",
+                "/tmp/ramify-evidence-PGOaQL",
+                "--format",
+                "json"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "src/index.ts",
+                "docs/readme.md",
+                "--format",
+                "json",
+                "--deadline",
+                "1"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "src/index.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "60000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "docs/readme.md",
+                "fixture/src/f.ts",
+                "vendor/lib.ts",
+                "notes.txt",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "scripts/probe.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "docs/readme.md",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--batch",
+                "--root",
+                "/tmp/ramify-evidence-YUYQfs",
+                "--format",
+                "json",
+                "--no-snapshot"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "src/index.ts",
+                "docs/readme.md",
+                "fixture/src/f.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "src/index.ts",
+                "docs/readme.md",
+                "scripts/probe.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "1"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "scripts/probe.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "src/tmp/scratch.ts",
+                "src/index.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "src/tmp/scratch.ts",
+                "src/index.ts",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "check",
+                "--changed",
+                "tsconfig.json",
+                "--format",
+                "json",
+                "--deadline",
+                "30000"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "daemon",
+                "stop"
+              ]
+            }
+          ],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/write-guard.boundary.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": true,
+          "pid": 2240700,
+          "startedAt": "2026-10-12T11:14:03.269Z",
+          "finishedAt": "2026-10-12T11:14:11.443Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/group/physical",
+                "--path",
+                "fixture",
+                "--path",
+                "cache/extra.txt",
+                "--path",
+                "fixture/.git/config"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "README.md",
+                "--path",
+                "scripts/new.ts",
+                "--path",
+                "docs/new.md",
+                "--path",
+                "docs/new.ts",
+                "--path",
+                "docs/new.mts",
+                "--path",
+                "docs/new.mjs",
+                "--path",
+                "fixture/module.ramify",
+                "--path",
+                "fixture/new.txt",
+                "--path",
+                "dist/ordinary.txt",
+                "--path",
+                "docs/dist/ordinary.txt",
+                "--path",
+                "subs/group/physical/notes.md",
+                "--path",
+                "subs/group/physical/scripts/tool.ts",
+                "--path",
+                "subs/group/physical/subs/other/src/new.ts",
+                "--path",
+                "docs/module.ramify",
+                "--path",
+                "src/tmp/module.ramify",
+                "--path",
+                "subs/physical-b/src/b.ts",
+                "--path",
+                "subs/group/physical/project/new.txt",
+                "--path",
+                "subs/group/physical/cache/new.txt",
+                "--path",
+                "cache/new.txt",
+                "--path",
+                "cache/back/new.txt",
+                "--path",
+                "src/new.txt",
+                "--path",
+                "src/escape/new.txt",
+                "--path",
+                "src/sibling/src/new.ts",
+                "--path",
+                "subs/physical-b/src/new.ts",
+                "--path",
+                "fixture/dist/absent.ts",
+                "--path",
+                ".git/new",
+                "--path",
+                "node_modules/new",
+                "--path",
+                "src/.ramify/new",
+                "--path",
+                "fixture/.git/config",
+                "--path",
+                "fixture/node_modules/new",
+                "--path",
+                "fixture/src/.ramify/new",
+                "--path",
+                "docs/.git/config",
+                "--path",
+                "docs/node_modules/new",
+                "--path",
+                "docs/src/.ramify/new",
+                "--path",
+                "src/tmp/.git/config",
+                "--path",
+                "src/tmp/node_modules/new",
+                "--path",
+                "src/tmp/src/.ramify/new",
+                "--path",
+                "cache/extra.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "README.md",
+                "--path",
+                "scripts/new.ts",
+                "--path",
+                "docs/new.md",
+                "--path",
+                "docs/new.ts",
+                "--path",
+                "docs/new.mts",
+                "--path",
+                "docs/new.mjs",
+                "--path",
+                "fixture/module.ramify",
+                "--path",
+                "fixture/new.txt",
+                "--path",
+                "dist/ordinary.txt",
+                "--path",
+                "docs/dist/ordinary.txt",
+                "--path",
+                "subs/group/physical/notes.md",
+                "--path",
+                "subs/group/physical/scripts/tool.ts",
+                "--path",
+                "subs/group/physical/subs/other/src/new.ts",
+                "--path",
+                "docs/module.ramify",
+                "--path",
+                "src/tmp/module.ramify",
+                "--path",
+                "subs/physical-b/src/b.ts",
+                "--path",
+                "subs/group/physical/project/new.txt",
+                "--path",
+                "subs/group/physical/cache/new.txt",
+                "--path",
+                "cache/new.txt",
+                "--path",
+                "cache/back/new.txt",
+                "--path",
+                "src/new.txt",
+                "--path",
+                "src/escape/new.txt",
+                "--path",
+                "src/sibling/src/new.ts",
+                "--path",
+                "subs/physical-b/src/new.ts",
+                "--path",
+                "fixture/dist/absent.ts",
+                "--path",
+                ".git/new",
+                "--path",
+                "node_modules/new",
+                "--path",
+                "src/.ramify/new",
+                "--path",
+                "fixture/.git/config",
+                "--path",
+                "fixture/node_modules/new",
+                "--path",
+                "fixture/src/.ramify/new",
+                "--path",
+                "docs/.git/config",
+                "--path",
+                "docs/node_modules/new",
+                "--path",
+                "docs/src/.ramify/new",
+                "--path",
+                "src/tmp/.git/config",
+                "--path",
+                "src/tmp/node_modules/new",
+                "--path",
+                "src/tmp/src/.ramify/new",
+                "--path",
+                "cache/extra.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "scripts/new.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "fixture/new.txt",
+                "--path",
+                "subs/group/physical/project/new.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "."
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/notes.md",
+                "--path",
+                "subs/group/physical-prefix/new.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "cache/extra.txt",
+                "--path",
+                "fixture/.git/config"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "cache/extra.txt",
+                "--path",
+                "subs/group/physical/cache/new.txt",
+                "--path",
+                "fixture/dist/absent.ts",
+                "--path",
+                ".git/new",
+                "--path",
+                "node_modules/new",
+                "--path",
+                "src/.ramify/new",
+                "--path",
+                "docs/.git/config",
+                "--path",
+                "docs/node_modules/new",
+                "--path",
+                "docs/src/.ramify/new",
+                "--path",
+                "fixture/.git/config"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "cache/extra.txt",
+                "--path",
+                "subs/group/physical/cache/new.txt",
+                "--path",
+                "fixture/dist/absent.ts",
+                "--path",
+                ".git/new",
+                "--path",
+                "node_modules/new",
+                "--path",
+                "src/.ramify/new",
+                "--path",
+                "docs/.git/config",
+                "--path",
+                "docs/node_modules/new",
+                "--path",
+                "docs/src/.ramify/new",
+                "--path",
+                "fixture/.git/config"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/group/physical",
+                "--path",
+                "subs/group/physical/project"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/project/new.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/group"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/group/physical/subs/other"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/group/physical/project/README.md"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "cache"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-fFE54S",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "missing"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-FUZQfs",
+                "--format",
+                "json",
+                "--path",
+                "."
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-FUZQfs",
+                "--format",
+                "json",
+                "--path",
+                "new-external/absent.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-FUZQfs",
+                "--format",
+                "json",
+                "--path",
+                "new-external/absent.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-FUZQfs",
+                "--format",
+                "json",
+                "--path",
+                "cache/absent.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-FUZQfs",
+                "--format",
+                "json",
+                "--path",
+                "cache/absent.txt"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7YsrPd/project",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/orders/subs/physical"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-blEbBt",
+                "--format",
+                "json",
+                "--path",
+                "."
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-blEbBt",
+                "--format",
+                "json",
+                "--path",
+                "plans/plan/plan.md",
+                "--path",
+                "plans/plan/.harness/jobs/run/job.json",
+                "--path",
+                "plans/.harness/sessions/new/session.json"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-EET5c1",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "fixture"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                "."
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                ".",
+                "--path",
+                "subs/group/physical"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "affected",
+                "--batch",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/src/a.ts",
+                "--path",
+                "subs/group/physical/new/absent.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/src/a.ts",
+                "--path",
+                "subs/group/physical/new/absent.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/src/a.ts",
+                "--path",
+                "subs/group/physical/new/absent.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/src/a.ts",
+                "--path",
+                "subs/group/physical/new/absent.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-agent-7pQfgz",
+                "--format",
+                "json",
+                "--path",
+                "subs/group/physical/src/a.ts",
+                "--path",
+                "subs/group/physical/new/absent.ts"
+              ]
+            }
+          ],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/engineer-api-preparation.boundary.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": true,
+          "pid": 2241688,
+          "startedAt": "2026-10-12T11:14:11.553Z",
+          "finishedAt": "2026-10-12T11:14:16.878Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/cli",
+                "--root",
+                "/tmp/ramify-agent-ii6RTs"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/analysis",
+                "--root",
+                "/tmp/ramify-agent-ii6RTs"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/model",
+                "--root",
+                "/tmp/ramify-agent-ii6RTs"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/analysis",
+                "--root",
+                "/tmp/ramify-agent-ii6RTs"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/model",
+                "--root",
+                "/tmp/ramify-agent-ii6RTs"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/analysis",
+                "--root",
+                "/tmp/ramify-agent-ii6RTs"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "daemon",
+                "stop"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/cli",
+                "--root",
+                "/tmp/ramify-agent-t9Ioza"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                ".",
+                "--root",
+                "/tmp/ramify-agent-t9Ioza"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/model",
+                "--root",
+                "/tmp/ramify-agent-t9Ioza"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/model/subs/detail",
+                "--root",
+                "/tmp/ramify-agent-t9Ioza"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "materialize",
+                "--view",
+                "architect",
+                "--view",
+                "api",
+                "--from",
+                "subs/model",
+                "--root",
+                "/tmp/ramify-agent-t9Ioza"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "daemon",
+                "stop"
+              ]
+            }
+          ],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/subs/evidence/src/tests/ownership-recovery.boundary.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": true,
+          "pid": 2242171,
+          "startedAt": "2026-10-12T11:14:16.988Z",
+          "finishedAt": "2026-10-12T11:14:19.182Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "affected",
+                "--batch",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "affected",
+                "--batch",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "ownership",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            },
+            {
+              "api": "execFile",
+              "argv": [
+                "/workspaces/worktrees/ownership-recovery-agent/node_modules/.bin/ramify",
+                "affected",
+                "--batch",
+                "--root",
+                "/tmp/ramify-evidence-wJzY1c",
+                "--format",
+                "json",
+                "--path",
+                "src/api.ts"
+              ]
+            }
+          ],
+          "refused": []
+        }
+      ]
+    },
+    {
+      "run": "settled-focused4",
+      "cwd": "/workspaces/worktrees/ownership-recovery-agent",
+      "startInclusive": "2026-10-12T11:20:15Z",
+      "endExclusive": "2026-10-12T11:20:50Z",
+      "native": false,
+      "receipts": [
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/composition.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2243946,
+          "startedAt": "2026-10-12T11:20:15.875Z",
+          "finishedAt": "2026-10-12T11:20:47.771Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/nonfunctional-repair.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2243947,
+          "startedAt": "2026-10-12T11:20:15.878Z",
+          "finishedAt": "2026-10-12T11:20:21.506Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/feature-target-placement.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2243954,
+          "startedAt": "2026-10-12T11:20:15.878Z",
+          "finishedAt": "2026-10-12T11:20:19.028Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        },
+        {
+          "file": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/src/tests/ownership-mutation-classification.test.ts",
+          "projectRoot": "/workspaces/worktrees/ownership-recovery-agent",
+          "native": false,
+          "pid": 2243953,
+          "startedAt": "2026-10-12T11:20:15.885Z",
+          "finishedAt": "2026-10-12T11:20:18.920Z",
+          "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+          "registrySha256": "b823897b3f73b2f63758898fd65dab8a27c2ce18d88bf731dbff977ae9d73fac",
+          "allowed": [],
+          "refused": []
+        }
+      ]
+    }
+  ]
+}

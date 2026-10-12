@@ -575,6 +575,7 @@ function WorkItemDetail({ client, planId, runId, version, workItem, onOpenGate }
                     {iteration.invocations.some(invocation => invocation.outsideScope.length > 0) && (
                       <div className="warn">Candidate differences outside the write scope:<ul>{iteration.invocations.flatMap(invocation => invocation.outsideScope.map(path => <li key={`${invocation.id}-${path}`}><OutsideScopePath path={path} invocation={invocation.id} evidence={invocation.outsideScopeEvidence?.find(entry => entry.path === path)} /></li>))}</ul></div>
                     )}
+                    {iteration.invocations.some(invocation => (invocation.unknownPlacement?.length ?? 0) > 0) && <div className="warn">Candidate differences with unknown current placement:<ul>{iteration.invocations.flatMap(invocation => (invocation.unknownPlacement ?? []).map(path => <li key={`${invocation.id}-${path}`}><OutsideScopePath path={path} invocation={invocation.id} />; current placement unknown</li>))}</ul></div>}
                     {iteration.package && (
                       <details>
                         <summary>Assignment package <code>{iteration.package.hash.slice(0, 12)}</code>: {iteration.package.elements.join(', ') || 'no element'}{iteration.package.deviations.length > 0 && `, with ${iteration.package.deviations.join(', ')}`}</summary>
@@ -673,6 +674,7 @@ function GateDetail({ client, planId, runId, version, gate }: AreaProps & { read
                 <p>Producer results, counts, qualifications and artifact references are shown as recorded.</p>
                 <pre aria-label="Complete provider evidence">{JSON.stringify(data.provider, null, 2)}</pre>
               </details>}
+            {data.ownershipPreflight && <div className="warn" aria-label="Current ownership unavailable"><p>Current ownership {data.ownershipPreflight.failureStatus}: {data.ownershipPreflight.reason}</p><p>Queried paths: {data.ownershipPreflight.paths.join(', ')}</p><details><summary>Provider evidence</summary><pre>{data.ownershipPreflight.stdout || data.ownershipPreflight.stderr}</pre></details></div>}
             {data.guardedChanges.length > 0 && (
               <ul>{data.guardedChanges.map(change => <li key={change.path}>Guarded change <code>{change.path}</code>{change.after === null ? ' (deleted)' : ''}: {change.authorizedBy ? `authorized by ${change.authorizedBy.id}@${change.authorizedBy.revision}` : 'not authorized'}</li>)}</ul>
             )}
@@ -880,6 +882,7 @@ function Measurements({ client, planId, runId, version }: AreaProps) {
               <h2>What was guarded</h2>
               <p className={data.evaluation.guarding.complete ? '' : 'warn'}>{data.evaluation.guarding.statement}</p>
               <p className="muted">Guarded: {data.evaluation.guarding.guarded.join(', ') || 'no tool'}. Not guarded: {data.evaluation.guarding.unguarded.join(', ') || 'none observed'}. Verdicts: {data.evaluation.guarding.verdicts.allowed} allowed, {data.evaluation.guarding.verdicts['blocked-scope']} blocked by scope, {data.evaluation.guarding.verdicts['blocked-unresolved']} blocked unresolved.</p>
+              {data.evaluation.invocations.some(invocation => (invocation.unknownPlacement?.length ?? 0) > 0) && <div className="warn">Candidate differences with unknown current placement:<ul>{data.evaluation.invocations.flatMap(invocation => (invocation.unknownPlacement ?? []).map(path => <li key={`${invocation.invocation}-${path}`}><OutsideScopePath path={path} invocation={invocation.invocation} evidence={invocation.unknownPlacementEvidence?.find(entry => entry.path === path)} />; current placement unknown</li>))}</ul></div>}
               <h3>Candidate differences outside a write scope</h3>
               {data.evaluation.outsideScope.length === 0
                 ? <p className="muted">No candidate differences outside a write scope were recorded.</p>

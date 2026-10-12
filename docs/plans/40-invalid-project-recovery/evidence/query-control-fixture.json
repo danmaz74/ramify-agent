@@ -1,0 +1,31 @@
+{
+  "schema": "ramify-agent.ownership-query-control/1",
+  "root": "/tmp/ramify-agent-plan40-query-control-94tum8aw",
+  "files": [
+    {
+      "path": "module.ramify",
+      "content": "ramify 1\nroot module query-control\nexpose-src value from \"index.ts\" to descendants\n",
+      "sha256": "46284cd0dacd1e9a1d1fd360c98dbaa7efcdccc1414b1d8a1b8af2d8451eb1bc"
+    },
+    {
+      "path": "tsconfig.json",
+      "content": "{\"compilerOptions\": {\"target\": \"ES2022\", \"module\": \"NodeNext\", \"moduleResolution\": \"NodeNext\", \"strict\": true, \"types\": []}, \"include\": [\"src/**/*.ts\"]}\n",
+      "sha256": "deff51c5856dd57168ff433f653f6b2416e0d211a1ca905d4db24c50fbcb1fe9"
+    },
+    {
+      "path": "package.json",
+      "content": "{\"private\":true,\"type\":\"module\"}\n",
+      "sha256": "a90fc33418afa2b9cbf4768524b021135b965ecdf993457505bfae3ac44a8428"
+    },
+    {
+      "path": "README.md",
+      "content": "# Query control\n\nSmall dependency-free valid ownership-query measurement control.\n",
+      "sha256": "6d01652468e2a4274c2b9f5fe00ebfc4e2ffcd7a7a8d7ad7dd26c5538166a6f3"
+    },
+    {
+      "path": "src/index.ts",
+      "content": "export const value: number = 1;\n",
+      "sha256": "65d570a60297d35424dbd6002fd49adebc1ba796119a76c0344eef768080d073"
+    }
+  ]
+}

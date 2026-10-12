@@ -69,6 +69,21 @@ focused reruns that keep every attempt and distinguish **reproduced**,
 **intermittent** and **inconclusive**; a later pass never erases the earlier
 failure.
 
+Unavailable ownership is a placement evidence gap, not proof that every changed
+path lies outside the assignment. Known outside-scope changes, unknown current
+placement and runtime failure retain distinct classifications and mutation
+attribution in invocation, event, metric and web evidence. Located project
+diagnostics remain useful when acquisition fails; a timeout or crash does not
+invent a source violation.
+
+Historical assignment authority can admit bounded repair while current ownership
+is unavailable, as specified by the
+[scope rule](harness.spec.md#every-agent-scope-is-a-cut-on-the-module-tree).
+Such a write does not settle an objective signal or establish a passing gate.
+Fresh ownership and the required verification evidence must cover the accepted
+candidate. Successful ownership does not fix invalid source, and successful
+analysis does not fix unavailable placement.
+
 A subjective signal is **fixed** when the architect confirms against the
 changed code that the concern no longer applies, **superseded** when a fresh,
 reasoned judgment finds the concern wrong or moot, or **waived**. Every

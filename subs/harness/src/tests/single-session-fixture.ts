@@ -93,7 +93,7 @@ export async function session(
     currentHead: async projectRoot => { expect(projectRoot).toBe(root); return 'single-session-base'; },
     changedPaths: async projectRoot => {
       expect(projectRoot).toBe(root);
-      expect(changedCalls, 'exhausted changed paths').toBeLessThan(4);
+      expect(changedCalls, 'exhausted changed paths').toBeLessThan(5);
       changedCalls += 1;
       return changedCalls === 1 ? [] : changed;
     },
@@ -135,7 +135,7 @@ export async function session(
     expect(answerIndex, 'required Ramify replies').toBe(answers.length); checkExecution.assertComplete(); expect(git.unexpected, 'caught Git violations').toEqual([]);
     const starts = boundaries.starts ?? true;
     expect(git.currentHead).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 2 : 1) : 0);
-    expect(git.changedPaths).toHaveBeenCalledTimes(starts ? 4 : boundaries.preparationChangedPaths ?? 0);
+    expect(git.changedPaths).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 5 : 4) : boundaries.preparationChangedPaths ?? 0);
     expect(git.commitAccepted).not.toHaveBeenCalled();
   }
   const command = strictSessionCommand(root, extra.module === 'collection-review' ? join(root, 'src') : join(root, notesDirectory, 'src'), boundaries.command, boundaries.commandExecution);
@@ -159,7 +159,7 @@ export async function session(
   expect(git.unexpected).toEqual([]);
   const starts = boundaries.starts ?? true;
   expect(git.currentHead).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 2 : 1) : 0);
-  expect(git.changedPaths).toHaveBeenCalledTimes(starts ? 4 : boundaries.preparationChangedPaths ?? 0);
+  expect(git.changedPaths).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 5 : 4) : boundaries.preparationChangedPaths ?? 0);
   expect(git.commitAccepted).not.toHaveBeenCalled();
   return { result, agent, events, git };
 }

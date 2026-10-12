@@ -14,7 +14,7 @@ export class ScriptedCli extends RamifyCli {
   readonly calls: Array<{ argv: readonly string[]; cwd: string }> = [];
   private readonly failures: string[] = [];
   private readonly replies: Array<{ reply: CliReply; used: number }> = [];
-  constructor() { super({ executable: '/nonexistent/scripted-cli-starts-no-process' }); }
+  constructor(verifiedOwnershipCommand = false) { super({ executable: '/nonexistent/scripted-cli-starts-no-process', verifiedOwnershipCommand }); }
   declare(reply: CliReply): void { this.replies.push({ reply, used: 0 }); }
   override async run(argv: readonly string[], cwd: string, _signal?: AbortSignal): Promise<RamifyRun> {
     try {

@@ -575,6 +575,14 @@
       "owningCases": [
         "B17: installed Pi preserves explanatory history, exact caller input, normal guard and judge through resumed submission"
       ]
+    },
+    {
+      "file": "subs/harness/subs/evidence/src/tests/ownership-recovery.boundary.test.ts",
+      "boundary": "Released installed CLI ownership acquisition and consumer adapter decoding across invalid source and invalid declarations",
+      "whyFakeCannotProve": "Scripted documents cannot establish that the installed released executable answers ownership without source linking, or that its actual failure document decodes through the consumer adapter.",
+      "owningCases": [
+        "released installed ownership adapter answers missing-export source while affected fails, and retains invalid acquisition diagnostics"
+      ]
     }
   ]
 }

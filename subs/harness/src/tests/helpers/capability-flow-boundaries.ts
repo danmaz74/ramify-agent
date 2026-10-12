@@ -13,7 +13,7 @@ import { testPolicy } from './runs.js';
 
 const initial = 'a'.repeat(40), scenarios = 'b'.repeat(40);
 const trees = { initial: '1'.repeat(40), a: '2'.repeat(40), b: '3'.repeat(40), d: '4'.repeat(40), p: '5'.repeat(40), integrated: '6'.repeat(40), partial: '7'.repeat(40), root: '8'.repeat(40), unreadable: '9'.repeat(40) };
-export type FlowMode = 'delegation' | 'assignment' | 'partial' | 'boundary' | 'consultation' | 'report' | 'existing' | 'unreadable' | 'policy' | 'scratch' | 'correction' | 'local-correction';
+export type FlowMode = 'delegation' | 'assignment' | 'partial' | 'boundary' | 'consultation' | 'report' | 'existing' | 'unreadable' | 'policy' | 'scratch' | 'correction' | 'local-correction' | 'no-authority';
 export const flowInitialHead = initial;
 const commits = { b: 'c'.repeat(40), d: 'd'.repeat(40), p: 'e'.repeat(40), integrated: 'f'.repeat(40), root: '0'.repeat(40) };
 const callerChanges = [{ path: 'subs/a/src/caller.ts', status: 'M' }, { path: 'subs/a/src/extra.ts', status: 'A' }, { path: 'subs/a/src/tests/caller.test.ts', status: 'M' }];
@@ -43,6 +43,7 @@ const owners: Readonly<Record<string, string>> = {
   '.': 'capability-coordination', 'subs/a': 'capability-coordination/a', 'subs/b': 'capability-coordination/b', 'subs/d': 'capability-coordination/d',
   'subs/a/src/.gitignore': 'capability-coordination/a', 'subs/a/src/tmp/draft.txt': 'capability-coordination/a', 'subs/a/src/extra.ts': 'capability-coordination/a', 'subs/b/src/companion.ts': 'capability-coordination/b', 'module.ramify': 'capability-coordination', 'src/tests/stale.test.ts': 'capability-coordination', 'subs/d/module.ramify': 'capability-coordination/d',
   'subs/a/src/caller.ts': 'capability-coordination/a', 'subs/b/src/fact.ts': 'capability-coordination/b',
+  'subs/a/module.ramify': 'capability-coordination/a',
   'subs/a/src/tests/steps/future.steps.ts': 'capability-coordination/a',
   'subs/a/src/tests/caller.test.ts': 'capability-coordination/a', 'subs/b/src/tests/fact.test.ts': 'capability-coordination/b',
   'subs/d/src/consumer.ts': 'capability-coordination/d', 'subs/d/src/tests/consumer.test.ts': 'capability-coordination/d',
@@ -224,7 +225,7 @@ export function capabilityFlowBoundaries(root: string, mode: FlowMode, entries: 
       for (const operation of ['--version', 'measure']) expect(ramify.calls.some(call => call.operation === 'run' && call.argv[0] === operation), `required ${operation} answer consumed`).toBe(true);
       expect(ramify.calls.some(call => call.operation === 'materialize'), 'required unavailable materialization read').toBe(true);
       const sourcePaths = mode === 'consultation' || mode === 'existing' ? [] : mode === 'report' ? ['subs/a/src/caller.ts'] : mode === 'scratch' ? ['subs/a/src/.gitignore', ...callerChanges.map(change => change.path)] : callerChanges.map(change => change.path);
-      expect(sourceReads).toEqual(mode === 'local-correction' ? [] : Array.from({ length: 1 }, () => ['stagedPaths', ...sourcePaths.map(path => `${scenarios}:${path}`)]).flat());
+      expect(sourceReads).toEqual(['local-correction', 'no-authority'].includes(mode) ? [] : Array.from({ length: 1 }, () => ['stagedPaths', ...sourcePaths.map(path => `${scenarios}:${path}`)]).flat());
       expect(gateCalls).toEqual(expectedGates.flatMap(gate => [`trailer:${gate}`, `commit:${gate}`]));
       expect(auditChecks).toEqual(expectedGates.flatMap(() => ['tests', 'type-check', 'ramify-check']));
       expect(audits.requests).toHaveLength(1 + expectedGates.length); audits.assertComplete();

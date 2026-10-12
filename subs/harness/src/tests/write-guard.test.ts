@@ -1,5 +1,6 @@
 import { guardedChildProcess, resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
 vi.mock('node:child_process', async importOriginal => guardedChildProcess(await importOriginal<typeof import('node:child_process')>()));
+import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { writeGuardProject } from './helpers/write-guard-fixture.js';
 import { writeGuardOwnership } from './helpers/write-guard-ownership.js';
 import { existsSync, readFileSync } from 'node:fs';
@@ -90,7 +91,7 @@ async function contentsOf(root: string): Promise<Record<string, string>> {
 
 describe('X3: allowed and denied targets', () => {
   test('the table: existing files, a new file, a traversal, a symlink and the assigned contract location', async () => {
-    const { root, outside, index } = await project([[".", "subs/orders/subs/pricing", "subs/contracts/src/interfaces/notes.ts"], ["subs/orders/src/orders.ts"], ["subs/orders/src/notes-store.ts"], ["subs/orders/src/notes/store.ts"], ["subs/orders/src/tests/notes.test.ts"], ["subs/orders/module.ramify"], ["subs/orders/subs/pricing/src/price.ts"], ["subs/contracts/src/interfaces/notes.ts"], ["subs/billing/src/billing.ts"], ["package.json"], ["../elsewhere/secrets.txt"], ["../elsewhere/secrets.txt"], ["subs/orders/src/escape/secrets.txt", "../elsewhere/secrets.txt"]]);
+    const { root, outside, index } = await project([[".", "subs/orders/subs/pricing", "subs/contracts/src/interfaces/notes.ts"], ["subs/orders/src/orders.ts"], ["subs/orders/src/notes-store.ts"], ["subs/orders/src/notes/store.ts"], ["subs/orders/src/tests/notes.test.ts"], ["subs/orders/module.ramify"], ["subs/orders/subs/pricing/src/price.ts"], ["subs/contracts/src/interfaces/notes.ts"]]);
     const scope = await scopeOf(root, index, {
       included: ['shop/orders/pricing'].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })),
       extra: [{ path: 'subs/contracts/src/interfaces/notes.ts', purpose: 'contract' }],
@@ -134,7 +135,7 @@ describe('X3: allowed and denied targets', () => {
   }, 30_000);
 
   test('a child subtree the assignment did not include is outside the scope, whatever lies beneath it', async () => {
-    const { root, index } = await project([["."], [".", "subs/orders/subs/pricing"], ["subs/orders/subs/pricing/src/price.ts"], ["subs/orders/subs/pricing/src/price.ts"], ["subs/orders/subs/pricing/module.ramify"], ["subs/orders/subs/pricing/module.ramify"]]);
+    const { root, index } = await project([["."], [".", "subs/orders/subs/pricing"], ["subs/orders/subs/pricing/src/price.ts"], ["subs/orders/subs/pricing/module.ramify"]]);
     const without = await scopeOf(root, index);
     const withChild = await scopeOf(root, index, { included: ['shop/orders/pricing'].map(module => ({ directory: module.split('/').slice(1).map(part => `subs/${part}`).join('/'), reason: 'Fixture whole child tree', instructions: 'Implement the assigned fixture behavior' })) });
 
@@ -148,7 +149,7 @@ describe('X3: allowed and denied targets', () => {
   });
 
   test('a bootstrap scope reaches a directory that does not exist yet, and nothing beside it', async () => {
-    const { root, index } = await project([[".", "subs/orders/subs/notes"], ["subs/orders/subs/notes/module.ramify"], ["subs/orders/subs/notes/README.md"], ["subs/orders/subs/notes/src/notes.ts"], ["subs/orders/subs/notes/src/tests/notes.test.ts"], ["subs/orders/subs/other/module.ramify"]]);
+    const { root, index } = await project([[".", "subs/orders/subs/notes"], ["subs/orders/subs/notes/module.ramify"], ["subs/orders/subs/notes/README.md"], ["subs/orders/subs/notes/src/notes.ts"], ["subs/orders/subs/notes/src/tests/notes.test.ts"]]);
     const scope = await scopeOf(root, index, { bootstrap: [{ directory: 'subs/orders/subs/notes' }] });
 
     for (const target of ['subs/orders/subs/notes/module.ramify', 'subs/orders/subs/notes/README.md', 'subs/orders/subs/notes/src/notes.ts', 'subs/orders/subs/notes/src/tests/notes.test.ts']) {
@@ -225,7 +226,7 @@ describe('a guarded file no authorization names', () => {
 
 describe('X5: a resolution failure is not a scope violation', () => {
   test('blocked-unresolved and blocked-scope are distinct verdicts with distinct reasons', async () => {
-    const { root, index } = await project([["."], ["subs/billing/src/billing.ts"]]);
+    const { root, index } = await project([["."]]);
     const scope = await scopeOf(root, index);
 
     const unresolved = await decideWrite(scope, root, writing('subs/orders/src/note.ts/child.ts'));
@@ -245,7 +246,7 @@ describe('X5: a resolution failure is not a scope violation', () => {
     const { root, index } = await project([["."]]);
     const scope = await scopeOf(root, index);
     const failing: GuardedScope = { ...scope, placement: async () => {
-      throw new Error('subs/orders/module.ramify: line 3: unknown declaration "exposes"');
+      throw new OwnershipUnavailableError({ status: 'unavailable', failureStatus: 'invalid', reason: 'subs/orders/module.ramify: line 3: unknown declaration "exposes"', decoded: null, exitCode: 1, stdout: '', stderr: '', report: null });
     } };
 
     const decision = await decideWrite(failing, root, writing('subs/orders/src/orders.ts'));
@@ -290,7 +291,7 @@ describe('X5: a resolution failure is not a scope violation', () => {
 
 describe('what a block tells the agent', () => {
   test('it names the target and the scope, and directs the engineer to report rather than retry', async () => {
-    const { root, index } = await project([["."], ["subs/billing/src/billing.ts"]]);
+    const { root, index } = await project([["."]]);
     const scope = await scopeOf(root, index);
     const decision = await decideWrite(scope, root, writing('subs/billing/src/billing.ts'));
     const text = blockExplanation(decision, scope);

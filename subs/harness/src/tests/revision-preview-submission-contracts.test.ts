@@ -8,7 +8,7 @@ import { capabilityLocalArchitectJsonSchema } from '../work/submission.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import { assign, outline } from './helpers/iterations.js';
 import type { RegistryEntry } from '../analysis/records.js';
-import type { AffectedDocument } from 'ramify.ts/cli';
+import type { OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 
 const reviews = 'collection-review/workspace/reviews';
 const provider = 'collection-review/integration-tests';
@@ -20,8 +20,8 @@ const index = architectIndex([
   moduleEntry(provider, 'integration-tests', 'collection-review'),
 ]);
 const ownershipAnswer = (path: string, module: string | null, status = 'owned', exclusion: unknown = null) => ({
-  selection: { paths: [{ path, module, status, exclusion }] },
-} as unknown as AffectedDocument);
+  paths: [{ path, module, status, exclusion }],
+} as unknown as OwnershipAnswer);
 const request = (usage: unknown[]) => ({ kind: 'capability-needed', summary: 'Preview needs a provider', request: {
   need: 'Verify the displayed preview', usage, constraints: [], knownInterface: { kind: 'none-known' },
   examples: [{ title: 'Preview displayed', code: 'expect(preview()).toBeVisible()', designation: 'pseudocode' }],

@@ -15,7 +15,7 @@ import type { TestArea } from '../run/project-config.js';
 import { startingPointsSchema } from './starting-points.js';
 import { apiCoverageStatement } from './session.js';
 import type { RegistryEntry } from '../analysis/records.js';
-import type { AffectedDocument } from 'ramify.ts/cli';
+import type { OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 
 /*
  * The module engineer: what it submits, the one harness tool it is given, and the
@@ -173,7 +173,7 @@ export interface EngineerEvidence {
   readonly capabilityWorkflow?: boolean;
   /** Refreshed ownership and accepted creation authority for new usage declarations. Historical requests are never revalidated. */
   readonly capabilityUsage?: {
-    readonly ownership: AffectedDocument | null;
+    readonly ownership: OwnershipAnswer | null;
     readonly registry: ReadonlyMap<string, RegistryEntry>;
     readonly unavailable?: string | undefined;
   } | undefined;
@@ -232,7 +232,7 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
       const proposal = [...registry.values()].filter(entry => entry.proposed !== undefined
         && (usage.path === entry.proposed.directory || usage.path.startsWith(`${entry.proposed.directory}/`)))
         .sort((left, right) => right.proposed!.directory.length - left.proposed!.directory.length)[0];
-      const observed = ownership?.selection.paths.find(path => path.path === usage.path);
+      const observed = ownership?.paths.find(path => path.path === usage.path);
       // Owned-unwired and scratch regions still have a known module. A
       // parent's ownership of an independent nested project does not name
       // that project's caller module. None of these facts authorizes writes.
@@ -352,13 +352,13 @@ export function validateEngineer(input: unknown, evidence: EngineerEvidence = {}
 
 /** Reconcile only new submissions with current ownership before a runner admits them. */
 export async function validateEngineerWithOwnership(input: unknown, evidence: EngineerEvidence,
-  query: (paths: readonly string[]) => Promise<AffectedDocument>,
+  query: (paths: readonly string[]) => Promise<OwnershipAnswer>,
   registry: () => ReadonlyMap<string, RegistryEntry>,
 ): Promise<SubmissionValidation<EngineerSubmission>> {
   const validated = validateEngineer(input, evidence);
   if (!validated.ok || validated.value.kind !== 'capability-needed'
     || !validated.value.request.usage.some(usage => usage.module !== undefined)) return validated;
-  let ownership: AffectedDocument | null = null;
+  let ownership: OwnershipAnswer | null = null;
   let unavailable: string | undefined;
   try { ownership = await query(validated.value.request.usage.map(usage => usage.path)); }
   catch (error) { unavailable = error instanceof Error ? error.message : String(error); }

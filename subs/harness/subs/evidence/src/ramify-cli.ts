@@ -1,15 +1,21 @@
 import { execFile } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AffectedDocument, CheckedPath, NotCheckedReason } from 'ramify.ts/cli';
 import { childEnvironment, outputCapBytes } from './run-command.js';
+import { decodeOwnershipQueryResult, requireOwnershipAnswer, type OwnershipQueryResult, type OwnershipAnswer } from './ownership-evidence.js';
+import { decodeProviderFailureEvidence, diagnosticEvidenceSchema, type ProviderFailureEvidence } from './provider-evidence.js';
 import { decodeOwnershipAnswer } from './ownership.js';
 
 /** The `ramify` executable this package depends on. */
 export const ramifyExecutable = fileURLToPath(new URL('../../../../../node_modules/.bin/ramify', import.meta.url));
+
+// The installed registry package and its launcher share this exact released identity.
+// Read metadata once; guarded writes do not launch a version process.
+const installedRamifyVersion: unknown = (JSON.parse(readFileSync(new URL('../../../../../node_modules/ramify.ts/package.json', import.meta.url), 'utf8')) as { version?: unknown }).version;
 
 export interface RamifyRun {
   readonly code: number;
@@ -31,6 +37,8 @@ export interface RamifyRun {
  * with the CLI's reason.
  */
 export interface RamifyCheckResult {
+  readonly failureEvidence?: ProviderFailureEvidence;
+  readonly cancelled?: true;
   readonly form: 'complete' | 'changed';
   readonly exitCode: number;
   /** The project verdict. A path's own analysis status is in `paths`. */
@@ -59,7 +67,7 @@ export interface RamifyCheckResult {
 
 /** The provider document a check result was decoded from. */
 export interface CheckProvider {
-  readonly schema: 'ramify.check/3' | 'ramify.analysis/3';
+  readonly schema: 'ramify.check/3' | 'ramify.check/4' | 'ramify.analysis/3';
   /** The changed form's covering revision, or the complete form's input identity; null where it had none. */
   readonly revision: string | null;
 }
@@ -89,11 +97,18 @@ export class RamifyCli {
     /** `RAMIFY_ENDPOINT_DIR` for every invocation; the daemon behind it belongs to this harness. */
     readonly endpointDirectory?: string | undefined;
     readonly timeoutMs?: number | undefined;
+    /** Explicit verified support for a custom executable; the installed released launcher is identified separately. */
+    readonly verifiedOwnershipCommand?: boolean | undefined;
   } = {}) {}
 
   /** Whether the daemon is this harness's own, so that stopping it affects no one else. */
   get ownsDaemon(): boolean {
     return this.options.endpointDirectory !== undefined;
+  }
+
+  /** The installed 0.5.0 launcher has the released independent ownership command. */
+  get ownershipCommandSupported(): boolean {
+    return this.options.verifiedOwnershipCommand ?? ((this.options.executable ?? ramifyExecutable) === ramifyExecutable && installedRamifyVersion === '0.5.0');
   }
 
   run(args: readonly string[], cwd: string, signal?: AbortSignal): Promise<RamifyRun> {
@@ -127,6 +142,7 @@ export class RamifyCli {
     let last = '';
     for (let attempt = 1; attempt <= materializeAttempts; attempt += 1) {
       const result = await this.run(args, projectRoot, signal);
+      if (result.code === 130 || signal?.aborted) return { ok: false, message: 'Ramify materialization cancelled' };
       if (result.code === 0) return { ok: true, output: result.stdout };
       const detail = `${result.stderr}\n${result.stdout}`.trim();
       last = `\`ramify ${args.join(' ')}\` exited with ${result.code}${detail ? `: ${detail.slice(-2000)}` : ''}`;
@@ -145,7 +161,8 @@ export class RamifyCli {
    */
   async checkComplete(projectRoot: string, signal?: AbortSignal): Promise<RamifyCheckResult> {
     const args = ['check', '--batch', '--root', projectRoot, '--format', 'json', '--no-snapshot'];
-    return answer('complete', args, await this.run(args, projectRoot, signal), projectRoot, []);
+    const run = await this.run(args, projectRoot, signal);
+    return answer('complete', args, signal?.aborted ? { ...run, code: 130 } : run, projectRoot, []);
   }
 
   /** The installed provider's current ownership topology, tied to one batch input identity. */
@@ -157,6 +174,21 @@ export class RamifyCli {
     try { value = JSON.parse(result.stdout); }
     catch { throw new Error('ramify ownership query did not return JSON'); }
     return decodeOwnershipAnswer(value, projectRoot);
+  }
+
+  /** Current ownership with ordinary acquisition/execution failures kept as evidence. */
+  async queryOwnershipResult(projectRoot: string, paths: readonly string[] = ['.'], signal?: AbortSignal): Promise<OwnershipQueryResult> {
+    if (signal?.aborted) return decodeOwnershipQueryResult({ code: 130, stdout: '', stderr: 'cancelled' }, projectRoot, paths);
+    const args = this.ownershipCommandSupported
+      ? ['ownership', '--root', projectRoot, '--format', 'json', ...paths.flatMap(path => ['--path', path])]
+      : ['affected', '--batch', '--root', projectRoot, '--format', 'json', ...paths.flatMap(path => ['--path', path])];
+    const run = await this.run(args, projectRoot, signal);
+    return decodeOwnershipQueryResult(signal?.aborted ? { ...run, code: 130 } : run, projectRoot, paths);
+  }
+
+  /** Existing callers require current evidence and refuse otherwise, retaining the failed result. */
+  async queryOwnershipAnswer(projectRoot: string, paths: readonly string[] = ['.'], signal?: AbortSignal): Promise<OwnershipAnswer> {
+    return requireOwnershipAnswer(await this.queryOwnershipResult(projectRoot, paths, signal));
   }
 
   /**
@@ -173,7 +205,8 @@ export class RamifyCli {
    */
   async checkChanged(paths: readonly string[], cwd: string, deadlineMs: number, signal?: AbortSignal): Promise<RamifyCheckResult> {
     const args = ['check', '--changed', ...paths, '--format', 'json', '--deadline', String(deadlineMs)];
-    return answer('changed', args, await this.run(args, cwd, signal), cwd, paths);
+    const run = await this.run(args, cwd, signal);
+    return answer('changed', args, signal?.aborted ? { ...run, code: 130 } : run, cwd, paths);
   }
 
   /** Stops this harness's own daemon; with a shared daemon, does nothing. */
@@ -194,7 +227,8 @@ function answer(form: 'complete' | 'changed', args: readonly string[], run: Rami
   const schema = typeof report === 'object' && report !== null && !Array.isArray(report) ? (report as { schemaVersion?: unknown }).schemaVersion : undefined;
   const expected = form === 'changed' ? 'ramify.check/3' : 'ramify.analysis/3';
   const unanswered = { provider: null, execution: null, paths: [], removed: [] } as const;
-  if (schema === expected) {
+  if (run.code === 130) return { ...base, ...unanswered, outcome: 'not-checked', reason: 'cancelled', unsupported: null, cancelled: true };
+  if (schema === expected || (form === 'changed' && schema === 'ramify.check/4')) {
     const decoded = form === 'changed'
       ? decodeChanged(report, run.code, rootsOf(root), named)
       : decodeComplete(report, run.code, rootsOf(root));
@@ -205,7 +239,17 @@ function answer(form: 'complete' | 'changed', args: readonly string[], run: Rami
   // An invocation failure or an unanswered call is not checked with its own
   // reason. Any other document, and a verdict without a document, is an
   // answer this adapter does not read, which is never a pass.
-  if (run.code !== 0 && run.code !== 1 && (schema === undefined || schema === 'ramify.cli/1')) {
+  if (schema === 'ramify.cli/1' || schema === 'ramify.cli/2') {
+    try {
+      const value = Shape.object(report, 'document');
+      const allowed = schema === 'ramify.cli/2' ? ['schemaVersion', 'status', 'diagnostics', 'exitCode', 'stages', 'recovery'] : ['schemaVersion', 'status', 'diagnostics', 'exitCode', 'reason'];
+      if (Object.keys(value).some(key => !allowed.includes(key)) || (schema === 'ramify.cli/2' && !Array.isArray(value.diagnostics))) throw new Error('unsupported CLI fields');
+      if (![1, 2].includes(run.code) || value.exitCode !== run.code || value.status !== 'unavailable') throw new Error('exit/schema disagreement');
+      const failureEvidence = decodeProviderFailureEvidence(value, schema === 'ramify.cli/2', true);
+      return { ...base, ...unanswered, outcome: 'not-checked', reason: notCheckedReason(args, run, report), unsupported: null, failureEvidence };
+    } catch (error) { return unsupportedResult(base, `invalid ${(error as Error).message}`); }
+  }
+  if (run.code !== 0 && run.code !== 1 && schema === undefined) {
     return { ...base, ...unanswered, outcome: 'not-checked', reason: notCheckedReason(args, run, report), unsupported: null };
   }
   return unsupportedResult(base, schema === undefined
@@ -241,7 +285,7 @@ const exclusionKinds = new Set(['owned-unwired', 'owned-nested-project', 'extern
 const warningCodes = new Set(['compiler-selected-owned-unwired', 'compiler-selected-owned-nested-project', 'compiler-selected-scratch', 'ignored-but-walked']);
 const executions = new Set(['completed', 'invalid', 'incomplete', 'unavailable']);
 
-type Decoded = Pick<RamifyCheckResult, 'provider' | 'execution' | 'paths' | 'removed'> & { readonly reason: string | null };
+type Decoded = Pick<RamifyCheckResult, 'provider' | 'execution' | 'paths' | 'removed' | 'failureEvidence'> & { readonly reason: string | null };
 
 /** A field's value where it has the shape asked for; a thrown message names the field otherwise. */
 class Shape {
@@ -345,7 +389,10 @@ function decodeChanged(report: unknown, exitCode: number, roots: ReadonlySet<str
     const execution = Shape.nullableString(document['execution'], 'execution');
     if (execution !== null && !executions.has(execution)) throw new Error('execution');
     const findings = Shape.list(document['findings'], 'findings');
-    findings.forEach((finding, index) => checkFinding(finding, `findings[${index}]`, true));
+    findings.forEach((finding, index) => {
+      checkFinding(finding, `findings[${index}]`, true);
+      if (document.schemaVersion === 'ramify.check/4') { const { new: isNew, ...diagnostic } = Shape.object(finding, 'finding'); void isNew; diagnosticEvidenceSchema.parse(diagnostic); }
+    });
     const removed = Shape.list(document['removed'], 'removed').map((id, index) => Shape.string(id, `removed[${index}]`));
     Shape.list(document['warnings'], 'warnings').forEach((warning, index) => checkWarning(warning, `warnings[${index}]`));
     Shape.list(document['coverage'], 'coverage').forEach((limit, index) => checkLimit(limit, `coverage[${index}]`));
@@ -354,7 +401,9 @@ function decodeChanged(report: unknown, exitCode: number, roots: ReadonlySet<str
       ? document['outcome'] === 'not-checked'
       : document['outcome'] === 'checked' && paths.every(path => path.disposition !== 'not-checked') && (exitCode === 1 || findings.length === 0);
     if (!consistent || (exitCode !== 0 && exitCode !== 1 && exitCode !== 2)) return `outcome ${String(document['outcome'])} with ${findings.length} findings contradicts exit ${exitCode}`;
-    return { provider: { schema: 'ramify.check/3', revision }, execution, paths, removed, reason };
+    if (execution === 'completed' && document.outcome === 'checked' && 'recovery' in document) throw new Error('completed analysis cannot carry recovery');
+    const failureEvidence = decodeProviderFailureEvidence(document, document.schemaVersion === 'ramify.check/4');
+    return { provider: { schema: document.schemaVersion as 'ramify.check/3' | 'ramify.check/4', revision }, execution, paths, removed, reason, failureEvidence };
   } catch (error) {
     return `invalid ${(error as Error).message}`;
   }
@@ -364,6 +413,7 @@ function decodeChanged(report: unknown, exitCode: number, roots: ReadonlySet<str
 function decodeComplete(report: unknown, exitCode: number, roots: ReadonlySet<string>): Decoded | string {
   try {
     const document = Shape.object(report, 'document');
+    if ('recovery' in document) throw new Error('analysis/3 cannot carry recovery');
     const project = Shape.object(Shape.object(document['request'], 'request')['project'], 'request.project');
     if (!roots.has(Shape.string(project['root'], 'request.project.root'))) return `root ${String(project['root'])} is not the checked project`;
     const inputId = Shape.nullableString(document['inputId'], 'inputId');
@@ -379,7 +429,8 @@ function decodeComplete(report: unknown, exitCode: number, roots: ReadonlySet<st
       : exitCode === 1 ? outcome['check'] === 'failed'
         : exitCode === 2;
     if (!consistent) return `outcome ${execution}/${String(outcome['check'])} contradicts exit ${exitCode}`;
-    return { provider: { schema: 'ramify.analysis/3', revision: inputId }, execution, paths: [], removed: [], reason: exitCode === 2 ? execution : null };
+    const failureEvidence = 'stages' in document ? decodeProviderFailureEvidence({ stages: document.stages }, true) : undefined;
+    return { provider: { schema: 'ramify.analysis/3', revision: inputId }, execution, paths: [], removed: [], reason: exitCode === 2 ? execution : null, ...(failureEvidence === undefined ? {} : { failureEvidence }) };
   } catch (error) {
     return `invalid ${(error as Error).message}`;
   }
@@ -389,6 +440,10 @@ function decodeComplete(report: unknown, exitCode: number, roots: ReadonlySet<st
 function notCheckedReason(args: readonly string[], run: RamifyRun, report: unknown): string {
   const document = report as { reason?: unknown; outcome?: { execution?: unknown } } | null;
   if (typeof document?.reason === 'string' && document.reason !== '') return document.reason;
+  if (document !== null && typeof document === 'object' && 'diagnostics' in document && Array.isArray(document.diagnostics)) {
+    const first = document.diagnostics[0] as { code?: unknown } | undefined;
+    if (typeof first?.code === 'string' && first.code !== '') return first.code;
+  }
   if (typeof document?.outcome?.execution === 'string' && document.outcome.execution !== '') return document.outcome.execution;
   const detail = `${run.stderr}\n${run.stdout}`.trim();
   return `\`ramify ${args.join(' ')}\` exited with ${run.code}${detail === '' ? '' : `: ${detail.slice(-2000)}`}`;

@@ -55,6 +55,27 @@ writable in the enclosing run. Guarded configuration remains
 an authorization restriction within ownership; owning a file does not waive
 that restriction.
 
+Current ownership normally establishes placement before each intercepted
+write. If acquisition is invalid, incomplete, unavailable or unsupported, an
+engineer may temporarily repair within a previously verified, durably recorded
+assignment boundary. This historical-authority exception permits work; it does
+not establish current ownership or successful analysis. The recorded boundary
+identifies the project, provider, acquisition input, canonical region, exclusions,
+included trees and guarded-file authorizations. Successful placement observations
+are retained as content-addressed evidence with settled ledger references before
+their admission decisions. The complete assignment identity binds those records;
+failure diagnostics themselves carry no authority.
+
+Historical admission preserves previously observed refusals and narrowing. It
+cannot include a foreign child, excluded tree, unapproved module creation or
+unauthorized configuration. Logical and physical targets must still satisfy the
+recorded boundary and protections against symlink or directory redirection,
+dependencies, generated views, repository metadata and harness state. A current
+answer refusing a target remains a refusal; cancellation admits no write. Missing
+recorded authority is explicit, while corrupt authority is a harness failure.
+Older assignments without the required capture remain readable but do not gain
+historical repair permission.
+
 The issuing architect names each included tree with a reason and instructions
 for its meaning. An included owned-nested-project tree is excluded from Ramify
 source checks; its own instructions and commands apply from its root. Substantial work on that project belongs in
@@ -88,6 +109,15 @@ trusts that declaration and asks the architect about missing reports; it does
 not match declarations or references to test files or execution results.
 Final verification is a full audit of the configured suite, including required
 nested projects. Architect declarations and that audit result remain separate.
+
+Candidate acceptance requires fresh current ownership and the required check
+and audit evidence for all candidate changes, including shell mutations. A
+historically admitted edit is insufficient. Unavailable placement is recorded
+separately from demonstrated outside-scope changes and execution failure. An
+established invalid project returns repairable diagnostics without an acceptance
+commit; infrastructure unavailability uses bounded handling and the existing
+environment outcome. Ownership and source analysis can recover independently;
+neither alone satisfies acceptance.
 An owned-unwired tree is verified by its owner's tests; an included
 owned-nested-project tree needs its own nested audit at the plan's final
 gate, and each project's audit result is preserved separately.
@@ -220,6 +250,31 @@ The harness reports the failure pre-analyzed: a digest of what it already
 holds, then a model's analysis, so the decision needs no transcript. A bound
 that proves too tight is the architect's to raise, within the policy's
 ceilings.
+
+An accepted partial result returns retained edits, the prior assignment, changed
+paths, located diagnostics and evidence pointers to its assigning local or
+capability architect even when ownership and view refresh are unavailable.
+Read-only preparation reuses captured configuration protection paths; retained
+views are labelled historical and unavailable refreshes remain explicit. It
+does not fail internally merely because the project cannot currently be analyzed.
+
+The architect may issue a fresh engineer the same or narrower verified repair
+scope while acquisition is unavailable. That assignment retains its original
+authority provenance and cannot invent an owner, expand the canonical region or
+add guarded-file permission. Operations needing current evidence, including
+scope expansion and new generated-feature targets, report unavailability before
+their side effects. If no authorized repair is possible, deliberation and partial
+evidence remain available through the existing unresolved/environment path,
+naming the blocked targets and missing authority.
+
+Admitted edits need not make the next post-write check pass. Engineers may make
+several invalid intermediate edits, restore selected files or retain unrelated
+authorized work within ordinary invocation bounds; the harness does not infer
+intent or roll work back automatically. Feedback names the effective write basis,
+ownership acquisition failure, located diagnostics and change summary, with
+complete failure and mutation evidence available through recorded pointers.
+Stage-one recovery uses current files and named mutation/Git comparisons. It
+does not claim a retained last-analyzable filesystem checkpoint.
 
 ### Execution Breakpoints Suspend The Whole Run
 

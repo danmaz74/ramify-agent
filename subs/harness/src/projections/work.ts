@@ -211,7 +211,7 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
           .filter(invocation => invocation.work.iteration === assignment.id)
           .map(invocation => {
             const outcome = view.records.outcomes.get(invocation.id);
-            return { id: invocation.id, role: invocation.role, ended: outcome?.ended ?? null, outsideScope: [...(outcome?.outsideScope ?? [])], outsideScopeEvidence: scopeEvidence.get(invocation.id) ?? [] };
+            return { id: invocation.id, role: invocation.role, ended: outcome?.ended ?? null, outsideScope: [...(outcome?.outsideScope ?? [])], unknownPlacement: [...(outcome?.unknownPlacement ?? [])], ...(outcome?.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }), outsideScopeEvidence: scopeEvidence.get(invocation.id) ?? [] };
           }),
         package: packageOf(assignment, evidence, planDeviations),
       };
@@ -296,6 +296,7 @@ export function gateOf(view: RunView, id: string): GateView {
     verdict: gate.verdict,
     cause: gate.cause,
     next: gate.next,
+    ...(gate.ownershipPreflight === undefined ? {} : { ownershipPreflight: gate.ownershipPreflight }),
     guardedChanges: gate.guardedChanges.map(change => ({
       path: change.path,
       before: change.before,

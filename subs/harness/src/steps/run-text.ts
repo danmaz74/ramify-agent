@@ -77,6 +77,8 @@ export function summaryText(summary: StepRunSummary): string {
     `Changed paths:${summary.changed.length === 0 ? ' none' : ''}`,
     ...summary.changed.map(path => `  ${path}`),
     ...(summary.outsideScope.length === 0 ? [] : ['Changed outside the write scope:', ...summary.outsideScope.map(path => `  ${path}`)]),
+    ...((summary.unknownPlacement?.length ?? 0) === 0 ? [] : ['Changed paths with unknown current placement:', ...summary.unknownPlacement!.map(path => `  ${path}`)]),
+    ...(summary.placementFailure === undefined ? [] : [`Current placement unavailable: ${summary.placementFailure}`]),
     'unavailable' in usage
       ? `Tokens: unavailable (${usage.unavailable}).`
       : `Tokens: ${usage.input} input, ${usage.output} output, ${usage.cacheRead} cache read, ${usage.cacheWrite} cache write, ${usage.total} total.`,

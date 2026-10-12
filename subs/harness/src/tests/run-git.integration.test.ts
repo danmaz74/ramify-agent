@@ -70,7 +70,7 @@ describe('run-to-Git integration', () => {
     const producer = opened.service as unknown as {
       verifyProducerCommit(files: readonly { path: string; content: string }[], commit: string): Promise<void>;
       /** The committing gates, which judge a rendered feature file since they moved out of the run service. */
-      gates: { renderedFeatureAllowed(path: string, hash: string, answer: Awaited<ReturnType<FakeRamifyCli['queryOwnership']>>): Promise<boolean> };
+      gates: { renderedFeatureAllowed(path: string, hash: string, answer: Awaited<ReturnType<FakeRamifyCli['queryOwnershipAnswer']>>): Promise<boolean> };
       renderProducerFeatures(run: unknown, files: readonly { path: string; content: string }[]): Promise<void>;
     };
     const identity = ['-c', 'user.name=fixture', '-c', 'user.email=fixture@localhost'];
@@ -86,7 +86,7 @@ describe('run-to-Git integration', () => {
     await writeFile(join(root, path), content);
     const exact = await commit('exact producer');
     await expect(producer.verifyProducerCommit(expected, exact)).resolves.toBeUndefined();
-    const answer = await ramify.queryOwnership(root, [path]);
+    const answer = await ramify.queryOwnershipAnswer(root, [path]);
     expect(await producer.gates.renderedFeatureAllowed(path, sha256(content), answer)).toBe(true);
     await writeFile(join(root, path), 'tampered producer bytes\n');
     expect(await producer.gates.renderedFeatureAllowed(path, sha256(content), answer)).toBe(false);

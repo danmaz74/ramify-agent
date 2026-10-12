@@ -73,6 +73,10 @@ export const observationSchema = z.discriminatedUnion('type', [
     owner: z.string().nullable(),
     scopeRevision: z.int().nonnegative().nullable(),
     verdict: z.enum(['allowed', 'blocked-scope', 'blocked-unresolved']),
+    basis: z.enum(['current', 'historical']).optional(),
+    assignment: z.string().optional(),
+    ownershipEvidence: z.object({ assignment: text, hash: text, bytes: z.int().nonnegative(), provider: text, ramifyVersion: text, root: text, inputId: text }).strict().nullable().optional(),
+    failureEvidence: z.object({ hash: text, bytes: z.int().nonnegative() }).strict().optional(),
     reason: z.string(),
   }).strict()),
   observation('mutation', z.object({

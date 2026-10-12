@@ -62,6 +62,9 @@ export interface GateRequest {
    * repair, so the attempt's cause is `check-failed`.
    */
   readonly rules?: readonly GateRuleRecord[] | undefined;
+  /** Current candidate evidence unavailable; existing infrastructure bounds apply. */
+  readonly authorityUnavailable?: string | undefined;
+  readonly ownershipPreflight?: GateAttempt['ownershipPreflight'];
   /** The run's bounds, where the caller has them; without them no attempt is exhausted. */
   readonly limits?: { readonly repairRounds?: number; readonly infrastructureRetries?: number } | undefined;
   readonly signal?: AbortSignal | undefined;
@@ -114,26 +117,28 @@ export async function runGate(execution: CheckExecutionPort, checkpoint: Checkpo
 
 /** Verify the plans and harness-owned rules before any external effect is allowed. */
 export async function prepareGate(checkpoint: Checkpoint, request: GateRequest): Promise<PreparedGate | GateAttempt> {
+  if (request.ownershipPreflight !== undefined) request = { ...request, authorityUnavailable: request.ownershipPreflight.failureStatus === 'invalid' ? undefined : request.ownershipPreflight.reason };
   await mkdir(request.directory, { recursive: true });
 
   const guardedChanges = await compareGuardedFiles(request);
   const unauthorized = guardedChanges.some(change => change.authorizedBy === null);
   const rules = [...(request.rules ?? [])];
-  const ruleFailed = rules.some(rule => rule.outcome === 'failed');
+  const ruleFailed = rules.some(rule => rule.outcome === 'failed') || request.ownershipPreflight?.failureStatus === 'invalid';
 
   const failures = await verifyChecks(request.checks);
   const verified = failures.every(failure => failure === null);
 
-  const decisive: NotVerified[] = failures.flatMap(failure => failure === null ? [] : [failure.notVerified]);
+  const decisive: NotVerified[] = request.authorityUnavailable === undefined ? [] : ['runner-error'];
+  decisive.push(...failures.flatMap(failure => failure === null ? [] : [failure.notVerified]));
   // The sum is the time the commands may legitimately consume in sequence;
   // the small allowance covers lease, worktree and publication operations.
   const timeoutMs = request.audit?.timeoutMs ?? request.checks.reduce((total, check) => total + check.command.timeoutMs, 0) + 30_000;
   // Scratch violations must stop before a committing checkpoint stages a tree.
   // Keep a normal failed attempt so the module engineer receives repair diagnostics.
   const unsafeScratch = rules.some(rule => (rule.rule === 'scratch-safety' || rule.rule === 'write-scope') && rule.outcome === 'failed');
-  if (!verified || unsafeScratch) {
+  if (!verified || unsafeScratch || request.ownershipPreflight !== undefined || request.authorityUnavailable !== undefined) {
     return finishGate({ checkpoint, request, guardedChanges, rules, unauthorized, ruleFailed, decisive, timeoutMs }, {
-      commands: await notVerifiedRecords(request, failures, unsafeScratch ? 'local-rule-failed' : 'interrupted'), audited: null, evidence: null,
+      commands: await notVerifiedRecords(request, failures, unsafeScratch || request.ownershipPreflight?.failureStatus === 'invalid' ? 'local-rule-failed' : 'interrupted'), audited: null, evidence: null,
     }, null);
   }
   return { checkpoint, request, guardedChanges, rules, unauthorized, ruleFailed, decisive, timeoutMs };
@@ -336,7 +341,7 @@ async function finishGate(prepared: PreparedGate, executionResult: CheckExecutio
     throw new Error(`Check execution answered ${commands.length} command records for ${request.checks.length} planned checks`);
   }
 
-  const verdict = verdictOf(commands, unauthorized || ruleFailed);
+  const verdict = request.authorityUnavailable !== undefined && !unauthorized ? 'not-verified' : verdictOf(commands, unauthorized || ruleFailed);
   const cause = causeOf(decisive, commands, verdict, unauthorized, ruleFailed);
   return {
     schema: gateAttemptSchema,
@@ -353,6 +358,7 @@ async function finishGate(prepared: PreparedGate, executionResult: CheckExecutio
     ...(executionResult.provider === undefined ? {} : { provider: executionResult.provider }),
     guardedChanges,
     ...(rules.length === 0 ? {} : { rules }),
+    ...(request.ownershipPreflight === undefined ? {} : { ownershipPreflight: request.ownershipPreflight }),
     commands,
     verdict,
     cause,

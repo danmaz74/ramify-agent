@@ -449,7 +449,7 @@ export async function metricsOf(view: RunView, history?: RunHistory): Promise<Me
 /** What one invocation's evaluation is computed from. */
 export interface EvaluationInputs {
   readonly invocation: Pick<Invocation, 'id' | 'role' | 'work' | 'writer'> & Partial<Pick<Invocation, 'startedAt' | 'prompt' | 'scope' | 'sessionOperation'>>;
-  readonly outcome: Pick<InvocationOutcome, 'ended' | 'outsideScope' | 'usage'> & Partial<Pick<InvocationOutcome, 'elapsedMs' | 'settled' | 'sessionOperation'>> | null;
+  readonly outcome: Pick<InvocationOutcome, 'ended' | 'outsideScope' | 'usage'> & Partial<Pick<InvocationOutcome, 'elapsedMs' | 'settled' | 'sessionOperation' | 'unknownPlacement' | 'placementFailure'>> | null;
   readonly observations: readonly Observation[] | { unavailable: string };
   /** Its line events; null for an invocation that held no writer. */
   readonly lines: InvocationFacts['lines'];
@@ -599,6 +599,9 @@ export function evaluationOf({ invocation, outcome, observations, lines, request
         },
     outsideScope: [...(outcome?.outsideScope ?? [])],
     outsideScopeEvidence: outsideScopeEvidenceOf(outcome?.outsideScope ?? [], observations),
+    unknownPlacement: [...(outcome?.unknownPlacement ?? [])],
+    unknownPlacementEvidence: outsideScopeEvidenceOf(outcome?.unknownPlacement ?? [], observations),
+    ...(outcome?.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }),
     hookChecks: {
       passed: hooks.filter(line => line.data.outcome === 'passed').length,
       findings: hooks.filter(line => line.data.outcome === 'findings').length,

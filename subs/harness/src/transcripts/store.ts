@@ -10,7 +10,9 @@ import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
  * or the system prompt every invocation of a role shares.
  *
  * A blob is written whole or not at all, and never rewritten. It is raw
- * output, as the transcripts that name it are, and no record names it.
+ * output or retained evidence. Transcript entries and run-ledger evidence
+ * references name it. An authority reader verifies the referenced bytes and
+ * their binding before using them; this store only supplies content.
  */
 
 /** Where a body went, and its size. */

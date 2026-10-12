@@ -38,13 +38,50 @@ export function decodeOwnershipAnswer(value: unknown, expectedRoot: string): Aff
   if (scope.root !== expectedRoot || (scope.selection !== 'given' && scope.selection !== 'found')) fail('scope identity');
   string(scope.configuration, 'scope.configuration');
   strings(scope.walkedAreas, 'scope.walkedAreas');
-  const ownership = object(scope.ownership, 'scope.ownership');
+  validateOwnershipTableAndPaths(scope.ownership, selection.paths);
+  const owners = new Map((object(scope.ownership, 'scope.ownership').modules as Array<{id:string;directory:string}>).map(module => [module.id,module.directory]));
+  for (const field of ['changedModules', 'affectedModules', 'testModules']) {
+    const identities = new Set<string>();
+    for (const item of list(selection[field], field)) {
+      const module = object(item, field);
+      const id = string(module.id, `${field}.id`);
+      if (identities.has(id)) fail(`${field} duplicate identity`);
+      identities.add(id);
+      if (owners.get(id) !== string(module.directory, `${field}.directory`)) fail(`${field} topology`);
+    }
+  }
+
+  return value as AffectedDocument;
+}
+
+/** Validate the topology and its path classifications independently of a CLI envelope. */
+export function validateOwnershipTableAndPaths(table: unknown, paths: unknown, legacy = true): void {
+  const fail = (field: string): never => { throw new Error(`Invalid ramify.affected-cli/4 ownership answer: ${field}`); };
+  const object = (candidate: unknown, field: string): Record<string, unknown> => {
+    if (candidate === null || typeof candidate !== 'object' || Array.isArray(candidate)) fail(field);
+    return candidate as Record<string, unknown>;
+  };
+  const string = (candidate: unknown, field: string): string => typeof candidate === 'string' && candidate.length > 0 ? candidate : fail(field);
+  const strings = (candidate: unknown, field: string): string[] =>
+    Array.isArray(candidate) && candidate.every(item => typeof item === 'string') ? candidate : fail(field);
+  const list = (candidate: unknown, field: string): unknown[] => Array.isArray(candidate) ? candidate : fail(field);
+  const safePath = (candidate: unknown, field: string, outside = false): string => {
+    const path = string(candidate, field);
+    if (path === '.') return path;
+    if (path.includes('\\') || path.startsWith('/') || /^[A-Za-z]:/u.test(path) || path.includes('\0') || path.split('/').some(part => part === '' || part === '.' || (!outside && part === '..'))) fail(field);
+    return path;
+  };
+  const contains = (path: string, directory: string): boolean => directory === '.' || path === directory || path.startsWith(`${directory}/`);
+  const ownership = object(table, 'scope.ownership');
+  const exact = (candidate: Record<string, unknown>, keys: readonly string[]): void => { if (!legacy && Object.keys(candidate).some(key => !keys.includes(key))) fail('unsupported ownership field'); };
+  exact(ownership, ['modules', 'exclusions']);
   const modules = list(ownership.modules, 'ownership.modules');
   const owners = new Map<string, string>();
   const ownerDirectories = new Set<string>();
   const parents = new Map<string, string | null>();
   for (const item of modules) {
     const module = object(item, 'ownership.module');
+    exact(module, ['id', 'parent', 'directory']);
     const id = string(module.id, 'ownership.module.id');
     if (module.parent !== null) string(module.parent, 'ownership.module.parent');
     const directory = safePath(module.directory, 'ownership.module.directory');
@@ -75,6 +112,7 @@ export function decodeOwnershipAnswer(value: unknown, expectedRoot: string): Aff
   const exclusionDirectories = new Set<string>();
   const checkExclusion = (item: unknown): void => {
     const exclusion = object(item, 'exclusion');
+    exact(exclusion, ['kind', 'directory', 'owner']);
     if (!exclusionKinds.has(String(exclusion.kind))) fail('exclusion.kind');
     const directory = safePath(exclusion.directory, 'exclusion.directory');
     if (directory === '.') fail('root exclusion');
@@ -98,24 +136,14 @@ export function decodeOwnershipAnswer(value: unknown, expectedRoot: string): Aff
     }) && !['repository', 'packages', 'generated'].includes(String(exclusion.kind))) fail('path exclusion absent from topology');
     return exclusion;
   };
-  for (const field of ['changedModules', 'affectedModules', 'testModules']) {
-    const identities = new Set<string>();
-    for (const item of list(selection[field], field)) {
-      const module = object(item, field);
-      const id = string(module.id, `${field}.id`);
-      if (identities.has(id)) fail(`${field} duplicate identity`);
-      identities.add(id);
-      if (owners.get(id) !== string(module.directory, `${field}.directory`)) fail(`${field} topology`);
-    }
-  }
   const pathKinds = new Set(['source-area', 'auxiliary-source', 'description', 'readme', 'captured-input', 'inert', 'ignored']);
   const pathIdentities = new Set<string>();
-  for (const item of list(selection.paths, 'selection.paths')) {
+  for (const item of list(paths, 'selection.paths')) {
     const path = object(item, 'selection.path');
     const target = safePath(path.path, 'selection.path.path', path.status === 'outside-project');
     if (pathIdentities.has(target)) fail('duplicate path identity');
     pathIdentities.add(target);
-    const selects = strings(path.selects, 'selection.path.selects');
+    const selects = legacy ? strings(path.selects, 'selection.path.selects') : [];
     if (new Set(selects).size !== selects.length || selects.some(module => !owners.has(module))) fail('selection.path.selects');
     if (path.status !== 'outside-project') {
       const containing = exclusions.filter(candidate => contains(target, String((candidate as Record<string, unknown>).directory))) as Record<string, unknown>[];
@@ -125,23 +153,22 @@ export function decodeOwnershipAnswer(value: unknown, expectedRoot: string): Aff
     }
     if (path.status === 'owned') {
       if (!owners.has(string(path.module, 'selection.path.module')) ||
-          !['inventory', 'declaration', 'area', 'containment'].includes(String(path.basis)) ||
-          !pathKinds.has(String(path.kind))) fail('owned path');
+          (legacy && (!['inventory', 'declaration', 'area', 'containment'].includes(String(path.basis)) ||
+          !pathKinds.has(String(path.kind))))) fail('owned path');
       if (!contains(target, owners.get(String(path.module))!) || [...owners].some(([id, directory]) => id !== path.module && directory !== owners.get(String(path.module)) && contains(target, directory) && directory.length > owners.get(String(path.module))!.length)) fail('path owner containment');
-      if (['ignored', 'inert'].includes(String(path.kind)) && selects.length !== 0) fail('nonselecting path');
+      if (legacy && ['ignored', 'inert'].includes(String(path.kind)) && selects.length !== 0) fail('nonselecting path');
       if (path.exclusion !== null) {
         const exclusion = knownExclusion(path.exclusion);
         if (!contains(target, String(exclusion.directory))) fail('path exclusion containment');
-        if (exclusion.owner !== path.module || path.kind !== 'ignored' || selects.length !== 0) fail('owned excluded path');
+        if (exclusion.owner !== path.module || (legacy && (path.kind !== 'ignored' || selects.length !== 0))) fail('owned excluded path');
       }
     } else if (path.status === 'excluded') {
-      if (path.module !== null || path.basis !== 'excluded' || path.kind !== null || selects.length !== 0) fail('excluded path');
+      if (path.module !== null || (legacy && (path.basis !== 'excluded' || path.kind !== null || selects.length !== 0))) fail('excluded path');
       const exclusion = knownExclusion(path.exclusion);
       if (exclusion.owner !== null || !contains(target, String(exclusion.directory))) fail('excluded path owner');
     } else if (path.status === 'outside-project') {
       if (target !== '..' && !target.startsWith('../')) fail('outside path containment');
-      if (path.module !== null || path.basis !== 'none' || path.exclusion !== null || path.kind !== null || selects.length !== 0) fail('outside path');
+      if (path.module !== null || (legacy && (path.basis !== 'none' || path.kind !== null || selects.length !== 0)) || path.exclusion !== null) fail('outside path');
     } else fail('selection.path.status');
   }
-  return value as AffectedDocument;
 }

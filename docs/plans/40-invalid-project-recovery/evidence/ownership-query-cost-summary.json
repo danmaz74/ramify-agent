@@ -1,0 +1,186 @@
+{
+  "schema": "ramify-agent.released-ownership-query-cost-summary/1",
+  "archives": [
+    {
+      "file": "released-ownership-query-cost.json.gz",
+      "rawBytes": 3162943,
+      "rawSha256": "9578dabe88a73d4417ea368b80ee0ad03428f08228a1f544f7f10a0b6e22d701",
+      "compressedBytes": 342325,
+      "compressedSha256": "b4231c238790909a7b85ae22bb5fcd209ea79794dfda13bb111c7f3a202e0114"
+    },
+    {
+      "file": "released-query-control-cost.json.gz",
+      "rawBytes": 100801,
+      "rawSha256": "fa6e7de1cba3b9982cecac0b3ca2b18269ae57500dde6f521a856321f457de9a",
+      "compressedBytes": 16441,
+      "compressedSha256": "86d458fc87a6904bf003618a772accdff6c3dbed529bfc3afeb003e51de8de7e"
+    }
+  ],
+  "workloads": [
+    {
+      "root": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/fixtures/capability-coordination",
+      "operations": {
+        "ownership": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 223.38376100000005,
+          "minimumMs": 216.175428,
+          "maximumMs": 227.06441899999936,
+          "firstInvocationMs": 218.122591,
+          "uniqueInputIds": [
+            "input/1:4397fca16413f9dce3d9a9d77dac8ab8d61dc4d2802a5e1d3ec276c4b9b2cb9c"
+          ],
+          "eligibleSamples": 5,
+          "exitCodes": [
+            0
+          ],
+          "status": "answered",
+          "analysisCheck": null,
+          "coverage": null
+        },
+        "affected": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 597.1257420000002,
+          "minimumMs": 591.9887950000002,
+          "maximumMs": 615.3463710000001,
+          "firstInvocationMs": 595.51927,
+          "uniqueInputIds": [
+            "input/1:37a32bb6c71ed68ebcf23050deff69b5346c43dfbb72ceb62e06867014157dea"
+          ],
+          "eligibleSamples": 0,
+          "exitCodes": [
+            0
+          ],
+          "status": null,
+          "analysisCheck": "failed",
+          "coverage": "complete"
+        }
+      }
+    },
+    {
+      "root": "/workspaces/worktrees/ownership-recovery-agent/subs/harness/fixtures/collection-review",
+      "operations": {
+        "ownership": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 338.57213000000047,
+          "minimumMs": 331.6671470000001,
+          "maximumMs": 351.7124139999996,
+          "firstInvocationMs": 321.7244780000001,
+          "uniqueInputIds": [
+            "input/1:c34dce378f347478c2cc76eaaa3ec3c29a4118db413a272af7e671d08da97d40"
+          ],
+          "eligibleSamples": 5,
+          "exitCodes": [
+            0
+          ],
+          "status": "answered",
+          "analysisCheck": null,
+          "coverage": null
+        },
+        "affected": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 1684.341262,
+          "minimumMs": 1632.8130720000008,
+          "maximumMs": 1809.6076780000003,
+          "firstInvocationMs": 1661.2519059999995,
+          "uniqueInputIds": [
+            "input/1:9599132c6f8dbe610cf17238e1bcf0777a987f888a7d06e904f8b244b6a0903a"
+          ],
+          "eligibleSamples": 0,
+          "exitCodes": [
+            0
+          ],
+          "status": null,
+          "analysisCheck": "passed",
+          "coverage": "partial"
+        }
+      }
+    },
+    {
+      "root": "/workspaces/worktrees/ownership-recovery-agent",
+      "operations": {
+        "ownership": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 1021.829184999995,
+          "minimumMs": 971.1372289999999,
+          "maximumMs": 1080.344916999995,
+          "firstInvocationMs": 994.106620999999,
+          "uniqueInputIds": [
+            "input/1:5588ca39fa93ddf3a421beffdc45fd2cbf7d5388565f71b1658b612f9129ed0c"
+          ],
+          "eligibleSamples": 5,
+          "exitCodes": [
+            0
+          ],
+          "status": "answered",
+          "analysisCheck": null,
+          "coverage": null
+        },
+        "affected": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 11774.481670000001,
+          "minimumMs": 11688.427391999998,
+          "maximumMs": 12309.976042999999,
+          "firstInvocationMs": 11759.954058,
+          "uniqueInputIds": [
+            "input/1:3ad22a70d493f5e01797a60cf7257b693553337b080d235dc9692f0916957bbe"
+          ],
+          "eligibleSamples": 0,
+          "exitCodes": [
+            0
+          ],
+          "status": null,
+          "analysisCheck": "passed",
+          "coverage": "partial"
+        }
+      }
+    },
+    {
+      "root": "/tmp/ramify-agent-plan40-query-control-94tum8aw",
+      "operations": {
+        "ownership": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 184.77974700000004,
+          "minimumMs": 183.67711899999995,
+          "maximumMs": 188.10964000000013,
+          "firstInvocationMs": 185.166133,
+          "uniqueInputIds": [
+            "input/1:5d7953395284624c74c5cde9052a8b973d4518000e3d83f916498a6f9568b3df"
+          ],
+          "eligibleSamples": 5,
+          "exitCodes": [
+            0
+          ],
+          "status": "answered",
+          "analysisCheck": null,
+          "coverage": null
+        },
+        "affected": {
+          "samples": 5,
+          "warmups": 1,
+          "medianMs": 486.32799899999986,
+          "minimumMs": 482.5878770000004,
+          "maximumMs": 491.07981199999995,
+          "firstInvocationMs": 481.93717799999996,
+          "uniqueInputIds": [
+            "input/1:99eeae712664b1e2c596da4b2692abba1bc33c953bec70ae83ac660031d20456"
+          ],
+          "eligibleSamples": 5,
+          "exitCodes": [
+            0
+          ],
+          "status": null,
+          "analysisCheck": "passed",
+          "coverage": "complete"
+        }
+      },
+      "medianOwnershipOverAffected": 0.3799488151616788
+    }
+  ]
+}

@@ -1,3 +1,6 @@
+import { classifyMutations } from '../run/mutations.js';
+import { OwnershipUnavailableError, OwnershipCancelledError } from '../../subs/evidence/src/ownership-evidence.js';
+import { ownershipAuthorityFor } from '../work/ownership-authority.js';
 import { taskSupportSections } from '../work/task-support.js';
 import { declaredCheckInputs, moduleInputPointers } from '../work/starting-inputs.js';
 import { randomBytes } from 'node:crypto';
@@ -120,6 +123,8 @@ export interface SessionSummary {
   readonly preservedTracked: readonly string[];
   /** Changed paths outside the write scope. */
   readonly outsideScope: readonly string[];
+  readonly unknownPlacement?: readonly string[];
+  readonly placementFailure?: string;
   readonly usage: InvocationOutcome['usage'];
   readonly elapsedMs: number;
   /** The session's manual run directory, absolute: the run's records of its one invocation. */
@@ -309,7 +314,6 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     catch (error) { return notStarted(`Committed audit configuration cannot be guarded: ${message(error)}`); }
   }
   const guardedFiles = await captureGuardedFiles(projectRoot, [], {}, [...auditPaths, ...scopeConfigurationPaths(scope)]);
-  const guarded: GuardedScope = guardedScopeOf(scope, await deniedFiles(projectRoot, guardedFiles.map(file => file.path)), ramify);
   const tests = testPolicyOf('ordinary', base, [], [], scope.resolved.included);
 
   const policy = options.policy ?? defaultRunPolicy({ projectRoot });
@@ -366,6 +370,11 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   const prompt = [iterationMessage({ assignment, projectRoot, workingDirectory, base: head, views, testAreas, setup }), modulePointers].filter(Boolean).join('\n\n');
   const shown = scopePaths(projectRoot, scope);
 
+  const authority = ownershipAuthorityFor(assignment, run, async data => {
+    const result = await runner.write(run, { type: 'ownership-evidence-retained', data });
+    if (result === 'ended') throw new Error('The session ended before ownership evidence settled');
+  });
+  const guarded: GuardedScope = guardedScopeOf(scope, await deniedFiles(projectRoot, guardedFiles.map(file => file.path)), ramify, undefined, authority);
   const tools = engineerEquipment({
     commandExecution: options.commandExecution,
     projectRoot,
@@ -411,7 +420,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     validate: input => capabilityEngineerSubmissionSchema.safeParse(input).success
       ? validateEngineerWithOwnership(input, {
         capabilityWorkflow: true, kind: 'ordinary', obligation: null, openFindings: tools.openFindings(), submissions: tools.submissions,
-      }, paths => ramify.queryOwnership(projectRoot, paths),
+      }, paths => ramify.queryOwnershipAnswer(projectRoot, paths),
       () => new Map(committedRecords(run.log.ledger.replay()).registry.map(entry => [entry.capability, entry])))
       : { ok: false, errors: [{ path: 'kind', message: 'This session accepts only the current capability engineer submissions' }] },
     acceptedText: value => {
@@ -461,6 +470,20 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
       const config = await captureProjectConfig(projectRoot);
       const setup = 'config' in config ? config.config.setup : undefined;
       const attemptPath = run.path(runLayout.diagnosis(result.id));
+      let currentScope: Awaited<ReturnType<typeof classifyMutations>>;
+      let authorityUnavailable: string | undefined;
+      const candidatePaths = await git.changedPaths(projectRoot, head);
+      try {
+        if (candidatePaths.length === 0) await ramify.queryOwnershipAnswer(projectRoot, ['.']);
+        currentScope = await classifyMutations(projectRoot, guarded, candidatePaths);
+      }
+      catch (error) {
+        if (error instanceof OwnershipCancelledError) throw error;
+        if (!(error instanceof OwnershipUnavailableError)) throw error;
+        currentScope = { outsideScope: [], unknownPlacement: candidatePaths, placementFailure: error.message, placementFailureStatus: error.result.failureStatus, ownershipFailure: error.result };
+      }
+      if (currentScope.placementFailure !== undefined && currentScope.placementFailureStatus !== 'invalid') authorityUnavailable = currentScope.placementFailure;
+      if (authorityUnavailable === undefined && currentScope.unknownPlacement.length > 0 && currentScope.ownershipFailure === undefined) authorityUnavailable = `Current physical placement unresolved: ${currentScope.unknownPlacement.join(', ')}`;
       const attempt = await runCheckpoint(options.checkExecution ?? inPlaceCheckExecution, {
         id: gateAttemptId(1),
         checkpoint: 'iteration',
@@ -472,8 +495,10 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
         subject: {},
         guarded: guardedFiles,
         authorizations: [],
-        rules: [safety, { rule: 'write-scope', outcome: outcome.outsideScope.length > 0 ? 'failed' : 'passed', violations: outcome.outsideScope.map(path => ({ rule: 'write-scope', path, detail: 'Candidate change is outside current and captured write authority' })) }],
+        rules: [safety, { rule: 'write-scope', outcome: currentScope.outsideScope.length > 0 ? 'failed' : 'passed', violations: currentScope.outsideScope.map(path => ({ rule: 'write-scope', path, detail: 'Candidate change is outside current and captured write authority' })) }],
         ...(setup === undefined ? {} : { setup }),
+        ...(currentScope.ownershipFailure === undefined ? {} : { ownershipPreflight: (({ status: _status, ...failure }) => ({ ...failure, root: projectRoot, paths: candidatePaths.length === 0 ? ['.'] : candidatePaths }))(currentScope.ownershipFailure) }),
+        ...(authorityUnavailable === undefined ? {} : { authorityUnavailable }),
         ...(options.signal === undefined ? {} : { signal: options.signal }),
       });
       const { auditOverall: _auditOverall, ...durableAttempt } = attempt;
@@ -508,6 +533,8 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     harnessChanged,
     preservedTracked: removed.preservedTracked,
     outsideScope,
+    unknownPlacement: [...(outcome.unknownPlacement ?? [])],
+    ...(outcome.placementFailure === undefined ? {} : { placementFailure: outcome.placementFailure }),
     usage: outcome.usage,
     elapsedMs: outcome.elapsedMs,
     records,

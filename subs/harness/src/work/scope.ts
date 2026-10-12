@@ -4,7 +4,7 @@ import { planStateDirectory } from '../jobs/records.js';
 import { plansDirectory } from '../plans/discover.js';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import type { AffectedDocument } from 'ramify.ts/cli';
+import type { OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { join, posix, relative, resolve, sep } from 'node:path';
 import { guardedFilesHash } from '../../subs/evidence/src/guarded-files.js';
 import { projectConfigurationFile } from '../../subs/evidence/src/project-configuration.js';
@@ -16,6 +16,8 @@ import { resolveRealTarget } from '../guard/resolve-contained-path.js';
 import type { GuardedScope } from '../guard/write-guard.js';
 import type { SubmissionError } from '../run/submissions.js';
 import type { IterationKind } from './iterations.js';
+import type { OwnershipAuthority, OwnershipEvidenceReference } from './ownership-authority.js';
+import { OwnershipAuthorityError } from './ownership-authority.js';
 
 /*
  * Capturing and resolving one iteration's write scope.
@@ -77,11 +79,17 @@ export const writeScopeSchema = z.object({
   rationale: text,
   /** Captured canonical paths, including validated absent bootstrap paths under a real ancestor. */
   resolved: z.object({
+    /** Absent in older records: live ownership still works, historical repair does not. */
+    boundaryVersion: z.literal('ramify-agent.assignment-boundary/1').optional(),
+    /** Original verified assignment whose restrictions an inherited repair retains. */
+    sourceAuthority: sha256Schema.optional(),
+    /** Existing declarations in explicitly included independent projects; no contents or module model. */
+    nestedDeclarations: z.array(z.object({ path: text, canonical: text }).strict()).optional(),
     roots: z.array(text),
     files: z.array(text),
     view: viewIdentitySchema,
     ownership: z.object({
-      provider: z.literal('ramify.affected-cli/4'), ramifyVersion: text, inputId: text, configuration: text, root: text,
+      provider: z.enum(['ramify.affected-cli/4', 'ramify.ownership/1']), ramifyVersion: text, inputId: text, configuration: text, root: text,
       modules: z.array(z.object({ id: text, parent: text.nullable(), directory: text }).strict()),
       exclusions: z.array(z.object({ kind: z.enum(['owned-unwired', 'owned-nested-project', 'external', 'scratch', 'repository', 'packages', 'output', 'generated']), directory: text, owner: text.nullable() }).strict()),
     }).strict(),
@@ -232,7 +240,7 @@ export interface DefaultWriteScope {
 export function defaultWriteScopeOf(
   index: ArchitectIndex | null,
   module: string,
-  topology: AffectedDocument['selection']['scope']['ownership'] | null,
+  topology: OwnershipAnswer['scope']['ownership'] | null,
   guarded: readonly string[],
 ): DefaultWriteScope | undefined {
   const relativeDirectory = (directory: string) => (directory === '.' ? '' : directory);
@@ -293,7 +301,7 @@ export function ownershipQueryPaths(capture: Pick<ScopeCapture, 'base' | 'extra'
 }
 
 /** The directories an ordinary base may name in `included`: its immediate child modules and its own nested-project roots. */
-export function includedChoices(module: string, topology: AffectedDocument['selection']['scope']['ownership']): string[] {
+export function includedChoices(module: string, topology: OwnershipAnswer['scope']['ownership']): string[] {
   return [...topology.modules.filter(entry => entry.parent === module).map(entry => entry.directory),
     ...topology.exclusions.filter(exclusion => exclusion.kind === 'owned-nested-project' && exclusion.owner === module).map(exclusion => exclusion.directory)].sort();
 }
@@ -309,9 +317,9 @@ export function includedChoices(module: string, topology: AffectedDocument['sele
  */
 export function includedTreeErrors(
   base: Extract<WriteScope['base'], { readonly module: string }>,
-  answer: AffectedDocument,
+  answer: OwnershipAnswer,
 ): SubmissionError[] {
-  const topology = answer.selection.scope.ownership;
+  const topology = answer.scope.ownership;
   const errors: SubmissionError[] = [];
   const choices = includedChoices(base.module, topology);
   const expected = choices.length === 0
@@ -330,7 +338,7 @@ export function includedTreeErrors(
     const child = topology.modules.find(module => module.directory === entry.directory && module.parent === base.module);
     const project = topology.exclusions.find(exclusion => exclusion.directory === entry.directory && exclusion.kind === 'owned-nested-project');
     if (child === undefined && project === undefined) {
-      const seed = answer.selection.paths.find(candidate => candidate.path === entry.directory);
+      const seed = answer.paths.find(candidate => candidate.path === entry.directory);
       errors.push({
         path: `${at}.directory`,
         message: seed?.status === 'owned' && seed.module === base.module
@@ -362,7 +370,7 @@ export function includedTreeErrors(
  * nearest existing ancestor, so an absent directory is not a scope failure.
  * An ownership answer already obtained for the same paths may be given.
  */
-export async function resolveWriteScope(capture: ScopeCapture, ownership?: AffectedDocument): Promise<WriteScope> {
+export async function resolveWriteScope(capture: ScopeCapture, ownership?: OwnershipAnswer): Promise<WriteScope> {
   const roots: string[] = [];
   const files: string[] = [];
 
@@ -376,10 +384,10 @@ export async function resolveWriteScope(capture: ScopeCapture, ownership?: Affec
   };
 
   const ramify = capture.ramify ?? new RamifyCli();
-  const answer = ownership ?? await ramify.queryOwnership(capture.projectRoot, ownershipQueryPaths(capture));
-  const configuration = toPosix(relative(capture.projectRoot, resolve(capture.projectRoot, answer.selection.scope.configuration)));
+  const answer = ownership ?? await ramify.queryOwnershipAnswer(capture.projectRoot, ownershipQueryPaths(capture));
+  const configuration = toPosix(relative(capture.projectRoot, resolve(capture.projectRoot, answer.scope.configuration)));
   if (configuration === '' || configuration === '..' || configuration.startsWith('../')) throw new Error('Provider configuration is outside the captured project');
-  const topology = answer.selection.scope.ownership;
+  const topology = answer.scope.ownership;
   const included: WriteScope['resolved']['included'] = [];
   const excluded: string[] = [];
   const baseModules = 'module' in capture.base ? [capture.base.module] : capture.base.modules;
@@ -433,6 +441,44 @@ export async function resolveWriteScope(capture: ScopeCapture, ownership?: Affec
     else await addFile(entry.path);
   }
 
+  // Only child regions beneath writable directory roots are closed here.
+  // An exact sibling extra remains narrow file authority; it does not make
+  // its owner a forbidden tree merely because that owner was not assigned.
+  const permittedOwners = new Set(baseModules);
+  for (const entry of included.filter(entry => entry.kind === 'child-subtree')) {
+    for (const module of topology.modules) if (within(module.directory, entry.directory)) permittedOwners.add(module.id);
+  }
+  for (const entry of capture.extra.filter(entry => entry.kind === 'directory')) {
+    for (const module of topology.modules) if (within(module.directory === '.' ? '' : module.directory, entry.path === '.' ? '' : entry.path)) permittedOwners.add(module.id);
+  }
+  for (const module of topology.modules) {
+    if (permittedOwners.has(module.id) || capture.bootstrap.some(entry => entry.owner === module.id)) continue;
+    const target = await resolveRealTarget(capture.projectRoot, module.directory);
+    if (!target.ok) throw new Error(`Non-included child region ${module.directory} cannot be resolved`);
+    if (roots.some(root => within(target.resolved, root))) excluded.push(target.resolved);
+  }
+  const nestedDeclarations: Array<{ path: string; canonical: string }> = [];
+  for (const entry of included.filter(entry => entry.kind === 'owned-nested-project')) {
+    const nestedRoot = await resolveRealTarget(capture.projectRoot, entry.directory);
+    if (!nestedRoot.ok) throw new Error(`Included nested project ${entry.directory} cannot be resolved`);
+    const scan = async (directory: string): Promise<void> => {
+      const entries = await readdir(join(capture.projectRoot, directory), { withFileTypes: true }).catch(error => {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+      });
+      for (const file of entries) {
+        if (file.isSymbolicLink() || protectedBoundarySegment(file.name)) continue;
+        const path = posix.join(directory, file.name);
+        const target = await resolveRealTarget(capture.projectRoot, path);
+        if (!target.ok || !within(target.resolved, nestedRoot.resolved)) throw new Error(`Nested declaration capture escaped ${entry.directory}`);
+        if (excluded.some(root => within(target.resolved, root))) continue;
+        if (file.isDirectory()) await scan(path);
+        else if (file.isFile() && file.name === 'module.ramify') nestedDeclarations.push({ path, canonical: target.resolved });
+      }
+    };
+    await scan(entry.directory);
+  }
+
   return {
     revision: capture.revision,
     base: capture.base,
@@ -440,7 +486,7 @@ export async function resolveWriteScope(capture: ScopeCapture, ownership?: Affec
     read: [...capture.read],
     bootstrap: [...capture.bootstrap],
     rationale: capture.rationale,
-    resolved: { roots, files, view: capture.view, excluded, included, ownership: { provider: 'ramify.affected-cli/4', ramifyVersion: answer.ramifyVersion, root: capture.projectRoot, inputId: answer.revision.inputId, configuration, modules: [...topology.modules], exclusions: [...topology.exclusions] } },
+    resolved: { boundaryVersion: 'ramify-agent.assignment-boundary/1', nestedDeclarations, roots, files, view: capture.view, excluded: [...new Set(excluded)], included, ownership: { provider: answer.schemaVersion, ramifyVersion: answer.ramifyVersion, root: capture.projectRoot, inputId: answer.inputId, configuration, modules: [...topology.modules], exclusions: [...topology.exclusions] } },
   };
 }
 
@@ -455,39 +501,107 @@ function bootstrapDirectory(bootstrap: WriteScope['bootstrap'], module: string):
  * the guard refuses whatever the scope contains: tracked feature files,
  * captured source documents, and project configuration.
  */
-export function guardedScopeOf(scope: WriteScope, denied: readonly string[] = [], ramify = new RamifyCli(), current?: AffectedDocument): GuardedScope {
+export function guardedScopeOf(scope: WriteScope, denied: readonly string[] = [], ramify = new RamifyCli(), current?: OwnershipAnswer,
+  authority?: OwnershipAuthority<OwnershipAnswer>): GuardedScope {
+  let reference: OwnershipEvidenceReference | null = null;
   return { revision: scope.revision, roots: scope.resolved.roots, files: scope.resolved.files, denied,
     excluded: scope.resolved.excluded,
+    capturedPlacement: paths => paths.map(path => ({ path, allowed: assignmentBoundaryPathRefusal(scope, path) === null })),
     placement: async paths => {
-      const answer = current ?? await ramify.queryOwnership(scope.resolved.ownership.root, paths);
-      if (paths.some(path => !answer.selection.paths.some(seed => seed.path === path))) {
+      const answer = current ?? await ramify.queryOwnershipAnswer(scope.resolved.ownership.root, paths);
+      if (paths.some(path => !answer.paths.some(seed => seed.path === path))) {
         throw new Error('Ownership query did not answer every candidate path');
       }
-      return answer.selection.paths.filter(seed => paths.includes(seed.path)).map(seed => ({ path: seed.path, allowed: permittedPlacement(scope, answer, seed) }));
-    }, projectRoot: scope.resolved.ownership.root };
+      const decisions = answer.paths.map(seed => ({ path: seed.path, allowed: permittedPlacement(scope, answer, seed) }));
+      // Refusal is evidence too, and settles before a guard can return.
+      if (authority !== undefined) reference = await authority.retain(answer, decisions);
+      return decisions.filter(seed => paths.includes(seed.path));
+    },
+    ...(authority === undefined ? {} : { currentEvidence: () => ({ assignment: authority.assignment, reference }),
+      retainUnavailable: (failure: unknown) => authority.retainFailure(failure),
+      historicalPlacement: async (paths: readonly string[]) => {
+      const retained = await authority.read();
+      return { assignment: authority.assignment, decisions: historicalScopeDecisions(scope, retained, paths), reference: retained.reference };
+    } }),
+    projectRoot: scope.resolved.ownership.root };
+}
+
+/** Named missing authority for older records, without inventing historical permission. */
+export function missingHistoricalAuthority(scope: WriteScope): readonly string[] {
+  return scope.resolved.boundaryVersion !== 'ramify-agent.assignment-boundary/1' ? ['verified non-included child directory capture']
+    : scope.resolved.included.some(entry => entry.kind === 'owned-nested-project') && scope.resolved.nestedDeclarations === undefined
+      ? ['existing declarations in included nested projects'] : [];
+}
+
+/** Permission projection from verified historical tables, bounded by the original assignment. */
+export function historicalScopeDecisions(scope: WriteScope, retained: {
+  readonly latest: OwnershipAnswer | null; readonly paths: ReadonlyMap<string, boolean>; readonly reference: OwnershipEvidenceReference | null;
+}, paths: readonly string[]): ReadonlyArray<{ readonly path: string; readonly allowed: boolean }> {
+  const missing = missingHistoricalAuthority(scope);
+  if (missing.length > 0) throw new OwnershipAuthorityError(`Historical repair lacks ${missing.join(', ')}`, 'missing');
+  const captured = scope.resolved.ownership;
+  const latest = retained.latest ?? { schemaVersion: captured.provider, ramifyVersion: captured.ramifyVersion, root: captured.root,
+    inputId: captured.inputId, scope: { configuration: captured.configuration, ownership: { modules: captured.modules, exclusions: captured.exclusions } }, paths: [] };
+  return paths.map(path => {
+    const absolutePath = resolve(captured.root, path);
+    const inRegion = assignmentBoundaryPathRefusal(scope, path) === null
+      && (scope.resolved.files.includes(absolutePath) || scope.resolved.roots.some(root => within(absolutePath, root)))
+      && !scope.resolved.excluded.some(root => within(absolutePath, root));
+    const module = latest.scope.ownership.modules.filter(module => within(path, module.directory === '.' ? '' : module.directory))
+      .sort((a, b) => b.directory.length - a.directory.length)[0];
+    const exclusion = latest.scope.ownership.exclusions.filter(entry => within(path, entry.directory === '.' ? '' : entry.directory))
+      .sort((a, b) => b.directory.length - a.directory.length)[0];
+    const seed: OwnershipAnswer['paths'][number] = exclusion?.owner === null
+      ? { path, status: 'excluded', module: null, exclusion }
+      : module === undefined ? { path, status: 'outside-project', module: null, exclusion: null }
+        : { path, status: 'owned', module: module.id, exclusion: exclusion ?? null };
+    return { path, allowed: inRegion && retained.paths.get(path) !== false && permittedPlacement(scope, latest, seed) };
+  });
+}
+
+/** Immutable protections named by assignment-boundary/1, independent of acquisition. */
+export function assignmentBoundaryPathRefusal(scope: WriteScope, path: string): string | null {
+  const segments = path.split('/');
+  if (segments.some(protectedBoundarySegment)) {
+    return 'is repository metadata, installed dependencies or generated Ramify evidence';
+  }
+  if (segments.some(segment => segment === '..') || path.startsWith('/') || path.includes('\\')) return 'lies outside the captured logical project';
+  if ((path === 'module.ramify' || path.endsWith('/module.ramify'))
+    && !scope.resolved.ownership.modules.some(module => path === posix.join(module.directory === '.' ? '' : module.directory, 'module.ramify'))
+    && !scope.resolved.nestedDeclarations?.some(entry => entry.path === path || entry.canonical === resolve(scope.resolved.ownership.root, path))
+    && !scope.bootstrap.some(entry => path === posix.join(entry.directory, 'module.ramify'))) {
+    return 'would create a module description without accepted bootstrap authority';
+  }
+  return null;
+}
+
+function protectedBoundarySegment(segment: string): boolean {
+  return segment === '.git' || segment === 'node_modules' || segment === '.ramify' || segment === '.ramify-architect'
+    || ['.ramify.tmp-', '.ramify.old-', '.ramify-architect.tmp-', '.ramify-architect.old-'].some(prefix => segment.startsWith(prefix) && segment.length > prefix.length);
 }
 
 /** Current placement narrows captured owner and tree authority; it cannot add an owner or remove an exclusion. */
-function permittedPlacement(scope: WriteScope, answer: AffectedDocument, seed: AffectedDocument['selection']['paths'][number]): boolean {
+function permittedPlacement(scope: WriteScope, answer: OwnershipAnswer, seed: OwnershipAnswer['paths'][number]): boolean {
   return placementRefusal(scope, answer, seed) === null;
 }
 
 /** Why one path is not writable under a captured scope and a current ownership answer, or null where it is. */
-function placementRefusal(scope: WriteScope, answer: AffectedDocument, seed: AffectedDocument['selection']['paths'][number]): string | null {
+function placementRefusal(scope: WriteScope, answer: OwnershipAnswer, seed: OwnershipAnswer['paths'][number]): string | null {
   if (seed.status === 'outside-project') return 'lies outside the project';
   if (seed.status !== 'owned') return `lies in the ${seed.exclusion.kind} region "${seed.exclusion.directory}", which no assignment opens`;
   const captured = scope.resolved.ownership;
   const withinPath = (path: string, directory: string) => within(path === '.' ? '' : path, directory === '.' ? '' : directory);
   const segments = seed.path.split('/');
   if (segments[0] === plansDirectory && segments[1] !== undefined && within(seed.path, toPosix(relative(captured.root, planStateDirectory(captured.root, segments[1]))))) return 'is plan state the harness alone writes';
-  const current = answer.selection.scope.ownership.modules.find(module => module.id === seed.module);
+  const current = answer.scope.ownership.modules.find(module => module.id === seed.module);
   const previous = captured.modules.find(module => module.id === seed.module);
   const bootstrapped = scope.bootstrap.some(entry => withinPath(seed.path, entry.directory) &&
     ((seed.module === entry.parent && previous?.id === entry.parent) ||
       (seed.module === entry.owner && current?.directory === entry.directory && current.parent === entry.parent && previous === undefined)));
   if (current === undefined || (previous === undefined ? !bootstrapped : previous.directory !== current.directory || previous.parent !== current.parent)) return `belongs to "${seed.module}", whose identity differs from the captured one`;
   // Creating a module description needs the accepted registry creation entry, beyond ordinary inert ownership.
-  if (seed.exclusion === null && seed.path.endsWith('/module.ramify') && !captured.modules.some(module => seed.path === posix.join(module.directory === '.' ? '' : module.directory, 'module.ramify')) && !scope.bootstrap.some(entry => seed.path === posix.join(entry.directory, 'module.ramify'))) return 'would create a module description, which only an accepted proposal authorizes';
+  const immutableRefusal = assignmentBoundaryPathRefusal(scope, seed.path);
+  if (immutableRefusal !== null) return immutableRefusal;
   // Exact extras keep their narrow authority, but cannot open nested projects or hard exclusions.
   const explicit = scope.extra.some(entry => entry.kind === 'directory' ? withinPath(seed.path, entry.path) : seed.path === entry.path)
     || scope.resolved.files.includes(join(captured.root, seed.path));
@@ -515,12 +629,12 @@ function placementRefusal(scope: WriteScope, answer: AffectedDocument, seed: Aff
  * owned nested project the scope does not include. These are the rules the
  * guard applies at write time, judged at submission instead.
  */
-export function extraPlacementErrors(scope: WriteScope, answer: AffectedDocument): SubmissionError[] {
+export function extraPlacementErrors(scope: WriteScope, answer: OwnershipAnswer): SubmissionError[] {
   const errors: SubmissionError[] = [];
   const root = scope.resolved.ownership.root;
   scope.extra.forEach((entry, position) => {
     if (entry.kind === 'directory') return;
-    const seed = answer.selection.paths.find(candidate => candidate.path === entry.path);
+    const seed = answer.paths.find(candidate => candidate.path === entry.path);
     if (seed === undefined) return;
     const held = scope.resolved.excluded.find(region => within(entry.path, toPosix(relative(root, region))));
     const refusal = placementRefusal(scope, answer, seed)
@@ -548,7 +662,7 @@ export type WriteScopeCheckResult =
  */
 export async function checkWriteScope(capture: ScopeCapture): Promise<WriteScopeCheckResult> {
   const ramify = capture.ramify ?? new RamifyCli();
-  const answer = await ramify.queryOwnership(capture.projectRoot, ownershipQueryPaths(capture));
+  const answer = await ramify.queryOwnershipAnswer(capture.projectRoot, ownershipQueryPaths(capture));
   const included = 'module' in capture.base ? includedTreeErrors(capture.base, answer) : [];
   if (included.length > 0) return { scope: null, errors: included };
   let scope: WriteScope;
@@ -587,10 +701,11 @@ export async function deniedFiles(projectRoot: string, protectedFiles: readonly 
  * marked, so a refusal says that an architect's authorization would open them.
  */
 export async function protectedScopeOf(projectRoot: string, scope: WriteScope,
-  protectedFiles: { readonly harness: readonly string[]; readonly unauthorized: readonly string[] }, ramify: RamifyCli): Promise<GuardedScope> {
+  protectedFiles: { readonly harness: readonly string[]; readonly unauthorized: readonly string[] }, ramify: RamifyCli,
+  authority?: OwnershipAuthority<OwnershipAnswer>): Promise<GuardedScope> {
   const harness = await deniedFiles(projectRoot, protectedFiles.harness);
   const guarded = (await deniedFiles(projectRoot, protectedFiles.unauthorized)).filter(path => !harness.includes(path));
-  return { ...guardedScopeOf(scope, await deniedFiles(projectRoot, [...harness, ...protectedFiles.unauthorized]), ramify), guarded };
+  return { ...guardedScopeOf(scope, await deniedFiles(projectRoot, [...harness, ...protectedFiles.unauthorized]), ramify, undefined, authority), guarded };
 }
 
 /** The project-relative paths of the scope, for a prompt and for a reader. */

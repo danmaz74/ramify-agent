@@ -1,6 +1,7 @@
+import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { isContained } from '../guard/resolve-contained-path.js';
-import { placementDecisions } from '../guard/write-guard.js';
+import { placementOutcome } from '../guard/write-guard.js';
 import type { GuardedScope } from '../guard/write-guard.js';
 import type { ObservationLog } from './observations.js';
 
@@ -19,12 +20,16 @@ import type { ObservationLog } from './observations.js';
  * the committing gate applies this same boundary before accepting a candidate.
  */
 
+export class MutationPlacementUnavailableError extends Error {}
+
 /** What the tree said when the writer settled. */
 export interface MutationSnapshot {
   /** Every path changed since the last accepted commit, project-relative. */
   readonly paths: readonly string[];
   /** Those of them that lie outside the write scope this invocation held. */
   readonly outsideScope: readonly string[];
+  readonly unknownPlacement: readonly string[];
+  readonly placementFailure?: string;
   /** Why the snapshot could not be taken, where it could not. */
   readonly failure: string | null;
 }
@@ -47,12 +52,12 @@ export async function takeMutationSnapshot(request: SnapshotRequest): Promise<Mu
   try {
     paths = await request.changed();
   } catch (error) {
-    return { paths: [], outsideScope: [], failure: error instanceof Error ? error.message : String(error) };
+    return { paths: [], outsideScope: [], unknownPlacement: [], failure: error instanceof Error ? error.message : String(error) };
   }
   const relatives = [...new Set(paths.map(path => toRelative(request.projectRoot, path)))].sort();
   return {
     paths: relatives,
-    outsideScope: request.scope === undefined ? [...relatives] : await outsideScope(request.projectRoot, request.scope, relatives),
+    ...(request.scope === undefined ? { outsideScope: [...relatives], unknownPlacement: [] } : await classifyMutations(request.projectRoot, request.scope, relatives)),
     failure: null,
   };
 }
@@ -63,13 +68,24 @@ export async function takeMutationSnapshot(request: SnapshotRequest): Promise<Mu
  * scope is as much an outside change as writing there.
  */
 export async function outsideScope(projectRoot: string, scope: GuardedScope, paths: readonly string[]): Promise<string[]> {
-  const placements = await placementDecisions(scope, projectRoot, paths);
-  return paths.filter((path, position) => {
-    if (!placements[position]) return true;
+  const result = await classifyMutations(projectRoot, scope, paths);
+  // Acceptance callers require current placement, even with no known violation.
+  if (result.ownershipFailure !== undefined) throw new OwnershipUnavailableError(result.ownershipFailure);
+  if (result.unknownPlacement.length > 0) throw new MutationPlacementUnavailableError(`Current physical placement unresolved: ${result.unknownPlacement.join(', ')}`);
+  return result.outsideScope;
+}
+
+export async function classifyMutations(projectRoot: string, scope: GuardedScope, paths: readonly string[]): Promise<{ outsideScope: string[]; unknownPlacement: string[]; placementFailure?: string; placementFailureStatus?: string; ownershipFailure?: import('../../subs/evidence/src/ownership-evidence.js').OwnershipUnavailableError['result'] }> {
+  const placements = await placementOutcome(scope, projectRoot, paths);
+  const outsideScope: string[] = [], unknownPlacement: string[] = [];
+  paths.forEach((path, position) => {
     const absolute = resolve(projectRoot, path);
-    if (scope.files.includes(absolute)) return false;
-    return !scope.roots.some(root => isContained(root, absolute));
+    const captured = scope.files.includes(absolute) || scope.roots.some(root => isContained(root, absolute));
+    if (!captured) outsideScope.push(path);
+    else if (placements.unknown?.[position]) unknownPlacement.push(path);
+    else if (!placements.allowed[position]) outsideScope.push(path);
   });
+  return { outsideScope, unknownPlacement, ...(placements.ownershipFailure === undefined ? {} : { ownershipFailure: placements.ownershipFailure }), ...(placements.error === undefined ? {} : { placementFailure: placements.error, ...(placements.failureStatus === undefined ? {} : { placementFailureStatus: placements.failureStatus }) }) };
 }
 
 /** Project-relative and forward-slashed, which is how every record names a path. */
