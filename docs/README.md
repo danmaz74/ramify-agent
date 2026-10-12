@@ -87,7 +87,8 @@ Design documents for the separate agent harness:
 - [Automatic project repair](architecture/automatic-project-repair.spec.md):
   one explicitly delegated root repair session for an unexpected architect
   preparation obstruction, verified handback, retained incident evidence,
-  Beads export and UI visibility; first implementation awaiting committed audit
+  Beads export and UI visibility; implemented and qualified by
+  [composed committed default audits](architecture/automatic-project-repair.qualification.md)
 - [Session reuse and system prompts](analysis/2026-10-08-session-reuse-and-system-prompts.md),
   ordinary continuation as the default, forks that preserve the complete
   inherited prefix, current history reuse with prompt/tool replacement, and

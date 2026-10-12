@@ -1,8 +1,9 @@
 # Automatic project repair
 
-**Date:** 2026-10-12. **Status:** First implementation in the
-`feat/automatic-project-repair` worktree; committed audit and live qualification
-remain outstanding. **Tracking:** `ramify-agent-6ft`; committed qualification `ramify-agent-y03`.
+**Date:** 2026-10-12. **Status:** Implemented and qualified by
+[composed committed default audits](automatic-project-repair.qualification.md).
+Live-run benefit evaluation remains open. **Tracking:** `ramify-agent-6ft`;
+committed qualification `ramify-agent-y03`.
 
 A fault while preparing a local architect's next turn can prevent the ordinary
 correction workflow from receiving an engineer's partial result. This mechanism
