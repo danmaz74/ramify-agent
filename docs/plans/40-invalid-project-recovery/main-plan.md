@@ -1,7 +1,8 @@
 # Plan 40: implementation through temporarily invalid projects
 
 **Date:** 2026-10-12. **Status:** Stage one implemented and qualified;
-stage-two checkpoint evaluation remains pending.
+stage-two checkpoint evaluation complete, adoption deferred. Iteration 9 is not
+triggered; see the [measurement and decision receipt](checkpoint-evaluation.md).
 **Tracking:** `ramify-agent-9dt.1` for stage-one recovery;
 `ramify-agent-9dt.2` for mutation classification;
 `ramify-agent-9dt.10` for checkpoint evaluation.

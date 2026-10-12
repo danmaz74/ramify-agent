@@ -1,8 +1,9 @@
 # Plan 40 committed stage-one qualification
 
 **Date:** 2026-10-12. **Verdict:** Pass by composed committed default audits.
-Stage one is implemented and qualified. Checkpoint evaluation/adoption remains
-separate stage-two work.
+Stage one is implemented and qualified. Subsequent
+[checkpoint evaluation](checkpoint-evaluation.md) deferred adoption; that
+separate experiment does not alter this audited code identity.
 
 ## Qualified identity and command
 

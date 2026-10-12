@@ -1,0 +1,46 @@
+{
+  "schema": "plan40.checkpoint-historical-comparison/1",
+  "transcriptPath": "/home/app/ramify-trial-evidence/revision-preview-20261011T223944Z/collection-review/plans/revision-preview/.harness/jobs/20261011T224003Z-6f9166/transcripts/ses-0011.jsonl",
+  "transcriptSha256": "961bf9c5bd3fb5664a979e8f6f5f4f3b783a57fb91f5125923ad81136322ba14",
+  "toolCalls": [
+    {
+      "row": 57,
+      "at": "2026-10-11T22:57:17.691Z",
+      "tool": "edit",
+      "input": {
+        "path": "/home/app/ramify-trial-evidence/revision-preview-20261011T223944Z/collection-review/subs/integration-tests/module.ramify",
+        "edits": [
+          {
+            "oldText": "// are why this header must carry both. It exposes nothing.\nmodule integration-tests tagged [testing, dispatch]",
+            "newText": "// are why this header must carry both.\nmodule integration-tests tagged [testing, dispatch]\n\n// Public shared scenario state and all locally named signature companions.\nexpose-src CollectionReviewWorld, SystemDriver, RecordSummary, ReviewOutcome, McpSession, BoundScope from \"support/world.ts\" to parent"
+          }
+        ]
+      }
+    },
+    {
+      "row": 60,
+      "at": "2026-10-11T22:57:25.147Z",
+      "tool": "edit",
+      "input": {
+        "path": "/home/app/ramify-trial-evidence/revision-preview-20261011T223944Z/collection-review/subs/integration-tests/module.ramify",
+        "edits": [
+          {
+            "oldText": "// are why this header must carry both.\nmodule integration-tests tagged [testing, dispatch]\n\n// Public shared scenario state and all locally named signature companions.\nexpose-src CollectionReviewWorld, SystemDriver, RecordSummary, ReviewOutcome, McpSession, BoundScope from \"support/world.ts\" to parent",
+            "newText": "// are why this header must carry both. It exposes nothing.\nmodule integration-tests tagged [testing, dispatch]"
+          }
+        ]
+      }
+    }
+  ],
+  "gitCommand": [
+    "git",
+    "show",
+    "3c3da62c36665ac277a8fd2bd4dec0a2cd6197fc:subs/integration-tests/module.ramify"
+  ],
+  "gitCwd": "/home/app/ramify-trial-evidence/revision-preview-20261011T223944Z/collection-review",
+  "gitExit": 0,
+  "acceptedDeclaration": "ramify 1\n\n// The baseline's one separately declared testing module. Its header classifies\n// its ordinary src/, so the scenario, its steps, its World and its hooks all\n// carry [testing, dispatch]. It has no private access to the root: the\n// configured system reaches it only through the root's expose-test of\n// createTestSystem to descendants, and that symbol's [testing, dispatch] tags\n// are why this header must carry both. It exposes nothing.\nmodule integration-tests tagged [testing, dispatch]\n",
+  "gitStderr": "",
+  "originalEditOldTextInAcceptedDeclaration": true,
+  "reversalIsExact": true
+}
