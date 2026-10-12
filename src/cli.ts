@@ -1,3 +1,5 @@
+import { isAbsolute } from 'node:path';
+
 /** The default port of `serve`. */
 export const defaultPort = 4180;
 
@@ -23,9 +25,11 @@ export type SessionAgent =
   | { readonly name: 'fake'; readonly script: string };
 
 export type CommandLine =
+  | { readonly command: 'repair-export'; readonly run: string; readonly executable: string; readonly workspace: string; readonly incident?: string; readonly json: boolean }
   | { readonly command: 'consultations'; readonly run: string; readonly session: string | undefined; readonly id: string | undefined; readonly format: 'text' | 'json' }
   | { readonly command: 'debug'; readonly debug: DebugOptions }
-  | { readonly command: 'serve'; readonly projectRoot: string; readonly port: number; readonly agent: AgentName | undefined; readonly model: string | undefined }
+  | { readonly command: 'serve'; readonly projectRoot: string; readonly port: number; readonly agent: AgentName | undefined; readonly model: string | undefined;
+      readonly repairIncidentExport?: { readonly executable: string; readonly workspace: string } }
   | {
       readonly command: 'session';
       readonly projectRoot: string;
@@ -70,6 +74,9 @@ export const usage = [
   '                       message: --message-file <UTF-8 file>; resume: optional --message-file; wait: [--after <cursor>]',
   '                       Default timeout: 1200000 ms (20 minutes). Client exit or timeout never cancels the run. Retry the same command ID.',
   '  ramify-agent serve --project <root> [--port <n>] [--agent pi [--model <provider/model>] | --agent fake]',
+  '                       [--bd-executable <absolute path> --beads-workspace <absolute existing workspace>]',
+  '  ramify-agent repair export --run <original run directory> --bd-executable <absolute path> --beads-workspace <absolute existing workspace>',
+  '                       [--incident <apr-id>] [--json]. Requires the original project and its exclusive harness lock.',
   '  ramify-agent session --project <root> --module <module-path>',
   '                       (--prompt <text> | --prompt-file <file>)',
   '                       [--agent pi [--model <provider/model[:level]>] | --agent fake --script <file>]',
@@ -131,6 +138,7 @@ export function parseCommandLine(argv: readonly string[]): CommandLine {
   const [command, ...rest] = argv;
   if (command === undefined || command === 'help' || command === '--help' || command === '-h') return { command: 'help' };
   if (command === 'consultations') return parseConsultations(rest);
+  if (command === 'repair') return parseRepairExport(rest);
   if (command === 'serve') return parseServe(rest);
   if (command === 'session') return parseSession(rest);
   if (command === 'step') return parseStep(rest);
@@ -183,6 +191,8 @@ function parseServe(rest: readonly string[]): CommandLine {
   let port = defaultPort;
   let agent: AgentName | undefined;
   let model: string | undefined;
+  let executable: string | undefined;
+  let workspace: string | undefined;
   options(rest, (flag, value, _inline, argument) => {
     if (flag === '--project') projectRoot = value();
     else if (flag === '--port') {
@@ -191,11 +201,38 @@ function parseServe(rest: readonly string[]): CommandLine {
       if (!/^\d+$/.test(text) || port > 65535) throw new UsageError(`--port must be a port number, not "${text}"`);
     } else if (flag === '--agent') agent = agentName(value());
     else if (flag === '--model') model = value();
+    else if (flag === '--bd-executable') executable = absoluteOption(flag, value());
+    else if (flag === '--beads-workspace') workspace = absoluteOption(flag, value());
     else throw new UsageError(`Unknown option "${argument}"`);
   });
   if (projectRoot === undefined) throw new UsageError('serve needs --project <root>');
   if (model !== undefined && agent !== 'pi') throw new UsageError('--model applies to --agent pi only');
-  return { command: 'serve', projectRoot, port, agent, model };
+  if ((executable === undefined) !== (workspace === undefined)) throw new UsageError('Give both --bd-executable and --beads-workspace');
+  return { command: 'serve', projectRoot, port, agent, model,
+    ...(executable === undefined ? {} : { repairIncidentExport: { executable, workspace: workspace! } }) };
+}
+
+function absoluteOption(flag: string, value: string): string {
+  if (!isAbsolute(value)) throw new UsageError(`${flag} needs an absolute path`);
+  return value;
+}
+
+function parseRepairExport(rest: readonly string[]): CommandLine {
+  const [action, ...flags] = rest;
+  if (action !== 'export') throw new UsageError('repair needs export');
+  const values: Record<string, string> = {};
+  let json = false;
+  options(flags, (flag, value, inline, argument) => {
+    if (flag in values || flag === '--json' && json) throw new UsageError(`Give ${flag} once`);
+    if (flag === '--json' && inline === undefined) json = true;
+    else if (['--run', '--bd-executable', '--beads-workspace', '--incident'].includes(flag)) values[flag] = value();
+    else throw new UsageError(`Unknown option "${argument}"`);
+  });
+  for (const flag of ['--run', '--bd-executable', '--beads-workspace']) if (!values[flag]) throw new UsageError(`repair export needs ${flag}`);
+  if (values['--incident'] !== undefined && !/^apr-\d{4,}$/u.test(values['--incident'])) throw new UsageError('--incident needs an apr- incident ID');
+  return { command: 'repair-export', run: values['--run']!, executable: absoluteOption('--bd-executable', values['--bd-executable']!),
+    workspace: absoluteOption('--beads-workspace', values['--beads-workspace']!), json,
+    ...(values['--incident'] === undefined ? {} : { incident: values['--incident'] }) };
 }
 
 function parseSession(rest: readonly string[]): CommandLine {

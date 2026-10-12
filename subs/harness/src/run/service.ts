@@ -1,3 +1,7 @@
+import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths,
+  type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair-preparation.js';
+import { repairIncidentRecordSchema, repairResultSchema, repairIncidentId, type RepairIncidentRecord, type RepairResult, type RepairIncidentStage } from './repair-records.js';
+import { createRepairExportPayload, exportRepairIncident, repairExportPayloadPath, repairExternalRef, repairProjectKey, type RepairExportConfiguration } from './repair-export.js';
 import { checkContinuationScope } from '../work/inherited-scope.js';
 import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { OwnershipAuthorityError, ownershipAuthorityFor } from '../work/ownership-authority.js';
@@ -273,6 +277,10 @@ import { processGroupIdentity } from '../../subs/evidence/src/run-command.js';
 
 /** One durable boundary a test can freeze the run at, as a crash would. */
 export type RunWrite =
+  | 'repair-assignment-recorded'
+  | 'repair-preparation-recorded'
+  | 'repair-preparation-consumed'
+  | 'repair-incident-recorded'
   | 'job-created'
   | 'debug-exchange-admitted'
   | 'contract-requested'
@@ -342,6 +350,7 @@ export interface RunServiceOptions {
   /** External command execution. Tests script outcomes; actual process tests use the default. */
   readonly commandExecution?: CommandRunner | undefined;
   readonly projectRoot: string;
+  readonly repairIncidentExport?: RepairExportConfiguration | undefined;
   /** The project lock, held for as long as the service runs. */
   readonly lock: ProjectLock;
   /** The agent that runs the run's sessions. Without one, a start is refused as unavailable. */
@@ -620,6 +629,7 @@ export class RunService {
   private closed = false;
   private closing: Promise<void> | undefined;
 
+  private readonly repairIncidentExport: RepairExportConfiguration | undefined;
   private readonly git: GitService;
   private readonly candidates: CandidateSource;
   /** What the run queries read each run's delivered change from. */
@@ -627,6 +637,7 @@ export class RunService {
   get candidateSource(): CandidateSource { return this.candidates; }
 
   private constructor(private readonly options: RunServiceOptions, private readonly workflow: CapabilityWorkflow | null) {
+    this.repairIncidentExport = options.repairIncidentExport === undefined ? undefined : { ...options.repairIncidentExport };
     this.git = options.git ?? gitService;
     this.candidates = options.candidates ?? gitCandidateSource;
     this.changeHistory = options.changeHistory ?? cachedChangeHistory(gitChangeHistory);
@@ -2403,6 +2414,17 @@ export class RunService {
         else this.warn(`Run ${run.record.jobId}: closed iteration scratch could not be cleaned: ${message(error)}`);
       }
 
+      if (!run.log.terminal) {
+        const repair = this.latestRepairIncident(run);
+        if (repair !== undefined && ['admitted', 'running'].includes(repair.stage)) {
+          const incident = { ...repair.incident, revision: repair.incident.revision + 1,
+            endedAt: this.now().toISOString(), continuation: { delivered: false, reason: 'Service interruption requires manual attention; repair is never restarted automatically', evidence: [] } };
+          await this.persistRepairIncident(run, incident, 'interrupted');
+          await this.fail(run, 'recovery-exhausted', 'An interrupted automatic repair requires manual attention; no repair invocation was restarted');
+          report.interrupted.push(run.key);
+        }
+      }
+
       if (!run.log.terminal && this.workflow !== null && run.record.policy.version === capabilityRunPolicyVersion) {
         try {
           await this.reconcileSuspendedCapabilityRequest(run);
@@ -3309,6 +3331,11 @@ export class RunService {
       if (!finished) throw new Error(`Readiness did not settle within ${grace} ms; refusing to publish job-stopped`);
     }
     if (this.closed) return;
+    const repair = this.latestRepairIncident(run);
+    if (repair !== undefined && ['admitted', 'running'].includes(repair.stage)) {
+      await this.persistRepairIncident(run, { ...repair.incident, revision: repair.incident.revision + 1, endedAt: this.now().toISOString(),
+        continuation: { delivered: false, reason: 'Stop interrupted automatic repair; no continuation or restart was authorized', evidence: [] } }, 'interrupted');
+    }
     await this.endRun(run, { type: 'job-stopped', data: { settled } });
   }
 
@@ -4362,7 +4389,7 @@ export class RunService {
       }
     }
     // Role/task rules deliver known facts; the agent decides what to inspect.
-    const known = ['initial-architect', 'local-architect', 'capability-architect', 'engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role)
+    const known = request.work.automaticRepair === undefined && ['initial-architect', 'local-architect', 'capability-architect', 'engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role)
       || (request.role === 'context-selector' && request.start.mode === 'fresh')
       ? await this.knownProjectFacts(run, request.task?.modules ?? (item === undefined ? [] : [item.module])) : undefined;
     const evidenceSections: Array<{ key: string; text: string }> = [];
@@ -4583,6 +4610,8 @@ export class RunService {
     await writeOnce(run.path(incorporationPath), incorporationText);
     await this.afterWrite('analysis-evidence-staged', run.record.jobId);
     const count = (kind: ElementKind) => state.catalog.elements.filter(element => element.kind === kind).length;
+    if (result.value.contingentRepairAssignment !== undefined &&
+      !await this.captureAutomaticRepairAssignment(run, result.id, result.value.contingentRepairAssignment)) return false;
     await this.write(run, {
       type: 'analysis-accepted',
       data: {
@@ -5529,7 +5558,7 @@ export class RunService {
       const current = committedRecords(run.log.ledger.replay());
       // The view is refreshed before the architect's turn, so the rules its
       // submission is judged by are applied against the project as it stands.
-      const index = await this.refreshIndex(run);
+      let index = await this.refreshIndex(run);
       // A view that could not be materialized is materialized again for each
       // later turn, rather than repeating a failure the project may have outgrown.
       if (attempt > 1 && views.unavailable !== null) views = await apiViewsOf(this.options.ramify, this.projectRoot, run.index, item.module);
@@ -5568,7 +5597,7 @@ export class RunService {
       const scenarioLedger = trackedScenarios(run.log.ledger.replay());
       const scenarios = entryScenariosOf(scenarioLedger.records, scenarioLedger.states, 'entry' in item.origin ? item.origin.entry : null);
       const lastScenarios = lastResult === undefined ? [] : await this.passedScenarioLines(run, lastResult);
-      const briefing: WorkItemBriefing = {
+      let briefing: WorkItemBriefing = {
         item,
         setup: await this.checkInputSection(run),
         testAreas: (await moduleTestAreas(this.projectRoot, run.index)).filter(area => area.module === item.module),
@@ -5645,7 +5674,7 @@ export class RunService {
       // The package is in the session once: appended after the orientation,
       // or carried by the first prompt of a session that lacks it, such as a
       // reconstruction. Every other turn names it by its hash.
-      const packageInPrompt = contextPackage !== undefined && (sessionRef === undefined || packageUndelivered);
+      let packageInPrompt = contextPackage !== undefined && (sessionRef === undefined || packageUndelivered);
       const owned = this.obligationBriefing(run, { kind: 'work-item', id: item.id });
       let intervening: string | undefined;
       if (attempt === 1 && this.workflow !== null) {
@@ -5670,7 +5699,9 @@ export class RunService {
       const projection = this.obligationProjection(run);
       const plain = <V>(value: V): V => JSON.parse(JSON.stringify(value)) as V;
       let step: ConstructedWorkTurnStep;
-      try {
+      const preparation = lastResult?.outcome !== 'partial' ? undefined : await this.recordRepairPreparation(run, item, attempt, lastAssignment, lastResult);
+      let repaired: { incident: RepairIncidentRecord; delta: RepairDelta } | undefined;
+      const prepareTurn = async (): Promise<ConstructedWorkTurnStep> => {
         const turn = validateWorkTurnInputs({
           schema: stepInputsSchemaId, role: 'local-architect', phase: 'work-turn', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
           work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits,
@@ -5697,10 +5728,49 @@ export class RunService {
             ? { kind: 'fresh', ...(continuing === undefined ? {} : { continuing }) }
             : { kind: 'continued', point: sessionRef, ...(session === undefined ? {} : { session }), ...(continuing === undefined ? {} : { continuing }) },
         });
-        step = constructWorkTurnStep(turn, { projectRoot: this.projectRoot, packages });
+        return constructWorkTurnStep(turn, { projectRoot: this.projectRoot, packages });
+      };
+      try {
+        step = await prepareTurn();
       } catch (error) {
-        await this.fail(run, 'inputs-changed', `The work-item package of ${item.id} cannot be rendered: ${message(error)}`);
-        return null;
+        if (preparation === undefined) {
+          await this.fail(run, 'inputs-changed', `The work-item package of ${item.id} cannot be rendered: ${message(error)}`);
+          return null;
+        }
+        let answer: Awaited<ReturnType<RunService['automaticProjectRepair']>>;
+        try {
+          answer = await this.automaticProjectRepair(run, agent, packages, baseline, preparation, error, async report => {
+          // Prepared assignments and old action sessions are not reused after repair.
+          sessionRef = undefined; session = undefined; originalLocalInvocation = undefined;
+          packageUndelivered = true;
+          intervening = [intervening, `Automatic repair restored preparation. Original iteration ${lastResult!.iteration} remains partial. Repair report: ${JSON.stringify(report)}. Reassess the current candidate and assign remaining work through ordinary authority.`].filter(value => value !== undefined).join('\n\n');
+          index = await this.refreshIndex(run);
+          packageInPrompt = contextPackage !== undefined;
+          views = await apiViewsOf(this.options.ramify, this.projectRoot, run.index, item.module);
+          briefing = { ...briefing, views };
+          return await prepareTurn();
+          });
+        } catch (repairError) {
+          if (!this.ignoring(run)) {
+            const active = this.latestRepairIncident(run);
+            if (active !== undefined && ['admitted', 'running'].includes(active.stage)) {
+              const started = run.log.all('invocation-started').find(event => event.data.work.automaticRepair === active.incident.incidentId);
+              await this.persistRepairIncident(run, { ...active.incident, revision: active.incident.revision + 1,
+                invocation: started?.data.invocation ?? null, session: started?.data.session ?? null, endedAt: this.now().toISOString(),
+                verification: { verified: false, reason: `Repair workflow could not settle: ${message(repairError)}`, evidence: [] },
+                continuation: { delivered: false, reason: 'Repair workflow failed before verified handback; manual attention required', evidence: [] } }, 'unverified');
+            }
+            await this.fail(run, run.writer.blocked === undefined ? 'inputs-changed' : 'writer-unsettled',
+              `Original architect obstruction: ${message(error)}. Automatic repair workflow failed: ${message(repairError)}`);
+          }
+          return null;
+        }
+        if (answer === null) return null;
+        step = answer.step; repaired = answer;
+      }
+      if (preparation !== undefined) {
+        await this.write(run, { type: 'repair-preparation-consumed', data: { preparation: preparation.id, workItem: item.id } });
+        await this.afterWrite('repair-preparation-consumed', run.record.jobId);
       }
       packageUndelivered = false;
       // A finding is delivered once: the next turn of this same architect
@@ -5776,6 +5846,12 @@ export class RunService {
       originalLocalInvocation = undefined;
       sessionRef = result.kept && result.ref !== '' ? result.ref : undefined;
       session = sessionRef === undefined ? undefined : result.session;
+
+      if (repaired !== undefined && result.id !== '') {
+        await this.persistRepairIncident(run, { ...repaired.incident,
+          continuation: { delivered: true, reason: 'Fresh responsible architect received the original partial result and current candidate', evidence: [runLayout.invocation(result.id)] } }, 'continued',
+          [{ path: runLayout.repairDelta(repaired.incident.incidentId), id: repaired.incident.incidentId, revision: 1, body: repaired.delta }]);
+      }
 
       if (this.ignoring(run)) return null;
       if (result.ended !== 'submitted' || result.value === undefined) {
@@ -10861,6 +10937,265 @@ export class RunService {
       `Changed paths compared with accepted Git boundary ${this.accepted(run)}: ${changed}.`,
       'If ownership remains unavailable, assign the same or a narrower verified repair region. Expanded scope and new generated features require current ownership first. If recorded authority cannot repair the boundary, report the exact blocked targets and missing authority through unresolved/environment handling. Consultation remains advisory.',
     ].join('\n');
+  }
+
+  /** Only a plan architect's explicit current delegation can license this fallback. */
+  private async captureAutomaticRepairAssignment(run: Run, invocation: string,
+    delegation: AutomaticRepairAssignment['delegation']): Promise<boolean> {
+    try {
+      const captured = automaticRepairAssignmentSchema.safeParse(this.committedBody(run, runLayout.contingentRepairAssignment));
+      if (captured.success) {
+        if (captured.data.invocation !== invocation || JSON.stringify(captured.data.delegation) !== JSON.stringify(delegation)) throw new Error('A different contingent assignment is already recorded');
+        return true;
+      }
+      const current = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
+      const root = current.scope.ownership.modules.find(module => module.parent === null);
+      if (root?.id !== delegation.root) throw new Error('Contingent repair must name the verified project root');
+      const scope = await resolveWriteScope({ projectRoot: this.projectRoot, ramify: this.options.ramify,
+        index: run.index, view: run.record.manifest.architectView, revision: 1,
+        base: { module: delegation.root, included: delegation.included }, extra: [], read: [], bootstrap: [], rationale: delegation.instructions });
+      const declarations = scope.resolved.ownership.modules.map(module => posix.join(module.directory === '.' ? '' : module.directory, 'module.ramify'));
+      const assignment = automaticRepairAssignmentSchema.parse({ schema: 'ramify-agent.automatic-repair-assignment/1',
+        id: 'root-repair', invocation, delegation, scope,
+        guarded: await captureGuardedFiles(this.projectRoot, [...this.requiredArtifacts(committedRecords(run.log.ledger.replay())).map(artifact => artifact.path), ...declarations],
+          await this.guardedScenarioFiles(run), [...await this.auditPreparationPaths(run), ...scopeConfigurationPaths(scope)]) });
+      if (await this.write(run, { type: 'repair-assignment-recorded', data: { assignment: assignment.id, invocation } },
+        [{ path: runLayout.contingentRepairAssignment, id: assignment.id, revision: 1, body: assignment }]) === 'ended') return false;
+      // Store a successful provider observation before any later preparation failure.
+      await this.ownershipAuthority(run, assignment).retain(current, current.paths.map(path => ({ path: path.path, allowed: path.status === 'owned' })));
+      await this.afterWrite('repair-assignment-recorded', run.record.jobId);
+      return true;
+    } catch (error) {
+      await this.fail(run, 'invalid-submission', `Contingent root repair assignment cannot be captured: ${message(error)}`);
+      return false;
+    }
+  }
+
+  private async recordRepairPreparation(run: Run, item: WorkItem, attempt: number,
+    assignment: IterationAssignment | undefined, result: IterationResult): Promise<RepairPreparation> {
+    const id = `prep-${String(run.log.count('repair-preparation-recorded') + 1).padStart(4, '0')}`;
+    const number = assignment === undefined ? 0 : Number.parseInt(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2), 10);
+    let candidate: { head: string; tree: string } | null = null;
+    let candidatePaths: string[] = [], candidateFailure: string | null = null;
+    if (run.log.find('repair-assignment-recorded') !== undefined) {
+      try {
+        candidate = await this.previewCandidateTree();
+        candidatePaths = await this.git.changedPaths(this.projectRoot, this.accepted(run));
+      } catch (error) { candidateFailure = message(error); }
+    }
+    const preparation = repairPreparationSchema.parse({ schema: 'ramify-agent.repair-preparation/1', id,
+      operation: 'prepare-local-architect', workItem: item.id, attempt, recordedAt: this.now().toISOString(),
+      ledgerSequence: run.log.events.at(-1)?.sequence ?? 0, acceptedCommit: this.accepted(run),
+      candidateBefore: candidate === null ? null : { head: candidate.head, tree: candidate.tree }, candidateFailure, candidatePaths,
+      repairAssignment: run.log.find('repair-assignment-recorded')?.data.assignment ?? null,
+      originalAssignment: assignment?.id ?? null, originalResult: assignment === undefined ? null : iterationLayout.result(item.id, number),
+      originalInvocation: result.invocations.at(-1) ?? null,
+      inputReferences: [runLayout.capturedPlan, runLayout.documentManifest,
+        ...(assignment === undefined ? [] : [iterationLayout.assignment(item.id, number), iterationLayout.result(item.id, number)]),
+        ...result.invocations.map(invocation => runLayout.submission(invocation))] });
+    const written = await this.write(run, { type: 'repair-preparation-recorded', data: { preparation: id, workItem: item.id, attempt } },
+      [{ path: runLayout.repairPreparation(id), id, revision: 1, body: preparation }]);
+    if (written === 'ended') throw new Error('The run ended before its preparation target was durable');
+    await this.afterWrite('repair-preparation-recorded', run.record.jobId);
+    return preparation;
+  }
+
+  private latestRepairIncident(run: Run): { incident: RepairIncidentRecord; stage: RepairIncidentStage } | undefined {
+    const event = run.log.all('repair-incident-recorded').at(-1);
+    if (event === undefined) return undefined;
+    const latest = [...run.log.all('repair-incident-recorded'), ...run.log.all('repair-export-recorded')].filter(item => item.data.incidentId === event.data.incidentId).sort((left, right) => left.sequence - right.sequence).at(-1)!;
+    const record = run.log.ledger.replay().flatMap(line => line.transaction.records)
+      .find(record => record.path === runLayout.repairIncident(latest.data.incidentId, latest.data.revision));
+    return { incident: repairIncidentRecordSchema.parse(record?.body), stage: event.data.stage };
+  }
+
+  /** Incident and portable export bytes precede any best-effort external tracker call. */
+  private async persistRepairIncident(run: Run, incident: RepairIncidentRecord, stage: RepairIncidentStage,
+    additional: readonly CommitRecord[] = []): Promise<RepairIncidentRecord> {
+    const payload = createRepairExportPayload(this.projectRoot, run.record.jobId, incident);
+    const written = await this.write(run, { type: 'repair-incident-recorded', data: { incidentId: incident.incidentId, revision: incident.revision, stage } },
+      [{ path: runLayout.repairIncident(incident.incidentId, incident.revision), id: incident.incidentId, revision: incident.revision, body: incident },
+        { path: repairExportPayloadPath(incident.incidentId, incident.revision), id: incident.incidentId, revision: incident.revision, body: payload }, ...additional]);
+    if (written === 'ended') throw new Error('The run ended before the repair incident could be persisted');
+    await this.afterWrite('repair-incident-recorded', run.record.jobId);
+    if (this.repairIncidentExport !== undefined && ['refused', 'blocked', 'unverified', 'continued', 'interrupted'].includes(stage)) {
+      try {
+        const exported = await exportRepairIncident(payload, this.repairIncidentExport, this.options.commandExecution, this.now);
+        const next = { ...incident, revision: incident.revision + 1, export: exported };
+        const exportWritten = await this.write(run, { type: 'repair-export-recorded', data: { incidentId: incident.incidentId, revision: next.revision, state: exported.state } },
+          [{ path: runLayout.repairIncident(next.incidentId, next.revision), id: next.incidentId, revision: next.revision, body: next },
+            { path: repairExportPayloadPath(next.incidentId, next.revision), id: next.incidentId, revision: next.revision, body: createRepairExportPayload(this.projectRoot, run.record.jobId, next) }]);
+        if (exportWritten === 'ended') {
+          this.warn(`Automatic repair incident ${incident.incidentId} export completed after the run ended; its retained pending payload must be reconciled before reporting delivery`);
+          return incident;
+        }
+        return next;
+      } catch (error) { this.warn(`Automatic repair incident ${incident.incidentId} export remains pending: ${message(error)}`); }
+    }
+    return incident;
+  }
+
+  /** One bounded writer, admitted only for a matching pure preparation after an accepted partial. */
+  private async automaticProjectRepair(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot,
+    preparation: RepairPreparation, obstruction: unknown, prepare: (report: RepairResult) => Promise<ConstructedWorkTurnStep>):
+    Promise<{ step: ConstructedWorkTurnStep; incident: RepairIncidentRecord; delta: RepairDelta } | null> {
+    const id = repairIncidentId(new Set(run.log.all('repair-incident-recorded').map(event => event.data.incidentId)).size + 1);
+    const assignment = automaticRepairAssignmentSchema.safeParse(this.committedBody(run, runLayout.contingentRepairAssignment));
+    const original = preparation.originalAssignment === null ? undefined : committedRecords(run.log.ledger.replay()).assignments.get(preparation.originalAssignment);
+    const originalOutcome = preparation.originalInvocation === null ? undefined : committedRecords(run.log.ledger.replay()).outcomes.get(preparation.originalInvocation);
+    let reason: string | null = this.ignoring(run) ? 'Stop or terminal run prevents automatic repair'
+      : run.writer.blocked ?? this.invocationRefusal(run);
+    const durableTarget = repairPreparationSchema.safeParse(this.committedBody(run, runLayout.repairPreparation(preparation.id)));
+    if (reason === null && (!durableTarget.success || JSON.stringify(durableTarget.data) !== JSON.stringify(preparation)
+      || run.log.all('repair-preparation-recorded').at(-1)?.data.preparation !== preparation.id
+      || run.log.all('repair-preparation-consumed').some(event => event.data.preparation === preparation.id))) reason = 'Preparation target is missing, mismatched or already consumed';
+    if (reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) reason = 'The run has spent its one automatic repair invocation';
+    if (reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) reason = 'No matching architect-recorded contingent root assignment is available';
+    if (reason === null && (original === undefined || originalOutcome === undefined || originalOutcome.ended !== 'submitted' ||
+      originalOutcome.outsideScope.length > 0 || (originalOutcome.unknownPlacement?.length ?? 0) > 0 || !originalOutcome.settled.confirmed)) reason = 'Original partial candidate has unavailable or refused assignment provenance';
+    const previousWriters = run.log.all('writer-acquired');
+    if (reason === null && previousWriters.some(writer => {
+      const release = run.log.all('writer-released').filter(event => event.data.invocation === writer.data.invocation);
+      return release.length !== 1 || release[0]!.data.confirmed !== true;
+    })) reason = 'A previous writer has no unique confirmed settlement';
+    if (reason === null && (obstruction instanceof OwnershipUnavailableError || obstruction instanceof OwnershipAuthorityError || obstruction instanceof z.ZodError)) reason = 'Typed ownership or input validation outcomes continue through ordinary handling';
+    let dirty: string[] = [], tree: string | null = null, head: string | null = null;
+    let before: Awaited<ReturnType<typeof captureRepairFiles>> = [];
+    let protectedBefore: Awaited<ReturnType<typeof captureRepairFiles>> = [];
+    try {
+      dirty = await this.git.changedPaths(this.projectRoot, this.accepted(run));
+      head = await this.git.currentHead(this.projectRoot);
+      tree = (await this.previewCandidateTree()).tree;
+      if (reason === null && (preparation.candidateBefore === null || tree !== preparation.candidateBefore.tree || head !== preparation.candidateBefore.head)) reason = 'Candidate changed after the recorded preparation target';
+      if (reason === null && original !== undefined) {
+        const guarded = await this.engineerGuard(run, original);
+        for (const path of dirty) {
+          const decision = await decideWrite(guarded, this.projectRoot, { kind: 'write', paths: [path] });
+          if (decision.verdict !== 'allowed') { reason = `Pre-repair candidate ${path} is outside its original assignment: ${decision.reason}`; break; }
+        }
+      }
+      if (reason === null && assignment.success) {
+        const current = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
+        if (JSON.stringify(current.scope.ownership.modules) !== JSON.stringify(assignment.data.scope.resolved.ownership.modules)) reason = 'Recorded repair topology differs from current ownership';
+        const protecting = [...assignment.data.guarded.map(file => file.path), ...await this.harnessFiles(run),
+          ...this.requiredArtifacts(committedRecords(run.log.ledger.replay())).map(artifact => artifact.path), ...declarationPaths(assignment.data),
+          ...await this.auditPreparationPaths(run), ...scopeConfigurationPaths(assignment.data.scope)];
+        protectedBefore = await captureRepairFiles(this.projectRoot, protecting);
+        before = [...new Map([...await captureRepairSource(this.projectRoot, assignment.data.scope), ...await captureRepairFiles(this.projectRoot, dirty)].map(file => [file.path, file])).values()].sort((a, b) => a.path.localeCompare(b.path));
+      }
+    } catch (error) { reason ??= `Candidate and repair authority cannot be established: ${message(error)}`; }
+    let incident = repairIncidentRecordSchema.parse({ schema: 'ramify-agent.repair-incident/1', incidentId: id, revision: 1,
+      createdAt: this.now().toISOString(), preparation: { id: preparation.id, path: runLayout.repairPreparation(preparation.id) },
+      operation: preparation.operation, workItem: preparation.workItem, originalInvocation: preparation.originalInvocation,
+      originalAssignment: preparation.originalAssignment, originalResult: preparation.originalResult,
+      harnessError: { name: obstruction instanceof Error ? obstruction.name : 'Error', message: message(obstruction),
+        stack: obstruction instanceof Error ? obstruction.stack ?? null : null, evidence: preparation.inputReferences },
+      admission: { admitted: reason === null, reason: reason ?? 'Matching pure preparation, valid explicit root delegation, settled writer and remaining budget' },
+      authority: { assignment: assignment.success ? assignment.data.id : null, scopeEvidence: assignment.success ? [runLayout.contingentRepairAssignment] : [] },
+      candidateBefore: { head, tree, changedPaths: dirty, staged: [], unstaged: [], untracked: [], evidence: [`Aggregate candidate paths: ${JSON.stringify(dirty)}; index categories are not separately inferred`, runLayout.repairPreparation(preparation.id)] },
+      candidateAfter: null, invocation: null, session: null, result: null, verification: null, continuation: null,
+      startedAt: null, endedAt: null, elapsedMs: null, usage: null, versions: { ramify: assignment.success ? assignment.data.scope.resolved.ownership.ramifyVersion : 'unavailable' },
+      export: { externalRef: repairExternalRef(repairProjectKey(this.projectRoot), run.record.jobId, id), state: 'pending', issueId: null, reason: 'Not exported', attemptedAt: null } });
+    incident = await this.persistRepairIncident(run, incident, reason === null ? 'admitted' : 'refused');
+    if (reason !== null || !assignment.success || original === undefined) {
+      await this.fail(run, 'inputs-changed', `Architect preparation failed: ${message(obstruction)}. Automatic repair refused: ${reason}`);
+      return null;
+    }
+    const assigned = assignment.data;
+    const guarded = guardedScopeOf(assigned.scope, await deniedFiles(this.projectRoot,
+      [...await this.deniedFiles(run), ...protectedBefore.map(file => file.path)]), this.options.ramify, undefined, this.ownershipAuthority(run, assigned));
+    const remaining = run.record.policy.limits.runAbsoluteMs - (this.now().getTime() - Date.parse(run.record.createdAt) - callerPauseMs(run.log.events, this.now().getTime()));
+    const bounds = engineerBoundsOf(run.record.policy.limits).defaults;
+    const absoluteMs = Math.min(bounds.absoluteMs, remaining);
+    if (absoluteMs <= 0 || this.ignoring(run)) {
+      await this.persistRepairIncident(run, { ...incident, revision: incident.revision + 1, endedAt: this.now().toISOString() }, 'blocked');
+      if (!this.ignoring(run)) await this.fail(run, 'limit-exceeded', 'Automatic repair has no remaining whole-run time budget');
+      return null;
+    }
+    const toolName = 'submit_automatic_repair';
+    const tools = this.implementationTools(run, { workingDirectory: this.projectRoot, scopeRevision: assigned.scope.revision,
+      guarded, commandTimeoutMs: Math.min(bounds.commandTimeoutMs, absoluteMs), submissions: { legalOutcomes: ['ready', 'blocked'], completionOutcome: null } });
+    const loaded = packages.get('engineer');
+    if (loaded === undefined) throw new Error('Engineer prompt package is unavailable for automatic repair');
+    const prompt = ['Restore only the named architect preparation operation so its responsible architect can continue.',
+      'Preserve useful partial work, the plan, acceptance, accepted behavior and every module declaration. Do not create, remove or re-parent modules.',
+      'Use the supplied root subtree assignment and normal guarded tools. A shell is no exception to denied edits. Do not edit harness code, progress records or Git history.',
+      'If the repair requires unavailable authority or a change to the running harness, report blocked.',
+      `Submit ready or blocked through ${toolName}; ready is a judgment pending harness verification, never plan completion.`,
+      `Active work item: ${preparation.workItem}. Original partial assignment: ${run.path(iterationLayout.assignment(preparation.workItem, Number.parseInt(original.id.split('.i').at(-1)!, 10)))}.`,
+      `Preparation and input references: ${run.path(runLayout.repairPreparation(preparation.id))}.`,
+      `Full incident diagnostics: ${run.path(runLayout.repairIncident(id, incident.revision))}.`,
+      `Root assignment: ${run.path(runLayout.contingentRepairAssignment)}. Instructions: ${assigned.delegation.instructions}.`,
+      `Captured engineer bounds: ${JSON.stringify({ ...bounds, absoluteMs })}. Candidate ${tree}; accepted commit ${preparation.acceptedCommit}; dirty paths ${JSON.stringify(dirty)}.`,
+      this.planPackage(run, await this.frozenCatalog(run)),
+    ].join('\n\n');
+    incident = await this.persistRepairIncident(run, { ...incident, revision: incident.revision + 1, startedAt: this.now().toISOString() }, 'running');
+    const linesBefore = await takeLineSnapshot(this.projectRoot, this.accepted(run), this.git);
+    const result = await this.runInvocation<RepairResult>(run, agent, {
+      role: 'engineer', work: { workItem: preparation.workItem, automaticRepair: id }, attempt: 1, loaded,
+      task: { kind: 'automatic-repair', goal: 'Restore blocked architect preparation', modules: [assigned.delegation.root],
+        requirements: [this.planPackage(run, await this.frozenCatalog(run))] },
+      systemPrompt: `You are the bounded automatic project repair engineer. Work only under the captured root assignment. ${prompt}`,
+      prompt, start: { mode: 'fresh' }, toolName, description: 'Report preparation repair readiness, evidence and remaining implementation work.',
+      inputSchema: z.toJSONSchema(repairResultSchema) as JsonSchema, submissionSchema: 'ramify-agent.automatic-repair-result/1', validate: input => validateAgainst(repairResultSchema, input),
+      bounds: { idleMs: Math.min(bounds.idleMs, absoluteMs), absoluteMs, commandTimeoutMs: Math.min(bounds.commandTimeoutMs, absoluteMs) },
+      context: contextPolicyOf(run.record.policy, 'engineer'), keep: () => finished('work-closed'),
+      scope: { write: assigned.scope.revision, measurement: this.baselineReference(run), size: null },
+      measured: { snapshot: baseline, scope: writeScopeMeasurement(assigned.scope), readScope: readScopeMeasurement(assigned.scope) },
+      writer: true, guarded, readModules: [], workingDirectory: this.projectRoot, equip: tools.equip, previewEquipment: tools.preview,
+    });
+    await this.recordLineEvents(run, result.id, linesBefore, await takeLineSnapshot(this.projectRoot, this.accepted(run), this.git));
+    const outcome = result.id === '' ? undefined : committedRecords(run.log.ledger.replay()).outcomes.get(result.id);
+    const started = run.log.all('invocation-started').find(event => event.data.invocation === result.id);
+    incident = { ...incident, revision: incident.revision + 1, invocation: result.id || null, session: started?.data.session ?? null,
+      result: result.value ?? null, endedAt: this.now().toISOString(), elapsedMs: outcome?.elapsedMs ?? null,
+      usage: outcome?.usage !== undefined && 'total' in outcome.usage ? { inputTokens: outcome.usage.input, outputTokens: outcome.usage.output, totalTokens: outcome.usage.total, cost: null } : null };
+    if (!this.ignoring(run)) {
+      const evidencePath = posix.join('repairs', 'attempts', `${id}.json`);
+      let afterFiles: Awaited<ReturnType<typeof captureRepairFiles>> = [], afterPaths: string[] = [], diagnosticFailure: string | null = null;
+      try {
+        afterPaths = await this.git.changedPaths(this.projectRoot, this.accepted(run));
+        const afterSource = await captureRepairSource(this.projectRoot, assigned.scope);
+        afterFiles = await captureRepairFiles(this.projectRoot, [...before.map(file => file.path), ...afterSource.map(file => file.path), ...afterPaths]);
+      } catch (error) { diagnosticFailure = message(error); }
+      incident = { ...incident, candidateAfter: { head: await this.git.currentHead(this.projectRoot), tree: null, changedPaths: afterPaths,
+        staged: [], unstaged: [], untracked: [], evidence: [evidencePath, ...(diagnosticFailure === null ? [] : [diagnosticFailure])] } };
+      incident = await this.persistRepairIncident(run, incident, 'running', [{ path: evidencePath, id, revision: 1,
+        body: repairAttemptSchema.parse({ schema: 'ramify-agent.automatic-repair-attempt/1', incidentId: id, invocation: result.id || 'not-started', before, after: afterFiles,
+          changes: repairChanges(before, afterFiles), protectedBefore, failure: diagnosticFailure }) }]);
+      incident = { ...incident, revision: incident.revision + 1 };
+    }
+    const blocked = async (why: string, stage: 'blocked' | 'unverified' = 'unverified'): Promise<null> => {
+      await this.persistRepairIncident(run, { ...incident, verification: { verified: false, reason: why, evidence: [] }, continuation: { delivered: false, reason: why, evidence: [] } }, stage);
+      if (!this.ignoring(run)) await this.fail(run, 'inputs-changed', `Original architect obstruction: ${message(obstruction)}. Automatic repair: ${why}`);
+      return null;
+    };
+    if (result.ended !== 'submitted' || result.value === undefined || result.value.outcome === 'blocked') return blocked(`Repair ended ${result.ended}${result.value === undefined ? '' : `: ${result.value.summary}`}`, 'blocked');
+    if (this.ignoring(run) || run.writer.blocked !== undefined || outcome?.settled.confirmed !== true) return blocked('Repair writer settlement is unverified');
+    if (outcome.outsideScope.length > 0 || (outcome.unknownPlacement?.length ?? 0) > 0) return blocked('Repair outcome records outside-scope writes or unknown placement');
+    try {
+      const documentFaults = await documentChanges(this.projectRoot, run.record.planId, run.directory, run.record.manifest);
+      if (documentFaults.length > 0) return blocked(`Protected captured documents changed: ${documentFaults.join('; ')}`);
+      const protectedNow = await captureRepairFiles(this.projectRoot, protectedBefore.map(file => file.path));
+      if (protectedNow.some(file => { const original = protectedBefore.find(original => original.path === file.path); return file.hash !== original?.hash || file.mode !== original.mode; })) return blocked('Protected configuration, accepted artifacts or module declarations changed');
+      const ownership = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
+      if (JSON.stringify(ownership.scope.ownership.modules) !== JSON.stringify(assigned.scope.resolved.ownership.modules)) return blocked('Repair changed the module structure');
+      const afterDirty = await this.git.changedPaths(this.projectRoot, this.accepted(run));
+      const afterSource = await captureRepairSource(this.projectRoot, assigned.scope);
+      const after = await captureRepairFiles(this.projectRoot, [...before.map(file => file.path), ...afterSource.map(file => file.path), ...afterDirty]);
+      const changes = repairChanges(before, after);
+      if ((await outsideScope(this.projectRoot, guarded, changes.map(change => change.path))).length > 0) return blocked('Repair delta violates captured or current authority');
+      const delta = repairDeltaSchema.parse({ schema: 'ramify-agent.automatic-repair-delta/1', incidentId: id,
+        assignment: assigned.id, originalAssignment: original.id, acceptedCommit: preparation.acceptedCommit, invocation: result.id,
+        beforeValidated: true, beforeDirtyPaths: dirty, before, after, changes,
+        structure: protectedBefore.filter(file => declarationPaths(assigned).includes(file.path)).map(file => ({ path: file.path, hash: file.hash })) });
+      const afterCandidate = await this.previewCandidateTree();
+      if (afterCandidate.head !== head) return blocked('Repair changed Git history or HEAD');
+      incident = { ...incident, candidateAfter: { head: afterCandidate.head, tree: afterCandidate.tree, changedPaths: afterDirty, staged: [], unstaged: [], untracked: [], evidence: [`Aggregate candidate paths: ${JSON.stringify(afterDirty)}`, runLayout.repairDelta(id)] },
+        verification: { verified: true, reason: 'Settled guarded delta preserves protected inputs and declarations; pure preparation repeated successfully', evidence: [runLayout.repairDelta(id)] } };
+      const step = await prepare(result.value);
+      return { step, incident, delta };
+    } catch (error) { return blocked(`Preparation remains unavailable or repair cannot be verified: ${message(error)}`); }
   }
 
   /** Only durable assignments of this responsible coordinator supply repair authority. */

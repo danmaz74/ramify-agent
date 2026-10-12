@@ -3,6 +3,7 @@ import type { RunDecisionRequests, RunEnvironmentProblem, RunNotice, RunPlanDevi
 import { environmentProblemSchema } from '../deviations/records.js';
 import { runSnapshot } from '../run/snapshot.js';
 import type { CommittedLine, RunView } from './inputs.js';
+import { automaticRepairsOf } from './repairs.js';
 
 /*
  * The run's snapshot as a client reads it: the harness's own snapshot of the
@@ -68,6 +69,7 @@ export function snapshotOf(view: RunView): RunSnapshot {
     decisionRequests: decisionRequestsOf(view.entries, internal.state === 'running' && !internal.stopRequested),
     planDeviations: planDeviationsOf(view.entries),
     environmentProblems: environmentProblemsOf(view.entries),
+    automaticRepairs: automaticRepairsOf(view),
     breakpoint: internal.breakpoint,
   };
 }

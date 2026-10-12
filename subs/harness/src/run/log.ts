@@ -1,5 +1,6 @@
 import { consultationTargetSchema } from '../consultations/targets.js';
 import { debugExchangeSchema } from '../interfaces/protocol/runs.js';
+import { repairIncidentIdSchema, repairIncidentStageSchema } from '../interfaces/protocol/repairs.js';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 import { jobIdSchema } from '../interfaces/protocol/ids.js';
@@ -75,6 +76,13 @@ const invocationEndedFields = {
 
 /** One line of a run's event log. */
 export const runEventSchema = z.discriminatedUnion('type', [
+  event('repair-assignment-recorded', z.object({ assignment: text, invocation: text }).strict()),
+  event('repair-preparation-recorded', z.object({ preparation: text, workItem: text, attempt: z.int().positive() }).strict()),
+  event('repair-preparation-consumed', z.object({ preparation: text, workItem: text }).strict()),
+  /** Commits one full incident revision; never changes the original engineer result. */
+  event('repair-incident-recorded', z.object({ incidentId: repairIncidentIdSchema, revision: z.int().positive(), stage: repairIncidentStageSchema }).strict()),
+  /** Export changes only tracker delivery evidence, including after the run ends. */
+  event('repair-export-recorded', z.object({ incidentId: repairIncidentIdSchema, revision: z.int().positive(), state: z.enum(['pending', 'exported', 'conflict']) }).strict()),
   /** Actual packet/scope/execution identity committed before observational events; does not start another invocation. */
   // Each of an invocation's two record revisions names its part; earlier logs name neither.
   event('invocation-prepared', z.object({ invocation: text, recorded: z.enum(['delivered-inputs', 'operation-identity']).optional() }).strict()),
@@ -746,6 +754,7 @@ const terminal = new Set<string>(terminalRunEvents);
  * deviation.
  */
 function mayFollow(ended: RunEvent, input: Pick<RunEvent, 'type' | 'data'> | RunEventInput): boolean {
+  if (input.type === 'repair-export-recorded') return true;
   if (input.type === 'check-findings-recorded') return (input.data as RunEventOf<'check-findings-recorded'>['data']).cause.kind === 'user-command';
   return ended.type === 'job-completed' && input.type === 'analysis-approved';
 }

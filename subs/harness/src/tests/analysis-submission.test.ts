@@ -171,7 +171,9 @@ describe('the schema', () => {
 
   test('has no field for an ID the harness already knows', () => {
     const properties = (initialAnalysisJsonSchema as { properties: Record<string, unknown> }).properties;
-    expect(Object.keys(properties).sort()).toEqual(['coverageLimits', 'elements', 'entries', 'hypotheses', 'integrationScenarios', 'scenarios']);
+    expect(Object.keys(properties).sort()).toEqual(['contingentRepairAssignment', 'coverageLimits', 'elements', 'entries', 'hypotheses', 'integrationScenarios', 'scenarios']);
+    const repair = JSON.stringify(properties['contingentRepairAssignment']);
+    for (const assigned of ['id', 'invocation', 'revision', 'resolved', 'schema']) expect(repair).not.toContain(`"${assigned}"`);
     // An element is named by the architect's key; its fr-NNN or ctx-NNN is the harness's.
     expect(JSON.stringify(properties['elements'])).not.toContain('"id"');
     const hypothesis = JSON.stringify(properties['hypotheses']);

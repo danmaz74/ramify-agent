@@ -22,8 +22,8 @@ import { briefText } from '../../architecture/context.js';
 /*
  * The recovery tables of the ten state machines, composed into one table
  * keyed by the durable boundary a crash can land after. The keys are the
- * existing interrupted-run boundaries. The five resumable non-functional
- * boundaries have a separate witness in nonfunctional-recovery.test.ts;
+ * existing interrupted-run boundaries. Non-functional, capability, scratch
+ * and automatic repair boundaries name their separate witnesses below;
  * together their keys exhaust the run service's `RunWrite` union.
  *
  * Every row is held to the same checks, whatever its machine: recovery
@@ -126,7 +126,15 @@ export const capabilityRecoveryBoundaries = {
   'capability-assigned': 'capability-recovery.test.ts',
   'capability-verification-started': 'capability-acceptance.integration.test.ts',
 } as const satisfies Partial<Record<RunWrite, string>>;
-type InterruptedRunWrite = Exclude<RunWrite, 'debug-exchange-admitted' | keyof typeof nonfunctionalRecoveryBoundaries | keyof typeof capabilityRecoveryBoundaries | keyof typeof scratchRecoveryBoundaries>;
+export const automaticRepairRecoveryBoundaries = {
+  'repair-assignment-recorded': 'automatic-project-repair.test.ts',
+  'repair-preparation-recorded': 'automatic-project-repair.test.ts',
+  'repair-preparation-consumed': 'automatic-project-repair.test.ts',
+  'repair-incident-recorded': 'automatic-project-repair.test.ts',
+} as const satisfies Partial<Record<RunWrite, string>>;
+
+// Automatic repair interruption is qualified by automatic-project-repair.test.ts.
+type InterruptedRunWrite = Exclude<RunWrite, keyof typeof automaticRepairRecoveryBoundaries | 'debug-exchange-admitted' | keyof typeof nonfunctionalRecoveryBoundaries | keyof typeof capabilityRecoveryBoundaries | keyof typeof scratchRecoveryBoundaries>;
 
 /** One row per durable boundary with the interrupted-run recovery contract. */
 export const recoveryTable = {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { contingentRepairDelegationSchema } from '../run/repair-preparation.js';
 import { symbolRecords, type ArchitectIndex, type ModuleEntry } from '../../subs/evidence/src/views.js';
 import { citationSchema, modulePathSchema } from '../interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
@@ -82,6 +83,8 @@ const hypothesisSubmissionSchema = z.object({
 export const initialAnalysisSubmissionSchema = z.object({
   /** The functional and context elements of the plan documents. */
   elements: z.array(submittedElementSchema),
+  /** Optional root delegation for one unexpected architect preparation obstruction. */
+  contingentRepairAssignment: contingentRepairDelegationSchema.optional(),
   entries: z.array(entrySchema),
   hypotheses: z.array(hypothesisSubmissionSchema),
   coverageLimits: z.array(z.string()),

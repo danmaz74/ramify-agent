@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import {
   analysisResponseSchema, capabilityListResponseSchema, capabilityStateSchema, decisionListResponseSchema, gateViewSchema, metricsResponseSchema,
   moduleCapabilityComparisonResponseSchema, runSnapshotSchema, scenarioListResponseSchema, workItemListResponseSchema, workItemResponseSchema,
+  repairIncidentViewSchema,
   type GateView, type RunSnapshot, type WorkItemSummary,
 } from '../../../harness/src/interfaces/protocol/runs.js';
 import { checkFindingListResponseSchema, checkFindingModuleCountsSchema } from '../../../harness/src/interfaces/protocol/check-findings.js';
@@ -21,6 +22,25 @@ const at = '2026-09-21T08:00:00.000Z';
 const baseCommit = 'a'.repeat(40);
 const failedCommit = 'b'.repeat(40);
 const passedRequest = 'e'.repeat(40);
+
+function automaticRepair(stage: 'running' | 'continued' | 'refused') {
+  return repairIncidentViewSchema.parse({
+    schema: 'ramify-agent.repair-incident/1', incidentId: 'apr-0001', revision: 3, createdAt: at, updatedAt: at, stage,
+    preparation: { id: 'prep-0001', path: 'repairs/preparations/prep-0001.json' }, operation: 'local-architect-work-turn', workItem: 'wi-002',
+    originalInvocation: 'inv-0006', originalAssignment: 'wi-002.i01', originalResult: 'work/wi-002/i01/result.json',
+    harnessError: { name: 'Error', message: 'Retained path missing during architect preparation', stack: null, evidence: ['retained-input.json'] },
+    admission: { admitted: stage !== 'refused', reason: stage === 'refused' ? 'Root assignment unavailable' : 'Recorded preparation cannot reach architect' },
+    authority: { assignment: 'repair-assignment-1', scopeEvidence: ['repairs/assignment.json'] },
+    candidateBefore: { head: 'abc', tree: 'def', staged: ['partial.ts'], unstaged: [], untracked: [], evidence: [] }, candidateAfter: null,
+    invocation: stage === 'refused' ? null : 'inv-0007', session: stage === 'refused' ? null : 'ses-0003',
+    result: stage === 'continued' ? { outcome: 'ready', summary: 'Restored compatible source entry', checks: ['Preparation retried'], remainingWork: ['Complete module behavior'], suspectedCause: 'Stale retained input', evidence: [] } : null,
+    verification: stage === 'continued' ? { verified: true, reason: 'Structure preserved', evidence: [] } : null,
+    continuation: stage === 'continued' ? { delivered: true, reason: 'Prepared fresh architect inputs', evidence: [] } : null,
+    startedAt: null, endedAt: null, elapsedMs: stage === 'continued' ? 700 : null,
+    usage: null, versions: { harness: '1' },
+    export: { externalRef: 'ramify-agent:repair:project:run:apr-0001', state: 'pending', issueId: null, reason: 'Tracker not configured', attemptedAt: null },
+  });
+}
 
 /** A committing gate's configured audit as the protocol shows it. */
 function auditView(requested: string, audited: string, verdict: 'pass' | 'fail', reuse: NonNullable<GateView['audit']>['reuse'] = null): NonNullable<GateView['audit']> {
@@ -1326,4 +1346,45 @@ test('U06: a reached pause shows the header badge, a banner that names it and op
     ['Task state', 'pending'], ['Pause ID', 'bp-0001'], ['Revision', '1'],
   ]);
   expect(within(area).getByLabelText('Harness summary').textContent).toBe('The module engineer for wi-001.i01 is prepared and waits for resume.');
+});
+
+test('automatic repair shows its live transcript and obstruction while Stop remains available', async () => {
+  const repair = automaticRepair('running');
+  render(<RunPage client={clientWith(stubRun({ automaticRepairs: { attempted: 1, refused: 0, incidents: [repair] } }))} planId="review-notes" runId={runId} interval={60_000} />);
+  const card = await screen.findByRole('region', { name: 'Automatic repair incidents' });
+  expect(within(card).getByRole('heading', { name: 'apr-0001: Automatic repair in progress' })).toBeTruthy();
+  expect(within(card).getByText(/Retained path missing/)).toBeTruthy();
+  expect(within(card).getByRole('link', { name: 'Live repair transcript (ses-0003)' }).getAttribute('href')).toBe(`#/plans/review-notes/runs/${runId}/sessions/ses-0003/chapters/inv-0007`);
+  expect((screen.getByRole('button', { name: 'Stop' }) as HTMLButtonElement).disabled).toBe(false);
+  expect(screen.getByText('1 attempted; 0 refused before invocation')).toBeTruthy();
+});
+
+test('automatic repair history retains handback, unfinished work and pending export after completion', async () => {
+  const repair = automaticRepair('continued');
+  render(<RunPage client={clientWith(stubRun({ state: 'completed', current: null, endedAt: at, writer: { held: null, unsettled: null }, automaticRepairs: { attempted: 1, refused: 0, incidents: [repair] } }))} planId="review-notes" runId={runId} interval={60_000} />);
+  const card = await screen.findByRole('region', { name: 'Automatic repair incidents' });
+  expect(within(card).getByRole('heading', { name: 'apr-0001: Architect continuation restored' })).toBeTruthy();
+  expect(within(card).getByText('Complete module behavior')).toBeTruthy();
+  expect(within(card).getByText(/Beads export: pending/)).toBeTruthy();
+  expect(within(card).getByText(/Preparation verified/)).toBeTruthy();
+  expect(within(card).getByText('work/wi-002/i01/result.json')).toBeTruthy();
+});
+
+test('automatic repair admission refusal is displayed apart from the attempted count', async () => {
+  render(<RunPage client={clientWith(stubRun({ automaticRepairs: { attempted: 0, refused: 1, incidents: [automaticRepair('refused')] } }))} planId="review-notes" runId={runId} interval={60_000} />);
+  expect(await screen.findByText('0 attempted; 1 refused before invocation')).toBeTruthy();
+  expect(screen.getByText('Root assignment unavailable')).toBeTruthy();
+  expect(screen.queryByRole('link', { name: /repair transcript/i })).not.toBeTruthy();
+});
+
+test('an interrupted repair retains its transcript and unsettled writer without claiming verification', async () => {
+  const repair = { ...automaticRepair('running'), stage: 'interrupted' as const };
+  render(<RunPage client={clientWith(stubRun({ state: 'stopped', current: null, endedAt: at,
+    writer: { held: null, unsettled: 'inv-0007' }, automaticRepairs: { attempted: 1, refused: 0, incidents: [repair] } }))}
+    planId="review-notes" runId={runId} interval={60_000} />);
+  const card = await screen.findByRole('region', { name: 'Automatic repair incidents' });
+  expect(within(card).getByRole('heading', { name: 'apr-0001: Repair interrupted' })).toBeTruthy();
+  expect(within(card).getByRole('link', { name: 'Repair transcript (ses-0003)' })).toBeTruthy();
+  expect(within(card).queryByText(/Automatic repair in progress|Preparation verified|Architect continuation delivered/)).toBeNull();
+  expect(screen.getByText(/inv-0007 was not confirmed settled/)).toBeTruthy();
 });

@@ -15,6 +15,7 @@ import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
 import { RunService, type RunRecoveryReport, type RunServiceOptions } from '../run/service.js';
 import { acquireProjectLock } from '../store/lock.js';
 import { createApp } from './app.js';
+import type { RepairExportConfiguration } from '../run/repair-export.js';
 
 /**
  * The agent a run is started with. `pi` is pi with the person's own login.
@@ -28,6 +29,7 @@ export type AgentChoice = 'pi' | 'fake' | AgentPort;
 
 /** What the root starts a server with. */
 export interface ServerOptions {
+  readonly repairIncidentExport?: RepairExportConfiguration | undefined;
   /** The project to serve; it must contain a root `module.ramify`. */
   readonly projectRoot: string;
   /** The port to listen on; 0 lets the system choose. */
@@ -76,6 +78,7 @@ export interface RunningServer {
 
 /** The server options the package root's `serve` command owns. */
 export interface CliServerOptions {
+  readonly repairIncidentExport?: RepairExportConfiguration | undefined;
   readonly projectRoot: string;
   readonly port: number;
   readonly assetsDirectory?: string | undefined;
@@ -189,6 +192,7 @@ export async function startServerWith(options: ServerSettings): Promise<RunningS
       lock,
       ramify,
       configuredAudit: options.runs?.configuredAudit ?? createConfiguredAudit({ workspaceOwnership: createAuditWorkspaceOwnership(projectRoot) }),
+      ...(options.repairIncidentExport === undefined ? {} : { repairIncidentExport: { ...options.repairIncidentExport } }),
       ...(agent === undefined ? {} : { agent }),
       ...(model === undefined ? {} : { model }),
     };

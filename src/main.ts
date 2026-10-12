@@ -5,6 +5,7 @@ import { ProjectRootError, startCliServer } from '../subs/harness/src/http/serve
 import { runSessionCommand } from '../subs/harness/src/sessions/command.js';
 import type { SessionProgress, SessionSummary } from '../subs/harness/src/sessions/single.js';
 import { runConsultationsCommand } from '../subs/harness/src/consultations/command.js';
+import { runRepairExportCommand } from '../subs/harness/src/run/repair-export-command.js';
 import { runStepCommand } from '../subs/harness/src/steps/command.js';
 import { isProjectLockError } from '../subs/harness/src/store/lock.js';
 import { parseCommandLine, usage, UsageError, type CommandLine } from './cli.js';
@@ -20,8 +21,8 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.log(usage);
     return 0;
   }
-  if (commandLine.command === 'consultations') {
-    const result = await runConsultationsCommand(commandLine);
+  if (commandLine.command === 'consultations' || commandLine.command === 'repair-export') {
+    const result = commandLine.command === 'consultations' ? await runConsultationsCommand(commandLine) : await runRepairExportCommand(commandLine);
     if (result.stdout !== '') process.stdout.write(result.stdout);
     if (result.stderr !== '') process.stderr.write(result.stderr);
     return result.exitStatus;
@@ -35,6 +36,7 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   const server = await startCliServer({
     projectRoot: commandLine.projectRoot, port: commandLine.port, assetsDirectory, agent: commandLine.agent, piModel: commandLine.model,
+    repairIncidentExport: commandLine.repairIncidentExport,
   });
   console.log(`Serving ${server.projectRoot}`);
   console.log(`Open ${server.url}/`);

@@ -167,3 +167,21 @@ reviews the analysis: a step that names an exported symbol or a file the
 architect view records, a sub-scenario that takes none of its steps from its
 integration scenario, and two architect scenarios of one entry with identical
 steps.
+
+### Contingent project repair delegation
+
+When appropriate, include `contingentRepairAssignment` in the initial analysis to
+authorize one bounded source repair if an unexpected harness exception prevents
+preparation of the responsible local architect's next turn after a partial result.
+Name the current project root and explicitly name each included immediate child
+subtree with its reason and instructions. Root ownership alone does not include
+child implementations. Include owned nested projects only with explicit reasons
+and their own instructions. The harness captures current placement before this
+assignment can activate; missing or invalid ownership cannot establish it.
+
+This contingent assignment authorizes source compatibility repair only. It does
+not authorize new modules, declaration changes, configuration edits, altered
+acceptance, harness changes or completion of semantic obligations. Omit it when
+this scope cannot safely be delegated; an exception then retains its incident
+and the ordinary failure path. Partial results, ownership acquisition failures,
+semantic conflicts and exhausted correction bounds are not repair triggers.

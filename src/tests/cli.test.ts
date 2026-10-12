@@ -26,6 +26,17 @@ test('usage errors', () => {
   }
 });
 
+test('repair export and service capture an explicit absolute Beads destination', () => {
+  const destination = ['--bd-executable', '/tools/bd', '--beads-workspace', '/tracker'];
+  expect(parseCommandLine(['repair', 'export', '--run', '/target/plans/p/.harness/jobs/run-1', ...destination, '--incident', 'apr-0001', '--json']))
+    .toEqual({ command: 'repair-export', run: '/target/plans/p/.harness/jobs/run-1', executable: '/tools/bd', workspace: '/tracker', incident: 'apr-0001', json: true });
+  expect(parseCommandLine(['serve', '--project', '/target', ...destination])).toMatchObject({ repairIncidentExport: { executable: '/tools/bd', workspace: '/tracker' } });
+  for (const argv of [['repair', 'export', '--run', '/r'], ['repair', 'export', '--run', '/r', '--bd-executable', 'bd', '--beads-workspace', '/tracker'],
+    ['serve', '--project', '/target', '--beads-workspace', '/tracker'], ['serve', '--project', '/target', '--bd-executable', '/tools/bd', '--beads-workspace', 'tracker']]) {
+    expect(() => parseCommandLine(argv)).toThrow(UsageError);
+  }
+});
+
 describe('session', () => {
   const base = ['session', '--project', 'p', '--module', 'app/reviews'];
 

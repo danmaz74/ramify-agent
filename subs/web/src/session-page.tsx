@@ -63,7 +63,7 @@ function chaptersOf(entries: readonly TranscriptEntry[], invocations: readonly s
 }
 
 function workText(work: RunSessionView['work']): string {
-  const parts = [work.workItem, work.iteration, work.request && `request ${work.request}`].filter(Boolean);
+  const parts = [work.workItem, work.iteration, work.request && `request ${work.request}`, work.automaticRepair && `automatic repair ${work.automaticRepair}`].filter(Boolean);
   return parts.length === 0 ? 'none' : parts.join(', ');
 }
 

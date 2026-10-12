@@ -98,6 +98,7 @@ expose-sub runDecisionRequestsSchema, RunDecisionRequests from harness to descen
 expose-sub runPlanDeviationsSchema, RunPlanDeviations from harness to descendants
 expose-sub runEnvironmentProblemSchema, RunEnvironmentProblem from harness to descendants
 expose-sub runSnapshotSchema, RunSnapshot, unservedRunSchema, UnservedRun from harness to descendants
+expose-sub repairIncidentViewSchema, RepairIncidentView from harness to descendants
 expose-sub runListResponseSchema, RunListResponse, runResponseSchema, RunResponse from harness to descendants
 expose-sub breakpointSelectorSchema, BreakpointSelector, breakpointStateSchema, BreakpointState from harness to descendants
 expose-sub debugExchangeSchema, DebugExchange, debugInspectionSchema, DebugInspection from harness to descendants

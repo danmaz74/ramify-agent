@@ -14,6 +14,9 @@ import { assessmentSchema, roundSchema } from '../../subs/nonfunctional/src/inte
 import { incorporationSchema } from '../analysis/evidence-contracts.js';
 import { contextSelectionSchema } from '../context-selection/contracts.js';
 import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
+import { repairIncidentRecordSchema } from './repair-records.js';
+import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema } from './repair-preparation.js';
+import { repairExportPayloadSchema } from './repair-export.js';
 
 /*
  * The durable records of one implementation run, and where each of them is
@@ -597,6 +600,7 @@ export const usageSchema = z.object({
 export const invocationWorkSchema = z.object({ workItem: text.optional(), iteration: text.optional(), request: text.optional(),
   capabilityTask: text.optional(),
   nonfunctionalRepair: text.optional(),
+  automaticRepair: text.optional(),
 }).strict();
 export type InvocationWork = z.infer<typeof invocationWorkSchema>;
 
@@ -994,6 +998,10 @@ export const runLayout = {
   readiness: (attempt: number): string => join('readiness', readinessDirectory(attempt), 'attempt.json'),
   readinessOutput: (attempt: number): string => join('readiness', readinessDirectory(attempt)),
   recovery: (id: RecoveryId): string => join('recoveries', `${id}.json`),
+  repairIncident: (id: string, revision: number): string => join('repairs', 'incidents', id, `${revision}.json`),
+  contingentRepairAssignment: join('repairs', 'assignment.json'),
+  repairPreparation: (id: string): string => join('repairs', 'preparations', `${id}.json`),
+  repairDelta: (id: string): string => join('repairs', 'deltas', `${id}.json`),
   measurement: (id: SnapshotId): string => join('measurements', `${id}.json`),
   gate: (id: string): string => join('gates', id, 'attempt.json'),
   gateAuditOutcome: (id: string): string => join('gates', id, 'audit-outcome.json'),
@@ -1039,6 +1047,12 @@ export const runSchemas = {
   scenario: { schema: 'ramify-agent.scenario/1', body: scenarioRecordSchema },
   readiness: { schema: 'ramify-agent.readiness-attempt/1', body: readinessAttemptSchema },
   recovery: { schema: 'ramify-agent.infrastructure-recovery/1', body: infrastructureRecoverySchema },
+  repairIncident: { schema: 'ramify-agent.repair-incident/1', body: repairIncidentRecordSchema },
+  automaticRepairAssignment: { schema: 'ramify-agent.automatic-repair-assignment/1', body: automaticRepairAssignmentSchema },
+  repairPreparation: { schema: 'ramify-agent.repair-preparation/1', body: repairPreparationSchema },
+  repairDelta: { schema: 'ramify-agent.automatic-repair-delta/1', body: repairDeltaSchema },
+  repairAttempt: { schema: 'ramify-agent.automatic-repair-attempt/1', body: repairAttemptSchema },
+  repairExport: { schema: 'ramify-agent.repair-incident-export/1', body: repairExportPayloadSchema },
   measurement: { schema: 'ramify-agent.measurement-snapshot/1', body: measurementSnapshotSchema },
   lineEvents: { schema: 'ramify-agent.line-events/1', body: lineEventSummarySchema },
   invocation: { schema: 'ramify-agent.invocation/1', body: invocationSchema },

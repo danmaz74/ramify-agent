@@ -2,6 +2,7 @@ import { architectAnswerName, architectAnswerJsonSchema } from '../consultations
 import type { LoadedPackage, ExtractionTurn, PackageFile } from './packages.js';
 import type { ReviewKind } from '../run/records.js';
 import { z } from 'zod';
+import { repairResultSchema } from '../run/repair-records.js';
 import { qualificationActionSchema } from '../capability/submission.js';
 import { initialAnalysisToolName } from '../analysis/submission.js';
 import { intakeToolName, principleToolName, checkToolName } from '../analysis/extraction.js';
@@ -19,7 +20,7 @@ import { buildDeliveredManifest, exactInputHash, type DeliveredInput, type Deliv
 import { deliveredBefore, effectiveBlocks, renderBlockSet, renderBlockRemoval, resolveBlockAdditions, setsBody } from './blocks.js';
 import { taskBriefingRevision, type BriefingDelivery } from './briefings.js';
 
-export type TaskKind = 'initial-analysis' | ExtractionTurn | 'placement' | 'orientation' | 'assignment' | 'completion' | 'repair'
+export type TaskKind = 'initial-analysis' | ExtractionTurn | 'placement' | 'orientation' | 'assignment' | 'completion' | 'repair' | 'automatic-repair'
   | 'selection' | 'reselection' | 'capability' | 'engineering' | 'contract' | 'reconciliation' | ReviewKind | 'design-orientation'
   | 'failure-analysis' | 'assessment' | 'action' | 'investigation' | 'standalone-command' | 'capability-qualification' | 'consultation' | 'architect-consultation';
 
@@ -43,7 +44,7 @@ const procedureFamilies: Readonly<Partial<Record<LoadedPackage['role'], Partial<
   'global-fork': { placement: 'main', 'architect-consultation': 'architect-consultation' },
   'local-architect': { 'architect-consultation': 'architect-consultation', orientation: 'orientation', assignment: 'main', completion: 'main', repair: 'main', reconciliation: 'reconciliation', 'capability-qualification': 'qualification' },
   'context-selector': { selection: 'main', reselection: 'main' },
-  engineer: { engineering: 'main', repair: 'main', 'standalone-command': 'main', consultation: 'consultation' },
+  engineer: { engineering: 'main', repair: 'main', 'automatic-repair': 'automatic-repair', 'standalone-command': 'main', consultation: 'consultation' },
   'capability-architect': { 'architect-consultation': 'architect-consultation', capability: 'main', reconciliation: 'reconciliation', 'capability-qualification': 'qualification' },
   'contract-engineer': { contract: 'main' },
   reviewer: { code: 'code', scope: 'scope', design: 'design', 'design-orientation': 'orientation' },
@@ -332,6 +333,11 @@ function taskDefinition(loaded: LoadedPackage, kind: TaskKind, consultationSubmi
   }
   if (role === 'context-selector' && ['selection', 'reselection'].includes(kind)) tool = contextSelectorToolName;
   if (role === 'engineer' && ['engineering', 'repair', 'standalone-command'].includes(kind)) tool = engineerToolName;
+  if (role === 'engineer' && kind === 'automatic-repair') {
+    tool = 'submit_automatic_repair'; schema = JSON.stringify(z.toJSONSchema(repairResultSchema));
+    procedure = 'Restore only the named pure architect preparation operation under the recorded contingent root assignment. Preserve useful partial work, captured plan and acceptance inputs, interfaces and every module declaration. Do not change topology, harness code, progress records or Git history. Use ordinary guarded equipment; shell execution does not override refused edits. If the target cannot be repaired within this authority, report blocked. Submit ready or blocked with a summary of changes, checks, remaining work, suspected cause and evidence through {{submissionTool}}. Ready is an agent judgment pending harness verification and architect handback; it never completes implementation obligations.';
+    source = null;
+  }
   if (role === 'engineer' && kind === 'consultation') {
     if (!consultationSubmissionSchema?.trim()) throw new Error('Consultation requires the actual caller-owned submission schema');
     const supplied: unknown = JSON.parse(consultationSubmissionSchema);

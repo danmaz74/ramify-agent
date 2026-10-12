@@ -162,7 +162,7 @@ export function ownershipAuthorityFor(assignment: { readonly scope: WriteScope }
   const sourceAuthority = assignment.scope.resolved.sourceAuthority;
   if (sourceAuthority !== undefined && !run.log.ledger.replay().some(line => line.transaction.records.some(record =>
     record.body !== null && typeof record.body === 'object' && 'scope' in record.body && 'schema' in record.body
-      && ['ramify-agent.iteration-assignment/1', 'ramify-agent.nonfunctional-repair-assignment/1'].includes(String(record.body.schema))
+      && ['ramify-agent.iteration-assignment/1', 'ramify-agent.nonfunctional-repair-assignment/1', 'ramify-agent.automatic-repair-assignment/1'].includes(String(record.body.schema))
       && assignmentAuthorityIdentity(record.body) === sourceAuthority))) {
     throw new OwnershipAuthorityError(`Original assignment ${sourceAuthority} is missing from verified records`, 'missing');
   }

@@ -5,6 +5,8 @@ import {
 import { moduleTreeResponseSchema, viewIdentitySchema } from './evidence.js';
 import { jobIdSchema, planIdSchema } from './ids.js';
 import { commandIdSchema, jobStateSchema, jobVersionSchema, stopJobCommandSchema } from './jobs.js';
+import { automaticRepairsSchema } from './repairs.js';
+export * from './repairs.js';
 
 /*
  * The public protocol of an implementation run: the command that starts
@@ -85,7 +87,7 @@ export const breakpointStateSchema = z.object({
   state: z.enum(['pausing', 'paused', 'exchanging']),
   role: roleSchema,
   work: z.object({ workItem: z.string().optional(), iteration: z.string().optional(), request: z.string().optional(),
-    capabilityTask: z.string().optional(), nonfunctionalRepair: z.string().optional() }).strict(),
+    capabilityTask: z.string().optional(), nonfunctionalRepair: z.string().optional(), automaticRepair: z.string().optional() }).strict(),
   goal: z.string(), nextAction: z.string(), taskState: z.enum(['pending', 'accepted', 'terminal']),
   summary: z.string(),
 }).strict();
@@ -420,6 +422,8 @@ export const runSnapshotSchema = z.object({
   planDeviations: runPlanDeviationsSchema,
   /** Every environment problem the run reported, in the order the log recorded them. */
   environmentProblems: z.array(runEnvironmentProblemSchema),
+  /** Retained incidents; legacy answers have no automatic repair attempts. */
+  automaticRepairs: automaticRepairsSchema.default({ attempted: 0, refused: 0, incidents: [] }),
   /** The breakpoint the run was started with, or null. Answers that omit it parse as null. */
   breakpoint: breakpointSelectorSchema.nullable().default(null),
 }).strict();
@@ -510,6 +514,7 @@ export const runEventRefKindSchema = z.enum([
   'contract', 'obligation', 'requirement', 'capability', 'commit', 'scenario',
   'session',
   'capability-request', 'capability-task', 'capability-assignment',
+  'repair-incident',
 ]);
 export type RunEventRefKind = z.infer<typeof runEventRefKindSchema>;
 

@@ -8,6 +8,7 @@ import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { Transaction } from '../../subs/ledger/src/ledger.js';
 import type { RenderedFeatureFile } from '../../subs/scenarios/src/rendering.js';
 import { acceptedCommit } from '../checks/accepted.js';
+import { checkpointPolicies } from '../checks/checkpoint.js';
 import type { GateCommandStarted } from '../checks/execution.js';
 import { executeConfiguredGate, prepareGate, type ConfiguredGateAudit, type GateRequest, type PreparedGate } from '../checks/gate.js';
 import type { Checkpoint, GateAttempt, GateRuleRecord } from '../checks/records.js';
@@ -30,6 +31,8 @@ import { commitForGate, commitMessage, prepareCheckpoint, type CheckpointRequest
 import type { RunEvent, RunEventInput, RunLog } from './log.js';
 import { outsideScope, MutationPlacementUnavailableError } from './mutations.js';
 import { nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
+import { verifiedRepairDeltas } from './repair-gate.js';
+import { unchangedRepairPaths } from './repair-preparation.js';
 import { declaredModuleDirectories } from './project-config.js';
 import { gateAttemptId, gateAttemptSchema, runLayout, type GateOperation, type RecordRef, type RunPolicy } from './records.js';
 import type { RunWrite } from './service.js';
@@ -194,8 +197,16 @@ export class CommittingGates<R extends GateRun> {
     let queriedPaths: string[] = [];
     let ownership: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>> | undefined;
     try {
-      const changed = await this.host.git.changedPaths(this.host.projectRoot, acceptedCommit(run.log.ledger.replay(), run.base));
-      const paths = await placementPaths(this.host.projectRoot, [...changed, ...this.expectedFeatures(run).map(file => file.path)]);
+      const accepted = acceptedCommit(ledger, run.base);
+      const changed = await this.host.git.changedPaths(this.host.projectRoot, accepted);
+      // Acceptance consumes the supplement: returning to old repair bytes
+      // after a later accepted change is a new write, not this repair's effect.
+      const repairs = verifiedRepairDeltas(ledger).filter(repair => !ledger.some(entry => {
+        const event = entry.transaction.event;
+        return entry.sequence > repair.sequence && event.type === 'gate-attempted'
+          && event.data.verdict === 'passed' && Object.entries(checkpointPolicies).some(([checkpoint, policy]) => event.data.checkpoint === checkpoint && policy.committing);
+      }));
+      const paths = await placementPaths(this.host.projectRoot, [...changed, ...this.expectedFeatures(run).map(file => file.path), ...repairs.flatMap(repair => repair.delta.beforeDirtyPaths)]);
       // One decoded answer and input identity for the entire gate, including
       // logical aliases and their real targets across every captured origin.
       queriedPaths = paths.length === 0 ? ['.'] : paths;
@@ -211,6 +222,29 @@ export class CommittingGates<R extends GateRun> {
         if (expected !== undefined && await this.renderedFeatureAllowed(path, expected, current)) permitted.add(path);
       }
       const harnessDenied = await deniedFiles(this.host.projectRoot, await this.host.harnessFiles(run));
+      for (const repair of repairs) {
+        const original = committed.assignments.get(repair.delta.originalAssignment);
+        if (original === undefined) throw new Error('Automatic repair has no originating ordinary assignment');
+        const priorGuard = guardedScopeOf(original.scope, await deniedFiles(this.host.projectRoot,
+          [...harnessDenied, ...original.guarded.filter(file => !original.authorizations.some(entry => entry.path === file.path)).map(file => file.path)]), this.host.ramify, current);
+        const dirtyBefore = repair.delta.beforeDirtyPaths;
+        // A broad repair cannot turn earlier unauthorized content into an accepted change.
+        if ((await outsideScope(this.host.projectRoot, priorGuard, dirtyBefore)).length > 0) continue;
+        const repairGuard = guardedScopeOf(repair.assignment.scope, await deniedFiles(this.host.projectRoot,
+          [...harnessDenied, ...repair.assignment.guarded.map(file => file.path)]), this.host.ramify, current);
+        const unchanged = (await unchangedRepairPaths(this.host.projectRoot, repair.delta)).filter(path => changed.includes(path));
+        const candidates: string[] = [];
+        for (const path of unchanged) {
+          const physical = await resolveRealTarget(this.host.projectRoot, path);
+          const info = await lstat(join(this.host.projectRoot, path)).catch(error => {
+            if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) return null;
+            throw error;
+          });
+          if (physical.ok && physical.resolved === resolve(this.host.projectRoot, path) && (info === null || info.isFile())) candidates.push(path);
+        }
+        const outside = new Set(await outsideScope(this.host.projectRoot, repairGuard, candidates));
+        for (const path of candidates) if (!outside.has(path)) permitted.add(path);
+      }
       for (const origin of origins) {
         const guard = guardedScopeOf(origin.scope, await deniedFiles(this.host.projectRoot,
           [...harnessDenied, ...origin.guarded.filter(file => !origin.authorizations.some(entry => entry.path === file.path)).map(file => file.path)]), this.host.ramify, current);

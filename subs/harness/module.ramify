@@ -28,6 +28,8 @@ expose-src InvocationOutcome, invocationOutcomeSchema from "run/records.ts" to p
 // options it parses and the text it prints.
 expose-src runStepCommand, StepCommandOptions, StepCommandResult from "steps/command.ts" to parent
 expose-src runConsultationsCommand, ConsultationCommandOptions, ConsultationCommandResult from "consultations/command.ts" to parent
+expose-src runRepairExportCommand, RepairExportCommandOptions, RepairExportCommandResult from "run/repair-export-command.ts" to parent
+expose-src RepairExportConfiguration from "run/repair-export.ts" to parent
 expose-test rootDescription from "helpers/root-description.ts" to descendants
 
 // The public contracts of the behavior this module implements: the

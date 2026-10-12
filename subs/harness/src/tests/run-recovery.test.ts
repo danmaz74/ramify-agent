@@ -197,6 +197,10 @@ async function reached(root: string, runId: string, events: string, write: RunWr
   switch (write) {
     // Debug-enabled recovery is interrupted before this ordinary replay table.
     case 'debug-exchange-admitted': return types.includes('debug-exchange-admitted');
+    case 'repair-assignment-recorded':
+    case 'repair-preparation-recorded':
+    case 'repair-preparation-consumed':
+    case 'repair-incident-recorded': return types.includes(write);
     case 'job-created': return types.length >= 1;
     case 'session-opened': return types.includes('session-opened');
     case 'invocation-started': return types.includes('invocation-started');

@@ -6,6 +6,7 @@ import type {
 } from '../../harness/src/interfaces/protocol/runs.js';
 import { CapabilityDependencyGraph } from './capability-graph.js';
 import { CapabilityTasksArea } from './capability-tasks.js';
+import { RepairIncidents } from './repair-incidents.js';
 import { CatalogReview } from './catalog-review.js';
 import { EnvironmentProblems, ModuleCheckFindings, PlanDeviations, WorkItemCheckFindings } from './check-findings.js';
 import { ExecutionMapArea } from './execution-map.js';
@@ -179,6 +180,7 @@ function Overview({ client, run, events, onApproved, onOpenGate }: {
           <div><dt>Work items</dt><dd>{run.counts.completedWorkItems} of {run.counts.workItems} completed</dd></div>
           <div><dt>Open requirements</dt><dd>{run.counts.openRequirements}</dd></div>
           <div><dt>Invocations</dt><dd>{run.counts.invocations}</dd></div>
+          {run.automaticRepairs.incidents.length > 0 && <div><dt>Automatic repairs</dt><dd>{run.automaticRepairs.attempted} attempted; {run.automaticRepairs.refused} refused before invocation</dd></div>}
           <div><dt>Gate attempts</dt><dd>{run.counts.gateAttempts} (readiness attempts {run.counts.readinessAttempts})</dd></div>
           <div><dt>Scenarios</dt><dd>{run.counts.scenarios.done} done, {run.counts.scenarios.bound} bound, {run.counts.scenarios.pending} pending</dd></div>
           <div><dt>Review</dt><dd>{reviewText(run.review)}</dd></div>
@@ -200,6 +202,7 @@ function Overview({ client, run, events, onApproved, onOpenGate }: {
           </div>
         )}
       </section>
+      <RepairIncidents run={run} />
       <ReviewPanel client={client} run={run} onApproved={onApproved} />
       {run.environmentProblems.length > 0 && (
         <EnvironmentProblems client={client} planId={run.planId} runId={run.jobId} version={run.version} problems={run.environmentProblems} onOpenGate={onOpenGate} />

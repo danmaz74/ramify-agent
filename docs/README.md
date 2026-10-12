@@ -3,9 +3,9 @@
 Design documents for the separate agent harness:
 
 - [Plan 40: implementation through temporarily invalid projects](plans/40-invalid-project-recovery/main-plan.md),
-  in implementation: an external provider release and consumer iterations for
-  recorded repair authority, architect continuation and stage-one qualification;
-  a separate measurement gate precedes conditional checkpoint implementation
+  implemented, qualified and merged: recorded repair authority, architect
+  continuation and honest candidate qualification; the checkpoint evaluation
+  defers checkpoint adoption
 - [Plan 39: run changed tests individually](plans/39-test-file-audits/main-plan.md),
   implemented, released and qualified: Ramify file facts, direct test selection
   and evidence in ramify-audit, exact provider pins and a one-file consumer witness
@@ -84,6 +84,10 @@ Design documents for the separate agent harness:
   [final results](plans/22-test-boundaries/final-results.md) retain the aggregate
   timing limitation and failed working-tree materializer observation
 - [Harness principles](harness.principles.md)
+- [Automatic project repair](architecture/automatic-project-repair.spec.md):
+  one explicitly delegated root repair session for an unexpected architect
+  preparation obstruction, verified handback, retained incident evidence,
+  Beads export and UI visibility; first implementation awaiting committed audit
 - [Session reuse and system prompts](analysis/2026-10-08-session-reuse-and-system-prompts.md),
   ordinary continuation as the default, forks that preserve the complete
   inherited prefix, current history reuse with prompt/tool replacement, and

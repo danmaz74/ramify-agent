@@ -434,6 +434,7 @@ function SessionItem({ session, refOf }: { readonly session: RunSessionView; rea
         <a href={sessionHref(ref)}><code>{session.session}</code> {roleLabel(session.role)}</a> <SessionState state={session.state} />
         {session.finished && <span className="muted"> {session.finished}</span>}
         <span className="muted"> · {reachText(session.reaches)}</span>
+        {session.work.automaticRepair && <span> · Automatic repair {session.work.automaticRepair}</span>}
       </p>
       {relations.length > 0 && <p>{joined(relations)}</p>}
       <ul>

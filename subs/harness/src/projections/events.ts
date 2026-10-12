@@ -378,6 +378,16 @@ function describe(event: RunEvent): [string, Ref[]] {
         `The run completed after ${counted(event.data.workItems, 'work item', 'work items')}${event.data.planDeviations === undefined ? '' : `, with ${counted(event.data.planDeviations, 'plan deviation', 'plan deviations')} to review`}`,
         [...ref('gate', event.data.gate), ...ref('commit', event.data.commit)],
       ];
+    case 'repair-incident-recorded':
+      return [`Automatic repair ${event.data.incidentId}: ${event.data.stage}`, ref('repair-incident', event.data.incidentId)];
+    case 'repair-assignment-recorded':
+      return [`Contingent automatic repair assignment ${event.data.assignment} recorded`, ref('invocation', event.data.invocation)];
+    case 'repair-preparation-recorded':
+      return [`Architect preparation ${event.data.preparation} recorded for ${event.data.workItem}`, ref('work-item', event.data.workItem)];
+    case 'repair-preparation-consumed':
+      return [`Architect preparation ${event.data.preparation} consumed for ${event.data.workItem}`, ref('work-item', event.data.workItem)];
+    case 'repair-export-recorded':
+      return [`Automatic repair ${event.data.incidentId}: Beads export ${event.data.state}`, ref('repair-incident', event.data.incidentId)];
     case 'job-failed':
       return [`The run failed (${event.data.reason}): ${event.data.message || 'no message'}`, []];
     case 'job-stopped':
