@@ -293,6 +293,7 @@ The shared contract applies to ordinary architect, catalog, engineer, capability
 review, failure-analysis, context-selection and non-functional operations,
 including fresh starts, continuations and forks. Automatic root repair remains
 subject to its separate manual-attention rule.
+Standalone manual invocations retain their existing session fallback eligibility.
 
 Structured executor evidence distinguishes transport interruption, permanent
 provider rejection, unavailable classification and adapter faults. Diagnostics

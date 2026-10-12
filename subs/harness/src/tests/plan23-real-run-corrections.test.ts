@@ -173,8 +173,8 @@ describe('Plan23 composed run equipment', () => {
     const inputs = ['one', 'two', 'three'].map(command => ({ command }));
     await Promise.all(inputs.map((input, index) => equipped.guard!({ callId: `original-${index + 1}`, tool: 'shell', input, action: { kind: 'command', command: input.command } })));
     const results = inputs.map(input => shell.execute(input, new AbortController().signal)); await started.promise; gate.resolve(); await Promise.all(results); await equipped.settle!(); await equipped.drained!();
-    expect(tools.shellLog().map(call => call.callId)).toEqual(['original-1', 'original-2', 'original-3']);
-    expect(observations.observations.filter(item => item.type === 'mutation').map(item => item.data.callId)).toEqual(['original-1', 'original-2', 'original-3']); expect(executes).toBe(3);
+    expect(tools.shellLog().map(call => [call.command, call.callId]).sort()).toEqual([['one', 'original-1'], ['two', 'original-2'], ['three', 'original-3']].sort());
+    expect(observations.observations.filter(item => item.type === 'mutation').map(item => item.data.callId)).toEqual(tools.shellLog().map(call => call.callId)); expect(executes).toBe(3);
   });
 });
 

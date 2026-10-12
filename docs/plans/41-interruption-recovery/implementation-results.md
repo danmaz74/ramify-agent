@@ -115,3 +115,29 @@ whitespace checks also pass. The configured default audit remains the final
 qualification step. The audit
 requires a clean committed candidate. No commit, push or Dolt remote sync has been
 performed under the repository's conservative Beads profile.
+
+## Audit evidence
+
+The configured default command was run from a clean committed candidate:
+
+```bash
+node_modules/.bin/ramify-audit audit --cwd . --json
+```
+
+The first candidate was `598999afdbcd0143f657c379d7eeef6a6fb884d1`. The auditor
+selected full mode through its drift-cap policy, preserving all six configured
+checks. Type checks, structure, patch integrity, web build and the configured
+Cucumber profile passed. That profile selected zero scenarios; it establishes
+no scenario coverage. Vitest found five failures: standalone manual source
+fallback, command/event/lineage inventories, and a shell test that assumed
+unpromised dispatch order. The fixes preserve ordinary recovery reconstruction
+requirements and assert original command-to-call-ID correspondence. Their
+97-case focused group passes.
+
+Original failure evidence remains under:
+
+- Report: `99bbd43d2268e775326a01bb05010ceb49dc930a`
+- Run ref: `refs/audited/runs/2026-10-12T18-49-31Z-598999afd`
+- Source tree: `98278a35a5c55c1a8fd642de0cef84549887723a`
+
+A corrected committed candidate requires the next default audit.

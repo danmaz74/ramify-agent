@@ -88,9 +88,11 @@ describe('the run log', () => {
   test('every event type is written and read back, and the terminal ones are named', () => {
     const types = runEventSchema.options.map(option => option.shape.type.value);
     expect(types).toEqual([
+      'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed',
+      'readiness-preparation-started', 'readiness-preparation-completed', 'readiness-repair-committing', 'readiness-repair-committed',
       'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
       'invocation-prepared', 'job-started', 'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed', 'session-opened', 'invocation-started', 'invocation-ended', 'session-finished', 'analysis-accepted',
-      'document-manifest-committed', 'work-orientation-recorded', 'context-selection-recorded', 'context-package-append-requested', 'context-package-appended', 'context-package-prompt-bound', 'candidate-prepared', 'nonfunctional-phase-started', 'nonfunctional-assessed', 'nonfunctional-investigated', 'nonfunctional-repair-assigned', 'nonfunctional-repair-committed', 'nonfunctional-round-closed', 'nonfunctional-deviation-recorded', 'candidate-bound-to-gate',
+      'document-manifest-committed', 'work-orientation-recorded', 'context-selection-recorded', 'context-package-append-requested', 'context-package-appended', 'context-package-prompt-bound', 'candidate-prepared', 'nonfunctional-phase-started', 'nonfunctional-final-invalidated', 'nonfunctional-assessed', 'nonfunctional-investigated', 'nonfunctional-repair-assigned', 'nonfunctional-repair-committed', 'nonfunctional-round-closed', 'nonfunctional-deviation-recorded', 'candidate-bound-to-gate',
       'capability-requested', 'capability-qualified', 'capability-delegated', 'capability-plan-revised', 'capability-coordinator-resumed',
       'capability-exchange-opened', 'capability-exchange-answered', 'capability-assigned',
       'capability-assignment-settled',
@@ -131,7 +133,7 @@ describe('the run log', () => {
 
   test('every lineage reason is named, and each relation is read back on the event that carries it', () => {
     expect(continueReasonSchema.options).toEqual(['placement-answered', 'iteration-closed', 'completion-refused', 'repair', 'reconciliation', 'deviation-recorded', 'environment-resumed', 'context-selected', 'capability-qualification', 'capability-returned', 'capability-coordination', 'debugger']);
-    expect(forkReasonSchema.options).toEqual(['placement-request', 'scope-review', 'design-orientation', 'reconciliation', 'unresolved-request', 'context-selection', 'capability-consultation', 'architect-consultation']);
+    expect(forkReasonSchema.options).toEqual(['interruption-recovery', 'placement-request', 'scope-review', 'design-orientation', 'reconciliation', 'unresolved-request', 'context-selection', 'capability-consultation', 'architect-consultation']);
     expect(replaceReasonSchema.options).toEqual(['reconstructed', 'context-rebuilt']);
     expect(requestReasonSchema.options).toEqual(['contract-needed', 'capability-needed']);
     expect(degradeRelationSchema.shape.requested.options).toEqual(['continue', 'fork']);

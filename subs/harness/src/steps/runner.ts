@@ -470,12 +470,14 @@ export class InvocationRunner<R extends RunnerRun> {
   async runInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (request.signal?.aborted === true) return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '' as SessionId, kept: false, notStarted: true, error: 'Stopped by the caller before dispatch' };
     const result = await this.invokeOnce(run, agent, request);
-    if (request.allowFreshFallback === false || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.() || run.policy.recovery !== undefined && request.fallback === undefined) return result;
+    // Ordinary recovery groups require a recorded reconstruction. Standalone
+    // manual invocations retain their existing fresh-fallback eligibility.
+    if (request.allowFreshFallback === false || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.() || request.recoveryGroup !== undefined && request.fallback === undefined) return result;
     const reason = result.error ?? 'The retained session is unavailable';
     const fresh = request.fallback?.(reason);
     return this.invokeOnce(run, agent, {
       ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined,
-      ...(run.policy.recovery === undefined ? {} : { recoveryPredecessor: result.id }),
+      ...(request.recoveryGroup === undefined ? {} : { recoveryPredecessor: result.id }),
       continuing: undefined, fork: undefined, replaces: undefined,
       prompt: fresh?.prompt ?? request.freshPrompt ?? request.prompt,
       ...(fresh === undefined ? {} : { brief: fresh.brief, stepInputs: fresh.stepInputs }),
