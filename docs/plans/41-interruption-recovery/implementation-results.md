@@ -1,6 +1,6 @@
 # Plan 41 implementation results
 
-**Date:** 2026-10-12. **Status:** implementation qualification in progress.
+**Date:** 2026-10-12. **Status:** implemented and qualified.
 
 The implementation adds captured `operation-recovery/1` policy to new runs.
 Structured transport failures receive two automatic successors, then leave a
@@ -111,10 +111,9 @@ passed during integration.
 TypeScript and the complete union producer inventory pass. `check:self` reports
 zero errors and three warnings in the working checkout; the isolated candidate
 passes with zero errors and zero warnings. Candidate TypeScript and staged
-whitespace checks also pass. The configured default audit remains the final
-qualification step. The audit
-requires a clean committed candidate. No commit, push or Dolt remote sync has been
-performed under the repository's conservative Beads profile.
+whitespace checks also pass. The configured default audit passes from the clean
+committed candidate described below. The user authorized the isolated implementation commits and recording the
+audit result. No remote push or Dolt remote sync was performed.
 
 ## Audit evidence
 
@@ -140,4 +139,31 @@ Original failure evidence remains under:
 - Run ref: `refs/audited/runs/2026-10-12T18-49-31Z-598999afd`
 - Source tree: `98278a35a5c55c1a8fd642de0cef84549887723a`
 
-A corrected committed candidate requires the next default audit.
+The corrected candidate `22ed021e17da2e35ecda7f065f882b7744a5e0df` passes the
+same default command. The auditor selected seven affected modules, retained all
+six configured checks, and reran every carried failure. It recorded 3,050 passing
+Vitest cases and two skipped cases across 357 files; no test failed. Its complete
+failure ledger has no outstanding entries. Type checks, structure, patch integrity,
+web build and the configured zero-scenario Cucumber profile passed.
+
+The composed verdict is **pass**, with the original full audit as its verified
+baseline and every original failure cleared. No scope override was used.
+
+- Producer: `ramify-audit 0.8.0`
+- Request: `26a79eea-c44a-4e12-b77c-d6b1234c6ca5`
+- Run: `f766afba-86ce-441c-802a-ab8b8f389c0c`
+- Report: `ba2328d61bb5e1c2e7eca86e4dabd4b41bf47525`
+- Run ref: `refs/audited/runs/2026-10-12T19-12-24Z-22ed021e1`
+- Tree ref: `refs/audited/by-tree/853596343767e37c0218ee295fbd8d28f05975da`
+- Duration: `677.386 seconds`
+
+Retrieve the passing evidence or verify branch applicability with:
+
+```bash
+git show ba2328d61bb5e1c2e7eca86e4dabd4b41bf47525:reports/audit/summary.json
+node_modules/.bin/ramify-audit check-branch plan41-interruption-recovery --cwd . --json
+```
+
+The role/purpose table and scripted witnesses above establish the implementation
+assessment; the audit establishes configured check health. Historical trial runs
+retain their original terminal meaning.

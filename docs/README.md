@@ -3,7 +3,7 @@
 Design documents for the separate agent harness:
 
 - [Plan 41: interrupted-operation recovery and empty mutations](plans/41-interruption-recovery/main-plan.md),
-  implemented, final qualification in progress: bounded retries, durable
+  implemented and qualified: bounded retries, durable
   same-run pause/resume for new runs with admission of external repairs,
   retained accepted work and honest classification when no paths changed;
   [implementation results](plans/41-interruption-recovery/implementation-results.md)
