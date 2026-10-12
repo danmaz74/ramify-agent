@@ -1,0 +1,878 @@
+{
+  "schema": "ramify-agent.plan40-committed-audits/1",
+  "attempts": [
+    {
+      "sourceCommit": "810758a13f6348078f517500e17ac5bf7ff3083c",
+      "sourceTree": "b566d686a47918cd22c8d3f24e72c6c53127d9d7",
+      "overall": "fail",
+      "auditedAt": "2026-10-12T11:48:37.659Z",
+      "durationSeconds": 579.835,
+      "producer": {
+        "name": "ramify-audit",
+        "version": "0.8.0"
+      },
+      "mode": {
+        "requestedMode": "ramify-partial",
+        "resolution": "defaulted",
+        "executedMode": "full",
+        "fallbackReason": "preparation-input: package-lock.json, package.json"
+      },
+      "refs": {
+        "reportCommit": "f150c685a783ffc59c90d04b4ca21b49529c2f8c",
+        "runRef": "refs/audited/runs/2026-10-12T11-48-37Z-810758a13",
+        "treeRef": "refs/audited/by-tree/b566d686a47918cd22c8d3f24e72c6c53127d9d7"
+      },
+      "composition": {
+        "verdict": "fail",
+        "scoped": false,
+        "chainDepth": 0,
+        "reportCommit": "f150c685a783ffc59c90d04b4ca21b49529c2f8c",
+        "outstandingFailures": 7,
+        "reason": "a check of the full audit failed"
+      },
+      "coverage": {
+        "status": "declared",
+        "selector": {
+          "id": "full",
+          "version": "1",
+          "config": {},
+          "configDigest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+        },
+        "universe": {
+          "id": "project:.",
+          "digest": "sha256:381cb132a47226999e4a82e0c63dceddad1eeb91595ea5d3f2eff49bcf3cb88e",
+          "checkIds": [
+            "agent-scenarios",
+            "agent-structure",
+            "agent-tests",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "testUnitIds": [
+            "agent-check-self",
+            "agent-cucumber",
+            "agent-typecheck",
+            "agent-vitest",
+            "agent-web-build",
+            "git-diff-check"
+          ]
+        },
+        "selection": {
+          "kind": "full",
+          "selectedCheckIds": [
+            "agent-scenarios",
+            "agent-structure",
+            "agent-tests",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "omittedCheckIds": [],
+          "selectedTestUnitIds": [
+            "agent-check-self",
+            "agent-cucumber",
+            "agent-typecheck",
+            "agent-vitest",
+            "agent-web-build",
+            "git-diff-check"
+          ],
+          "omittedTestUnitIds": []
+        },
+        "claim": {
+          "configuration": {
+            "blob": "066e759268e7aed1b9321d96b961b26305ad4518",
+            "path": "ramify-audit.json",
+            "sourceCommit": "810758a13f6348078f517500e17ac5bf7ff3083c"
+          },
+          "scope": "repository"
+        },
+        "projectRoot": ".",
+        "ownershipAnswer": {
+          "ramifyVersion": "0.5.0",
+          "cliSchema": "ramify.affected-cli/4",
+          "selectionSchema": "ramify.affected/4",
+          "revision": {
+            "sequence": null,
+            "inputId": "input/1:ea5c7514d9ac78b1a94db3f4082ab9f7600fe7090598c59d277afdb7223e5bfe"
+          },
+          "binaryPath": "node_modules/.bin/ramify",
+          "modules": 13,
+          "exclusions": 19
+        },
+        "expectedFiles": {
+          "contract": "runner-configured-files/2",
+          "source": "ownership-answer",
+          "expected": 368,
+          "run": 368,
+          "missing": [],
+          "status": "complete",
+          "runnerConfigFiles": [
+            "vitest.config.ts"
+          ]
+        }
+      },
+      "checks": {
+        "agent-scenarios": {
+          "status": "pass",
+          "summary": "agent-cucumber: PASS"
+        },
+        "agent-structure": {
+          "status": "pass",
+          "summary": "agent-check-self: PASS"
+        },
+        "agent-tests": {
+          "status": "fail",
+          "summary": "agent-vitest: FAIL"
+        },
+        "agent-typecheck": {
+          "status": "pass",
+          "summary": "agent-typecheck: PASS"
+        },
+        "agent-web-build": {
+          "status": "pass",
+          "summary": "agent-web-build: PASS"
+        },
+        "patch-integrity": {
+          "status": "pass",
+          "summary": "git-diff-check: PASS"
+        }
+      },
+      "testCounts": {
+        "files": {
+          "failed": 5,
+          "passed": 362,
+          "skipped": 1,
+          "total": 368
+        },
+        "tests": {
+          "failed": 7,
+          "passed": 3261,
+          "skipped": 2,
+          "total": 3270
+        }
+      },
+      "projects": {
+        "boundaries": {
+          "passed": 51,
+          "skipped": 1,
+          "failed": 2
+        },
+        "node": {
+          "passed": 291,
+          "failed": 3
+        },
+        "web": {
+          "passed": 20
+        }
+      },
+      "failedTests": [
+        {
+          "errorFull": "Error: expected [Function] to throw error including 'outside ordinary ownership' but got 'Scenario producer target is outside c\u2026'\n    at _Assertion.__VITEST_REJECTS__ (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/expect/dist/index.js:1747:17)\n    at _Assertion.propertyGetter (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1570:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1659:22)\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/run-git.integration.test.ts:106:64\n    at file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
+          "errorShort": "expected [Function] to throw error including 'outside ordinary ownership' but got 'Scenario producer target is outside c\u2026'",
+          "file": "subs/harness/src/tests/run-git.integration.test.ts",
+          "fullName": "run-to-Git integration > PB3: real producer proof refuses unrelated, missing, stale, aliased and merge candidates",
+          "name": "PB3: real producer proof refuses unrelated, missing, stale, aliased and merge candidates",
+          "runner": "vitest",
+          "suite": "boundaries"
+        },
+        {
+          "errorFull": "AssertionError: expected { rule: 'write-scope', \u2026(2) } to match object { outcome: 'failed', \u2026(1) }\n(1 matching property omitted from actual)\n    at Proxy.<anonymous> (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/expect/dist/index.js:1283:10)\n    at Proxy.<anonymous> (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/expect/dist/index.js:1156:15)\n    at Proxy.methodWrapper (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1700:25)\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/single-session.boundary.test.ts:43:70\n    at file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
+          "errorShort": "expected { rule: 'write-scope', \u2026(2) } to match object { outcome: 'failed', \u2026(1) }",
+          "file": "subs/harness/src/tests/single-session.boundary.test.ts",
+          "fullName": "the actual session shell write boundary > PB3-S04: actual shell tool writes pass only permitted candidates; protected creation fails the checkpoint",
+          "name": "PB3-S04: actual shell tool writes pass only permitted candidates; protected creation fails the checkpoint",
+          "runner": "vitest",
+          "suite": "boundaries"
+        },
+        {
+          "errorFull": "AssertionError: caught external answer failures: [\"queryOwnershipAnswer: AssertionError: expected [ 'affected', '--batch', \u2026(6) ] to deeply equal [ '--version' ]\"]: expected [ Array(1) ] to deeply equal []\n    at Object.assertAnswered (/tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/helpers/measurement-boundaries.ts:111:213)\n    at Object.assertComplete (/tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/helpers/measurement-boundaries.ts:113:12)\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/measurement.test.ts:25:54",
+          "errorShort": "caught external answer failures: [\"queryOwnershipAnswer: AssertionError: expected [ 'affected', '--batch', \u2026(6) ] to deeply equal [ '--version' ]\"]: expected [ Array(1) ] to deeply equal []",
+          "file": "subs/harness/src/tests/measurement.test.ts",
+          "fullName": "the frozen baseline > a run freezes B from its first snapshot, and job.json names it",
+          "name": "a run freezes B from its first snapshot, and job.json names it",
+          "runner": "vitest",
+          "suite": "node"
+        },
+        {
+          "errorFull": "AssertionError: caught external answer failures: [\"queryOwnershipAnswer: AssertionError: expected [ 'affected', '--batch', \u2026(6) ] to deeply equal [ '--version' ]\"]: expected [ Array(1) ] to deeply equal []\n    at Object.assertAnswered (/tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/helpers/measurement-boundaries.ts:111:213)\n    at Object.assertComplete (/tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/helpers/measurement-boundaries.ts:113:12)\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/measurement.test.ts:25:54",
+          "errorShort": "caught external answer failures: [\"queryOwnershipAnswer: AssertionError: expected [ 'affected', '--batch', \u2026(6) ] to deeply equal [ '--version' ]\"]: expected [ Array(1) ] to deeply equal []",
+          "file": "subs/harness/src/tests/measurement.test.ts",
+          "fullName": "the frozen baseline > the initial architect's invocation records its snapshot reference and its S_s components",
+          "name": "the initial architect's invocation records its snapshot reference and its S_s components",
+          "runner": "vitest",
+          "suite": "node"
+        },
+        {
+          "errorFull": "AssertionError: expected { recorded: [ { \u2026(2) }, \u2026(4) ], \u2026(1) } to deeply equal { recorded: [ { \u2026(2) }, \u2026(4) ], \u2026(1) }\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/neutral-actions.test.ts:213:31\n    at file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
+          "errorShort": "expected { recorded: [ { \u2026(2) }, \u2026(4) ], \u2026(1) } to deeply equal { recorded: [ { \u2026(2) }, \u2026(4) ], \u2026(1) }",
+          "file": "subs/harness/src/tests/neutral-actions.test.ts",
+          "fullName": "ST05: an executor whose tools are named otherwise is recorded and guarded identically > `Read` with `file_path` and a write tool of another name leave the same reads, excursions and guard decisions",
+          "name": "`Read` with `file_path` and a write tool of another name leave the same reads, excursions and guard decisions",
+          "runner": "vitest",
+          "suite": "node"
+        },
+        {
+          "errorFull": "Error: promise resolved \"{ service: RunService{ \u2026(16) }, \u2026(4) }\" instead of rejecting\n    at _Assertion.__VITEST_REJECTS__ (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/expect/dist/index.js:1747:17)\n    at _Assertion.propertyGetter (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1570:27)\n    at Object.proxyGetter [as get] (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1659:22)\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/run-recovery.test.ts:603:29\n    at file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
+          "errorShort": "promise resolved \"{ service: RunService{ \u2026(16) }, \u2026(4) }\" instead of rejecting",
+          "file": "subs/harness/src/tests/run-recovery.test.ts",
+          "fullName": "the recovery table > PB3: pending gate intent refuses unassigned-dirt on restart before rendering or making a commit",
+          "name": "PB3: pending gate intent refuses unassigned-dirt on restart before rendering or making a commit",
+          "runner": "vitest",
+          "suite": "node"
+        },
+        {
+          "errorFull": "Error: promise resolved \"{ service: RunService{ \u2026(16) }, \u2026(4) }\" instead of rejecting\n    at _Assertion.__VITEST_REJECTS__ (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/expect/dist/index.js:1747:17)\n    at _Assertion.propertyGetter (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1570:27)\n    at Object.proxyGetter [as get] (file:///workspaces/worktrees/ownership-recovery-agent/node_modules/chai/index.js:1659:22)\n    at /tmp/ramify-audit-worktree-OVNHUk/source/subs/harness/src/tests/run-recovery.test.ts:603:29\n    at file:///workspaces/worktrees/ownership-recovery-agent/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20",
+          "errorShort": "promise resolved \"{ service: RunService{ \u2026(16) }, \u2026(4) }\" instead of rejecting",
+          "file": "subs/harness/src/tests/run-recovery.test.ts",
+          "fullName": "the recovery table > PB3: pending gate intent refuses new-external-declaration on restart before rendering or making a commit",
+          "name": "PB3: pending gate intent refuses new-external-declaration on restart before rendering or making a commit",
+          "runner": "vitest",
+          "suite": "node"
+        }
+      ],
+      "rawArchive": {
+        "file": "audit-810758a.json.gz",
+        "uncompressedBytes": 964133,
+        "uncompressedSha256": "943bd3353e63ddb5f3cf6775344f7e8722c9f007e94d7a7b1129158a8830bdea",
+        "compressedBytes": 147299,
+        "compressedSha256": "114379ce5a9c08a268505290be1a48aab75f4ed6dc003c4aa9993fc07eac23e0"
+      },
+      "stderr": {
+        "file": "audit-810758a.stderr.log",
+        "sha256": "71af1a95a60315adc9b65537d6db9670bd793f210a1983536af045148a391410"
+      }
+    },
+    {
+      "sourceCommit": "39dfae593e836fbe98b74830c17e865550d6e7d2",
+      "sourceTree": "4bd03b9226419c06dea3286f8de378fc5c511416",
+      "overall": "pass",
+      "auditedAt": "2026-10-12T12:07:12.355Z",
+      "durationSeconds": 597.338,
+      "producer": {
+        "name": "ramify-audit",
+        "version": "0.8.0"
+      },
+      "mode": {
+        "requestedMode": "ramify-partial",
+        "resolution": "defaulted",
+        "executedMode": "ramify-partial"
+      },
+      "refs": {
+        "reportCommit": "46b94ae41838254f1384095300e558854bb1194e",
+        "runRef": "refs/audited/runs/2026-10-12T12-07-12Z-39dfae593",
+        "treeRef": "refs/audited/by-tree/4bd03b9226419c06dea3286f8de378fc5c511416"
+      },
+      "composition": {
+        "scoped": true,
+        "chainDepth": 1,
+        "reportCommit": "46b94ae41838254f1384095300e558854bb1194e",
+        "rootReportCommit": "f150c685a783ffc59c90d04b4ca21b49529c2f8c",
+        "outstandingFailures": 0,
+        "verdict": "pass"
+      },
+      "coverage": {
+        "status": "declared",
+        "selector": {
+          "id": "ramify-partial",
+          "version": "3",
+          "config": {
+            "chainCap": 25,
+            "failureThreshold": {
+              "minimum": 3,
+              "percentOfRootTests": 10
+            }
+          },
+          "configDigest": "sha256:d5a7603cfc87a91ed6b47831ffe580558eb2ac63619b9228b32aba593219dfc9"
+        },
+        "universe": {
+          "id": "project:.",
+          "digest": "sha256:381cb132a47226999e4a82e0c63dceddad1eeb91595ea5d3f2eff49bcf3cb88e",
+          "checkIds": [
+            "agent-scenarios",
+            "agent-structure",
+            "agent-tests",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "testUnitIds": [
+            "agent-check-self",
+            "agent-cucumber",
+            "agent-typecheck",
+            "agent-vitest",
+            "agent-web-build",
+            "git-diff-check"
+          ]
+        },
+        "selection": {
+          "kind": "scoped",
+          "selectedCheckIds": [
+            "agent-scenarios",
+            "agent-structure",
+            "agent-tests",
+            "agent-typecheck",
+            "agent-web-build",
+            "patch-integrity"
+          ],
+          "omittedCheckIds": [],
+          "selectedTestUnitIds": [
+            "agent-check-self",
+            "agent-cucumber",
+            "agent-typecheck",
+            "agent-vitest",
+            "agent-web-build",
+            "git-diff-check"
+          ],
+          "omittedTestUnitIds": []
+        },
+        "claim": {
+          "configuration": {
+            "blob": "066e759268e7aed1b9321d96b961b26305ad4518",
+            "path": "ramify-audit.json",
+            "sourceCommit": "39dfae593e836fbe98b74830c17e865550d6e7d2"
+          },
+          "scope": "repository",
+          "strategy": "ramify-partial-link"
+        },
+        "projectRoot": ".",
+        "selectedModules": [
+          {
+            "id": "ramify-agent",
+            "directory": "."
+          },
+          {
+            "id": "ramify-agent/harness",
+            "directory": "subs/harness"
+          },
+          {
+            "id": "ramify-agent/harness/agent/pi",
+            "directory": "subs/harness/subs/agent/subs/pi"
+          },
+          {
+            "id": "ramify-agent/harness/audit",
+            "directory": "subs/harness/subs/audit"
+          },
+          {
+            "id": "ramify-agent/harness/evidence",
+            "directory": "subs/harness/subs/evidence"
+          },
+          {
+            "id": "ramify-agent/harness/reviews",
+            "directory": "subs/harness/subs/reviews"
+          },
+          {
+            "id": "ramify-agent/web",
+            "directory": "subs/web"
+          }
+        ],
+        "directTestSelection": {
+          "baselineSourceCommit": "810758a13f6348078f517500e17ac5bf7ff3083c",
+          "sourceCommit": "39dfae593e836fbe98b74830c17e865550d6e7d2",
+          "decisions": [
+            {
+              "path": "subs/harness/src/tests/measurement.test.ts",
+              "change": "modified",
+              "reason": "discovered-isolated-test",
+              "commands": [
+                {
+                  "checkId": "agent-tests",
+                  "command": "agent-vitest",
+                  "projects": [
+                    "node"
+                  ]
+                }
+              ],
+              "baseline": {
+                "path": "subs/harness/src/tests/measurement.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              },
+              "source": {
+                "path": "subs/harness/src/tests/measurement.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              }
+            },
+            {
+              "path": "subs/harness/src/tests/neutral-actions.test.ts",
+              "change": "modified",
+              "reason": "discovered-isolated-test",
+              "commands": [
+                {
+                  "checkId": "agent-tests",
+                  "command": "agent-vitest",
+                  "projects": [
+                    "node"
+                  ]
+                }
+              ],
+              "baseline": {
+                "path": "subs/harness/src/tests/neutral-actions.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              },
+              "source": {
+                "path": "subs/harness/src/tests/neutral-actions.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              }
+            },
+            {
+              "path": "subs/harness/src/tests/run-git.integration.test.ts",
+              "change": "modified",
+              "reason": "discovered-isolated-test",
+              "commands": [
+                {
+                  "checkId": "agent-tests",
+                  "command": "agent-vitest",
+                  "projects": [
+                    "boundaries"
+                  ]
+                }
+              ],
+              "baseline": {
+                "path": "subs/harness/src/tests/run-git.integration.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              },
+              "source": {
+                "path": "subs/harness/src/tests/run-git.integration.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              }
+            },
+            {
+              "path": "subs/harness/src/tests/run-recovery.test.ts",
+              "change": "modified",
+              "reason": "discovered-isolated-test",
+              "commands": [
+                {
+                  "checkId": "agent-tests",
+                  "command": "agent-vitest",
+                  "projects": [
+                    "node"
+                  ]
+                }
+              ],
+              "baseline": {
+                "path": "subs/harness/src/tests/run-recovery.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              },
+              "source": {
+                "path": "subs/harness/src/tests/run-recovery.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              }
+            },
+            {
+              "path": "subs/harness/src/tests/single-session.boundary.test.ts",
+              "change": "modified",
+              "reason": "discovered-isolated-test",
+              "commands": [
+                {
+                  "checkId": "agent-tests",
+                  "command": "agent-vitest",
+                  "projects": [
+                    "boundaries"
+                  ]
+                }
+              ],
+              "baseline": {
+                "path": "subs/harness/src/tests/single-session.boundary.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              },
+              "source": {
+                "path": "subs/harness/src/tests/single-session.boundary.test.ts",
+                "status": "owned",
+                "module": "ramify-agent/harness",
+                "exclusion": null,
+                "existence": "present",
+                "exports": {
+                  "state": "complete",
+                  "hasExports": false,
+                  "names": []
+                },
+                "incoming": {
+                  "state": "partial",
+                  "paths": []
+                },
+                "limits": []
+              }
+            }
+          ]
+        },
+        "selectedTestFiles": [
+          {
+            "path": "subs/harness/src/tests/measurement.test.ts",
+            "commands": [
+              {
+                "checkId": "agent-tests",
+                "command": "agent-vitest",
+                "projects": [
+                  "node"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "subs/harness/src/tests/neutral-actions.test.ts",
+            "commands": [
+              {
+                "checkId": "agent-tests",
+                "command": "agent-vitest",
+                "projects": [
+                  "node"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "subs/harness/src/tests/run-git.integration.test.ts",
+            "commands": [
+              {
+                "checkId": "agent-tests",
+                "command": "agent-vitest",
+                "projects": [
+                  "boundaries"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "subs/harness/src/tests/run-recovery.test.ts",
+            "commands": [
+              {
+                "checkId": "agent-tests",
+                "command": "agent-vitest",
+                "projects": [
+                  "node"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "subs/harness/src/tests/single-session.boundary.test.ts",
+            "commands": [
+              {
+                "checkId": "agent-tests",
+                "command": "agent-vitest",
+                "projects": [
+                  "boundaries"
+                ]
+              }
+            ]
+          }
+        ],
+        "selectedPaths": [
+          "subs/harness/src/tests/helpers/measurement-boundaries.ts",
+          "subs/harness/src/tests/measurement.test.ts",
+          "subs/harness/src/tests/neutral-actions.test.ts",
+          "subs/harness/src/tests/run-git.integration.test.ts",
+          "subs/harness/src/tests/run-recovery.test.ts",
+          "subs/harness/src/tests/single-session.boundary.test.ts"
+        ],
+        "ramifyAnswer": {
+          "ramifyVersion": "0.5.0",
+          "cliSchema": "ramify.affected-cli/4",
+          "selectionSchema": "ramify.affected/4",
+          "binaryPath": "node_modules/.bin/ramify"
+        },
+        "baseline": {
+          "sourceCommit": "810758a13f6348078f517500e17ac5bf7ff3083c",
+          "sourceTree": "b566d686a47918cd22c8d3f24e72c6c53127d9d7",
+          "reportCommit": "f150c685a783ffc59c90d04b4ca21b49529c2f8c",
+          "runRef": "refs/audited/runs/2026-10-12T11-48-37Z-810758a13",
+          "chainDepth": 1
+        },
+        "carriedFailures": [
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "boundaries",
+            "path": "subs/harness/src/tests/run-git.integration.test.ts",
+            "kind": "test",
+            "testId": "run-to-Git integration > PB3: real producer proof refuses unrelated, missing, stale, aliased and merge candidates"
+          },
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "boundaries",
+            "path": "subs/harness/src/tests/single-session.boundary.test.ts",
+            "kind": "test",
+            "testId": "the actual session shell write boundary > PB3-S04: actual shell tool writes pass only permitted candidates; protected creation fails the checkpoint"
+          },
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "node",
+            "path": "subs/harness/src/tests/measurement.test.ts",
+            "kind": "test",
+            "testId": "the frozen baseline > a run freezes B from its first snapshot, and job.json names it"
+          },
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "node",
+            "path": "subs/harness/src/tests/measurement.test.ts",
+            "kind": "test",
+            "testId": "the frozen baseline > the initial architect's invocation records its snapshot reference and its S_s components"
+          },
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "node",
+            "path": "subs/harness/src/tests/neutral-actions.test.ts",
+            "kind": "test",
+            "testId": "ST05: an executor whose tools are named otherwise is recorded and guarded identically > `Read` with `file_path` and a write tool of another name leave the same reads, excursions and guard decisions"
+          },
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "node",
+            "path": "subs/harness/src/tests/run-recovery.test.ts",
+            "kind": "test",
+            "testId": "the recovery table > PB3: pending gate intent refuses new-external-declaration on restart before rendering or making a commit"
+          },
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "runner": "vitest",
+            "project": "node",
+            "path": "subs/harness/src/tests/run-recovery.test.ts",
+            "kind": "test",
+            "testId": "the recovery table > PB3: pending gate intent refuses unassigned-dirt on restart before rendering or making a commit"
+          }
+        ],
+        "expectedFiles": {
+          "contract": "runner-configured-files/2",
+          "directExecutions": [
+            {
+              "checkId": "agent-tests",
+              "command": "agent-vitest",
+              "project": "boundaries",
+              "path": "subs/harness/src/tests/run-git.integration.test.ts",
+              "ran": true
+            },
+            {
+              "checkId": "agent-tests",
+              "command": "agent-vitest",
+              "project": "boundaries",
+              "path": "subs/harness/src/tests/single-session.boundary.test.ts",
+              "ran": true
+            },
+            {
+              "checkId": "agent-tests",
+              "command": "agent-vitest",
+              "project": "node",
+              "path": "subs/harness/src/tests/measurement.test.ts",
+              "ran": true
+            },
+            {
+              "checkId": "agent-tests",
+              "command": "agent-vitest",
+              "project": "node",
+              "path": "subs/harness/src/tests/neutral-actions.test.ts",
+              "ran": true
+            },
+            {
+              "checkId": "agent-tests",
+              "command": "agent-vitest",
+              "project": "node",
+              "path": "subs/harness/src/tests/run-recovery.test.ts",
+              "ran": true
+            }
+          ],
+          "source": "partial-answer",
+          "expected": 334,
+          "run": 334,
+          "missing": [],
+          "status": "complete",
+          "runnerConfigFiles": [
+            "vitest.config.ts"
+          ]
+        }
+      },
+      "checks": {
+        "agent-scenarios": {
+          "status": "pass",
+          "summary": "agent-cucumber: PASS"
+        },
+        "agent-structure": {
+          "status": "pass",
+          "summary": "agent-check-self: PASS"
+        },
+        "agent-tests": {
+          "status": "pass",
+          "summary": "agent-vitest: PASS"
+        },
+        "agent-typecheck": {
+          "status": "pass",
+          "summary": "agent-typecheck: PASS"
+        },
+        "agent-web-build": {
+          "status": "pass",
+          "summary": "agent-web-build: PASS"
+        },
+        "patch-integrity": {
+          "status": "pass",
+          "summary": "git-diff-check: PASS"
+        }
+      },
+      "testCounts": {
+        "files": {
+          "failed": 0,
+          "passed": 333,
+          "skipped": 1,
+          "total": 334
+        },
+        "tests": {
+          "failed": 0,
+          "passed": 2877,
+          "skipped": 2,
+          "total": 2879
+        }
+      },
+      "projects": {
+        "boundaries": {
+          "passed": 52,
+          "skipped": 1
+        },
+        "node": {
+          "passed": 261
+        },
+        "web": {
+          "passed": 20
+        }
+      },
+      "failedTests": [],
+      "rawArchive": {
+        "file": "audit-39dfae5.json.gz",
+        "uncompressedBytes": 704692,
+        "uncompressedSha256": "e8937f2bb1780b8ebf069b9249dec0fe62b0a006a64f52dd16033fe027f2613d",
+        "compressedBytes": 107512,
+        "compressedSha256": "9750f4075d707df9b531e5f404f6158b2952956ff372d9f45408c9d17ee98fe1"
+      },
+      "stderr": {
+        "file": "audit-39dfae5.stderr.log",
+        "sha256": "5db09a1149d28728b168b5bcfcc42e79c59321739536451441d7485f01afb1fe"
+      }
+    }
+  ]
+}

@@ -1,16 +1,19 @@
 # Plan 40 released-provider integration
 
 **Date:** 2026-10-12. **Status:** Released-provider focused checks and ownership
-measurements pass. Clean committed consumer audit qualification remains open.
+measurements pass; [committed stage-one qualification](audit-qualification.md)
+subsequently passed. The focused and measurement identities below remain
+historical and are not relabelled as the later audited commit.
 The earlier [development receipt](development-qualification.md) retains its
 original 0.4.3 results and limitations.
 
 ## Release and consumer identity
 
-The candidate remains uncommitted in
+At the time of these focused checks and measurements, the candidate was uncommitted in
 `/workspaces/worktrees/ownership-recovery-agent`, branch `fix/ownership-recovery`,
 based on `3820eb42117651cb6fb1f29a5839e7d5b6000f88`. This base is not the identity
-of the modified candidate. No consumer commit, push or audit was performed.
+of the modified candidate. No consumer commit, push or audit was performed at
+that stage. The later committed audit has its own identity and evidence.
 
 The manifest and lockfile now pin **`ramify.ts@0.5.0`** from the configured
 registry. The installed executable answers `0.5.0`. A single retained registry
@@ -146,19 +149,19 @@ sample ranges, first invocations, actual statuses, unique IDs, eligibility and
 raw/compressed SHA-256 identities. No failed or unsupported acquisition was
 relabeled as successful. No production cache or filesystem checkpoint was added.
 
-## Remaining qualification
+## Subsequent committed qualification
 
 Release adoption, installed-provider witness, focused regression/type/structure
-checks and the ownership-query measurement are complete for this reviewable
-candidate. **Stage-one qualification remains open** until an authorized consumer
-commit and a clean committed default audit:
+checks and the ownership-query measurement were complete for that reviewable
+candidate. The user subsequently authorized the consumer commit and clean
+committed default audit:
 
 ```sh
 node_modules/.bin/ramify-audit audit --cwd . --json
 ```
 
-The audit must retain all configured checks and projects and record the exact
-consumer commit and audit evidence. This receipt has no consumer audit ref or
-passing whole-suite claim. Commit/audit permission remains the coordinator's
-next user approval step; no commit was made here. Conditional checkpoint
-measurement/adoption remains separate, unimplemented stage-two work.
+The [committed audit receipt](audit-qualification.md) records both attempts,
+the exact qualified consumer commit, all configured checks/projects and the
+passing scoped composition after the first full attempt's failures were fixed.
+It does not change the historical source/dirty identities of these benchmarks.
+Conditional checkpoint measurement/adoption remains separate stage-two work.

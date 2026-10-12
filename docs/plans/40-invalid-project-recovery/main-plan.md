@@ -1,6 +1,7 @@
 # Plan 40: implementation through temporarily invalid projects
 
-**Date:** 2026-10-12. **Status:** In implementation; qualification remains open.
+**Date:** 2026-10-12. **Status:** Stage one implemented and qualified;
+stage-two checkpoint evaluation remains pending.
 **Tracking:** `ramify-agent-9dt.1` for stage-one recovery;
 `ramify-agent-9dt.2` for mutation classification;
 `ramify-agent-9dt.10` for checkpoint evaluation.
@@ -72,6 +73,15 @@ the registry published `ramify.ts@0.5.0` from release commit
 `26e382791ae64e52f179573054ff00ff03078700`. The release commit changes only
 the package version and lockfile relative to the implementation and its audit
 receipt. Consumer adoption and qualification remain separate gates.
+
+Consumer stage one subsequently adopted the exact published pin and qualified
+commit `39dfae593e836fbe98b74830c17e865550d6e7d2` through the
+[composed committed default audits](audit-qualification.md). All configured
+checks/projects were retained, and the passing composition has zero outstanding
+failures. The [released-provider integration receipt](release-integration-qualification.md)
+records the earlier scripted/native regressions and ownership-query measurements
+with their actual identities. Iterations 1–7 are complete; checkpoint evaluation
+and any conditional implementation remain separate iterations 8–9.
 
 | Iteration | Deliverable | Depends on | Acceptance gate |
 | --- | --- | --- | --- |

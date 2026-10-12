@@ -1,0 +1,1 @@
+{"type":"mode.decided","runId":"52508633-cd5e-4fcc-9bb5-417a7960d49f","timestamp":1791805137998,"projectRoot":".","requestedMode":"ramify-partial","resolution":"defaulted","executedMode":"full","fallbackReason":"preparation-input: package-lock.json, package.json"}
