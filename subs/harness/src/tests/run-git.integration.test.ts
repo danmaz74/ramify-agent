@@ -103,7 +103,7 @@ describe('run-to-Git integration', () => {
     await writeFile(join(external, 'target.feature'), externalBytes);
     await rm(join(root, path)); await symlink(join(external, 'target.feature'), join(root, path));
     expect(await producer.gates.renderedFeatureAllowed(path, sha256(content), answer)).toBe(false);
-    await expect(producer.renderProducerFeatures({}, expected)).rejects.toThrow('outside ordinary ownership');
+    await expect(producer.renderProducerFeatures({}, expected)).rejects.toThrow(`outside canonical ordinary ownership: ${path}`);
     expect(await readFile(join(external, 'target.feature'), 'utf8')).toBe(externalBytes);
     await git(root, 'restore', path);
     await git(root, 'switch', '-c', 'producer-side');

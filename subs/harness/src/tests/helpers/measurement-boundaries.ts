@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
+import type { OwnershipAnswer } from '../../../subs/evidence/src/ownership-evidence.js';
 import { RamifyCli, type RamifyRun } from '../../../subs/evidence/src/ramify-cli.js';
 import { architectViewDirectory } from '../../../subs/evidence/src/views.js';
 import { mockGit } from './mock-git.js';
@@ -97,7 +98,14 @@ export function measurementBoundaries(root: string, unavailable = false) {
       await publishMeasurementView(root);
       return { ok: true as const, output: 'Synthetic fixture artifact bytes, no installed producer claim' };
     }
-    override async queryOwnership(): Promise<never> { throw new Error('No ownership answer declared for measurement fixture'); }
+    override async queryOwnershipAnswer(project: string, paths: readonly string[] = ['.']): Promise<OwnershipAnswer> {
+      expect(project).toBe(root); expect(paths).toEqual(['.']);
+      once('ownership');
+      return { schemaVersion: 'ramify.ownership/1', ramifyVersion: 'synthetic-measurement-ownership-only', root,
+        inputId: 'synthetic-measurement-ownership', scope: { configuration: 'tsconfig.json', ownership: {
+          modules: [{ id: 'collection-review', parent: null, directory: '.' }, { id: 'collection-review/workspace', parent: 'collection-review', directory: 'subs/workspace' }], exclusions: [],
+        } }, paths: [{ path: '.', status: 'owned', module: 'collection-review', exclusion: null }] };
+    }
     override async stopDaemon(): Promise<void> { expect(unavailable).toBe(true); once('stop-daemon'); }
   }
   const ramify = retain(new MeasurementRamify());
@@ -111,7 +119,7 @@ export function measurementBoundaries(root: string, unavailable = false) {
     assertAnswered() { expect(git.unexpected, `caught or unstated Git operations: ${JSON.stringify(git.unexpected)}`).toEqual([]); expect(failures, `caught external answer failures: ${JSON.stringify(failures)}`).toEqual([]); },
     assertComplete(required: readonly string[]) {
       this.assertAnswered(); for (const operation of required) {
-        if (['branch', 'materialize', 'capture', 'trailer', 'commit', 'stop-daemon'].includes(operation)) expect(consumed.get(operation), `required ${operation} answer consumed exactly once`).toBe(1);
+        if (['branch', 'materialize', 'capture', 'trailer', 'commit', 'stop-daemon', 'ownership'].includes(operation)) expect(consumed.get(operation), `required ${operation} answer consumed exactly once`).toBe(1);
         else expect(calls, `required repeatable ${operation} consumed`).toContain(operation);
       }
       expect(auditAnswers.requests, 'required configured audit requests').toHaveLength(required.includes('branch') ? 2 : 0);

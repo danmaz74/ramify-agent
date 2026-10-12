@@ -29,7 +29,7 @@ import { declaringScenarios } from './helpers/declarations.js';
 import type { OpenRunsOptions } from './helpers/runs.js';
 import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
-import { runLayout, type InvocationOutcome } from '../run/records.js';
+import { gateAttemptSchema, runLayout, type InvocationOutcome } from '../run/records.js';
 import type { RunWrite } from '../run/service.js';
 import type { RunEvent } from '../run/log.js';
 import { reduceSessions } from '../run/sessions.js';
@@ -599,16 +599,24 @@ describe('the recovery table', () => {
     }
     const ramify = new FakeRamifyCli();
     const query = vi.spyOn(ramify, 'queryOwnership');
-    const restarting = openRuns(root, { git, ramify });
-    await expect(restarting).rejects.toThrow('Recovered gate candidate has no current captured authority');
-    await expect(restarting).rejects.toThrow(variant === 'unassigned-dirt' ? outside : 'src/late.ts');
+    const audit = vi.fn(async () => { throw new Error('A refused recovered candidate must not be audited'); });
+    const restarted = await openRuns(root, { git, ramify, configuredAudit: { run: audit, read: async () => { throw new Error('A refused recovered candidate has no audit evidence to read'); } } });
+    cleanups.push(() => restarted.service.close());
+    expect(restarted.recovery.effects).toEqual([`review-notes/${runId}: the failed preflight of gate ga-0002`]);
+    const attempt = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.gate('ga-0002')), 'utf8')));
+    expect(attempt).toMatchObject({ verdict: 'failed', cause: 'check-failed', next: 'repair', commit: null, audited: null, evidence: null });
+    expect(attempt.rules?.find(rule => rule.rule === 'write-scope')).toMatchObject({ outcome: 'failed', violations: expect.arrayContaining([expect.objectContaining({ path: variant === 'unassigned-dirt' ? outside : 'src/late.ts' })]) });
+    expect(audit).not.toHaveBeenCalled();
     expect(query).toHaveBeenCalledTimes(1);
     expect(git.head()).toBe(beforeHead);
     expect(git.commits()).toEqual(beforeCommits);
     expect(await readFile(join(root, 'src/late.ts'), 'utf8')).toBe(late);
     if (variant === 'unassigned-dirt') expect(await readFile(join(root, outside), 'utf8')).toBe('unassigned source must remain pending\n');
     else expect(await readFile(join(root, 'module.ramify'), 'utf8')).toContain('external "src/late.ts"');
-    expect((await runEventsOnDisk(root, 'review-notes', runId)).filter(event => event.type === 'gate-attempted')).toHaveLength(0);
+    const events = await runEventsOnDisk(root, 'review-notes', runId);
+    expect(events.filter(event => event.type === 'gate-attempted')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'gate-attempted')[0]!.data).toMatchObject({ gate: 'ga-0002', verdict: 'failed', next: 'repair' });
+    expect(events.at(-1)!.type).toBe('job-interrupted');
   }, 180_000);
 
   test('a crash between the commit intent and the commit performs the effect again and makes one commit', async () => {

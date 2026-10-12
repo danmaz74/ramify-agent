@@ -35,7 +35,7 @@ const environment: MeasurementEnvironment = {
   inputs(root) { const answer = boundary(root); required.set(root, ['measure', 'capture', '--version', 'head', 'clean', 'branch', 'trailer', 'commit']); return answer.inputs; },
   async open(root, options) {
     const selected = boundary(root);
-    required.set(root, missing.has(root) ? ['measure', '--version', 'head', 'clean', 'stop-daemon'] : [...(required.get(root) ?? []), '--version', 'head', 'clean', ...(required.get(root)?.includes('branch') ? [] : ['branch', 'trailer', 'commit'])]);
+    required.set(root, missing.has(root) ? ['measure', '--version', 'head', 'clean', 'stop-daemon'] : [...(required.get(root) ?? []), '--version', 'head', 'clean', ...(required.get(root)?.includes('branch') ? [] : ['branch', 'trailer', 'commit']), 'ownership']);
     return openRuns(root, { ...options, ...selected.options, ramify: selected.ramify });
   },
 };
@@ -73,4 +73,18 @@ test('measurement scripts retain an exhausted mutation answer even when caught',
   await answer.ramify.materialize(fixture.root);
   await answer.ramify.materialize(fixture.root).catch(() => undefined);
   expect(() => answer.assertAnswered()).toThrow('exhausted materialize');
+});
+
+test('measurement scripts retain caught ownership argument and exhaustion failures', async () => {
+  const wrong = measurementBoundaries('/declared/project');
+  await wrong.ramify.queryOwnershipAnswer('/wrong/project', ['.']).catch(() => undefined);
+  expect(() => wrong.assertAnswered()).toThrow('queryOwnershipAnswer');
+  const wrongPath = measurementBoundaries('/declared/project');
+  await wrongPath.ramify.queryOwnershipAnswer('/declared/project', ['src/not-declared.ts']).catch(() => undefined);
+  expect(() => wrongPath.assertAnswered()).toThrow('queryOwnershipAnswer');
+  const answer = measurementBoundaries('/declared/project');
+  expect(await answer.ramify.queryOwnershipAnswer('/declared/project', ['.'])).toMatchObject({ paths: [{ status: 'owned', module: 'collection-review' }] });
+  answer.assertComplete(['ownership']);
+  await answer.ramify.queryOwnershipAnswer('/declared/project', ['.']).catch(() => undefined);
+  expect(() => answer.assertAnswered()).toThrow('exhausted ownership');
 });

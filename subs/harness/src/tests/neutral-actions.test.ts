@@ -6,6 +6,10 @@ import { createScriptedAgent, type ScriptedAgentOptions, type ScriptStep } from 
 import { activityOf } from '../jobs/activity.js';
 import { runLayout } from '../run/records.js';
 import type { Observation } from '../run/observations.js';
+import { ContentStore } from '../transcripts/store.js';
+import { RunLog } from '../run/log.js';
+import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownership-authority.js';
+import { decodeOwnershipEvidenceAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -164,6 +168,26 @@ async function engineerRecord(naming: Naming) {
   const result = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
   const observations = (await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.observations(result.invocations[0]!)), 'utf8'))
     .split('\n').filter(Boolean).map(line => JSON.parse(line) as Observation);
+  const assignment = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, iterationLayout.assignment('wi-001', 1)), 'utf8')) as unknown;
+  const assignmentHash = assignmentAuthorityIdentity(assignment);
+  const ledger = await RunLog.open(runPath(root, 'review-notes', receipt.jobId, runLayout.events), receipt.jobId);
+  const references = ledger.all('ownership-evidence-retained').map(event => event.data);
+  const authority = new OwnershipAuthority({ assignment: assignmentHash, root,
+    store: new ContentStore(runPath(root, 'review-notes', receipt.jobId, runLayout.blobs)), decode: decodeOwnershipEvidenceAnswer,
+    references: () => references, append: async () => { throw new Error('neutral action verification must be read-only'); } });
+  // Verify each independently rooted fixture's complete assignment and durable provider evidence
+  // before setting aside the root-dependent content identities in the semantic comparison.
+  const retained = await authority.read();
+  expect(retained.latest?.root).toBe(root);
+  for (const item of observations) {
+    if (item.type !== 'guard' || item.data.verdict !== 'allowed') continue;
+    expect(item.data.basis).toBe('current');
+    expect(item.data.assignment).toBe(assignmentHash);
+    expect(item.data.ownershipEvidence).toEqual(expect.objectContaining({ assignment: assignmentHash, root }));
+    expect(references).toContainEqual(item.data.ownershipEvidence);
+    const path = item.data.resolved!.slice(root.length + 1).replaceAll('\\', '/');
+    expect(retained.paths.get(path)).toBe(true);
+  }
   // The port events' recorder and the guard write to the log independently,
   // so each keeps its own order and the two are compared apart.
   const recorded = observations.flatMap((line): Array<Record<string, unknown>> => {
@@ -199,6 +223,7 @@ async function engineerRecord(naming: Naming) {
     stored: await readFile(join(root, store), 'utf8'),
     edited: await readFile(join(root, notesDirectory, 'src', 'notes.ts'), 'utf8'),
     root,
+    assignmentHash,
   };
 }
 
@@ -207,9 +232,21 @@ describe('ST05: an executor whose tools are named otherwise is recorded and guar
     const pi = await engineerRecord(piNames);
     const other = await engineerRecord(otherNames);
 
-    // The records are the same once the project directory is set aside;
-    // only the tool names differ, and they are kept for display.
-    const relativeTo = (record: typeof pi) => JSON.parse(JSON.stringify(record.neutral).split(record.root).join('<root>')) as unknown;
+    // Compare decisions and provider identity; content addresses are fixture-specific because
+    // both complete assignments and retained ownership documents include the project root.
+    const relativeTo = (record: typeof pi) => {
+      const guarded = record.neutral.guarded.map(line => {
+        if (!('guard' in line)) return line;
+        const decision = line['guard'] as Extract<Observation, { type: 'guard' }>['data'];
+        const evidence = decision.ownershipEvidence;
+        return { guard: { ...decision,
+          ...(decision.assignment === undefined ? {} : { assignment: '<verified-assignment>' }),
+          ...(evidence == null ? {} : { ownershipEvidence: { ...evidence, assignment: '<verified-assignment>', hash: '<verified-ownership-evidence>', bytes: '<verified-byte-count>' } }),
+        } };
+      });
+      return JSON.parse(JSON.stringify({ ...record.neutral, guarded }).split(record.root).join('<root>')) as unknown;
+    };
+    expect(other.assignmentHash).not.toBe(pi.assignmentHash);
     expect(relativeTo(other)).toEqual(relativeTo(pi));
     expect(pi.guardedTools).toEqual(['write', 'write', 'edit']);
     expect(other.guardedTools).toEqual(['CreateFile', 'CreateFile', 'ReplaceText']);

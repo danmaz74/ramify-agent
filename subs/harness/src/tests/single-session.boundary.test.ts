@@ -40,7 +40,10 @@ describe('the actual session shell write boundary', () => {
     expect(await readFile(join(deniedRoot, 'ramify-audit.json'), 'utf8')).toContain('createdByShell');
     expect(finished(denied.result).gate).toMatchObject({ verdict: 'failed' });
     const attempt = gateAttemptSchema.parse(JSON.parse(await readFile((await recordsOf(finished(denied.result).records)).diagnosis, 'utf8')));
-    expect(attempt.rules?.find(rule => rule.rule === 'write-scope')).toMatchObject({ outcome: 'failed', violations: [{ rule: 'write-scope', path: state, detail: expect.any(String) }, { rule: 'write-scope', path: 'ramify-audit.json', detail: expect.any(String) }] });
+    const scopeRule = attempt.rules?.find(rule => rule.rule === 'write-scope');
+    expect(scopeRule?.outcome).toBe('failed');
+    expect(scopeRule?.violations).toHaveLength(2);
+    expect(scopeRule?.violations).toEqual(expect.arrayContaining([{ rule: 'write-scope', path: state, detail: expect.any(String) }, { rule: 'write-scope', path: 'ramify-audit.json', detail: expect.any(String) }]));
     expect(await readFile(join(deniedRoot, state), 'utf8')).toContain('createdByShell');
     expect(attempt.commit).toBeNull();
     expect(denied.git.commitAccepted).not.toHaveBeenCalled();
