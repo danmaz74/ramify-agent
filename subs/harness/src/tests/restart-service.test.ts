@@ -16,6 +16,7 @@ const plan = 'review-notes', tree = 'a'.repeat(40);
 async function failedArchitect(finish = false, extra: Partial<Parameters<typeof openRuns>[1]> = {}) {
   const copied = await copyFixture(); cleanups.push(copied.remove);
   const root = copied.root;
+  let pendingArchitectEntered = false;
   let currentBranch = 'main'; const branches = new Map<string, string>();
   const git = mockGit({ currentHead: async () => 'base', isCleanRepository: async () => true,
     createRunBranch: async (_root, runId) => { const branch = `ramify-agent-run/${runId}`; const created = !branches.has(branch); branches.set(branch, 'base'); currentBranch = branch; return { branch, created }; },
@@ -30,13 +31,24 @@ async function failedArchitect(finish = false, extra: Partial<Parameters<typeof 
     const capture = await inputs.capture(...args); return { ...capture, versions: { ...capture.versions, ramify: '0.5.0' } };
   } }, candidates: scriptedCandidates(root, { [tree]: { tree, base: 'base', files: {}, changes: [] }, base: { tree, base: 'base', files: {}, changes: [] } }),
     script: byRole({ 'initial-architect': [submit(analysis([entry('review-notes', 'collection-review/workspace/reviews')]))],
-      'local-architect': [[{ kind: 'legacy-context-return' as const, tokens: 150_000 }], finish ? submit(requestCompletion()) : [{ kind: 'await' as const, until: () => new Promise(() => undefined) }]] }),
+      'local-architect': [[{ kind: 'legacy-context-return' as const, tokens: 150_000 }], finish ? submit(requestCompletion()) : [{ kind: 'await' as const, until: () => { pendingArchitectEntered = true; return new Promise(() => undefined); } }]] }),
     ...extra,
   };
   const opened = await openRuns(root, options); cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun(plan)); await opened.service.settled(plan, receipt.jobId);
   expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('failed');
-  return { ...opened, root, options, source: receipt.jobId, git };
+  return { ...opened, root, options, source: receipt.jobId, git, pendingArchitectEntered: () => pendingArchitectEntered };
+}
+
+/** Stop only after the scripted task is parked and both admission records are durable. */
+async function parkedArchitect(fixture: Awaited<ReturnType<typeof failedArchitect>>, runId: string,
+  entered: () => boolean = fixture.pendingArchitectEntered): Promise<void> {
+  await until(() => {
+    const events = fixture.service.events(plan, runId)!;
+    const invocation = events.find(event => event.sequence > 0 && event.type === 'invocation-started' && event.data.role === 'local-architect');
+    return entered() && invocation?.type === 'invocation-started' && events.some(event => event.type === 'invocation-prepared'
+      && event.data.invocation === invocation.data.invocation && event.data.recorded === 'operation-identity');
+  });
 }
 
 test('prepare commits one held successor without changing the failed source, and retries survive startup', async () => {
@@ -72,7 +84,7 @@ test('resume reconstructs the retained module architect in a fresh successor ses
   const sessionsBefore = fixture.agent!.sessions.length;
   await fixture.service.execute({ type: 'resume-recovery', commandId: 'fresh-resume', expectedVersion: 0, payload: { planId: plan, jobId: prepared.jobId,
     occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision, repair: { areas: ['runtime'], explanation: 'The compatible continuity runtime replaces the captured historical context cutoff' } } });
-  await until(() => fixture.service.events(plan, prepared.jobId)!.some(event => event.type === 'invocation-started' && event.sequence > 0 && event.data.role === 'local-architect'));
+  await parkedArchitect(fixture, prepared.jobId);
   expect(fixture.agent!.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(before);
   await until(() => fixture.agent!.sessions.length > sessionsBefore);
   const started = fixture.service.events(plan, prepared.jobId)!.filter(event => event.type === 'invocation-started' && event.sequence > 0 && event.data.role === 'local-architect').at(-1)!;
@@ -156,13 +168,14 @@ test('a corrupt imported artifact blocks resume and its committed successor clai
 
 
 test('two completed items and eight done reports remain history while the exact pending module architect resumes first', async () => {
+  let pendingArchitectEntered = false;
   const owner = 'collection-review/workspace/reviews';
   const entries = [entry('first', owner), entry('second', owner), entry('pending', owner)];
   const scenarios = entries.flatMap((item, index) => Array.from({ length: index < 2 ? 4 : 1 }, (_, scenario) => architectScenario(item, `${item.capability}-${scenario}`)));
   const fixture = await failedArchitect(false, { script: byWork({
     'initial-architect': [submit(analysis(entries, [], [], scenarios))],
     'local-architect:wi-001': [submit(requestCompletion())], 'local-architect:wi-002': [submit(requestCompletion())],
-    'local-architect:wi-003': [[{ kind: 'legacy-context-return', tokens: 150000 }], [{ kind: 'await', until: () => new Promise(() => undefined) }]],
+    'local-architect:wi-003': [[{ kind: 'legacy-context-return', tokens: 150000 }], [{ kind: 'await', until: () => { pendingArchitectEntered = true; return new Promise(() => undefined); } }]],
   }) });
   const historical = fixture.service.events(plan, fixture.source)!;
   expect(historical.filter(event => event.type === 'work-item-completed')).toHaveLength(2);
@@ -173,7 +186,7 @@ test('two completed items and eight done reports remain history while the exact 
   const recovery = (await fixture.service.recoveryInspection(plan, prepared.jobId))!;
   await fixture.service.execute({ type: 'resume-recovery', commandId: 'plan43-shape-resume', expectedVersion: 0, payload: { planId: plan, jobId: prepared.jobId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
     repair: { areas: ['runtime'], explanation: 'Keep accepted decomposition and reconstruct its pending module architect under continuity' } } });
-  await until(() => fixture.service.events(plan, prepared.jobId)!.some(event => event.sequence > 0 && event.type === 'invocation-started' && event.data.role === 'local-architect'));
+  await parkedArchitect(fixture, prepared.jobId, () => pendingArchitectEntered);
   const next = fixture.service.events(plan, prepared.jobId)!.find(event => event.sequence > 0 && event.type === 'invocation-started' && event.data.role === 'local-architect')!;
   expect(next.data).toMatchObject({ work: { workItem: 'wi-003' } });
   expect(fixture.service.events(plan, fixture.source)).toEqual(historical);
@@ -264,7 +277,7 @@ test('a lost branch acknowledgement is reconciled from its admitted ref before f
   expect(held).toMatchObject({ state: 'paused', boundary: { checkpoint: 'restart-branch' } });
   await fixture.service.execute({ type: 'resume-recovery', commandId: 'branch-receipt-second', expectedVersion: 0, payload: { planId: plan, jobId: prepared.jobId,
     occurrenceId: held.occurrenceId, expectedRevision: held.revision, repair: { areas: ['environment'], explanation: 'The owned branch ref and unchanged candidate authenticate completion despite the missing acknowledgement' } } });
-  await until(() => fixture.service.events(plan, prepared.jobId)!.some(event => event.sequence > 0 && event.type === 'invocation-started' && event.data.role === 'local-architect'));
+  await parkedArchitect(fixture, prepared.jobId);
   expect(fixture.git.createRunBranch.mock.calls.filter(call => call[1] === prepared.jobId)).toHaveLength(1);
   expect(fixture.service.events(plan, prepared.jobId)!.filter(event => event.sequence > 0 && event.type === 'restart-branch-ready')).toHaveLength(1);
   await fixture.service.execute(stopRun(plan, prepared.jobId, fixture.service.getRun(plan, prepared.jobId)!.version));
