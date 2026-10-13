@@ -36,6 +36,7 @@ import { currentModuleTree } from '../projections/tree.js';
 import { RunQueries } from '../projections/queries.js';
 import { SessionQueries } from '../projections/session-queries.js';
 import type { RunService } from '../run/service.js';
+import { createQuerySource } from './query-source.js';
 
 export interface AppOptions {
   /** The absolute root of the project this harness serves. */
@@ -82,8 +83,9 @@ type StandaloneBodyRequest = Request<{ session: string; hash: string }>;
  */
 export function createApp(options: AppOptions): express.Express {
   const { projectRoot, runs } = options;
-  const queries = new RunQueries(runs);
-  const sessions = new SessionQueries(runs);
+  const source = createQuerySource(runs);
+  const queries = new RunQueries(source);
+  const sessions = new SessionQueries(source);
   const app = express();
   app.disable('x-powered-by');
 

@@ -654,6 +654,10 @@ hiding or measured complexity justifies it.
     consumer wrote it, both sides of the seam, the existing consumers when it
     extends an agreement, and the naming and exposure-parity rules its gate
     will verify.
+- `http/query-source.ts`: HTTP composition constructs one frozen, explicit
+  reading-only RunSource for both query providers; commands and recovery/restart
+  inspection retain the RunService separately. Preparation inventory and focused
+  compatibility limitations are recorded in `query-composition-baseline.md`.
 - `projections/`: every answer of the run protocol, computed from what the
   run service's `committed` hands out (the run's record, its directory and
   the complete lines of its log with their record bodies) and from the run's
