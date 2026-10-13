@@ -35,6 +35,11 @@ records. Project principles remain authoritative without being copied wholesale.
 
 ## Write the execution input
 
+Make the plan self-contained: carry required behavior and acceptance from any
+source issue into the execution input. Issue references identify provenance.
+Keep repository bookkeeping and external issue-status duties outside the
+captured plan package. The harness owns execution progress and acceptance.
+
 Use [the template](assets/plan.md) as a starting point, omitting sections that
 add nothing. It is an authoring aid, not a mandatory schema. Prefer one readable
 document; add companions only for substantial contracts or acceptance material.

@@ -1,80 +1,30 @@
 ---
 name: beads
-description: Use when working in a repository that uses bd or Beads for durable project task tracking, issue dependencies, blocker management, multi-session handoff, or shared work memory. Trigger when the user asks to find ready work, claim or close tasks, create follow-up work, inspect blockers, recover project context, or choose between local planning and persistent project tracking.
+description: Record, inspect or resolve deferred issues in ramify-agent itself that are left for work outside a plan. Use only for that issue backlog, not plan execution, general task tracking, project memory or target-project issues.
 ---
 
-# Beads
+# Deferred ramify-agent issues
 
-Use Beads as the shared project task system. Local plans, scratch files, and personal memories are useful, but they are not the durable source of truth for project work.
+Follow the [repository scope](../../../AGENTS.md#deferred-ramify-agent-issues).
+Use Beads only for issues in ramify-agent itself that are left for resolution
+outside a plan. A plan's assignments, progress and acceptance remain in the
+harness's own records.
 
-## First Step
+## Inspect and record an issue
 
-Run:
+Use the `bd` CLI on demand. Identify the existing workspace with `bd where`,
+then search for an existing issue with `bd search` and inspect it with `bd show`
+before creating or changing a record. Prefer `--json` for structured output.
 
-```bash
-bd prime
-```
+When filing a deferred issue, record the observed harness problem, supporting
+evidence and why it remains outside the plan. A target-project failure alone
+is not evidence of a ramify-agent defect. Use `bd create` for a new issue or
+`bd update` for an existing one; preserve prior evidence.
 
-If that prints nothing, check whether the repository has an active Beads workspace:
+When taking up a deferred issue, use `bd update <id> --claim`. Close it with
+`bd close <id> --reason=...` only when its resolution is verified. Moving the
+issue into a plan does not establish that it is fixed.
 
-```bash
-bd where
-```
-
-## Preferred Route
-
-Use the `bd` CLI when shell access is available. It is the most compact and direct Beads interface.
-
-## Core CLI Workflow
-
-1. Find work:
-
-```bash
-bd ready
-bd list --status=open
-bd list --status=in_progress
-```
-
-2. Inspect before editing:
-
-```bash
-bd show <id>
-```
-
-3. Claim work atomically:
-
-```bash
-bd update <id> --claim
-```
-
-4. Create durable follow-up work when implementation reveals new tasks:
-
-```bash
-bd create "Short title" --description="Why this exists and what needs to be done" --type=task --priority=2
-```
-
-5. Close completed work:
-
-```bash
-bd close <id> --reason="Completed"
-```
-
-## What Belongs In Beads
-
-Use Beads for:
-
-- shared project tasks
-- blockers and dependencies
-- discovered follow-up work
-- work that must survive thread reset, compaction, or handoff
-- status that another person or agent should be able to resume
-
-Use agent-local planning tools only for the current turn's execution checklist. Do not treat them as shared project state.
-
-## Rules
-
-- Do not create markdown TODO files as the source of truth when Beads is available.
-- Do not use `bd edit`; it opens an interactive editor. Use `bd update` flags instead.
-- Prefer `--json` when parsing `bd` output programmatically.
-- If hooks are installed, `bd prime` may already be injected. Run it manually when context is missing.
-- Do not auto-close or mutate tasks unless the work is actually complete.
+Use supported CLI operations rather than editing database or passive-export
+files. Do not run `bd edit`, which opens an interactive editor. Git commits,
+pushes and tracker synchronization retain their separate authorization.

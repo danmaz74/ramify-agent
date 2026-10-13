@@ -262,3 +262,36 @@ Preserve relevant instructions and submission contracts when proposing removals.
 Do not convert retrospective semantic judgments into harness heuristics or
 automatic task-completion decisions. Analysis does not itself demonstrate that
 a proposed change improves a later run.
+
+The final chat response must summarize the run outcome and list the most
+important findings directly, ordered by impact. For each, explain what was
+found, why it matters and the recommended correction, with material uncertainty
+made explicit. The user must be able to understand the conclusions without
+opening report files or Beads. Links and issue IDs support this self-contained
+summary; they do not replace it.
+
+## Record findings in Beads
+
+Use the repository's [Beads skill](../../../.agents/skills/beads/SKILL.md) to
+track supported findings about ramify-agent that remain unresolved after the
+postmortem. Recording these issues is part of the analysis workflow; it does
+not authorize implementing their corrections.
+
+The parent analyst reconciles delegated findings before updating the tracker.
+Search and inspect existing issues first. Append new evidence to a matching
+issue; create a new issue for a distinct problem. Keep speculative explanations
+and target-project defects in the report unless evidence establishes a
+ramify-agent issue. Check known later fixes so a historical observation is not
+filed as an unresolved current defect without qualification.
+
+Each issue records the observed problem, impact, target project, plan/run and
+harness revision, relevant invocation or session IDs, report and artifact
+locations, evidence limits, and the correction direction and verification
+needed. Preserve earlier evidence when adding recurrence or contrary findings.
+Report completion or a proposed fix is not grounds to close an unresolved issue.
+
+Map actionable findings to created or updated Beads IDs in the postmortem and
+handoff. If tracker access is unavailable or an update cannot be verified,
+finish the analysis and identify the unrecorded findings and reason explicitly.
+Do not claim they were filed. Plan execution and acceptance remain in the
+harness's own records.

@@ -1,4 +1,4 @@
 interface:
-  display_name: "Beads"
-  short_description: "Project task tracking with bd"
-  default_prompt: "Use $beads to inspect ready work and manage durable project tasks."
+  display_name: "Deferred ramify-agent issues"
+  short_description: "Track deferred issues in ramify-agent itself"
+  default_prompt: "Use $beads to record a ramify-agent issue left for resolution outside a plan."

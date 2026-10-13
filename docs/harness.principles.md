@@ -4,6 +4,8 @@
 
 The whole-tree scope and verification rules adopted on 2026-10-01 are
 normative design decisions; their implementation remains pending.
+The architect tracking-authority and external-tracker independence principles
+adopted on 2026-10-13 are normative; their runtime migration remains pending.
 
 ## Purpose
 
@@ -201,6 +203,21 @@ and enforces the model within it.
 The tree states who has authority over an interface. A parent owns the
 boundaries of its children. An interface between two branches belongs to
 neither side.
+
+### Architects Can Update Plans and Tracking Without Writing Code
+
+Architects do not write implementation code; module engineers implement it.
+Architects may update plans, decisions and progress tracking within their
+assigned authority through harness-controlled operations. The harness validates
+and persists durable run state. A restriction on code writes does not prohibit
+authorized planning or administrative updates.
+
+### Ordinary Execution Is Independent of External Trackers
+
+The harness owns the planning, progress and acceptance state needed to execute,
+resume and complete a plan. External issue records may supply background;
+they are never the authority for execution state. External bookkeeping and
+optional exports cannot control plan execution or completion.
 
 ### A Module Carries Its Own Onboarding
 
