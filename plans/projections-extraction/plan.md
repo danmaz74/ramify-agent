@@ -32,10 +32,14 @@ working query endpoint does not satisfy the required ownership change.
 - Keep `RunQueries`, `SessionQueries`, `currentModuleTree`, their translated
   error contracts and necessary signature companions available to the harness.
   Keep the consumer-defined reading port with the child: `RunSource`,
-  `CommittedRun` and `CommittedLine`. It receives committed inputs and the
-  existing reading dependencies, never a writable run service, ledger or command
-  executor. The architects choose the additional consultation and repair reading
-  entry points needed by the current consumers.
+  `CommittedRun` and `CommittedLine`. Its production source imports and calls
+  only committed inputs and selected reading dependencies; no writable run
+  service, ledger writer or command executor is imported or injected into it.
+  Do not add a new writable exposure for the child. Existing unused symbols
+  inherited from the harness's descendant exposures may remain available under
+  Ramify's subtree semantics; their availability alone does not require changes
+  to unrelated owners or consumers. The architects choose the additional
+  consultation and repair reading entry points needed by the current consumers.
 - The child owns record decoding for queries, response mapping, execution maps,
   progress/scenario presentation, session query caches, bounded pages, cursors
   and version-error handling. Preserve repeated reads, polling, reconnection,
@@ -178,7 +182,7 @@ Feature: A child implements the harness reading responsibilities
     Given the extracted module and its ordinary and testing API views
     When its real consumers and tests import the contracts they need
     Then each imported symbol and signature companion has explicit valid exposure
-    And the child receives no writable run service or ledger interface
+    And the child's production source imports, calls or receives by injection no writable run service, ledger writer or command executor, with no new writable exposure for it
     And private projectors and Node implementation are unavailable to web production code
     And focused child tests and parent integration tests remain in configured discovery
 ```
