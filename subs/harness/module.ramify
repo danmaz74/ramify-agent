@@ -114,8 +114,7 @@ expose-src RunSessionResponse, RunSessionView, RunSessionsResponse, SessionAppen
 expose-src TranscriptBody, TranscriptEntry, transcriptBodySchema, transcriptEntrySchema from "interfaces/protocol/transcripts.ts" to descendants
 expose-src jobSchemaVersion, jobsDirectory from "jobs/records.ts" to descendants
 expose-src DeclaredScope, baselineScope, rootModuleOfSnapshot, scopeSize from "kpi/capture.ts" to descendants
-// deliveredChange awaits evidence's collision-free ChangeHistory/LineRange contract.
-expose-src DeliveredChange, DeliveredChangeRequest, HarnessLineIdentities from "kpi/delivered.ts" to descendants
+expose-src deliveredChange, DeliveredChange, DeliveredChangeRequest, HarnessLineIdentities from "kpi/delivered.ts" to descendants
 expose-src InvocationTiming, invocationTiming from "kpi/efficiency.ts" to descendants
 expose-src ExplorationMetrics, ExplorationObservation, SearchCount, SearchCounts, explorationDetails from "kpi/exploration.ts" to descendants
 expose-src GuardVerdictCounts, GuardingReport, guardingReport from "kpi/guarding.ts" to descendants
@@ -152,9 +151,9 @@ expose-src scratchIgnoreRule from "work/scratch.ts" to descendants
 // Relays of selected direct-child reading contracts, with recursive named
 // companions. Existing CandidateSource and tree-operation relays stay below.
 expose-sub CheckFindingAction, CheckFindingActionKind, CheckFindingActor, CheckFindingAwaiting, CheckFindingCounts, CheckFindingCredibility, CheckFindingDecision, CheckFindingDecisionId, CheckFindingEntry, CheckFindingGroup, CheckFindingId, CheckFindingIngestion, CheckFindingOwner, CheckFindingProducer, CheckFindingReason, CheckFindingRejection, CheckFindingRejectionCode, CheckFindingRelation, CheckFindingRepair, CheckFindingReport, CheckFindingReportId, CheckFindingRisk, CheckFindingSource, CheckFindingStanding, CheckFindingState, CheckFindingVerification, checkFindingActionSchema, checkFindingActorSchema, checkFindingAwaitingSchema, checkFindingCredibilitySchema, checkFindingDecisionIdSchema, checkFindingDecisionSchema, checkFindingIdSchema, checkFindingOwnerSchema, checkFindingProducerSchema, checkFindingReasonSchema, checkFindingRejectionCodeSchema, checkFindingRelationSchema, checkFindingRepairSchema, checkFindingReportIdSchema, checkFindingReportSchema, checkFindingSourceSchema, checkFindingStandingSchema, checkFindingVerificationSchema, checkFindingViewVersion from check-findings to descendants
-// CheckFindingSummary/selection await the CheckFindingMaterialChoice collision;
-// ChangeHistory/ChangedFile await the LineRange collision with inherited agent API.
-expose-sub LineCommit, ModuleEntry, loadModuleTree from evidence to descendants
+// CheckFindingSummary/selection await the CheckFindingMaterialChoice collision.
+// GitLineRange binds evidence's original tuple without displacing agent LineRange.
+expose-sub ChangeHistory, ChangedFile, GitLineRange, LineCommit, ModuleEntry, loadModuleTree from evidence to descendants
 expose-sub JsonLines, LedgerEntry, RecordBody, Transaction, readJsonLines from ledger to descendants
 expose-sub Assessment, Candidate, ClosedRound, Outcome, Phase, RoundDecision, RoundDecisionInput, assessmentSchema, candidateSchema, decideNonfunctionalRound, roundSchema from nonfunctional to descendants
 expose-sub DocumentManifest, ElementCatalog, PackageCitation, PackageDeviation, documentManifestSchema, elementCatalogSchema, elementKinds, packageCitationSchema, packageDeviationSchema from plan-evidence to descendants

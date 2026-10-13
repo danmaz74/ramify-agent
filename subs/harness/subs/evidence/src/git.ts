@@ -724,6 +724,10 @@ export const gitCandidateSource: CandidateSource = { commitTree, treeEntries, re
 /** A run of consecutive line numbers: its first line and how many lines follow from it. */
 export type LineRange = readonly [start: number, count: number];
 
+// A distinct export binding for the same original, so reading-history consumers
+// can receive it alongside the agent's unrelated LineRange contract.
+export type { LineRange as GitLineRange };
+
 /** One path the diff between two commits changed, with renames detected. */
 export interface ChangedFile {
   /** The path at the earlier commit; null for a file it did not have. */
