@@ -10,9 +10,10 @@ acceptance, cache savings or kernel settlement.
 
 Local commit and default audit were explicitly authorized. The first default
 audit of implementation commit `bfa1dda86fa73d732d5be1f3e9583b81289ebef6`
-completed with a failing test verdict. The corrected candidate's audit is
-pending; complete qualification is not yet claimed.
-The required command remains
+completed with a failing test verdict. Corrected source
+`15b544293184713654ec64c1c189eef42b3c01e7` passed the default audit with a
+composed passing verdict and zero outstanding failures.
+The qualification command was
 `node_modules/.bin/ramify-audit audit --cwd . --json` from a clean committed
 candidate, with every configured project retained. Responsible architects assess
 semantic completion separately from check execution.
@@ -176,9 +177,27 @@ receipt is `refs/audited/runs/2026-10-13T07-52-57Z-1aa8645a3` (report
 capability restart fixture opening a recovering ledger reader during a live
 append. That reader can repair a partial tail and therefore cannot inspect a live
 owner's log. Inspection now follows explicit stop and settlement; the production
-ledger corruption rule remains enforced. Final qualification remains pending.
+ledger corruption rule remains enforced. Qualification was still pending at
+that point.
 The complete capability recovery file passed all 16 cases after this correction,
 all four TypeScript configurations passed, and `git diff --check` passed.
+
+The final default audit passed on `15b544293184713654ec64c1c189eef42b3c01e7`.
+The auditor selected the changed capability recovery file and carried its single
+outstanding failure: all 16 cases passed, expected-file coverage was complete,
+and patch integrity, all four TypeScript configurations, structure and web build
+passed. Its scoped record composes through the preceding 370-file scoped audit
+to the original 398-file full audit, with chain depth two and no outstanding
+failures. No scope override or project omission was supplied. The configured
+scenario command's earlier passing zero-scenario result remains in that chain;
+the acceptance inventory above identifies the composed behavioral witnesses.
+
+The final report is `37d22ddab3517dc6913971fcefadfd234e9a5bb6`, retained at
+`refs/audited/runs/2026-10-13T07-57-54Z-15b544293`. Retrieve its summary with
+`git show refs/audited/runs/2026-10-13T07-57-54Z-15b544293:reports/audit/summary.json`.
+The implementation and migration satisfy the plan's mapped outcomes; check
+qualification does not extend the registered witnesses' provider or kernel
+claims.
 
 The final composed service group passed 98 cases across six files, including
 the late owner completion and restart authority regressions. The standalone
