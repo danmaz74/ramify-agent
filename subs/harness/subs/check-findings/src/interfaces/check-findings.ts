@@ -649,6 +649,9 @@ export interface CheckFindingMaterialChoice {
   readonly reason: string;
 }
 
+/** The original reported material choice, under a non-colliding reading name. */
+export type { CheckFindingMaterialChoice as ReportedCheckFindingMaterialChoice };
+
 /** One line of a list. */
 export interface CheckFindingSummary {
   readonly id: CheckFindingId;

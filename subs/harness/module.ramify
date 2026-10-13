@@ -151,7 +151,9 @@ expose-src scratchIgnoreRule from "work/scratch.ts" to descendants
 // Relays of selected direct-child reading contracts, with recursive named
 // companions. Existing CandidateSource and tree-operation relays stay below.
 expose-sub CheckFindingAction, CheckFindingActionKind, CheckFindingActor, CheckFindingAwaiting, CheckFindingCounts, CheckFindingCredibility, CheckFindingDecision, CheckFindingDecisionId, CheckFindingEntry, CheckFindingGroup, CheckFindingId, CheckFindingIngestion, CheckFindingOwner, CheckFindingProducer, CheckFindingReason, CheckFindingRejection, CheckFindingRejectionCode, CheckFindingRelation, CheckFindingRepair, CheckFindingReport, CheckFindingReportId, CheckFindingRisk, CheckFindingSource, CheckFindingStanding, CheckFindingState, CheckFindingVerification, checkFindingActionSchema, checkFindingActorSchema, checkFindingAwaitingSchema, checkFindingCredibilitySchema, checkFindingDecisionIdSchema, checkFindingDecisionSchema, checkFindingIdSchema, checkFindingOwnerSchema, checkFindingProducerSchema, checkFindingReasonSchema, checkFindingRejectionCodeSchema, checkFindingRelationSchema, checkFindingRepairSchema, checkFindingReportIdSchema, checkFindingReportSchema, checkFindingSourceSchema, checkFindingStandingSchema, checkFindingVerificationSchema, checkFindingViewVersion from check-findings to descendants
-// CheckFindingSummary/selection await the CheckFindingMaterialChoice collision.
+// The owner-local alias preserves the original material-choice interface without
+// colliding with the harness's distinct public wire contract.
+expose-sub ReportedCheckFindingMaterialChoice, CheckFindingSummary, CheckFindingDetailView, CheckFindingListView, CheckFindingSelection, CheckFindingQueryInput, CheckFindingQuery, checkFindingQuerySchema, checkFindingQueryLimits, selectCheckFindings from check-findings to descendants
 // GitLineRange binds evidence's original tuple without displacing agent LineRange.
 expose-sub ChangeHistory, ChangedFile, GitLineRange, LineCommit, ModuleEntry, loadModuleTree from evidence to descendants
 expose-sub JsonLines, LedgerEntry, RecordBody, Transaction, readJsonLines from ledger to descendants
