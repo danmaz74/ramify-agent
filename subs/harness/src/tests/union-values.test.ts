@@ -88,6 +88,7 @@ describe('the run log', () => {
   test('every event type is written and read back, and the terminal ones are named', () => {
     const types = runEventSchema.options.map(option => option.shape.type.value);
     expect(types).toEqual([
+      'restart-branch-setting-up', 'restart-branch-ready', 'restart-prepared',
       'continuity-policy-adopted', 'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'operation-recovery-replied',
       'readiness-preparation-started', 'readiness-preparation-completed', 'readiness-repair-committing', 'readiness-repair-committed',
       'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
@@ -119,6 +120,30 @@ describe('the run log', () => {
       'job-completed', 'job-failed', 'job-stopped', 'job-interrupted',
     ]);
     for (const terminal of terminalRunEvents) expect(types).toContain(terminal);
+  });
+
+  test('restart initialization and branch effects round-trip source identity and their distinct acceptance receipt', async () => {
+    const store = await ledger();
+    const jobId = '20260920T101500Z-3f9a1c';
+    const at = '2026-09-20T10:15:00.000Z';
+    const candidate = { branch: `ramify-agent-run/${jobId}`, head: 'accepted-forward-fix', tree: 'admitted-candidate' };
+    const events = [
+      runEventSchema.parse({ sequence: 1, jobId, at, type: 'restart-prepared', data: {
+        sourceRun: '20260919T080000Z-c0ffee', sourceCursor: 700, sourceDigest: 'a'.repeat(64), importDigest: 'b'.repeat(64),
+        importPath: runLayout.restartImport, generation: 1, occurrenceId: 'rec-0001', revision: 1,
+        command: { commandId: 'prepare-1', contentHash: 'c'.repeat(64), receipt: { commandId: 'prepare-1', jobId, sequence: 1, acceptedAt: at } },
+      } }),
+      runEventSchema.parse({ sequence: 2, jobId, at, type: 'restart-branch-setting-up', data: candidate }),
+      runEventSchema.parse({ sequence: 3, jobId, at, type: 'restart-branch-ready', data: candidate }),
+    ];
+    for (const event of events) await store.log.append({ event, records: [] });
+    const restored = await openLedger<RunEvent>({ logPath: `${store.directory}/events.jsonl`, recordsRoot: store.directory, eventSchema: runEventSchema });
+    expect(restored.replay().map(entry => entry.transaction.event)).toEqual(events);
+    expect(projectEvent(events[0]!)).toMatchObject({ sequence: 1, transition: 'restart-prepared', summary: expect.stringContaining('version 700') });
+    expect(projectEvent(events[1]!)).toMatchObject({ transition: 'restart-branch-setting-up', refs: [{ kind: 'commit', id: candidate.head }] });
+    expect(projectEvent(events[2]!)).toMatchObject({ transition: 'restart-branch-ready', summary: expect.stringContaining(candidate.tree) });
+    expect(runEventSchema.safeParse({ ...events[0]!, data: { ...events[0]!.data, sourceRun: '../unretained' } }).success).toBe(false);
+    expect(runEventSchema.safeParse({ ...events[2]!, data: { ...candidate, tree: '' } }).success).toBe(false);
   });
 
   test('the prepared invocation event round-trips its original identity through the ledger', async () => {

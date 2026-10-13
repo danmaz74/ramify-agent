@@ -169,9 +169,15 @@ describe('the command schema', () => {
 
   test('the run serves lifecycle, recovery, debugger and CheckFinding commands, and nothing else', () => {
     expect(runCommandSchema.options.map(option => option.shape.type.value)).toEqual([
-      'start-run', 'stop-job', 'approve-analysis', 'debug-resume', 'debug-message', 'resume-recovery',
+      'start-run', 'prepare-restart', 'stop-job', 'approve-analysis', 'debug-resume', 'debug-message', 'resume-recovery',
       'respond-to-check-finding', 'waive-check-finding', 'revoke-check-finding-waiver',
     ]);
+    const preparation = { commandId: 'prepare-1', expectedVersion: 700, type: 'prepare-restart',
+      payload: { planId: 'review-notes', jobId: '20260920T101500Z-3f9a1c' } };
+    expect(runCommandSchema.parse(preparation)).toEqual(preparation);
+    expect(runCommandSchema.safeParse({ ...preparation, payload: { ...preparation.payload,
+      repair: { areas: ['runtime'], explanation: 'Updated the harness' } } }).success).toBe(false);
+    expect(runCommandSchema.safeParse({ ...preparation, expectedVersion: -1 }).success).toBe(false);
     // There is no command that marks a CheckFinding resolved.
     expect(runCommandSchema.safeParse({
       commandId: 'c2', expectedVersion: 3, type: 'resolve-check-finding',

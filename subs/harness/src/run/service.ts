@@ -2510,7 +2510,10 @@ export class RunService {
         const preparation = log.find('restart-prepared');
         if (preparation) this.restartClaims.set(key(planId, preparation.data.sourceRun), { jobId, sourceDigest: preparation.data.sourceDigest });
         const captured = await readCapturedDocuments(directory, record.manifest);
-        if (!log.find('job-started') && !log.find('restart-prepared')) continue;
+        if (!log.find('job-started') && !preparation) {
+          if (record.restart) continue;
+          throw new Error('Document capture stopped before the run was published');
+        }
         let imported: RestartImport | undefined;
         if (record.restart) {
           if (!preparation || Object.entries(record.restart).some(([field, value]) => value !== preparation.data[field as keyof typeof preparation.data])) throw new Error('Restart initialization provenance is unavailable or inconsistent');
