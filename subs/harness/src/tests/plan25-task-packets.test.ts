@@ -49,19 +49,35 @@ test('P01/P02/P09: exact first framing, physical hashes and unchanged assignment
 
 test('P03/P04: deterministic object order, preserved arrays, whole replacements and explicit clears', () => {
   const initial = packet();
-  // The limits are the invocation's own bounds; without a shell, no command bound.
-  expect(initial.additions.find(item => item.key === 'environment:limits')!.text).toBe(first('environment:limits', '{\n  "limits": {\n    "invocationAbsoluteMs": 1,\n    "invocationIdleMs": 2\n  }\n}'));
-  expect(packet('completion', initial.additions, { ...env, limits: { invocationAbsoluteMs: 1, invocationIdleMs: 2, commandTimeoutMs: 9 } }).additions.filter(item => item.kind === 'environment')).toEqual([]);
+  const commandPolicy = {
+    ceilingMs: null,
+    defaultMs: 3,
+    rule: 'Omit assignment.bounds.commandTimeoutMs unless the work needs a permitted increase. An override uses { ms, reason }, cannot lower the default or exceed the ceiling, and cannot exceed the engineer invocation absolute bound. Null means policy evidence is unavailable; request it before choosing an override.',
+  };
+  const limits = { commandPolicy, invocationAbsoluteMs: 1, invocationIdleMs: 2 };
+  // Assignment authors receive command policy even without a shell. Both object levels are ordered.
+  expect(initial.additions.find(item => item.key === 'environment:limits')!.text).toBe(first('environment:limits', JSON.stringify({ limits }, null, 2)));
+  // Reordered inputs and a withheld settlement bound do not replace unchanged guidance.
+  expect(packet('completion', initial.additions, { ...env, limits: { invocationAbsoluteMs: 1, invocationIdleMs: 2, commandTimeoutMs: 3, stopSettleMs: 9 } }).additions.filter(item => item.kind === 'environment')).toEqual([]);
+  // A new command baseline replaces the whole limits block, including the invocation bounds.
+  const updated = packet('completion', initial.additions, { ...env, limits: { invocationAbsoluteMs: 1, invocationIdleMs: 2, commandTimeoutMs: 9 } });
+  expect(updated.additions.filter(item => item.kind === 'environment')).toEqual([expect.objectContaining({
+    key: 'environment:limits', text: set('environment:limits', JSON.stringify({ limits: {
+      commandPolicy: { ...commandPolicy, defaultMs: 9 }, invocationAbsoluteMs: 1, invocationIdleMs: 2,
+    } }, null, 2)),
+  })]);
   const changed = packet('completion', initial.additions, { ...env, candidate: null, limits: {}, supportPaths: [] });
   expect(changed.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits']);
   // A value the session holds is corrected explicitly, even to null.
   expect(changed.additions.find(item => item.key === 'environment:candidate')!.text).toBe(set('environment:candidate', '{\n  "candidate": null\n}'));
-  expect(effectiveBlocks([...initial.additions, ...changed.additions]).get('environment:limits')!.text).toBe(set('environment:limits', '{\n  "limits": {}\n}'));
+  // Clearing bounds retains explicit unknown policy values for the assignment author.
+  expect(effectiveBlocks([...initial.additions, ...changed.additions]).get('environment:limits')!.text)
+    .toBe(set('environment:limits', JSON.stringify({ limits: { commandPolicy: { ...commandPolicy, defaultMs: null } } }, null, 2)));
   // Support paths reach no role.
   expect(packet('completion', initial.additions, { ...env, supportPaths: ['a', 'b'] }).additions.filter(item => item.kind === 'environment')).toEqual([]);
   // A shell adds the command bound.
   expect(packet('assignment', [], { ...env, availableTools: [...env.availableTools, 'shell'] }).additions.find(item => item.key === 'environment:limits')!.text)
-    .toBe(first('environment:limits', '{\n  "limits": {\n    "commandTimeoutMs": 3,\n    "invocationAbsoluteMs": 1,\n    "invocationIdleMs": 2\n  }\n}'));
+    .toBe(first('environment:limits', JSON.stringify({ limits: { commandPolicy, commandTimeoutMs: 3, invocationAbsoluteMs: 1, invocationIdleMs: 2 } }, null, 2)));
 });
 
 test('P05: orientation, main, reconciliation and main retain independently available families', () => {
