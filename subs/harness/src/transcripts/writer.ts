@@ -4,7 +4,7 @@ import { appendJsonLine, discardPartialLine, readJsonLines, withJsonLineAppender
 import {
   transcriptEntrySchema, type TranscriptBody, type TranscriptEntry,
 } from '../interfaces/protocol/transcripts.js';
-import type { ContentStore } from './store.js';
+import type { ContentReader, ContentStore } from './store.js';
 
 /*
  * One session's transcript file. Entries are appended one line at a time
@@ -284,7 +284,7 @@ export async function readTranscript(path: string): Promise<TranscriptRead> {
 }
 
 /** A body's content: inline, from the content store, or the file it names. Null where it can no longer be read. */
-export async function readBody(root: string, store: ContentStore, body: TranscriptBody): Promise<string | null> {
+export async function readBody(root: string, store: ContentReader, body: TranscriptBody): Promise<string | null> {
   if (body.stored === 'inline') return body.text;
   if (body.stored === 'blob') return store.read(body.hash);
   const path = join(root, ...body.path.split('/'));

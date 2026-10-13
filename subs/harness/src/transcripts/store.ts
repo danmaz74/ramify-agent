@@ -21,6 +21,17 @@ export interface StoredContent {
   readonly bytes: number;
 }
 
+/** Transcript content access without storage or path-building authority. */
+export interface ContentReader {
+  read(hash: string): Promise<string | null>;
+}
+
+/** A frozen reading-only facade; opening it creates no files or directories. */
+export function openContentReader(directory: string): ContentReader {
+  const store = new ContentStore(directory);
+  return Object.freeze({ read: (hash: string) => store.read(hash) });
+}
+
 export class ContentStore {
   /** The blobs this process has stored or found, so a repeat touches nothing. */
   private readonly known = new Set<string>();

@@ -23,6 +23,8 @@ export interface CapabilityTaskState {
   readonly nextAssignmentSequence: number;
   readonly handback: string | null;
 }
+export type { CapabilityState as ReplayedCapabilityState };
+
 export interface CapabilityState {
   readonly requests: ReadonlyMap<string, { readonly parent: string; readonly assignment: string; readonly invocation: string; readonly task: string | null;
     readonly qualification?: 'satisfied' | 'request-placement' | 'unresolved' }>;

@@ -14,6 +14,8 @@ import {
  * file or infers a transition. Status lives in the log and in no snapshot.
  */
 
+export type { RunSnapshot as DurableRunSnapshot, RunNotice as DurableRunNotice };
+
 export interface RunSnapshot {
   readonly jobId: string;
   readonly planId: string;

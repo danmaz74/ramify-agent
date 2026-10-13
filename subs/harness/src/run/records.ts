@@ -60,6 +60,8 @@ export const sessionIdSchema = z.string().regex(/^ses-\d{4,}$/);
  * records took its place, recovery closed its interrupted invocation, or the
  * harness has no further use for it.
  */
+export { sessionFinishReasonSchema as runSessionFinishReasonSchema };
+
 export const sessionFinishReasonSchema = z.enum(['work-closed', 'run-ended', 'lost', 'replaced', 'interrupted', 'not-kept']);
 export type SessionFinishReason = z.infer<typeof sessionFinishReasonSchema>;
 

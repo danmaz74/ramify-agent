@@ -7,7 +7,7 @@ import {
 } from '../../subs/nonfunctional/src/interfaces/contracts.js';
 import { deviationOriginSchema, type MergeReadiness } from './nonfunctional-records.js';
 
-type DeviationOrigin = z.infer<typeof deviationOriginSchema>;
+export type DeviationOrigin = z.infer<typeof deviationOriginSchema>;
 
 /** Facts authenticated by the run adapter from committed records and CheckFinding replay. */
 export interface ReadinessDeviation {

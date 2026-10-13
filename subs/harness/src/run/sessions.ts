@@ -41,6 +41,8 @@ import type {
 export type SessionState = 'live' | 'suspended' | 'finished';
 
 /** Where a session's history changed: the event's sequence and time. */
+export type { SessionMoment as RunSessionMoment };
+
 export interface SessionMoment {
   readonly sequence: number;
   readonly at: string;

@@ -41,7 +41,7 @@ export class CommittedHistoryError extends Error {
   }
 }
 
-interface HistoryEntry {
+export interface HistoryEntry {
   readonly sequence: number;
   readonly transaction: {
     readonly event: { readonly type: string };
