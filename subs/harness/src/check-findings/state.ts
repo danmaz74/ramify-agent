@@ -17,6 +17,7 @@ export interface CommittedLines {
 }
 
 interface Cached {
+  readonly initializationSequence: number;
   readonly sequence: number;
   readonly state: CheckFindingState;
 }
@@ -25,7 +26,8 @@ const cache = new WeakMap<CommittedLines, Cached>();
 
 /** Replays the CheckFinding state of these lines from the empty state. A log that does not replay is corrupt. */
 export function replayCheckFindingState(entries: ReadonlyArray<LedgerEntry<RunEvent>>): CheckFindingState {
-  return advance({ sequence: 0, state: emptyCheckFindingState() }, entries).state;
+  const initializationSequence = Math.min(0, entries[0]?.sequence ?? 0);
+  return advance({ sequence: initializationSequence - 1, initializationSequence, state: emptyCheckFindingState() }, entries).state;
 }
 
 /**
@@ -35,7 +37,10 @@ export function replayCheckFindingState(entries: ReadonlyArray<LedgerEntry<RunEv
  */
 export function checkFindingStateOf(ledger: CommittedLines): CheckFindingState {
   const entries = ledger.replay();
-  const cached = cache.get(ledger) ?? { sequence: 0, state: emptyCheckFindingState() };
+  const initializationSequence = Math.min(0, entries[0]?.sequence ?? 0);
+  const previous = cache.get(ledger);
+  const cached = previous?.initializationSequence === initializationSequence ? previous
+    : { sequence: initializationSequence - 1, initializationSequence, state: emptyCheckFindingState() };
   const last = entries.at(-1)?.sequence ?? 0;
   if (cached.sequence === last) return cached.state;
   const advanced = advance(cached, entries);
@@ -51,5 +56,5 @@ function advance(from: Cached, entries: ReadonlyArray<LedgerEntry<RunEvent>>): C
   if (!replayed.ok) {
     throw new Error(`The run log's CheckFinding events do not replay: ${replayed.rejection.message}`);
   }
-  return { sequence: entries.at(-1)?.sequence ?? from.sequence, state: replayed.state };
+  return { sequence: entries.at(-1)?.sequence ?? 0, initializationSequence: from.initializationSequence, state: replayed.state };
 }

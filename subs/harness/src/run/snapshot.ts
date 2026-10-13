@@ -251,7 +251,7 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
     jobId: record.jobId,
     planId: record.planId,
     agent: record.agent,
-    version: events.length,
+    version: last?.sequence ?? 0,
     state: ended === undefined ? 'running' : stateOf[ended.type]!,
     phase,
     stopRequested: stopRequested && ended === undefined,

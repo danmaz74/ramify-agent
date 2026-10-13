@@ -400,6 +400,75 @@ are reused only for their candidate and configuration; a lost acknowledgement
 does not duplicate a commit or gate transition. Debug-enabled runs retain the
 live-server exception below.
 
+### Terminal Failure Can Prepare A Linked Successor
+
+`restart inspect` examines a retained failed or interrupted run after its owners
+and effects have settled. `restart prepare` authenticates the inspected source
+version again and commits one linked successor awaiting explicit recovery resume.
+The source keeps its terminal event and immutable records. Inspection and
+preparation launch no model, commit, audit or target writer, and preserve the
+target's HEAD, index, unstaged and untracked source. Read-only candidate capture
+may create temporary Git objects through the ordinary evidence adapter.
+
+The initial importer requires accepted analysis and reconstructible ordinary
+post-analysis work, including an unfinished module architect reconciliation.
+It preserves frozen plan inputs, decomposition, accepted decisions and effects,
+completed capability handbacks, findings, review obligations and spent semantic
+allowances. An unfinished engineer assignment, nested capability coordination,
+active non-functional coordination or unfinished automatic root repair produces
+an unsupported-boundary blocker. Completed runs and explicit operator stops
+cannot prepare successors; nonterminal pauses use same-run recovery.
+
+The successor captures a versioned initial workflow state whose evidence names
+its source run, record path, revision and hash. Historical inventory initializes
+workflow readers; it is never appended as execution events of the successor.
+Terminal cleanup does not satisfy the pending task or review. New sessions have
+fresh execution identity and current authority; old sessions cannot submit or
+write for the successor. Exact source invocation and designated submission
+identity determine reconstruction. Accepted effects are preserved without
+execution, and unknown effects block preparation.
+
+Candidate changes and changed or unavailable producer bindings require
+responsible reassessment. Historical done reports, reviews and gates remain
+available with their original provenance while their conclusions await renewed
+applicability. Reassessment preserves work-item decomposition and never implies
+automatic reimplementation. Missing required review coverage remains missing.
+
+Legacy sources without recorded launcher hashes retain an explicitly labelled
+identity of captured policy, prompt and invocation representations. They do not
+acquire an invented historical implementation hash. The importer supports the
+known continuity representation transition and exact reviewed prompt hash pairs;
+unknown transitions remain blockers. Legacy producer conclusions require
+responsible reassessment and fresh qualification. An independently captured
+runtime retains the ordinary exact protected-contract compatibility rule.
+
+Preparation is serialized under the project execution lock. Its single committed
+initialization contains the accepted command, authenticated source cursor and
+digest, import digest and waiting recovery occurrence. Staged files without that
+transaction are inert. Startup restores a committed successor's hold and command
+receipt without dispatch; exact retries return the original receipt and changed
+content under the same command identity conflicts. One source admits one
+successor, and later attempts continue the latest eligible terminal successor.
+Optional tracker delivery stays administrative and is not replayed into imported
+plan acceptance.
+
+```sh
+npx tsx src/main.ts restart inspect --server http://localhost:4180 --plan <plan-id> --run <source-run> --json
+npx tsx src/main.ts restart prepare --server http://localhost:4180 --plan <plan-id> --run <source-run> --expected-version <source-version> --command-id <stable-command-id> --json
+npx tsx src/main.ts recovery resume --server http://localhost:4180 --plan <plan-id> --run <successor-run> --occurrence <occurrence-id> --expected-revision <revision> --command-id <different-stable-command-id> --repair-file repair.json --json
+```
+
+Preparation records observations without admitting a repair. Recovery resume
+uses the existing external repair declaration and compares source evidence,
+prepared state and current observations before dispatch. Fixes already present
+at preparation remain observed changes requiring explanation. Drift after
+admission requires revalidation. Dispatch creates the successor's own execution
+branch at the admitted HEAD through a journaled effect, preserving source refs,
+index and retained edits. An existing conflicting branch is an obstruction;
+an acknowledged matching branch effect is reused after a lost reply.
+Plan progress projects the successor's existing
+recovery pause while historical run views keep their original failure.
+
 ### External Repairs Are Admitted With Operator Provenance
 
 An operator can repair while a run is quiescent, then declare changed areas,

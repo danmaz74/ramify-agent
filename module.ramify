@@ -87,6 +87,7 @@ expose-sub capabilityRequestViewSchema, CapabilityRequestView from harness to de
 
 // protocol/runs.ts
 expose-sub recoveryInspectionSchema, RecoveryInspection, recoveryResumeCommandSchema, RecoveryResumeCommand from harness to descendants
+expose-sub restartInspectionSchema, RestartInspection, prepareRestartCommandSchema, PrepareRestartCommand from harness to descendants
 expose-sub externalRepairDeclarationSchema, ExternalRepairDeclaration from harness to descendants
 expose-sub runIdSchema, RunId, roleSchema, Role, runAgentSchema, RunAgent from harness to descendants
 expose-sub roleDisplayName from harness to descendants

@@ -157,7 +157,9 @@ it('records interrupted administration pending and drains its operation before r
     return { kind: 'failed', error: 'interrupted' };
   } });
   await f.manager.scheduleStart(f.input); await entered.promise;
+  expect(f.manager.settlementConfirmed('run-1')).toBe(false);
   expect(await f.manager.close({ timeoutMs: 0, settleMs: 2000 })).toBe(true); expect(stopped).toBe(true);
+  expect(f.manager.settlementConfirmed('run-1')).toBe(true);
   const reader = await BeadsSessions.open(f.options); cleanup.push(async () => { expect(await reader.close()).toBe(true); });
   expect((await reader.inspect('run-1'))?.start?.status).toBe('pending');
 });
@@ -198,6 +200,7 @@ it('does not report closed while an interrupted provider still owns its settleme
   } });
   await f.manager.scheduleStart(f.input); await entered.promise;
   expect(await f.manager.close({ timeoutMs: 0, settleMs: 0 })).toBe(false);
+  expect(f.manager.settlementConfirmed('run-1')).toBe(false);
   expect(await f.manager.close({ timeoutMs: 0, settleMs: 0 })).toBe(false);
   release.release(); expect(await f.manager.close({ timeoutMs: 2000, settleMs: 2000 })).toBe(true);
 });

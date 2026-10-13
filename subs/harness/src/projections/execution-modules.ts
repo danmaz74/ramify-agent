@@ -118,7 +118,7 @@ export function executionModuleMapOf(
   }
   if (tree.status === 'available') for (const assignment of view.assignments) {
     const source: ExecutionSourceRef = { kind: 'iteration-assignment', id: assignment.body.id,
-      sequence: assignment.sequence, revision: assignment.body.outline.revision };
+      sequence: assignment.sequence, ...(assignment.sourceRun === undefined ? {} : { sourceRun: assignment.sourceRun }), revision: assignment.body.outline.revision };
     for (const extra of assignment.body.scope.extra) {
       const module = moduleAtPath(tree, extra.path);
       if (module !== null) add(module, `iteration:${assignment.body.id}`, { module, role: 'authorized-scope', source });

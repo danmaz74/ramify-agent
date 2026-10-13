@@ -1,20 +1,18 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ProjectRootError, startCliServer } from '../subs/harness/src/http/server.js';
-import { runSessionCommand } from '../subs/harness/src/sessions/command.js';
 import type { SessionProgress, SessionSummary } from '../subs/harness/src/sessions/single.js';
 import { runConsultationsCommand } from '../subs/harness/src/consultations/command.js';
-import { runRepairExportCommand } from '../subs/harness/src/run/repair-export-command.js';
-import { runStepCommand } from '../subs/harness/src/steps/command.js';
 import { isProjectLockError } from '../subs/harness/src/store/lock.js';
 import { parseCommandLine, usage, UsageError, type CommandLine } from './cli.js';
+import { runRestartCommand } from './restart-client.js';
 import { runRecoveryCommand } from './recovery-client.js';
 import { runDebugCommand, printControlResult } from './debug-client.js';
 
 // The web module builds into dist/web beside this package's root; the root
 // composes that build output with the harness's server.
 const assetsDirectory = fileURLToPath(new URL('../dist/web', import.meta.url));
+let projectRootErrorClass: typeof import('../subs/harness/src/http/server.js').ProjectRootError | undefined;
 
 export async function main(argv: readonly string[]): Promise<number> {
   const commandLine = parseCommandLine(argv);
@@ -23,13 +21,18 @@ export async function main(argv: readonly string[]): Promise<number> {
     return 0;
   }
   if (commandLine.command === 'consultations' || commandLine.command === 'repair-export') {
-    const result = commandLine.command === 'consultations' ? await runConsultationsCommand(commandLine) : await runRepairExportCommand(commandLine);
+    const result = commandLine.command === 'consultations' ? await runConsultationsCommand(commandLine) : await (await import('../subs/harness/src/run/repair-export-command.js')).runRepairExportCommand(commandLine);
     if (result.stdout !== '') process.stdout.write(result.stdout);
     if (result.stderr !== '') process.stderr.write(result.stderr);
     return result.exitStatus;
   }
   if (commandLine.command === 'session') return session(commandLine);
   if (commandLine.command === 'step') return step(commandLine);
+  if (commandLine.command === 'restart') {
+    const result = await runRestartCommand(commandLine.restart);
+    printControlResult(result, commandLine.restart.json);
+    return result.exitStatus;
+  }
   if (commandLine.command === 'recovery') {
     const result = await runRecoveryCommand(commandLine.recovery);
     printControlResult(result, commandLine.recovery.json);
@@ -40,6 +43,8 @@ export async function main(argv: readonly string[]): Promise<number> {
     printControlResult(result, commandLine.debug.json);
     return result.exitStatus;
   }
+  const { startCliServer, ProjectRootError } = await import('../subs/harness/src/http/server.js');
+  projectRootErrorClass = ProjectRootError;
   const server = await startCliServer({
     projectRoot: commandLine.projectRoot, port: commandLine.port, assetsDirectory, agent: commandLine.agent, piModel: commandLine.model,
     repairIncidentExport: commandLine.repairIncidentExport,
@@ -66,6 +71,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 
 /** One `step` command: its text on standard output, its diagnostics and refusals on standard error. */
 async function step(commandLine: Extract<CommandLine, { command: 'step' }>): Promise<number> {
+  const { runStepCommand } = await import('../subs/harness/src/steps/command.js');
   if (commandLine.step.command === 'run') return stepRun(commandLine.step);
   // A gate or an after-handling prints each transition as it happens.
   const live = commandLine.step.command === 'gate' || commandLine.step.command === 'after' ? { onLine: (line: string) => console.log(line) } : {};
@@ -77,6 +83,7 @@ async function step(commandLine: Extract<CommandLine, { command: 'step' }>): Pro
 
 /** One `step run`, printed as it happens. The first interrupt stops the invocation; a second one exits at once. */
 async function stepRun(options: Extract<Extract<CommandLine, { command: 'step' }>['step'], { command: 'run' }>): Promise<number> {
+  const { runStepCommand } = await import('../subs/harness/src/steps/command.js');
   const controller = new AbortController();
   const interrupt = () => {
     console.log('\nStopping the step; interrupt again to exit at once.');
@@ -96,6 +103,7 @@ async function stepRun(options: Extract<Extract<CommandLine, { command: 'step' }
 
 /** One engineer session, printed as it happens. The first interrupt stops the session; a second one exits at once. */
 async function session(commandLine: Extract<CommandLine, { command: 'session' }>): Promise<number> {
+  const { runSessionCommand } = await import('../subs/harness/src/sessions/command.js');
   let prompt: string;
   if ('text' in commandLine.prompt) prompt = commandLine.prompt.text;
   else {
@@ -212,13 +220,13 @@ function summaryText(summary: SessionSummary): string {
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2)).then(code => {
   if (code >= 0) process.exitCode = code;
 }, (error: unknown) => {
-  if (process.argv.includes('debug') && process.argv.includes('--json')) {
+  if (['debug', 'recovery', 'restart'].some(command => process.argv.includes(command)) && process.argv.includes('--json')) {
     printControlResult({ exitStatus: 2, output: { kind: 'error', error: { code: 'invalid-request', message: error instanceof Error ? error.message : String(error) }, summary: 'Command was refused before execution.' } }, true);
     process.exitCode = 2;
     return;
   }
   if (error instanceof UsageError) console.error(`${error.message}\n${usage}`);
-  else if (error instanceof ProjectRootError || (error instanceof Error && isProjectLockError(error))) console.error(error.message);
+  else if (projectRootErrorClass !== undefined && error instanceof projectRootErrorClass || (error instanceof Error && isProjectLockError(error))) console.error(error.message);
   else console.error(error);
   process.exitCode = 2;
 });

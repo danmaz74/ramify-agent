@@ -240,7 +240,7 @@ function Detail({ node, map, client, planId, runId, onOpenGate, onOpenSession }:
     {node.kind === 'work-item' && <><p>{node.goal}</p><p>Module: {node.module ?? 'unavailable'}</p></>}
     {node.kind === 'requirement' && <p>Current revision {node.currentRevision}; verification {node.state}; provider {node.providerStage}; previous verified revision {node.verifiedRevision ?? 'none'}.</p>}
     {node.kind === 'iteration' && <p>Iteration {node.ordinal} of {node.workItem}, outline {node.outlineRevision}; {node.state}, {node.outcome ?? 'no outcome'}.</p>}
-    <p className="muted">Sources: {node.sourceRefs.map(ref => `${ref.kind} ${ref.id}${ref.sequence ? ` at event ${ref.sequence}` : ''}`).join('; ')}</p>
+    <p className="muted">Sources: {node.sourceRefs.map(ref => `${ref.kind} ${ref.id}${ref.sourceRun ? ` from run ${ref.sourceRun}` : ''}${ref.sequence ? ` at event ${ref.sequence}` : ''}`).join('; ')}</p>
   </section>;
 }
 
@@ -411,7 +411,7 @@ function Canvas({ map, events, client, planId, runId, onOpenGate, selected, onSe
   const focusNow = () => { const target = map.current.runningGate ?? map.current.awaitedSession;
     if (target) { onSelectModule(null); focus(target); } };
   const selectedNode = selected ? byKey.get(selected) : undefined;
-  const selectedSequences = new Set(selectedNode?.sourceRefs.flatMap(ref => ref.sequence === null ? [] : [ref.sequence]) ?? []);
+  const selectedSequences = new Set(selectedNode?.sourceRefs.flatMap(ref => ref.sequence === null || ref.sourceRun !== undefined ? [] : [ref.sequence]) ?? []);
   return <div className="execution-area area-wide" aria-label="Execution map">
     <header className="execution-heading"><h2>Execution map</h2><div className="execution-actions">
       <button type="button" onClick={focusNow} disabled={!map.current.runningGate && !map.current.awaitedSession}>Now</button>

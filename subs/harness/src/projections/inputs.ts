@@ -32,6 +32,7 @@ import { iterationAssignmentSchema, type IterationAssignment } from '../work/ite
 
 /** One complete line of the log, as the service replays it. */
 export interface CommittedLine {
+  readonly source?: { readonly runId: string; readonly sequence: number };
   readonly sequence: number;
   readonly at: string;
   readonly transaction: {
@@ -63,6 +64,7 @@ export class ProjectionError extends Error {
 
 /** One committed body of one schema, with where and when the log committed it. */
 export interface CommittedBody<T> {
+  readonly sourceRun?: string;
   readonly body: T;
   readonly path: string;
   readonly sequence: number;
@@ -144,7 +146,7 @@ export function runView(run: CommittedRun): RunView {
           [join(relativeRun(run), record.path), `declares ${String(declared)}`, `committed by event ${line.sequence} (${line.transaction.event.type})`],
         );
       }
-      const at = { path: record.path, sequence: line.sequence, at: line.at };
+      const at = { path: record.path, ...publicSequence(run.entries, line.sequence), at: line.at };
       switch (declared) {
         case 'ramify-agent.gate-attempt/3': {
           const body = parse(gateAttemptSchema, record.body, run, record.path);
@@ -206,6 +208,12 @@ export function runView(run: CommittedRun): RunView {
     gates: ordered,
     gateAuditOutcomes,
   };
+}
+
+/** Public source references retain the original positive sequence and identify its owning run. */
+export function publicSequence(entries: readonly CommittedLine[], sequence: number): { sequence: number; sourceRun?: string } {
+  const source = entries.find(entry => entry.sequence === sequence)?.source;
+  return source === undefined ? { sequence } : { sequence: source.sequence, sourceRun: source.runId };
 }
 
 function firstSequence(run: CommittedRun, gate: string): number {

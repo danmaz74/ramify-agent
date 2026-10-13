@@ -64,7 +64,7 @@ export function reachOf(view: RunView, session: RunSession): SessionReach {
 export function runSessionViews(view: RunView): RunSessionView[] {
   let sessions: ReadonlyMap<SessionId, RunSession>;
   try {
-    sessions = reduceSessions(view.events);
+    sessions = reduceSessions(view.events.filter(event => event.sequence > 0));
   } catch (error) {
     if (!(error instanceof InvalidSessionTransitionError)) throw error;
     const log = join('plans', view.record.planId, '.harness', 'jobs', view.record.jobId, 'events.jsonl');
@@ -80,7 +80,7 @@ export function runSessionViews(view: RunView): RunSessionView[] {
     const open = list?.at(-1);
     if (list !== undefined && open !== undefined && open.until === null) list[list.length - 1] = { ...open, until };
   };
-  for (const event of view.events) {
+  for (const event of view.events.filter(event => event.sequence > 0)) {
     const moment = { sequence: event.sequence, at: event.at };
     switch (event.type) {
       case 'invocation-started':

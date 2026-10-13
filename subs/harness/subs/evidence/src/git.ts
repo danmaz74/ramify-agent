@@ -968,6 +968,8 @@ export interface GitService {
   readonly currentHead: typeof currentHead;
   readonly isCleanRepository: typeof isCleanRepository;
   readonly createRunBranch: typeof createRunBranch;
+  /** Observe a proposed execution branch without checking it out or changing refs. */
+  readonly inspectRunBranch?: typeof inspectRunBranch;
   readonly commitAccepted: typeof commitAccepted;
   readonly findCommitByTrailer: typeof findCommitByTrailer;
   readonly findCommitByTrailers: typeof findCommitByTrailers;
@@ -987,7 +989,7 @@ export const gitService: GitService = {
   recoveryStatus,
   trackedPaths, ignoreStatus,
   previewCandidateTree: async (projectRoot, signal) => (await import('./candidate-tree.js')).previewCandidateTree(projectRoot, signal),
-  currentHead, isCleanRepository, createRunBranch, commitAccepted,
+  currentHead, isCleanRepository, createRunBranch, inspectRunBranch, commitAccepted,
   findCommitByTrailer, findCommitByTrailers, changedPaths, changedEntries,
   diffNameStatus, diffNumstat, commitNameStatus, worktreeLineChanges, worktreePatch,
 };
@@ -1006,6 +1008,18 @@ export async function isAncestor(root: string, ancestor: string, descendant: str
   if (result.exitCode === 0) return true;
   if (result.exitCode === 1) return false;
   throw new Error(`Git cannot establish retained accepted history: ${result.stderr.trim()}`);
+}
+
+/** Exact branch existence and current checkout for admission and lost replies. */
+export async function inspectRunBranch(root: string, runId: string): Promise<{ branch: string; head: string | null; current: string | null }> {
+  const branch = runBranchName(runId);
+  const existing = await git(root, ['--no-optional-locks', 'rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]);
+  if (existing.exitCode !== 0 && existing.exitCode !== 1) throw new Error(`Cannot inspect execution branch ${branch}: ${existing.stderr.trim()}`);
+  const checkout = await git(root, ['--no-optional-locks', 'symbolic-ref', '--quiet', '--short', 'HEAD']);
+  if (checkout.exitCode !== 0 && checkout.exitCode !== 1) throw new Error(`Cannot inspect current execution branch: ${checkout.stderr.trim()}`);
+  const head = existing.exitCode === 0 ? existing.stdout.trim() : null;
+  if (head !== null && !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(head)) throw new Error('Git returned an invalid execution branch revision');
+  return { branch, head, current: checkout.exitCode === 0 ? checkout.stdout.trim() : null };
 }
 
 export async function recoveryStatus(root: string): Promise<{ index: string; staged: string[]; unstaged: string[]; untracked: string[] }> {

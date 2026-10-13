@@ -195,6 +195,8 @@ async function reached(root: string, runId: string, events: string, write: RunWr
   const types = await eventTypes(events);
   const gateCommits = gitOf(root).commits().filter(call => call.gate !== 'scenarios' && call.commit !== null).length;
   switch (write) {
+    // Linked-successor staging and admission have their own crash witnesses.
+    case 'restart-staged': case 'restart-prepared': throw new Error('Use restart-service.test.ts for linked restart boundaries');
     // Debug-enabled recovery is interrupted before this ordinary replay table.
     case 'debug-exchange-admitted': return types.includes('debug-exchange-admitted');
     case 'repair-assignment-recorded':

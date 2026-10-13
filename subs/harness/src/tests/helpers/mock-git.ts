@@ -55,7 +55,7 @@ export function mockGit(answers: Partial<GitService> = {}): Mocked<GitService> &
     'isAncestor',
     'recoveryStatus', 'trackedPaths', 'ignoreStatus',
     'previewCandidateTree',
-    'currentHead', 'isCleanRepository', 'createRunBranch', 'commitAccepted',
+    'currentHead', 'isCleanRepository', 'createRunBranch', 'inspectRunBranch', 'commitAccepted',
     'findCommitByTrailer', 'findCommitByTrailers', 'changedPaths', 'changedEntries',
     'diffNameStatus', 'diffNumstat', 'commitNameStatus', 'worktreeLineChanges', 'worktreePatch',
   ];

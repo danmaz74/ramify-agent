@@ -2,7 +2,7 @@ import { replayCheckFindingState } from '../check-findings/state.js';
 import type { RunDecisionRequests, RunEnvironmentProblem, RunNotice, RunPlanDeviations, RunSnapshot } from '../interfaces/protocol/runs.js';
 import { environmentProblemSchema } from '../deviations/records.js';
 import { runSnapshot } from '../run/snapshot.js';
-import type { CommittedLine, RunView } from './inputs.js';
+import { publicSequence, type CommittedLine, type RunView } from './inputs.js';
 import { automaticRepairsOf } from './repairs.js';
 
 /*
@@ -52,7 +52,7 @@ export function snapshotOf(view: RunView): RunSnapshot {
     jobId: internal.jobId,
     planId: internal.planId,
     agent: view.record.agent,
-    version: internal.version,
+    version: view.entries.at(-1)?.sequence ?? 0,
     state: internal.state,
     phase: internal.phase,
     stopRequested: internal.stopRequested,
@@ -65,13 +65,14 @@ export function snapshotOf(view: RunView): RunSnapshot {
     counts: { ...internal.counts },
     writer: { ...internal.writer },
     review: internal.review === 'not-reviewed' ? 'not-reviewed' : { ...internal.review },
-    notices: orderedNotices(internal.notices.map(notice => withDecisionStatement(notice))),
+    notices: orderedNotices(internal.notices.map(notice => withDecisionStatement(notice))).map(notice => ({ ...notice, ...publicSequence(view.entries, notice.sequence) })),
     decisionRequests: decisionRequestsOf(view.entries, internal.state === 'running' && !internal.stopRequested),
     planDeviations: planDeviationsOf(view.entries),
     environmentProblems: environmentProblemsOf(view.entries),
     automaticRepairs: automaticRepairsOf(view),
     breakpoint: internal.breakpoint,
     recovery: internal.recovery,
+    ...(view.record.restart === undefined ? {} : { restart: { sourceRun: view.record.restart.sourceRun, sourceCursor: view.record.restart.sourceCursor, sourceDigest: view.record.restart.sourceDigest, importDigest: view.record.restart.importDigest, generation: view.record.restart.generation } }),
   };
 }
 
