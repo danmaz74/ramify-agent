@@ -1,11 +1,11 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { readProjectConfiguration } from '../../subs/evidence/src/project-configuration.js';
 import { isTestingModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { parseModuleHeader } from './module-header.js';
 import {
   capturedProjectConfigSchema, projectConfigSchema,
-  type CapturedProjectConfig, type ProjectConfig,
+  type BeadsProjectConfig, type CapturedProjectConfig, type ProjectConfig,
 } from './records.js';
 
 /*
@@ -44,6 +44,35 @@ export function parseProjectConfig(text: string): { readonly config: ProjectConf
   if (result.success) return { config: result.data };
   const issues = result.error.issues.map(issue => `${issue.path.map(String).join('.') || '<root>'}: ${issue.message}`);
   return { invalid: `does not validate against ramify-agent.project/1: ${issues.join('; ')}` };
+}
+
+/** The tracker destination resolved once for the run, independent of its implementation worktree. */
+export interface ResolvedBeadsProjectConfig {
+  readonly trackerWorkspace: string;
+  readonly executable: string;
+}
+
+/** Resolves the configured destination; resolution errors belong only to optional administration. */
+export async function resolveBeadsProjectConfig(
+  projectRoot: string,
+  config: BeadsProjectConfig,
+  commonDirectory: (root: string) => Promise<string>,
+): Promise<ResolvedBeadsProjectConfig> {
+  let trackerWorkspace: string;
+  if (config.workspace === 'git-common-root') {
+    const directory = resolve(projectRoot, await commonDirectory(projectRoot));
+    if (basename(directory) !== '.git') {
+      throw new Error('beads.workspace git-common-root requires a main Git working tree with .git; configure beads.workspace.path explicitly');
+    }
+    trackerWorkspace = dirname(directory);
+  } else {
+    trackerWorkspace = resolve(projectRoot, config.workspace.path);
+  }
+  const executable = config.executable ?? 'bd';
+  return {
+    trackerWorkspace,
+    executable: executable.includes('/') || executable.includes('\\') ? resolve(projectRoot, executable) : executable,
+  };
 }
 
 // The modules' test areas.

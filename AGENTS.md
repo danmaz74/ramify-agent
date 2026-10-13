@@ -142,17 +142,24 @@ own instructions still govern its worktree and implementation.
 
 ## Deferred ramify-agent issues
 
-Beads records only issues in ramify-agent itself that are left for resolution
-outside a plan. It does not track plans, their assignments, progress or
-acceptance, general tasks, project memory, or issues in target projects. The
-harness owns all tracking within a plan. No plan operation or completion
-decision depends on Beads.
+The local Beads skill records issues in ramify-agent itself that are left for
+resolution outside a plan. Beads does not track plans, their assignments,
+progress or acceptance, general tasks, or project memory. The harness owns
+all tracking within a plan. No plan operation or completion decision depends
+on Beads.
 
 Use the local [Beads skill](.agents/skills/beads/SKILL.md) for those deferred
-issues. Keep repository bookkeeping out of executable plan inputs and all
-Beads guidance out of harness runtime prompts. Plans contain the requirements
-needed for their execution. The CLI is available on demand; automatic Beads
-workflow injection is not part of this repository's setup.
+issues. Keep repository bookkeeping out of executable plan inputs and Beads
+guidance out of ordinary harness role prompts. Plans contain the requirements
+needed for their execution.
+
+A target project may enable the optional `beads` configuration in
+`ramify-agent.json`, as this repository does. Separate administrative Pi fork
+sessions then update related existing target-project issues when plan work
+starts and finishes. These sessions use the captured explicit tracker
+workspace; they do not create issues, synchronize trackers, or govern plan
+execution or acceptance. Tracker failures remain administrative outcomes.
+See [project configuration](README.md#project-configuration).
 
 Do not commit, push or synchronize tracker remotes without explicit user
 authorization. Report changes, validation and remaining work at handoff.

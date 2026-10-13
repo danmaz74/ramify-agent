@@ -233,7 +233,8 @@ import { RunLog, type RunEvent, type RunEventInput, type RunEventOf } from './lo
 import { ObservationLog } from './observations.js';
 import { endedOf, InvocationBounds, PortEventRecorder, type CallInFlight } from './port-events.js';
 import { contextPolicyOf, defaultRunPolicy, invocationLimits, engineerBoundsOf, withProjectTimeouts, type EngineerBounds } from './policy.js';
-import { captureProjectConfig, moduleTestAreas, type TestArea } from './project-config.js';
+import { captureProjectConfig, resolveBeadsProjectConfig, moduleTestAreas, type TestArea } from './project-config.js';
+import { BeadsSessions } from './beads-sessions.js';
 import {
   commitForMaterialization, commitForScenarios, contentHash as featureContentHash, expectedFeatureFiles, expectedFeatureHashes,
   materializationMessage, rerenderFeatureFiles, incompleteScenarios, rewordedTrailerValue, rewordingMessage, scenarioNameOf, trackedScenarios,
@@ -646,6 +647,8 @@ export class RunService {
   private readonly commands = new CommandLedger();
   private readonly commandMutex = new Mutex();
   private sessionOperations: Promise<HarnessSessionOperations> | undefined;
+  /** Administration has its own durable queue and authority, independent of run termination. */
+  private beadsSessions: Promise<BeadsSessions> | undefined;
   private closed = false;
   private closing: Promise<void> | undefined;
   private readonly runningRuntime: Promise<RecoveryRuntime>;
@@ -891,7 +894,7 @@ export class RunService {
     // A gate's commit and audit run outside the mutex; its attempt is
     // committed before anything ends the run, as when the mutex held it.
     await run.gating?.catch(() => undefined);
-    return run.mutex.run(async () => {
+    const written = await run.mutex.run<'committed' | 'ended'>(async () => {
       if (run.log.terminal || this.closed || (run.stopRequested && terminal.type !== 'job-stopped' && terminal.type !== 'job-interrupted')) return 'ended';
       const sessions = this.sessionsOf(run);
       for (const session of sessions?.values() ?? []) {
@@ -902,6 +905,8 @@ export class RunService {
       run.notify();
       return 'committed';
     });
+    if (written === 'committed') await this.scheduleBeads(run, 'finish');
+    return written;
   }
 
   /**
@@ -2711,6 +2716,18 @@ export class RunService {
         if (event.type === 'check-findings-recorded' && event.data.cause.kind === 'user-command') this.commands.remember(event.data.cause.command);
       }
     }
+    // Every early recovery branch still reaches administration recovery here.
+    // Historical runs without a captured destination never opt in on restart.
+    for (const run of this.runs.values()) {
+      if (run.record.beadsAdministration === undefined || 'error' in run.record.beadsAdministration) continue;
+      try {
+        const administration = await this.administration();
+        if (!administration) continue;
+        await administration.recover(run.record.jobId);
+        if (run.log.find('scratch-setting-up')) await this.scheduleBeads(run, 'start');
+        if (run.log.terminal) await this.scheduleBeads(run, 'finish');
+      } catch (error) { this.warn(`Run ${run.record.jobId}: Beads administration recovery unavailable: ${message(error)}`); }
+    }
     return report;
   }
 
@@ -3246,6 +3263,16 @@ export class RunService {
     // with its reason; readiness reports it, and the start is not refused.
     // The gate command timeouts it declares replace the policy's own.
     const projectConfig = await captureProjectConfig(this.projectRoot);
+    const beadsAdministration = 'config' in projectConfig && projectConfig.config.beads
+      ? await resolveBeadsProjectConfig(this.projectRoot, projectConfig.config.beads, async root => {
+        if (!this.git.commonDirectory) throw new Error('Git common directory inspection is unavailable');
+        return this.git.commonDirectory(root);
+      }).catch((error: unknown) => {
+        const detail = message(error);
+        this.warn(`Beads administration destination unavailable: ${detail}`);
+        return { error: detail };
+      })
+      : undefined;
     const record = runRecordSchema.parse({
       schema: jobSchemaVersion,
       jobId: runId,
@@ -3257,6 +3284,7 @@ export class RunService {
       prompts: Object.fromEntries([...packages].map(([role, loaded]) => [role, { package: loaded.package, hash: loaded.hash }])),
       policy: withProjectTimeouts(policy, projectConfig),
       projectConfig,
+      ...(beadsAdministration === undefined ? {} : { beadsAdministration }),
       auditConfiguration,
       baseline: baseline.reference,
       // The plan's own scenarios, extracted once from the captured bytes. A
@@ -3690,6 +3718,9 @@ export class RunService {
     const ready = await this.reachReadiness(run);
     if (!ready || this.ignoring(run)) return;
 
+    // Queue only after the accepted analysis is approved and implementation can begin.
+    // This awaits persistence, never the administration model or tracker command.
+    await this.scheduleBeads(run, 'start');
     await this.setupScratch(run);
     if (this.ignoring(run)) return;
 
@@ -4874,6 +4905,110 @@ export class RunService {
 
   private operations(agent: AgentPort): Promise<HarnessSessionOperations> {
     return this.sessionOperations ??= HarnessSessionOperations.open(join(this.projectRoot, 'plans', '.harness', 'session-operations'), agent);
+  }
+
+  private administration(): Promise<BeadsSessions | undefined> {
+    const agent = this.options.agent;
+    if (!agent) return Promise.resolve(undefined);
+    return this.beadsSessions ??= BeadsSessions.open({
+      projectRoot: this.projectRoot,
+      operations: async () => (await this.operations(agent)).operations,
+      commandExecution: this.options.commandExecution,
+      onPending: (runId, reason) => this.warn(`Run ${runId}: Beads administration pending: ${reason}`),
+    });
+  }
+
+  /** The optional queue persists independently; an unavailable tracker never changes the run. */
+  private async scheduleBeads(run: Run, phase: 'start' | 'finish'): Promise<void> {
+    const destination = run.record.beadsAdministration;
+    if (destination === undefined || 'error' in destination) return;
+    try {
+      const administration = await this.administration();
+      if (!administration) return;
+      // Finishing the ordinary session retires its run authority, not its
+      // immutable provider point. Administrative forks retain that point.
+      const records = committedRecords(run.log.ledger.replay());
+      const sourceRef = globalContext({ events: run.log.events,
+        sessionRef: invocation => records.outcomes.get(invocation)?.session?.ref }).ref;
+      const context = await this.beadsContext(run, phase);
+      const input = { runId: run.record.jobId, sourceRef, context,
+        workspace: destination.trackerWorkspace, executable: destination.executable };
+      if (phase === 'start') await administration.scheduleStart(input);
+      else await administration.scheduleFinish({ ...input, outcome: run.log.terminal?.type ?? 'unknown' });
+    } catch (error) { this.warn(`Run ${run.record.jobId}: Beads ${phase} administration unavailable: ${message(error)}`); }
+  }
+
+  /** Retained acceptance evidence is supplied directly; administration does not inspect mutable source. */
+  private async beadsContext(run: Run, phase: 'start' | 'finish'): Promise<string> {
+    const capturedText = async (path: string, hash: string): Promise<string> => {
+      try {
+        const bytes = await readFile(run.path(path));
+        if (sha256(bytes) !== hash) return `Retained evidence unavailable: ${path} differs from its captured hash`;
+        return bytes.toString('utf8');
+      } catch (error) { return `Retained evidence unavailable: ${path}: ${message(error)}`; }
+    };
+    const plan = await capturedText(runLayout.capturedPlan, run.record.manifest.planHash);
+    const analysis = run.log.find('analysis-accepted');
+    const evidence: Array<{ path: string; body: unknown }> = [];
+    if (analysis !== undefined) {
+      for (const reference of [analysis.data.evidence.catalog, analysis.data.evidence.incorporation]) {
+        const body = await capturedText(reference.path, reference.hash);
+        evidence.push({ path: reference.path, body });
+      }
+    }
+    if (phase === 'finish') {
+      const entries = run.log.ledger.replay();
+      const latest = new Map(entries.flatMap(line => line.transaction.records).map(record => [record.path, record]));
+      const include = (path: string): void => {
+        const record = latest.get(path);
+        evidence.push(record === undefined ? { path, body: 'Retained record unavailable; this is an evidence limitation' }
+          : { path, body: record.body });
+      };
+      const binding = run.log.all('candidate-bound-to-gate').at(-1);
+      const candidate = run.log.all('candidate-prepared').at(-1)?.data.candidate ?? binding?.data.candidate;
+      const assessment = run.log.all('nonfunctional-assessed').at(-1)?.data.assessment ?? binding?.data.assessment;
+      const gate = run.log.all('gate-attempted').at(-1)?.data.gate ?? binding?.data.gate;
+      if (candidate !== undefined) include(runLayout.candidate(candidate));
+      if (assessment !== undefined) include(runLayout.assessment(assessment));
+      if (gate !== undefined) include(runLayout.gate(gate));
+      evidence.push({ path: 'candidate-bound-to-gate', body: { latestBinding: binding ?? null,
+        current: binding !== undefined && candidate === binding.data.candidate && assessment === binding.data.assessment && gate === binding.data.gate,
+        scope: 'An earlier binding does not establish acceptance of a later candidate, assessment or gate.' } });
+      const records = committedRecords(entries);
+      const completed = new Map(run.log.all('work-item-completed').map(event => [event.data.workItem, event]));
+      const currentResults = new Map<string, IterationResult>();
+      for (const [iteration, result] of records.results) {
+        const assignment = records.assignments.get(iteration);
+        if (assignment !== undefined) currentResults.set(assignment.coordination?.kind === 'capability-task'
+          ? assignment.coordination.id : assignment.workItem, result);
+      }
+      evidence.push({ path: 'current-work', body: { workItems: records.workItems,
+        completed: [...completed.values()], latestResults: [...currentResults].map(([owner, result]) => ({ owner, result })),
+        capabilityHandbacks: [...records.capabilityHandbacks.values()],
+        scope: 'Latest result for each work owner and complete current work-item inventory; earlier iteration/gate history omitted.' } });
+      evidence.push({ path: 'current-check-findings', body: [...checkFindingStateOf(run.log.ledger).findings.values()]
+        .map(finding => ({ id: finding.id, owner: finding.owner, standing: finding.standing, reason: finding.reason,
+          pendingUserDecision: finding.pendingUserDecision, settledBy: finding.settledBy,
+          latestDecision: finding.decisions.at(-1) ?? null })) });
+      for (const record of latest.values()) {
+        const schema = (record.body as { schema?: unknown } | null)?.schema;
+        if (typeof schema === 'string' && ['nonfunctional-deviation', 'plan-deviation']
+          .some(name => schema.startsWith(`ramify-agent.${name}/`))) evidence.push({ path: record.path, body: record.body });
+      }
+    }
+    const terminal = run.log.terminal;
+    return [
+      `Plan ${run.record.planId}; run ${run.record.jobId}; administrative phase ${phase}.`,
+      `Implementation workspace: ${this.projectRoot}. Retained run evidence: ${run.directory}.`,
+      `Accepted Git boundary: ${this.accepted(run)}.`,
+      `Terminal outcome: ${terminal === undefined ? 'implementation beginning' : JSON.stringify(terminal)}.`,
+      'Relate only existing issues explicitly mentioned by this plan or its captured evidence. The tracker never decides plan execution or acceptance.',
+      'A completed run can retain unresolved deviations. Close an issue only when retained evidence establishes its particular requirements are satisfied; preserve unresolved, failed, interrupted and stopped work truthfully.',
+      `<plan>\n${plan}\n</plan>`,
+      `Accepted analysis: ${JSON.stringify(analysis ?? null)}`,
+      `Run snapshot: ${JSON.stringify(runSnapshot(run.record, run.log.events))}`,
+      `Retained evidence: ${JSON.stringify(evidence)}`,
+    ].join('\n\n');
   }
 
   private assignmentStartingPoints(run: Run, assignment: IterationAssignment): StartingPointGroup {
@@ -12161,6 +12296,11 @@ export class RunService {
       const unsettled = drivers.filter(run => run.writer.isUnsettled);
       if (unsettled.length > 0) {
         throw new Error(`The harness has ${unsettled.length} run driver${unsettled.length === 1 ? '' : 's'} whose settlement was not confirmed; its project lock remains held`);
+      }
+      // Terminal administration drains under its own bound before the shared
+      // provider store closes. Unconfirmed settlement keeps this ownership held.
+      if (this.beadsSessions && await this.beadsSessions.then(administration => administration.close(), () => true) === false) {
+        throw new Error('Beads administration settlement is unavailable; its pending record and project lock remain held');
       }
       if (this.sessionOperations && await this.sessionOperations.then(operations => operations.close(), () => true) === false) throw new Error('Session operation settlement is unavailable; its project lock remains held');
       await this.options.lock.release();

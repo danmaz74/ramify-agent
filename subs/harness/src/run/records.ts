@@ -264,13 +264,25 @@ export const setupCommandSchema = z.object({
 }).strict();
 export type SetupCommandConfig = z.infer<typeof setupCommandSchema>;
 
+/** An explicitly enabled existing target-project tracker, independent of the implementation worktree. */
+export const beadsProjectConfigSchema = z.object({
+  /** The main Git working tree, or an explicit absolute/project-relative tracker workspace. */
+  workspace: z.union([
+    z.literal('git-common-root'),
+    z.object({ path: text }).strict(),
+  ]),
+  /** A command name on PATH or an absolute/project-relative executable path; `bd` when omitted. */
+  executable: text.optional(),
+}).strict();
+export type BeadsProjectConfig = z.infer<typeof beadsProjectConfigSchema>;
+
 /**
  * `ramify-agent.json`, the target project's configuration for the harness:
  * only what the harness cannot derive, all of it optional: the format of what
  * the type check prints, the timeouts of a standalone diagnosis's commands
- * and the setup commands it runs first. The project's tests and scenarios are
- * checks of its committed audit definition, `ramify-audit.json`, and nothing
- * here names them.
+ * and the setup commands it runs first, plus optional existing-issue
+ * administration. The project's tests and scenarios are checks of its
+ * committed audit definition, `ramify-audit.json`, and nothing here names them.
  */
 export const projectConfigSchema = z.object({
   schema: z.literal(projectConfigVersion),
@@ -297,6 +309,8 @@ export const projectConfigSchema = z.object({
    * bound, which `timeouts` does not replace.
    */
   setup: z.array(setupCommandSchema).optional(),
+  /** Isolated administrative fork sessions; omission or false disables them. */
+  beads: z.union([z.literal(false), beadsProjectConfigSchema]).optional(),
 }).strict();
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 
@@ -351,6 +365,11 @@ export const runRecordSchema = z.object({
   policy: runPolicySchema,
   /** The project's `ramify-agent.json`, validated or with the reason it is not. */
   projectConfig: capturedProjectConfigSchema,
+  /** Optional administration destination captured once; its failure never refuses implementation. */
+  beadsAdministration: z.union([
+    z.object({ trackerWorkspace: text, executable: text }).strict(),
+    z.object({ error: text }).strict(),
+  ]).optional(),
   /**
    * Absent only in records made before configured readiness. `invalid` only
    * in records made before `start-run` refused a missing or invalid

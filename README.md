@@ -237,6 +237,77 @@ given to `npm run session` resolve from the repository root.
 commit, and afterwards a comparison holding every changed file to a write
 scope or recorded out-of-scope change of the run.
 
+## Project configuration
+
+The target project's `ramify-agent.json` declares schema version
+`ramify-agent.project/1`. Its optional `typeCheck`, `timeouts` and `setup`
+settings describe diagnosis and workspace setup. A run captures the file's
+validated contents and hash when it starts.
+
+The optional `beads` setting enables separate administrative Pi fork sessions
+at plan start and finish for related existing issues in the target project's
+tracker. Omit it or set it to `false` to disable these sessions. Existing
+configurations gain no new defaults or tracker activity. This repository
+enables the setting:
+
+```json
+{
+  "schema": "ramify-agent.project/1",
+  "typeCheck": { "output": "tsc" },
+  "beads": { "workspace": "git-common-root" }
+}
+```
+
+`workspace: "git-common-root"` selects the main working tree whose `.git`
+directory Git identifies as the common directory. Implementation worktrees
+therefore use the same existing tracker. Bare repositories and repositories
+with a separately stored Git directory require an explicit workspace:
+
+```json
+{
+  "schema": "ramify-agent.project/1",
+  "beads": {
+    "workspace": { "path": "/srv/trackers/my-project" },
+    "executable": "/opt/beads/bin/bd"
+  }
+}
+```
+
+An explicit workspace path may be absolute or relative to the target project
+root. Use an absolute path when implementation worktrees must share a tracker;
+a relative path is resolved once against the worktree where the run starts.
+The harness captures the resolved tracker destination for subsequent
+administration, including after restart. It requires an existing tracker and
+does not infer a destination from an implementation worktree's `.beads` directory.
+Delivery rejects symlinked workspaces, symlinked `.beads` directories, and
+Beads redirect files; use the tracker's canonical workspace path.
+`executable` defaults to `bd` on the host's `PATH`. A supplied executable path
+is absolute or resolved against the target root; a command name uses `PATH`.
+
+At start, an administrative session inspects existing issues, records which
+ones relate to the plan, and marks open related issues `in_progress`. It
+preserves issues already closed. At finish, it can close only those recorded
+issues whose resolution is supported by concrete issue-specific evidence;
+unresolved or failed work leaves them unchanged.
+
+Administrative sessions update existing related issues using plan evidence.
+They do not create issues, synchronize trackers, or establish plan progress or
+acceptance. Their outcomes are recorded separately, and unavailable trackers
+or administrative failures do not gate plan execution. Ordinary role prompts
+and tools retain their existing procedures.
+
+Administrative records live under `plans/.harness/beads-administration/`,
+separate from the main run ledger. They retain each phase's session receipt,
+submission and reason, related issue bindings, and mutation intents with
+verified readback. Administrative model usage is retained there separately
+from ordinary run KPI totals. Restart reconciles retained operation receipts
+and issue readback. Failed terminal operations and uncertain tracker effects
+remain pending for review; they are not blindly executed again. A model turn
+is bounded to 120 seconds and each
+tracker command to 15 seconds. Shutdown allows administration 120 seconds to
+drain, then requests a stop and allows two seconds for settlement. Unconfirmed
+settlement keeps the shared session store and project lock held.
+
 ## Steps
 
 An agent, or a person, implementing a real plan can advance it one harness

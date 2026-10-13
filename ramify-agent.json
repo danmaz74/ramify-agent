@@ -1,4 +1,5 @@
 {
   "schema": "ramify-agent.project/1",
-  "typeCheck": { "output": "tsc" }
+  "typeCheck": { "output": "tsc" },
+  "beads": { "workspace": "git-common-root" }
 }

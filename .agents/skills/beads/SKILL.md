@@ -1,14 +1,22 @@
 ---
 name: beads
-description: Record, inspect or resolve deferred issues in ramify-agent itself that are left for work outside a plan. Use only for that issue backlog, not plan execution, general task tracking, project memory or target-project issues.
+description: Record, inspect or resolve deferred issues in ramify-agent itself. Keep plan execution in harness records; optional target-project issue administration is performed by separate configured harness sessions.
 ---
 
 # Deferred ramify-agent issues
 
 Follow the [repository scope](../../../AGENTS.md#deferred-ramify-agent-issues).
-Use Beads only for issues in ramify-agent itself that are left for resolution
+Use this skill for issues in ramify-agent itself that are left for resolution
 outside a plan. A plan's assignments, progress and acceptance remain in the
 harness's own records.
+
+The optional `beads` setting in a target project's `ramify-agent.json` enables
+separate administrative harness sessions for related existing issues at plan
+start and finish. Their tracker workspace is explicitly configured and captured
+for the run. Ordinary implementation roles receive no Beads tools or workflow
+guidance. Those administrative sessions do not create issues, synchronize
+trackers, or determine execution or acceptance. This skill does not replace
+that lifecycle or authorize ad hoc updates to another project's tracker.
 
 ## Inspect and record an issue
 

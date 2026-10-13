@@ -1,7 +1,7 @@
 import { copyFile, lstat, mkdir, mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { runCommand, childEnvironment } from './run-command.js';
 import type { CommandOutcome } from './run-command.js';
 import type { previewCandidateTree } from './candidate-tree.js';
@@ -957,6 +957,8 @@ export async function inspectGit(root: string, request: GitInspection, signal?: 
  * the project's root explicit, just as the command adapter does.
  */
 export interface GitService {
+  /** Shared Git metadata directory, used only by explicitly configured integrations. */
+  readonly commonDirectory?: typeof commonDirectory;
   readonly isAncestor?: typeof isAncestor;
   /** Exact recovery-only index and working-tree categories, from a read-only observation. */
   readonly recoveryStatus?: typeof recoveryStatus;
@@ -980,6 +982,7 @@ export interface GitService {
 
 /** The process-backed adapter. Consumer tests should supply a scripted GitService. */
 export const gitService: GitService = {
+  commonDirectory,
   isAncestor,
   recoveryStatus,
   trackedPaths, ignoreStatus,
@@ -988,6 +991,14 @@ export const gitService: GitService = {
   findCommitByTrailer, findCommitByTrailers, changedPaths, changedEntries,
   diffNameStatus, diffNumstat, commitNameStatus, worktreeLineChanges, worktreePatch,
 };
+
+/** Git supplies the shared directory for main checkouts and linked worktrees. */
+export async function commonDirectory(root: string, signal?: AbortSignal): Promise<string> {
+  const result = await gitOk(root, ['rev-parse', '--path-format=absolute', '--git-common-dir'], signal);
+  const path = result.stdout.trim();
+  if (!isAbsolute(path) || path.includes('\n') || path.includes('\0')) throw new Error('Git did not return one absolute common directory');
+  return path;
+}
 
 /** Operator commits must retain the run's accepted history. */
 export async function isAncestor(root: string, ancestor: string, descendant: string): Promise<boolean> {

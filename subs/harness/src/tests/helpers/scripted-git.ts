@@ -22,6 +22,7 @@ export function scenariosCommit(planId: string, commit = `scenarios-of-${planId}
 
 /** Canned external responses for a scenario, including unchanged checkpoints. */
 export interface GitScript {
+  readonly commonDirectory?: string;
   readonly scratch?: ScratchGitScript | undefined;
   /** Explicit working-tree change the harness setup will commit after readiness. */
   readonly setupChanges?: GitCheckpoint['changes'] | undefined;
@@ -73,6 +74,10 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
     throw new Error(failures.at(-1));
   }
   return {
+    async commonDirectory(project) {
+      check('commonDirectory', project);
+      return script.commonDirectory ?? unsupported('commonDirectory');
+    },
     async trackedPaths(project, directories) {
       check('trackedPaths', project);
       const answer = scratch.answers.trackedPaths;
