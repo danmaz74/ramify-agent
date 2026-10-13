@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import type { BuiltinTool, WriteTool } from '../../subs/agent/src/interfaces/port.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
+import { effectiveBlocks } from '../prompts/blocks.js';
+import { composeOperationPacket, type PointContext } from '../run/session-operations.js';
 import { loadPromptPackages } from '../prompts/packages.js';
 import { runLayout } from '../run/records.js';
 import { runStepCommand } from '../steps/command.js';
@@ -60,7 +62,7 @@ describe('S03: inputs from a run', () => {
     for (const invocation of [freshId, repairId]) {
       const result = await imported(invocation);
       if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected recorded engineer inputs');
-      const inputs = { ...result.recorded, capabilityWorkflow: true,
+      const inputs = { ...result.recorded, capabilityWorkflow: true, assignment: { ...result.recorded.assignment, obligations: ['cap-001.case.binding'] },
         focused: { featurePaths: [], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'No exact assigned feature files were selected' } } };
       const step = constructEngineerStep(inputs, { projectRoot: run.root, packages });
       const discovery = step.brief.sections.find(section => section.key === 'support:cucumber-discovery');
@@ -99,7 +101,7 @@ describe('S03: inputs from a run', () => {
     const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
     const configurationIdentity = 'a'.repeat(64);
     const step = constructEngineerStep({ ...result.recorded, capabilityWorkflow: true, focused: {
-      featurePaths: [], sourceFiles: { 'cucumber.json': '{"default":{"import":["src/tests/support/**/*.ts"]}}' },
+      featurePaths: [], sourceFiles: { 'cucumber.json': 'b'.repeat(64) },
       command: { kind: 'available', cwd: run.root, environment: {}, argv: ['cucumber-js'], shellCommand: 'cucumber-js',
         configPath: join(run.root, 'focused.json'), configText: '{}', configurationIdentity, sourceIdentity: 'b'.repeat(64),
         selection: { cwd: run.root, config: join(run.root, 'focused.json'), profile: 'focused', paths: [], configurationIdentity },
@@ -107,8 +109,56 @@ describe('S03: inputs from a run', () => {
     } }, { projectRoot: run.root, packages });
     expect(step.brief.sections.find(section => section.key === 'support:cucumber-discovery')?.text).toContain('globally loaded support/world/loader pointers');
     const facts = JSON.parse(step.brief.environment.cucumberConfiguration!);
-    expect(facts.sourceFiles['cucumber.json']).toContain('src/tests/support/**/*.ts');
+    expect(facts.sourceFiles['cucumber.json']).toBe('b'.repeat(64));
+    expect(facts).not.toHaveProperty('argv');
     expect(facts.support).toEqual({ import: ['src/tests/support/**/*.ts'], loader: ['tsx'], worldParameters: {} });
+    const fresh = await renderStep(step, { projectRoot: run.root, packages, builtinDeclarations: piBuiltinDeclarations, operationId: 'discovery-fresh' });
+    expect(fresh.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain('src/tests/support/**/*.ts');
+    expect(fresh.packet.message.split('\ncucumber-js\n')).toHaveLength(2);
+    expect(fresh.packet.message).toContain('sourceFiles contains hashes, not file contents');
+    const repair = await imported(repairId);
+    if (repair.status !== 'imported' || repair.recorded.role !== 'engineer') throw new Error('Expected repair engineer inputs');
+    const inheritedPackages = (await loadPromptPackages({ capabilityWorkflow: repair.recorded.capabilityWorkflow })).packages;
+    const continuedStep = constructEngineerStep({ ...step.inputs, capabilityWorkflow: repair.recorded.capabilityWorkflow, start: repair.recorded.start, failedGate: repair.recorded.failedGate }, { projectRoot: run.root, packages: inheritedPackages });
+    const continued = await renderStep(continuedStep, { projectRoot: run.root, packages: inheritedPackages, builtinDeclarations: piBuiltinDeclarations, operationId: 'discovery-repair',
+      sessionOperations: join(run.root, 'plans', '.harness', 'session-operations') });
+    expect(continued.rendered).toBe('continuation');
+    expect(continued.packet.additions.some(item => item.kind === 'role-instructions')).toBe(false);
+    expect(continued.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain(configurationIdentity);
+
+    const point = { sessionId: 'discovery-session', kind: 'turn' as const, turn: 1, checkpoint: 'discovery-1' };
+    const compose = (current: typeof step, operationId: string, prior: PointContext | null) => composeOperationPacket({
+      runId: run.runId, operationId, loaded: current.loaded, brief: current.brief, role: current.role,
+      mode: prior === null ? 'fresh' : 'continue', workingDirectory: current.equipment.workingDirectory,
+      builtinDeclarations: piBuiltinDeclarations(current.equipment.builtinTools, current.equipment.workingDirectory),
+      tools: current.equipment.tools, submissionName: current.submission.toolName, source: prior?.point ?? null, prior,
+    });
+    const first = compose(step, 'discovery-available', null);
+    const prior: PointContext = { point, inherited: first.packet.additions, history: first.history, revision: first.current.revision };
+    const repairInputs = { ...step.inputs, assignment: { ...step.inputs.assignment, obligations: ['cap-001.case.binding'] }, focused: { featurePaths: [], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'Current configuration cannot be read' } } };
+    const unavailable = constructEngineerStep(repairInputs, { projectRoot: run.root, packages });
+    const withdrawn = compose(unavailable, 'discovery-unavailable', prior);
+    expect(withdrawn.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain('Current configuration cannot be read');
+    const unavailableBlocks = effectiveBlocks([...prior.inherited, ...withdrawn.packet.additions]);
+    expect(unavailableBlocks.get('environment:cucumberConfiguration')?.text).not.toContain('src/tests/support/**/*.ts');
+    expect(unavailableBlocks.get('brief:support:cucumber-discovery')?.text).toContain('Current configuration cannot be read');
+    expect([...unavailableBlocks.values()].map(item => item.text).join('\n')).not.toContain('# Exact focused scenario command');
+    const inapplicable = constructEngineerStep({ ...repairInputs, scenarios: undefined, assignment: { ...repairInputs.assignment, obligations: [] } }, { projectRoot: run.root, packages });
+    expect(inapplicable.brief.environment.cucumberConfiguration).toBeNull();
+    expect(inapplicable.prompt).not.toContain('Focused scenario command unavailable');
+    expect(inapplicable.brief.sections.some(section => section.key === 'support:cucumber-discovery')).toBe(false);
+    // Current role remains pinned; the inapplicable environment withdraws old discovery facts.
+    const updatedPrior: PointContext = { point, inherited: [...prior.inherited, ...withdrawn.packet.additions], history: withdrawn.history, revision: withdrawn.current.revision };
+    const removed = compose(inapplicable, 'discovery-inapplicable', updatedPrior);
+    expect(removed.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.block?.effect).toBe('remove');
+    const currentBlocks = effectiveBlocks([...updatedPrior.inherited, ...removed.packet.additions]);
+    expect(currentBlocks.has('environment:cucumberConfiguration')).toBe(false);
+    expect(currentBlocks.has('brief:support:cucumber-discovery')).toBe(false);
+    const effectiveText = [...currentBlocks.values()].map(item => item.text).join('\n');
+    expect(effectiveText).not.toContain('# Exact focused scenario command');
+    expect(effectiveText).not.toContain('Focused scenario command unavailable');
+
+
   });
 
   test('a fresh invocation is imported from its recorded inputs and renders equal', async () => {

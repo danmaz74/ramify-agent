@@ -13,11 +13,12 @@ import { ManualRun, manualRunner } from '../../steps/manual.js';
 import { kept, type InvocationRequest } from '../../steps/runner.js';
 import { composeTaskBrief } from '../../run/task-brief.js';
 import { consultationTool } from '../../consultations/tools.js';
+import type { TaskEnvironment } from '../../prompts/tasks.js';
 import type { ConsultationTarget } from '../../consultations/targets.js';
 import { temporaryDirectory } from './fixture.js';
 import { mockGit } from './mock-git.js';
 
-export async function consultationFixture(cleanup: Array<() => Promise<void>>, script: SessionScript, wrapDriver?: (driver: SessionOperationDriver) => SessionOperationDriver) {
+export async function consultationFixture(cleanup: Array<() => Promise<void>>, script: SessionScript, wrapDriver?: (driver: SessionOperationDriver) => SessionOperationDriver, views?: TaskEnvironment['views']) {
   const directory = await temporaryDirectory(); cleanup.push(directory.remove);
   const seen: SessionDriverInvocation[] = [];
   let seeding = true;
@@ -47,7 +48,7 @@ export async function consultationFixture(cleanup: Array<() => Promise<void>>, s
     return { role, work: { workItem: 'W', iteration: 'W.i01' }, attempt: 1, loaded, systemPrompt: loaded.system, prompt: goal, start: { mode: 'fresh' },
       toolName, description: 'Current task submission', inputSchema: {}, submissionSchema: 'fixture-answer/1', validate: raw => ({ ok: true, value: raw as Record<string, unknown> }),
       brief: composeTaskBrief(directory.path, { kind, work: { workItem: 'W' }, goal, requirements: ['Preserve caller task'], prompt: goal, omit: [], literalSections: [], startingPointGroups: [], environment: {
-        projectRoot: directory.path, workingDirectory: directory.path, candidate: null, snapshot: null, limits: policy.limits, availableTools: [toolName, 'consult_architect'], views: [{ path: '.ramify-architect', revision: 'G0', modules: [], coverage: ['Fixture view may be stale'] }], supportPaths: [], cucumberConfiguration: null } }),
+        projectRoot: directory.path, workingDirectory: directory.path, candidate: null, snapshot: null, limits: policy.limits, availableTools: [toolName, 'consult_architect'], views: views ?? [{ path: '.ramify-architect', revision: 'G0', modules: [], coverage: ['Fixture view may be stale'] }], supportPaths: [], cucumberConfiguration: null } }),
       reader: true, scope: { write: null, measurement: null, size: null }, keep: () => kept };
   }
   const seeds: Record<string, ConsultationTarget> = {};

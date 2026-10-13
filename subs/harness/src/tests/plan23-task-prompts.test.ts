@@ -7,6 +7,8 @@ import type { Role } from '../interfaces/protocol/runs.js';
 import { defaultSkillDirectory, loadPromptPackages, renderNonfunctionalCoordinatorPrompt, renderNonfunctionalRepairPrompt, type LoadedPackage } from '../prompts/packages.js';
 import { buildTaskPacket, deliveredSupportPaths, renderRequiredSlots, stableRoleInstructions, type TaskKind, type TaskEnvironment } from '../prompts/tasks.js';
 import { briefingAdditionKey, buildBriefingDelivery, taskBriefingRevision, type BriefingRevision } from '../prompts/briefings.js';
+import { effectiveBlocks } from '../prompts/blocks.js';
+import { boundsErrors } from '../work/assignment.js';
 import { buildDeliveredManifest, exactInputHash } from '../prompts/delivered-manifest.js';
 import { workOrientationMessage } from '../context-selection/prompts.js';
 import { repairPrompt } from '../nonfunctional/prompts.js';
@@ -160,10 +162,12 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(next.message).toContain('"candidate": "C1"');
     expect(next.message).toContain('"snapshot": "S1"');
     expect(next.message).toContain('"invocationAbsoluteMs": 20');
-    // A command bound is delivered only to a role that has a shell.
-    expect(next.message).not.toContain('commandTimeoutMs');
+    // Assignment authors receive policy even without shell execution authority.
+    const assigns = role === 'local-architect' && ['assignment', 'completion', 'repair'].includes(kind) || role === 'capability-architect' && kind === 'capability';
+    if (assigns) expect(next.message).toContain('\"defaultMs\": 20');
+    else expect(next.message).not.toContain('commandTimeoutMs');
     expect(next.message).not.toContain('support/steps.mjs');
-    expect(next.message).not.toContain('cucumber.mjs');
+    if (role !== 'engineer') expect(next.message).not.toContain('cucumber.mjs');
     expect(next.message).not.toContain('unknown shapes: 1');
     expect(next.additions.filter(item => item.kind === 'role-instructions')).toEqual([]);
     expect(next.additions.filter(item => item.kind === 'tool-declaration')).toEqual([]);
@@ -460,4 +464,35 @@ describe('S01: every engineer invocation of a run is the engineer step its recor
     expect(repair.delivered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(false);
     expect(repair.inputs.failedGate?.id).toBe('ga-0002');
   }, 300_000);
+});
+
+
+describe('assignment command policy delivery', () => {
+  test.each([['local-architect', 'assignment'], ['local-architect', 'completion'], ['local-architect', 'repair'], ['capability-architect', 'capability']] as const)('%s/%s receives current default and ceiling without a shell', (role, kind) => {
+    const loaded = current.get(role)!;
+    const base = input(loaded, kind);
+    const policy = { ...base.environment, limits: { commandTimeoutMs: 1800000, maxCommandTimeoutMs: 3600000 } };
+    const first = buildTaskPacket({ ...base, environment: policy });
+    expect(first.message).toContain('"defaultMs": 1800000');
+    expect(first.message).toContain('"ceilingMs": 3600000');
+    expect(first.message).toContain('Omit assignment.bounds.commandTimeoutMs');
+    expect(first.message).not.toContain('"shell"');
+    const next = buildTaskPacket({ ...base, environment: { ...policy, limits: { commandTimeoutMs: 2100000, maxCommandTimeoutMs: 4200000 } },
+      inheritedPoint: 'P:T1', inherited: first.additions, supplyRoleInstructions: false,
+      briefing: buildBriefingDelivery({ mode: 'continue', current: taskR1, inheritedRevision: 'r1', history: [] }) });
+    const limits = effectiveBlocks([...first.additions, ...next.additions]).get('environment:limits')!;
+    expect(limits.text).toContain('"defaultMs": 2100000');
+    expect(limits.text).not.toContain('1800000');
+    expect(boundsErrors({ commandTimeoutMs: { ms: 600000, reason: 'focused check' } }, {
+      defaults: { commandTimeoutMs: 1800000, idleMs: 1800000, absoluteMs: 3600000 },
+      ceilings: { commandTimeoutMs: 3600000, idleMs: 3600000, absoluteMs: 7200000 },
+    })[0]?.message).toContain('never lowered');
+  });
+  test('unrelated tasks omit policy and missing policy remains explicit', () => {
+    const loaded = current.get('local-architect')!;
+    expect(buildTaskPacket(input(loaded, 'orientation')).message).not.toContain('commandPolicy');
+    const missing = buildTaskPacket({ ...input(loaded, 'assignment'), environment: { ...environment(), limits: {} } });
+    expect(missing.message).toContain('"defaultMs": null');
+    expect(missing.message).toContain('"ceilingMs": null');
+  });
 });

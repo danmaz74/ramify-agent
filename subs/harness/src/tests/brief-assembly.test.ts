@@ -55,11 +55,15 @@ describe('the environment an invocation is told of', () => {
     });
   });
 
-  test('an available Cucumber configuration is the focused command the brief states, so it is not repeated', () => {
-    expect(selectedEnvironment(environment({ cucumberConfiguration: JSON.stringify({ kind: 'available', command: 'x' }) }))).not.toHaveProperty('cucumberConfiguration');
-    expect(selectedEnvironment(environment({ cucumberConfiguration: JSON.stringify({ kind: 'unavailable', reason: 'none' }) }))).toHaveProperty('cucumberConfiguration');
-  });
-});
+  test('engineers receive current Cucumber discovery facts while unrelated and inapplicable tasks omit them', () => {
+    const engineer = { role: 'engineer', kind: 'engineering' } as const;
+    const available = JSON.stringify({ kind: 'available', configPath: '/project/focused.json', sourceFiles: { '/project/cucumber.json': 'a'.repeat(64) }, support: { import: ['support/steps.mjs'] } });
+    const unavailable = JSON.stringify({ kind: 'unavailable', reason: 'Current configuration cannot be read' });
+    expect(selectedEnvironment(environment({ cucumberConfiguration: available }), engineer).cucumberConfiguration).toBe(available);
+    expect(selectedEnvironment(environment({ cucumberConfiguration: unavailable }), engineer).cucumberConfiguration).toBe(unavailable);
+    expect(selectedEnvironment(environment({ cucumberConfiguration: null }), engineer)).not.toHaveProperty('cucumberConfiguration');
+    expect(selectedEnvironment(environment({ cucumberConfiguration: available }), { role: 'local-architect', kind: 'orientation' })).not.toHaveProperty('cucumberConfiguration');
+  });});
 
 describe('the task line and pointers', () => {
   test('the objective names the work only where there is some', () => {

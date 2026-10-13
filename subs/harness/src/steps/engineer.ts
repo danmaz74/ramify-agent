@@ -65,7 +65,7 @@ export interface ConstructedEngineerStep {
     readonly modules: readonly string[];
     readonly goal: string;
     readonly requirements: readonly string[];
-    readonly cucumberConfiguration: string;
+    readonly cucumberConfiguration: string | null;
     readonly omit: readonly string[];
     readonly literalSections: HarnessTaskBrief['sections'];
     readonly views: HarnessTaskBrief['environment']['views'];
@@ -155,6 +155,9 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
     views: entry.views.map(view => ({ area: view.area, path: relative(view.path), revision: view.revision, coverage: view.coverage })) }));
   const focused = inputs.focused;
   const prepared = { command: focused.command, sourceFiles: focused.sourceFiles };
+  const needsCucumberDiscovery = (inputs.scenarios?.kind === 'integration' || (inputs.scenarios?.kind === 'entry' && inputs.scenarios.scenarios.length > 0))
+    || (assignment.obligations?.length ?? 0) > 0
+    || focused.featurePaths.length > 0 || focused.command.kind === 'available';
   const prompt = `${iterationMessage({
     assignment,
     projectRoot,
@@ -168,7 +171,7 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
     ...(inputs.scenarios === undefined ? {} : { scenarios: inputs.scenarios }),
     ...(inputs.obligations.length === 0 ? {} : { obligations: inputs.obligations }),
     ...(inputs.assignmentPackage === undefined ? {} : { package: inputs.assignmentPackage }),
-  })}${focused.command.kind === 'available' ? `\n\n# Exact focused scenario command\n\n${focused.command.shellCommand}\nSupport/world/loader: ${JSON.stringify(focused.command.support)}\nEnvironment names: ${Object.keys(focused.command.environment).sort().join(', ')}. Config SHA-256 ${focused.command.configurationIdentity}; current generated and source bytes are revalidated at dispatch.\n${focusedCommandPendingNote}` : `\n\nFocused scenario command unavailable: ${focused.command.reason}. Do not combine CLI feature paths with the broad default profile.`}${inputs.guidance === undefined ? '' : `\n\n# Qualified existing behavior\n\n${inputs.guidance}`}${consultationContext(inputs.consultation, inputs.role)}`;
+  })}${focused.command.kind === 'available' ? `\n\n# Exact focused scenario command\n\n${focused.command.shellCommand}\nConfig SHA-256 ${focused.command.configurationIdentity}; current generated and source bytes are revalidated at dispatch.\n${focusedCommandPendingNote}` : needsCucumberDiscovery ? `\n\nFocused scenario command unavailable: ${focused.command.reason}. Do not combine CLI feature paths with the broad default profile.` : ''}${inputs.guidance === undefined ? '' : `\n\n# Qualified existing behavior\n\n${inputs.guidance}`}${consultationContext(inputs.consultation, inputs.role)}`;
   const bounds = { idleMs: inputs.bounds.idleMs, absoluteMs: inputs.bounds.absoluteMs, commandTimeoutMs: inputs.bounds.commandTimeoutMs };
   const limits = invocationLimits(inputs.limits, { bounds });
   const consultation = consultationAvailability(inputs.consultation ?? undefined, inputs.role);
@@ -184,15 +187,15 @@ export function constructEngineerStep(value: unknown, environment: StepEnvironme
     modules: 'module' in assignment.scope.base ? [assignment.scope.base.module] : [...assignment.scope.base.modules],
     goal: assignment.goal,
     requirements: [assignment.completionEvidence],
-    cucumberConfiguration: focusedScenarioFacts(prepared),
+    cucumberConfiguration: needsCucumberDiscovery ? focusedScenarioFacts(prepared) : null,
     omit: inputs.assignmentPackage === undefined ? [] : [inputs.assignmentPackage],
     literalSections: [
       ...(inputs.assignmentPackage === undefined ? [] : [{ key: 'support:assignment-package', text: inputs.assignmentPackage }]),
-      { key: 'support:cucumber-discovery', text: ['## Globally loaded Cucumber support', '',
+      ...(needsCucumberDiscovery ? [{ key: 'support:cucumber-discovery', text: ['## Globally loaded Cucumber support', '',
         focused.command.kind === 'available'
-          ? 'The task environment\'s cucumberConfiguration supplies the effective configuration, source configuration bytes and globally loaded support/world/loader pointers for binding discovery.'
+          ? 'The task environment\'s cucumberConfiguration supplies the prepared configuration path and identity, authenticated source file paths and SHA-256 identities, exact selection, and globally loaded support/world/loader pointers for binding discovery. Read the named configuration files for their current bytes; sourceFiles contains hashes, not file contents.'
           : `Configuration/support discovery evidence unavailable: ${focused.command.reason}. Inspect the declared check/configuration pointers; observed step files alone do not establish what is loaded.`,
-      ].join('\n') },
+      ].join('\n') }] : []),
     ],
     views: views.flatMap(entry => entry.views.map(view => ({ path: view.path, revision: view.revision, modules: [entry.module],
       coverage: view.coverage === null ? [] : [`${view.coverage} coverage limits`] }))),

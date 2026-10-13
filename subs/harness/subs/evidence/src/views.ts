@@ -79,11 +79,13 @@ const namedCoverageRecords = 12;
 /**
  * The view's coverage limits, with the records its `cut` and
  * `detailsUnavailable` counts mark named, and whether any lies in the named
- * modules. A cut count beyond the named records counts test, feature and
- * module-purpose titles, which no record names. Other limits stay as given.
+ * modules. With complete record-file evidence, a cut count beyond the observed records
+ * counts test, feature and module-purpose titles, which no record names.
+ * Incomplete evidence leaves the residual composition unknown. Other limits stay as given.
  */
-export function describeCoverageLimits(limits: readonly string[], records: readonly CoverageRecord[], modules: readonly string[] = []): string[] {
+export function describeCoverageLimits(limits: readonly string[], records: readonly CoverageRecord[], modules: readonly string[] = [], detailIndex?: ArchitectIndex, detailUnavailable?: string): string[] {
   const statements: string[] = [];
+  const incomplete = detailIndex !== undefined && (detailIndex.recordFiles === undefined || [...detailIndex.recordFiles.values()].some(files => files.some(file => !file.available)));
   const name = (record: CoverageRecord) => `\`${record.file}#${record.name}\` (${record.what})`;
   const names = (marked: readonly CoverageRecord[]) => [...marked.slice(0, namedCoverageRecords).map(name),
     ...marked.length > namedCoverageRecords ? [`${marked.length - namedCoverageRecords} more`] : []].join(', ');
@@ -94,14 +96,32 @@ export function describeCoverageLimits(limits: readonly string[], records: reado
     const marked = records.filter(record => record.limit === (count[1] === 'cut' ? 'cut' : 'details-unavailable'));
     const rest = Math.max(0, total - marked.length);
     const parts = [...marked.length === 0 ? [] : [`${marked.length === 1 ? 'one record' : `${marked.length} records`} with ${count[1] === 'cut' ? 'truncated detail' : 'no details'}: ${names(marked)}`],
-      ...rest === 0 ? [] : [count[1] === 'cut' ? `${rest} cut test, feature or module-purpose title${rest === 1 ? '' : 's'}` : `${rest} unnamed`]];
+      ...rest === 0 ? [] : [incomplete ? `${rest} unenumerated limits; missing record evidence leaves their composition unknown` : count[1] === 'cut' ? `${rest} cut test, feature or module-purpose title${rest === 1 ? '' : 's'}` : `${rest} unnamed`]];
     statements.push(`${count[1]}: ${total}, ${parts.join('; ')}`);
   }
   if (modules.length > 0 && statements.length > 0) {
     const inScope = records.filter(record => modules.includes(record.module));
     statements.push(inScope.length === 0
-      ? `None of these records is in ${modules.map(module => `\`${module}\``).join(', ')}.`
-      : `In ${modules.map(module => `\`${module}\``).join(', ')}: ${inScope.map(name).join(', ')}.`);
+      ? `No observed limited records are in ${modules.map(module => `\`${module}\``).join(', ')}.`
+      : `In ${modules.map(module => `\`${module}\``).join(', ')}: ${inScope.length}${incomplete ? ' observed' : ''} limited record${inScope.length === 1 ? '' : 's'}: ${names(inScope)}.`);
+  }
+  if (modules.length > 0 && statements.length > 0) {
+    statements.push(detailIndex === undefined
+      ? 'Architect coverage detail access unavailable: no generated record-file provenance was captured.'
+      : `Architect coverage identity: revision \`${detailIndex.revision}\`, input \`${detailIndex.input}\`; independent of ordinary/testing API-view identity.`);
+    if (detailIndex !== undefined) for (const module of modules) {
+      if (detailUnavailable !== undefined) {
+        statements.push(`Architect coverage details for \`${module}\` unavailable: ${detailUnavailable}.`);
+        continue;
+      }
+      const files = detailIndex.recordFiles?.get(module);
+      const readable = files?.filter(file => file.available) ?? [];
+      statements.push(readable.length === 0
+        ? `Architect coverage details for \`${module}\` unavailable: no readable generated record files were captured.`
+        : `Architect coverage details for \`${module}\`: ${readable.map(file => `\`${file.path}\``).join(', ')}. Read the JSONL records' file/name and cut/detail fields; this summary is incomplete. Paths are project-relative.`);
+      const missing = files?.filter(file => !file.available) ?? [];
+      if (missing.length > 0) statements.push(`Unavailable generated record files for \`${module}\`: ${missing.map(file => `\`${file.path}\``).join(', ')}.`);
+    }
   }
   return statements;
 }
@@ -215,6 +235,8 @@ export interface ArchitectIndex {
   readonly modules: ReadonlyMap<string, ModuleEntry>;
   /** Each module's exported originals, behavior-capable and supporting. */
   readonly symbols: ReadonlyMap<string, readonly SymbolRecord[]>;
+  /** Actual generated record files encountered by the reader; absent on older constructed indexes. */
+  readonly recordFiles?: ReadonlyMap<string, readonly { readonly path: string; readonly available: boolean }[]>;
 }
 
 /** Every module and exported original of the architect view. */
@@ -223,18 +245,22 @@ export async function loadArchitectIndex(projectRoot: string): Promise<Architect
   const meta = await readArchitectMeta(projectRoot);
   const modules = new Map<string, ModuleEntry>();
   const symbols = new Map<string, SymbolRecord[]>();
+  const recordFiles = new Map<string, { path: string; available: boolean }[]>();
   const walk = async (directory: string): Promise<void> => {
     const entries = await readdir(directory, { withFileTypes: true });
     if (entries.some(entry => entry.isFile() && entry.name === 'module.json')) {
       const document = JSON.parse(await readFile(join(directory, 'module.json'), 'utf8')) as ModuleDocument;
       modules.set(document.module, entryOf(document));
       const records: SymbolRecord[] = [];
+      const files: { path: string; available: boolean }[] = [];
       for (const file of ['behavior.jsonl', 'supporting.jsonl']) {
         let text = '';
         try {
           text = await readFile(join(directory, file), 'utf8');
+          files.push({ path: relative(projectRoot, join(directory, file)).split(sep).join('/'), available: true });
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+          files.push({ path: relative(projectRoot, join(directory, file)).split(sep).join('/'), available: false });
         }
         for (const line of text.split('\n')) {
           if (!line.trim()) continue;
@@ -248,11 +274,12 @@ export async function loadArchitectIndex(projectRoot: string): Promise<Architect
         }
       }
       symbols.set(document.module, records);
+      recordFiles.set(document.module, files);
     }
     for (const entry of entries) if (entry.isDirectory()) await walk(join(directory, entry.name));
   };
   await walk(root);
-  return { revision: meta.revision, input: meta.input, modules, symbols };
+  return { revision: meta.revision, input: meta.input, modules, symbols, recordFiles };
 }
 
 /** The architect view's modules alone, with its revision and input identity: the project's module tree. */

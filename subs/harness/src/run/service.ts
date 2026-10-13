@@ -1,3 +1,4 @@
+import { localViewInputsOf } from '../work/view-inputs.js';
 import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths,
   type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair-preparation.js';
 import { repairIncidentRecordSchema, repairResultSchema, repairIncidentId, type RepairIncidentRecord, type RepairResult, type RepairIncidentStage } from './repair-records.js';
@@ -22,7 +23,7 @@ import type { AgentPort, AgentSession, JsonSchema, SessionSpec, SessionStart, To
 import { gitCandidateSource, gitChangeHistory, gitService, type CandidateSource, type ChangeHistory, type GitService } from '../../subs/evidence/src/git.js';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { projectConfigurationFile } from '../../subs/evidence/src/project-configuration.js';
-import { apiViewDirectoriesOf, coverageRecordsOf, describeCoverageLimits, findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
+import { coverageRecordsOf, describeCoverageLimits, findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { GateAttempt, GateRuleRecord, TestSelectionPolicy } from '../checks/records.js';
 import { acceptedCommit } from '../checks/accepted.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
@@ -5101,8 +5102,11 @@ export class RunService {
     const evidence: AnalysisEvidence = { index: run.index, catalog, incorporation, documents, registeredTests: new Set([...this.obligationProjection(run).obligations.values()].filter(item => item.kind === 'test').map(item => item.id)), planScenarios: run.record.planScenarios.scenarios };
     const systemPrompt = renderInitialArchitectPrompt(loaded, this.projectRoot);
     const view = run.record.manifest.architectView;
-    // The limits name the records they mark where the index is read; otherwise they stay as counted.
-    const coverage = view.status !== 'materialized' ? [] : run.index === null ? view.coverageLimits : describeCoverageLimits(view.coverageLimits, coverageRecordsOf(run.index));
+    // Only correlate captured counts with records from the same view identity.
+    const coverage = view.status !== 'materialized' ? [] : run.index === null ? view.coverageLimits
+      : run.index.revision !== view.revision || run.index.input !== view.input
+        ? [...view.coverageLimits, 'Captured architect aggregate limits and the current index have different identities; these counts have not been correlated with current symbol records.']
+        : describeCoverageLimits(view.coverageLimits, coverageRecordsOf(run.index), [], run.index);
     const prompt = analysisMessage(run.record, plan, this.capturedPlanPath(run), inputs, incorporatedExtraction(evidence), coverage);
     const scope = baselineScope(
       this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',
@@ -10869,14 +10873,7 @@ export class RunService {
    * module. A module with no readable API view is told of the architect view.
    */
   private async localViewInputs(run: Run, module: string): Promise<OrientationStepInputs['architectView']> {
-    const entry = run.index === null ? undefined : findModule(run.index, module);
-    const directories = entry === undefined ? [] : await apiViewDirectoriesOf(this.projectRoot, entry).catch(() => []);
-    if (directories.length === 0) return this.architectViewInputs(run);
-    const named = run.record.manifest.architectView.status === 'materialized' && run.index !== null
-      ? describeCoverageLimits(run.record.manifest.architectView.coverageLimits, coverageRecordsOf(run.index), [entry!.module]) : [];
-    // The architect view's limits are stated once, with the first directory.
-    return directories.map((directory, index) => ({ path: projectPath(directory.path), revision: directory.revision, modules: [entry!.module],
-      coverage: [...directory.coverage === null ? [] : [apiCoverageStatement(directory.coverage)], ...index === 0 ? named : []] }));
+    return localViewInputsOf(this.projectRoot, module, run.index, run.record.manifest.architectView);
   }
 
   /** The frozen plan's project-relative path. */

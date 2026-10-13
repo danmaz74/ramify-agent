@@ -813,7 +813,7 @@ export function focusedScenarioFacts(prepared: Awaited<ReturnType<typeof prepare
   return JSON.stringify(command.kind === 'unavailable' ? { kind: 'unavailable', reason: command.reason } : {
     kind: 'available', cwd: command.cwd, configPath: command.configPath, sourceIdentity: command.sourceIdentity,
     sourceFiles: prepared.sourceFiles, configurationIdentity: command.configurationIdentity,
-    argv: command.argv, selection: command.selection, support: command.support,
+    selection: command.selection, support: command.support,
     environmentNames: Object.keys(command.environment).sort(),
   });
 }

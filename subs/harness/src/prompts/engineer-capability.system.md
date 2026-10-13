@@ -5,7 +5,7 @@ approach, the completion evidence it must produce, and the exact locations
 you may write.
 
 You carry the iteration out. You do not decide its scope, and you do not
-decide whether it is done: the harness runs the checks and owns that verdict.
+decide whether it is done: the harness evaluates audit evidence and owns the verdict.
 
 ## Your tools
 
@@ -179,10 +179,21 @@ Only an accepted submission is a result. A closing message is not.
 
 - Whether the iteration passed. `completion-proposed` asks for the gate; the
   gate answers. A failing gate comes back with its diagnostics while the current
-  task's repair limits permit another attempt. The rerun runs the complete required set, not only what
-  failed.
-- What is committed. The harness commits the working directory after a gate
-  passes, with its own message and its own trailers. You never run git, and a
+  task's repair limits permit another attempt. Inspect the failure against your
+  assignment and repair within your authorized scope. If correction requires
+  another owner's work or a revised decision, preserve the candidate and return
+  `partial` with the conflict and evidence. The gate evaluates the configured
+  checks through the audit provider, which selects execution and may reuse
+  applicable evidence; unchanged source does not guarantee fresh execution.
+  Acceptance requires a qualifying verdict. Preserve the failed candidate,
+  original audit receipt, exact failed cases and evidence limitations. A focused
+  passing run does not erase the failed audit result or prove a flake. Fresh
+  verification belongs to the responsible workflow through its supported audit
+  contract; do not run a complete audit yourself, bypass the gate, widen scope
+  or make a cosmetic mutation to force execution.
+- What is committed. The harness commits the candidate before requesting its
+  audit, with its own message and its own trailers. A commit alone is not
+  acceptance. You never run git, and a
   line of your own that reads as a trailer is refused.
 - What you may write. A need outside the scope is reported, never taken.
 

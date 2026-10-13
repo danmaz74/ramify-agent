@@ -143,7 +143,7 @@ export function iterationAcceptance(kind: EngineerSubmission['kind'], checkNotRu
     : ` The Ramify check over your write scope could not be run (${checkNotRun}), so nothing here verified it.`;
   switch (kind) {
     case 'completion-proposed':
-      return `The submission was accepted and recorded. The iteration gate commits the candidate before running the complete required checks and owns the verdict; a commit alone is not acceptance.${note} Nothing more is asked of you in this session.`;
+      return `The submission was accepted and recorded. The iteration gate commits the candidate and evaluates the configured checks through the audit provider, which selects execution and may reuse applicable evidence. Acceptance requires a qualifying verdict; a commit alone is not acceptance.${note} Nothing more is asked of you in this session.`;
     case 'partial':
       return 'The report was accepted and recorded. The work is not complete: the module architect reads what is unfinished and decides what follows. Nothing more is asked of you in this session.';
     case 'unsuitable':
@@ -521,7 +521,7 @@ export function iterationMessage(briefing: IterationBriefing): string {
     lines.push('## The gate did not pass', '');
     lines.push(`Attempt \`${briefing.failedGate.id}\`${briefing.failedGate.cause === null ? '' : ` (${briefing.failedGate.cause})`}. What ran, and what it reported:`, '');
     lines.push(...briefing.failedGate.summary);
-    lines.push('', 'Repair it and propose completion again. The next attempt runs the complete required set, not only what failed.', '');
+    lines.push('', 'These current repair instructions supersede any inherited promise of fresh execution. Inspect the failure against your assignment. Repair within your authorized scope and propose completion when supported. If correction requires another owner\'s work or a revised decision, preserve the candidate and return `partial` with the conflict and evidence. The next gate evaluates the configured checks through the audit provider, which selects execution and may reuse applicable evidence; unchanged source does not guarantee fresh execution. Acceptance requires a qualifying verdict. Preserve the failed candidate, original audit receipt, exact failed cases and evidence limitations. A focused passing run does not erase the failed audit result or prove a flake. Fresh verification belongs to the responsible workflow through its supported audit contract; do not run a complete audit yourself, bypass the gate, widen scope or make a cosmetic mutation to force execution.', '');
   }
 
   lines.push(`Work within the scope above and end your turn with \`${engineerToolName}\`.`);

@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { loadPromptPackages, renderEngineerPrompt } from '../prompts/packages.js';
 import { iterationMessage } from '../work/engineer.js';
+import { buildTaskPacket, type TaskEnvironment } from '../prompts/tasks.js';
+import { buildBriefingDelivery, taskBriefingRevision } from '../prompts/briefings.js';
 import type { IterationAssignment } from '../work/iterations.js';
 import { declaredCheckInputs, moduleInputPointers } from '../work/starting-inputs.js';
 
@@ -129,6 +131,42 @@ describe('what an engineer is told about the Ramify project it works in', () => 
     expect(text).toContain('A required check failed.');
     const { packages } = await loadPromptPackages();
     expect(renderEngineerPrompt(packages.get('engineer')!, '/p')).not.toContain('one\n  repair round');
+  });
+
+  test.each([false, true])('repair packet preserves failed evidence and corrects inherited execution promises (capability=%s)', async capabilityWorkflow => {
+    const loaded = (await loadPromptPackages({ capabilityWorkflow })).packages.get('engineer')!;
+    // Existing sessions retain their pinned role instructions; the current brief
+    // must correct a legacy promise without changing that immutable prefix.
+    const legacy = { ...loaded, system: loaded.system + '\nThe rerun runs the complete required set, not only what failed.' };
+    const environment: TaskEnvironment = { projectRoot: '/p', workingDirectory: '/p/subs/reviews/src', candidate: 'failed-candidate', snapshot: null,
+      limits: {}, availableTools: ['read', 'shell', 'submit_iteration_result'], views: [], supportPaths: [], cucumberConfiguration: null };
+    const goal = 'Add the count tool.'; const requirements = ['A test calls the tool.'];
+    const previous = taskBriefingRevision({ revision: 'repair-old', goal, requirements, sections: [{ key: 'iteration', text: 'The next attempt runs the complete required set, not only what failed.' }] });
+    const first = buildTaskPacket({ loaded: legacy, kind: 'engineering', objective: goal, goal, requirements, environment,
+      briefing: buildBriefingDelivery({ mode: 'fresh', current: previous, inheritedRevision: null, history: [] }),
+      inheritedPoint: null, inherited: [], supplyRoleInstructions: true });
+    const message = iterationMessage({ assignment: assignment(), projectRoot: '/p', base: 'accepted-base', capabilityWorkflow,
+      failedGate: { id: 'ga-failed', cause: 'check', summary: ['Candidate failed-candidate; original receipt audit-7.', 'FAIL parent/harness: race test; unchanged audit evidence reused; focused passing run only.'] } });
+    const current = taskBriefingRevision({ revision: 'repair-current', goal, requirements, sections: [{ key: 'iteration', text: message }] });
+    const repair = buildTaskPacket({ loaded: legacy, kind: 'repair', objective: goal, goal, requirements, environment,
+      briefing: buildBriefingDelivery({ mode: 'continue', current, inheritedRevision: previous.revision, history: [previous] }),
+      inheritedPoint: 'old-repair-point', inherited: first.additions, supplyRoleInstructions: false });
+    const additions = repair.additions.map(item => item.text).join('\n');
+    expect(additions).toContain('These current repair instructions supersede any inherited promise of fresh execution');
+    expect(additions).toContain('another owner\'s work or a revised decision, preserve the candidate and return `partial`');
+    expect(additions).toContain('unchanged source does not guarantee fresh execution');
+    expect(additions).toContain('Acceptance requires a qualifying verdict');
+    expect(additions).toContain('original receipt audit-7');
+    expect(additions).toContain('FAIL parent/harness: race test');
+    expect(additions).toContain('A focused passing run does not erase the failed audit result or prove a flake');
+    expect(additions).toContain('do not run a complete audit yourself, bypass the gate, widen scope or make a cosmetic mutation');
+    expect(repair.additions.some(item => item.kind === 'role-instructions')).toBe(false);
+    expect(first.additions.find(item => item.kind === 'role-instructions')?.text).toContain('The rerun runs the complete required set');
+    const fresh = buildTaskPacket({ loaded, kind: 'repair', objective: goal, goal, requirements, environment,
+      briefing: buildBriefingDelivery({ mode: 'fresh', current, inheritedRevision: null, history: [] }),
+      inheritedPoint: null, inherited: [], supplyRoleInstructions: true });
+    expect(fresh.additions.find(item => item.kind === 'role-instructions')?.text).toContain('may reuse');
+    expect(fresh.additions.map(item => item.text).join('\n')).not.toContain('The rerun runs the complete required set');
   });
 
   test('the iteration message names the owners\' test areas as text and leaves every test run to the gate\'s audit', () => {

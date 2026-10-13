@@ -75,10 +75,11 @@ function projectRelative(projectRoot: string, path: string): string {
  * - The project root and working directory reach only a role that reads the
  *   project's files; tasks that use views receive them project-relative.
  * - The limits are the invocation's own bounds; the command timeout and the
- *   budget returns reach only a role with a shell.
+ *   budget returns reach a role with a shell. Assignment authors also receive
+ *   the command baseline and ceiling used by their assignment contract.
  * - A null candidate, snapshot or Cucumber configuration says nothing, nor
- *   does a snapshot equal to the candidate. An available Cucumber
- *   configuration is the focused command the brief already states.
+ *   does a snapshot equal to the candidate. Engineers receive current Cucumber
+ *   discovery facts separately from the authoritative focused command.
  * - Support paths name the harness's own prompt files, which no project
  *   agent can open; the manifest keeps them as provenance.
  */
@@ -97,7 +98,17 @@ export function selectedEnvironment(environment: TaskEnvironment, task?: { reado
   if (environment.snapshot !== null && environment.snapshot !== environment.candidate) selected.snapshot = environment.snapshot;
   const limits = environment.limits;
   const own = ['invocationAbsoluteMs', 'invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs', 'budgetReturnsPerIteration'] : [])];
-  selected.limits = Object.fromEntries(own.filter(key => limits[key] !== undefined).map(key => [key, limits[key]]));
+  const assignmentAuthor = task !== undefined && (
+    task.role === 'local-architect' && ['assignment', 'completion', 'repair'].includes(task.kind)
+    || task.role === 'capability-architect' && task.kind === 'capability');
+  selected.limits = {
+    ...Object.fromEntries(own.filter(key => limits[key] !== undefined).map(key => [key, limits[key]])),
+    ...(assignmentAuthor ? { commandPolicy: {
+      defaultMs: limits.commandTimeoutMs ?? null,
+      ceilingMs: limits.maxCommandTimeoutMs ?? null,
+      rule: 'Omit assignment.bounds.commandTimeoutMs unless the work needs a permitted increase. An override uses { ms, reason }, cannot lower the default or exceed the ceiling, and cannot exceed the engineer invocation absolute bound. Null means policy evidence is unavailable; request it before choosing an override.',
+    } } : {}),
+  };
   selected.availableTools = environment.availableTools;
   const usesViews = task === undefined || !(task.role === 'catalog-extractor' && ['intake', 'principles', 'check'].includes(task.kind));
   if (readsFiles && usesViews && environment.views.length > 0) {
@@ -107,12 +118,8 @@ export function selectedEnvironment(environment: TaskEnvironment, task?: { reado
       ? { note: 'This module has no children view, so no `children` directory exists.' } : {};
     selected.views = { views, ...note };
   }
-  if (environment.cucumberConfiguration !== null && !isAvailableCucumber(environment.cucumberConfiguration)) selected.cucumberConfiguration = environment.cucumberConfiguration;
+  if (environment.cucumberConfiguration !== null && (task?.role === 'engineer' || task === undefined)) selected.cucumberConfiguration = environment.cucumberConfiguration;
   return selected;
-}
-
-function isAvailableCucumber(configuration: string): boolean {
-  try { return (JSON.parse(configuration) as { kind?: unknown }).kind === 'available'; } catch { return false; }
 }
 
 /** The body of one environment block: its field, or the selected value's own fields where it carries several. */
@@ -243,7 +250,7 @@ export function buildTaskPacket(input: {
   // A field this role is not told of stays unsent, unless the session holds
   // an earlier value of it: that value is corrected, or withdrawn where the
   // field reaches no role.
-  const withdrawnEnvironment = ['supportPaths', ...('views' in selected ? [] : ['views'])] as readonly EnvironmentField[];
+  const withdrawnEnvironment = ['supportPaths', ...('cucumberConfiguration' in selected ? [] : ['cucumberConfiguration']), ...('views' in selected ? [] : ['views'])] as readonly EnvironmentField[];
   const environmentKeys = environmentFields.filter(key => key in selected || (!withdrawnEnvironment.includes(key) && inheritedBlocks.has(`environment:${key}`)));
   const reusable = resolveBlockAdditions({ inherited: input.inherited, desired: [
     { key: procedureKey, kind: 'procedure', body: procedureBody, source: task.source, revision: loaded.package, sources: procedureSources(loaded, task) },

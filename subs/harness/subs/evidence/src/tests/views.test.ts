@@ -85,8 +85,8 @@ describe('what a view\'s coverage limits mark', () => {
 
   test('says whether any marked record is in the work item\'s module', () => {
     const records = coverageRecordsOf(index);
-    expect(describeCoverageLimits(['cut: 1'], records, ['app/ui']).at(-1)).toBe('In `app/ui`: `ui/src/badge.tsx#Badge` (signature).');
-    expect(describeCoverageLimits(['cut: 1'], records, ['app/other']).at(-1)).toBe('None of these records is in `app/other`.');
+    expect(describeCoverageLimits(['cut: 1'], records, ['app/ui']).find(line => line.startsWith('In '))).toBe('In `app/ui`: 1 limited record: `ui/src/badge.tsx#Badge` (signature).');
+    expect(describeCoverageLimits(['cut: 1'], records, ['app/other']).find(line => line.startsWith('No observed '))).toBe('No observed limited records are in `app/other`.');
     expect(describeCoverageLimits([], records, ['app/ui'])).toEqual([]);
   });
 
@@ -102,5 +102,50 @@ describe('what a view\'s coverage limits mark', () => {
       { area: 'src', path: 'ui/src/.ramify/external', revision: 'api/1', coverage: 2 },
       { area: 'src/tests', path: 'ui/src/tests/.ramify/children', revision: 'api/2', coverage: null },
     ]);
+  });
+});
+
+describe('bounded coverage details', () => {
+  test('the minimum crossing the twelve-name cap retains count and each limit reason', () => {
+    const records = Array.from({ length: 13 }, (_, position) => ({ module: 'app', name: `Symbol${position}`, file: 'src/a.ts',
+      limit: position === 0 ? 'details-unavailable' as const : 'cut' as const,
+      what: position === 0 ? 'unsupported-declaration' : position === 1 ? 'documentation' : 'signature' }));
+    const text = describeCoverageLimits(['cut: 14', 'detailsUnavailable: 1', 'coverage: 2'], records, ['app']).join('\n');
+    expect(text).toContain('In `app`: 13 limited records:');
+    expect(text).toContain('1 more.');
+    expect(text.split('\n').find(line => line.startsWith('In '))).not.toContain('#Symbol12');
+    expect(text).toContain('#Symbol0` (unsupported-declaration)');
+    expect(text).toContain('#Symbol1` (documentation)');
+    expect(text).toContain('#Symbol2` (signature)');
+    expect(text).toContain('2 cut test, feature or module-purpose titles');
+    expect(text).toContain('coverage: 2');
+    expect(text).toContain('detail access unavailable');
+  });
+
+  test('captures actual unusual generated paths and explicitly reports missing files', async () => {
+    const f = await fixture();
+    await f.write('.ramify-architect/_meta.json', architect);
+    await f.write('.ramify-architect/unrelated-layout/module.json', { schema: 'ramify.architect-module/3', ...entry });
+    const path = '.ramify-architect/unrelated-layout/behavior.jsonl';
+    await f.write(path, { module: 'app', name: 'A', file: 'src/a.ts', cut: ['sig', 'doc'] });
+    const loaded = await loadArchitectIndex(f.root);
+    expect(loaded.recordFiles?.get('app')).toEqual([{ path, available: true },
+      { path: '.ramify-architect/unrelated-layout/supporting.jsonl', available: false }]);
+    const text = describeCoverageLimits(['cut: 1'], coverageRecordsOf(loaded), ['app'], loaded).join('\n');
+    expect(text).toContain('revision `rev/1:test`, input `input/1:test`');
+    expect(text).toContain('signature and documentation');
+    expect(text).toContain(`details for \`app\`: \`${path}\``);
+    expect(text).toContain('Unavailable generated record files for `app`: `.ramify-architect/unrelated-layout/supporting.jsonl`');
+    expect(text).toContain('independent of ordinary/testing API-view identity');
+  });
+
+  test('an empty module retains its zero-local count and unavailable detail status', () => {
+    expect(describeCoverageLimits([], [], ['empty'])).toEqual([]);
+    const text = describeCoverageLimits(['cut: 2'], [], ['empty'], {
+      revision: 'R', input: 'I', modules: new Map(), symbols: new Map(), recordFiles: new Map([['empty', [{ path: 'behavior.jsonl', available: false }]]]),
+    }).join('\n');
+    expect(text).toContain('No observed limited records are in `empty`');
+    expect(text).toContain('2 unenumerated limits; missing record evidence leaves their composition unknown');
+    expect(text).toContain('details for `empty` unavailable');
   });
 });

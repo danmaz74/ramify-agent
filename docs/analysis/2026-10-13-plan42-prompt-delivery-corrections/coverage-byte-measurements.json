@@ -1,0 +1,361 @@
+{
+  "schema": "ramify-agent.coverage-delivery-measurement/1",
+  "command": "node_modules/.bin/tsx docs/analysis/2026-10-13-plan42-prompt-delivery-corrections/measure-coverage.ts",
+  "formatter": {
+    "path": "subs/harness/subs/evidence/src/views.ts",
+    "sha256": "106ccb387f29e0ae9bebc27db7ea3d166029e2f8b7ee836b2f5c4c588fcdbe70",
+    "function": "describeCoverageLimits"
+  },
+  "script": {
+    "path": "docs/analysis/2026-10-13-plan42-prompt-delivery-corrections/measure-coverage.ts",
+    "sha256": "a5fe17a30ff66fd3647679ee9818cd78b3adde939685827c5b4dded808ba0627"
+  },
+  "method": "Call the changed production formatter on every parsed record from the exact retained exhaustive module coverage line; replace that unique serialized line and append the formatter's explicit unavailable-detail statement in the unique original views addition and appended message.",
+  "limitations": [
+    "Reconstructed delivery comparison, not a model invocation or regenerated immutable packet/manifest.",
+    "Bytes are UTF-8 text bytes, not provider tokens, cost, latency, or cache savings.",
+    "Historical architect JSONL record files and architect input identity are unavailable. Detail-access unavailability is explicitly delivered; historical accessible detail is not demonstrated.",
+    "Only captured module-limited records are reconstructed. Other-module global statements are retained verbatim and are not re-derived from incomplete input.",
+    "This comparison leaves inherited messages intact and measures only the appended captured message."
+  ],
+  "measurements": [
+    {
+      "id": "20261012T214040Z-096401/inv-0010",
+      "input": "docs/analysis/2026-10-13-plan42-interim-postmortem/invocations/20261012T214040Z-096401/inv-0010/packet.json",
+      "inputSha256": "c4902e942d6410e5996ea2ce8f2b5d340d4842b0b4cad1ec57403d50be9f16db",
+      "inputBytes": 752033,
+      "viewIndex": 0,
+      "lineIndex": 5,
+      "retainedViewIdentity": {
+        "path": "subs/harness/src/.ramify/children",
+        "revision": "rev/1:32532246-335d-4b96-a154-252b49df2dbf:1",
+        "modules": [
+          "ramify-agent/harness"
+        ]
+      },
+      "identityLimitation": "Captured view identity is preserved exactly; architect input identity and historical generated JSONL record files are not retained. No current generated files are substituted as historical proof.",
+      "parsedLimitedRecords": 1120,
+      "namedRecords": 12,
+      "omittedRecords": 1108,
+      "originalLineSha256": "e4e7f73551ee977bbd87c40bfde976cd4415d09d98b5e25826250ab1d7839112",
+      "replacementLines": [
+        "In `ramify-agent/harness`: 1120 limited records: `subs/harness/src/interfaces/protocol/paths.ts#protocolPaths` (signature), `subs/harness/src/http/server.ts#ProjectRootError` (signature), `subs/harness/src/run/after-handling.ts#AfterHandling` (signature), `subs/harness/src/run/committing-gate.ts#CandidateDriftError` (signature), `subs/harness/src/run/committing-gate.ts#CandidateReassessmentRequired` (signature), `subs/harness/src/capability/state.ts#CapabilityStateError` (signature), `subs/harness/src/jobs/commands.ts#CommandLedger` (signature), `subs/harness/src/jobs/commands.ts#CommandRejection` (signature), `subs/harness/src/work/committed.ts#CommittedRecordError` (signature), `subs/harness/src/run/committing-gate.ts#CommittingGates` (signature), `subs/harness/src/run/log.ts#CorruptRunLogError` (signature), `subs/harness/src/run/inputs.ts#EvidenceUnavailableError` (signature), 1108 more.",
+        "Architect coverage detail access unavailable: no generated record-file provenance was captured."
+      ],
+      "localCoverageText": {
+        "before": 86840,
+        "after": 999,
+        "reduction": 85841,
+        "beforeSha256": "e4e7f73551ee977bbd87c40bfde976cd4415d09d98b5e25826250ab1d7839112",
+        "afterSha256": "fc141394007578f29b81c4c51c2a67b7eb9dbc55f4bf203d3df6258075de36eb"
+      },
+      "serializedView": {
+        "before": 89218,
+        "after": 3379,
+        "reduction": 85839,
+        "beforeSha256": "006921531ae4c3d38cb54c73fb370167698956fa0695007ccd1c4251b00a561d",
+        "afterSha256": "bcfec37066670c1b3cba965d46a4e934ae8e5bb09a715c4d575928f9c9e9a972"
+      },
+      "viewsAddition": {
+        "before": 90089,
+        "after": 4259,
+        "reduction": 85830,
+        "beforeSha256": "9991193e33431fa12a4227cecd3c2e45590867d6e97483059b455392ddf4e01c",
+        "afterSha256": "575d98c7b117c2143021ee524b4fd1aa8fcd0dcc7e444a5887189b85c040419f"
+      },
+      "appendedMessage": {
+        "before": 153602,
+        "after": 67772,
+        "reduction": 85830,
+        "beforeSha256": "8e356b8059dde0efd948e09a89dca10edfd844cc70535eb525b19079f18c33e1",
+        "afterSha256": "2d588228b9c2949d2ffe0ecb9f6ef8e11f3963b7e46a7116220a43bfb0060608"
+      },
+      "detailAccess": {
+        "kind": "unavailable",
+        "reason": "Historical generated record-file provenance and bytes are not retained."
+      },
+      "preserved": [
+        "Original packet files",
+        "Other views",
+        "Original global coverage and count statements",
+        "Ordinary/testing API-view identity",
+        "Inherited history outside the appended message"
+      ]
+    },
+    {
+      "id": "20261012T214040Z-096401/inv-0013",
+      "input": "docs/analysis/2026-10-13-plan42-interim-postmortem/invocations/20261012T214040Z-096401/inv-0013/packet.json",
+      "inputSha256": "f07affe7bee96ca213aa789e5e2284a51315ad9af35d157728d5b416faec18f9",
+      "inputBytes": 846519,
+      "viewIndex": 0,
+      "lineIndex": 5,
+      "retainedViewIdentity": {
+        "path": "subs/harness/src/.ramify/children",
+        "revision": "rev/1:32532246-335d-4b96-a154-252b49df2dbf:1",
+        "modules": [
+          "ramify-agent/harness"
+        ]
+      },
+      "identityLimitation": "Captured view identity is preserved exactly; architect input identity and historical generated JSONL record files are not retained. No current generated files are substituted as historical proof.",
+      "parsedLimitedRecords": 1120,
+      "namedRecords": 12,
+      "omittedRecords": 1108,
+      "originalLineSha256": "e4e7f73551ee977bbd87c40bfde976cd4415d09d98b5e25826250ab1d7839112",
+      "replacementLines": [
+        "In `ramify-agent/harness`: 1120 limited records: `subs/harness/src/interfaces/protocol/paths.ts#protocolPaths` (signature), `subs/harness/src/http/server.ts#ProjectRootError` (signature), `subs/harness/src/run/after-handling.ts#AfterHandling` (signature), `subs/harness/src/run/committing-gate.ts#CandidateDriftError` (signature), `subs/harness/src/run/committing-gate.ts#CandidateReassessmentRequired` (signature), `subs/harness/src/capability/state.ts#CapabilityStateError` (signature), `subs/harness/src/jobs/commands.ts#CommandLedger` (signature), `subs/harness/src/jobs/commands.ts#CommandRejection` (signature), `subs/harness/src/work/committed.ts#CommittedRecordError` (signature), `subs/harness/src/run/committing-gate.ts#CommittingGates` (signature), `subs/harness/src/run/log.ts#CorruptRunLogError` (signature), `subs/harness/src/run/inputs.ts#EvidenceUnavailableError` (signature), 1108 more.",
+        "Architect coverage detail access unavailable: no generated record-file provenance was captured."
+      ],
+      "localCoverageText": {
+        "before": 86840,
+        "after": 999,
+        "reduction": 85841,
+        "beforeSha256": "e4e7f73551ee977bbd87c40bfde976cd4415d09d98b5e25826250ab1d7839112",
+        "afterSha256": "fc141394007578f29b81c4c51c2a67b7eb9dbc55f4bf203d3df6258075de36eb"
+      },
+      "serializedView": {
+        "before": 89218,
+        "after": 3379,
+        "reduction": 85839,
+        "beforeSha256": "006921531ae4c3d38cb54c73fb370167698956fa0695007ccd1c4251b00a561d",
+        "afterSha256": "bcfec37066670c1b3cba965d46a4e934ae8e5bb09a715c4d575928f9c9e9a972"
+      },
+      "viewsAddition": {
+        "before": 90145,
+        "after": 4315,
+        "reduction": 85830,
+        "beforeSha256": "9174685a2a75e47b3895503e49bfa4bb729f3f07c5c49e140e1cc55793287807",
+        "afterSha256": "54dd4d9662fe39d0b7234d982bf83c8ef72add1bfc5a421c57bceff903baa715"
+      },
+      "appendedMessage": {
+        "before": 104188,
+        "after": 18358,
+        "reduction": 85830,
+        "beforeSha256": "8b39c7ac87b74c38abea3eb1208a8f2e7b604aa0346646203c5b5e00f0e415e9",
+        "afterSha256": "1359bf313f8f3bfa1e366df08d6003ec455dc32484133cba697ff4e2e5d72dd3"
+      },
+      "detailAccess": {
+        "kind": "unavailable",
+        "reason": "Historical generated record-file provenance and bytes are not retained."
+      },
+      "preserved": [
+        "Original packet files",
+        "Other views",
+        "Original global coverage and count statements",
+        "Ordinary/testing API-view identity",
+        "Inherited history outside the appended message"
+      ]
+    },
+    {
+      "id": "20261012T235407Z-c5f035/inv-0010",
+      "input": "docs/analysis/2026-10-13-plan42-interim-postmortem/invocations/20261012T235407Z-c5f035/inv-0010/packet.json",
+      "inputSha256": "7b4f1e8fd65f22c1854e909df6198367d704364d3ded83649587230c3fe84a3d",
+      "inputBytes": 752376,
+      "viewIndex": 0,
+      "lineIndex": 5,
+      "retainedViewIdentity": {
+        "path": "subs/harness/src/.ramify/children",
+        "revision": "rev/1:8ee8c1f1-df68-422b-8eb5-951f08f769d7:1",
+        "modules": [
+          "ramify-agent/harness"
+        ]
+      },
+      "identityLimitation": "Captured view identity is preserved exactly; architect input identity and historical generated JSONL record files are not retained. No current generated files are substituted as historical proof.",
+      "parsedLimitedRecords": 1136,
+      "namedRecords": 12,
+      "omittedRecords": 1124,
+      "originalLineSha256": "bfb7a9cd6054c294893c2486631fee9954890f5699e45b702a8d8bb275b56b7f",
+      "replacementLines": [
+        "In `ramify-agent/harness`: 1136 limited records: `subs/harness/src/interfaces/protocol/paths.ts#protocolPaths` (signature), `subs/harness/src/http/server.ts#ProjectRootError` (signature), `subs/harness/src/run/after-handling.ts#AfterHandling` (signature), `subs/harness/src/run/committing-gate.ts#CandidateDriftError` (signature), `subs/harness/src/run/committing-gate.ts#CandidateReassessmentRequired` (signature), `subs/harness/src/capability/state.ts#CapabilityStateError` (signature), `subs/harness/src/jobs/commands.ts#CommandLedger` (signature), `subs/harness/src/jobs/commands.ts#CommandRejection` (signature), `subs/harness/src/work/committed.ts#CommittedRecordError` (signature), `subs/harness/src/run/committing-gate.ts#CommittingGates` (signature), `subs/harness/src/run/log.ts#CorruptRunLogError` (signature), `subs/harness/src/run/inputs.ts#EvidenceUnavailableError` (signature), 1124 more.",
+        "Architect coverage detail access unavailable: no generated record-file provenance was captured."
+      ],
+      "localCoverageText": {
+        "before": 87945,
+        "after": 999,
+        "reduction": 86946,
+        "beforeSha256": "bfb7a9cd6054c294893c2486631fee9954890f5699e45b702a8d8bb275b56b7f",
+        "afterSha256": "94be891525c7c458bbb59cbb45d942e65aa6d41c7aa4fa433e532184c69d02b0"
+      },
+      "serializedView": {
+        "before": 90323,
+        "after": 3379,
+        "reduction": 86944,
+        "beforeSha256": "d6e6eeb3f541dc57d8c386293fa3be72edcd8bdd06ca5d684a880657fbb92e4c",
+        "afterSha256": "3edacf3ca99706f940b49970f9b2561df09cd9b0c85596f2565cbe6e337e3b3d"
+      },
+      "viewsAddition": {
+        "before": 91194,
+        "after": 4259,
+        "reduction": 86935,
+        "beforeSha256": "bf9e775dc9609c5174ceb36579d7692178c72f1ad20e7eb6decb5855bd032bd6",
+        "afterSha256": "f1ca513cf6cadba98bae2b0bb36846ffc233f859606e592ddd1f7bdf408c49ad"
+      },
+      "appendedMessage": {
+        "before": 153818,
+        "after": 66883,
+        "reduction": 86935,
+        "beforeSha256": "7a4f4d942d492f3a76bc6a94e6c070d4b737714c6c182059f9e5ef4e5eed4fcb",
+        "afterSha256": "007e308c43bba1e266780d3a51358b351f7aebb5985f585606449ed0dd9efb6a"
+      },
+      "detailAccess": {
+        "kind": "unavailable",
+        "reason": "Historical generated record-file provenance and bytes are not retained."
+      },
+      "preserved": [
+        "Original packet files",
+        "Other views",
+        "Original global coverage and count statements",
+        "Ordinary/testing API-view identity",
+        "Inherited history outside the appended message"
+      ]
+    },
+    {
+      "id": "20261012T235407Z-c5f035/inv-0013",
+      "input": "docs/analysis/2026-10-13-plan42-interim-postmortem/invocations/20261012T235407Z-c5f035/inv-0013/packet.json",
+      "inputSha256": "d087edc11da2db60f13749176051d450fc8f2747b46091a4f85487ea36de4fb9",
+      "inputBytes": 853356,
+      "viewIndex": 0,
+      "lineIndex": 5,
+      "retainedViewIdentity": {
+        "path": "subs/harness/src/.ramify/children",
+        "revision": "rev/1:8ee8c1f1-df68-422b-8eb5-951f08f769d7:1",
+        "modules": [
+          "ramify-agent/harness"
+        ]
+      },
+      "identityLimitation": "Captured view identity is preserved exactly; architect input identity and historical generated JSONL record files are not retained. No current generated files are substituted as historical proof.",
+      "parsedLimitedRecords": 1136,
+      "namedRecords": 12,
+      "omittedRecords": 1124,
+      "originalLineSha256": "bfb7a9cd6054c294893c2486631fee9954890f5699e45b702a8d8bb275b56b7f",
+      "replacementLines": [
+        "In `ramify-agent/harness`: 1136 limited records: `subs/harness/src/interfaces/protocol/paths.ts#protocolPaths` (signature), `subs/harness/src/http/server.ts#ProjectRootError` (signature), `subs/harness/src/run/after-handling.ts#AfterHandling` (signature), `subs/harness/src/run/committing-gate.ts#CandidateDriftError` (signature), `subs/harness/src/run/committing-gate.ts#CandidateReassessmentRequired` (signature), `subs/harness/src/capability/state.ts#CapabilityStateError` (signature), `subs/harness/src/jobs/commands.ts#CommandLedger` (signature), `subs/harness/src/jobs/commands.ts#CommandRejection` (signature), `subs/harness/src/work/committed.ts#CommittedRecordError` (signature), `subs/harness/src/run/committing-gate.ts#CommittingGates` (signature), `subs/harness/src/run/log.ts#CorruptRunLogError` (signature), `subs/harness/src/run/inputs.ts#EvidenceUnavailableError` (signature), 1124 more.",
+        "Architect coverage detail access unavailable: no generated record-file provenance was captured."
+      ],
+      "localCoverageText": {
+        "before": 87945,
+        "after": 999,
+        "reduction": 86946,
+        "beforeSha256": "bfb7a9cd6054c294893c2486631fee9954890f5699e45b702a8d8bb275b56b7f",
+        "afterSha256": "94be891525c7c458bbb59cbb45d942e65aa6d41c7aa4fa433e532184c69d02b0"
+      },
+      "serializedView": {
+        "before": 90323,
+        "after": 3379,
+        "reduction": 86944,
+        "beforeSha256": "d6e6eeb3f541dc57d8c386293fa3be72edcd8bdd06ca5d684a880657fbb92e4c",
+        "afterSha256": "3edacf3ca99706f940b49970f9b2561df09cd9b0c85596f2565cbe6e337e3b3d"
+      },
+      "viewsAddition": {
+        "before": 91250,
+        "after": 4315,
+        "reduction": 86935,
+        "beforeSha256": "e59079bf7734e583ef5df7e266741ba07c9e7da580214c345365b45300bba3b9",
+        "afterSha256": "ccecc5748d99bd5e5252911c985829f01e65919aa9b16120dc67657fca3ce45d"
+      },
+      "appendedMessage": {
+        "before": 105251,
+        "after": 18316,
+        "reduction": 86935,
+        "beforeSha256": "ef48cb4055b1dd22512e6c415eac84d0b14eca87f6c1fa4635fdc626e39e5021",
+        "afterSha256": "816908c699e8cdd10defbcdf75a1ab99fe4c5cadeb791f426706593cbfce99a9"
+      },
+      "detailAccess": {
+        "kind": "unavailable",
+        "reason": "Historical generated record-file provenance and bytes are not retained."
+      },
+      "preserved": [
+        "Original packet files",
+        "Other views",
+        "Original global coverage and count statements",
+        "Ordinary/testing API-view identity",
+        "Inherited history outside the appended message"
+      ]
+    },
+    {
+      "id": "20261013T025005Z-9fa497/inv-0010",
+      "input": "docs/analysis/2026-10-13-plan42-interim-postmortem/invocations/20261013T025005Z-9fa497/inv-0010/packet.json",
+      "inputSha256": "ff6056c8c38f36f7de0e45d11b18c15c7035c2eb965daf6c16c326cf50535079",
+      "inputBytes": 778776,
+      "viewIndex": 0,
+      "lineIndex": 5,
+      "retainedViewIdentity": {
+        "path": "subs/harness/src/.ramify/children",
+        "revision": "rev/1:8dc3dfa1-7a66-400a-8e94-3619d4060002:2",
+        "modules": [
+          "ramify-agent/harness"
+        ]
+      },
+      "identityLimitation": "Captured view identity is preserved exactly; architect input identity and historical generated JSONL record files are not retained. No current generated files are substituted as historical proof.",
+      "parsedLimitedRecords": 1136,
+      "namedRecords": 12,
+      "omittedRecords": 1124,
+      "originalLineSha256": "bfb7a9cd6054c294893c2486631fee9954890f5699e45b702a8d8bb275b56b7f",
+      "replacementLines": [
+        "In `ramify-agent/harness`: 1136 limited records: `subs/harness/src/interfaces/protocol/paths.ts#protocolPaths` (signature), `subs/harness/src/http/server.ts#ProjectRootError` (signature), `subs/harness/src/run/after-handling.ts#AfterHandling` (signature), `subs/harness/src/run/committing-gate.ts#CandidateDriftError` (signature), `subs/harness/src/run/committing-gate.ts#CandidateReassessmentRequired` (signature), `subs/harness/src/capability/state.ts#CapabilityStateError` (signature), `subs/harness/src/jobs/commands.ts#CommandLedger` (signature), `subs/harness/src/jobs/commands.ts#CommandRejection` (signature), `subs/harness/src/work/committed.ts#CommittedRecordError` (signature), `subs/harness/src/run/committing-gate.ts#CommittingGates` (signature), `subs/harness/src/run/log.ts#CorruptRunLogError` (signature), `subs/harness/src/run/inputs.ts#EvidenceUnavailableError` (signature), 1124 more.",
+        "Architect coverage detail access unavailable: no generated record-file provenance was captured."
+      ],
+      "localCoverageText": {
+        "before": 87945,
+        "after": 999,
+        "reduction": 86946,
+        "beforeSha256": "bfb7a9cd6054c294893c2486631fee9954890f5699e45b702a8d8bb275b56b7f",
+        "afterSha256": "94be891525c7c458bbb59cbb45d942e65aa6d41c7aa4fa433e532184c69d02b0"
+      },
+      "serializedView": {
+        "before": 90323,
+        "after": 3379,
+        "reduction": 86944,
+        "beforeSha256": "67e26fe6da08551ec5840c12a310181f380a5b10ba815f8deea9b3fd36823db8",
+        "afterSha256": "eb6ae2e5d66d7d19f7ac33797c182eaac662b48b0dcd7c921a2ac0e81fbaed13"
+      },
+      "viewsAddition": {
+        "before": 91194,
+        "after": 4259,
+        "reduction": 86935,
+        "beforeSha256": "b0af6bd96741212c695f65502e6d8b90d09fed18e7f98383887dd2012b89ff4a",
+        "afterSha256": "8b7069e5b704f642e263978660cc911feb9bbfc80d63e7364a6580cafa72c233"
+      },
+      "appendedMessage": {
+        "before": 159068,
+        "after": 72133,
+        "reduction": 86935,
+        "beforeSha256": "edd38a8445246d66d0f9119ecbb30905dc6f6cdeee78283f73e991fe42487352",
+        "afterSha256": "e7233c34460e77fb41bd9ef2461ddb691bb9a09064e9e9fca56e4aa360ef6d4d"
+      },
+      "detailAccess": {
+        "kind": "unavailable",
+        "reason": "Historical generated record-file provenance and bytes are not retained."
+      },
+      "preserved": [
+        "Original packet files",
+        "Other views",
+        "Original global coverage and count statements",
+        "Ordinary/testing API-view identity",
+        "Inherited history outside the appended message"
+      ]
+    }
+  ],
+  "totals": {
+    "captures": 5,
+    "localCoverageText": {
+      "before": 437515,
+      "after": 4995,
+      "reduction": 432520
+    },
+    "serializedView": {
+      "before": 449405,
+      "after": 16895,
+      "reduction": 432510
+    },
+    "viewsAddition": {
+      "before": 453872,
+      "after": 21407,
+      "reduction": 432465
+    },
+    "appendedMessage": {
+      "before": 675927,
+      "after": 243462,
+      "reduction": 432465
+    }
+  }
+}
