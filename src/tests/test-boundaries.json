@@ -254,7 +254,7 @@
         "configured gate outcomes > a setup command that exits non-zero is the candidate's failure, and no check runs after it",
         "configured gate outcomes > a setup command that does not finish in time is infrastructure, not a failure of the source",
         "configured gate outcomes > cancellation answers nothing for the commit and publishes no evidence",
-        "configured gate outcomes > the gate's own bound ending a running audit is a timeout, not an infrastructure failure",
+        "configured gate outcomes > the audit producer supplies timeout evidence independently of the historical gate bound",
         "configured gate outcomes > reopens the exact completed request without executing its checks again",
         "a standalone session's in-place diagnosis > runs its type-check and Ramify check in the working tree and publishes nothing"
       ]

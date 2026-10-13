@@ -162,7 +162,7 @@ async function reviewedRun(root: string, planId: string, script: Parameters<type
   const before = commits.slice(0, -1).flatMap(commit => commit.commit ?? []).at(-1) ?? 'scenarios-00';
   const final = finalCandidate(root, before, commits.at(-1)?.commit ?? before);
   const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted(planId, 'scenarios-00'), ...commits],
-    previews: final.previews });
+    previews: [...(planId === plan ? ['revision-01', 'revision-02'].map(head => ({ repositoryRoot: root, head, tree: 'b'.repeat(40) })) : []), ...final.previews] });
   const opened = await openRuns(root, {
     script: byWork(script),
     inputs: treeInputs(),

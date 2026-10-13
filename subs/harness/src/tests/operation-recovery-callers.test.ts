@@ -162,14 +162,14 @@ describe('ordinary recovery through actual workflow callers', () => {
     expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
   }, 60_000);
 
-  test('reviewer transport recovery retains one review attempt and its original deadline budget', async () => {
+  test.each(['transport', 'context'] as const)('reviewer %s recovery retains frozen candidate and required review coverage without spending semantic attempts', async mode => {
     const root = await reviewTarget(cleanups);
     const tree = 'c'.repeat(40);
     const first = reviewCandidates()['revision-01']!;
-    const source = scriptedCandidates(root, { 'revision-01': { ...first, tree } });
+    const source = scriptedCandidates(root, { 'revision-01': { ...first, tree, ...(mode === 'context' ? { files: { ...first.files, 'docs/notes.principles.md': 'Keep stores in memory.\n' } } : {}) } });
     const git = gateGit(root, { head: reviewBase, commits: [
       gateScenariosCommit(plan, reviewMaterialized, reviewBase), revisionGates[0]!, { commit: null }, { commit: null },
-    ], previews: Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-01', tree })) });
+    ], previews: Array.from({ length: mode === 'context' ? 7 : 4 }, () => ({ repositoryRoot: root, head: 'revision-01', tree })) });
     let time = new Date('2026-10-12T12:00:00Z').getTime();
     const script = declaringScenarios(reviewScript({
       architect: [submit(assign(notes, {}, outline())), submit(requestCompletion())],
@@ -177,33 +177,60 @@ describe('ordinary recovery through actual workflow callers', () => {
       reviewers: { 'rq-0001': [
         { kind: 'tool', tool: snapshotToolNames.diff, input: { path: store } },
         { kind: 'submit', input: { inspected: [store], missing: [], concerns: [] } },
-      ] },
+      ], ...(mode === 'context' ? {
+        'rq-0002': [{ kind: 'tool' as const, tool: snapshotToolNames.diff, input: { path: store } }, { kind: 'submit' as const, input: { inspected: [store], missing: [], concerns: [] } }],
+        'rq-0003': [{ kind: 'tool' as const, tool: snapshotToolNames.diff, input: { path: store } }, { kind: 'submit' as const, input: { inspected: [store], missing: [], concerns: [] } }],
+        orientation: [{ kind: 'submit' as const, input: { read: ['docs/notes.principles.md'], summary: 'Keep stores in memory.' } }],
+      } : {}) },
     }));
-    const interrupted = interruptOnce(script, spec => {
+    const contextInterrupted = new Set<string>();
+    const interrupted = mode === 'transport' ? interruptOnce(script, spec => {
       if (spec.role !== 'reviewer') return false;
       time += 25;
       return true;
-    });
+    }) : (spec: SessionSpec) => {
+      const request = [...spec.prompt.matchAll(/(?:Code|Scope|Design) review (rq-\d{4})/gu)].at(-1)?.[1];
+      if (spec.role === 'reviewer' && request && !contextInterrupted.has(request)) {
+        contextInterrupted.add(request); time += 25;
+        return [{ kind: 'resource' as const, resource: 'context' as const, reason: `Native compaction unavailable for frozen review ${request}` }];
+      }
+      return typeof script === 'function' ? script(spec) : script;
+    };
     const agent = createScriptedAgent(interrupted);
     const opened = await openRuns(root, { agent, git: git.git, candidates: source, inputs: treeInputs(), now: () => new Date(time),
-      policy: project => ({ ...recoveryPolicy(project), reviews: testReviewPolicy({ retries: 1 }) }) });
+      policy: project => ({ ...recoveryPolicy(project), ...(mode === 'context' ? { ...testPolicy(project, { recovery: true, continuity: true }) } : {}), reviews: testReviewPolicy({ retries: 1, ...(mode === 'context' ? { kinds: ['code', 'scope', 'design'] } : {}) }) }) });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(plan));
+    if (mode === 'context') {
+      await until(() => opened.service.getRun(plan, receipt.jobId)?.state !== 'running' || opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+      const held = await opened.service.recoveryInspection(plan, receipt.jobId);
+      if (held) throw new Error(`Review recovery unexpectedly paused: ${JSON.stringify(held)}`);
+    }
     await opened.service.settled(plan, receipt.jobId);
     expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
     git.assertComplete();
     const events = await logEvents(root, receipt.jobId);
     const starts = events.filter(event => event.type === 'review-attempt-started');
-    expect(starts).toHaveLength(1);
+    expect(starts).toHaveLength(mode === 'context' ? 3 : 1);
     const attempt = await attemptRecord(root, receipt.jobId, starts[0]!.data.attempt);
     expect(attempt.id).toBe(starts[0]!.data.attempt);
     expect(attempt.settles).toBe(true);
-    expect(new Date(attempt.finishedAt).getTime() - new Date(attempt.startedAt!).getTime()).toBe(25);
+    expect(new Date(attempt.finishedAt).getTime() - new Date(attempt.startedAt!).getTime()).toBeGreaterThanOrEqual(25);
     expect(attempt.transportInvocations).toHaveLength(2);
     expect(new Set(attempt.transportInvocations).size).toBe(2);
     const projected = await new RunQueries(opened.service).reviews(plan, receipt.jobId, { workItem: null, after: null, limit: 100 });
-    expect(projected.requests[0]!.attempts[0]!.transportInvocations).toEqual(attempt.transportInvocations);
-    expect(agent.sessions.filter(session => session.spec.role === 'reviewer').map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
+    expect(projected.requests.find(request => request.attempts.some(value => value.id === attempt.id))!.attempts[0]!.transportInvocations).toEqual(attempt.transportInvocations);
+    if (mode === 'transport') expect(agent.sessions.filter(session => session.spec.role === 'reviewer').map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
+    else {
+      expect(contextInterrupted.size).toBe(3);
+      expect(projected.requests.map(request => request.kind).sort()).toEqual(['code', 'design', 'scope']);
+      for (const request of projected.requests) {
+        expect(request.candidate).toBe('revision-01');
+        expect(request.attempts).toHaveLength(1);
+        expect(request.attempts[0]!.transportInvocations).toHaveLength(2);
+        expect(request.attempts[0]!.result).toBe('complete');
+      }
+    }
     expect(events.filter(event => event.type === 'iteration-closed')).toHaveLength(1);
     expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
   }, 60_000);

@@ -17,8 +17,8 @@ afterEach(async () => {
 /*
  * The scripted fake's parity with the port additions: session modes,
  * appended context, the guard and the after-mutation hook, the write
- * built-ins, settlement and the context budget. The harness's own tests run
- * against this fake, so every one of these must be reachable without pi.
+ * built-ins, settlement and nonterminal context observations. The harness's
+ * own tests run against this fake, so every one of these must be reachable without pi.
  */
 
 const window = 40_000;
@@ -162,10 +162,10 @@ describe('rejected input', () => {
   });
 });
 
-describe('the context budget', () => {
+describe('context observations preserve work', () => {
   const policy = { compaction: 'forbidden' as const, budgetTokens: null, budgetFraction: 0.7, reportReserveTokens: 4_000 };
 
-  test('reaching the budget disables the tools, allows one final response and ends the session', async () => {
+  test('crossing historical context limits retains tools and permits the accepted submission', async () => {
     const agent = createScriptedAgent([
       { kind: 'message', text: 'working' },
       { kind: 'context', tokens: 10_000, window },
@@ -173,23 +173,17 @@ describe('the context budget', () => {
       { kind: 'context', tokens: 24_500, window },
       { kind: 'tool', tool: 'write', input: { path: 'b.ts' } },
       { kind: 'message', text: 'Here is my partial report: iteration two is half done.' },
-      { kind: 'submit', input: 'never reached' },
+      { kind: 'submit', input: 'completed with retained authority' },
     ]);
     const probe = probeSpec({ context: policy });
-    expect(await (await invokeProbe(agent, probe.spec)).outcome).toEqual({
-      kind: 'context-budget-reached', tokens: 24_500,
-      report: 'Here is my partial report: iteration two is half done.',
-    });
-    // One tool ran before the budget; the write after it did not, and the
-    // final response ended the session before the submission could be tried.
-    expect(probe.events.filter(event => event.type === 'tool-started').map(event => event.tool)).toEqual(['read']);
-    expect(agent.sessions[0]!.refusedAfterBudget).toBe(1);
-    expect(probe.judged).toEqual([]);
-    // A forbidden role reaches its budget without compacting.
-    expect(probe.events.filter(event => event.type === 'compaction')).toEqual([]);
+    expect(await (await invokeProbe(agent, probe.spec)).outcome).toEqual({ kind: 'submitted', input: 'completed with retained authority' });
+    expect(probe.events.filter(event => event.type === 'tool-started').map(event => event.tool)).toEqual(['read', 'write', 'submit']);
+    expect(agent.sessions[0]!.refusedAfterBudget).toBe(0);
+    expect(probe.judged).toEqual(['completed with retained authority']);
+    expect(probe.events.filter(event => event.type === 'context-observed')).toMatchObject([{ tokens: 10_000, window }, { tokens: 24_500, window }]);
   });
 
-  test('a session under its budget ends as it otherwise would', async () => {
+  test('ordinary submission retains its accepted meaning after a context observation', async () => {
     const agent = createScriptedAgent([
       { kind: 'context', tokens: 20_000, window },
       { kind: 'submit', input: 'done' },
@@ -198,10 +192,11 @@ describe('the context budget', () => {
     expect(await (await invokeProbe(agent, probe.spec)).outcome).toEqual({ kind: 'submitted', input: 'done' });
   });
 
-  test('the budget still ends the session when no final response follows', async () => {
-    const agent = createScriptedAgent([{ kind: 'context', tokens: 39_000, window }]);
+  test('context pressure without a submission preserves an explicit resource return', async () => {
+    const agent = createScriptedAgent([{ kind: 'context', tokens: 39_000, window }, { kind: 'resource', resource: 'context', reason: 'Native compaction unavailable; source-backed continuation required', tokens: 39_000 }]);
     const probe = probeSpec({ context: policy });
-    expect(await (await invokeProbe(agent, probe.spec)).outcome).toEqual({ kind: 'context-budget-reached', tokens: 39_000, report: undefined });
+    expect(await (await invokeProbe(agent, probe.spec)).outcome).toEqual({ kind: 'resource-pending', resource: 'context', reason: 'Native compaction unavailable; source-backed continuation required', tokens: 39_000 });
+    expect(probe.judged).toEqual([]);
   });
 });
 

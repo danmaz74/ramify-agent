@@ -6,7 +6,7 @@ import {
 } from '@earendil-works/pi-coding-agent';
 import { createSessionOperations } from '../../../src/session-operations.js';
 import { SessionDriverUnavailableError } from '../../../src/interfaces/session-operations.js';
-import { assistantText, contextBudgetReached, noMessageDetail } from '../../../src/interfaces/port.js';
+import { assistantText, noMessageDetail } from '../../../src/interfaces/port.js';
 import type { AgentEventObservation, BuiltinTool, SessionOutcome, ToolDefinition, ToolResult, WriteTool } from '../../../src/interfaces/port.js';
 import type { ContinueSessionInput, SessionDriverInvocation, SessionDriverRuntime, SessionExecutionBindings, SessionOperations, SessionOperationHandle, SessionOperationReceipt, SessionStore, SessionToolDeclaration } from '../../../src/interfaces/session-operations.js';
 import { builtinAction, chooseModel, permissiveSchema, type PiRuntimeSource } from './pi-agent.js';
@@ -92,6 +92,7 @@ export function createPiSessionOperations(source: PiRuntimeSource, sessionStore:
 
 async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDriverInvocation, runtime: SessionDriverRuntime, operations: SessionOperations): Promise<SessionOutcome> {
   const modelRuntime = await source.runtime(); const chosen = await chooseModel(modelRuntime, source.model);
+  const overflow = await import(await installedPiPublicExport('./utils/overflow')) as { isContextOverflow(message: unknown, window?: number): boolean; isRecoverableLength(message: unknown, maxTokens: number): boolean };
   const unsupported = supportedPreservingModel(chosen.model); if (unsupported) throw new Error(unsupported);
   let state: PreservedPiTranscript | null = null;
   for (const entry of input.session.transcript) if (entry.kind === 'provider' && entry.key.includes(':pi-state:')) {
@@ -99,6 +100,8 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     try { state = decodePreservedTranscript(bytes); }
     catch (error) { throw new SessionDriverUnavailableError(String(error)); }
   }
+  const restoredNativeEntries = state?.nativeEntries;
+  const restoredMessageCount = state?.messages.length ?? 0;
   const modelIdentity = `${chosen.model.provider}/${chosen.model.id}`;
   if (state && state.model !== modelIdentity) throw new SessionDriverUnavailableError('Preserved pi model identity differs');
   // Forks copy the original creation entry, even before the first provider
@@ -117,8 +120,10 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
   const additions = new Set(state?.additionKeys ?? []);
   let activeTools = state ? [...state.activeTools] : [];
   let sequence = state?.sequence ?? 0;
-  const inherited = state?.native ?? null;
+  let inherited = state?.native ?? null;
+  let nativeManager: SessionManager | undefined;
   let completeNative = inherited;
+  let historyBoundary = state?.historyBoundary;
   // A submission whose description already states its schema, or whose input schema is a bare object
   // with nothing to state, gets no second schema statement; the harness validates the input either way.
   const statesOwnSchema = (definition: SessionToolDeclaration): boolean => {
@@ -168,6 +173,13 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     }
     applied.add(entry.key);
   }
+  const manager = SessionManager.inMemory(input.task.environment.workingDirectory, undefined, restoredNativeEntries);
+  if (!restoredNativeEntries) for (const message of messages) manager.appendMessage(message as Parameters<SessionManager['appendMessage']>[0]);
+  else {
+    // The retained native tree owns historical compaction entries; only new durable additions are appended.
+    for (const message of messages.slice(restoredMessageCount)) manager.appendMessage(message as Parameters<SessionManager['appendMessage']>[0]);
+  }
+  nativeManager = manager;
   let persistence: Promise<void> = Promise.resolve();
   const persist = (captured?: PiTranscriptMessage[]): Promise<void> => {
     const persistedMessages = copy(captured ?? messages);
@@ -180,7 +192,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     const unfinished = persistedMessages.some(message => message.role === 'assistant' && message.content.some(block => block.type === 'toolCall' && !persistedMessages.some(result => result.role === 'toolResult' && result.toolCallId === block.id)));
     if (!unfinished) completeNative = native;
     if (!completeNative) throw new SessionDriverUnavailableError('Opaque transcript has no complete native prefix');
-    const next: PreservedPiTranscript = { schema: 'ramify.pi-transcript/1', packageVersion: '0.87.1', transport: 'sse', model: modelIdentity, providerSessionId, messages: persistedMessages, appliedAgentKeys: [...applied], declarations: copy(declarations), additionKeys: [...additions], activeTools: [...activeTools], native: completeNative, sequence: ++sequence, preparedOperationId: input.key.operationId };
+    const next: PreservedPiTranscript = { schema: 'ramify.pi-transcript/1', packageVersion: '0.87.1', transport: 'sse', model: modelIdentity, providerSessionId, messages: persistedMessages, ...(historyBoundary ? { historyBoundary } : {}), ...(nativeManager ? { nativeEntries: copy([nativeManager.getHeader()!, ...nativeManager.getEntries()]) } : restoredNativeEntries ? { nativeEntries: copy(restoredNativeEntries) } : {}), appliedAgentKeys: [...applied], declarations: copy(declarations), additionKeys: [...additions], activeTools: [...activeTools], native: completeNative, sequence: ++sequence, preparedOperationId: input.key.operationId };
     await runtime.persistPayload(`${input.key.operationId}:pi-state:${sequence}`, new TextEncoder().encode(JSON.stringify(next)));
     state = next;
     });
@@ -202,35 +214,49 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
       else if (effect?.thrown) { result = nativeToolResult({ text: await runtime.callTool(call.id, call.name, effect.input).then(value => value.text, (error: unknown) => error instanceof Error ? error.message : String(error)) }); isError = true; }
       else if (effect?.result) { const value = await runtime.callTool(call.id, call.name, effect.input); result = nativeToolResult(value); isError = value.isError ?? false; }
       else { result = nativeToolResult({ text: 'Tool was not executed: task submission already accepted.' }); isError = true; }
-      messages.push({ role: 'toolResult', toolCallId: call.id, toolName: call.name, content: result.content, details: result.details, usage: result.usage, isError, timestamp: Date.now() });
+      const resultMessage = { role: 'toolResult' as const, toolCallId: call.id, toolName: call.name, content: result.content, details: result.details, usage: result.usage, isError, timestamp: Date.now() };
+      messages.push(resultMessage); manager.appendMessage(resultMessage);
     }
     await persist();
     return { kind: 'submitted', input: acceptedEffect.input };
   }
-  const settings = SettingsManager.inMemory({ transport: 'sse', compaction: { enabled: false }, retry: { enabled: false }, cacheWarming: 'off' });
+  const nativeSettings = SettingsManager.create(input.task.environment.workingDirectory, source.agentDirectory).getCompactionSettings(chosen.model);
+  const settings = SettingsManager.inMemory({ transport: 'sse', compaction: { ...nativeSettings, enabled: true }, retry: { enabled: false }, cacheWarming: 'off' });
+  const nativeObservation = { source: 'pi@0.87.1:SettingsManager' as const, compaction: settings.getCompactionSettings(chosen.model), occupancy: 'current' as const, projectedTokens: null, coverage: ['Projected next-request estimate is not exposed by the installed public session API'] };
   const loader = new DefaultResourceLoader({ cwd: input.task.environment.workingDirectory, agentDir: source.agentDirectory, settingsManager: settings, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true, extensionFactories: source.preservingExtensions ?? [] });
   await loader.reload();
-  const manager = SessionManager.inMemory(input.task.environment.workingDirectory);
-  for (const message of messages) manager.appendMessage(message as Parameters<SessionManager['appendMessage']>[0]);
   const { session } = await createAgentSession({ cwd: input.task.environment.workingDirectory, agentDir: source.agentDirectory, modelRuntime, model: chosen.model, thinkingLevel: chosen.thinkingLevel, settingsManager: settings, resourceLoader: loader, sessionManager: manager, noTools: 'all', tools: [] });
-  let fatal: string | null = null; let accepted: unknown; let final = false; let budget: number | null | undefined;
+  let fatal: string | null = null; let accepted: unknown; let final = false;
+  let contextRejection: string | null = null;
+  let compactionActive = false; let compactionFailure: string | null = null;
+  let boundaryPersistence: Promise<void> = Promise.resolve();
   await session.bindExtensions({ onError: error => { fatal ??= `Extension ${error.event} failed: ${error.error}`; } });
-  // These public callbacks implement SDK default prompt/loadout/compaction refresh. The durable adapter owns them.
-  session.agent.prepareRequest = undefined; session.agent.prepareNextTurn = undefined; session.agent.prepareNextTurnWithContext = undefined;
+  // Keep Pi's native projection and compaction preparation. The adapter owns
+  // executable tools and exact instructions, so discard only SDK prompt/loadout
+  // patches after its native lifecycle has prepared the next context.
+  const nativePrepareNextTurn = session.agent.prepareNextTurnWithContext;
+  session.agent.prepareNextTurnWithContext = async (turn, signal) => {
+    const boundTools = session.agent.state.tools;
+    const next = await nativePrepareNextTurn?.(turn, signal);
+    session.agent.state.tools = boundTools;
+    await boundaryPersistence;
+    if (compactionFailure) return { ...next, context: next?.context ?? turn.context, messages: [] };
+    return { ...next, context: { ...(next?.context ?? turn.context), tools: boundTools }, messages: [] };
+  };
   // Durable runtime guards and deterministic result encoding make accepted
   // effect recovery possible; SDK extension result rewrites are not supported.
   session.agent.beforeToolCall = undefined;
   const nativeErrors = new Map<string, boolean>();
   session.agent.afterToolCall = async context => nativeErrors.has(context.toolCall.id) ? { isError: nativeErrors.get(context.toolCall.id) } : undefined;
-  // The budget is decided here, before the loop can dispatch again: pi runs
-  // finishTurn after a turn's tool results and ends the loop on `end`, whereas
-  // a budget first seen at turn_end would only fail the next request, which pi
-  // records as a fabricated error message that was never dispatched.
-  session.agent.finishTurn = () => {
+  const nativeFinishTurn = session.agent.finishTurn;
+  session.agent.finishTurn = async (turn, signal) => {
     const usage = session.getContextUsage();
-    if (usage) { runtime.onEvent({ type: 'context-observed', tokens: usage.tokens, window: usage.contextWindow }); if (contextBudgetReached(input.session.policy.context, usage.tokens, usage.contextWindow)) budget = usage.tokens; }
-    return accepted !== undefined || final || budget !== undefined || fatal ? { action: 'end' } : undefined;
+    runtime.onEvent({ type: 'context-observed', tokens: usage?.tokens ?? null, window: usage?.contextWindow ?? null, native: nativeObservation });
+    if (accepted !== undefined || final || fatal || compactionFailure) { session.setAutoCompactionEnabled(false); return { action: 'end' }; }
+    return (await nativeFinishTurn?.(turn, signal)) ?? undefined;
   };
+  const nativeConvertToLlm = session.agent.convertToLlm;
+  session.agent.convertToLlm = values => nativeConvertToLlm(values.filter(message => !(message.role === 'custom' && message.customType === 'execution-continuation')));
   session.agent.sessionId = input.session.sessionId;
   session.agent.state.messages = copy(messages);
   session.agent.state.tools = declarations.map(definition => ({ ...definition, label: definition.name,
@@ -256,39 +282,81 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
   let requestCount = 0;
   session.agent.streamFunction = async (model, context, options) => {
     if (fatal) throw new Error(fatal);
-    if (budget !== undefined) throw new Error('Context budget reached; preserving history cannot remove tools');
-    const expected = await serializeNativePrefix(chosen.model, messages);
+    await boundaryPersistence;
+    if (compactionFailure) throw new Error(compactionFailure);
+    const purpose = compactionActive ? 'compaction' : 'task';
+    const requestMessages = purpose === 'compaction' ? context.messages : messages;
+    const expected = await serializeNativePrefix(chosen.model, requestMessages);
+    await runtime.assertLive();
     const transform = options?.onPayload;
     // Cached WebSocket transport rewrites input after onPayload. Only the
     // qualified full-payload SSE transport may cross this final fence. The
     // artifact records the options object handed over, not a restatement.
     // Pi derives both session headers and prompt_cache_key from this option.
     // Keep session.agent.sessionId independent for SDK branch bookkeeping.
-    const forced = { ...options, sessionId: providerSessionId, transport: 'sse' as const, maxRetries: 0 };
-    return stream(model, context, { ...forced, onPayload: async (payload, requestModel) => {
+    const forced = { ...options, sessionId: purpose === 'task' ? providerSessionId : options?.sessionId, transport: 'sse' as const, maxRetries: 0 };
+    const result = await stream(model, context, { ...forced, onPayload: async (payload, requestModel) => {
       try {
         const transformed = await transform?.(payload, requestModel); const body = transformed ?? payload;
         if (fatal) throw new Error(fatal);
         if ((body as Record<string, unknown>)['model'] !== chosen.model.id) throw new Error('Final native request changed model identity');
-        if ((body as Record<string, unknown>)['prompt_cache_key'] !== providerSessionId) throw new Error('Final native request changed provider session identity');
-        const actual = validateNativeRequest(body, expected, inherited);
+        if (purpose === 'task' && (body as Record<string, unknown>)['prompt_cache_key'] !== providerSessionId) throw new Error('Final native request changed provider session identity');
+        const actual = validateNativeRequest(body, expected, purpose === 'compaction' ? null : inherited);
         const artifact = nativeRequestArtifact(forced, await installedPiPackageVersion(), modelIdentity, actual, body);
-        await runtime.persistPayload(`${input.key.operationId}:pi-request:${sequence}:${++requestCount}`, new TextEncoder().encode(JSON.stringify(artifact)));
+        await runtime.persistPayload(`${input.key.operationId}:pi-request:${sequence}:${++requestCount}`, new TextEncoder().encode(JSON.stringify({ ...artifact, purpose })));
         await runtime.assertLive();
         dispatchStarted = Date.now(); if (runtime.signal.aborted) throw new Error('Operation stopped');
         return body;
-      } catch (error) { fatal = String(error); throw error; }
+      } catch (error) { if (purpose !== 'compaction') fatal = String(error); throw error; }
     } });
+    if (purpose === 'compaction') {
+      const nativeResult = result.result.bind(result);
+      let observed: ReturnType<typeof nativeResult> | undefined;
+      result.result = () => observed ??= Promise.all([nativeResult(), (async () => {
+        for await (const event of result) if (['text_delta', 'thinking_delta', 'toolcall_delta'].includes(event.type)) runtime.onEvent({ type: 'progress', source: 'model-stream' });
+      })()]).then(([message]) => {
+        reportMessage({ type: 'message_end', message } as AgentSessionEvent, runtime, `pi-compaction-request:${requestCount}:response`, chosen, dispatchStarted === null ? null : Math.max(0, Date.now() - dispatchStarted), new Date().toISOString());
+        return message;
+      });
+    }
+    return result;
   };
   const toolTimes = new Map<string, number>();
   const observedAt = () => new Date().toISOString();
+  const unsubscribeCompaction = session.subscribe(event => {
+    if (event.type !== 'compaction_start' && event.type !== 'compaction_end') return;
+    if (event.type === 'compaction_end' && !event.result) session.setAutoCompactionEnabled(false);
+    boundaryPersistence = boundaryPersistence.then(async () => {
+    if (event.type === 'compaction_start') {
+      compactionActive = true;
+      runtime.onEvent({ type: 'compaction', phase: 'started', reason: event.reason, native: nativeObservation });
+    }
+    if (event.type === 'compaction_end') {
+      compactionActive = false;
+      if (!event.result) compactionFailure = event.errorMessage ?? (event.aborted ? 'Native compaction aborted' : 'Native compaction unavailable');
+      if (event.result) {
+        historyBoundary = { kind: 'native-compaction', reason: event.reason, predecessorSequence: sequence, operationId: input.key.operationId, reuse: 'rewritten-history' };
+        inherited = null; completeNative = null;
+        messages = copy(manager.buildSessionProjection().messages);
+        await persist(messages);
+      }
+      runtime.onEvent({ type: 'compaction', phase: 'ended', reason: event.reason, tokensBefore: event.result?.tokensBefore ?? null, tokensAfter: event.result?.estimatedTokensAfter ?? null, aborted: event.aborted, errorText: event.errorMessage ?? null, native: nativeObservation });
+    }
+    });
+    // Pi emits public lifecycle observations synchronously; the next dispatch awaits persistence.
+    void boundaryPersistence.catch(error => { fatal = String(error); });
+  });
   const unsubscribe = session.agent.subscribe(async event => {
-    // Capture actual event identity/time before any awaited storage can admit later callbacks.
     const admissionAt = Date.now();
+    if (event.type === 'message_update' && ['text_delta', 'thinking_delta', 'toolcall_delta'].includes(event.assistantMessageEvent.type)) runtime.onEvent({ type: 'progress', source: 'model-stream' });
     const captured = event.type === 'message_end' ? copy(event) : null;
+    if (captured?.message.role === 'assistant') {
+      if (overflow.isContextOverflow(captured.message, chosen.model.contextWindow) || overflow.isRecoverableLength(captured.message, chosen.model.maxTokens)) contextRejection = captured.message.errorMessage ?? 'Native request could not fit its context';
+      else if (captured.message.stopReason !== 'error' && captured.message.stopReason !== 'aborted') contextRejection = null;
+    }
     const eventMessages = event.type === 'message_end' ? copy(session.agent.state.messages) : null;
     const sourceIndex = event.type === 'message_end' ? session.agent.state.messages.indexOf(event.message) : -1;
-    const messageSourceId = sourceIndex >= 0 ? `pi-message:${sourceIndex}` : null;
+    const messageSourceId = sourceIndex >= 0 ? historyBoundary ? `pi-message:compaction:${historyBoundary.operationId}:${historyBoundary.predecessorSequence}:${sourceIndex}` : `pi-message:${sourceIndex}` : null;
     const modelElapsedMs = dispatchStarted === null ? null : Math.max(0, admissionAt - dispatchStarted);
     if (eventMessages) { messages = eventMessages; await persist(eventMessages); }
     if (event.type === 'tool_execution_start') {
@@ -317,7 +385,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     }
     if (captured) reportMessage(captured as AgentSessionEvent, runtime, messageSourceId, chosen, modelElapsedMs, new Date(admissionAt).toISOString());
   });
-  const stop = () => session.agent.abort(); runtime.signal.addEventListener('abort', stop, { once: true });
+  const stop = () => { void session.abort(); }; runtime.signal.addEventListener('abort', stop, { once: true });
   try {
     await runtime.assertLive();
     if (!input.recovering) runtime.onEvent({ type: 'message', role: 'user', observation: { sourceId: `pi-message:${messages.length - 1}` }, blocks: [{ type: 'text', text: input.task.message }] });
@@ -327,6 +395,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
       // A listener/storage crash can append a terminal SDK error after the
       // durable call; retain that artifact and find every missing call output.
       const calls = messages.flatMap(message => message.role === 'assistant' ? message.content.filter(block => block.type === 'toolCall') : []).filter(call => !messages.some(message => message.role === 'toolResult' && message.toolCallId === call.id));
+      if (!calls.length && (overflow.isContextOverflow(last, chosen.model.contextWindow) || overflow.isRecoverableLength(last, chosen.model.maxTokens))) return { kind: 'resource-pending', resource: 'context', reason: last.errorMessage ?? 'Interrupted native context recovery requires source-backed continuation' };
       if (!calls.length) return last.stopReason === 'error' || last.stopReason === 'aborted' ? { kind: 'failed', error: last.errorMessage ?? last.stopReason } : { kind: 'ended' };
       for (const call of calls) {
         const implementation = session.agent.state.tools.find(tool => tool.name === call.name);
@@ -341,20 +410,28 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
           isError = nativeErrors.get(call.id) ?? false;
         }
         catch (error) { result = nativeToolResult({ text: error instanceof Error ? error.message : String(error) }); isError = true; }
-        messages.push({ role: 'toolResult', toolCallId: call.id, toolName: call.name, content: result.content, details: result.details, usage: result.usage, isError, timestamp: Date.now() });
+        const resultMessage = { role: 'toolResult' as const, toolCallId: call.id, toolName: call.name, content: result.content, details: result.details, usage: result.usage, isError, timestamp: Date.now() };
+      messages.push(resultMessage); manager.appendMessage(resultMessage);
         if (accepted !== undefined) { await persist(); return { kind: 'submitted', input: accepted }; }
       }
       await persist(); session.agent.state.messages = copy(messages);
     }
-    await session.agent.continue();
-    if (fatal) throw new Error(fatal);
+    await session.sendCustomMessage({ customType: 'execution-continuation', content: [], display: false }, { triggerTurn: true });
+    await boundaryPersistence;
+    if (!runtime.signal.aborted) { messages = copy(manager.buildSessionProjection().messages); await persist(messages); }
+    await persistence;
     if (runtime.signal.aborted) return { kind: 'stopped' };
     if (accepted !== undefined) return { kind: 'submitted', input: accepted };
-    if (budget !== undefined) return { kind: 'context-budget-reached', tokens: budget };
+    if (compactionFailure) return { kind: 'resource-pending', resource: 'context', reason: compactionFailure, tokens: session.getContextUsage()?.tokens ?? null };
+    if (contextRejection) return { kind: 'resource-pending', resource: 'context', reason: contextRejection, tokens: session.getContextUsage()?.tokens ?? null };
+    if (fatal) throw new Error(fatal);
     const lastMessage = messages.at(-1);
+    if (lastMessage?.role === 'assistant') {
+      if (overflow.isContextOverflow(lastMessage, chosen.model.contextWindow) || overflow.isRecoverableLength(lastMessage, chosen.model.maxTokens)) return { kind: 'resource-pending', resource: 'context', reason: lastMessage.errorMessage ?? 'Native context recovery could not make the request usable', tokens: session.getContextUsage()?.tokens ?? null };
+    }
     if (lastMessage?.role === 'assistant' && (lastMessage.stopReason === 'error' || lastMessage.stopReason === 'aborted')) return { kind: 'failed', error: lastMessage.errorMessage ?? lastMessage.stopReason };
     return { kind: 'ended' };
-  } finally { runtime.signal.removeEventListener('abort', stop); unsubscribe(); session.dispose(); }
+  } finally { runtime.signal.removeEventListener('abort', stop); unsubscribe(); unsubscribeCompaction(); session.dispose(); }
 }
 function reportMessage(event: AgentSessionEvent, runtime: SessionDriverRuntime, sourceId: string | null,
   chosen: Awaited<ReturnType<typeof chooseModel>>, elapsedMs: number | null, at: string): void {

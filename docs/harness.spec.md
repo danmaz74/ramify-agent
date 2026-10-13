@@ -278,12 +278,35 @@ naming the blocked targets and missing authority.
 
 Admitted edits need not make the next post-write check pass. Engineers may make
 several invalid intermediate edits, restore selected files or retain unrelated
-authorized work within ordinary invocation bounds; the harness does not infer
+authorized work within their current authority; the harness does not infer
 intent or roll work back automatically. Feedback names the effective write basis,
 ownership acquisition failure, located diagnostics and change summary, with
 complete failure and mutation evidence available through recorded pointers.
 Stage-one recovery uses current files and named mutation/Git comparisons. It
 does not claim a retained last-analyzable filesystem checkpoint.
+
+### Native Context Compaction Preserves The Task
+
+Every model role uses Pi's native automatic compaction for fresh, continued,
+forked and reconstructed work. Pi supplies context estimation, model window,
+effective reserve/recent-history settings, summaries and overflow recovery.
+Harness role fractions, fixed token ceilings and extra report reserves do not
+reduce the usable model window. Missing observations remain unknown.
+
+Compaction runs through the preserving Pi lifecycle with immutable model request
+artifacts, cancellation, dispatch fences and actual summary request usage. The
+new active history boundary records its source and task bindings without claiming
+exact prefix reuse across rewritten history. An older fork uses its own retained
+point rather than a later compacted history. Cache savings require actual cache
+observations; fewer context tokens alone establish none.
+
+Successful native compaction continues the same task and submission authority.
+If compaction fails, is unavailable or cannot recover provider overflow, the
+harness reconciles durable effects before a source-backed successor. Recovery
+needs no final agent report. It retains the original need, accepted decisions,
+current candidate/configuration, pending findings and requests, authority,
+submission obligations and evidence pointers. Missing evidence or a usable
+provider becomes an inspectable nonterminal prerequisite obstruction.
 
 ### Ordinary Operations Retain Recovery Evidence
 
@@ -291,9 +314,10 @@ New runs capture an operation-recovery policy. Historical runs retain their
 captured policy and terminal meaning; service startup does not migrate them.
 The shared contract applies to ordinary architect, catalog, engineer, capability,
 review, failure-analysis, context-selection and non-functional operations,
-including fresh starts, continuations and forks. Automatic root repair remains
-subject to its separate manual-attention rule.
-Standalone manual invocations retain their existing session fallback eligibility.
+including fresh starts, continuations, forks and source-backed reconstruction,
+standalone steps and debugger exchanges. Automatic root repair preserves its
+authorized repair boundary and reports unavailable prerequisites. Resource
+recovery does not spend a semantic repair round.
 
 Structured executor evidence distinguishes transport interruption, permanent
 provider rejection, unavailable classification and adapter faults. Diagnostics
@@ -303,8 +327,10 @@ delays count as execution time and are cancellation-aware. The default delays
 are 250 ms and 500 ms; a provider hint can increase either delay up to the
 captured 5,000 ms ceiling. Provider-internal and review
 attempts remain explicitly accounted for without multiplying retry loops.
-Submission rejection, partial results, unresolved questions, context returns,
-stop and execution-bound exhaustion retain their ordinary handling.
+Submission rejection, partial results, unresolved questions and explicit stop
+retain their ordinary handling. `resource-pending` retains unfinished work;
+context observations and invocation age provide no semantic verdict. Historical
+`context-budget-reached` records retain their original meaning.
 
 Each successor has a new invocation and session-operation identity linked to
 its predecessor. Reconciliation first establishes whether an accepted result
@@ -314,6 +340,24 @@ submission verdict. Partial edits and their evidence remain available; uncertain
 mutating effects are not replayed. Continuation and fork use their recorded
 exact source, or a named source-backed reconstruction with recorded inputs and
 degraded mode. Missing source evidence is a prerequisite failure.
+
+### Standalone Recovery Retains Its Original Inputs
+
+Standalone sessions and step commands use the same settled resource continuation
+rule. A useful successor reconstructs the original assignment from durable task
+inputs and retains partial source, scratch, guards and submission obligations.
+A finite group of ineffective attempts, missing source/candidate evidence or
+unknown effects records a pending recovery obstruction. A gate remains unverified
+until safely resumed work supplies its ordinary accepted submission and qualifying
+producer evidence.
+
+A manual step resume names `--occurrence`, `--expected-revision` and a stable
+`--command-id`; a session resume also names `--resume-run`. Admission compares
+the original need, scopes, guarded configuration, prompt package, policy/runtime,
+source and candidate. Exact command retries observe the same durable result;
+stale, conflicting or concurrent new commands cannot admit overlapping writers.
+Explicit compatible legacy continuation records continuity adoption while keeping
+the original policy. Startup alone supplies no task execution authority.
 
 ### Recovery Waiting And Explicit Resume
 
@@ -327,20 +371,27 @@ candidate without requesting an accepted submission again. Changed prerequisites
 require correction or reassessment by their responsible authority.
 
 A usable pause requires readable compatible inputs and durable state, confirmed
-writer/tool settlement and reconciled effects. Ordinary scheduling quiesces;
-already admitted work settles under its bounds. Unsafe state, corrupt records,
-unfinished automatic root repair, stop and whole-run exhaustion retain explicit
-failure handling. Unknown effects remain blockers. Only fully reached operator
-waiting is excluded from active run time. Unrelated waiting review budgets retain
-their remaining allowance without renewing expired requests.
+writer/tool settlement and reconciled effects. Ordinary scheduling quiesces.
+Unknown settlement or effects retain a pending recovery obstruction and forbid
+replacement writers and gates, even after a settlement observation deadline.
+A stop receipt does not establish quiescence. Corrupt state and incompatible
+inputs remain explicit blockers or failures under their independent contracts.
+Elapsed execution and operator waiting remain measurements; neither expires
+authority or the pending review obligation.
 
 Harness-owned inspection reports the obstruction, pending boundary, retained
-work, observed changes, compatibility, remaining allowances and resume blockers.
+work and obligations, observed changes, compatibility, settlement/effect status,
+predecessor/successor lineage and concrete resume blockers. Current execution
+reports no terminal invocation or elapsed allowance; historical captured bounds
+remain available as original evidence.
 Resume names the current occurrence and revision. Stable command identities
 deduplicate exact retries; conflicting content and stale occurrences are refused.
 Concurrent clients admit at most one successor group. An explicit resume
-authorizes another bounded attempt group, preserving total invocation, active
-time, semantic and repair budgets. Check boundaries use their own infrastructure
+authorizes another finite attempt group, preserving semantic correction rounds
+and accepted effects. Repeated resource returns, reconstructions, model
+invocations and infrastructure attempts cannot exhaust a terminal run budget.
+A group ends with a different supported recovery or an obstruction naming the
+missing prerequisite, rather than immediate identical retries. Check boundaries use their own infrastructure
 policy without an additional model retry loop. Stop takes precedence.
 
 Recovery waiting survives service restart without authorizing execution. Startup
@@ -427,24 +478,26 @@ role, work, goal and next action. Read-only inspection consumes no invocation.
 
 At `pausing`, admit no new ordinary operation or review attempt. Already admitted
 review pipelines, including orientation followed by review, finish under their
-normal bounds. Gates and invocation cleanup finish before a usable `paused`
+ordinary submission and authority rules. Gates and invocation cleanup finish before a usable `paused`
 transition. Every dispatched operation must confirm its session/tool settlement;
 an empty live-invocation map alone is insufficient. Failed or unconfirmed
 settlement retains its ordinary evidence and prevents a usable pause.
 
 Review admission is reversibly suspended. Timer expiry, overflow and
 completion-triggered wakeups cannot affect waiting work while suspended.
-Suspension preserves still-live waiting review budgets, including overlapping
-reasons once; active work keeps its normal bounds and expired work receives no
-new budget. Only fully reached caller waiting is excluded from run execution
-age; settlement and model execution count toward ordinary bounds. Invocation
-counts and each model/tool bound continue to apply.
+Suspension preserves the frozen candidate and entire outstanding review coverage.
+Review waiting and invocation counts do not become terminal resource budgets.
+Only fully reached caller waiting is excluded from measured active run age;
+settlement and model execution remain measured. Quiet intervals initiate stall
+inspection using relevant model streams, tools, command output, locks and
+producer progress. A timer or polling heartbeat alone is no useful progress.
 
 A resume names the current pause ID and interaction revision and acknowledges
 release without waiting for the next stop. Stable command IDs deduplicate exact
 retries before revision checks; changed content conflicts. A new stale, active
-or already released interaction is refused. Resume without discussion executes
-the prepared ordinary request once, revalidating captured documents, writer
+or already released interaction is refused. An explicitly admitted compatible debugger message or resume records continuity
+policy adoption while keeping its original policy evidence. Resume without
+discussion executes the prepared ordinary request once, revalidating captured documents, writer
 settlement and the runner's ordinary source/session/authority preconditions.
 A later assignment or repair reaches a new occurrence. Stop takes precedence
 over a pause or admitted resume, settles admitted work through the ordinary
@@ -469,12 +522,13 @@ that the earlier conversation is retained.
 A debugger message appends caller prose verbatim after the entire ordinary task
 before immutable operation admission. Its packet identity and delivered manifest
 include that prose. Normal tool authority, write guard, post-write hooks,
-submission judge and bounds apply. No discussion role, fork, hidden explain-only
+submission judge and stall observations apply. No discussion role, fork, hidden explain-only
 instruction or substitute assignment is introduced. A settled plain return with
 no accepted submission leaves the task pending only in this explicit exchange
 mode; ordinary invocations retain missing-submission handling. Submission
-rejections, context exhaustion, failures and unconfirmed settlement keep their
-real outcomes and evidence.
+rejections, failures and unconfirmed settlement keep their actual evidence.
+Context compaction continues the task; remaining context obstruction preserves
+unfinished work rather than inventing a submission or terminal judgment.
 
 Follow-ups continue the latest settled logical session and retain both provider
 history and harness briefing ancestry at its returned point. Known context loss
@@ -497,8 +551,7 @@ revision and stable command ledger. Exact retries return the same admission
 and retained result; a changed payload, stale revision or concurrent new
 message/resume is refused. Admission and settled outcomes remain queryable by
 plan, run and command identity after client reconnection or resume. Model and
-tool execution run outside serialization locks and count against execution
-bounds; caller waiting intervals close at exchange admission and reopen at
+tool execution run outside serialization locks and retain elapsed observations; caller waiting intervals close at exchange admission and reopen at
 settlement, while reviews remain suspended throughout. Stop and server shutdown
 settle the admitted exchange's lifetime before releasing resources. A stopped
 or interrupted exchange cannot be reported as a completed conversation.
@@ -536,8 +589,8 @@ automatically reveal changes in the repository.
 
 If reusable context is unavailable, the workflow uses the ordinary fresh task
 brief. An actual unavailable fork or continuation closes its original invocation
-and permits one new fresh invocation with the full inputs and recorded degradation
-reason. Only known missing reusable session/history/payload inputs license that
+and admits source-backed recovery with full inputs and recorded degradation
+reason. Repeated resource losses cannot spend a terminal reconstruction cap. Only known missing reusable session/history/payload inputs license that
 fallback; the operation receipt's optional `contextUnavailable` indication does
 not classify arbitrary provider, task, authorization, cancellation or conflict
 failures as context loss. Uncertain effects do not license replay.

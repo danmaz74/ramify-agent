@@ -268,13 +268,13 @@ export class SessionQueries {
     if (rawText !== null) {
       try { raw = JSON.parse(rawText) as { policy?: { version?: unknown } } | null; } catch { throw new ProjectionError('unreadable', `${shown(sessionLayout.session)} is not JSON`, [shown(sessionLayout.session)]); }
     }
-    if (raw !== null && raw.policy?.version !== 'run-policy/7') throw new ProjectionError('unsupported-version', `Run policy ${String(raw.policy?.version ?? '(missing policy)')} is refused by run-policy/7; a fresh run is required`);
+    if (raw !== null && !['run-policy/7', 'run-policy/8'].includes(String(raw.policy?.version))) throw new ProjectionError('unsupported-version', `Run policy ${String(raw.policy?.version ?? '(missing policy)')} is refused by run-policy/8; a fresh run is required`);
     const record = await readRecord(join(directory, sessionLayout.session), shown(sessionLayout.session), sessionRecordSchema, 'ramify-agent.session/2');
     if (record === null) throw new ProjectionError('not-found', `No standalone session "${id}"`);
     if (record.id !== id) throw new ProjectionError('unreadable', `${shown(sessionLayout.session)} names another session, ${record.id}`, [shown(sessionLayout.session)]);
     const outcome = await readRecord(join(directory, sessionLayout.outcome), shown(sessionLayout.outcome), sessionOutcomeSchema, 'ramify-agent.session-outcome/1');
     const read = { directory, record, outcome };
-    if (outcome !== null) this.finishedStandalone.set(id, read);
+    if (outcome !== null && outcome.ended !== 'resource-pending') this.finishedStandalone.set(id, read);
     return read;
   }
 }

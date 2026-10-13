@@ -61,6 +61,14 @@ export function EvaluationFacts({ evaluation }: { readonly evaluation: Invocatio
       <div><dt>Reads outside the scope</dt><dd>{excursionsText(evaluation)}</dd></div>
       <div><dt>Lines</dt><dd>{linesText(evaluation)}</dd></div>
       <div><dt>Tokens</dt><dd>{usageText(evaluation)}</dd></div>
+      {evaluation.context && <div><dt>Context continuity</dt><dd>
+        {evaluation.context.observations.map((observation, index) => <p key={index}>Current occupancy {observation.tokens ?? 'unknown'} tokens; model window {observation.window ?? 'unknown'}.
+          {observation.native && <> Projected request {observation.native.projectedTokens ?? 'unknown'} tokens. Native compaction {observation.native.compaction.enabled ? 'enabled' : 'disabled'}; reserve {observation.native.compaction.reserveTokens}; recent history {observation.native.compaction.keepRecentTokens}; source {observation.native.source}.
+            {observation.native.coverage.length > 0 && <> {observation.native.coverage.join('; ')}</>}</>}
+        </p>)}
+        {evaluation.context.compactions.map((compaction, index) => <p key={index}>Compaction {compaction.trigger}: {compaction.succeeded ? 'continued the task' : 'recovery needed'}; {compaction.before ?? 'unknown'} → {compaction.after ?? 'unknown'} tokens.{compaction.error ? ` ${compaction.error}` : ''} Rewritten history does not establish native prefix reuse or cache savings.</p>)}
+        {evaluation.context.coverage.map((reason, index) => <p key={index} className="muted">{reason}</p>)}
+      </dd></div>}
       {evaluation.gaps.length > 0 && (
         <div><dt>Coverage gaps</dt><dd className="warn">{evaluation.gaps.map(gap => `${gap.kind} (${gap.count})`).join(', ')}</dd></div>
       )}

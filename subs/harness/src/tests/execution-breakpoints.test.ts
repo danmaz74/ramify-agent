@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { breakpointStateSchema, startRunCommandSchema, type DebugResumeCommand } from '../interfaces/protocol/runs.js';
 import { projectEvent } from '../projections/events.js';
 import { analysis, entry } from './helpers/analysis.js';
@@ -9,6 +9,7 @@ import { assign, byRole, completionProposed, outline, submit, treeInputs, write 
 import { installTestRunner, startRun, stopRun, testPolicy, until, runEventsOnDisk, emptyAnalysis, freeze, staleCrashLock } from './helpers/runs.js';
 import { reviewRun, reviewTarget, gate, store, tool, candidates as reviewCandidates, notesDirectory } from './helpers/reviews.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
+import { AfterHandling } from '../run/after-handling.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { openUnchangedRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
 
@@ -106,15 +107,15 @@ test('B01 B03: caller waiting preserves the run budget, exact resume retry relea
   await stop(service, runId);
 });
 
-test('B03: an already exhausted run fails instead of publishing a usable breakpoint', async () => {
+test('B03: elapsed run age preserves a usable breakpoint for healthy pending work', async () => {
   let clock = new Date('2026-10-10T12:00:00Z');
   const { service, runId } = await ordinary({ now: () => clock,
     afterWrite: async write => { if (write === 'iteration-assigned') clock = new Date(clock.getTime() + 2_000); },
     policy: root => { const policy = testPolicy(root); return { ...policy,
       limits: { ...policy.limits, runAbsoluteMs: 1_000 } }; } });
-  await service.settled(plan, runId);
-  expect(service.getRun(plan, runId)).toMatchObject({ state: 'failed', failure: { reason: 'limit-exceeded' } });
-  expect(service.events(plan, runId)!.some(event => event.type === 'debug-paused')).toBe(false);
+  expect(await paused(service, runId)).toMatchObject({ state: 'paused', taskState: 'pending' });
+  expect(service.getRun(plan, runId)).toMatchObject({ state: 'running', failure: null });
+  await stop(service, runId);
 });
 
 test('B01: a repair continuation reaches a second occurrence of the prepared assignment', async () => {
@@ -231,7 +232,7 @@ test.each(['code', 'design'] as const)('B02 B04: pausing settles an admitted %s 
   await expect(opened.service.execute(resume(opened.runId, second.pauseId, 'after-stop'))).rejects.toMatchObject({ code: 'conflict' });
 });
 
-test('B02: an unconfirmed admitted reader barrier fails settlement instead of publishing a usable pause', async () => {
+test('B02: an unconfirmed admitted reader barrier holds until exact owned settlement permits resume', async () => {
   const root = await reviewTarget(cleanups);
   const barrier = gate();
   const opened = await reviewRun(root, cleanups, { breakpoint: 'before-agent:engineer', detached: true,
@@ -240,25 +241,88 @@ test('B02: an unconfirmed admitted reader barrier fails settlement instead of pu
     reviewers: { 'rq-0001': [tool(snapshotToolNames.diff, { path: store }),
       { kind: 'submit', input: { inspected: [store], missing: [], concerns: [] } }] },
     agentReady: agent => {
+      const reviewers = new Set<string>();
       const bind = agent.bindSessionStore.bind(agent);
       agent.bindSessionStore = store => {
         const operations = bind(store);
-        return { ...operations, async continue(input) {
+        return { ...operations, async stop(input) {
+          if (reviewers.has(input.operationId)) await barrier.opened;
+          return operations.stop(input);
+        }, async continue(input) {
           const handle = await operations.continue(input);
+          if (input.task.role === 'reviewer') reviewers.add(input.operationId);
           return input.task.role === 'reviewer' ? { ...handle, settled: () => barrier.opened.then(() => handle.settled()) } : handle;
         } };
       };
     },
   });
   cleanups.push(async () => { barrier.open(); await new Promise(resolve => setTimeout(resolve, 0)); await opened.service.close(); });
+  // This paused candidate is revision-01; final-candidate previews belong to later gates.
+  vi.spyOn(opened.git.git, 'previewCandidateTree').mockImplementation(async () => ({ repositoryRoot: root, head: opened.git.head(), tree: reviewCandidates()['revision-01']!.tree }));
+  vi.spyOn(opened.git.git, 'recoveryStatus').mockImplementation(async () => ({ index: 'reader-barrier-index', staged: [], unstaged: [], untracked: [] }));
+  const entries = opened.source.treeEntries.bind(opened.source);
+  vi.spyOn(opened.source, 'treeEntries').mockImplementation(async (project, candidate) => candidate === 'tree-01'
+    ? [{ path: store, kind: 'file', bytes: 37, objectId: 'e'.repeat(40) }]
+    : entries(project, candidate));
   const first = await paused(opened.service, opened.runId);
   await opened.service.execute(resume(opened.runId, first.pauseId));
-  await opened.service.settled(plan, opened.runId);
-  expect(opened.service.getRun(plan, opened.runId)).toMatchObject({ state: 'failed', failure: {
-    reason: 'agent-failed', message: expect.stringContaining('settlement was not confirmed'),
-  } });
+  await until(() => opened.service.events(plan, opened.runId)!.some(event => event.type === 'operation-recovery-paused'));
+  const recovery = (await opened.service.recoveryInspection(plan, opened.runId))!;
+  expect(recovery).toMatchObject({ state: 'paused', canResume: false });
+  expect(opened.service.getRun(plan, opened.runId)).toMatchObject({ state: 'running', failure: null });
   expect(opened.service.events(plan, opened.runId)!.filter(event => event.type === 'debug-paused')).toHaveLength(1);
   expect(opened.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
+  const command = { commandId: 'reader-settled-resume', expectedVersion: 0, type: 'resume-recovery' as const, payload: {
+    planId: plan, jobId: opened.runId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
+    repair: { areas: ['environment' as const], explanation: 'The exact admitted reviewer owner has confirmed its drainage' } } };
+  await expect(opened.service.execute({ ...command, commandId: 'reader-premature-resume' })).rejects.toMatchObject({ code: 'conflict' });
+  barrier.open();
+  await opened.service.execute(command);
+  const reached = await paused(opened.service, opened.runId);
+  expect(reached.pauseId).not.toBe(first.pauseId);
+  expect(opened.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
+  expect(opened.service.events(plan, opened.runId)!.filter(event => event.type === 'review-attempt-started')).toHaveLength(1);
+  await stop(opened.service, opened.runId);
+});
+
+test('B02: unavailable frozen review setup remains actionable and restored evidence completes the same question', async () => {
+  const root = await reviewTarget(cleanups);
+  let available = false;
+  const bindings = AfterHandling.prototype.reviewPendingBindings;
+  const setup = vi.spyOn(AfterHandling.prototype, 'reviewPendingBindings').mockImplementation(async function (this: AfterHandling<import('../run/committing-gate.js').GateRun>, run, request, snapshot) {
+    if (request.id === 'rq-0001' && !available) throw new Error('The exact frozen pending-binding evidence store is temporarily unavailable');
+    return bindings.call(this, run, request, snapshot);
+  });
+  cleanups.push(async () => { setup.mockRestore(); });
+  const opened = await reviewRun(root, cleanups, { continuity: true, breakpoint: 'before-agent:engineer', detached: true,
+    policy: { kinds: ['code'], concurrency: 1, retries: 0 },
+    engineer: [submit(completionProposed('Added store'), write('store.ts', 'export const store = new Map(); // v1\n'))],
+    reviewers: { 'rq-0001': [tool(snapshotToolNames.diff, { path: store }), { kind: 'submit', input: { inspected: [store], missing: [], concerns: [] } }] },
+  });
+  cleanups.push(() => opened.service.close());
+  vi.spyOn(opened.git.git, 'previewCandidateTree').mockImplementation(async () => ({ repositoryRoot: root, head: opened.git.head(), tree: 'tree-01' }));
+  vi.spyOn(opened.git.git, 'recoveryStatus').mockImplementation(async () => ({ index: 'frozen-review-index', staged: [], unstaged: [], untracked: [] }));
+  const entries = opened.source.treeEntries.bind(opened.source);
+  vi.spyOn(opened.source, 'treeEntries').mockImplementation(async (project, candidate) => candidate === 'tree-01'
+    ? [{ path: store, kind: 'file', bytes: 37, objectId: 'e'.repeat(40) }] : entries(project, candidate));
+  const first = await paused(opened.service, opened.runId);
+  await opened.service.execute(resume(opened.runId, first.pauseId));
+  await until(() => opened.service.events(plan, opened.runId)!.some(event => event.type === 'operation-recovery-paused'));
+  const recovery = (await opened.service.recoveryInspection(plan, opened.runId))!;
+  expect(recovery).toMatchObject({ state: 'paused', boundary: { role: 'reviewer', work: { request: 'rq-0001' }, candidate: 'revision-01' },
+    evidence: { classification: 'preparation', diagnostic: expect.stringContaining('pending-binding evidence store is temporarily unavailable') } });
+  expect(opened.service.events(plan, opened.runId)!.filter(event => event.type === 'review-attempt-started')).toHaveLength(0);
+  available = true;
+  await opened.service.execute({ commandId: 'restored-frozen-review-evidence', expectedVersion: 0, type: 'resume-recovery', payload: {
+    planId: plan, jobId: opened.runId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
+    repair: { areas: ['environment'], explanation: 'The exact original frozen pending-binding evidence is available again' } } });
+  await paused(opened.service, opened.runId);
+  const events = opened.service.events(plan, opened.runId)!;
+  expect(events.filter(event => event.type === 'review-request-recorded')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'review-attempt-started')).toHaveLength(1);
+  expect(events.find(event => event.type === 'review-attempt-finished')?.data).toMatchObject({ request: 'rq-0001', result: 'complete' });
+  expect(await opened.service.recoveryInspection(plan, opened.runId)).toBeNull();
+  await stop(opened.service, opened.runId);
 });
 
 
@@ -315,7 +379,7 @@ test('B04: stop during pausing settles its admitted reader and prevents pause pu
   expect(events.some(event => event.type === 'review-attempt-started' && event.data.request === 'rq-0002')).toBe(false);
 });
 
-test('B03: resumed model execution still consumes the run budget after a long caller wait', async () => {
+test('B03: healthy resumed model execution remains eligible after a long caller wait and elapsed run age', async () => {
   let clock = new Date('2026-10-10T12:00:00Z');
   const script = byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
     'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))], engineer: [submit(completionProposed())] });
@@ -328,8 +392,9 @@ test('B03: resumed model execution still consumes the run budget after a long ca
   const before = await paused(service, runId);
   clock = new Date(clock.getTime() + 100_000);
   await service.execute(resume(runId, before.pauseId));
-  await service.settled(plan, runId);
+  const reached = await paused(service, runId);
   expect(agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
-  expect(service.getRun(plan, runId)).toMatchObject({ state: 'failed', failure: { reason: 'limit-exceeded' } });
-  expect(service.getRun(plan, runId)?.failure?.message).toContain('2000 ms');
+  expect(reached.pauseId).not.toBe(before.pauseId);
+  expect(service.getRun(plan, runId)).toMatchObject({ state: 'running', failure: null });
+  await stop(service, runId);
 });

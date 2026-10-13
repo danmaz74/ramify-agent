@@ -66,14 +66,14 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
     let accepted: ConsultationOutcome['accepted'] = null;
     const outcome = async (status: ConsultationOutcome['status'], code: string | null, message: string | null): Promise<ToolResult> => {
       await run.mutex.run(() => recordConsultationOutcome(run.log, { schema: 'ramify-agent.consultation-outcome/1', id, status,
-        endedAt: inputs.now().toISOString(), child, accepted, error: code === null ? null : { code, message: inline(message ?? code) },
+        endedAt: status === 'incomplete' ? null : inputs.now().toISOString(), child, accepted, error: code === null ? null : { code, message: inline(message ?? code) },
         delivery: 'unknown', result: null }));
       return status === 'answered' && accepted !== null ? { text: await bodyText(run, accepted.answer) } : { text: message ?? code ?? 'Consultation incomplete', isError: true };
     };
     if (signal.aborted) return outcome('cancelled', 'cancelled', 'Consultation cancelled before dispatch');
     const checked = consultationTargetSchema.safeParse(inputs.target);
     if (!checked.success || inputs.target.run.runId !== run.jobId || inputs.target.run.planId !== run.planId) return outcome('failed', 'invalid-source', 'Consultation source point is invalid for this run');
-    const release = context.hold?.(inputs.holdMs);
+    const release = context.waitForProducer?.() ?? context.hold?.(inputs.holdMs);
     try {
       const loaded = inputs.packages.get(inputs.target.role);
       if (loaded === undefined) return await outcome('failed', 'unavailable-role', `No package for ${inputs.target.role}`);
@@ -86,7 +86,7 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
         prompt, omit: [], literalSections: [], startingPointGroups: [], retainInheritedSections: true,
         environment: { projectRoot: inputs.projectRoot, workingDirectory: inputs.projectRoot, candidate: null, snapshot: null, limits,
           availableTools: ['read', 'grep', 'ls', ...(nestedTarget === null ? [] : [consultArchitectName]), architectAnswerName], views: inputs.views, supportPaths: [], cucumberConfiguration: null } });
-      const result = await inputs.runner.runInvocation(run, inputs.agent, {
+      const result = await inputs.runner.runResourceInvocation(run, inputs.agent, {
         role: inputs.target.role, work: { ...work, request: id }, attempt: 1, loaded, systemPrompt: loaded.system, prompt, brief,
         start: { mode: 'fork', from: inputs.target.ref }, fork: { from: inputs.target.point, reason: 'architect-consultation', briefs: [] },
         allowFreshFallback: false, reader: true, workingDirectory: inputs.projectRoot, signal, fenced: () => signal.aborted,
@@ -114,6 +114,9 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
       }
       if (signal.aborted || result.ended === 'stopped') return await outcome('cancelled', 'cancelled', 'Consultation cancelled; no late answer delivered');
       if (accepted !== null) return await outcome('answered', null, null);
+      if (result.ended === 'resource-pending' || result.ended === 'context-budget-reached') {
+        return await outcome('incomplete', 'resource-pending', result.resourceReason ?? result.error ?? 'The advisory task remains pending on the retained recovery prerequisites');
+      }
       const code = result.interruption === 'session-lost' ? 'unavailable-source' : result.ended === 'invalid-submission' ? 'answer-exhausted' : result.interruption ?? (result.ended === 'failed' ? 'provider-failure' : 'no-answer');
       return await outcome('failed', code, result.error ?? `Consultation ended ${result.ended} without an accepted answer`);
     } catch (error) {

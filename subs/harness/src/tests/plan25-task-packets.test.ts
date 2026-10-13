@@ -52,9 +52,9 @@ test('P03/P04: deterministic object order, preserved arrays, whole replacements 
   const commandPolicy = {
     ceilingMs: null,
     defaultMs: 3,
-    rule: 'Omit assignment.bounds.commandTimeoutMs unless the work needs a permitted increase. An override uses { ms, reason }, cannot lower the default or exceed the ceiling, and cannot exceed the engineer invocation absolute bound. Null means policy evidence is unavailable; request it before choosing an override.',
+    rule: 'Omit assignment.bounds.commandTimeoutMs unless the work needs a permitted increase. An override uses { ms, reason }, cannot lower the default or exceed the ceiling, and must satisfy the captured assignment bounds. Null means policy evidence is unavailable; request it before choosing an override.',
   };
-  const limits = { commandPolicy, invocationAbsoluteMs: 1, invocationIdleMs: 2 };
+  const limits = { commandPolicy, invocationIdleMs: 2 };
   // Assignment authors receive command policy even without a shell. Both object levels are ordered.
   expect(initial.additions.find(item => item.key === 'environment:limits')!.text).toBe(first('environment:limits', JSON.stringify({ limits }, null, 2)));
   // Reordered inputs and a withheld settlement bound do not replace unchanged guidance.
@@ -63,7 +63,7 @@ test('P03/P04: deterministic object order, preserved arrays, whole replacements 
   const updated = packet('completion', initial.additions, { ...env, limits: { invocationAbsoluteMs: 1, invocationIdleMs: 2, commandTimeoutMs: 9 } });
   expect(updated.additions.filter(item => item.kind === 'environment')).toEqual([expect.objectContaining({
     key: 'environment:limits', text: set('environment:limits', JSON.stringify({ limits: {
-      commandPolicy: { ...commandPolicy, defaultMs: 9 }, invocationAbsoluteMs: 1, invocationIdleMs: 2,
+      commandPolicy: { ...commandPolicy, defaultMs: 9 }, invocationIdleMs: 2,
     } }, null, 2)),
   })]);
   const changed = packet('completion', initial.additions, { ...env, candidate: null, limits: {}, supportPaths: [] });
@@ -75,9 +75,9 @@ test('P03/P04: deterministic object order, preserved arrays, whole replacements 
     .toBe(set('environment:limits', JSON.stringify({ limits: { commandPolicy: { ...commandPolicy, defaultMs: null } } }, null, 2)));
   // Support paths reach no role.
   expect(packet('completion', initial.additions, { ...env, supportPaths: ['a', 'b'] }).additions.filter(item => item.kind === 'environment')).toEqual([]);
-  // A shell adds the command bound.
+  // A shell adds its quiet-output observation interval.
   expect(packet('assignment', [], { ...env, availableTools: [...env.availableTools, 'shell'] }).additions.find(item => item.key === 'environment:limits')!.text)
-    .toBe(first('environment:limits', JSON.stringify({ limits: { commandPolicy, commandTimeoutMs: 3, invocationAbsoluteMs: 1, invocationIdleMs: 2 } }, null, 2)));
+    .toBe(first('environment:limits', JSON.stringify({ limits: { commandPolicy, commandTimeoutMs: 3, invocationIdleMs: 2 } }, null, 2)));
 });
 
 test('P05: orientation, main, reconciliation and main retain independently available families', () => {

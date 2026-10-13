@@ -36,7 +36,7 @@ export interface ProcessGroups {
 export const nodeProcessGroups: ProcessGroups = {
   alive(pid: number): boolean {
     try {
-      process.kill(pid, 0);
+      process.kill(-pid, 0);
       return true;
     } catch (error) {
       return (error as NodeJS.ErrnoException).code === 'EPERM';
@@ -82,6 +82,7 @@ export interface WriterOwnershipOptions {
 export class WriterOwnership {
   private holder: string | undefined;
   private unsettled: string | undefined;
+  private pending: { invocation: string; session: Pick<AgentSession, 'settled'> | undefined; groups: readonly number[]; lateWrites: readonly string[] } | undefined;
   private readonly registered = new Map<string, Set<number>>();
 
   constructor(private readonly options: WriterOwnershipOptions) {}
@@ -98,9 +99,14 @@ export class WriterOwnership {
     return undefined;
   }
 
-  /** Whether a release was left unconfirmed, which nothing later clears. */
+  /** Whether a release needs a later authenticated settlement observation. */
   get isUnsettled(): boolean {
     return this.unsettled !== undefined;
+  }
+
+  /** The occurrence whose unconfirmed settlement obstructs replacement. */
+  get unsettledInvocation(): string | undefined {
+    return this.pending?.invocation;
   }
 
   /**
@@ -139,50 +145,69 @@ export class WriterOwnership {
    */
   async release(invocation: string, session?: Pick<AgentSession, 'settled'> | undefined): Promise<Settlement> {
     if (this.holder !== invocation) throw new Error(`Invocation ${invocation} does not hold the writer`);
+    const pending = [...(this.registered.get(invocation) ?? [])];
+    const observed = await this.observeSettlement(invocation, session, pending, []);
+    this.holder = undefined;
+    this.registered.delete(invocation);
+    if (!observed.confirmed) this.pending = { invocation, session, groups: pending, lateWrites: observed.lateWrites };
+    return observed;
+  }
+
+  /**
+   * Re-observes only the obstructing occurrence. A receipt-backed session
+   * supplied by the owning recovery may replace unavailable adapter evidence;
+   * registered groups and the candidate are still inspected here.
+   */
+  async reinspect(invocation: string, session?: Pick<AgentSession, 'settled'>): Promise<Settlement | null> {
+    const pending = this.pending;
+    if (pending === undefined) return null;
+    if (pending.invocation !== invocation) throw new Error(`Invocation ${invocation} cannot settle ${pending.invocation}`);
+    const owner = session ?? pending.session;
+    // Unavailable evidence never becomes a claim that the session is idle.
+    const observed = await this.observeSettlement(invocation, owner ?? { settled: async () => 'timed-out' }, pending.groups, pending.lateWrites);
+    if (observed.confirmed) {
+      this.pending = undefined;
+      this.unsettled = undefined;
+    } else this.pending = { ...pending, session: owner, lateWrites: observed.lateWrites };
+    return observed;
+  }
+
+  private async observeSettlement(invocation: string, session: Pick<AgentSession, 'settled'> | undefined, pending: readonly number[], priorLateWrites: readonly string[]): Promise<Settlement> {
     const now = this.options.now ?? (() => new Date());
     const groups = this.options.groups ?? nodeProcessGroups;
     const tree = this.options.tree;
-
-    const idle = session === undefined ? 'settled' : await session.settled().catch(() => 'timed-out' as const);
-    const before = tree === undefined ? [] : await tree.changed().catch(() => []);
-
-    const pending = [...(this.registered.get(invocation) ?? [])];
-    let killed = 0;
-    for (const pid of pending) {
-      if (groups.alive(pid)) groups.kill(pid);
-    }
+    let timer: NodeJS.Timeout | undefined;
+    const idle = session === undefined ? 'settled' : await Promise.race([
+      session.settled().catch(() => 'timed-out' as const),
+      new Promise<'timed-out'>(resolve => { timer = setTimeout(() => resolve('timed-out'), this.options.settleMs); }),
+    ]).finally(() => clearTimeout(timer));
+    // A missing candidate observation is unknown, never an empty clean tree.
+    const before = tree === undefined ? [] : await tree.changed().catch(() => null);
+    for (const pid of pending) if (groups.alive(pid)) groups.kill(pid);
     const deadline = Date.now() + this.options.settleMs;
     const poll = this.options.pollMs ?? 20;
     let remaining = pending.filter(pid => groups.alive(pid));
     while (remaining.length > 0 && Date.now() < deadline) {
-      await delay(poll);
+      await delay(Math.min(poll, deadline - Date.now()));
       remaining = remaining.filter(pid => groups.alive(pid));
     }
-    killed = pending.length - remaining.length;
-
-    const after = tree === undefined ? [] : await tree.changed().catch(() => []);
-    const seen = new Set(before);
-    const lateWrites = after.filter(path => !seen.has(path));
-
-    const confirmed = idle === 'settled' && remaining.length === 0;
-    this.holder = undefined;
-    this.registered.delete(invocation);
+    const after = tree === undefined ? [] : await tree.changed().catch(() => null);
+    const seen = new Set(before ?? []);
+    const lateWrites = [...new Set([...priorLateWrites, ...(after ?? []).filter(path => !seen.has(path))])];
+    const confirmed = idle === 'settled' && remaining.length === 0 && before !== null && after !== null;
     if (!confirmed) {
       this.unsettled = remaining.length > 0
         ? `Invocation ${invocation} left ${remaining.length} process group${remaining.length === 1 ? '' : 's'} running; no writer and no gate may follow`
-        : `Invocation ${invocation}'s session did not become idle within the implementation's bound; no writer and no gate may follow`;
+        : idle !== 'settled' ? `Invocation ${invocation}'s session did not become idle within the observation bound; no writer and no gate may follow`
+        : `Invocation ${invocation}'s candidate effects are unavailable; no writer and no gate may follow`;
     }
-    return { confirmed, at: now().toISOString(), groupsKilled: killed, lateWrites };
+    return { confirmed, at: now().toISOString(), groupsKilled: pending.length - remaining.length, lateWrites };
   }
 
-  /**
-   * Records that one invocation's session could not be confirmed settled,
-   * although it held no writer. A session whose tools may still be running
-   * blocks what follows for the same reason a writer does: a check run
-   * against such a tree proves nothing.
-   */
-  markUnsettled(invocation: string, reason: string): void {
+  /** Records unknown settlement of an occurrence whose tools may still run. */
+  markUnsettled(invocation: string, reason: string, session?: Pick<AgentSession, 'settled'>): void {
     this.unsettled ??= `Invocation ${invocation} was not confirmed settled: ${reason}; no writer and no gate may follow`;
+    this.pending ??= { invocation, session, groups: [], lateWrites: [] };
   }
 
   /** Refuses the caller while a writer is held or a release was not confirmed. */

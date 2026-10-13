@@ -4,6 +4,8 @@
 
 The whole-tree scope and verification rules adopted on 2026-10-01 are
 normative design decisions; their implementation remains pending.
+The execution-continuity principles adopted on 2026-10-13 are normative;
+their runtime migration is implemented.
 The architect tracking-authority and external-tracker independence principles
 adopted on 2026-10-13 are normative; their runtime migration remains pending.
 
@@ -39,6 +41,14 @@ from an ROI point of view, evaluating costs in terms of human attention first,
 and agent time and tokens second.
 
 ## Principles
+
+### Resource Observations Preserve Run Continuity
+
+A run never terminates because a context-size or time threshold is reached.
+Context-size checks serve only to optimize work through compaction or handoff
+to a new session. Time-limit checks serve only to recover a session that may
+be stuck. Compaction, handoff and recovery preserve the run's task, accepted
+work, authority and pending obligations.
 
 ### An Executable Specification Is a Translation
 

@@ -591,6 +591,12 @@ export function evaluationOf({ invocation, outcome, observations, lines, request
     ended: outcome?.ended ?? null,
     writer: invocation.writer,
     efficiency: efficiencyOf({ invocation, outcome, observations, lines }),
+    context: { observations: log.filter(line => line.type === 'context').map(line => ({ at: line.at, tokens: line.data.tokens, window: line.data.window,
+      ...(line.data.native === undefined ? {} : { native: line.data.native }) })),
+      compactions: log.filter(line => line.type === 'compaction').map(line => ({ at: line.at, trigger: line.data.trigger, succeeded: line.data.succeeded,
+        before: line.data.before, after: line.data.after, error: line.data.error ?? null, ...(line.data.native === undefined ? {} : { native: line.data.native }) })),
+      coverage: [...(log.some(line => line.type === 'context') ? [] : ['Current context occupancy and model window were not observed']),
+        ...log.flatMap(line => line.type === 'coverage-gap' && line.data.kind === 'context-unavailable' ? [line.data.detail] : [])] },
     guarding: Array.isArray(observations)
       ? { guarded: [...report.guarded], unguarded: [...report.unguarded], verdicts: { ...report.verdicts }, complete: report.complete, statement: report.statement }
       : {

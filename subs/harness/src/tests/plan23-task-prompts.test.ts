@@ -161,7 +161,8 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(next.message).toContain('"workingDirectory": "/project/B"');
     expect(next.message).toContain('"candidate": "C1"');
     expect(next.message).toContain('"snapshot": "S1"');
-    expect(next.message).toContain('"invocationAbsoluteMs": 20');
+    expect(next.message).not.toContain('invocationAbsoluteMs');
+    expect(next.message).not.toContain('budgetReturnsPerIteration');
     // Assignment authors receive policy even without shell execution authority.
     const assigns = role === 'local-architect' && ['assignment', 'completion', 'repair'].includes(kind) || role === 'capability-architect' && kind === 'capability';
     if (assigns) expect(next.message).toContain('\"defaultMs\": 20');

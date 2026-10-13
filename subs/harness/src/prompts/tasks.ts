@@ -74,8 +74,8 @@ function projectRelative(projectRoot: string, path: string): string {
  *
  * - The project root and working directory reach only a role that reads the
  *   project's files; tasks that use views receive them project-relative.
- * - The limits are the invocation's own bounds; the command timeout and the
- *   budget returns reach a role with a shell. Assignment authors also receive
+ * - The limits describe quiet intervals and submission judgments; the command
+ *   quiet interval reaches a role with a shell. Assignment authors also receive
  *   the command baseline and ceiling used by their assignment contract.
  * - A null candidate, snapshot or Cucumber configuration says nothing, nor
  *   does a snapshot equal to the candidate. Engineers receive current Cucumber
@@ -97,7 +97,7 @@ export function selectedEnvironment(environment: TaskEnvironment, task?: { reado
   }
   if (environment.snapshot !== null && environment.snapshot !== environment.candidate) selected.snapshot = environment.snapshot;
   const limits = environment.limits;
-  const own = ['invocationAbsoluteMs', 'invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs', 'budgetReturnsPerIteration'] : [])];
+  const own = ['invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs'] : [])];
   const assignmentAuthor = task !== undefined && (
     task.role === 'local-architect' && ['assignment', 'completion', 'repair'].includes(task.kind)
     || task.role === 'capability-architect' && task.kind === 'capability');
@@ -106,7 +106,7 @@ export function selectedEnvironment(environment: TaskEnvironment, task?: { reado
     ...(assignmentAuthor ? { commandPolicy: {
       defaultMs: limits.commandTimeoutMs ?? null,
       ceilingMs: limits.maxCommandTimeoutMs ?? null,
-      rule: 'Omit assignment.bounds.commandTimeoutMs unless the work needs a permitted increase. An override uses { ms, reason }, cannot lower the default or exceed the ceiling, and cannot exceed the engineer invocation absolute bound. Null means policy evidence is unavailable; request it before choosing an override.',
+      rule: 'Omit assignment.bounds.commandTimeoutMs unless the work needs a permitted increase. An override uses { ms, reason }, cannot lower the default or exceed the ceiling, and must satisfy the captured assignment bounds. Null means policy evidence is unavailable; request it before choosing an override.',
     } } : {}),
   };
   selected.availableTools = environment.availableTools;

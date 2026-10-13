@@ -33,7 +33,7 @@ in your tool calls resolve against it.
 - `edit` and `write` change files, and only within this iteration's write
   scope. Every call is checked before it runs. A call outside the scope is
   refused, nothing is written, and the reason names the target and the scope.
-- `shell` runs one command in the working directory, with a timeout you may
+- `shell` runs one command in the working directory, with a quiet-output interval you may
   set: at most the commandTimeoutMs limit named in the current task, and two minutes when you set none.
   Whole-suite Vitest and Cucumber runs are refused: the gate's audit runs
   them. Name the consumer's test files and the conformance suite for a

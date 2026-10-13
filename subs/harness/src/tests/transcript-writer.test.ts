@@ -449,3 +449,21 @@ describe('explicit independent transcript bursts', () => {
     expect(writes.opens).toBe(4); expect(writes.closes).toBe(4); expect(writes.syncs).toBe(6);
   });
 });
+
+
+test('native compaction settings persist in the transcript without losing earlier entries', async () => {
+  const { path, writer } = await directory();
+  const { transcript, gaps } = invocation(writer(), 'inv-native');
+  await transcript.started(start());
+  const before = await readFile(path, 'utf8');
+  const native = { source: 'pi@0.87.1:SettingsManager' as const, compaction: { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 },
+    occupancy: 'current' as const, projectedTokens: null, coverage: ['Projected size unavailable'] as readonly string[] };
+  transcript.event({ type: 'compaction', phase: 'started', reason: 'threshold', native });
+  transcript.event({ type: 'compaction', phase: 'ended', reason: 'threshold', native, tokensBefore: 250000, tokensAfter: null, aborted: false, errorText: null });
+  await transcript.drain();
+  const after = await readFile(path, 'utf8');
+  expect(after.startsWith(before)).toBe(true);
+  expect((await lines(path)).filter(entry => entry.type === 'compaction')).toMatchObject([
+    { phase: 'started', native }, { phase: 'ended', native, tokensBefore: 250000, tokensAfter: null }]);
+  expect(gaps).toEqual([]);
+});

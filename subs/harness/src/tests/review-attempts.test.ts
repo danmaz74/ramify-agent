@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptStep } from '../../subs/agent/src/scripted.js';
-import { reviewLayout } from '../reviews/records.js';
+import { reviewLayout, reviewRequestSchema } from '../reviews/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import type { scriptedCandidates } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
@@ -195,8 +195,8 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
   }, 120_000);
 });
 
-describe('CF04: invalid, timed-out and unavailable reviews are not verified', () => {
-  test('malformed output is retried once, a hung reader times out and an unreadable candidate is unavailable', async () => {
+describe('CF04: semantic review validation and resource continuity', () => {
+  test('malformed output is retried once, useful review outlives its former allowance and an unreadable candidate is unavailable', async () => {
     const root = await reviewTarget(cleanups);
     const malformed: ScriptStep[] = [
       { kind: 'submit', input: { inspected: [], concerns: [] } },
@@ -206,7 +206,10 @@ describe('CF04: invalid, timed-out and unavailable reviews are not verified', ()
       { kind: 'submit', input: { verdict: 'looks fine' } },
     ];
     let source!: ReturnType<typeof scriptedCandidates>;
+    let time = Date.parse('2026-10-13T00:00:00Z');
     const run = await reviewRun(root, cleanups, {
+      continuity: true,
+      now: () => new Date(time),
       candidates: scripted => { source = scripted; },
       policy: { attemptMs: 1_000, concurrency: 1 },
       engineer: [
@@ -220,8 +223,11 @@ describe('CF04: invalid, timed-out and unavailable reviews are not verified', ()
       reviewers: {
         'rq-0001#1': malformed,
         'rq-0001#2': malformed,
-        // A reader that never answers, and honors the stop its bound sends.
-        'rq-0002': [{ kind: 'await', until: () => new Promise(() => undefined) }],
+        'rq-0002': [
+          { kind: 'await', until: async () => { time += 2_000; } },
+          tool(snapshotToolNames.read, { path: limit }),
+          { kind: 'submit', input: { inspected: [limit], missing: [], concerns: [] } },
+        ],
         'rq-0003': [{ kind: 'submit', input: { inspected: [], missing: [], concerns: [] } }],
       },
     });
@@ -232,16 +238,19 @@ describe('CF04: invalid, timed-out and unavailable reviews are not verified', ()
       .toEqual([
         ['rq-0001.a01', 'not-verified', 'invalid-output', false],
         ['rq-0001.a02', 'not-verified', 'invalid-output', true],
-        ['rq-0002.a01', 'not-verified', 'timed-out', false],
-        ['rq-0002.a02', 'not-verified', 'timed-out', true],
+        ['rq-0002.a01', 'complete', null, true],
       ]);
     // A candidate that cannot be read is unavailable at once, and not retried.
     expect(finished.filter(event => event.data.request === 'rq-0003').map(event => [event.data.attempt, event.data.result, event.data.reason, event.data.settles]))
       .toEqual([['rq-0003.a01', 'not-verified', 'unavailable', true]]);
     expect(await attemptRecord(root, runId, 'rq-0003.a01')).toMatchObject({ startedAt: null, invocation: null, session: null, actualStart: null,
       result: { detail: expect.stringContaining('could not be read') } });
-    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.attempt)).toEqual(['rq-0001.a01', 'rq-0001.a02', 'rq-0002.a01', 'rq-0002.a02']);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 0, partial: 0, notVerified: 3, pending: 0 });
+    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.attempt)).toEqual(['rq-0001.a01', 'rq-0001.a02', 'rq-0002.a01']);
+    const useful = await attemptRecord(root, runId, 'rq-0002.a01');
+    expect(Date.parse(useful.finishedAt) - Date.parse(useful.startedAt!)).toBeGreaterThan(1_000);
+    const original = reviewRequestSchema.parse(JSON.parse(await readFile(runPath(root, plan, runId, reviewLayout.request(useful.request)), 'utf8')));
+    expect(original.key.candidate).toBe('revision-02');
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 1, partial: 0, notVerified: 2, pending: 0 });
     // An invalid submission creates no CheckFinding and names no submission record.
     expect(finished.every(event => event.data.checkFindings.length === 0)).toBe(true);
     expect((await attemptRecord(root, runId, 'rq-0001.a02')).result).toMatchObject({ result: 'not-verified', reason: 'invalid-output' });

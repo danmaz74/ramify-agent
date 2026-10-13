@@ -73,6 +73,8 @@ export function gate() {
 }
 
 export interface ReviewRun {
+  /** Explicit current policy witnesses retain native resource continuity. */
+  readonly continuity?: boolean;
   readonly breakpoint?: 'before-agent:engineer';
   readonly reviewers: Readonly<Record<string, readonly ScriptStep[]>>;
   readonly engineer: ReadonlyArray<readonly ScriptStep[]>;
@@ -186,7 +188,7 @@ export async function reviewRun(root: string, cleanups: Array<() => Promise<void
     candidates: source,
 
     policy: projectRoot => {
-      const policy = testPolicy(projectRoot, { reviews: testReviewPolicy(scenario.policy) });
+      const policy = testPolicy(projectRoot, { reviews: testReviewPolicy(scenario.policy), ...(scenario.continuity ? { continuity: true, recovery: true } : {}) });
       return { ...policy, limits: { ...policy.limits, ...scenario.limits } };
     },
     ...(scenario.afterWrite === undefined ? {} : { afterWrite: scenario.afterWrite }),

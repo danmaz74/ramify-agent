@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { AgentSession as PiSession } from '@earendil-works/pi-coding-agent';
+import { convertToLlm, type AgentSession as PiSession } from '@earendil-works/pi-coding-agent';
 
 /** Preservation serializes the native prefix with pi's own serializer for this API; the model id does not change the shape. */
 const PRESERVING_PROVIDER = 'openai-codex';
@@ -81,6 +81,9 @@ export interface PreservedPiTranscript {
   readonly providerSessionId?: string;
   readonly messages: readonly PiTranscriptMessage[]; readonly appliedAgentKeys: readonly string[];
   readonly declarations: readonly PiTranscriptTool[]; readonly additionKeys: readonly string[]; readonly activeTools: readonly string[];
+  /** Native entries retain compaction/context edits for reconstruction without losing boundary meaning. */
+  readonly historyBoundary?: { readonly kind: 'native-compaction'; readonly reason: 'manual' | 'threshold' | 'overflow'; readonly predecessorSequence: number; readonly operationId: string; readonly reuse: 'rewritten-history' };
+  readonly nativeEntries?: Parameters<typeof import('@earendil-works/pi-coding-agent').SessionManager.inMemory>[2];
   readonly native: NativePrefix; readonly sequence: number; readonly preparedOperationId: string;
 }
 export const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -145,6 +148,7 @@ export function supportedPreservingModel(model: PiChosenModel): string | null {
 }
 /** Expected representation comes from immutable messages before extension/context mutation. */
 export async function serializeNativePrefix(model: PiChosenModel, messages: readonly PiTranscriptMessage[]): Promise<NativePrefix> {
+  messages = convertToLlm(messages.filter(message => !(message.role === 'custom' && message.customType === 'execution-continuation')));
   const { serializer, transcript, grammar } = await installedPiSerialization();
   const compat = model.compat as Record<string, unknown> | undefined;
   const toolOptions = { strict: null, supportsStrictMode: compat?.['supportsStrictMode'] ?? true, supportsOpenAIGrammarTools: compat?.['supportsOpenAIGrammarTools'] ?? false };

@@ -51,12 +51,32 @@ Pi's permissive outer schema lets the harness report every validation error.
 Accepted submissions terminate the task. Inactive or obsolete submissions retain
 definitions but cannot reach the current validator.
 
-Context usage is an estimate. A raw hard budget is explicit unfinished failure
-without a fabricated partial report. The generic compaction permission is
-retained, including `allowed`; this preserving implementation conservatively
-disables actual automatic compaction. SDK retries are disabled. Stop fences new
-model/tool/submission work and aborts cooperatively, while `settled()` waits for
-actual drainage under the caller's bound. Receipt alone is not quiescence.
+Context usage is Pi's estimate of current occupancy. Every role uses Pi's
+native automatic compaction, effective model window and SettingsManager reserve
+and recent-history settings. Historical harness context budgets remain readable
+but do not constrain new requests. Missing estimates and projected request sizes
+are recorded explicitly.
+
+The adapter keeps Pi's request projection and turn preparation, including native
+threshold compaction. An empty host control message starts the public native
+session lifecycle; it carries no provider input. Only SDK prompt/loadout patches
+are discarded because the durable adapter owns exact role instructions and tool
+bindings. Native overflow recovery remains Pi's compact-and-retry operation.
+Compaction summary requests use the same durable payload, validation and final
+liveness fences as task requests, with their actual separate instructions,
+routing identity, usage and disabled cache retention recorded.
+
+Compaction appends immutable state payloads containing Pi's native entries and
+rewritten active projection. Earlier request artifacts and exact-point forks
+retain their original history. The new boundary does not assert inherited native
+prefix equality across rewritten history. Failed native compaction or remaining
+provider overflow returns `resource-pending` with causal evidence; source-backed
+reconstruction belongs to the harness and requires no final report from Pi.
+
+SDK transport retries are disabled. Stop fences new model/tool/submission work
+and aborts both streaming and native compaction cooperatively, while `settled()`
+waits for actual drainage under the caller's observation deadline. A receipt
+alone does not establish quiescence.
 
 ## Model and login
 

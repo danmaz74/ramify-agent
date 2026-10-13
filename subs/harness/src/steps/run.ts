@@ -31,7 +31,7 @@ import { constructStep, freshFallback } from './construct.js';
 import { constructEngineerStep } from './engineer.js';
 import { parseStepInputs, StepInputsError, validateStepInputs, type StepInputs } from './inputs.js';
 import { constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn } from './local-architect.js';
-import { manualRunLocationOf, manualRunner, unsettledWriter, openManualRun, recordAuthoredInputs, type ManualRun } from './manual.js';
+import { manualRunLocationOf, manualRunner, unsettledWriter, openManualRun, recordAuthoredInputs, readManualResourceResult, recordManualResourceResult, waitManualResourceResult, type ManualRun } from './manual.js';
 import { constructDesignOrientationStep } from './reviewer.js';
 import { prepareManualReview, ReviewRefusal, type ManualReview } from './review-step.js';
 import { committedBody, finished, kept, type InvocationProgress, type InvocationRequest, type InvocationResult, type InvocationRunner } from './runner.js';
@@ -58,6 +58,7 @@ const message = (error: unknown): string => (error instanceof Error ? error.mess
 
 /** What one `step run` is given. */
 export interface StepRunOptions {
+  readonly recoveryResume?: { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
   /** The step inputs file. */
   readonly inputs: string;
   /** The manual run directory, `<project>/plans/<plan>/.harness/jobs/<run>`, created where it does not exist. */
@@ -108,6 +109,10 @@ export interface StepRunSummary {
   /** The role's phase or question, where it has one. */
   readonly variant: string | null;
   readonly ended: InvocationOutcome['ended'];
+  /** Resource recovery preserves this step's assignment and pending obligations. */
+  readonly pending?: boolean;
+  readonly resource?: 'context' | 'stall';
+  readonly resourceReason?: string;
   /** The accepted submission, or null when none was accepted. */
   readonly submission: unknown;
   /** The accepted submission's kind, where it has one. */
@@ -202,14 +207,29 @@ export async function runStep(options: StepRunOptions): Promise<StepRunResult> {
   try { projectRoot = await realpath(location.projectRoot); }
   catch (error) { return notStarted(`The project root ${location.projectRoot} cannot be read: ${message(error)}`); }
   let lock: ProjectLock;
+  const binding = { resume: options.recoveryResume, inputs, model: options.model ?? null };
   try { lock = await acquireProjectLock(projectRoot); }
   catch (error) {
+    if (options.recoveryResume && error instanceof ProjectLockError && error.holder) {
+      try {
+        const repeated = await waitManualResourceResult<StepRunResult>(projectRoot, options.run, options.recoveryResume.commandId, binding, error.holder.token, options.signal);
+        if (repeated) return repeated;
+      } catch (conflict) { return notStarted(message(conflict), options.run); }
+    }
     // A held lock is someone else's and is left exactly as it is.
     return notStarted(error instanceof ProjectLockError ? error.message : `The project lock could not be taken: ${message(error)}`);
   }
   let releaseLock = true;
   try {
-    return await runLocked(options, inputs, { ...location, projectRoot }, () => { releaseLock = false; });
+    if (options.recoveryResume) {
+      const repeated = await readManualResourceResult<StepRunResult>(options.run, options.recoveryResume.commandId, binding);
+      if (repeated) return repeated;
+    }
+    const result = await runLocked(options, inputs, { ...location, projectRoot }, () => { releaseLock = false; });
+    if (options.recoveryResume && result.status === 'finished') await recordManualResourceResult(options.run, options.recoveryResume.commandId, binding, result);
+    return result;
+  } catch (error) {
+    return notStarted(message(error), options.run);
   } finally {
     if (releaseLock) await lock.release();
   }
@@ -263,8 +283,10 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
   const run = opened.run;
   run.index = index;
   // A writer of an earlier invocation that is not known to be settled may still be writing.
-  const unsettled = unsettledWriter(run.log);
+  const unsettled = options.recoveryResume ? null : unsettledWriter(run.log);
   if (unsettled !== null) return notStarted(`The manual run cannot be used: ${unsettled}`, run.directory);
+  const latestRecovery = run.log.events.filter(event => event.type === 'operation-recovery-paused' || event.type === 'operation-recovery-resumed').at(-1);
+  if (latestRecovery?.type === 'operation-recovery-paused' && !options.recoveryResume) return notStarted('The manual run retains pending work; supply an occurrence-bound recovery command', run.directory);
 
   // The inputs are the manual run's own; where they came from stays their provenance.
   let inputs: StepInputs;
@@ -295,6 +317,7 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
       ...(options.skillDirectory === undefined ? {} : { skillDirectory: options.skillDirectory }) })).packages;
 
   let settlementConfirmed = true;
+  let taskPending = options.recoveryResume !== undefined;
   let scratch: { readonly directory: string } | undefined;
   try {
     let prepared: Prepared<unknown>;
@@ -318,8 +341,11 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
       reason: taken.reason,
       provenance,
     };
-    const result: InvocationResult<unknown> = await runner.runInvocation(run, agent, {
+    const result: InvocationResult<unknown> = await runner.runResourceInvocation(run, agent, {
       ...prepared.request, consultationPackages: packages,
+      recoveryResume: options.recoveryResume,
+      resourceBinding: original,
+      resourceCommandBinding: { resume: options.recoveryResume, inputs: original, model: options.model ?? null },
       startingTree: { dirty: startingChanged.length > 0, changed: [...startingChanged] },
       signal: options.signal,
       progress: event => {
@@ -335,8 +361,9 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
 
     const outcome = invocationOutcomeSchema.parse(committedBody(run, runLayout.outcome(result.id)));
     settlementConfirmed = outcome.settled.confirmed;
+    taskPending = result.pending === true;
     // A review of the manual run's own request ends in its terminal attempt record, which settles it.
-    const reviewRecord = prepared.review === undefined ? undefined
+    const reviewRecord = prepared.review === undefined || taskPending ? undefined
       : await prepared.review.finish(result, result.actual === undefined ? null : result.actual === 'fork' ? 'fork' : 'fresh');
     const submissionValue = result.value;
     const kind = submissionValue !== null && typeof submissionValue === 'object' && 'kind' in submissionValue && typeof submissionValue.kind === 'string'
@@ -349,6 +376,7 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
       role: inputs.role,
       variant,
       ended: result.ended,
+      ...(taskPending ? { pending: true, resource: result.resource, resourceReason: result.resourceReason } : {}),
       submission: submissionValue ?? null,
       submissionKind: kind,
       rejectedSubmissions: outcome.rejectedSubmissions,
@@ -386,7 +414,7 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
     if (!(await close())) settlementConfirmed = false;
     if (!settlementConfirmed) retainProjectLock();
     // Scratch the run would remove at the iteration's close goes once the session settled.
-    if (settlementConfirmed && scratch !== undefined) await removeScratchDirectories(projectRoot, [scratch.directory], git).catch(() => undefined);
+    if (settlementConfirmed && !taskPending && scratch !== undefined) await removeScratchDirectories(projectRoot, [scratch.directory], git).catch(() => undefined);
   }
 }
 

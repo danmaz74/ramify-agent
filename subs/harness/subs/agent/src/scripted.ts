@@ -2,7 +2,7 @@ import { createSessionOperations } from './session-operations.js';
 import type { AgentSessionPoint, SessionDriverInvocation, SessionExecutionBindings, SessionOperationDriver, SessionOperations, SessionStore, SessionToolDeclaration } from './interfaces/session-operations.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, resolve } from 'node:path';
-import { assistantText, contextBudgetReached, noMessageDetail } from './interfaces/port.js';
+import { assistantText, noMessageDetail } from './interfaces/port.js';
 import type {
   ActualStart,
   AgentPort,
@@ -86,6 +86,10 @@ export type ScriptStep =
   | { readonly kind: 'hang' }
   /** Calls the submission tool. Accepted ends the session; rejected continues with the next step. */
   | { readonly kind: 'submit'; readonly input: unknown }
+  /** This attempt returns while its resource recovery remains pending. */
+  | { readonly kind: 'resource'; readonly resource: 'context' | 'stall'; readonly reason: string; readonly tokens?: number | null }
+  /** Explicit old-adapter output for historical records; context observations never manufacture it. */
+  | { readonly kind: 'legacy-context-return'; readonly tokens: number | null; readonly report?: string }
   /** The session crashes. */
   | { readonly kind: 'fail'; readonly error: string; readonly evidence?: import('./interfaces/port.js').InterruptionEvidence }
   /** The agent stops talking without submitting. */
@@ -228,21 +232,14 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
       let callCount = 0;
       const nextCallId = () => `call-${++callCount}`;
       /** Set once an observation reaches the budget: the tools are disabled from then on. */
-      let budgetTokens: number | null | undefined;
 
       const run = async (): Promise<SessionOutcome> => {
         const steps = typeof script === 'function' ? script(spec) : script;
-        let report: string | undefined;
-        spec.onEvent({ type: 'message', role: 'user', blocks: [{ type: 'text', text: spec.prompt }] });
+          spec.onEvent({ type: 'message', role: 'user', blocks: [{ type: 'text', text: spec.prompt }] });
         for (const step of steps) {
           if (controller.signal.aborted && !deaf) return { kind: 'stopped' };
           stepsRun += 1;
 
-          if (budgetTokens !== undefined && step.kind !== 'message') {
-            // The tools are gone, so a call cannot happen; only the final response can.
-            if (step.kind === 'tool' || step.kind === 'submit') record.refusedAfterBudget += 1;
-            continue;
-          }
           switch (step.kind) {
             case 'message': {
               // An executor that declares no thinking reports none.
@@ -252,10 +249,6 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
                 type: 'message', role: 'assistant', blocks, text: assistantText(blocks),
                 usage: step.usage ?? null, detail: { ...noMessageDetail, ...step.detail },
               });
-              if (budgetTokens !== undefined) {
-                report = step.text;
-                return { kind: 'context-budget-reached', tokens: budgetTokens, report };
-              }
               break;
             }
             case 'retry': {
@@ -276,7 +269,6 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
             }
             case 'context': {
               spec.onEvent({ type: 'context-observed', tokens: step.tokens, window: step.window });
-              if (contextBudgetReached(spec.context, step.tokens, step.window)) budgetTokens = step.tokens;
               break;
             }
             case 'compaction':
@@ -304,6 +296,10 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
             case 'hang':
               await never;
               break;
+            case 'resource':
+              return { kind: 'resource-pending', resource: step.resource, reason: step.reason, ...(step.tokens === undefined ? {} : { tokens: step.tokens }) };
+            case 'legacy-context-return':
+              return { kind: 'context-budget-reached', tokens: step.tokens, ...(step.report === undefined ? {} : { report: step.report }) };
             case 'fail':
               return { kind: 'failed', error: step.error, ...(step.evidence === undefined ? {} : { evidence: step.evidence }) };
             case 'end':
@@ -371,7 +367,6 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
           }
         }
         if (controller.signal.aborted && !deaf) return { kind: 'stopped' };
-        if (budgetTokens !== undefined) return { kind: 'context-budget-reached', tokens: budgetTokens, report };
         return { kind: 'ended', message: 'The script ended without a submission' };
       };
 
@@ -523,10 +518,12 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 
 /** Explicit scripts for the durable lifecycle; no implicit external answers or legacy session lookup. */
 export type SessionScriptStep =
+  | Extract<ScriptStep, { readonly kind: 'legacy-context-return' }>
   | { readonly kind: 'tool'; readonly tool: string; readonly input: unknown; readonly callId?: string }
   | { readonly kind: 'submit'; readonly input: unknown; readonly callId?: string }
   | { readonly kind: 'message'; readonly payload: Readonly<Record<string, unknown>> }
   | { readonly kind: 'await'; readonly until: () => Promise<unknown> }
+  | { readonly kind: 'resource'; readonly resource: 'context' | 'stall'; readonly reason: string; readonly tokens?: number | null }
   | { readonly kind: 'fail'; readonly error: string; readonly evidence?: import('./interfaces/port.js').InterruptionEvidence }
   | { readonly kind: 'end'; readonly message?: string };
 export type SessionScript = readonly SessionScriptStep[] | ((input: SessionDriverInvocation) => readonly SessionScriptStep[]);
@@ -540,6 +537,8 @@ export function createScriptedSessionDriver(script: SessionScript): SessionOpera
         const step = steps[index]!;
         const key = `${input.key.operationId}:step:${index}`;
         if (step.kind === 'await') { await settledOrAborted(step.until(), runtime.signal); continue; }
+        if (step.kind === 'resource') return { kind: 'resource-pending', resource: step.resource, reason: step.reason, ...(step.tokens === undefined ? {} : { tokens: step.tokens }) };
+        if (step.kind === 'legacy-context-return') return { kind: 'context-budget-reached', tokens: step.tokens, ...(step.report === undefined ? {} : { report: step.report }) };
         if (step.kind === 'fail') return { kind: 'failed', error: step.error, ...(step.evidence === undefined ? {} : { evidence: step.evidence }) };
         if (step.kind === 'end') return step.message === undefined ? { kind: 'ended' } : { kind: 'ended', message: step.message };
         await runtime.persistPayload(key, new TextEncoder().encode(JSON.stringify(step)));

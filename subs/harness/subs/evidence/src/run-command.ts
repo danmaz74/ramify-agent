@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
  * src/domain-sub-apps/implementation-studio/core/runtime/check-execution/check-runner.ts
  * lines 92-100. Same author; licensed here under GPL-3.0 with ramify-agent.
  * The wrapper script beside this file is adapted for a durable start barrier. Plan 3 iteration 2 adjusts
- * the executor: a timeout is told from a failure with Node's `killed`, the
+ * the executor: a timeout was told from a failure with Node's `killed`, the
  * complete output is written to a file and answered as a bounded description,
  * a spawn failure's string `code` becomes a structured runner error, and the
  * wrapper script is resolved from this module's own directory. The lifted
@@ -107,7 +107,10 @@ export interface CommandRequest {
   readonly argv: readonly string[];
   readonly cwd: string;
   readonly env: Readonly<Record<string, string>>;
+  /** Quiet command-output interval that initiates stall recovery, never an absolute lifetime. */
   readonly timeoutMs: number;
+  /** Actual command output extends the quiet-progress observation interval. */
+  readonly onProgress?: (() => void) | undefined;
   /** Optional bytes sent to the command after the process-group start barrier. */
   readonly stdin?: string | undefined;
   /** Where to write the complete output. Omit for a command whose answer is its stdout. */
@@ -216,7 +219,7 @@ export function environmentNames(env: Readonly<Record<string, string | undefined
  * environment, and describe how it ended.
  *
  * It never throws and never classifies a failure from what the command
- * printed: a timeout is Node's `killed`, a spawn failure is Node's string
+ * printed: a timeout is the observed quiet interval, a spawn failure is Node's string
  * `code`, a cancellation is the caller's signal, and everything else is the
  * exit code the command itself chose.
  */
@@ -232,20 +235,35 @@ export async function runCommand(request: CommandRequest): Promise<CommandRun> {
   }
 
   const maxBuffer = request.maxBytes ?? outputCapBytes;
+  let idleExpired = false;
   try {
     const { stdout, stderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      let completed = false;
       const child = execFileCb('bash', [processGroupCleanupScript, command, ...args], {
         cwd: request.cwd,
         env: request.env,
         ...(request.signal === undefined ? {} : { signal: request.signal }),
-        timeout: request.timeoutMs,
         maxBuffer,
         encoding: 'utf8',
       }, (error, stdout, stderr) => {
+        completed = true;
+        clearTimeout(idleTimer);
         const clean = stderr.replace(/^RAMIFY_GROUP:\d+\r?\n/u, '');
         if (error === null) resolve({ stdout, stderr: clean });
         else reject(Object.assign(error, { stdout, stderr: clean }));
       });
+      // Observe command output, never a polling heartbeat. This interval
+      // detects a potentially stalled command; its age alone is irrelevant.
+      const progress = () => {
+        if (completed) return;
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => { idleExpired = true; child.kill('SIGTERM'); }, request.timeoutMs);
+        request.onProgress?.();
+      };
+      progress();
+      child.stdout?.on('data', (part: string | Buffer) => { if (part.length > 0) progress(); });
+      child.stderr?.on('data', (part: string | Buffer) => { if (part.length > 0) progress(); });
       // The wrapper reports its child's group ID before the child's stdin
       // barrier opens. A crash before registration sends EOF, so the requested
       // command cannot start without the durable process registration.
@@ -276,7 +294,7 @@ export async function runCommand(request: CommandRequest): Promise<CommandRun> {
     if (error.name === 'AbortError' || error.code === 'ABORT_ERR') {
       return finish(request, startedAt, startedHr, stdout, stderr, { kind: 'cancelled' }, false);
     }
-    if (error.killed === true) {
+    if (idleExpired) {
       return finish(request, startedAt, startedHr, stdout, stderr, { kind: 'timed-out', timeoutMs: request.timeoutMs }, false);
     }
     if (typeof error.code === 'string') {

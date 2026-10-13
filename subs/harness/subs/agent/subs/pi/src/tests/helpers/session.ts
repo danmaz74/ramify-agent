@@ -37,10 +37,13 @@ export function memoryStore() {
 }
 /** Installed supported serializer with entirely scripted HTTP replies and a public neutral store. */
 export async function preservingPi(cleanups: Array<() => Promise<void>>, outputs: Parameters<typeof nativeCodexRuntime>[0], options: {
+  nativeOptions?: Parameters<typeof nativeCodexRuntime>[1];
+  nativeCompaction?: { reserveTokens?: number; keepRecentTokens?: number };
   files?: Record<string, string>; tools?: readonly ToolDefinition[]; builtins?: readonly ('read'|'grep'|'find'|'ls'|'edit'|'write')[];
   verdicts?: SubmissionVerdict[]; model?: string; policy?: SessionExecutionPolicy; instructions?: string;
 } = {}) {
-  const places = await workspace(cleanups, options.files); const native = await nativeCodexRuntime(outputs); cleanups.push(native.remove);
+  const places = await workspace(cleanups, options.files); const native = await nativeCodexRuntime(outputs, options.nativeOptions); cleanups.push(native.remove);
+  if (options.nativeCompaction) await writeFile(join(native.agentDirectory, 'settings.json'), JSON.stringify({ compaction: options.nativeCompaction }));
   const memory = memoryStore(); const source: PiRuntimeSource = { runtime: async () => native.runtime, agentDirectory: native.agentDirectory, model: options.model ?? 'openai-codex/gpt-5.6-sol' };
   const agent = createPiAgentOn(source); const operations = agent.bindSessionStore!(memory.store);
   const policy: SessionExecutionPolicy = options.policy ?? { context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, authority: { write: true }, validator: { revision: 1 }, destination: { record: 'map' } };

@@ -820,3 +820,34 @@ describe('CF15: a work item\'s review deadline', () => {
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 4, complete: 3, partial: 0, notVerified: 1, pending: 0 });
   }, 60_000);
 });
+
+
+test('Plan 43 context observation retains the pending correction before ordinary final qualification', async () => {
+  const root = await reviewTarget(cleanups);
+  const original = architect();
+  const run = await reviewRun(root, cleanups, {
+    ...correctionScenario, continuity: true,
+    architect: original.map((turn, index) => index === 4
+      ? [{ kind: 'context' as const, tokens: 205_728, window: 272_000 }, ...turn] : turn),
+  });
+  const { service, runId, agent, events } = run;
+  expect(onlyRun(service, plan).state).toBe('completed');
+  const correction = eventsOf(events, 'iteration-assigned').find(event => event.data.corrects === 'wi-001.rc01')!;
+  const accepted = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === correction.data.iteration)!;
+  expect(accepted.data).toMatchObject({ outcome: 'accepted', commit: 'revision-04' });
+  expect(accepted.data.checkFindings).toEqual([expect.objectContaining({ type: 'check-finding-decided', data: expect.objectContaining({
+    checkFinding: 'cf-0001', decision: expect.objectContaining({ decision: expect.objectContaining({ action: 'claim-repair', candidate: { kind: 'tree', id: correctedTree } }) }),
+  }) })]);
+  expect(listOf(service, runId).find(finding => finding.id === 'cf-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
+  const parentTurns = agent!.sessions.filter(session => session.spec.role === 'local-architect' && session.spec.submission.name !== 'submit_reconciliation');
+  const correctionTurn = parentTurns.find(session => session.spec.prompt.includes('Reconciliation wi-001.rc01') && session.spec.submission.name === 'submit_work_item_result')!;
+  expect(correctionTurn.spec.session.mode).toBe('continue');
+  expect(eventsOf(events, 'invocation-ended').some(event => event.data.ended === 'context-budget-reached' || event.data.ended === 'resource-pending')).toBe(false);
+  expect(eventsOf(events, 'operation-recovery-paused')).toHaveLength(0);
+  const final = eventsOf(events, 'gate-attempted').find(event => event.data.checkpoint === 'final')!;
+  expect(accepted.sequence).toBeLessThan(final.sequence);
+  const finalRecord = JSON.parse(await readFile(runPath(root, plan, runId, runLayout.gate(final.data.gate)), 'utf8'));
+  expect(finalRecord).toMatchObject({ verdict: 'passed', audited: 'revision-04' });
+  expect(eventsOf(events, 'candidate-bound-to-gate').find(event => event.data.gate === final.data.gate)?.data.tree).toBe(correctedTree);
+  run.git.assertComplete();
+}, 60_000);

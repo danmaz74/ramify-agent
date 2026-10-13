@@ -560,7 +560,7 @@ describe('a record of an unsupported version', () => {
     const error = errorResponseSchema.parse(body).error;
     expect(error.code).toBe('unsupported-version');
     expect(error.message).toContain('(missing policy)');
-    expect(error.message).toContain('run-policy/7');
+    expect(error.message).toContain('run-policy/8');
     expect(error.message).toContain('fresh run is required');
     for (const path of [protocolPaths.runEvents(plan, runId, 0), protocolPaths.runMetrics(plan, runId), protocolPaths.runGate(plan, runId, 'ga-0001')]) {
       expect(errorResponseSchema.parse((await get(server, path)).body).error.code).toBe('unsupported-version');

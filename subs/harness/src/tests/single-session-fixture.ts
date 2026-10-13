@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, vi } from 'vitest';
-import { createScriptedAgent, type ScriptStep } from '../../subs/agent/src/scripted.js';
+import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { RamifyCheckResult } from '../../subs/evidence/src/ramify-cli.js';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { observationSchema, type Observation } from '../run/observations.js';
@@ -67,9 +67,16 @@ interface Session {
 }
 
 interface SessionBoundaries {
+  readonly changedObservations?: number;
+  readonly headObservations?: number;
+  readonly resourceInspections?: number;
+  readonly recoveryCandidates?: readonly string[];
+  readonly successorInvocations?: number;
   readonly changed?: readonly string[] | undefined;
   readonly ramify?: readonly { form: 'changed' | 'complete'; outcome: 'checked' | 'findings' | 'not-checked' }[] | undefined;
   readonly gate?: readonly DirectCheckStep[] | undefined;
+  /** Whether the scenario supplies gate execution answers when the caller asks for a gate. */
+  readonly gateRuns?: boolean;
   readonly commandExecution?: CommandRunner | undefined;
   readonly command?: string | undefined;
   readonly starts?: boolean | undefined;
@@ -78,7 +85,7 @@ interface SessionBoundaries {
 
 export async function session(
   root: string,
-  steps: readonly ScriptStep[],
+  steps: Script,
   extra: Partial<SingleSessionOptions> = {},
   boundaries: SessionBoundaries = {},
 ): Promise<Session> {
@@ -93,11 +100,19 @@ export async function session(
     currentHead: async projectRoot => { expect(projectRoot).toBe(root); return 'single-session-base'; },
     changedPaths: async projectRoot => {
       expect(projectRoot).toBe(root);
-      expect(changedCalls, 'exhausted changed paths').toBeLessThan(5);
+      expect(changedCalls, 'exhausted changed paths').toBeLessThan(5 + (boundaries.successorInvocations ?? 0) * 3);
       changedCalls += 1;
       return changedCalls === 1 ? [] : changed;
     },
+    previewCandidateTree: async projectRoot => {
+      expect(projectRoot).toBe(root);
+      const tree = boundaries.recoveryCandidates?.[candidateCalls];
+      candidateCalls++;
+      if (tree === undefined) throw new Error('Scripted source evidence is unavailable');
+      return { repositoryRoot: root, head: 'single-session-base', tree };
+    },
   });
+  let candidateCalls = 0;
   const answers = boundaries.ramify ?? [];
   let answerIndex = 0;
   const ownership = literalOwnershipRamify(root, true, (boundaries.starts ?? true) ? { materializeFrom: extra.module === 'collection-review' ? '' : notesDirectory } : {});
@@ -134,8 +149,9 @@ export async function session(
   function checkCompletion() {
     expect(answerIndex, 'required Ramify replies').toBe(answers.length); checkExecution.assertComplete(); expect(git.unexpected, 'caught Git violations').toEqual([]);
     const starts = boundaries.starts ?? true;
-    expect(git.currentHead).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 2 : 1) : 0);
-    expect(git.changedPaths).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 5 : 4) : boundaries.preparationChangedPaths ?? 0);
+    expect(git.currentHead).toHaveBeenCalledTimes(boundaries.headObservations ?? (starts ? (extra.gate === true && boundaries.gateRuns !== false ? 2 : 1) + (boundaries.resourceInspections ?? 0) : 0));
+    expect(git.changedPaths).toHaveBeenCalledTimes(boundaries.changedObservations ?? (starts ? (extra.gate === true && boundaries.gateRuns !== false ? 5 : 4) + (boundaries.successorInvocations ?? 0) * 3 : boundaries.preparationChangedPaths ?? 0));
+    expect(candidateCalls).toBe(boundaries.resourceInspections ?? 0);
     expect(git.commitAccepted).not.toHaveBeenCalled();
   }
   const command = strictSessionCommand(root, extra.module === 'collection-review' ? join(root, 'src') : join(root, notesDirectory, 'src'), boundaries.command, boundaries.commandExecution);
@@ -158,8 +174,8 @@ export async function session(
   checkExecution.assertComplete();
   expect(git.unexpected).toEqual([]);
   const starts = boundaries.starts ?? true;
-  expect(git.currentHead).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 2 : 1) : 0);
-  expect(git.changedPaths).toHaveBeenCalledTimes(starts ? (extra.gate === true ? 5 : 4) : boundaries.preparationChangedPaths ?? 0);
+  expect(git.currentHead).toHaveBeenCalledTimes(boundaries.headObservations ?? (starts ? (extra.gate === true && boundaries.gateRuns !== false ? 2 : 1) + (boundaries.resourceInspections ?? 0) : 0));
+  expect(git.changedPaths).toHaveBeenCalledTimes(boundaries.changedObservations ?? (starts ? (extra.gate === true && boundaries.gateRuns !== false ? 5 : 4) + (boundaries.successorInvocations ?? 0) * 3 : boundaries.preparationChangedPaths ?? 0));
   expect(git.commitAccepted).not.toHaveBeenCalled();
   return { result, agent, events, git };
 }

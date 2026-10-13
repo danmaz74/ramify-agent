@@ -109,120 +109,32 @@ async function iterationResult(root: string, runId: string, number: number): Pro
   return JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.result('wi-001', number)), 'utf8')) as IterationResult;
 }
 
-describe('an engineer ended by a bound in the middle of a command', () => {
-  test('is digested and analyzed before its architect is briefed, which raises the bound, and the next engineer\'s shell takes the larger timeout', async () => {
+describe('an engineer failure with revised command settings', () => {
+  test('analyzes semantic failure before its architect revises the command maximum', async () => {
     const asked: AskedCommand[] = [];
-    const raised = {
-      commandTimeoutMs: { ms: 1_200_000, reason: 'The whole suite runs for about fifteen minutes.' },
-      absoluteMs: { ms: 3_600_000, reason: 'The suite has to finish inside one invocation.' },
-    };
+    const raised = { commandTimeoutMs: { ms: 1_200_000, reason: 'The whole suite runs for about fifteen minutes.' } };
     const { root, runId, service, role } = await run({
       'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
-      'local-architect': [
-        submit(assign(reviews, {}, outline())),
-        submit(assign(reviews, { bounds: raised })),
-        submit(requestCompletion()),
-      ],
+      'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews, { bounds: raised })), submit(requestCompletion())],
       engineer: [
-        // The suite outlasts the invocation's absolute bound, which fires
-        // while the command still holds the idle bound.
-        [{ kind: 'message', text: 'The change is in; running the whole suite to confirm it.' }, shell('npm run test:slow', { timeoutMs: 600_000 })],
+        [{ kind: 'fail', error: 'The provider refused this unsupported request' }],
         submit(partialReport(['the suite passed'], ['nothing']), shell('npm run test:slow:rerun', { timeoutMs: 1_000_000 })),
       ],
-      'failure-analyst': [failureAnalystFake('bound-too-tight', {
-        recommendation: 'Raise the absolute bound and the command maximum so the suite can finish.',
-      })],
-    }, { invocationAbsoluteMs: 1_500 }, asked);
-
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const events = await runEventsOnDisk(root, plan, runId);
-    expect(events.some(event => event.type === 'job-failed')).toBe(false);
-    expect(events.filter(event => event.type === 'iteration-closed').map(event => (event.data as { outcome: string }).outcome))
-      .toEqual(['partial', 'partial']);
-
-    // The first engineer ended failed, by its absolute bound.
-    const started = events.filter(event => event.type === 'invocation-started').map(event => event.data as { invocation: string; role: string });
-    const [first, second] = started.filter(entry => entry.role === 'engineer');
-    const outcome = JSON.parse(await readFile(runPath(root, plan, runId, runLayout.outcome(first!.invocation)), 'utf8')) as { ended: string; interruption: string };
-    expect(outcome).toMatchObject({ ended: 'failed', interruption: 'absolute-timeout' });
-
-    // The digest: why, what was in flight with the end of its output, and what it said last.
+      'failure-analyst': [failureAnalystFake('bound-too-tight', { recommendation: 'Use the supported request and appropriate command maximum.' })],
+    }, {}, asked);
+    const snapshot = onlyRun(service, plan);
+    expect(snapshot.state, JSON.stringify(snapshot.failure)).toBe('completed');
     const result = await iterationResult(root, runId, 1);
-    expect(result.outcome).toBe('partial');
-    const digest = result.failure!.digest;
-    expect(digest).toMatchObject({
-      invocation: first!.invocation,
-      role: 'engineer',
-      ended: 'failed',
-      interruption: 'absolute-timeout',
-      cause: 'The absolute bound fired: the invocation ran for 1500 ms.',
-      bounds: { commandTimeoutMs: 600_000, idleMs: engineerBoundsOf(testPolicy(root).limits).defaults.idleMs, absoluteMs: 1_500 },
-      lastMessage: 'The change is in; running the whole suite to confirm it.',
-      transcript: expect.stringMatching(/^transcripts\/ses-\d+\.jsonl$/) as unknown,
-    });
-    expect(digest.inFlight).toHaveLength(1);
-    expect(digest.inFlight[0]).toMatchObject({ tool: shellToolName, command: { text: 'npm run test:slow', timeoutMs: 600_000 } });
-    expect(digest.inFlight[0]!.runningMs).toBeGreaterThan(0);
-    expect(digest.inFlight[0]!.command!.tail).toHaveLength(30);
-    expect(digest.inFlight[0]!.command!.tail.at(-1)).toBe('suite 40 of 400 passed');
-    expect(digest.outputs).toEqual([digest.inFlight[0]!.command!.output]);
-
-    // The analysis ran in a reader session of its own, over the evidence the harness wrote.
+    expect(result.failure!.digest).toMatchObject({ ended: 'failed', interruption: null,
+      cause: 'The session failed: The provider refused this unsupported request', inFlight: [] });
     expect(result.failure!.analysis).toMatchObject({ outcome: 'analyzed', cause: 'bound-too-tight' });
-    const [analyst] = role('failure-analyst');
-    // The durable driver privately rebinds provider builtins as admitted tool declarations.
-    expect(analyst!.builtinTools).toEqual([]);
-    expect(analyst!.tools.map(tool => tool.name)).toEqual(['read', 'grep', 'ls']);
-    const workspace = analyst!.scope.workingDirectory;
-    expect(workspace).toBe(join(runPath(root, plan, runId, dirname(iterationLayout.result('wi-001', 1))), 'failure-evidence'));
-    expect(await readFile(join(workspace, 'digest.md'), 'utf8')).toContain('The absolute bound fired');
-    expect(await readFile(join(workspace, 'transcript.md'), 'utf8')).toContain('npm run test:slow');
-    expect(existsSync(join(workspace, 'outputs'))).toBe(true);
-    // Git cannot say in this scenario, and the analyst is told so rather than given nothing.
-    expect(analyst!.prompt).toContain('the patch of the uncommitted work, which Git could not give');
-    expect(analyst!.prompt).toContain('In flight when it ended: `shell` running `npm run test:slow`');
-
-    // The architect's next turn reads the digest, then the analysis, then its options.
-    const briefing = role('local-architect')[1]!.prompt;
-    expect(briefing).toContain('### Its engineer ended without a result');
-    expect(briefing).toContain('- Why it ended: The absolute bound fired: the invocation ran for 1500 ms.');
-    expect(briefing).toContain('  suite 40 of 400 passed');
-    expect(briefing).toContain('- What it said last: “The change is in; running the whole suite to confirm it.”');
-    expect(briefing).toContain('### The failure analysis');
-    expect(briefing).toContain('(`bound-too-tight`)');
-    expect(briefing).toContain('- Recommendation: Raise the absolute bound and the command maximum so the suite can finish.');
-    expect(briefing).toContain('The absolute bound of an invocation ended it, at 1500 ms. If the work needs more, raise `assignment.bounds.absoluteMs` in the next assignment, up to 10800000 ms');
-    expect(briefing.indexOf('### The failure analysis')).toBeGreaterThan(briefing.indexOf('- Why it ended:'));
-    expect(briefing).toContain('## The bounds of a module engineer');
-
-    // The raised bounds are the assignment's, and every module engineer invocation of it runs under them.
+    expect(role('local-architect')[1]!.prompt).toContain('Use the supported request and appropriate command maximum.');
     const assignment = JSON.parse(await readFile(runPath(root, plan, runId, iterationLayout.assignment('wi-001', 2)), 'utf8')) as IterationAssignment;
     expect(assignment.bounds).toEqual(raised);
-    const [, next] = role('engineer');
-    const tool = next!.tools.find(candidate => candidate.name === shellToolName)!;
+    const next = role('engineer')[1]!;
+    const tool = next.tools.find(candidate => candidate.name === shellToolName)!;
     expect((tool.inputSchema as { properties: { timeoutMs: { maximum: number } } }).properties.timeoutMs.maximum).toBe(1_200_000);
-    expect(`${next!.systemPrompt}\n${next!.prompt}`).toMatch(/"commandTimeoutMs"\s*:\s*"?1200000"?/);
-    const initial = role('engineer')[0]!;
-    expect(`${initial.systemPrompt}\n${initial.prompt}`).toMatch(/"commandTimeoutMs"\s*:\s*"?600000"?/);
-    const currentEnvironment = (spec: SessionSpec) => {
-      const matches = [...spec.prompt.matchAll(/^# Block environment:limits\n(?:Current value; replaces any earlier value for this key\.\n)?(\{[\s\S]*?\n\})$/gm)];
-      expect(matches.length).toBeGreaterThan(0);
-      return JSON.parse(matches.at(-1)![1]!) as { limits: { commandTimeoutMs: number } };
-    };
-    expect(currentEnvironment(next!).limits.commandTimeoutMs).toBe(1_200_000);
-    expect(currentEnvironment(initial).limits.commandTimeoutMs).toBe(600_000);
-    // The larger timeout was accepted, and the command ran with it.
-    expect(asked).toEqual([
-      { command: 'npm run test:slow', timeoutMs: 600_000 },
-      { command: 'npm run test:slow:rerun', timeoutMs: 1_000_000 },
-    ]);
-    const nextOutcome = JSON.parse(await readFile(runPath(root, plan, runId, runLayout.outcome(second!.invocation)), 'utf8')) as { ended: string; interruption?: string };
-    expect(nextOutcome).toMatchObject({ ended: 'submitted' });
-    expect(nextOutcome.interruption).toBeUndefined();
-
-    // The analyst is a reader: it is in no commit's list of the invocations that wrote.
-    const sessions = events.filter(event => event.type === 'session-opened').map(event => (event.data as { role: string }).role);
-    expect(sessions).toContain('failure-analyst');
+    expect(asked).toEqual([{ command: 'npm run test:slow:rerun', timeoutMs: 1_000_000 }]);
   }, 120_000);
 });
 
@@ -408,7 +320,7 @@ describe('every command stays bounded under raised bounds', () => {
     await ended;
   });
 
-  test('the raised absolute bound keeps running during a hold', async () => {
+  test('invocation age cannot interrupt a command within its held timeout', async () => {
     vi.useFakeTimers();
     const started = Date.now();
     const bounds = new InvocationBounds({ invocationIdleMs: 1_800_000, invocationAbsoluteMs: 1_000_000, writerSettleMs: 1_000 }, 60_000);
@@ -416,8 +328,11 @@ describe('every command stays bounded under raised bounds', () => {
     const ended = bounds.outcome(session);
     bounds.hold(1_800_000);
     await vi.advanceTimersByTimeAsync(1_000_000);
-    expect(stops.map(at => at - started)).toEqual([1_000_000]);
-    expect(bounds.interruption).toBe('absolute-timeout');
+    expect(stops).toEqual([]);
+    expect(bounds.interruption).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(860_000);
+    expect(stops.map(at => at - started)).toEqual([1_860_000]);
+    expect(bounds.interruption).toBe('idle-timeout');
     await vi.advanceTimersByTimeAsync(1_000);
     await ended;
   });

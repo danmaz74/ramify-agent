@@ -5,15 +5,16 @@ import type { GitService } from '../../subs/evidence/src/git.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
 import { canonicalJson } from '../jobs/commands.js';
-import type { RecordRef as CommitRecord } from '../jobs/commit.js';
+import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import { Mutex, PriorityMutex } from '../jobs/mutex.js';
 import { jobSchemaVersion, planStateDirectory } from '../jobs/records.js';
 import { jobIdSchema, planIdSchema } from '../interfaces/protocol/ids.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
+import { recoveryHash } from '../run/recovery-admission.js';
+import { acquireProjectLock, lockPath, ProjectLockError, type ProjectLock } from '../store/lock.js';
 import { ensureStateDirectory } from '../store/state-directory.js';
 import { RunLog } from '../run/log.js';
-import { manualRunRecordSchema, runDirectory, runLayout, type ManualRunRecord, type RunPolicy, type SessionId } from '../run/records.js';
+import { manualRunRecordSchema, operationRecoverySchema, runDirectory, runLayout, type ManualRunRecord, type RunPolicy, type SessionId } from '../run/records.js';
 import { HarnessSessionOperations } from '../run/session-operations.js';
 import { nodeProcessGroups, WriterOwnership, type ProcessGroups } from '../run/writer.js';
 import { ContentStore } from '../transcripts/store.js';
@@ -39,6 +40,64 @@ import { committedBody, InvocationRunner, type LiveInvocation, type RunnerRun } 
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+/** Durable exact command replies are read under the caller's project lock. */
+export async function readManualResourceResult<T>(directory: string, commandId: string, binding: unknown): Promise<T | null> {
+  let bytes: string;
+  try { bytes = await readFile(join(directory, runLayout.events), 'utf8'); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
+  const path = join('resource-commands', `${recoveryHash(commandId)}.json`);
+  let stored: { schema: string; commandId: string; binding: string; resultHash: string; result: T } | undefined;
+  for (const line of bytes.split('\n').filter(Boolean)) {
+    let record: { event?: { type?: string; data?: { commandId?: string; resultHash?: string } }; records?: Array<{ path: string; body: typeof stored }> };
+    try { record = JSON.parse(line) as typeof record; } catch { continue; }
+    if (record.event?.type !== 'operation-recovery-replied' || record.event.data?.commandId !== commandId) continue;
+    const reply = record.records?.find(item => item.path === path)?.body;
+    if (!reply || reply.resultHash !== record.event.data.resultHash) throw new Error('Recovery command reply has no unique authenticated record');
+    if (stored && canonicalJson(stored) !== canonicalJson(reply)) throw new Error('Recovery command has conflicting committed replies');
+    stored = reply;
+  }
+  if (!stored) return null;
+  if (stored.schema !== 'ramify-agent.manual-resource-command-result/1' || stored.commandId !== commandId
+    || stored.binding !== recoveryHash(binding) || stored.resultHash !== recoveryHash(stored.result)) throw new Error('Recovery command conflicts with its recorded result');
+  return stored.result;
+}
+
+export async function recordManualResourceResult(directory: string, commandId: string, binding: unknown, result: unknown): Promise<void> {
+  const path = join('resource-commands', `${recoveryHash(commandId)}.json`);
+  const body = { schema: 'ramify-agent.manual-resource-command-result/1', commandId, binding: recoveryHash(binding), resultHash: recoveryHash(result), result };
+  const log = await RunLog.open(join(directory, runLayout.events), basename(directory));
+  await commitRecord(log.ledger, { event: log.next({ type: 'operation-recovery-replied', data: { commandId, resultHash: body.resultHash } }, new Date()),
+    records: [{ path, id: commandId, revision: 1, body }] });
+}
+
+/** Observe an already admitted command without acquiring execution authority. */
+export async function waitManualResourceResult<T>(projectRoot: string, directory: string, commandId: string, binding: unknown,
+  ownerToken: string, signal?: AbortSignal): Promise<T | null> {
+  const repeated = await readManualResourceResult<T>(directory, commandId, binding);
+  if (repeated) return repeated;
+  const intent = await readFile(join(directory, 'resource-command-intents', `${recoveryHash(commandId)}.json`), 'utf8').catch(() => null);
+  if (intent !== null && (JSON.parse(intent) as { binding?: string }).binding !== recoveryHash(binding)) throw new Error('Recovery command conflicts with its admitted content');
+  const bytes = await readFile(join(directory, runLayout.events), 'utf8').catch(() => '');
+  const admitted = bytes.split('\n').filter(Boolean).some(line => {
+    try { const stored = JSON.parse(line) as { event?: unknown };
+      const event = (stored.event ?? stored) as { type?: string; data?: { command?: { commandId?: string } } };
+      return event.type === 'operation-recovery-resumed' && event.data?.command?.commandId === commandId;
+    } catch { return false; }
+  });
+  if (!admitted) return null;
+  for (;;) {
+    const result = await readManualResourceResult<T>(directory, commandId, binding);
+    if (result) return result;
+    const lock = await readFile(join(projectRoot, lockPath), 'utf8').catch(() => null);
+    if (signal?.aborted || lock === null || (JSON.parse(lock) as { token?: string }).token !== ownerToken) return null;
+    await new Promise<void>(resolve => {
+      const timer = setTimeout(done, 20);
+      function done() { clearTimeout(timer); signal?.removeEventListener('abort', done); resolve(); }
+      signal?.addEventListener('abort', done, { once: true });
+    });
+  }
+}
+
 /** Where the harness keeps the session operations every run and manual run starts its sessions through. */
 export const sessionOperationsDirectory = (projectRoot: string): string => join(projectRoot, 'plans', '.harness', 'session-operations');
 
@@ -55,6 +114,7 @@ export class ManualRun implements RunnerRun {
   invocationBase = '';
   /** The limits the next invocation's step inputs carry, which replace the recorded policy's for it. */
   invocationLimits: RunPolicy['limits'] | undefined;
+  effectivePolicy: RunPolicy | undefined;
   /** The commit-and-audit effect of a `step gate` in progress, as a run holds its gate's. */
   gating: Promise<unknown> | undefined;
 
@@ -67,8 +127,10 @@ export class ManualRun implements RunnerRun {
   get createdAt(): string { return this.record.createdAt; }
   /** The commit the manual run was created at: the accepted boundary before its first passing gate. */
   get base(): string { return this.record.base; }
+  get originalPolicy(): RunPolicy { return this.record.policy; }
   get policy(): RunPolicy {
-    return this.invocationLimits === undefined ? this.record.policy : { ...this.record.policy, limits: this.invocationLimits };
+    const policy = this.effectivePolicy ?? this.record.policy;
+    return this.invocationLimits === undefined ? policy : { ...policy, limits: this.invocationLimits };
   }
 
   path(relative: string): string {
@@ -172,10 +234,12 @@ export async function openManualRun(options: OpenManualRunOptions): Promise<Open
   catch (error) { return refused(`the manual run's log cannot be read: ${message(error)}`); }
   const writer = new WriterOwnership({
     settleMs: record.policy.limits.writerSettleMs,
-    tree: { changed: () => git.changedPaths(projectRoot).catch(() => []) },
+    tree: { changed: () => git.changedPaths(projectRoot) },
     groups: options.groups ?? nodeProcessGroups,
   });
-  return { status: 'opened', run: new ManualRun(record, directory, log, writer), created };
+  const run = new ManualRun(record, directory, log, writer);
+  run.effectivePolicy = log.all('continuity-policy-adopted').at(-1)?.data.policy;
+  return { status: 'opened', run, created };
 }
 
 /**
@@ -233,6 +297,14 @@ export function manualRunner(options: {
   let operations: Promise<HarnessSessionOperations> | undefined;
   const open = (agent: AgentPort) => operations ??= HarnessSessionOperations.open(sessionOperationsDirectory(options.projectRoot), agent);
   const runner = new InvocationRunner<ManualRun>({
+    adoptContinuity: async (run, occurrenceId) => {
+      if (run.policy.continuity) return;
+      const defaults = defaultRunPolicy({ projectRoot: options.projectRoot });
+      const original = run.policy;
+      const effective: RunPolicy = { ...original, version: 'run-policy/8', continuity: defaults.continuity, context: defaults.context, recovery: defaults.recovery };
+      await runner.write(run, { type: 'continuity-policy-adopted', data: { from: original.version, to: 'run-policy/8', occurrenceId, policy: effective } });
+      run.effectivePolicy = effective;
+    },
     projectRoot: options.projectRoot,
     git: options.git,
     model: options.model,
@@ -246,7 +318,7 @@ export function manualRunner(options: {
     refusal: () => null,
     refused: async () => undefined,
     taskBrief: async () => { throw new Error('A manual run\'s invocation brings its own task brief'); },
-    previewCandidateTree: async () => { throw new Error('A manual run records no candidate tree'); },
+    previewCandidateTree: () => options.git.previewCandidateTree(options.projectRoot),
   });
   return {
     runner,
@@ -364,11 +436,17 @@ export async function openLockedManualRun(options: {
  * over a writer that may still be writing.
  */
 export function unsettledWriter(log: RunLog): string | null {
+  const reconciled = new Set(log.all('operation-recovery-resumed').flatMap(event => {
+    const record = log.ledger.replay().flatMap(entry => entry.transaction.records).find(record => record.path === runLayout.operationRecovery(event.data.occurrenceId, event.data.revision));
+    const recovery = operationRecoverySchema.safeParse(record?.body);
+    return recovery.success ? recovery.data.reconciledInvocations ?? [] : [];
+  }));
   const ended = new Set(log.all('invocation-ended').map(event => event.data.invocation));
   const running = log.all('invocation-started').filter(event => !ended.has(event.data.invocation));
   if (running.length > 0) return `invocation ${running.map(event => event.data.invocation).join(', ')} of the manual run started and has not ended; its writer is not settled`;
   const released = new Map(log.all('writer-released').map(event => [event.data.invocation, event.data.confirmed] as const));
   for (const acquired of log.all('writer-acquired')) {
+    if (reconciled.has(acquired.data.invocation)) continue;
     const confirmed = released.get(acquired.data.invocation);
     if (confirmed === undefined) return `the writer ${acquired.data.invocation} of the manual run was never released`;
     if (!confirmed) return `the writer ${acquired.data.invocation} of the manual run was released without confirming that its processes ended; its settlement is not known`;

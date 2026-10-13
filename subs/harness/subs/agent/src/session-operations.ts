@@ -1,9 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { interruptionEvidence } from './interfaces/port.js';
 import { SessionDriverUnavailableError } from './interfaces/session-operations.js';
 import type { GuardedCall, SessionOutcome, SubmissionVerdict, ToolResult } from './interfaces/port.js';
 import type {
-  AgentSessionPoint, AgentSessionSnapshot, ContinueSessionInput, SessionEffectRecord, SessionExecutionBindings,
+  AgentSessionPoint, AgentSessionSnapshot, ContinueSessionInput, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionBindings,
   SessionOperationHandle, SessionOperationKey, SessionOperationReceipt, SessionOperations, SessionOperationsOptions,
   SessionStore, SessionStoreRecord, SessionExecutionIdentity, SessionTaskInput, SessionToolChange, SessionTranscriptEntry,
 } from './interfaces/session-operations.js';
@@ -16,6 +16,7 @@ interface OperationBody {
   owner: { token: string; pid: number } | null;
   /** Internal idle evidence, committed only after all execution and publication drains. */
   quiescent?: boolean;
+  reconciledEffects?: Array<{ callId: string; receiptIdentity: string }>;
   phase: 'intent' | 'dispatched' | 'terminal'; receipt: SessionOperationReceipt | null;
 }
 interface Active { abort: AbortController; handle: SessionOperationHandle; stop: () => Promise<SessionOperationReceipt> }
@@ -177,7 +178,13 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
       if (prior) return completedHandle(prior);
       const loaded = await readSession(input.runId, input.sessionId);
       if (!loaded || !loaded.body.snapshot.available) return completedHandle(receipt(input, input.sessionId, 'unavailable', 'Session unavailable', null, null, null, true));
-      if (loaded.body.snapshot.activeOperation !== null || !equal(loaded.body.snapshot.currentPoint, input.expectedPoint)) return completedHandle(receipt(input, input.sessionId, 'conflict', 'Expected point is stale or session active'));
+      if (loaded.body.snapshot.activeOperation !== null) return completedHandle(receipt(input, input.sessionId, 'conflict', 'Session has an active operation'));
+      if (!equal(loaded.body.snapshot.currentPoint, input.expectedPoint)) {
+        if (!loaded.body.points.some(snapshot => equal(snapshot.currentPoint, input.expectedPoint))) {
+          return completedHandle(receipt(input, input.sessionId, 'conflict', 'Expected point is not an authenticated point of this session'));
+        }
+        return completedHandle(receipt(input, input.sessionId, 'unavailable', 'The exact expected point is no longer the current continuation point', null, null, null, true));
+      }
       let snapshot: Snapshot;
       try {
         validateBindings(input.task, input.policy, input.bindings);
@@ -210,6 +217,40 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
       if (running) return running.stop();
       const value = prior.body.receipt ?? await settle(input, { kind: 'stopped' }, 'Stopped during recovery');
       return (await completedHandle(value)).settled();
+    },
+    async reconcileEffects(input) {
+      const prior = await readOperation(input);
+      if (!prior || prior.body.sessionId !== input.sessionId || prior.body.phase !== 'terminal' || prior.body.quiescent !== true) throw new Error('Effect reconciliation requires an authenticated quiescent terminal owner');
+      const original = prior.body.input as unknown as Omit<ContinueSessionInput, 'bindings'>;
+      if (original.task.policyIdentity !== input.policyIdentity || original.task.validatorIdentity !== input.validatorIdentity
+        || original.task.destinationIdentity !== input.destinationIdentity) throw new Error('Effect reconciliation task bindings conflict');
+      const effects = [...prior.body.effects];
+      const reconciled = [...prior.body.reconciledEffects ?? []];
+      for (const completion of input.effects) {
+        const effect = effects.find(effect => effect.callId === completion.callId);
+        if (!effect || effect.tool !== completion.tool || !equal(effect.input, completion.input)
+          || effect.tool === original.task.submissionTool || !completion.receiptIdentity) throw new Error('Effect receipt differs from the original non-submission intent');
+        const receipt = await store.read(input.runId, `effect-receipt:${input.operationId}:${completion.callId}`);
+        const fact = receipt?.body as unknown as SessionEffectOwnerReceipt | undefined;
+        if (!fact || fact.runId !== input.runId || fact.operationId !== input.operationId || fact.sessionId !== input.sessionId
+          || fact.owner.token !== prior.body.owner?.token || fact.tool !== effect.tool || !equal(fact.input, effect.input)
+          || fact.policyIdentity !== input.policyIdentity || fact.validatorIdentity !== input.validatorIdentity || fact.destinationIdentity !== input.destinationIdentity
+          || createHash('sha256').update(JSON.stringify(fact)).digest('hex') !== completion.receiptIdentity || !equal(fact.result, completion.result)
+          || fact.thrown || fact.result.isError) throw new Error('No qualifying immutable owner completion receipt');
+        const recorded = reconciled.find(effect => effect.callId === completion.callId);
+        if (recorded && recorded.receiptIdentity !== completion.receiptIdentity) throw new Error('Effect has conflicting owner receipts');
+        if (effect.phase === 'completed') {
+          if (!equal(effect.result, completion.result)) throw new Error('Known effect result differs from its owner receipt');
+          continue;
+        }
+        effects[effects.indexOf(effect)] = { ...effect, phase: 'completed', result: clone(completion.result) };
+        if (!recorded) reconciled.push({ callId: completion.callId, receiptIdentity: completion.receiptIdentity });
+      }
+      if (equal(prior.body.effects, effects)) return;
+      const body = { ...prior.body, effects, reconciledEffects: reconciled };
+      const published = await commit({ runId: input.runId, expected: [{ id: prior.record.id, revision: prior.record.revision }],
+        records: [record(input, prior.record.id, prior.record.revision + 1, body, false)], payloads: [...body.snapshot.transcript, ...body.provider].map(item => item.payloadId) });
+      if (published.kind === 'conflict') throw new Error(published.reason);
     },
     async inspect(runId, sessionId, expectedPoint) {
       const loaded = await readSession(runId, sessionId);
@@ -417,12 +458,27 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
           if (!decision.allow) return { text: decision.text, isError: true };
         }
         await assertLive();
-        await serial(() => updateOperation(key, body => ({ ...body, effects: [...body.effects, { callId, tool: name, input: clone(input), phase: 'intent', result: null, verdict: null }] }), owner.token));
+        const effectInput = clone(input);
+        await serial(() => updateOperation(key, body => ({ ...body, effects: [...body.effects, { callId, tool: name, input: effectInput, phase: 'intent', result: null, verdict: null }] }), owner.token));
         await assertLive();
         let executionError: unknown;
         let answer: ToolResult | SubmissionVerdict;
         try { answer = submission ? await bindings.submission.accept(input, abort.signal) : await tool!.execute(input, abort.signal, callId); }
         catch (error) { executionError = error; answer = { text: errorText(error), isError: true }; }
+        if (!submission) {
+          const original = current.body.input as unknown as Omit<ContinueSessionInput, 'bindings'>;
+          const fact: SessionEffectOwnerReceipt = { runId: key.runId, operationId: key.operationId, sessionId: current.body.sessionId,
+            callId, tool: name, input: effectInput, result: clone(answer) as ToolResult, thrown: executionError !== undefined,
+            owner: { ...owner }, policyIdentity: original.task.policyIdentity, validatorIdentity: original.task.validatorIdentity, destinationIdentity: original.task.destinationIdentity };
+          const receiptId = `effect-receipt:${key.operationId}:${callId}`;
+          const previous = await store.read(key.runId, receiptId);
+          if (previous && !equal(previous.body, fact)) throw new Error('Conflicting effect owner completion');
+          if (!previous) {
+            const persisted = await commit({ runId: key.runId, expected: [{ id: receiptId, revision: null }],
+              records: [record(key, receiptId, 1, fact, false)], payloads: [] });
+            if (persisted.kind === 'conflict') throw new Error(persisted.reason);
+          }
+        }
         await assertLive();
         // Retain known tool completion before running any potentially interrupted mutation check.
         // A handler that threw has finished: its failure is recorded as its known result.

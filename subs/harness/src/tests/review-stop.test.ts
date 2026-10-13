@@ -41,8 +41,7 @@ import { passingAudit } from './helpers/direct-check-execution.js';
  *
  * `approve-analysis` is also accepted by a run without the stop, before its
  * final verification and after it completed, and changes nothing but the
- * run's review. The time a run waited at its stop is not counted against
- * `runAbsoluteMs`.
+ * run's review. Elapsed run age does not refuse healthy pending work.
  */
 
 vi.mock('node:child_process', async original =>
@@ -184,7 +183,7 @@ describe('a run started with the review stop', () => {
     expect(done).toMatchObject({ state: 'completed', phase: 'ended', review: { reviewer: 'dana@example.com', at: approved.acceptedAt, duringRun: false } });
     const events = await runEventsOnDisk(root, plan, receipt.jobId);
     expect(events.map(event => event.type)).toEqual([
-      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'analysis-approved',
+      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'continuity-policy-adopted', 'analysis-approved',
       'gate-started', 'readiness-passed', 'scratch-setting-up', 'scratch-setup-complete',
       'nonfunctional-phase-started', 'candidate-prepared', 'nonfunctional-assessed', 'nonfunctional-round-closed',
       'gate-committing', 'gate-attempted', 'candidate-bound-to-gate', 'session-finished', 'job-completed',
@@ -431,7 +430,7 @@ describe('approve-analysis in a run without the stop', () => {
   }, 120_000);
 });
 
-describe('the run budget', () => {
+describe('elapsed run age', () => {
   /**
    * A run with the stop whose clock the test holds. Each session start moves
    * the clock by `perSession`, the analysis's three included (the intake, the
@@ -485,13 +484,13 @@ describe('the run budget', () => {
     await service.settled(plan, runId);
   }, 120_000);
 
-  test('the time outside the stop still is: the age reported excludes exactly the pause', async () => {
-    // The analysis's three sessions reach the stop within the budget, 1,200 ms in all, and the first turn after the approval finds it spent.
+  test('model execution after the stop stays eligible beyond the historical run allowance', async () => {
     const { root, runId, service, scripted } = await budgeted(400, 10_000);
+    await until(() => scripted.sessions.some(session => session.spec.submission.name === 'submit_work_item_result'));
+    expect(service.getRun(plan, runId)).toMatchObject({ state: 'running', phase: 'working', failure: null });
+    expect(scripted.sessions.length).toBeGreaterThan(3);
+    await service.execute(stopRun(plan, runId, version(service, runId)));
     await service.settled(plan, runId);
-    expect(onlyRun(service, plan).failure).toMatchObject({ reason: 'limit-exceeded', message: 'The run has run for 1200 ms; the policy allows 1000' });
-    expect(scripted.sessions).toHaveLength(3);
-    expect((await types(root, runId)).filter(type => type === 'invocation-started')).toHaveLength(3);
   }, 120_000);
 });
 

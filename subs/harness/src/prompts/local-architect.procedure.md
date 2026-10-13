@@ -73,16 +73,12 @@ write.
   refused, naming it, before any commit or gate. A partial report is not.
   Each must be an obligation you are responsible for.
 
-- `assignment.bounds` is optional: the bounds this iteration's module engineers
-  need beyond the policy's. `commandTimeoutMs` is the longest one shell
-  command may run, `idleMs` how long a session may go without a sign of
-  activity, and `absoluteMs` how long one invocation may run. Each is
-  `{ "ms": …, "reason": … }`, raised above the policy's value and at most its
-  ceiling; the message states both. A command's timeout is never longer than
-  the invocation that runs it, so raise `absoluteMs` with it where it must.
-  They apply to every module engineer invocation of the iteration. Raise one when
-  the work needs it, such as a test suite longer than the command maximum,
-  not to wait out a session that is stuck.
+- `assignment.bounds` is optional. `commandTimeoutMs` observes a command's quiet
+  output interval and `idleMs` observes a session without useful activity. Each
+  override is `{ "ms": …, "reason": … }`, subject to its captured ceiling.
+  Relevant model streaming and command output preserve eligibility. Historical
+  `absoluteMs` remains readable but does not end useful work. Native Pi context
+  compaction and resource recovery retain the assignment and its obligations.
 
 ### Write scope
 

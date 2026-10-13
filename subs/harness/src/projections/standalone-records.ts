@@ -43,7 +43,7 @@ export const sessionLayout = {
 /** What a session was started with, written before the agent starts. */
 export const sessionRecordSchema = z.object({
   schema: z.literal('ramify-agent.session/2'),
-  policy: z.object({ version: z.literal('run-policy/7'), contract: z.literal('plan21-whole-owner-and-architect-reporting/1') }).strict(),
+  policy: z.object({ version: z.literal(['run-policy/7', 'run-policy/8']), contract: z.literal('plan21-whole-owner-and-architect-reporting/1') }).strict(),
   authority: writeScopeSchema,
   id: text,
   role: z.literal('engineer'),
@@ -137,8 +137,8 @@ export type SessionOutcomeRecord = z.infer<typeof sessionOutcomeSchema>;
  * never sees it running: with its outcome it is finished, and without one it
  * was interrupted.
  */
-export type StandaloneSessionState = 'finished' | 'interrupted';
+export type StandaloneSessionState = 'finished' | 'interrupted' | 'suspended';
 
 export function standaloneSessionState(outcome: SessionOutcomeRecord | null): StandaloneSessionState {
-  return outcome === null ? 'interrupted' : 'finished';
+  return outcome === null ? 'interrupted' : outcome.ended === 'resource-pending' ? 'suspended' : 'finished';
 }

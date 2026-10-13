@@ -118,7 +118,7 @@ function StatePanel({ run, debug, error }: { readonly run: RunSnapshot; readonly
         </p>
       )}
       <p className="debug-state-line">{stateText(run, debug, current)}</p>
-      {run.state !== 'running' && <p>Terminal state: <RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} /></p>}
+      {run.state !== 'running' && <p>Run state: <RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} /></p>}
       {current && (
         <>
           <PauseFacts current={current} />
@@ -233,7 +233,7 @@ function InspectionSections({ inspection }: { readonly inspection: DebugInspecti
       </details>
       <details><summary>Source point</summary><p>{input.source === null ? 'none' : <code>{input.source}</code>}</p></details>
       <details><summary>Scope</summary><pre>{JSON.stringify(input.scope, null, 2)}</pre></details>
-      <details><summary>Bounds</summary><pre>{JSON.stringify(input.bounds, null, 2)}</pre></details>
+      <details><summary>Policy observations and semantic limits</summary><p>Historical context and lifetime fields preserve policy evidence. Resource observations do not expire task authority; Pi sessions use native compaction and stall recovery. Semantic limits still apply.</p><pre>{JSON.stringify(input.bounds, null, 2)}</pre></details>
     </>
   );
 }

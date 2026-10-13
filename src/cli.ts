@@ -39,6 +39,7 @@ export type CommandLine =
       readonly agent: SessionAgent;
       readonly write: readonly string[];
       readonly gate: boolean;
+      readonly recoveryResume?: ManualRecoveryResume & { readonly runId: string };
     }
   | {
       readonly command: 'step';
@@ -46,7 +47,7 @@ export type CommandLine =
         | { readonly command: 'inputs'; readonly role: string; readonly fromRun: string | undefined; readonly invocation: string | undefined; readonly out: string | undefined;
             readonly projectRoot?: string | undefined; readonly request?: string | undefined; readonly assignmentOf?: string | undefined; readonly iteration?: number | undefined; readonly authored: AuthoredFiles }
         | { readonly command: 'render'; readonly inputs: string; readonly projectRoot: string; readonly invocation: string | undefined }
-        | { readonly command: 'run'; readonly inputs: string; readonly run: string; readonly agent: SessionAgent }
+        | { readonly command: 'run'; readonly inputs: string; readonly run: string; readonly agent: SessionAgent; readonly recoveryResume?: ManualRecoveryResume }
         | { readonly command: 'gate'; readonly run: string; readonly checkpoint: StepGateCheckpoint; readonly invocation: string | undefined; readonly noCommit: boolean }
         | { readonly command: 'after'; readonly run: string; readonly invocation: string };
     }
@@ -85,6 +86,7 @@ export const usage = [
   '                       (--prompt <text> | --prompt-file <file>)',
   '                       [--agent pi [--model <provider/model[:level]>] | --agent fake --script <file>]',
   '                       [--write <project-relative path>]... [--gate]',
+  '                       Resume: --resume-run <id> --occurrence <id> --expected-revision <n> --command-id <id>.',
   '  ramify-agent step inputs --role <engineer|local-architect|context-selector|reviewer> --from-run <run dir> --invocation <id>',
   '                       [--work-item <file>] [--outline <file>] [--assignment <file>] [--selection <file>] [--review-request <file>] [--out <file>]',
   '                       Imports one invocation\'s recorded inputs as a fresh start; compares the delivery as a diagnostic.',
@@ -96,6 +98,7 @@ export const usage = [
   '                       Prints what the step\'s session receives. Takes no lock and writes nothing.',
   '  ramify-agent step run --inputs <file> --run <project>/plans/<plan>/.harness/jobs/<run>',
   '                       [--agent pi [--model <provider/model[:level]>] | --agent fake --script <file>]',
+  '                       Resume: --occurrence <id> --expected-revision <n> --command-id <id>.',
   '                       Runs one invocation from the inputs in a manual run, created where it does not exist, under the project lock.',
   '                       Uses the tree as it stands and records its base commit and whether it was dirty; never commits.',
   '                       Exits 0 for an accepted submission, 1 for any other ending, 2 when refused or not started.',
@@ -278,7 +281,22 @@ function parseRepairExport(rest: readonly string[]): CommandLine {
     ...(values['--incident'] === undefined ? {} : { incident: values['--incident'] }) };
 }
 
+interface ManualRecoveryResume { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string }
+const manualRecoveryFlags = ['--occurrence', '--expected-revision', '--command-id'];
+function captureManualRecovery(values: Record<string, string>, flag: string, value: string): void {
+  if (values[flag] !== undefined) throw new UsageError(`Give ${flag} once`);
+  values[flag] = value;
+}
+function parseManualRecovery(values: Record<string, string>): ManualRecoveryResume | undefined {
+  if (!manualRecoveryFlags.some(flag => values[flag] !== undefined)) return undefined;
+  for (const flag of manualRecoveryFlags) if (values[flag] === undefined) throw new UsageError(`Resource resume needs ${manualRecoveryFlags.join(', ')} together`);
+  const expectedRevision = Number(values['--expected-revision']);
+  if (!/^[1-9]\d*$/u.test(values['--expected-revision']!) || !Number.isSafeInteger(expectedRevision)) throw new UsageError('--expected-revision needs a positive safe integer');
+  return { occurrenceId: values['--occurrence']!, expectedRevision, commandId: values['--command-id']! };
+}
+
 function parseSession(rest: readonly string[]): CommandLine {
+  const recoveryValues: Record<string, string> = {};
   let projectRoot: string | undefined;
   let module: string | undefined;
   let text: string | undefined;
@@ -297,6 +315,7 @@ function parseSession(rest: readonly string[]): CommandLine {
     else if (flag === '--model') model = value();
     else if (flag === '--script') script = value();
     else if (flag === '--write') write.push(value());
+    else if (manualRecoveryFlags.includes(flag) || flag === '--resume-run') captureManualRecovery(recoveryValues, flag, value());
     else if (flag === '--gate') {
       if (inline !== undefined) throw new UsageError('--gate takes no value');
       gate = true;
@@ -310,6 +329,10 @@ function parseSession(rest: readonly string[]): CommandLine {
   if (model !== undefined && agent === 'fake') throw new UsageError('--model applies to --agent pi only');
   if (script !== undefined && agent !== 'fake') throw new UsageError('--script applies to --agent fake only');
   if (agent === 'fake' && script === undefined) throw new UsageError('--agent fake needs --script <file>');
+  const recovery = parseManualRecovery(recoveryValues);
+  const resumeRun = recoveryValues['--resume-run'];
+  if ((recovery === undefined) !== (resumeRun === undefined)) throw new UsageError('session recovery needs --resume-run, --occurrence, --expected-revision and --command-id together');
+  if (resumeRun !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(resumeRun)) throw new UsageError('--resume-run must name one retained run, without path separators');
   return {
     command: 'session',
     projectRoot,
@@ -318,6 +341,7 @@ function parseSession(rest: readonly string[]): CommandLine {
     agent: agent === 'fake' ? { name: 'fake', script: script! } : { name: 'pi', model },
     write,
     gate,
+    ...(recovery === undefined ? {} : { recoveryResume: { ...recovery, runId: resumeRun! } }),
   };
 }
 
@@ -382,6 +406,7 @@ function parseStep(rest: readonly string[]): CommandLine {
     return { command: 'step', step: { command: 'render', inputs, projectRoot: projectRoot ?? '.', invocation } };
   }
   if (subcommand === 'run') {
+    const recoveryValues: Record<string, string> = {};
     let inputs: string | undefined;
     let run: string | undefined;
     let agent: AgentName | undefined;
@@ -393,6 +418,7 @@ function parseStep(rest: readonly string[]): CommandLine {
       else if (flag === '--agent') agent = agentName(value());
       else if (flag === '--model') model = value();
       else if (flag === '--script') script = value();
+      else if (manualRecoveryFlags.includes(flag)) captureManualRecovery(recoveryValues, flag, value());
       else throw new UsageError(`Unknown option "${argument}"`);
     });
     if (inputs === undefined) throw new UsageError('step run needs --inputs <file>');
@@ -400,7 +426,9 @@ function parseStep(rest: readonly string[]): CommandLine {
     if (model !== undefined && agent === 'fake') throw new UsageError('--model applies to --agent pi only');
     if (script !== undefined && agent !== 'fake') throw new UsageError('--script applies to --agent fake only');
     if (agent === 'fake' && script === undefined) throw new UsageError('--agent fake needs --script <file>');
-    return { command: 'step', step: { command: 'run', inputs, run, agent: agent === 'fake' ? { name: 'fake', script: script! } : { name: 'pi', model } } };
+    const recovery = parseManualRecovery(recoveryValues);
+    return { command: 'step', step: { command: 'run', inputs, run, agent: agent === 'fake' ? { name: 'fake', script: script! } : { name: 'pi', model },
+      ...(recovery === undefined ? {} : { recoveryResume: recovery }) } };
   }
   if (subcommand === 'gate') {
     let run: string | undefined;

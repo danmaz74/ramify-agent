@@ -100,6 +100,7 @@ function script(starts: string[], capabilityPrompts: string[] = [], qualificatio
           changes: { proposedInterface: 'B returns fact text with its source' },
         } }] : []),
         { kind: 'context', tokens: 200_000, window: null },
+        { kind: 'legacy-context-return', tokens: 200_000 },
         // A raw limit supplies no explicit provider report.
 
       ];
@@ -409,10 +410,10 @@ test('scripted current-engine composition refuses an earlier captured policy bef
 
     policy: root => ({ ...testPolicy(root), version: 'run-policy/6' } as never) });
   cleanups.push(() => opened.service.close());
-  await expect(opened.service.execute(startRun('need'))).rejects.toThrow(/run-policy\/6.*run-policy\/7.*fresh run/u);
+  await expect(opened.service.execute(startRun('need'))).rejects.toThrow(/run-policy\/6.*run-policy\/8.*fresh run/u);
 });
 
-test('CA33: production composition captures policy/7 and delegates without contract dispatch', async () => {
+test('CA33: production composition captures policy/8 and delegates without contract dispatch', async () => {
   const fixture = await copyCapabilityFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'delegation', 'a+b'); answers.push(boundaryAnswers);
@@ -432,7 +433,7 @@ test('CA33: production composition captures policy/7 and delegates without contr
   const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'job.json'), 'utf8')) as {
     policy: { version: string }; prompts: Record<string, unknown>;
   };
-  expect(job.policy.version).toBe('run-policy/7');
+  expect(job.policy.version).toBe('run-policy/8');
   expect(job.prompts['capability-architect']).toBeDefined();
   expect(job.prompts['contract-engineer']).toBeUndefined();
   await opened.service.close();

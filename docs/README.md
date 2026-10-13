@@ -2,6 +2,11 @@
 
 Design documents for the separate agent harness:
 
+- [Plan 44: execution continuity](plans/44-execution-continuity/main-plan.md),
+  native Pi compaction, progress-sensitive stall recovery and retained pending
+  work; [qualification evidence](plans/44-execution-continuity/implementation-results.md)
+  distinguishes scripted continuation witnesses from committed audit evidence
+
 - [Plan 41: interrupted-operation recovery and empty mutations](plans/41-interruption-recovery/main-plan.md),
   implemented and qualified: bounded retries, durable
   same-run pause/resume for new runs with admission of external repairs,

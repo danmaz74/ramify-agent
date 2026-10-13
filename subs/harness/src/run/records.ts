@@ -129,7 +129,8 @@ export type ReviewPolicy = z.infer<typeof reviewPolicySchema>;
  * configurable while it runs, so that an exhaustion is reproducible.
  */
 export const runPolicySchema = z.object({
-  version: z.literal('run-policy/7'),
+  version: z.enum(['run-policy/7', 'run-policy/8']),
+  continuity: z.object({ version: z.literal('resource-continuity/1') }).strict().optional(),
   contract: z.literal('plan21-whole-owner-and-architect-reporting/1'),
   /** Absent in historical runs; only newly captured policies authorize recovery. */
   recovery: z.object({ version: z.literal('operation-recovery/1'), automaticRetries: z.int().nonnegative(),
@@ -635,13 +636,19 @@ export const recoveryBoundarySchema = z.object({ kind: z.enum(['invocation', 'pr
   candidate: z.string().optional(), checkpoint: z.string().optional(), requestHash: z.string().optional(),
   start: z.object({ mode: z.enum(['fresh', 'continue', 'fork']), ref: z.string().optional(), from: z.string().optional() }).strict().optional(),
   session: z.string().optional(), tool: z.string().optional(), reviewRequest: z.string().optional(),
-  reconstruction: z.object({ name: z.literal('fresh-step-construction'), inputsHash: z.string(), mode: z.literal('fresh'), inputs: z.unknown().optional() }).strict().optional() }).strict();
+  retainedTask: z.object({ candidate: z.object({ head: z.string(), tree: z.string() }).strict(), acceptedHead: z.string(),
+    work: invocationWorkSchema, configuration: z.string(), progressIdentity: z.string().optional(), obligations: z.array(z.object({ kind: z.string(), id: z.string(), revision: z.number().optional() }).strict()),
+    sourceRecords: z.array(z.string()), authority: z.record(z.string(), z.unknown()) }).strict().optional(),
+  reconstruction: z.discriminatedUnion('name', [
+    z.object({ name: z.literal('fresh-step-construction'), inputsHash: z.string(), mode: z.literal('fresh'), inputs: z.unknown().optional() }).strict(),
+    z.object({ name: z.literal('retained-task-request'), inputsHash: z.string(), mode: z.literal('fresh'), invocation: z.string() }).strict(),
+  ]).optional() }).strict();
 export type RecoveryBoundary = z.infer<typeof recoveryBoundarySchema>;
 export const operationRecoverySchema = z.object({ schema: z.literal('ramify-agent.operation-recovery/1'), id: z.string(), revision: z.int().positive(),
   state: z.enum(['pausing', 'paused', 'resumed']), boundary: recoveryBoundarySchema, evidence: interruptionEvidenceSchema,
   group: z.int().nonnegative(), automaticAttempts: z.int().nonnegative(), attempts: z.array(z.string()), pausedAt: z.iso.datetime().nullable(),
   settled: z.boolean(), candidate: z.object({ head: z.string(), tree: z.string() }).strict(), partialPaths: z.array(z.string()),
-  prerequisites: z.array(z.string()), waitingReviews: z.array(z.object({ request: z.string(), remainingMs: z.number().nonnegative() }).strict()).optional(), identity: recoveryIdentitySchema.optional(), admission: externalRepairAdmissionSchema.optional() }).strict();
+  prerequisites: z.array(z.string()), reconciledInvocations: z.array(z.string()).optional(), settlementObservations: z.array(z.object({ invocation: z.string(), at: z.iso.datetime(), groupsKilled: z.int().nonnegative(), lateWrites: z.array(z.string()), ref: z.string().nullable() }).strict()).optional(), waitingReviews: z.array(z.object({ request: z.string(), remainingMs: z.number().nonnegative() }).strict()).optional(), identity: recoveryIdentitySchema.optional(), admission: externalRepairAdmissionSchema.optional() }).strict();
 export type OperationRecovery = z.infer<typeof operationRecoverySchema>;
 
 // Lineage: how a session relates to others, by harness points and never by
@@ -794,11 +801,13 @@ export const invocationOutcomeSchema = z.object({
   schema: z.literal('ramify-agent.invocation-outcome/1'),
   sessionOperation: sessionOperationLinkSchema.optional(),
   invocation: text,
-  ended: z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'invalid-submission']),
+  ended: z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']),
   /** Each one is a `rejection` observation with its errors. */
   rejectedSubmissions: z.int().nonnegative(),
   interruption: z.enum(['idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault']).optional(),
   interruptionEvidence: interruptionEvidenceSchema.optional(),
+  resource: z.enum(['context', 'stall']).optional(),
+  resourceReason: z.string().optional(),
   /** A superseded invocation's result is kept and never applied. */
   disposition: z.enum(['applied', 'superseded', 'incomplete']),
   /**
@@ -988,7 +997,7 @@ export const gateOperationSchema = z.object({
     directory: text,
     head: z.string(),
     /** The mode the gate requests of the committed audit, and the bound of the request. */
-    audit: z.object({ mode: z.enum(['project-default', 'full']), nested: z.boolean().optional(), timeoutMs: z.int().positive() }).strict(),
+    audit: z.object({ mode: z.enum(['project-default', 'full']), nested: z.boolean().optional(), timeoutMs: z.int().positive().optional() }).strict(),
     subject: z.object({ workItem: text.optional(), iteration: text.optional() }).strict(),
     proposedBy: z.string().nullable(),
     repairRound: z.int().nonnegative(),

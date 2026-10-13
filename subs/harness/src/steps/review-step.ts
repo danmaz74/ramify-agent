@@ -14,7 +14,7 @@ import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
 import { contextPolicyOf } from '../run/policy.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { declaredCheckFacts } from '../run/project-facts.js';
-import { committedAuditConfigurationSchema, sessionIdSchema } from '../run/records.js';
+import { committedAuditConfigurationSchema, invocationSchema, runLayout, sessionIdSchema } from '../run/records.js';
 import { concernBindings, finishReview, requestedStartOf, reviewOutcome } from '../run/review-finish.js';
 import type { InvocationResult } from './runner.js';
 import { reviewAttemptId, reviewLayout, reviewRequestSchema, reviewSubmissionSchema, type ReviewRequest, type ReviewSubmission } from '../reviews/records.js';
@@ -231,14 +231,17 @@ export async function prepareManualReview(inputs: ReviewStepInputs, context: {
   await mkdir(run.path(inputs.workspace.run), { recursive: true });
 
   const state = stateOf();
-  const attempt = reviewAttemptId(request.id, (state?.attempts.length ?? 0) + 1);
+  const retained = state?.attempts.find(attempt => attempt.started !== null && attempt.finished === null);
+  const attempt = retained?.id ?? reviewAttemptId(request.id, (state?.attempts.length ?? 0) + 1);
   const queuedAt = state?.attempts.at(-1)?.finished?.at ?? state?.recordedAt ?? context.now().toISOString();
   const requestedStart = requestedStartOf(request);
-  let started: { invocation: string; session: string; at: string } | undefined;
+  let started: { invocation: string; session: string; at: string } | undefined = retained?.started
+    ? { invocation: retained.started.invocation, session: retained.started.session, at: retained.started.at } : undefined;
   return {
     step, prepared, recorded,
     onStarted: async (invocation, session) => {
       if (!recorded) return true;
+      if (retained) return false;
       const at = context.now();
       const appended = await run.mutex.run(async () => {
         if (stateOf()?.settledBy !== null) return false;
@@ -259,6 +262,18 @@ export async function prepareManualReview(inputs: ReviewStepInputs, context: {
       await finishReview(run, context.now, request, {
         id: attempt, request: request.id, queuedAt, requestedStart,
         startedAt: started?.at ?? null, invocation: started?.invocation ?? null, session: started === undefined ? null : sessionIdSchema.parse(started.session), actualStart: actual,
+        transportInvocations: started === undefined ? [] : run.log.all('invocation-started').filter(event => {
+          let current = event.data.invocation;
+          const seen = new Set<string>();
+          while (!seen.has(current)) {
+            if (current === started!.invocation) return event.data.invocation !== started!.invocation;
+            seen.add(current);
+            const record = invocationSchema.safeParse(committedBody(run, runLayout.invocation(current)));
+            if (!record.success || !record.data.recoveryPredecessor) return false;
+            current = record.data.recoveryPredecessor;
+          }
+          return false;
+        }).map(event => event.data.invocation),
       }, outcome.result, true, submission, bindings);
       return reviewLayout.attempt(attempt);
     },

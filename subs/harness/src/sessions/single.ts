@@ -30,7 +30,7 @@ import { gateAttemptId, gateAttemptSchema, invocationOutcomeSchema, runLayout, t
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
 import { engineerBuiltinTools, engineerEquipment } from '../work/engineer-equipment.js';
 import { shellToolName } from '../tools/shell.js';
-import { manualRunner, openManualRun } from '../steps/manual.js';
+import { manualRunner, openManualRun, readManualResourceResult, recordManualResourceResult, waitManualResourceResult } from '../steps/manual.js';
 import { committedBody, finished } from '../steps/runner.js';
 import { engineerWorkingDirectory } from '../work/engineer-directory.js';
 import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../work/scratch.js';
@@ -62,6 +62,7 @@ import { iterationApiViews } from '../work/session.js';
 
 /** What starts one single engineer session. */
 export interface SingleSessionOptions {
+  readonly recoveryResume?: { readonly runId: string; readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
   readonly projectRoot: string;
   /** The module, by its declared-name path or its project-relative directory. */
   readonly module: string;
@@ -110,6 +111,9 @@ export interface SessionSummary {
   readonly session: string;
   readonly module: string;
   readonly ended: InvocationOutcome['ended'];
+  readonly pending?: boolean;
+  readonly resource?: 'context' | 'stall';
+  readonly resourceReason?: string;
   /** The accepted submission, or null when none was accepted. */
   readonly submission: EngineerSubmission | null;
   readonly rejectedSubmissions: number;
@@ -194,7 +198,8 @@ export function sessionAcceptance(kind: EngineerSubmission['kind'], gate: boolea
 
 /** Runs one engineer session on one module, from the lock to the records. */
 export async function runSingleSession(options: SingleSessionOptions): Promise<SingleSessionResult> {
-  if (options.policy !== undefined && options.policy.version !== 'run-policy/7') return notStarted(`Run policy ${options.policy.version} is refused by run-policy/7; a fresh run is required`);
+  if (options.policy !== undefined && options.policy.version !== 'run-policy/7' && options.policy.version !== 'run-policy/8') return notStarted(`Run policy ${options.policy.version} is unsupported; a compatible policy is required`);
+  if (options.recoveryResume && !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/u.test(options.recoveryResume.runId)) return notStarted('The recovery run identifier is invalid');
   if (options.prompt.trim() === '') return notStarted('The prompt is empty, so there is no goal to work on.');
   let projectRoot: string;
   try {
@@ -203,15 +208,31 @@ export async function runSingleSession(options: SingleSessionOptions): Promise<S
     return notStarted(`The project root ${options.projectRoot} cannot be read: ${message(error)}`);
   }
   let lock: ProjectLock;
+  const binding = { resume: options.recoveryResume, module: options.module, prompt: options.prompt, write: options.write ?? [], gate: options.gate ?? false, model: options.model ?? null };
+  const directory = options.recoveryResume ? join(projectRoot, 'plans', sessionsPlan, '.harness/jobs', options.recoveryResume.runId) : null;
   try {
     lock = await acquireProjectLock(projectRoot);
   } catch (error) {
+    if (options.recoveryResume && directory && error instanceof ProjectLockError && error.holder) {
+      try {
+        const repeated = await waitManualResourceResult<SingleSessionResult>(projectRoot, directory, options.recoveryResume.commandId, binding, error.holder.token, options.signal);
+        if (repeated) return repeated;
+      } catch (conflict) { return notStarted(message(conflict), directory); }
+    }
     // A held lock is someone else's and is left exactly as it is.
     return notStarted(error instanceof ProjectLockError ? error.message : `The project lock could not be taken: ${message(error)}`);
   }
   let releaseLock = true;
   try {
-    return await runLocked({ ...options, projectRoot }, () => { releaseLock = false; });
+    if (options.recoveryResume && directory) {
+      const repeated = await readManualResourceResult<SingleSessionResult>(directory, options.recoveryResume.commandId, binding);
+      if (repeated) return repeated;
+    }
+    const result = await runLocked({ ...options, projectRoot }, () => { releaseLock = false; });
+    if (options.recoveryResume && directory && result.status === 'finished') await recordManualResourceResult(directory, options.recoveryResume.commandId, binding, result);
+    return result;
+  } catch (error) {
+    return notStarted(message(error));
   } finally {
     if (releaseLock) await lock.release();
   }
@@ -285,7 +306,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     const modules = await declaredModuleDirectories(projectRoot);
     const tracked = await trackedScratchPaths(projectRoot, modules, git);
     if (tracked.length > 0) return notStarted(`Tracked scratch prevents this session: ${tracked.join(', ')}; nothing was deleted`);
-    const removed = await removeScratchDirectories(projectRoot, modules, git);
+    const removed = options.recoveryResume ? { preservedTracked: [] } : await removeScratchDirectories(projectRoot, modules, git);
     if (removed.preservedTracked.length > 0) return notStarted(`Tracked scratch appeared during preparation: ${removed.preservedTracked.join(', ')}`);
     alreadyChanged = await git.changedPaths(projectRoot);
     const prepared = await ensureScratchRule(projectRoot, modules, git);
@@ -298,6 +319,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   if (typeof workingDirectory !== 'string') return notStarted(`The module engineer cannot start in the module's src directory: ${workingDirectory.error}`);
   let scratchSettled = false;
   let settlementConfirmed = true;
+  let taskPending = options.recoveryResume !== undefined;
   let closeOperations: (() => Promise<boolean>) | undefined;
   try {
   // A standalone session guards the same committed preparation inputs where a definition exists.
@@ -325,7 +347,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   const views = await iterationApiViews(ramify, projectRoot, initial, scope.base);
 
 
-  const id = sessionId();
+  const id = options.recoveryResume?.runId ?? sessionId();
   // The session's records are a manual run's, in a run's own layout:
   // `plans/sessions/.harness/jobs/<id>/`, with the session its one invocation.
   const opened = await openManualRun({ projectRoot, planId: sessionsPlan, runId: id, git, policy, origin: 'session', branch: false, base: head });
@@ -376,6 +398,10 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   });
   const guarded: GuardedScope = guardedScopeOf(scope, await deniedFiles(projectRoot, guardedFiles.map(file => file.path)), ramify, undefined, authority);
   const tools = engineerEquipment({
+    registerProcessGroup: async (invocation, pid, identity) => {
+      await runner.write(run, { type: 'writer-process-registered', data: { invocation, pid, identity } });
+      run.writer.register(invocation, pid);
+    },
     commandExecution: options.commandExecution,
     projectRoot,
     workingDirectory,
@@ -400,7 +426,10 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   // One invocation through the runner a run uses: its records, transcript,
   // equipment, bounds and outcome are a run's. Nothing follows its
   // submission, so the session is not kept.
-  const result = await runner.runInvocation<EngineerSubmission>(run, agent, {
+  const result = await runner.runResourceInvocation<EngineerSubmission>(run, agent, {
+    recoveryResume: options.recoveryResume,
+    resourceBinding: { module: options.module, prompt: options.prompt, write: options.write ?? [], gate: options.gate ?? false, model: options.model ?? null, guardedFiles },
+    resourceCommandBinding: { resume: options.recoveryResume, module: options.module, prompt: options.prompt, write: options.write ?? [], gate: options.gate ?? false, model: options.model ?? null },
     role: 'engineer',
     work: {},
     attempt: 1,
@@ -448,10 +477,11 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   }
   const outcome = invocationOutcomeSchema.parse(committedBody(run, runLayout.outcome(result.id)));
   settlementConfirmed = outcome.settled.confirmed;
+  taskPending = result.pending === true;
   if (!settlementConfirmed) retainProjectLock();
   const changed = [...(result.changed ?? [])];
   const outsideScope = outcome.outsideScope.filter(path => !harnessChanged.includes(path));
-  const removed = settlementConfirmed ? await removeScratchDirectories(projectRoot, [entry.dir], git) : { preservedTracked: [] };
+  const removed = settlementConfirmed && !taskPending ? await removeScratchDirectories(projectRoot, [entry.dir], git) : { preservedTracked: [] };
   scratchSettled = settlementConfirmed;
   const safety = await scratchSafetyRule(projectRoot, await declaredModuleDirectories(projectRoot), git);
 
@@ -461,7 +491,9 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   // project's tests run only through its committed audit.
   let gate: SessionGateResult | null = null;
   if (options.gate === true) {
-    if (!settlementConfirmed) {
+    if (taskPending) {
+      gate = { ran: false, reason: result.resourceReason ?? 'The assignment remains pending resource recovery; its gate remains unverified' };
+    } else if (!settlementConfirmed) {
       gate = { ran: false, reason: 'the session did not settle, so a check of the tree it may still be writing would prove nothing' };
     } else {
       progress({ type: 'gate-started' });
@@ -526,6 +558,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     session: id,
     module: entry.module,
     ended: result.ended,
+    ...(taskPending ? { pending: true, resource: result.resource, resourceReason: result.resourceReason } : {}),
     submission: result.ended === 'submitted' ? result.value ?? null : null,
     rejectedSubmissions: outcome.rejectedSubmissions,
     standingViolations: standing,
@@ -554,7 +587,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   } finally {
     const closed = await closeOperations?.();
     if (closed === false) { settlementConfirmed = false; retainProjectLock(); }
-    if (settlementConfirmed && !scratchSettled) await removeScratchDirectories(projectRoot, [entry.dir], git);
+    if (settlementConfirmed && !taskPending && !scratchSettled) await removeScratchDirectories(projectRoot, [entry.dir], git);
   }
 }
 

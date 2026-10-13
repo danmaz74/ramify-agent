@@ -89,3 +89,46 @@ reasons. Its requested-start counts use `degraded.requested` for
 separate fresh fallback invocations, while the operation remains fresh; [lineage measurements](lineage.md) defines those aggregates
 and their historical generation/replacement inputs. Historical values remain
 readable even though new context losses do not build replacement parents.
+
+
+## Context continuity and recovery
+
+`evaluation.context.observations[]` projects actual `context` observation rows:
+current estimated `tokens`, model `window`, observation time and, when supplied,
+`native` settings from `pi@0.87.1:SettingsManager`. Native settings name enabled
+compaction, reserve and retained recent-history tokens. `projectedTokens` is a
+separate prospective request estimate; `null` means Pi did not provide it.
+Missing occupancy, window, settings or observations remain explicit coverage gaps.
+These values are distinct from cumulative billed usage and cache charges.
+
+`evaluation.context.compactions[]` projects native threshold, overflow or explicit
+triggers, before/after estimates, success and actual errors. Transcript compaction
+entries also retain effective native settings. Compaction's own preserved request
+artifacts carry `purpose: compaction`; they keep their actual instructions,
+dispatch identity and usage instead of being mislabeled ordinary task requests.
+Opaque Pi state records `historyBoundary` and native session entries. Earlier
+requests, transcripts, observations and old-point forks remain immutable. A
+rewritten history boundary does not establish exact native prefix reuse. Neither
+scripted requests nor smaller context establish real provider acceptance or cache
+savings.
+
+`resource-pending` keeps the assignment unfinished. Recovery inspection exposes
+the retained boundary, original task evidence, current candidate/configuration,
+accepted head, pending obligations and authority. Its continuity projection names
+the trigger and predecessor, successor admission status, settlement/effect status
+and current resume blockers. Unknown mutation effects remain unknown until the
+owner reconciles them. A quiet interval or stop receipt is not proof of kernel
+settlement, assertion failure or qualifying audit evidence. Read the responsible
+producer's ordinary evidence for check outcomes.
+
+Elapsed invocation/run time and counts remain observations. Continuity execution
+reports `remaining.invocations` and `remaining.activeMs` as `null`, with effective
+`run-policy/8` recorded separately. Earlier policies and terminal outcomes remain
+readable; an explicitly admitted compatible legacy continuation records a policy
+transition without rewriting the historical policy. Service restart retains a
+recovery hold and supplies no new authority. Semantic submission rejection and
+assessed correction rounds retain their independent meaning.
+
+The historical Plan 43 cutoff used an effective 188,000-token trigger against
+205,728 observed tokens; its recorded 150,000-token fallback was not the applied
+trigger. These are historical failure evidence, never current execution limits.

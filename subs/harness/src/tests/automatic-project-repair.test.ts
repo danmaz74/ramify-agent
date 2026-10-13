@@ -15,7 +15,7 @@ import { assign, outline, partialReport, submit, treeInputs, write } from './hel
 import { copyFixture } from './helpers/fixture.js';
 import { gateGit, scenariosCommit } from './helpers/gate-git.js';
 import { scriptedCandidates } from './helpers/candidates.js';
-import { freeze, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, until } from './helpers/runs.js';
+import { freeze, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -34,7 +34,7 @@ const tree = 'a'.repeat(40);
  * A retained source-pointer assembler reads the old entry after an allowed rename.
  * Real readFile throws ENOENT; the repaired target restores a compatible source entry.
  */
-async function scenario(options: { delegated?: boolean; blocked?: boolean; mutateDeclaration?: boolean; freezeStage?: 'admitted' | 'running'; noFault?: boolean; skipRestore?: boolean; secondFault?: boolean; stopDuringRepair?: boolean; rootSibling?: boolean; freezeAssignment?: boolean } = {}) {
+async function scenario(options: { delegated?: boolean; blocked?: boolean; mutateDeclaration?: boolean; freezeStage?: 'admitted' | 'running'; noFault?: boolean; skipRestore?: boolean; secondFault?: boolean; stopDuringRepair?: boolean; rootSibling?: boolean; freezeAssignment?: boolean; resourceRepair?: boolean } = {}) {
   const fixture = await copyFixture(); cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
   await writeFile(join(fixture.root, legacy), content);
@@ -57,6 +57,7 @@ async function scenario(options: { delegated?: boolean; blocked?: boolean; mutat
     ...(options.freezeAssignment || options.delegated === false ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...(options.freezeAssignment || options.noFault ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...((final && !options.noFault) || options.skipRestore || options.secondFault ? [{ repositoryRoot: fixture.root, head: 'scenarios', tree }] : []),
+    ...(options.resourceRepair ? [{ repositoryRoot: fixture.root, head: 'scenarios', tree }] : []),
     ...(options.secondFault ? Array.from({ length: 2 }, () => ({ repositoryRoot: fixture.root, head: 'scenarios', tree })) : []),
     ...(final ? Array.from({ length: 4 }, () => ({ repositoryRoot: fixture.root, head: 'accepted', tree })) : []),
   ];
@@ -76,12 +77,17 @@ async function scenario(options: { delegated?: boolean; blocked?: boolean; mutat
   }) };
   const specs: SessionSpec[] = [];
   let localTurns = 0;
+  let returnedResource = false;
   let frozen = false;
   let activeService: Awaited<ReturnType<typeof openRuns>>['service'];
   let activeRunId = '';
   const script = (spec: SessionSpec) => {
     specs.push(spec);
     if (spec.role === 'initial-architect') return submit(initial);
+    if (spec.submission.name === 'submit_automatic_repair' && options.resourceRepair && !returnedResource) {
+      returnedResource = true;
+      return [{ kind: 'resource' as const, resource: 'context' as const, reason: 'Native compaction unavailable before preparation repair can report' }];
+    }
     if (spec.submission.name === 'submit_automatic_repair' && options.stopDuringRepair) return [{ kind: 'await' as const, until: async () => {
       void activeService.execute(stopRun('review-notes', activeRunId, onlyRun(activeService, 'review-notes').version));
     } }, { kind: 'wait' as const, ms: 1_000 }];
@@ -99,6 +105,8 @@ async function scenario(options: { delegated?: boolean; blocked?: boolean; mutat
     return [];
   };
   const opened = await openRuns(fixture.root, { git, inputs: treeInputs(), script,
+    ...(options.resourceRepair ? { policy: (root: string) => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
+      recovery: { ...policy.recovery!, baseDelayMs: 0 }, limits: { ...policy.limits, runAbsoluteMs: 1, maxInvocationsPerRun: 1 } }; } } : {}),
     candidates: final ? scriptedCandidates(fixture.root, { accepted: { tree, base: 'accepted', files: {}, changes: [] }, [tree]: { tree, base: 'accepted', files: {}, changes: [] } }) : undefined,
     afterWrite: async (write, runId) => {
       if (write === 'repair-assignment-recorded' && options.freezeAssignment) { frozen = true; await freeze(); }
@@ -254,5 +262,22 @@ test('restart after contingent assignment capture retains one assignment and sta
   expect(events.filter(event => event.type === 'repair-assignment-recorded')).toHaveLength(1);
   expect(events.filter(event => event.type === 'writer-acquired')).toHaveLength(0);
   expect(reopened.agent!.sessions).toHaveLength(0);
+  subject.boundary.assertComplete();
+});
+
+
+test('resource fallback continues the same authorized automatic repair after historical run age and invocation bounds', async () => {
+  const subject = await scenario({ resourceRepair: true });
+  expect(onlyRun(subject.service, 'review-notes').state).toBe('completed');
+  const events = await runEventsOnDisk(subject.root, 'review-notes', subject.runId);
+  const repairInvocations = events.filter(event => event.type === 'invocation-started' && event.data.work.automaticRepair);
+  expect(repairInvocations).toHaveLength(2);
+  expect(new Set(repairInvocations.map(event => event.type === 'invocation-started' ? event.data.work.automaticRepair : null)).size).toBe(1);
+  expect(events.filter(event => event.type === 'invocation-ended' && event.data.ended === 'resource-pending')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'repair-incident-recorded' && event.data.stage === 'continued')).toHaveLength(1);
+  const { incident } = await incidents(subject);
+  const source = JSON.parse(await readFile(runPath(subject.root, 'review-notes', subject.runId, `repairs/sources/${incident.incidentId}.json`), 'utf8'));
+  expect(source.schema).toBe('ramify-agent.automatic-repair-source/1');
+  expect(source.before.length).toBeGreaterThan(0);
   subject.boundary.assertComplete();
 });

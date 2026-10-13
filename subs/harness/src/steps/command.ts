@@ -64,6 +64,7 @@ export type StepCommandOptions =
     }
   | {
       readonly command: 'run';
+      readonly recoveryResume?: { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
       readonly inputs: string;
       /** The manual run directory, `<project>/plans/<plan>/.harness/jobs/<run>`; created where it does not exist. */
       readonly run: string;
@@ -129,6 +130,7 @@ async function run(options: Extract<StepCommandOptions, { command: 'run' }>): Pr
   try {
     const result = await runStep({
       inputs: options.inputs, run: options.run, agent: chosen.agent, model: chosen.model, ramify, signal: options.signal,
+      ...(options.recoveryResume === undefined ? {} : { recoveryResume: options.recoveryResume }),
       onProgress: event => { const text = printer(event); if (text !== null) line(text); },
     });
     if (result.status === 'not-started') {

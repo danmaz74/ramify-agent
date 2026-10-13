@@ -29,7 +29,7 @@ test('PB3-R01: old and unversioned raw jobs are refusal-only, before decoding, r
   expect(opened.recovery.skipped).toHaveLength(7);
   expect(opened.recovery.interrupted).toEqual([]);
   for (const id of ids) {
-    expect(() => opened.service.getRun('need', id)).toThrow(/refused by run-policy\/7; a fresh run is required/u);
+    expect(() => opened.service.getRun('need', id)).toThrow(/refused by run-policy\/8; a fresh run is required/u);
     expect(() => opened.service.recordOf('need', id)).toThrow(/fresh run/u);
     expect(() => opened.service.committed('need', id)).toThrow(/fresh run/u);
     await expect(opened.service.settled('need', id)).rejects.toThrow(/fresh run/u);

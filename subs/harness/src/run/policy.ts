@@ -5,8 +5,8 @@ import { reviewPolicyVersion, roles, runPolicySchema, type CapturedProjectConfig
 
 /*
  * The policy one run runs under. It is hardcoded, captured in `job.json`
- * before the first event, and not configurable while the run runs, so that
- * an exhaustion is reproducible from the record.
+ * before the first event. Explicit compatible recovery records an adopted
+ * continuity policy separately; the original policy evidence stays immutable.
  *
  * Every command names the environment the harness built for it and holds no
  * value of it. `checkCommand` is the one constructor, and the environment its
@@ -14,8 +14,8 @@ import { reviewPolicyVersion, roles, runPolicySchema, type CapturedProjectConfig
  * own settings, built again at the moment of the spawn.
  */
 
-/** New runs use capability coordination. A run captured under another policy version is refused. */
-export const runPolicyVersion = 'run-policy/7';
+/** New runs capture execution continuity; compatible legacy recovery records its policy transition. */
+export const runPolicyVersion = 'run-policy/8';
 
 /** The bounds of the main plan's policy table. */
 export const defaultLimits: RunPolicy['limits'] = {
@@ -23,8 +23,7 @@ export const defaultLimits: RunPolicy['limits'] = {
   repairRoundsPerWorkItemGate: 3,
   infrastructureRetriesPerGate: 2,
   forkRetriesPerRequest: 2,
-  // Retry 7 reached three coordinator context returns while semantic review
-  // still had an actionable Model-owned repair. Keep a finite captured bound.
+  // Retained historical fields; continuity does not enforce resource-return ceilings.
   budgetReturnsPerIteration: 6,
   sessionReconstructionsPerWork: 2,
   cycleReplansPerWorkItem: 1,
@@ -54,9 +53,8 @@ export const defaultLimits: RunPolicy['limits'] = {
 };
 
 /**
- * A module engineer's bounds as its iteration applies them: the longest one shell
- * command may run, the idle bound and the absolute bound of each of its
- * invocations.
+ * An engineer's quiet-progress observation intervals. absoluteMs remains
+ * readable historical assignment evidence and is never a lifetime deadline.
  */
 export interface EngineerBounds {
   readonly commandTimeoutMs: number;
@@ -81,11 +79,9 @@ export function engineerBoundsOf(limits: RunPolicy['limits']): { readonly defaul
 }
 
 /**
- * The first trial's review policy (Plan 12): the code, scope and design
- * questions of every accepted engineer iteration, two readers beside the
- * writer, twelve waiting requests, one retry, ten minutes an attempt and
- * fifteen a work item's wait from its completion request. These are limits
- * to measure, not claims about throughput.
+ * Required review questions and scheduling settings. Current continuity
+ * retains every question through resource recovery; historical attempt and
+ * waiting durations never expire review authority or discard coverage.
  */
 export const defaultReviewPolicy: ReviewPolicy = {
   version: reviewPolicyVersion,
@@ -99,30 +95,13 @@ export const defaultReviewPolicy: ReviewPolicy = {
 };
 
 /**
- * The context policy of each role. The threshold is the fraction of the
- * window the implementation reports; the absolute figure applies only when
- * no window is reported. Neither has a default: a role that forgot its
- * policy would otherwise be compacted silently.
+ * Every current role uses Pi's native automatic compaction. Historical
+ * ceiling fields remain readable; new policy captures no competing trigger
+ * or extra reserve. Effective model settings are observed by the adapter.
  */
-export const defaultContextPolicies: Record<Role, NonNullable<RunPolicy['context'][Role]>> = {
-  'initial-architect': { compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 },
-  'local-architect': { compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 },
-  'global-fork': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 },
-  engineer: { compaction: 'forbidden', budgetTokens: 140_000, budgetFraction: 0.7, reportReserveTokens: 12_000 },
-  'contract-engineer': { compaction: 'forbidden', budgetTokens: 140_000, budgetFraction: 0.7, reportReserveTokens: 12_000 },
-  'capability-architect': { compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 },
-  // A reviewer reads a bounded diff and submits; running out of room is an
-  // execution failure of its attempt, never a compacted half-review.
-  reviewer: { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 8_000 },
-  // A failure analyst reads one failed session's evidence and submits a
-  // short account; it is never compacted either.
-  'failure-analyst': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 8_000 },
-  'context-selector': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 8_000 },
-  // An extraction or check reads one bounded set of documents and submits.
-  'catalog-extractor': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 },
-  'nonfunctional-coordinator': { compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 },
-  'nonfunctional-repair-engineer': { compaction: 'forbidden', budgetTokens: 140_000, budgetFraction: 0.7, reportReserveTokens: 12_000 },
-};
+export const defaultContextPolicies: Record<Role, NonNullable<RunPolicy['context'][Role]>> = Object.fromEntries(
+  roles.map(role => [role, { compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }]),
+) as Record<Role, NonNullable<RunPolicy['context'][Role]>>;
 
 /**
  * The context policy a run captured for one role. A run captured before the
@@ -130,9 +109,8 @@ export const defaultContextPolicies: Record<Role, NonNullable<RunPolicy['context
  * default to fall back to.
  */
 /**
- * The limits one invocation runs under: the policy's, with a module engineer's own
- * bounds in place of its command, idle and absolute bounds, or a reader's
- * tighter absolute bound.
+ * The captured invocation settings with an engineer's command and idle
+ * observations. Absolute fields survive for historical evidence only.
  */
 export function invocationLimits(limits: RunPolicy['limits'], own: {
   readonly bounds?: { readonly idleMs: number; readonly absoluteMs: number; readonly commandTimeoutMs?: number | undefined } | undefined;
@@ -193,6 +171,7 @@ export function defaultRunPolicy(options: RunPolicyOptions): RunPolicy {
     .map(role => [role, defaultContextPolicies[role]])) as RunPolicy['context'];
   return runPolicySchema.parse({
     version: runPolicyVersion,
+    continuity: { version: 'resource-continuity/1' },
     contract: 'plan21-whole-owner-and-architect-reporting/1',
     recovery: { version: 'operation-recovery/1', automaticRetries: 2, baseDelayMs: 250, maxDelayMs: 5000 },
     limits: defaultLimits,

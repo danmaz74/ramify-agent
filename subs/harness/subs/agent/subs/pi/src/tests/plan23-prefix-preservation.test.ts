@@ -264,7 +264,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     f.native.push([call('read', { path }, 'rich')], [call('submit_orientation', { orientation: 'A' }, 'rich-submit')]);
     const task = { ...f.task, message: 'Read rich fixture.' }; const bound = { ...f.bindings, task, tools: [] };
     if (mode === 'recover') f.setFault(input => {
-      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1'); if (!operation || operation.runId !== 'rich') return;
+      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:')); if (!operation || operation.runId !== 'rich') return;
       if (operation.body['phase'] === 'terminal') throw new Error('Crash before terminal write');
       const provider = operation.body['provider'] as Array<{ payloadId: string }>; const bytes = f.payloads.get(provider.at(-1)?.payloadId ?? ''); if (!bytes) return;
       const state = JSON.parse(new TextDecoder().decode(bytes)) as { messages?: Array<{ role: string }> };
@@ -333,7 +333,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const readDeclaration = shape === 'with-coerced-read' ? { ...read, inputSchema: { type: 'object', properties: { offset: { type: 'integer' } }, required: ['offset'], additionalProperties: false } } : read;
     const f = await fixture([[reason, ...(shape === 'solo' ? [] : [call('read', readArgs, 'accepted-read')]), call('submit_orientation', { orientation: 'A' }, 'accepted')]], [readDeclaration, orientation]);
     f.setFault(input => {
-      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1');
+      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:'));
       if (!operation) return;
       const effects = operation.body['effects'] as Array<{ verdict?: { accepted?: boolean } }>;
       if (!effects?.some(effect => effect.verdict?.accepted)) return;
@@ -365,7 +365,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
   it.each(['unstarted', 'completed'])('restores the durable provider call with %s effect without asking the model to repeat it', async phase => {
     const f = await fixture([[reason, call('read', {}, 'recover-read')], [call('submit_orientation', { orientation: 'A' }, 'recover-submit')]]);
     f.setFault(input => {
-      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1'); if (!operation) return;
+      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:')); if (!operation) return;
       if (operation.body['phase'] === 'terminal') throw new Error('Crash before terminal write');
       const effects = operation.body['effects'] as Array<{ tool: string; phase: string }>;
       if (phase === 'unstarted' && effects?.some(effect => effect.tool === 'read' && effect.phase === 'intent')) throw new Error('Crash before effect intent write');
@@ -390,34 +390,34 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const receipt = await (await f.operations.continue({ ...f.next(P.sessionId, P.point!, 'blank-task'), runId: 'blank' })).receipt;
     expect(receipt).toMatchObject({ status: 'failed', point: null }); expect(receipt.contextUnavailable).not.toBe(true); expect(f.native.dispatches()).toBe(0); f.native.verify();
   });
-  it('context budget ends with preserved definitions and no invented submission or compaction request', async () => {
-    const f = await fixture([[call('read', {}, 'budget')]]);
+  it('legacy context budget preserves definitions and permits ordinary submission', async () => {
+    const f = await fixture([[call('read', {}, 'budget')], [call('submit_orientation', { orientation: 'A' }, 'final')]]);
     const bounded = { ...policy, context: { ...policy.context, budgetTokens: 1 } };
     const receipt = await (await f.operations.continue({ ...f.next(f.P.sessionId, f.P.point!, 'budget', { ...f.bindings, policy: bounded }), policy: bounded })).receipt;
-    expect(receipt).toMatchObject({ status: 'completed', outcome: { kind: 'context-budget-reached' } }); expect(f.native.dispatches()).toBe(1); expect(f.accepted()).toBe(0);
+    expect(receipt).toMatchObject({ status: 'completed', outcome: { kind: 'submitted' } }); expect(f.native.dispatches()).toBe(2); expect(f.accepted()).toBe(1);
     const snapshot = await f.operations.inspect('run-A', f.P.sessionId);
     expect(snapshot?.declarations.map(item => item.name)).toEqual(['read', 'submit_orientation']); expect(snapshot?.activeTools).toEqual(['read', 'submit_orientation']); f.native.verify();
   });
-  it('a tool-call reply that reaches the budget ends after its tool result, before the next dispatch, without a fabricated error message', async () => {
-    const f = await fixture([[call('read', {}, 'budget-call')]]);
+  it('a tool result crossing a legacy budget continues without a fabricated error message', async () => {
+    const f = await fixture([[call('read', {}, 'budget-call')], [call('submit_orientation', { orientation: 'A' }, 'final')]]);
     const bounded = { ...policy, context: { ...policy.context, budgetTokens: 1 } };
     const events: unknown[] = [];
     const bound = { ...f.bindings, policy: bounded, onEvent: (event: unknown) => { events.push(event); } };
     const receipt = await (await f.operations.continue({ ...f.next(f.P.sessionId, f.P.point!, 'budget-call', bound), policy: bounded })).receipt;
-    expect(receipt).toMatchObject({ status: 'completed', turn: 1, outcome: { kind: 'context-budget-reached' } });
-    expect(f.native.dispatches()).toBe(1); expect(f.native.requests).toHaveLength(1); expect(f.reads()).toBe(1); expect(f.accepted()).toBe(0);
-    expect(events.filter(event => (event as { type: string }).type === 'context-observed')).toHaveLength(1);
+    expect(receipt).toMatchObject({ status: 'completed', turn: 1, outcome: { kind: 'submitted' } });
+    expect(f.native.dispatches()).toBe(2); expect(f.native.requests).toHaveLength(2); expect(f.reads()).toBe(1); expect(f.accepted()).toBe(1);
+    expect(events.filter(event => (event as { type: string }).type === 'context-observed')).toHaveLength(2);
     const snapshot = await f.operations.inspect('run-A', f.P.sessionId);
     const stateEntry = snapshot!.transcript.filter(item => item.kind === 'provider' && item.key.includes(':pi-state:')).at(-1)!;
     const state = JSON.parse(new TextDecoder().decode(f.payloads.get(stateEntry.payloadId)!)) as { messages: Array<{ role: string; stopReason?: string; toolCallId?: string; isError?: boolean }> };
-    expect(state.messages.map(message => [message.role, message.stopReason ?? null])).toEqual([['system', null], ['user', null], ['assistant', 'toolUse'], ['toolResult', null]]);
-    expect(state.messages.at(-1)).toMatchObject({ role: 'toolResult', toolName: 'read', toolCallId: 'call_budget-call|fc_budget-call' }); expect(state.messages.at(-1)?.isError).not.toBe(true);
+    expect(state.messages.filter(message => ['system', 'user', 'assistant', 'toolResult'].includes(message.role)).slice(0, 4).map(message => [message.role, message.stopReason ?? null])).toEqual([['system', null], ['user', null], ['assistant', 'toolUse'], ['toolResult', null]]);
+    expect(state.messages.find(message => message.toolCallId === 'call_budget-call|fc_budget-call')).toMatchObject({ role: 'toolResult', toolName: 'read', isError: false });
     expect(state.messages.some(message => message.role === 'assistant' && (message.stopReason === 'error' || message.stopReason === 'aborted'))).toBe(false);
     f.native.verify();
   });
   it('Retry of an interrupted operation through an unsupported-model adapter answers unavailable with the recorded session id and leaves the operation resumable', async () => {
     const f = await fixture([[text('Interrupted before terminal write.')]]);
-    f.setFault(input => { const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1'); if (operation?.body['phase'] === 'terminal') throw new Error('Crash before terminal write'); });
+    f.setFault(input => { const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:')); if (operation?.body['phase'] === 'terminal') throw new Error('Crash before terminal write'); });
     await expect((await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'interrupted'))).receipt).rejects.toThrow('Crash before terminal write');
     expect(f.native.dispatches()).toBe(1); f.setFault(null);
     const interrupted = await f.store.read('run-A', 'operation:interrupted'); expect(interrupted?.body['receipt']).toBeNull();

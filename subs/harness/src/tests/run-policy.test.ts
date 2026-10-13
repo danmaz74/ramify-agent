@@ -29,7 +29,8 @@ describe('the captured commands', () => {
   });
   test('are the main plan\'s table, naming the environment the harness built', () => {
     const policy = defaultRunPolicy({ projectRoot: '/project' });
-    expect(policy.version).toBe('run-policy/7');
+    expect(policy.version).toBe('run-policy/8');
+    expect(policy.continuity).toEqual({ version: 'resource-continuity/1' });
     expect(policy.limits.maxIterationsPerCapabilityTask).toBe(24);
     expect(policy.limits.nonfunctionalRoundsPerPlan).toBe(3);
     // The first trial's review policy and reconciliation bound (Plan 12).
@@ -72,9 +73,7 @@ describe('the captured commands', () => {
 
   test('every role has its context policy, and a role with none is refused', () => {
     const policy = defaultRunPolicy({ projectRoot: '/project' });
-    expect(policy.context['initial-architect']).toEqual({ compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 });
-    expect(policy.context['global-fork']).toEqual({ compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 });
-    expect(policy.context['engineer']).toEqual({ compaction: 'forbidden', budgetTokens: 140_000, budgetFraction: 0.7, reportReserveTokens: 12_000 });
+    for (const context of Object.values(policy.context)) expect(context).toEqual({ compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 });
     const { engineer: _dropped, ...partial } = policy.context;
     expect(runPolicySchema.safeParse({ ...policy, context: partial }).success).toBe(false);
     // A policy without the reviewer's context is refused.

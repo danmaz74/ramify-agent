@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { createSessionOperations } from '../session-operations.js';
 import { SessionDriverUnavailableError } from '../interfaces/session-operations.js';
 import { createScriptedAgent, createScriptedSessionDriver } from '../scripted.js';
@@ -37,6 +38,65 @@ function observation(promise: Promise<unknown>) { let ended = false; void promis
 async function flush() { for (let index = 0; index < 8; index++) await Promise.resolve(); }
 
 describe('Plan 23 F1 high-level session operations', () => {
+  it('reports an exact historical point as unavailable for continuation without substituting the current point or dispatching', async () => {
+    const store = memoryStore(); let dispatches = 0;
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch() { dispatches++; return { kind: 'ended' }; } } });
+    const P = await operations.create(create);
+    const original = await operations.inspect('run-A', P.sessionId, P.point!);
+    const appended = await operations.appendContext({ runId: 'run-A', operationId: 'accepted-brief', sessionId: P.sessionId,
+      expectedPoint: P.point!, additions: [{ key: 'current-task', kind: 'brief', revision: '1', text: 'Accepted current decision' }] });
+    const current = await operations.inspect('run-A', P.sessionId);
+    const stale = await (await operations.continue(continuation(P.sessionId, P.point!, 'stale-source'))).receipt;
+    expect(stale).toMatchObject({ status: 'unavailable', point: null, contextUnavailable: true });
+    expect(dispatches).toBe(0);
+    expect(await operations.inspect('run-A', P.sessionId)).toEqual(current);
+    expect(await operations.inspect('run-A', P.sessionId, P.point!)).toEqual(original);
+    expect((await operations.fork({ runId: 'run-A', operationId: 'exact-source-fork', sourcePoint: P.point! })).status).toBe('completed');
+    expect((await operations.fork({ runId: 'run-A', operationId: 'invented-source-fork', sourcePoint: { ...P.point!, checkpoint: 'invented' } })).status).toBe('unavailable');
+    const invented = await (await operations.continue(continuation(P.sessionId, { ...P.point!, checkpoint: 'invented' }, 'invented-source-continue'))).receipt;
+    expect(invented.status).toBe('conflict');
+    expect(invented.contextUnavailable).not.toBe(true);
+    expect((await operations.inspect('run-A', P.sessionId))?.currentPoint).toEqual(appended.point);
+  });
+  it('reconciles a late admitted handler from its immutable owner receipt after stop without replay or submission authority', async () => {
+    const store = memoryStore(); const started = deferred(); const release = deferred(); let effects = 0;
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch(_, runtime) {
+      await runtime.callTool('late-write', 'write', { path: 'candidate.ts', content: 'retained partial work' });
+      return { kind: 'ended' };
+    } } });
+    const P = await operations.create(create);
+    const bound = bindings({ tools: [{ ...tools[1]!, execute: async () => {
+      effects++; started.resolve(); await release.promise; return { text: 'The originally admitted write completed' };
+    } }] });
+    const handle = await operations.continue(continuation(P.sessionId, P.point!, 'late-owner', bound));
+    await started.promise;
+    const stopping = handle.stop();
+    const original = await handle.receipt;
+    const premature = { runId: 'run-A', operationId: 'late-owner', sessionId: P.sessionId,
+      policyIdentity: task.policyIdentity, validatorIdentity: task.validatorIdentity, destinationIdentity: task.destinationIdentity,
+      effects: [{ callId: 'late-write', tool: 'write', input: { path: 'candidate.ts', content: 'retained partial work' },
+        result: { text: 'The originally admitted write completed' }, receiptIdentity: 'unavailable' }] };
+    await expect(operations.reconcileEffects!(premature)).rejects.toThrow('quiescent terminal owner');
+    expect((await store.read('run-A', 'operation:late-owner'))?.body['effects']).toMatchObject([{ phase: 'intent' }]);
+    expect(await store.read('run-A', 'effect-receipt:late-owner:late-write')).toBeNull();
+    release.resolve(); await stopping; await handle.settled();
+    const receipt = (await store.read('run-A', 'effect-receipt:late-owner:late-write'))!;
+    const receiptIdentity = createHash('sha256').update(JSON.stringify(receipt.body)).digest('hex');
+    await expect(operations.reconcileEffects!({ ...premature, effects: [{ ...premature.effects[0]!, receiptIdentity: 'invented' }] })).rejects.toThrow('immutable owner completion receipt');
+    const recorded = (await store.read('run-A', 'operation:late-owner'))!;
+    const reconciliation = { ...premature, effects: [{ ...premature.effects[0]!, receiptIdentity }] };
+    await operations.reconcileEffects!(reconciliation);
+    const reconciled = (await store.read('run-A', 'operation:late-owner'))!;
+    expect(reconciled.body['effects']).toMatchObject([{ phase: 'completed', result: { text: 'The originally admitted write completed' } }]);
+    expect(reconciled.body['receipt']).toEqual(original);
+    expect(reconciled.body['provider']).toEqual(recorded.body['provider']);
+    expect(await store.read('run-A', 'effect-receipt:late-owner:late-write')).toEqual(receipt);
+    await operations.reconcileEffects!(reconciliation);
+    expect(await store.read('run-A', 'operation:late-owner')).toEqual(reconciled);
+    expect(await (await operations.retry({ runId: 'run-A', operationId: 'late-owner', bindings: bound })).receipt).toEqual(original);
+    expect(effects).toBe(1);
+    expect(await operations.inspect('run-A', P.sessionId)).toBeNull();
+  });
   it('captures fresh JSON policy and declarations without losing literal text or prototype-shaped keys', async () => {
     const shared = { title: 'quote " slash \\ newline\n emoji 😀 lone \ud800', nested: [null, true, -0, { value: 'original' }] };
     const dictionary = Object.create(null) as Record<string, unknown>;
@@ -218,7 +278,7 @@ describe('Plan 23 F1 high-level session operations', () => {
     expect(fork.status).toBe('completed'); expect(fork.point?.turn).toBe(0);
     gate.resolve(); const receipts = await Promise.all([a.receipt, b.receipt]);
     expect(receipts.map(item => item.status).sort()).toEqual(['completed', 'conflict']);
-    expect((await operations.continue(continuation(P.sessionId, P.point!, 'stale'))).receipt).resolves.toMatchObject({ status: 'conflict' });
+    await expect((await operations.continue(continuation(P.sessionId, P.point!, 'stale'))).receipt).resolves.toMatchObject({ status: 'unavailable', contextUnavailable: true });
     expect((await operations.create({ ...create, initialInstructions: 'Different' })).status).toBe('conflict');
   });
   it('standalone activation keeps declarations and inactive calls never reach handlers', async () => {
