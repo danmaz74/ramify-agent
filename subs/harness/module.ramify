@@ -70,6 +70,13 @@ expose-src PlannedCheck from "checks/verify.ts" to descendants
 expose-src Checkpoint, GateCommandRecord, GateEvidence, GateRuleRecord, TestSelectionPolicy, CheckCommand, CheckCommandKind, NotVerified, TypeCheckOutput, checkCommandEnvironment from "checks/records.ts" to descendants
 expose-src PausableDeadline from "run/pausable-deadline.ts" to descendants
 
+// Repair authentication is run authority, independent of response presentation.
+// Descendants receive committed inputs and validated facts, not writable services.
+expose-src authenticateRepairHistory, RepairHistoryError, RepairHistoryEntry, ValidatedRepairIncident from "run/repair-history.ts" to descendants
+// Decoded reading data only; RunLog and its writable collaborators stay private.
+expose-src RunEvent, runEventSchema from "run/log.ts" to descendants
+expose-src RepairIncidentRecord, RepairIncidentStage, RepairIncidentId, RepairCandidate, RepairResult, RepairExportState, repairIncidentRecordSchema, repairIncidentStageSchema, repairIncidentIdSchema, repairCandidateSchema, repairResultSchema, repairExportStateSchema from "interfaces/protocol/repairs.ts" to descendants
+
 expose-sub commitAccepted, createRunBranch, isCleanRepository from evidence to descendants
 expose-sub runCommand, childEnvironment, outputTailBytes, CommandRequest, CommandRun, CommandOutcome, CommandOutput, CommandRunner from evidence to descendants
 

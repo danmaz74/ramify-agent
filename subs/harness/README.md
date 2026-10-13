@@ -297,6 +297,19 @@ hiding or measured complexity justifies it.
     held. It also walks the project for independent nested packages.
   - `log.ts`: the run log and its events, from `job-started` through
     readiness to the terminal event. Nothing follows a terminal event.
+  - `repair-history.ts`: shared committed repair-history authentication for
+    the current query reader and repair-export command. It returns latest
+    durable records and lifecycle facts; display interruptions and invocation
+    enrichment stay in the reader. Its committed input uses the durable decoded
+    `RunEvent`, explicitly exposed with `runEventSchema` to descendants; neither
+    `RunLog` nor writable run authority is exposed. Schema-inference coverage
+    limits and intermediate qualification evidence are retained in
+    `notes/repair-history-intermediate-correction.md`. Actual child consumption
+    and extraction remain future work.
+  - `committed-history.ts`: durable schema/version admission used by both the
+    reader and repair export before effects, independent of response mapping.
+    The local projections directory remains temporary; no child extraction is
+    completed by this correction.
   - `sessions.ts`: the run's sessions, derived from its log by a pure
     reducer: `session-opened`, the invocations each session awaits, the
     briefs appended to it and `session-finished`. A session is live,

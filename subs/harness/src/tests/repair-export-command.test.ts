@@ -7,6 +7,7 @@ import { runView } from '../projections/inputs.js';
 import { automaticRepairsOf } from '../projections/repairs.js';
 import { RunLog } from '../run/log.js';
 import { runLayout } from '../run/records.js';
+import { repairIncidentRecordSchema } from '../run/repair-records.js';
 import { runRepairExportCommandWith as runRepairExportCommand } from '../run/repair-export-command.js';
 import { repairExportPayloadPath, repairProjectKey } from '../run/repair-export.js';
 import { acquireProjectLock } from '../store/lock.js';
@@ -16,7 +17,7 @@ import { repairExportFixture } from './helpers/repair-export-fixture.js';
 
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
-async function retainedRun(viaSymlink = false) {
+async function retainedRun(viaSymlink = false, terminal = true, admitted = false) {
   const root = await mkdtemp(join(tmpdir(), 'repair-export-command-'));
   directories.push(root);
   await mkdir(join(root, '.beads'));
@@ -31,15 +32,110 @@ async function retainedRun(viaSymlink = false) {
   await mkdir(directory, { recursive: true });
   const record = constructedRecord();
   await writeFile(join(directory, runLayout.record), JSON.stringify(record));
-  const payload = repairExportFixture(serviceRoot, runId);
-  const incident = payload.incident;
+  const original = repairExportFixture(serviceRoot, runId);
+  const incident = admitted ? repairIncidentRecordSchema.parse({ ...original.incident,
+    admission: { admitted: true, reason: 'Bounded repair admitted' } }) : original.incident;
+  const payload = { ...original, incident };
   const log = await RunLog.open(join(directory, runLayout.events), runId);
-  await commitRecord(log.ledger, { event: log.next({ type: 'repair-incident-recorded', data: { incidentId: incident.incidentId, revision: 1, stage: 'refused' } }),
+  await commitRecord(log.ledger, { event: log.next({ type: 'repair-incident-recorded', data: { incidentId: incident.incidentId, revision: 1, stage: admitted ? 'admitted' : 'refused' } }),
     records: [{ path: runLayout.repairIncident(incident.incidentId, 1), id: incident.incidentId, revision: 1, body: incident },
       { path: repairExportPayloadPath(incident.incidentId, 1), id: incident.incidentId, revision: 1, body: payload }] });
-  await log.append({ type: 'job-failed', data: { reason: 'internal', message: 'Original preparation failure', evidence: [] } });
+  if (terminal) await log.append({ type: 'job-failed', data: { reason: 'internal', message: 'Original preparation failure', evidence: [] } });
   return { root, directory, record, payload, log, options: { run: directory, executable: '/tools/bd', workspace: root, json: true } };
 }
+
+test.each([
+  ['record identity mismatch', 'repair-incident-recorded', 2, false, 'does not identify'],
+  ['revision gap', 'repair-export-recorded', 3, false, 'consecutive'],
+  ['invalid lifecycle transition', 'repair-incident-recorded', 2, false, 'Invalid automatic repair transition'],
+  ['changed original evidence', 'repair-incident-recorded', 2, true, 'changes original'],
+  ['export changes non-export evidence', 'repair-export-recorded', 2, true, 'changes incident evidence'],
+] as const)('retained %s refuses reading and export before copy recovery or external effects', async (_name, type, revision, changedEvidence, diagnostic) => {
+  const fixture = await retainedRun(false, type === 'repair-export-recorded');
+  const incident = { ...fixture.payload.incident, revision,
+    harnessError: changedEvidence ? { ...fixture.payload.incident.harnessError, message: 'Changed original failure' } : fixture.payload.incident.harnessError };
+  const path = runLayout.repairIncident(incident.incidentId, revision);
+  const event = type === 'repair-export-recorded'
+    ? fixture.log.next({ type, data: { incidentId: incident.incidentId, revision, state: incident.export.state } })
+    : fixture.log.next({ type, data: { incidentId: incident.incidentId, revision, stage: 'refused' } });
+  await commitRecord(fixture.log.ledger, { event, records: [{ path,
+    id: _name === 'record identity mismatch' ? 'apr-9999' : incident.incidentId, revision, body: incident }] });
+  const view = runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() });
+  expect(() => automaticRepairsOf(view)).toThrow(diagnostic);
+  try { automaticRepairsOf(view); } catch (error) { expect(error).toMatchObject({ code: 'unreadable' }); }
+  // A deliberately damaged recoverable copy makes ordering observable. A
+  // command that recovered before authenticating would overwrite this marker.
+  const copy = join(fixture.directory, repairExportPayloadPath('apr-0001', 1));
+  await writeFile(copy, 'not recovered');
+  const events = await readFile(join(fixture.directory, runLayout.events), 'utf8');
+  let calls = 0;
+  const result = await runRepairExportCommand(fixture.options, { commandExecution: async () => {
+    calls++; throw new Error('External exporter must not run');
+  } });
+  expect(result).toEqual({ stdout: '', stderr: expect.stringContaining(diagnostic), exitStatus: 2 });
+  expect(calls).toBe(0);
+  expect(await readFile(copy, 'utf8')).toBe('not recovered');
+  expect(await readFile(join(fixture.directory, runLayout.events), 'utf8')).toBe(events);
+});
+
+test.each([
+  ['unsupported version', { schema: 'ramify-agent.contract/1' }, 'unsupported-version', 'this harness reads ramify-agent.contract/2'],
+  ['malformed durable body', { schema: 'ramify-agent.contract/2' }, 'unreadable', 'no longer satisfies its schema'],
+] as const)('general %s admission remains before copy recovery', async (_name, body, code, diagnostic) => {
+  const fixture = await retainedRun(false, false);
+  await commitRecord(fixture.log.ledger, { event: fixture.log.next({ type: 'repair-export-recorded', data: {
+    incidentId: 'apr-0001', revision: 2, state: 'pending',
+  } }), records: [{ path: 'contracts/damaged.json', id: 'damaged', revision: 1, body }] });
+  expect(() => runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() })).toThrow(diagnostic);
+  try { runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() }); }
+  catch (error) { expect(error).toMatchObject({ code, evidence: expect.arrayContaining([expect.stringContaining('contracts/damaged.json')]) }); }
+  const copy = join(fixture.directory, repairExportPayloadPath('apr-0001', 1));
+  await writeFile(copy, 'not recovered');
+  const events = await readFile(join(fixture.directory, runLayout.events), 'utf8');
+  let calls = 0;
+  const result = await runRepairExportCommand(fixture.options, { commandExecution: async () => { calls++; throw new Error('No export'); } });
+  expect(result).toEqual({ stdout: '', stderr: expect.stringContaining(diagnostic), exitStatus: 2 });
+  expect(calls).toBe(0);
+  expect(await readFile(copy, 'utf8')).toBe('not recovered');
+  expect(await readFile(join(fixture.directory, runLayout.events), 'utf8')).toBe(events);
+});
+
+test.each(['invocation conflict', 'session conflict', 'unverified continuation'] as const)('%s refuses query and export before effects', async kind => {
+  const fixture = await retainedRun(false, false, true);
+  await fixture.log.append({ type: 'invocation-started', data: {
+    invocation: 'inv-repair', session: 'ses-0001', role: 'engineer', start: 'opened', work: { automaticRepair: 'apr-0001' },
+  } });
+  const running = repairIncidentRecordSchema.parse({ ...fixture.payload.incident, revision: 2,
+    invocation: kind === 'invocation conflict' ? 'inv-other' : 'inv-repair',
+    session: kind === 'session conflict' ? 'ses-0002' : 'ses-0001' });
+  await commitRecord(fixture.log.ledger, { event: fixture.log.next({ type: 'repair-incident-recorded', data: {
+    incidentId: running.incidentId, revision: 2, stage: 'running',
+  } }), records: [{ path: runLayout.repairIncident(running.incidentId, 2), id: running.incidentId, revision: 2, body: running }] });
+  if (kind === 'unverified continuation') {
+    const continued = repairIncidentRecordSchema.parse({ ...running, revision: 3,
+      result: { outcome: 'ready', summary: 'Ready judgment', checks: [], remainingWork: [], suspectedCause: null, evidence: [] },
+      verification: { verified: false, reason: 'Handback not verified', evidence: [] },
+      continuation: { delivered: true, reason: 'Delivered', evidence: [] } });
+    await commitRecord(fixture.log.ledger, { event: fixture.log.next({ type: 'repair-incident-recorded', data: {
+      incidentId: continued.incidentId, revision: 3, stage: 'continued',
+    } }), records: [{ path: runLayout.repairIncident(continued.incidentId, 3), id: continued.incidentId, revision: 3, body: continued }] });
+  }
+  const diagnostic = kind === 'unverified continuation' ? 'has no verified continuation' : 'names a different invocation or session';
+  const view = runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() });
+  expect(() => automaticRepairsOf(view)).toThrow(diagnostic);
+  try { automaticRepairsOf(view); } catch (error) { expect(error).toMatchObject({ code: 'unreadable', evidence: [] }); }
+  const copies = [runLayout.repairIncident('apr-0001', 1), repairExportPayloadPath('apr-0001', 1)].map(path => join(fixture.directory, path));
+  for (const copy of copies) await writeFile(copy, 'not recovered');
+  const events = await readFile(join(fixture.directory, runLayout.events), 'utf8');
+  let calls = 0;
+  const result = await runRepairExportCommand(fixture.options, { commandExecution: async () => {
+    calls++; throw new Error('External exporter must not run');
+  } });
+  expect(result).toEqual({ stdout: '', stderr: expect.stringContaining(diagnostic), exitStatus: 2 });
+  expect(calls).toBe(0);
+  for (const copy of copies) expect(await readFile(copy, 'utf8')).toBe('not recovered');
+  expect(await readFile(join(fixture.directory, runLayout.events), 'utf8')).toBe(events);
+});
 
 test('manual export preserves identity captured through a symlink target path', async () => {
   const fixture = await retainedRun(true);
@@ -75,6 +171,13 @@ test('manual export updates a retained terminal run through ledger without chang
   expect(projected).toMatchObject({ attempted: 0, refused: 1, incidents: [{ stage: 'refused', revision: 2, export: { issueId: 'tracker-1', state: 'exported' } }] });
   const payload = JSON.parse(await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8'));
   expect(payload.incident.export.issueId).toBe('tracker-1');
+  const before = await readFile(join(fixture.directory, runLayout.events), 'utf8');
+  const payloadBefore = await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8');
+  for (let read = 0; read < 3; read++) expect(automaticRepairsOf(runView({ record: fixture.record,
+    directory: fixture.directory, entries: reopened.ledger.replay() }))).toEqual(projected);
+  expect(calls).toBe(1);
+  expect(await readFile(join(fixture.directory, runLayout.events), 'utf8')).toBe(before);
+  expect(await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8')).toBe(payloadBefore);
 });
 
 test('manual export preserves pending state and payload when the CLI is unavailable', async () => {

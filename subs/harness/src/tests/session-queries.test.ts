@@ -135,6 +135,10 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     expect(targeted).toEqual({ version: answer.version, session: views.get('ses-0001') });
     expect(await refused(origin, protocolPaths.runSession(plan, runId, 'ses-9999'))).toEqual([404, 'not-found']);
     expect([...views.keys()]).toEqual([...sessions.keys()]);
+    // Repeated HTTP reads exercise the real reader's version cache, not a
+    // canned endpoint response; finished run answers keep exact ordering.
+    expect(await ok(origin, protocolPaths.runSessions(plan, runId), runSessionsResponseSchema)).toEqual(answer);
+    expect(await ok(origin, protocolPaths.sessions(), sessionListResponseSchema)).toEqual(list);
     for (const session of sessions.values()) {
       expect(views.get(session.id), session.id).toMatchObject({
         state: 'finished', finished: session.finished, awaiting: null, point: session.point, opened: session.opened, changed: session.changed,
@@ -227,6 +231,7 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
       outcome: { ended: 'submitted', interruption: null, error: null },
       evaluation: { invocation: finished, role: 'engineer', writer: true, ended: 'submitted', lines: { coverage: 'partial', gaps: ['a standalone session records no line events'] } },
     });
+    expect(await ok(origin, protocolPaths.standaloneSession(finished), standaloneSessionResponseSchema)).toEqual(done);
     const gone = await ok(origin, protocolPaths.standaloneSession(crashed), standaloneSessionResponseSchema);
     expect(gone).toMatchObject({ session: { state: 'interrupted' }, outcome: null, evaluation: { ended: null, usage: { unavailable: 'the invocation has not ended' } } });
     const crashedEntries = (await readTranscript(join(root, sessionsDirectory, crashed, sessionLayout.transcript))).entries;

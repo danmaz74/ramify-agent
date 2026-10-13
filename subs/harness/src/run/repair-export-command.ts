@@ -2,13 +2,13 @@ import { readFile, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { commitRecord, recoverCommits } from '../jobs/commit.js';
-import { runView } from '../projections/inputs.js';
-import { automaticRepairsOf } from '../projections/repairs.js';
+import { validateCommittedHistory } from './committed-history.js';
+import { authenticateRepairHistory } from './repair-history.js';
 import { manualRunLocationOf } from '../steps/manual.js';
 import { acquireProjectLock } from '../store/lock.js';
 import { RunLog } from './log.js';
 import { runLayout, runRecordSchema } from './records.js';
-import { repairIncidentRecordSchema, type RepairIncidentRecord } from './repair-records.js';
+import { repairIncidentRecordSchema } from './repair-records.js';
 import { createRepairExportPayload, exportRepairIncident, repairExportPayloadSchema, repairExportPayloadPath, repairProjectKey, type RepairExportConfiguration } from './repair-export.js';
 
 export interface RepairExportCommandOptions {
@@ -43,20 +43,11 @@ export async function runRepairExportCommandWith(options: RepairExportCommandOpt
       const log = await RunLog.open(join(directory, runLayout.events), record.jobId);
       // Authenticate revision order, lifecycle and immutable evidence before
       // materialization or external effects against a retained run.
-      automaticRepairsOf(runView({ record, directory, entries: log.ledger.replay() }));
+      const entries = log.ledger.replay();
+      validateCommittedHistory(record, entries);
+      const latest = authenticateRepairHistory(entries);
       await recoverCommits(log.ledger);
-      const latest = new Map<string, RepairIncidentRecord>();
-      for (const entry of log.ledger.replay()) {
-        const event = entry.transaction.event;
-        if (event.type !== 'repair-incident-recorded' && event.type !== 'repair-export-recorded') continue;
-        const path = runLayout.repairIncident(event.data.incidentId, event.data.revision);
-        const committed = entry.transaction.records.find(body => body.path === path);
-        if (committed === undefined) throw new Error(`Incident event ${event.sequence} has no committed incident body`);
-        const incident = repairIncidentRecordSchema.parse(committed.body);
-        if (incident.incidentId !== event.data.incidentId || incident.revision !== event.data.revision) throw new Error('Incident body identity differs from its event');
-        latest.set(incident.incidentId, incident);
-      }
-      const incidents = [...latest.values()].filter(incident => options.incident === undefined || incident.incidentId === options.incident);
+      const incidents = latest.map(incident => incident.record).filter(incident => options.incident === undefined || incident.incidentId === options.incident);
       if (options.incident !== undefined && incidents.length === 0) return refused(`Incident ${options.incident} is not recorded in the run`);
       const configuration: RepairExportConfiguration = { executable: options.executable, workspace: options.workspace };
       const retained = incidents.map(incident => {

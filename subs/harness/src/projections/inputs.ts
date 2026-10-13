@@ -10,7 +10,8 @@ import {
   entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema, runLayout, runRecordSchema,
   type EntryAssignments, type RunRecord,
 } from '../run/records.js';
-import { committedRecords, CommittedRecordError, type CommittedRecords } from '../work/committed.js';
+import { committedRecords, type CommittedRecords } from '../work/committed.js';
+import { validateCommittedHistory, CommittedHistoryError, unsupportedCommittedVersion } from '../run/committed-history.js';
 import { workItemOutlineSchema, type WorkItemOutline } from '../work/records.js';
 import { contractRecordSchema, type ContractRecord } from '../contracts/records.js';
 import { iterationAssignmentSchema, type IterationAssignment } from '../work/iterations.js';
@@ -90,43 +91,16 @@ export interface RunView {
   readonly gateAuditOutcomes: ReadonlyMap<string, CommittedBody<z.infer<typeof gateAuditOutcomeSchema>>>;
 }
 
-/**
- * The record families a projection reads, each at the one version this
- * harness supports. A body that names one of these families at another
- * version is refused with evidence rather than skipped.
- */
-const supported: Readonly<Record<string, string>> = Object.fromEntries([
-  'ramify-agent.hypothesis/1', 'ramify-agent.capability/1', 'ramify-agent.work-item/1',
-  'ramify-agent.work-item-outline/1', 'ramify-agent.iteration-assignment/1', 'ramify-agent.iteration-result/1',
-  'ramify-agent.invocation/1', 'ramify-agent.invocation-outcome/1', 'ramify-agent.placement-request/1',
-  'ramify-agent.placement-decision/1', 'ramify-agent.contract/2', 'ramify-agent.provider-obligation/1',
-  'ramify-agent.consumer-requirement/1', 'ramify-agent.gate-attempt/3', 'ramify-agent.gate-audit-outcome/1', 'ramify-agent.entry-assignments/1',
-  'ramify-agent.readiness-attempt/1', 'ramify-agent.infrastructure-recovery/1', 'ramify-agent.measurement-snapshot/1',
-  'ramify-agent.line-events/1', 'ramify-agent.scenario/1', 'ramify-agent.unresolved-request/1', 'ramify-agent.plan-deviation/1',
-  'ramify-agent.environment-problem/1', 'ramify-agent.prepared-candidate/1',
-  'ramify-agent.repair-incident/1',
-  'ramify-agent.automatic-repair-assignment/1', 'ramify-agent.repair-preparation/1',
-  'ramify-agent.automatic-repair-delta/1', 'ramify-agent.repair-incident-export/1',
-  'ramify-agent.automatic-repair-attempt/1',
-  'ramify-agent.nonfunctional-assessment/1', 'ramify-agent.nonfunctional-round/1',
-  'ramify-agent.nonfunctional-deviation/1',
-  'ramify-agent.capability-request/1', 'ramify-agent.capability-task/1', 'ramify-agent.capability-plan/1',
-  'ramify-agent.capability-exchange/1', 'ramify-agent.capability-handback/1',
-].map(schema => [familyOf(schema), schema]));
-
-function familyOf(schema: string): string {
-  return schema.replace(/\/\d+$/, '');
-}
-
-/** Why a declared schema is refused, or null when this harness reads it or does not project that family. */
-export function unsupportedVersion(declared: unknown): string | null {
-  if (typeof declared !== 'string') return null;
-  const expected = supported[familyOf(declared)];
-  return expected === undefined || expected === declared ? null : expected;
-}
+/** Why a declared schema is refused, under the durable owner's admission rules. */
+export const unsupportedVersion = unsupportedCommittedVersion;
 
 /** The view every projection of one run is computed from. */
 export function runView(run: CommittedRun): RunView {
+  try { validateCommittedHistory(run.record, run.entries); }
+  catch (error) {
+    if (error instanceof CommittedHistoryError) throw new ProjectionError(error.code, error.message, error.evidence);
+    throw error;
+  }
   const gates = new Map<string, CommittedBody<z.infer<typeof gateAttemptSchema>>>();
   const gateAuditOutcomes = new Map<string, CommittedBody<z.infer<typeof gateAuditOutcomeSchema>>>();
   const hypothesisRevisions: CommittedBody<Hypothesis>[] = [];
@@ -138,14 +112,6 @@ export function runView(run: CommittedRun): RunView {
   for (const line of run.entries) {
     for (const record of line.transaction.records) {
       const declared = (record.body as { schema?: unknown } | null)?.schema;
-      const expected = unsupportedVersion(declared);
-      if (expected !== null) {
-        throw new ProjectionError(
-          'unsupported-version',
-          `The record ${record.path} of run ${run.record.jobId} declares ${String(declared)}; this harness reads ${expected}`,
-          [join(relativeRun(run), record.path), `declares ${String(declared)}`, `committed by event ${line.sequence} (${line.transaction.event.type})`],
-        );
-      }
       const at = { path: record.path, ...publicSequence(run.entries, line.sequence), at: line.at };
       switch (declared) {
         case 'ramify-agent.gate-attempt/3': {
@@ -180,15 +146,7 @@ export function runView(run: CommittedRun): RunView {
     }
   }
 
-  let records: CommittedRecords;
-  try {
-    records = committedRecords(run.entries);
-  } catch (error) {
-    if (error instanceof CommittedRecordError) {
-      throw new ProjectionError('unreadable', `A record of run ${run.record.jobId} no longer satisfies its schema: ${error.message}`, [join(relativeRun(run), error.path), ...error.errors]);
-    }
-    throw error;
-  }
+  const records = committedRecords(run.entries);
 
   // A gate committed first as an intent and completed later keeps the place
   // of its first commit.

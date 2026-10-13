@@ -6,6 +6,8 @@ import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { runEventPageSchema, runListResponseSchema, workItemListResponseSchema } from '../interfaces/protocol/runs.js';
 import { startServerWith, type RunningServer } from '../http/server.js';
 import { RunQueries } from '../projections/queries.js';
+import { runEventSchema, type RunEvent } from '../run/log.js';
+import { authenticateRepairHistory, type RepairHistoryEntry } from '../run/repair-history.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { treeInputs } from './helpers/iterations.js';
@@ -32,6 +34,20 @@ afterEach(async () => {
 });
 
 const plan = 'review-notes';
+
+test('repair authentication accepts decoded events, not unknown event data', () => {
+  const event: RunEvent = runEventSchema.parse({
+    sequence: 1, jobId: 'job-001', at: '2026-10-13T00:00:00.000Z',
+    type: 'restart-branch-ready', data: { branch: 'candidate', head: 'head', tree: 'tree' },
+  });
+  const entry: RepairHistoryEntry = { transaction: { event, records: [] } };
+  expect(authenticateRepairHistory([entry])).toEqual([]);
+  expect(runEventSchema.safeParse({ ...event, type: 'repair-incident-recorded', data: null }).success).toBe(false);
+  const unknownEvent: { type: string; sequence: number; at: string; data: unknown } = event;
+  // @ts-expect-error Unauthenticated unknown data is not a decoded RunEvent.
+  const rejected: RepairHistoryEntry = { transaction: { event: unknownEvent, records: [] } };
+  void rejected; // Compile-time counterexample only: never authenticate this input.
+});
 
 async function status(server: RunningServer, path: string): Promise<{ status: number; body: unknown }> {
   const response = await fetch(`${server.url}${path}`);

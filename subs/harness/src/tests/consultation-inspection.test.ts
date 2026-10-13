@@ -78,6 +78,14 @@ test('C13/C14/C15: actual nested exchanges, session descendants, complete per-in
   const filtered = await readConsultations({ run: f.directory, session: caller.session }); expect(filtered.consultations.map(value => value.id)).toEqual([outer.id, inner.id]);
   const detail = await readConsultations({ run: f.directory, id: outer.id }); expect(detail.consultations).toHaveLength(1); expect(detail.usage).toEqual(view.usage);
   const json = await runConsultationsCommand({ run: f.directory, format: 'json' }); expect(JSON.parse(json.stdout)).toEqual(view);
+  expect(json).toMatchObject({ exitStatus: 0, stderr: '' });
+  const cliText = await runConsultationsCommand({ run: f.directory });
+  expect(cliText).toEqual({ stdout: consultationText(view), stderr: '', exitStatus: 0 });
+  const cliDetail = await runConsultationsCommand({ run: f.directory, id: outer.id });
+  expect(cliDetail).toEqual({ stdout: consultationText(detail, true), stderr: '', exitStatus: 0 });
+  const cliSession = await runConsultationsCommand({ run: f.directory, session: caller.session, format: 'json' });
+  expect(cliSession).toMatchObject({ exitStatus: 0, stderr: '' });
+  expect(JSON.parse(cliSession.stdout)).toEqual(filtered);
   const text = consultationText(view); expect(text).toContain(`  ${inner.id}`); expect(text).toContain('cumulative top-level call time (not session wall time)');
   expect(text).toContain(outer.child!.investigation!.path); expect(consultationText(detail, true)).toContain(outer.question);
   expect(await bytes(f.directory)).toEqual(before); expect(f.seen.length).toBe(seen);
