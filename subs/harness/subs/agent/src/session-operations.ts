@@ -178,7 +178,13 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
       if (prior) return completedHandle(prior);
       const loaded = await readSession(input.runId, input.sessionId);
       if (!loaded || !loaded.body.snapshot.available) return completedHandle(receipt(input, input.sessionId, 'unavailable', 'Session unavailable', null, null, null, true));
-      if (loaded.body.snapshot.activeOperation !== null || !equal(loaded.body.snapshot.currentPoint, input.expectedPoint)) return completedHandle(receipt(input, input.sessionId, 'conflict', 'Expected point is stale or session active'));
+      if (loaded.body.snapshot.activeOperation !== null) return completedHandle(receipt(input, input.sessionId, 'conflict', 'Session has an active operation'));
+      if (!equal(loaded.body.snapshot.currentPoint, input.expectedPoint)) {
+        if (!loaded.body.points.some(snapshot => equal(snapshot.currentPoint, input.expectedPoint))) {
+          return completedHandle(receipt(input, input.sessionId, 'conflict', 'Expected point is not an authenticated point of this session'));
+        }
+        return completedHandle(receipt(input, input.sessionId, 'unavailable', 'The exact expected point is no longer the current continuation point', null, null, null, true));
+      }
       let snapshot: Snapshot;
       try {
         validateBindings(input.task, input.policy, input.bindings);

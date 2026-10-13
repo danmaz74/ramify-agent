@@ -4,12 +4,14 @@ This candidate implements native Pi compaction, progress-sensitive stall recover
 and nonterminal resource obstruction handling in a separate worktree. The native
 Pi evidence uses installed `@earendil-works/pi-coding-agent@0.87.1` with scripted
 external provider responses. Service, command, Git and audit answers are scripted
-unless a witness is separately registered under the test-boundary policy. These
+unless a witness is separately registered under the test-boundary policy. Scripted
 results establish the named implementation behavior, not paid provider
 acceptance, cache savings or kernel settlement.
 
-Local commit and default audit were explicitly authorized. The implementation
-candidate's audit is pending; no audit receipt or complete qualification is claimed.
+Local commit and default audit were explicitly authorized. The first default
+audit of implementation commit `bfa1dda86fa73d732d5be1f3e9583b81289ebef6`
+completed with a failing test verdict. The corrected candidate's audit is
+pending; complete qualification is not yet claimed.
 The required command remains
 `node_modules/.bin/ramify-audit audit --cwd . --json` from a clean committed
 candidate, with every configured project retained. Responsible architects assess
@@ -117,6 +119,54 @@ also passed all 10 cases after clarifying historical resource fields. `npm run t
 `git diff --check` passed. These counts identify executed groups; they do not
 substitute for the behavioral mapping above. Structural checking and the
 committed default audit remain separate qualification receipts.
+
+The first default audit selected full execution because the auditor's drift
+threshold was exceeded; no scope override was supplied. It ran all 398 configured
+test files, with 3,528 passing, 23 failing and two skipped tests. Typecheck,
+structure, web build, patch integrity and the configured scenario command passed;
+the scenario command selected zero scenarios. Its retained receipt is
+`refs/audited/runs/2026-10-13T07-02-06Z-bfa1dda86` (report
+`f895acdea70f929bf64d465615f56fbd9fb0ffc7`). Corrections preserve independent
+semantic input rejection, keep post-completion approval from creating execution
+authority, reconcile later reader settlement before debugger admission, retain
+the original interrupted engineer assignment through explicitly admitted restart,
+and distinguish producer timeout facts from assertion failures. Obsolete budget
+assertions and effect-record fault selectors were migrated without weakening
+historical record or process-boundary coverage.
+
+The installed workflow restart also exposed a parent session whose exact
+recorded point remained authenticated after model-free appends advanced its
+current point. Continuation now distinguishes an active owner (conflict), an
+invented or foreign point (conflict), and a retained older point unavailable for
+continuation. The existing named current-task reconstruction can recover the
+last case after settlement without silently inheriting newer history. The core
+witness proves zero dispatch on refusal, unchanged current and older snapshots,
+an exact older-point fork, and refusal of an invented source.
+
+Native review completion exposed a second restoration error: a newly admitted
+design orientation was mistaken for an unfinished historical peer task. The
+restoration boundary now excludes newly admitted invocations, an explicit
+original invocation selects only that invocation, and a fresh review question
+does not restore another question sharing its role and work item. Unexpected
+review preparation errors now retain the frozen request and candidate in an
+inspectable preparation hold; restoring the prerequisite and explicitly resuming
+continues the same semantic attempt.
+
+After these corrections, the service/core/caller/breakpoint/review-stop group
+passed 172 cases and all four TypeScript configurations passed. The root semantic
+submission, acceptance trial and review group passed 17 cases; producer recovery
+and gate callers passed 15; composition and historical review projection passed
+26; adapter recovery passed 54; public contract migration passed 66. The installed
+producer timeout witness passed under its updated, reviewed boundary registration.
+Structural checking completed and passed again with zero errors and warnings;
+its partial coverage and 376 analysis limits remain explicit.
+
+The final named installed-provider capability workflow passed in 86.47 seconds.
+It reached ordinary job completion with all three frozen review kinds, the exact
+accepted qualifier source and capability-returned provenance. Startup dispatched
+no model; the matching explicit resume retained `wi-001.i01`, scratch and partial
+edits, without semantic failure or reassignment. This witness retains its existing
+Plan 21 boundary registration and uses installed configured audits and Git.
 
 The final composed service group passed 98 cases across six files, including
 the late owner completion and restart authority regressions. The standalone

@@ -534,6 +534,8 @@ class Run implements RunnerRun {
   readonly recoveryReviewPipelines = new Set<string>();
   restoring = false;
   readonly restoredInvocations = new Set<string>();
+  /** Only invocations preceding this driver admission belong to its restoration inventory. */
+  restorationSequence: number | undefined;
   readonly mutex = new Mutex();
   /**
    * Serializes the start of invocations: each one's identifier and its
@@ -783,7 +785,7 @@ export class RunService {
         return service.taskBrief(run, request, spec, limits);
       },
       async restore<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>) {
-        return run.restoring ? service.restoreInvocation(run, agent, request) : null;
+        return run.restoring && request.restore !== false ? service.restoreInvocation(run, agent, request) : null;
       },
       previewCandidateTree: () => service.previewCandidateTree(),
     };
@@ -928,7 +930,7 @@ export class RunService {
       queue: policy.queue,
       preserveCoverage: run.policy.continuity !== undefined,
       unsettled: () => unsettledRequests(run.log.events).map(request => request.id),
-      attempt: request => this.runReviewAttempt(run, agent, packages, request),
+      attempt: request => this.recoverableReviewAttempt(run, agent, packages, request),
       prepare: request => this.prepareReview(run, agent, packages, request),
       overflow: async request => {
         await this.finishUnsettledReviews(run, () => ({ reason: 'queue-overflow', detail: `More than ${policy.queue} review requests were waiting; this one was not run` }), [request]);
@@ -1263,6 +1265,8 @@ export class RunService {
     let fenced = false;
     const result = await this.runInvocation<ReviewSubmission>(run, agent, {
       recoveryReviewRequest: id,
+      originalInvocation: state.attempts.at(-1)?.finished === null ? state.attempts.at(-1)?.started?.invocation : undefined,
+      restore: state.attempts.at(-1)?.finished === null && state.attempts.at(-1)?.started !== null,
       singleAdmission: true,
       role: step.role,
       brief: step.brief,
@@ -1325,6 +1329,23 @@ export class RunService {
       : await this.concernBindings(run, request, snapshot, prepared.tools, submission);
     const committed = await this.finishReview(run, request, attemptBody, outcome.result, settles, submission, bindings);
     return committed === 'committed';
+  }
+
+  /** Infrastructure setup failures retain the frozen question until an explicit compatible repair. */
+  private async recoverableReviewAttempt(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, id: string): Promise<boolean> {
+    let group = 0;
+    for (;;) {
+      try { return await this.runReviewAttempt(run, agent, packages, id); }
+      catch (error) {
+        if (!run.policy.continuity || this.ignoring(run)) throw error;
+        const request = reviewRequestSchema.parse(this.committedBody(run, reviewLayout.request(id)));
+        const resumed = await this.waitOperationRecovery(run, { kind: 'preparation', role: 'reviewer', reviewRequest: id,
+          candidate: request.key.candidate, work: { workItem: request.workItem, iteration: request.key.iteration, request: id } },
+          { classification: 'preparation', diagnostic: `Frozen review ${id} setup is unavailable: ${message(error)}` }, [], 0, group);
+        if (!resumed) return false;
+        group++;
+      }
+    }
   }
 
   private transportAncestor(run: Run, id: string, ancestor: string): boolean {
@@ -2702,6 +2723,7 @@ export class RunService {
           for (const decision of await this.completeDeliveries(run)) report.effects.push(`${run.key}: the delivery of decision ${decision}`);
           run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
           const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
+          run.restorationSequence = run.log.version;
           run.restoring = true;
           run.done = this.drive(run, this.options.agent, packages, baseline, true)
             .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted', `Original owning workflow restoration failed: ${message(error)}`))
@@ -3628,7 +3650,9 @@ export class RunService {
       if (refusal !== null) throw new CommandRejection('conflict', refusal);
       const changes = await documentChanges(this.projectRoot, planId, run.directory, run.record.manifest);
       if (changes.length > 0) throw new CommandRejection('inputs-changed', changes.join('; '));
-      await this.adoptContinuityPolicy(run, 'analysis-approval');
+      if (snapshot.state === 'running' && snapshot.phase === 'awaiting-review') {
+        await this.adoptContinuityPolicy(run, 'analysis-approval');
+      }
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       await run.log.append({
@@ -4721,6 +4745,7 @@ export class RunService {
     const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
     run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
     const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
+    run.restorationSequence = run.log.version;
     run.restoring = true;
     run.done = this.drive(run, this.options.agent, packages, baseline, true)
       .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted', `Recovery continuation failed: ${message(error)}`))
@@ -4973,17 +4998,20 @@ export class RunService {
       await run.readiness?.settled;
       while (run.live.size > 0) await Promise.all([...run.live.values()].map(live => live.done));
       if (this.ignoring(run)) return false;
-      run.writer.requireSettled('A usable breakpoint requires a settled writer');
-      const unsettledInvocation = run.log.ledger.replay().flatMap(entry => entry.transaction.records).find(record => {
-        if (!record.path.startsWith('invocations/') || !record.path.endsWith('/outcome.json')) return false;
-        const outcome = invocationOutcomeSchema.safeParse(record.body);
-        return !outcome.success || !outcome.data.settled.confirmed;
-      });
       const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
-      if (unsettledInvocation !== undefined || operations?.settlementConfirmed(run.jobId) === false) {
-        await this.fail(run, 'agent-failed', `Whole-run breakpoint settlement was not confirmed${unsettledInvocation === undefined ? '' : ` for ${unsettledInvocation.id}`}; no usable pause was published.`);
-        return false;
+      for (;;) {
+        const unsettledInvocation = run.log.ledger.replay().flatMap(entry => entry.transaction.records).find(record => {
+          if (!record.path.startsWith('invocations/') || !record.path.endsWith('/outcome.json')) return false;
+          const invocation = record.path.split('/')[1]!;
+          const outcome = invocationOutcomeSchema.safeParse(this.effectiveInvocationOutcome(run, invocation) ?? record.body);
+          return !outcome.success || !outcome.data.settled.confirmed;
+        });
+        if (!unsettledInvocation && !run.writer.isUnsettled && operations?.settlementConfirmed(run.jobId) !== false) break;
+        if (!await this.waitOperationRecovery(run, { kind: 'preparation', role: request.role, work: request.work,
+          ...(unsettledInvocation ? { invocation: unsettledInvocation.path.split('/')[1]! } : {}) },
+          { classification: 'unknown', diagnostic: 'Breakpoint admission retains an unconfirmed predecessor. Restore its owned settlement and effects before explicitly resuming the prepared task.' }, [], 0, 0)) return false;
       }
+      run.writer.requireSettled('A usable breakpoint requires a settled writer');
       // Settlement is execution time. Only the fully reached caller wait is excluded.
       const settledRefusal = this.invocationRefusal(run);
       if (settledRefusal !== null) { await this.fail(run, 'limit-exceeded', settledRefusal); return false; }
@@ -5019,7 +5047,9 @@ export class RunService {
   private async restoreInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>) {
     const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
     const analysisPrefix = !run.log.find('analysis-accepted') && ['catalog-extractor', 'initial-architect'].includes(request.role);
-    const candidates = run.log.all('invocation-started').filter(event => !run.restoredInvocations.has(event.data.invocation) && event.data.role === request.role &&
+    const candidates = run.log.all('invocation-started').filter(event => (event.sequence <= (run.restorationSequence ?? run.log.version) || event.data.invocation === request.originalInvocation)
+      && (request.originalInvocation === undefined || event.data.invocation === request.originalInvocation)
+      && !run.restoredInvocations.has(event.data.invocation) && event.data.role === request.role &&
       canonicalJson(event.data.work) === canonicalJson(request.work) && (pending.includes(event) || analysisPrefix || event.data.invocation === request.originalInvocation));
     const matched = [];
     for (const event of candidates) {
@@ -6336,7 +6366,7 @@ export class RunService {
       if (selection) contextPackage = { text: selection.packageText, selection: selection.event.data.selection, citation: selection.selection.package };
     }
 
-    if (run.restoring && preparationRecovery === undefined) {
+    if (run.restoring && preparationRecovery === undefined && continuing !== 'capability-returned') {
       const main: typeof run.log.events[number][] = [];
       for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' && event.data.work.workItem === item.id)) {
         const packet = await (await this.operations(agent)).packet(run.record.jobId, event.data.invocation);
@@ -9479,6 +9509,7 @@ export class RunService {
       return parsed.success && parsed.data.subject.iteration === assignment.id ? [parsed.data] : [];
     });
     let replay: InvocationResult<EngineerSubmission> | undefined;
+    let resourceRestartPredecessor: string | undefined;
     const latestStart = priorStarts.at(-1);
     if (latestStart !== undefined && resume?.priorInvocation !== latestStart.data.invocation &&
       !priorGates.some(gate => gate.proposedBy === latestStart.data.invocation)) {
@@ -9496,7 +9527,10 @@ export class RunService {
           await this.fail(run, 'recovery-exhausted', `Engineer ${latestStart.data.invocation} has no valid committed submission`);
           return null;
         }
-        replay = { id: latestStart.data.invocation, ended: recorded.ended,
+        const resourceRestart = run.restoring && run.policy.continuity && !run.log.find('stop-requested')
+          && ['stopped', 'resource-pending', 'context-budget-reached'].includes(recorded.ended);
+        if (resourceRestart) resourceRestartPredecessor = latestStart.data.invocation;
+        else replay = { id: latestStart.data.invocation, ended: recorded.ended,
           value: parsed?.success ? parsed.data : undefined,
           ref: recorded.session?.ref ?? '', session: latestStart.data.session, kept: ended.data.kept,
           outcomeKind: recorded.ended, ...(recorded.interruption === undefined ? {} : { interruption: recorded.interruption }),
@@ -9617,6 +9651,7 @@ export class RunService {
 
       const result = replay ?? await this.runInvocation<EngineerSubmission>(run, agent, {
         role: step.role,
+        ...(resourceRestartPredecessor === undefined ? {} : { recoveryPredecessor: resourceRestartPredecessor }),
         originalInvocation: run.restoring && latestStart && !run.log.all('invocation-ended').some(event => event.data.invocation === latestStart.data.invocation) ? latestStart.data.invocation : undefined,
         task: step.task,
         brief: step.brief,
@@ -9701,6 +9736,7 @@ export class RunService {
       });
       const replayed = replay !== undefined;
       replay = undefined;
+      resourceRestartPredecessor = undefined;
       if (!replayed && !invocations.includes(result.id)) invocations.push(result.id);
       guidancePending = undefined;
       sessionRef = result.kept && result.ref !== '' ? result.ref : undefined;

@@ -49,8 +49,8 @@ test('P01/P02/P09: exact first framing, physical hashes and unchanged assignment
 
 test('P03/P04: deterministic object order, preserved arrays, whole replacements and explicit clears', () => {
   const initial = packet();
-  // The limits are the invocation's own bounds; without a shell, no command bound.
-  expect(initial.additions.find(item => item.key === 'environment:limits')!.text).toBe(first('environment:limits', '{\n  "limits": {\n    "invocationAbsoluteMs": 1,\n    "invocationIdleMs": 2\n  }\n}'));
+  // Useful-progress observation is delivered; historical lifetime is absent.
+  expect(initial.additions.find(item => item.key === 'environment:limits')!.text).toBe(first('environment:limits', '{\n  "limits": {\n    "invocationIdleMs": 2\n  }\n}'));
   expect(packet('completion', initial.additions, { ...env, limits: { invocationAbsoluteMs: 1, invocationIdleMs: 2, commandTimeoutMs: 9 } }).additions.filter(item => item.kind === 'environment')).toEqual([]);
   const changed = packet('completion', initial.additions, { ...env, candidate: null, limits: {}, supportPaths: [] });
   expect(changed.additions.filter(item => item.kind === 'environment').map(item => item.key)).toEqual(['environment:candidate', 'environment:limits']);
@@ -59,9 +59,9 @@ test('P03/P04: deterministic object order, preserved arrays, whole replacements 
   expect(effectiveBlocks([...initial.additions, ...changed.additions]).get('environment:limits')!.text).toBe(set('environment:limits', '{\n  "limits": {}\n}'));
   // Support paths reach no role.
   expect(packet('completion', initial.additions, { ...env, supportPaths: ['a', 'b'] }).additions.filter(item => item.kind === 'environment')).toEqual([]);
-  // A shell adds the command bound.
+  // A shell adds its quiet-output observation interval.
   expect(packet('assignment', [], { ...env, availableTools: [...env.availableTools, 'shell'] }).additions.find(item => item.key === 'environment:limits')!.text)
-    .toBe(first('environment:limits', '{\n  "limits": {\n    "commandTimeoutMs": 3,\n    "invocationAbsoluteMs": 1,\n    "invocationIdleMs": 2\n  }\n}'));
+    .toBe(first('environment:limits', '{\n  "limits": {\n    "commandTimeoutMs": 3,\n    "invocationIdleMs": 2\n  }\n}'));
 });
 
 test('P05: orientation, main, reconciliation and main retain independently available families', () => {

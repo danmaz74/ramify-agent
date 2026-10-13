@@ -27,7 +27,7 @@ import { recordsOf } from './helpers/session-records.js';
 /*
  * F5 and F6 of Plan 21 iteration 11: production-wired workflows with
  * scripted agents and every installed provider — the public constructor and
- * its fixed policy (run-policy/7, code, scope and design reviews), real Git,
+ * its fixed policy (run-policy/8, code, scope and design reviews), real Git,
  * a private Ramify daemon, and the published audit provider over the
  * project's committed definitions, root and nested.
  *
@@ -250,7 +250,7 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
 
     // The production constructor fixed the policy and its reviews.
     const job = JSON.parse(await readFile(runPath(root, plan, failedRun, 'job.json'), 'utf8')) as { policy: { version: string; reviews: { kinds: string[] } } };
-    expect(job.policy.version).toBe('run-policy/7');
+    expect(job.policy.version).toBe('run-policy/8');
     expect(job.policy.reviews.kinds).toEqual(expect.arrayContaining(['code', 'scope', 'design']));
     expect(failedEvents.filter(event => event.type === 'review-attempt-finished').length).toBeGreaterThan(0);
 
@@ -435,12 +435,6 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
       if (spec.submission.name === 'submit_work_item_result') {
         localArchitect += 1;
         if (localArchitect === 1) return submit({ ...assign(consumer, { goal: 'Show the fact with its source.', obligations: ['sc-001'] }, outline()) });
-        if (localArchitect === 2) {
-          // The restart interrupted the resumed consumer; its architect sees
-          // the delegated outcome reported and its own scenario still open.
-          witnessed['consumer-after-interruption'] = { sc001: stateOf(spec.prompt, 'sc-001') };
-          return submit(assign(consumer, { goal: 'Integrate the returned B result.', obligations: ['sc-001'] }));
-        }
         // PB3-D10: the delegated outcome was reported done; the consumer's
         // own scenario is bound, its architect's to judge.
         witnessed['consumer-completion-briefing'] = { sc001: stateOf(spec.prompt, 'sc-001') };
@@ -499,8 +493,9 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
           };
           return [{ kind: 'wait', ms: 120_000 }];
         }
-        witnessed['consumer-reassigned'] = {
-          scratchGone: !existsSync(join(root, 'subs/a/src/tmp/draft.txt')),
+        witnessed['consumer-resumed'] = {
+          assignment: work.iteration,
+          scratchKept: existsSync(join(root, 'subs/a/src/tmp/draft.txt')),
           suspendedEditKept: readFileSyncText(join(root, 'subs/a/src/caller.ts')).includes('renderSourced waits for B'),
         };
         return submit(completionProposed('A renders the sourced fact from B.', { bindings: [{ id: 'sc-001' }] }),
@@ -539,6 +534,18 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
 
     const reopened = await openRuns(root, { production: true, ...external, script });
     cleanups.push(() => reopened.service.close());
+    const recovery = (await reopened.service.recoveryInspection(capabilityPlan, runId))!;
+    expect(recovery).toMatchObject({ state: 'paused', boundary: { work: { iteration: 'wi-001.i01' } } });
+    expect(reopened.agent!.sessions).toHaveLength(0);
+    expect((await runEventsOnDisk(root, capabilityPlan, runId)).filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
+    await reopened.service.execute({ commandId: 'resume-retained-capability-consumer', expectedVersion: 0, type: 'resume-recovery', payload: {
+      planId: capabilityPlan, jobId: runId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
+      repair: { areas: ['environment'], explanation: 'The restarted owner retained its original candidate, delegated handback, scratch and assignment; resume that exact pending work' } } });
+    await until(async () => reopened.service.getRun(capabilityPlan, runId)?.state !== 'running'
+      || await reopened.service.recoveryInspection(capabilityPlan, runId) !== null
+      || reopened.warnings.some(warning => warning.includes("'s attempt failed")), 900_000);
+    expect(reopened.warnings.filter(warning => warning.includes("'s attempt failed"))).toEqual([]);
+    expect(await reopened.service.recoveryInspection(capabilityPlan, runId)).toBeNull();
     await reopened.service.settled(capabilityPlan, runId);
     const events = await runEventsOnDisk(root, capabilityPlan, runId);
     const gates = await Promise.all(events.flatMap(event => event.type === 'gate-attempted' ? [event.data.gate] : [])
@@ -549,16 +556,18 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     const delegation = events.find(event => event.type === 'capability-delegated')!;
     const qualified = JSON.parse(await readFile(runPath(root, capabilityPlan, runId, runLayout.outcome(delegation.data.invocation)), 'utf8')) as { session: { ref: string } };
     const nextAction = events.find(event => event.type === 'invocation-started' && event.sequence > events.find(entry => entry.type === 'capability-handed-back')!.sequence
-      && event.data.role === 'local-architect' && event.data.continues?.reason === 'capability-returned');
+      && event.data.role === 'local-architect');
     expect(nextAction?.type).toBe('invocation-started');
     if (nextAction?.type !== 'invocation-started') throw new Error('No recovered module architect action');
     const action = JSON.parse(await readFile(runPath(root, capabilityPlan, runId, runLayout.invocation(nextAction.data.invocation)), 'utf8')) as { session: { from: string } };
     expect(action.session.from).toBe(qualified.session.ref);
+    expect(nextAction.data.continues).toMatchObject({ reason: 'capability-returned', from: { invocation: delegation.data.invocation } });
+    expect(events.filter(event => event.type === 'invocation-started' && event.sequence > nextAction.sequence && event.data.role === 'local-architect')).toHaveLength(0);
 
-    // PB3-R01: the new-policy run resumed its capability coordination.
-    expect(reopened.recovery.effects).toContainEqual(expect.stringContaining('resumed capability coordination'));
+    // Startup retains the pending consumer; explicit matching authority continues its coordination.
+    expect(reopened.recovery.interrupted).toContain(`${capabilityPlan}/${runId}`);
     const job = JSON.parse(await readFile(runPath(root, capabilityPlan, runId, 'job.json'), 'utf8')) as { policy: { version: string } };
-    expect(job.policy.version).toBe('run-policy/7');
+    expect(job.policy.version).toBe('run-policy/8');
     // PB3-C01: the handback without the outcome's report was rejected naming it.
     const capabilitySessions = suspendedSessions.filter(session => session.spec.role === 'capability-architect');
     expect(capabilitySessions.flatMap(session => verdicts(session)).join('\n')).toContain('cap-001');
@@ -567,20 +576,19 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     const outcome = events.find(event => event.type === 'obligation-reported' && event.data.id === 'cap-001');
     const back = events.find(event => event.type === 'capability-handed-back')!;
     expect(outcome!.sequence).toBeLessThan(back.sequence);
-    expect(witnessed['consumer-after-interruption']).toEqual({ sc001: 'pending' });
+    expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
     expect(witnessed['consumer-completion-briefing']).toEqual({ sc001: 'bound' });
     const consumerArchitects = reopened.agent!.sessions.filter(session => session.spec.submission.name === 'submit_work_item_result');
     expect(verdicts(consumerArchitects.at(-1)!)[0]).toContain('leaves sc-001 without a done report');
     expect(obligationLines(events)).toEqual(['reported cap-001 done with where', 'bound sc-001 (no fakes)', 'reported sc-001 done with where']);
-    // PB3-C04: recovery closed the interrupted continuation through its
-    // failure analysis, and the architect assigned the rest.
+    // Restart preserves the original logical assignment and its scenario obligation.
     expect(events.flatMap(event => event.type === 'iteration-closed' && event.data.workItem === 'wi-001'
-      ? [[event.data.iteration, event.data.outcome]] : [])).toEqual([['cap-001.i01', 'accepted'], ['wi-001.i01', 'partial'], ['wi-001.i02', 'accepted']]);
+      ? [[event.data.iteration, event.data.outcome]] : [])).toEqual([['cap-001.i01', 'accepted'], ['wi-001.i01', 'accepted']]);
     // PB3-S08: the consumer's scratch and suspended edit lived through the
     // suspension, the provider's closed iteration and the restart; the
-    // scratch went when the consumer's own iteration closed, the edit stayed.
+    // scratch remains available to its successor until the original assignment closes.
     expect(witnessed['consumer-continued']).toEqual({ handback: true, scratchKept: true, suspendedEditKept: true });
-    expect(witnessed['consumer-reassigned']).toEqual({ scratchGone: true, suspendedEditKept: true });
+    expect(witnessed['consumer-resumed']).toEqual({ assignment: 'wi-001.i01', scratchKept: true, suspendedEditKept: true });
     // PB3-R03, PB3-R04: the full nested final gate passed on the integrated commit.
     expect(final?.verdict).toBe('passed');
     expect(final!.audit).toMatchObject({ mode: 'full', nested: true, verdict: 'pass' });

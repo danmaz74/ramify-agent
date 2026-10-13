@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import { auditCheckFacts, hasAssertionFailure } from '../run/recovery-checks.js';
 import { guardedFilesHash } from '../../subs/evidence/src/guarded-files.js';
 import type { CommandRun } from '../../subs/evidence/src/run-command.js';
 import { checkOutputPath } from './execution.js';
@@ -254,13 +255,21 @@ function finishConfiguredGate(prepared: PreparedGate, result: ConfiguredAuditRes
   // is the candidate's failure, as a failing check is: the module engineer repairs
   // it. Every other unanswered request says nothing about the source.
   const setupFailed = configuredSetupFailed(result);
-  const verdict: GateAttempt['verdict'] = setupFailed ? 'failed'
-    : !answered || result.verdict === 'indeterminate' || result.verdict === null ? 'not-verified'
+  const facts = auditCheckFacts(result.provider, result.checks);
+  const assertionFailed = facts.some(hasAssertionFailure);
+  const timedOut = configuredTimedOut(result) && !assertionFailed;
+  const executionObstructed = !assertionFailed && (timedOut || facts.some(fact => {
+    if (fact === null || typeof fact !== 'object') return false;
+    const record = fact as { runnerError?: { kind?: unknown }; termination?: { reason?: unknown } };
+    return typeof record.runnerError?.kind === 'string' || record.termination?.reason === 'interrupted';
+  }));
+  const verdict: GateAttempt['verdict'] = setupFailed || unauthorized || ruleFailed ? 'failed'
+    : !answered || executionObstructed || result.verdict === 'indeterminate' || result.verdict === null ? 'not-verified'
       : result.verdict === 'fail' || unauthorized || ruleFailed ? 'failed' : 'passed';
   const cause: GateCause | null = unauthorized ? 'guarded-change'
     : verdict === 'passed' ? null
       : verdict === 'failed' ? 'check-failed'
-        : boundExpired || configuredTimedOut(result) ? 'timeout' : 'infrastructure';
+        : boundExpired || timedOut ? 'timeout' : 'infrastructure';
   return {
     schema: gateAttemptSchema,
     id: request.id,
@@ -312,11 +321,23 @@ function configuredSetupFailed(result: ConfiguredAuditResult): boolean {
   return provider !== null && typeof provider === 'object' && provider.status === 'failed' && provider.error?.code === 'setup-command-failed';
 }
 
-/** Whether a request that did not answer ran out of time, which the provider's own error code says. */
+/** Provider timeout facts leave the interrupted check unverified, including a published failing audit. */
 function configuredTimedOut(result: ConfiguredAuditResult): boolean {
-  const provider = result.provider as { status?: unknown; error?: { code?: unknown } } | null;
-  return provider !== null && typeof provider === 'object' && provider.status === 'failed'
-    && (provider.error?.code === 'timeout' || provider.error?.code === 'test-lock-wait-exceeded' || provider.error?.code === 'setup-command-timed-out');
+  const provider = result.provider as { status?: unknown; error?: { code?: unknown };
+    projects?: readonly { result?: { status?: unknown; error?: { code?: unknown }; summary?: { checks?: unknown } } }[] } | null;
+  if (provider !== null && typeof provider === 'object' && provider.status === 'failed'
+    && (provider.error?.code === 'timeout' || provider.error?.code === 'test-lock-wait-exceeded' || provider.error?.code === 'setup-command-timed-out')) return true;
+  return timedOutCheck(result.checks) || provider?.projects?.some(project => timedOutCheck(project.result?.summary?.checks)
+    || project.result?.status === 'failed' && ['timeout', 'test-lock-wait-exceeded', 'setup-command-timed-out'].includes(String(project.result.error?.code))) === true;
+}
+
+function timedOutCheck(checks: unknown): boolean {
+  if (checks === null || typeof checks !== 'object') return false;
+  return Object.values(checks).some((check: unknown) => {
+    if (check === null || typeof check !== 'object') return false;
+    const fact = check as { runnerError?: { kind?: unknown }; commands?: Record<string, { runnerError?: { kind?: unknown } }> };
+    return fact.runnerError?.kind === 'timeout' || Object.values(fact.commands ?? {}).some(command => command.runnerError?.kind === 'timeout');
+  });
 }
 
 async function finishGate(prepared: PreparedGate, executionResult: CheckExecutionResult, commit: string | null): Promise<GateAttempt> {

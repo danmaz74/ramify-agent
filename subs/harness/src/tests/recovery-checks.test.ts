@@ -32,6 +32,15 @@ describe('structured check execution obstructions', () => {
     Object.assign(gate, { provider: { result: { status: 'completed', summary: { checks: { assertion: { passed: false, counts: { tests: { failed: 1 } } }, later: { runnerError: { kind: 'timeout' } } } } }, checks: {} } });
     expect(checkExecutionObstruction(gate)).toBeNull();
   });
+  test('a nested producer timeout remains recoverable until qualifying evidence, while nested assertions retain their verdict', () => {
+    const gate = attempt('final', 'ga-0001');
+    const checks = { waiting: { status: 'fail', commands: { wait: { runnerError: { kind: 'timeout', message: 'Producer stopped the quiet command' } } } } };
+    const result = { status: 'completed', summary: { checks: {} }, projects: [{ result: { status: 'completed', summary: { checks } } }] };
+    Object.assign(gate, { provider: { result, checks: {} } });
+    expect(checkExecutionObstruction(gate)).toEqual({ diagnostic: 'Audit runner timeout: Producer stopped the quiet command', automatic: true });
+    Object.assign(checks, { assertion: { commands: { test: { exitCode: 1 } } } });
+    expect(checkExecutionObstruction(gate)).toBeNull();
+  });
 });
 
 describe('pending gate continuation', () => {

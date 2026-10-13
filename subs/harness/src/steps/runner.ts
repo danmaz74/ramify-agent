@@ -909,7 +909,8 @@ export class InvocationRunner<R extends RunnerRun> {
       },
       observations,
       ...(request.acceptedText === undefined ? {} : { acceptedText: request.acceptedText }),
-      closed: () => (this.host.ignoring(run) || recoveryRequested || request.fenced?.() === true || request.signal?.aborted === true ? 'This invocation accepts no further submissions.' : undefined),
+      closed: () => (this.host.ignoring(run) || recoveryRequested || request.fenced?.() === true || request.signal?.aborted === true
+        || request.endedAs?.() === 'invalid-submission' ? 'This invocation accepts no further submissions.' : undefined),
     });
 
     // Read boundaries are soft: an excursion into another module is

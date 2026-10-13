@@ -264,7 +264,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     f.native.push([call('read', { path }, 'rich')], [call('submit_orientation', { orientation: 'A' }, 'rich-submit')]);
     const task = { ...f.task, message: 'Read rich fixture.' }; const bound = { ...f.bindings, task, tools: [] };
     if (mode === 'recover') f.setFault(input => {
-      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1'); if (!operation || operation.runId !== 'rich') return;
+      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:')); if (!operation || operation.runId !== 'rich') return;
       if (operation.body['phase'] === 'terminal') throw new Error('Crash before terminal write');
       const provider = operation.body['provider'] as Array<{ payloadId: string }>; const bytes = f.payloads.get(provider.at(-1)?.payloadId ?? ''); if (!bytes) return;
       const state = JSON.parse(new TextDecoder().decode(bytes)) as { messages?: Array<{ role: string }> };
@@ -333,7 +333,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const readDeclaration = shape === 'with-coerced-read' ? { ...read, inputSchema: { type: 'object', properties: { offset: { type: 'integer' } }, required: ['offset'], additionalProperties: false } } : read;
     const f = await fixture([[reason, ...(shape === 'solo' ? [] : [call('read', readArgs, 'accepted-read')]), call('submit_orientation', { orientation: 'A' }, 'accepted')]], [readDeclaration, orientation]);
     f.setFault(input => {
-      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1');
+      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:'));
       if (!operation) return;
       const effects = operation.body['effects'] as Array<{ verdict?: { accepted?: boolean } }>;
       if (!effects?.some(effect => effect.verdict?.accepted)) return;
@@ -365,7 +365,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
   it.each(['unstarted', 'completed'])('restores the durable provider call with %s effect without asking the model to repeat it', async phase => {
     const f = await fixture([[reason, call('read', {}, 'recover-read')], [call('submit_orientation', { orientation: 'A' }, 'recover-submit')]]);
     f.setFault(input => {
-      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1'); if (!operation) return;
+      const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:')); if (!operation) return;
       if (operation.body['phase'] === 'terminal') throw new Error('Crash before terminal write');
       const effects = operation.body['effects'] as Array<{ tool: string; phase: string }>;
       if (phase === 'unstarted' && effects?.some(effect => effect.tool === 'read' && effect.phase === 'intent')) throw new Error('Crash before effect intent write');
@@ -417,7 +417,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
   });
   it('Retry of an interrupted operation through an unsupported-model adapter answers unavailable with the recorded session id and leaves the operation resumable', async () => {
     const f = await fixture([[text('Interrupted before terminal write.')]]);
-    f.setFault(input => { const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1'); if (operation?.body['phase'] === 'terminal') throw new Error('Crash before terminal write'); });
+    f.setFault(input => { const operation = input.records.find(record => record.schema === 'ramify-agent.session-operation/1' && record.id.startsWith('operation:')); if (operation?.body['phase'] === 'terminal') throw new Error('Crash before terminal write'); });
     await expect((await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'interrupted'))).receipt).rejects.toThrow('Crash before terminal write');
     expect(f.native.dispatches()).toBe(1); f.setFault(null);
     const interrupted = await f.store.read('run-A', 'operation:interrupted'); expect(interrupted?.body['receipt']).toBeNull();

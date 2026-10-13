@@ -48,7 +48,7 @@ describe('the protocol over HTTP, with the web assets absent', () => {
       const refusal = await unservedRun(fixture.root, 'review-notes', runId);
       expect(refusal).toMatchObject({ code: 'unsupported-version' });
       expect(refusal!.message).toContain(version ?? '(missing policy)');
-      expect(refusal!.message).toContain('run-policy/7');
+      expect(refusal!.message).toContain('run-policy/8');
       expect(refusal!.message).toContain('fresh run');
       const response = await query(server, protocolPaths.run('review-notes', runId));
       expect(response.status).toBe(422);

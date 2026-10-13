@@ -189,7 +189,7 @@ describe('PB3-D01 PB3-D05: registrations beside the capability records', () => {
     const opened = await openRuns(fixture.root, { production: true, git: mockGit(), ramify, script: () => [] });
     try {
       expect(opened.recovery.skipped).toEqual([`need/${id}`]);
-      const refusal = /Run policy run-policy\/6 is refused by run-policy\/7; a fresh run is required/u;
+      const refusal = /Run policy run-policy\/6 is refused by run-policy\/8; a fresh run is required/u;
       expect(() => opened.service.getRun('need', id)).toThrow(refusal);
       expect(() => opened.service.committed('need', id)).toThrow(refusal);
       const queries = new RunQueries(opened.service);

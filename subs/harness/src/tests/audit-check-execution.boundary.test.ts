@@ -460,11 +460,13 @@ describe('configured gate outcomes', () => {
     expect(await root.git('for-each-ref', 'refs/audited')).toBe('');
   });
 
-  it('the gate\'s own bound ending a running audit is a timeout, not an infrastructure failure', { timeout: 120_000 }, async () => {
-    const root = await plain([commandCheck('waiting', [{ name: 'wait', cmd: 'node', args: ['-e', 'setInterval(() => {}, 1000)'] }])]);
+  it('the audit producer supplies timeout evidence independently of the historical gate bound', { timeout: 120_000 }, async () => {
+    const root = await plain([commandCheck('waiting', [{ name: 'wait', cmd: 'node', args: ['-e', 'setInterval(() => {}, 1000)'], timeoutMs: 500 }])]);
     const { audit: port } = await audit();
-    const attempt = await configuredGate(port, root, { captured: root.head, sourceCommit: root.head, attemptId: 'ga-0001', timeoutMs: 3_000 });
-    expect([attempt.verdict, attempt.cause, attempt.next, attempt.evidence]).toEqual(['not-verified', 'timeout', 'retry-infrastructure', null]);
+    const attempt = await configuredGate(port, root, { captured: root.head, sourceCommit: root.head, attemptId: 'ga-0001', timeoutMs: 1 });
+    expect(attempt.audit).toMatchObject({ status: 'completed', verdict: 'fail' });
+    expect(checksOf(attempt)['waiting']).toMatchObject({ status: 'fail', runnerError: { kind: 'timeout' } });
+    expect([attempt.verdict, attempt.cause, attempt.next]).toEqual(['not-verified', 'timeout', 'retry-infrastructure']);
   });
 
   it('reopens the exact completed request without executing its checks again', { timeout: 120_000 }, async () => {

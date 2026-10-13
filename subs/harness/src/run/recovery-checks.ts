@@ -4,7 +4,7 @@ export interface CheckExecutionObstruction { readonly diagnostic: string; readon
 
 /** A verdict alone has no execution classification; only structured producer evidence qualifies. */
 export function checkExecutionObstruction(gate: GateAttempt): CheckExecutionObstruction | null {
-  if (gate.verdict !== 'not-verified' || gate.commands.some(command => command.outcome === 'failed') || gate.audit?.projects?.some(project => project.verdict === 'fail')) return null;
+  if (gate.verdict !== 'not-verified' || gate.commands.some(command => command.outcome === 'failed')) return null;
   const command = gate.commands.find(command => ['command-missing', 'runner-error', 'timeout'].includes(command.notVerified ?? ''));
   if (command) return { diagnostic: `Check ${command.kind} could not execute: ${command.notVerified}; ${command.runnerError?.message ?? command.stopped ?? ''}`,
     automatic: command.notVerified === 'timeout' };
@@ -20,17 +20,14 @@ export function checkExecutionObstruction(gate: GateAttempt): CheckExecutionObst
     return { diagnostic: `Audit ${code}: ${typeof result.error.message === 'string' ? result.error.message : ''}`,
       automatic: result.error.retryable === true || code === 'timeout' || code === 'test-lock-wait-exceeded' };
   }
-  if (result.status !== 'completed' || typeof result.summary?.checks !== 'object' || result.summary.checks === null) return null;
-  const checks = Object.values(result.summary.checks as Record<string, unknown>);
-  const commands = checks.flatMap(check => {
-    if (typeof check !== 'object' || check === null) return [];
-    const value = check as { commands?: Record<string, unknown> };
-    return [check, ...Object.values(value.commands ?? {})];
-  });
+  if (result.status !== 'completed') return null;
+  const commands = auditCheckFacts(provider, gate.provider?.checks);
   if (commands.some(hasAssertionFailure)) return null;
   for (const command of commands) {
     if (typeof command !== 'object' || command === null) continue;
-    const record = command as { runnerError?: { kind?: unknown; message?: unknown }; termination?: { reason?: unknown } };
+    const record = command as { runnerError?: { kind?: unknown; message?: unknown }; termination?: { reason?: unknown }; error?: { code?: unknown; message?: unknown } };
+    if (typeof record.error?.code === 'string' && ['timeout', 'test-lock-wait-exceeded', 'setup-command-timed-out'].includes(record.error.code)) return {
+      diagnostic: `Audit ${record.error.code}: ${String(record.error.message ?? '')}`, automatic: record.error.code !== 'setup-command-timed-out' };
     if (typeof record.runnerError?.kind === 'string') return { diagnostic: `Audit runner ${record.runnerError.kind}: ${String(record.runnerError.message ?? '')}`,
       automatic: record.runnerError.kind === 'timeout' };
     if (record.termination?.reason === 'timeout' || record.termination?.reason === 'interrupted') return {
@@ -39,7 +36,19 @@ export function checkExecutionObstruction(gate: GateAttempt): CheckExecutionObst
   return null;
 }
 
-function hasAssertionFailure(command: unknown): boolean {
+/** Structured root and nested producer check facts; aggregate failure alone supplies no cause. */
+export function auditCheckFacts(provider: unknown, published?: unknown): unknown[] {
+  if (provider === null || typeof provider !== 'object') return [];
+  const result = provider as { status?: unknown; summary?: { checks?: unknown }; projects?: readonly { result?: unknown }[] };
+  const own = [published, result.summary?.checks].flatMap(checks => checks === null || typeof checks !== 'object' ? [] : Object.values(checks).flatMap((check: unknown) => {
+    if (check === null || typeof check !== 'object') return [];
+    const value = check as { commands?: Record<string, unknown> };
+    return [check, ...Object.values(value.commands ?? {})];
+  }));
+  return [...(result.status === 'failed' ? [provider] : []), ...own, ...(result.projects ?? []).flatMap(project => auditCheckFacts(project.result))];
+}
+
+export function hasAssertionFailure(command: unknown): boolean {
   if (typeof command !== 'object' || command === null) return false;
   const value = command as Record<string, unknown>;
   if (['failedTests', 'failedScenarios', 'failedSuites'].some(key => Array.isArray(value[key]) && value[key].length > 0)) return true;

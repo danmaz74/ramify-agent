@@ -38,6 +38,26 @@ function observation(promise: Promise<unknown>) { let ended = false; void promis
 async function flush() { for (let index = 0; index < 8; index++) await Promise.resolve(); }
 
 describe('Plan 23 F1 high-level session operations', () => {
+  it('reports an exact historical point as unavailable for continuation without substituting the current point or dispatching', async () => {
+    const store = memoryStore(); let dispatches = 0;
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch() { dispatches++; return { kind: 'ended' }; } } });
+    const P = await operations.create(create);
+    const original = await operations.inspect('run-A', P.sessionId, P.point!);
+    const appended = await operations.appendContext({ runId: 'run-A', operationId: 'accepted-brief', sessionId: P.sessionId,
+      expectedPoint: P.point!, additions: [{ key: 'current-task', kind: 'brief', revision: '1', text: 'Accepted current decision' }] });
+    const current = await operations.inspect('run-A', P.sessionId);
+    const stale = await (await operations.continue(continuation(P.sessionId, P.point!, 'stale-source'))).receipt;
+    expect(stale).toMatchObject({ status: 'unavailable', point: null, contextUnavailable: true });
+    expect(dispatches).toBe(0);
+    expect(await operations.inspect('run-A', P.sessionId)).toEqual(current);
+    expect(await operations.inspect('run-A', P.sessionId, P.point!)).toEqual(original);
+    expect((await operations.fork({ runId: 'run-A', operationId: 'exact-source-fork', sourcePoint: P.point! })).status).toBe('completed');
+    expect((await operations.fork({ runId: 'run-A', operationId: 'invented-source-fork', sourcePoint: { ...P.point!, checkpoint: 'invented' } })).status).toBe('unavailable');
+    const invented = await (await operations.continue(continuation(P.sessionId, { ...P.point!, checkpoint: 'invented' }, 'invented-source-continue'))).receipt;
+    expect(invented.status).toBe('conflict');
+    expect(invented.contextUnavailable).not.toBe(true);
+    expect((await operations.inspect('run-A', P.sessionId))?.currentPoint).toEqual(appended.point);
+  });
   it('reconciles a late admitted handler from its immutable owner receipt after stop without replay or submission authority', async () => {
     const store = memoryStore(); const started = deferred(); const release = deferred(); let effects = 0;
     const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch(_, runtime) {
@@ -258,7 +278,7 @@ describe('Plan 23 F1 high-level session operations', () => {
     expect(fork.status).toBe('completed'); expect(fork.point?.turn).toBe(0);
     gate.resolve(); const receipts = await Promise.all([a.receipt, b.receipt]);
     expect(receipts.map(item => item.status).sort()).toEqual(['completed', 'conflict']);
-    expect((await operations.continue(continuation(P.sessionId, P.point!, 'stale'))).receipt).resolves.toMatchObject({ status: 'conflict' });
+    await expect((await operations.continue(continuation(P.sessionId, P.point!, 'stale'))).receipt).resolves.toMatchObject({ status: 'unavailable', contextUnavailable: true });
     expect((await operations.create({ ...create, initialInstructions: 'Different' })).status).toBe('conflict');
   });
   it('standalone activation keeps declarations and inactive calls never reach handlers', async () => {
