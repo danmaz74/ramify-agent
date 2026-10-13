@@ -23,13 +23,14 @@ afterEach(async () => {
   assertUnchangedGit();
 });
 
-async function ordinary(engineer: readonly (readonly ScriptStep[])[], options: Parameters<typeof openUnchangedRuns>[1] = {}) {
+async function ordinary(engineer: readonly (readonly ScriptStep[])[], options: Parameters<typeof openUnchangedRuns>[1] = {}, candidateObservations = 0) {
   const copied = await copyFixture();
   cleanups.push(copied.remove);
   await installTestRunner(copied.root);
   const opened = await openUnchangedRuns(copied.root, { inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit(plan)],
     script: byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
-      'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))], engineer }), ...options });
+      'local-architect': [submit(assign(module, {}, outline())), submit(assign(module))], engineer }), ...options,
+    ...(candidateObservations === 0 ? {} : { gitScript: { ...options.gitScript, previews: Array.from({ length: candidateObservations }, () => ({ repositoryRoot: copied.root, head: `scenarios-of-${plan}`, tree: 'a'.repeat(40) })) } }) });
   cleanups.push(() => opened.service.close());
   const start = startRunCommandSchema.parse({ ...startRun(plan, 'scripted', 'debug-start'),
     payload: { planId: plan, agent: 'scripted', breakpoint: 'before-agent:engineer' } });
@@ -165,7 +166,7 @@ test('B05 B06 B07: preview, two plain returns and resumed implementation retain 
 
 test.each(['completion-proposed', 'partial'] as const)('B09 B11: accepted %s is held, messages refused and resume consumes once without a model call', async kind => {
   const input = kind === 'completion-proposed' ? completionProposed() : { kind: 'partial', done: ['Useful partial work'], unfinished: ['Remaining task'], findings: [], startingPoints: [] };
-  const opened = await ordinary([submit(input)], { unchangedCheckpoints: kind === 'completion-proposed' ? [scenariosCommit(plan), 'wi-001.i01'] : [scenariosCommit(plan)] });
+  const opened = await ordinary([submit(input)], { unchangedCheckpoints: kind === 'completion-proposed' ? [scenariosCommit(plan), 'wi-001.i01'] : [scenariosCommit(plan)] }, kind === 'partial' ? 1 : 0);
   const command = message(opened, 'Perform the task.');
   await opened.service.execute(command);
   const result = await settled(opened);
@@ -220,8 +221,8 @@ test('B10: explicit continuity loss rebuilds normal task and retains current cal
 test('B03 B11: model exchange executes outside command mutex, stale/concurrent commands are refused, caller waits excluded and exchange charged', async () => {
   let clock = new Date('2026-10-10T12:00:00Z');
   const started = gate(); const release = gate();
-  const opened = await ordinary([[{ kind: 'await', until: async () => { started.open(); await release.opened; clock = new Date(clock.getTime() + 2_000); } }, ...explain('Bounded discussion')]],
-    { now: () => clock, policy: root => { const policy = testPolicy(root); return { ...policy, limits: { ...policy.limits, runAbsoluteMs: 1_000 } }; } });
+  const opened = await ordinary([[{ kind: 'await', until: async () => { started.open(); await release.opened; clock = new Date(clock.getTime() + 2_000); } }, ...explain('Progressing discussion')], [{ kind: 'submit', input: { kind: 'partial', done: ['Retained discussion'], unfinished: ['Remaining task'], findings: [], startingPoints: [] } }]],
+    { now: () => clock, policy: root => { const policy = testPolicy(root); return { ...policy, limits: { ...policy.limits, runAbsoluteMs: 1_000 } }; } }, 1);
   clock = new Date(clock.getTime() + 100_000);
   const command = message(opened, 'Discuss');
   const receipt = await opened.service.execute(command);
@@ -235,9 +236,12 @@ test('B03 B11: model exchange executes outside command mutex, stale/concurrent c
   await settled(opened);
   clock = new Date(clock.getTime() + 100_000);
   await opened.service.execute(resume(opened, 2));
-  await until(() => opened.service.getRun(plan, opened.runId)?.state === 'failed');
-  expect(opened.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
-  expect(opened.service.events(plan, opened.runId)!.find(event => event.type === 'job-failed')?.data).toMatchObject({ reason: 'limit-exceeded' });
+  await until(() => opened.service.debugState(plan, opened.runId)?.pauseId !== opened.pause.pauseId);
+  await until(() => opened.service.debugState(plan, opened.runId)?.state === 'paused');
+  expect(opened.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(2);
+  expect(opened.service.getRun(plan, opened.runId)?.state).toBe('running');
+  expect(opened.service.events(plan, opened.runId)!.some(event => event.type === 'job-failed')).toBe(false);
+  await stop(opened);
 });
 
 test('B04 B11: stop cancels active exchange, keeps truthful result and prevents later messages or held release', async () => {
@@ -270,14 +274,15 @@ test('B08: debug exchange preserves scope guard and records an out-of-scope refu
   await stop(opened);
 });
 
-test.each(['failed', 'context-budget-reached'] as const)('B08 B10: %s remains a held real terminal invocation outcome', async outcome => {
-  const opened = await ordinary([outcome === 'failed' ? [{ kind: 'fail', error: 'Provider failed' }] : [{ kind: 'context', tokens: 1_000_000, window: 1_000_000 }]]);
+test('context obstruction during a debugger exchange recovers the pending task under current authority', async () => {
+  const opened = await ordinary([[{ kind: 'resource', resource: 'context', reason: 'Native summary unavailable' }], explain('Recovered original discussion')], {}, 1);
   await opened.service.execute(message(opened, 'Discuss normally'));
   const result = await settled(opened);
-  expect(result).toMatchObject({ taskState: 'terminal', outcome });
-  if (outcome === 'failed') expect(result.error).toBe('Provider failed');
+  expect(result).toMatchObject({ taskState: 'pending', outcome: 'ended', answer: 'Recovered original discussion' });
+  expect(opened.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(2);
+  expect(opened.service.events(plan, opened.runId)!.filter(event => event.type === 'invocation-ended' && event.data.ended === 'resource-pending')).toHaveLength(1);
   expect(opened.service.events(plan, opened.runId)!.some(event => event.sequence > opened.pause.cursor && event.type === 'iteration-closed')).toBe(false);
-  await expect(opened.service.execute(message(opened, 'More', 'more', 2))).rejects.toMatchObject({ code: 'conflict' });
+  expect(opened.service.getRun(plan, opened.runId)?.state).toBe('running');
   await stop(opened);
 });
 
@@ -324,7 +329,7 @@ test('B14: host shutdown during admitted model exchange retains interruption and
 });
 
 
-test('B08: unconfirmed settlement blocks exchanges and gates while resume consumes the held failure once without a model', async () => {
+test('B08: unconfirmed debugger settlement retains pending recovery and blocks exchanges, writers and gates', async () => {
   const barrier = gate();
   const scripted = createScriptedAgent(declaringScenarios(byRole({
     'initial-architect': [submit(analysis([entry('review-note', module)]))],
@@ -338,23 +343,23 @@ test('B08: unconfirmed settlement blocks exchanges and gates while resume consum
       },
     }; } },
     policy: root => { const policy = testPolicy(root); return { ...policy, limits: { ...policy.limits, writerSettleMs: 20, stopSettleMs: 20 } }; },
-  });
+  }, 1);
   // Its intentional unconfirmed writer makes close retain the lock; this
   // fixture has no external process and asserts that refusal explicitly.
   cleanups.pop();
   cleanups.push(async () => { barrier.open(); await expect(opened.service.close()).rejects.toThrow('settlement was not confirmed'); });
   await opened.service.execute(message(opened, 'Use normal equipment.'));
-  const result = await settled(opened);
-  expect(result.taskState).toBe('terminal');
-  expect(result.settlementConfirmed).toBe(false);
-  expect(result.summary).toContain('settlement was not confirmed');
-  await expect(opened.service.execute(message(opened, 'Again', 'again', 2))).rejects.toMatchObject({ code: 'conflict' });
-  const released = resume(opened, 2);
-  const receipt = await opened.service.execute(released);
-  expect(await opened.service.execute(released)).toEqual(receipt);
-  await until(() => opened.service.getRun(plan, opened.runId)?.state === 'failed');
-  expect(opened.service.debugState(plan, opened.runId)).toBeNull();
+  await until(() => opened.service.events(plan, opened.runId)!.some(event => event.type === 'operation-recovery-paused'));
+  const result = opened.service.debugResult(plan, opened.runId, 'message-1')!;
+  expect(result).toMatchObject({ taskState: 'pending', status: 'admitted' });
+  const inspection = await opened.service.recoveryInspection(plan, opened.runId);
+  expect(inspection).toMatchObject({ state: 'paused', canResume: false, continuity: { resource: 'stall', settlement: 'unknown', effects: 'unknown' } });
+  expect(inspection!.blockers.some(blocker => blocker.startsWith('Settlement:'))).toBe(true);
+  await expect(opened.service.execute(message(opened, 'Again', 'again', 1))).rejects.toMatchObject({ code: 'busy' });
+  await expect(opened.service.execute(resume(opened, 1))).rejects.toMatchObject({ code: 'busy' });
+  expect(opened.service.getRun(plan, opened.runId)?.state).toBe('running');
   expect(scripted.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
   expect(opened.service.events(plan, opened.runId)!.some(event => event.sequence > opened.pause.cursor && event.type === 'gate-started')).toBe(false);
   expect(opened.service.getRun(plan, opened.runId)?.writer.unsettled).not.toBeNull();
+  await stop(opened);
 });

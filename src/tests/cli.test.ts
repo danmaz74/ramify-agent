@@ -19,6 +19,20 @@ test('help without a command', () => {
   expect(parseCommandLine(['--help'])).toEqual({ command: 'help' });
 });
 
+test('manual resource resume carries one occurrence, revision and stable command identity', () => {
+  const resume = ['--occurrence', 'resource-0001', '--expected-revision', '2', '--command-id', 'resume-once'];
+  expect(parseCommandLine(['step', 'run', '--inputs', 'task.json', '--run', '/p/plans/p/.harness/jobs/r', ...resume]))
+    .toMatchObject({ step: { recoveryResume: { occurrenceId: 'resource-0001', expectedRevision: 2, commandId: 'resume-once' } } });
+  const session = ['session', '--project', '/p', '--module', 'p/module', '--prompt', 'Original need'];
+  expect(parseCommandLine([...session, '--resume-run', 'run-1', ...resume]))
+    .toMatchObject({ recoveryResume: { runId: 'run-1', occurrenceId: 'resource-0001', expectedRevision: 2, commandId: 'resume-once' } });
+  for (const flags of [resume, ['--resume-run', 'run-1'], ['--resume-run', '../other', ...resume], ['--resume-run', 'run-1', ...resume, '--command-id', 'different']]) {
+    expect(() => parseCommandLine([...session, ...flags])).toThrow(UsageError);
+  }
+  expect(() => parseCommandLine(['step', 'run', '--inputs', 'task.json', '--run', '/r', '--occurrence', 'resource-1'])).toThrow(UsageError);
+  expect(() => parseCommandLine(['step', 'run', '--inputs', 'task.json', '--run', '/r', '--occurrence', 'resource-1', '--expected-revision', '0', '--command-id', 'once'])).toThrow(UsageError);
+});
+
 test('usage errors', () => {
   for (const argv of [['map'], ['serve'], ['serve', '--project'], ['serve', '--project', 'p', '--port', 'x'],
     ['serve', '--project', 'p', '--port', '70000'], ['serve', '--project', 'p', '--verbose']]) {

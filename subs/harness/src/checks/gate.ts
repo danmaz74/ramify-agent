@@ -9,7 +9,6 @@ import type {
 } from './records.js';
 import { gateAttemptSchema } from './records.js';
 import { verifyChecks } from './verify.js';
-import { PausableDeadline } from '../run/pausable-deadline.js';
 import type { PlannedCheck, VerificationFailure } from './verify.js';
 import type { ConfiguredAuditMode, ConfiguredAuditResult, ConfiguredProjectResult } from '../../subs/audit/src/check-execution.js';
 
@@ -39,14 +38,14 @@ export interface GateRequest {
   readonly checks: readonly PlannedCheck[];
   /**
    * A committing gate's configured audit: the mode it requests of the
-   * committed definition and the bound of the whole request, lock waits
-   * excepted.
+   * committed definition. The producer owns check progress and timing.
    */
   readonly audit?: {
     readonly mode: ConfiguredAuditMode;
     /** Audit the tracked nested definitions too: the final gate's full nested verification. */
     readonly nested?: boolean | undefined;
-    readonly timeoutMs: number;
+    /** Historical aggregate observation; never an execution deadline. */
+    readonly timeoutMs?: number;
   } | undefined;
   readonly subject?: { readonly workItem?: string; readonly iteration?: string } | undefined;
   readonly proposedBy?: string | null | undefined;
@@ -158,9 +157,7 @@ export async function executePreparedGate(
   waiting: GateRequest['waiting'] = prepared.request.waiting,
 ): Promise<GateAttempt> {
   const { request, checkpoint } = prepared;
-  const bound = new PausableDeadline(prepared.timeoutMs);
-  const signal = request.signal === undefined ? bound.signal : AbortSignal.any([request.signal, bound.signal]);
-  try {
+  const signal = request.signal ?? new AbortController().signal;
   const executionResult = await execution.run(request.checks, {
       directory: request.directory,
       classify,
@@ -176,9 +173,6 @@ export async function executePreparedGate(
       ...(started === undefined ? {} : { started }),
     });
     return finishGate(prepared, executionResult, commit);
-  } finally {
-    bound.dispose();
-  }
 }
 
 /**
@@ -201,16 +195,13 @@ export async function executeConfiguredGate(
   if (request.runId === undefined || request.audit === undefined) {
     throw new Error(`Gate ${request.id} is not a committing gate with a durable run and a configured audit`);
   }
-  const bound = new PausableDeadline(prepared.timeoutMs);
-  const signal = request.signal === undefined ? bound.signal : AbortSignal.any([request.signal, bound.signal]);
-  let releaseWait: (() => void) | undefined;
+  const signal = request.signal ?? new AbortController().signal;
   let result: ConfiguredAuditResult;
   try {
     result = await audit({
       runId: request.runId, attemptId: request.id, checkpoint, projectRoot: request.projectRoot, sourceCommit,
       mode: request.audit.mode, nested: request.audit.nested === true, signal, started,
-      waiting: async (command, line) => { releaseWait ??= bound.pause(); await waiting?.(command, line); },
-      lockAcquired: () => { releaseWait?.(); releaseWait = undefined; },
+      waiting,
     });
   } catch (error) {
     // An exception is the request's own failure: no answer exists for the commit.
@@ -221,14 +212,8 @@ export async function executeConfiguredGate(
       reportCommit: null, runRef: null, treeRef: null, definition: { path: '', blob: '' },
       detail: error instanceof Error ? error.message : String(error), provider: { error: String(error) }, checks: {},
     };
-  } finally {
-    releaseWait?.();
-    bound.dispose();
   }
-  // The gate's own bound ending the request is a timeout, as the provider's
-  // own timeout is; a caller's cancellation is not.
-  const boundExpired = bound.signal.aborted && request.signal?.aborted !== true;
-  return finishConfiguredGate(prepared, result, commit, boundExpired);
+  return finishConfiguredGate(prepared, result, commit);
 }
 
 /**

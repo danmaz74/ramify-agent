@@ -1,3 +1,4 @@
+import { runPolicySchema } from './records.js';
 import { consultationTargetSchema } from '../consultations/targets.js';
 import { debugExchangeSchema } from '../interfaces/protocol/runs.js';
 import { repairIncidentIdSchema, repairIncidentStageSchema } from '../interfaces/protocol/repairs.js';
@@ -56,7 +57,7 @@ const event = <T extends string, D extends z.ZodType>(type: T, data: D) => z.obj
 const text = z.string().min(1);
 
 /** What an invocation ended with, as its outcome record says. */
-const invocationEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'invalid-submission']);
+const invocationEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']);
 
 /** The fields every `invocation-ended` carries, whether its session is kept or finished. */
 const invocationEndedFields = {
@@ -76,10 +77,12 @@ const invocationEndedFields = {
 
 /** One line of a run's event log. */
 export const runEventSchema = z.discriminatedUnion('type', [
+  event('continuity-policy-adopted', z.object({ from: text, to: z.literal('run-policy/8'), occurrenceId: text, policy: runPolicySchema }).strict()),
   event('operation-recovery-attempt', z.object({ requestHash: text, group: z.int().nonnegative(), attempt: z.int().nonnegative(), invocation: text, predecessor: text.nullable() }).strict()),
   event('operation-recovery-pausing', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
   event('operation-recovery-paused', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
   event('operation-recovery-resumed', z.object({ occurrenceId: text, revision: z.int().positive(), group: z.int().positive(), command: acceptedCommandSchema }).strict()),
+  event('operation-recovery-replied', z.object({ commandId: text, resultHash: text }).strict()),
   event('readiness-preparation-started', z.object({ key: text, attempt: z.int().positive() }).strict()),
   event('readiness-preparation-completed', z.object({ key: text, attempt: z.int().positive(), passed: z.boolean() }).strict()),
   event('readiness-repair-committing', z.object({ id: text, occurrenceId: text, revision: z.int().positive(), tree: text }).strict()),

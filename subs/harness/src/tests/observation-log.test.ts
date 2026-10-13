@@ -111,7 +111,7 @@ describe('what a run observes', () => {
     expect(gaps.every(gap => (gap.data.detail ?? '') !== '')).toBe(true);
   }, 180_000);
 
-  test('the context and compaction a session does report are observations, with the role\'s threshold', async () => {
+  test('the context and compaction a session does report are observations without a harness threshold', async () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);
@@ -136,14 +136,14 @@ describe('what a run observes', () => {
       .split('\n').filter(Boolean).map(line => JSON.parse(line) as { type: string; data: Record<string, unknown> });
     const contexts = lines.filter(line => line.type === 'context');
     expect(contexts).toHaveLength(2);
-    // The threshold recorded is the plan architect's own, from the policy.
-    expect(contexts[0]!.data).toEqual({ tokens: 1000, window: 200_000, threshold: 150_000 });
+    // No harness threshold competes with native context handling.
+    expect(contexts[0]!.data).toEqual({ tokens: 1000, window: 200_000, threshold: null });
     // An unknown size is recorded as unknown, and never as room.
-    expect(contexts[1]!.data).toEqual({ tokens: null, window: 200_000, threshold: 150_000 });
+    expect(contexts[1]!.data).toEqual({ tokens: null, window: 200_000, threshold: null });
 
     const compactions = lines.filter(line => line.type === 'compaction');
     expect(compactions).toHaveLength(1);
-    expect(compactions[0]!.data).toEqual({ trigger: 'threshold', succeeded: true, before: 1000, after: 400 });
+    expect(compactions[0]!.data).toEqual({ trigger: 'threshold', succeeded: true, before: 1000, after: 400, error: null });
 
     // Usage and context were both reported, so no gap is recorded for either.
     expect(lines.filter(line => line.type === 'coverage-gap')).toEqual([]);

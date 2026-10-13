@@ -49,11 +49,11 @@ test('U07: the prepared input is read once on request, bound to the pause ID and
   fireEvent.click(button(area, 'Read the prepared input'));
   const preview = await within(area).findByLabelText('Prepared input preview');
   expect(preview.textContent).toContain('Read at pause bp-0001, revision 1.');
-  expect(preview.textContent).not.toContain('historical');
+  expect(preview.textContent).toContain('Historical context and lifetime fields preserve policy evidence. Resource observations do not expire task authority');
   expect(inspections()).toEqual([`getDebugInspection:${debugRunId}:bp-0001`]);
   expect([...preview.querySelectorAll('summary')].map(summary => summary.textContent)).toEqual([
     'Role instructions', 'Task message', 'Inherited blocks (1)', 'Current additions (1)', 'Effective blocks (1)', 'Tools (2)',
-    'Continuity', 'Source point', 'Scope', 'Bounds',
+    'Continuity', 'Source point', 'Scope', 'Policy observations and semantic limits',
   ]);
   const section = (name: string) => [...preview.querySelectorAll('details')].find(details => details.querySelector('summary')!.textContent!.startsWith(name))!;
   expect(section('Role instructions').querySelector('pre')!.textContent).toBe('You are the module engineer of this iteration.');
@@ -64,7 +64,7 @@ test('U07: the prepared input is read once on request, bound to the pause ID and
   expect(section('Continuity').textContent).toContain('retained: continues the iteration session');
   expect(section('Source point').textContent).toContain('ses-0002/inv-0002');
   expect(JSON.parse(section('Scope').querySelector('pre')!.textContent!)).toEqual({ writable: ['subs/notes/src'] });
-  expect(JSON.parse(section('Bounds').querySelector('pre')!.textContent!)).toEqual({ maxTurns: 40 });
+  expect(JSON.parse(section('Policy observations and semantic limits').querySelector('pre')!.textContent!)).toEqual({ maxTurns: 40 });
 
   // A later pause with another ID at revision 1: the same revision, another occurrence.
   const second = pause({ pauseId: 'bp-0002', cursor: 30, work: { workItem: 'wi-001', iteration: 'wi-001.i02' } });
@@ -257,7 +257,7 @@ test('U09/U12: the conversation lists admitted, stopped, interrupted and resume 
   ], ended));
   const area = await openDebugger(client, 20);
   expect(await within(area).findByText('The run has ended: it is stopped. The conversation below stays readable.')).toBeTruthy();
-  expect(within(area).getByText('Terminal state:').querySelector('.run-state-stopped')!.textContent).toBe('stopped');
+  expect(within(area).getByText('Run state:').querySelector('.run-state-stopped')!.textContent).toBe('stopped');
   const entries = within(area).getAllByRole('listitem').filter(item => item.classList.contains('debug-entry'));
   expect(entries.map(item => item.className)).toEqual([
     'debug-entry debug-entry-message', 'debug-entry debug-entry-resume', 'debug-entry debug-entry-message', 'debug-entry debug-entry-resume', 'debug-entry debug-entry-message',

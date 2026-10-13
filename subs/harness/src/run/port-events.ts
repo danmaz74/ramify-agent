@@ -8,7 +8,6 @@ import type { InvocationTranscript } from '../transcripts/recorder.js';
 import type { ExcursionWatcher } from './excursions.js';
 import type { ObservationLog } from './observations.js';
 import type { InvocationOutcome } from './records.js';
-import { PausableDeadline } from './pausable-deadline.js';
 
 /*
  * What one session's port events leave in its observation log and its
@@ -142,14 +141,16 @@ export class PortEventRecorder {
     if (event.type === 'context-observed') {
       await observations.record({
         type: 'context',
-        data: { tokens: event.tokens, window: event.window, threshold: this.options.context.budgetTokens },
+        data: { tokens: event.tokens, window: event.window, threshold: null, ...(event.native === undefined ? {} : { native: { ...event.native, coverage: [...event.native.coverage] } }) },
       });
     } else if (event.type === 'compaction' && event.phase === 'ended') {
       await observations.record({
         type: 'compaction',
         data: {
           trigger: event.reason === 'manual' ? 'explicit' : event.reason,
-          succeeded: event.aborted !== true,
+          succeeded: event.aborted !== true && event.errorText == null,
+          error: event.errorText ?? null,
+          ...(event.native === undefined ? {} : { native: { ...event.native, coverage: [...event.native.coverage] } }),
           before: event.tokensBefore ?? null,
           after: event.tokensAfter ?? null,
         },
@@ -264,7 +265,7 @@ export class PortEventRecorder {
         data: {
           kind: 'context-unavailable',
           detail: agent.support.context.available
-            ? 'the session reported no context size at all, so no threshold could fire'
+            ? 'the session reported no context size; native compaction observations are unavailable'
             : agent.support.context.reason,
         },
       });
@@ -303,61 +304,54 @@ export interface InvocationLimits {
 export const commandHoldMarginMs = 60_000;
 
 /**
- * The policy's two bounds on one session: no port event for
- * `invocationIdleMs`, and `invocationAbsoluteMs` in all. Either asks the
- * session to stop and records the bound as its interruption. A session that
- * does not stop is waited for no longer than `writerSettleMs`; settlement is
- * what then says whether it is gone.
+ * Detects missing execution progress. Invocation age never interrupts a
+ * healthy session. A command holds detection until its own timeout and margin;
+ * an authorized wait pauses it until release. Repeated observations and timer
+ * heartbeats supply no evidence of progress.
  *
- * A command the harness runs for the session is the harness's work, not the
- * session's silence: while one is held, the idle bound cannot fire before the
- * command's own timeout and the margin have passed. The command's timeout
- * already bounds it, and the absolute bound is unchanged. Its release starts
- * the idle bound afresh.
+ * A watchdog asks the session to stop, then bounds only observation of that
+ * attempt. Expiry leaves work pending; it never establishes settlement.
  */
 export class InvocationBounds {
   private armed = false;
   private idleTimer: NodeJS.Timeout | undefined;
+  private settlementTimer: NodeJS.Timeout | undefined;
   private expired: () => void = () => undefined;
   private session: AgentSession | undefined;
-  private reached: 'idle-timeout' | 'absolute-timeout' | undefined;
-  private readonly reachedListeners: Array<(bound: 'idle-timeout' | 'absolute-timeout') => void> = [];
-  /** The time each held command may run until, with the margin. */
+  private reached: 'idle-timeout' | undefined;
+  private readonly reachedListeners: Array<(bound: 'idle-timeout') => void> = [];
   private readonly holds = new Set<{ readonly until: number }>();
-  private absolute: PausableDeadline | undefined;
-  private readonly pendingAbsolutePauses = new Set<{ release?: () => void }>();
+  private readonly waits = new Set<object>();
   private completed = false;
 
   constructor(private readonly limits: InvocationLimits, private readonly marginMs = commandHoldMarginMs) {}
 
-  /** Calls `listener` at the moment a bound fires, before the session is asked to stop. */
-  onReached(listener: (bound: 'idle-timeout' | 'absolute-timeout') => void): void {
+  /** Calls `listener` before the watchdog asks the session to stop. */
+  onReached(listener: (bound: 'idle-timeout') => void): void {
     this.reachedListeners.push(listener);
   }
 
-  /** The bound that ended the session, if one did. */
-  get interruption(): 'idle-timeout' | 'absolute-timeout' | undefined {
+  get interruption(): 'idle-timeout' | undefined {
     return this.reached;
   }
 
-  /**
-   * Every port event is activity: it resets the idle bound while the session
-   * is awaited. The bound fires no earlier than the last held command's
-   * timeout and margin.
-   */
-  touch(): void {
-    if (!this.armed) return;
-    clearTimeout(this.idleTimer);
-    const now = Date.now();
-    const held = Math.max(0, ...[...this.holds].map(hold => hold.until - now));
-    this.idleTimer = setTimeout(() => this.expire('idle-timeout'), Math.max(this.limits.invocationIdleMs, held));
+  /** Observe producer progress; passive context/usage/retry observations do not reset detection. */
+  observe(event: AgentEvent): void {
+    if (event.replayed) return;
+    if (event.type === 'progress' || event.type === 'tool-started' || event.type === 'tool-finished' || event.type === 'compaction' ||
+      event.type === 'message' && event.role !== 'user' && event.blocks.length > 0) this.touch();
   }
 
-  /**
-   * Holds the idle bound for one command the harness runs for the session,
-   * for that command's own timeout and the margin. The returned release is
-   * called once the command has ended; the idle bound then starts afresh.
-   */
+  /** Resets detection for actual execution progress or release of a held operation. */
+  touch(): void {
+    if (!this.armed || this.reached !== undefined) return;
+    clearTimeout(this.idleTimer);
+    if (this.waits.size > 0) return;
+    const now = Date.now();
+    const held = Math.max(0, ...[...this.holds].map(hold => hold.until - now));
+    this.idleTimer = setTimeout(() => this.expire(), Math.max(this.limits.invocationIdleMs, held));
+  }
+
   hold(timeoutMs: number): () => void {
     const entry = { until: Date.now() + timeoutMs + this.marginMs };
     this.holds.add(entry);
@@ -368,70 +362,64 @@ export class InvocationBounds {
     };
   }
 
-  /** Machine test lock waiting spends no invocation running budget. */
-  pauseAbsoluteForTestLock(): () => void {
-    if (this.completed) return () => undefined;
-    const pause = { release: this.absolute?.pause() };
-    this.pendingAbsolutePauses.add(pause);
-    let released = false;
+  /** An authorized operator or machine test-lock wait has no idle deadline. */
+  pauseForWait(): () => void {
+    if (this.completed || this.reached !== undefined) return () => undefined;
+    const wait = {};
+    this.waits.add(wait);
+    clearTimeout(this.idleTimer);
     return () => {
-      if (released) return;
-      released = true;
-      this.pendingAbsolutePauses.delete(pause);
-      pause.release?.();
+      if (!this.waits.delete(wait)) return;
+      this.touch();
     };
   }
 
-  /** The session's outcome, or `stopped` once a bound was reached and the settle wait ran out. */
+  /** Compatibility entrypoint for existing machine test-lock callers. */
+  pauseAbsoluteForTestLock(): () => void {
+    return this.pauseForWait();
+  }
+
   async outcome(session: AgentSession): Promise<SessionOutcome> {
     this.session = session;
     const expiry = new Promise<void>(resolve => { this.expired = resolve; });
     this.armed = true;
     this.touch();
-    const absolute = new PausableDeadline(this.limits.invocationAbsoluteMs);
-    this.absolute = absolute;
-    for (const pause of this.pendingAbsolutePauses) pause.release = absolute.pause();
-    const onAbsolute = () => this.expire('absolute-timeout');
-    absolute.signal.addEventListener('abort', onAbsolute, { once: true });
     try {
-      return await Promise.race([
+      const pending = (): SessionOutcome => ({ kind: 'resource-pending', resource: 'stall',
+        reason: `No execution progress for ${this.limits.invocationIdleMs} ms; settlement must be confirmed before replacement` });
+      const result = await Promise.race([
         session.outcome,
-        expiry.then(() => delay(this.limits.writerSettleMs)).then(() => ({ kind: 'stopped' as const })),
+        expiry.then(() => new Promise<SessionOutcome>(resolve => {
+          this.settlementTimer = setTimeout(() => resolve(pending()), this.limits.writerSettleMs);
+        })),
       ]);
+      // A stop receipt describes this attempt, not completion of the pending
+      // task. Accepted submissions remain authoritative after lost replies.
+      return this.reached !== undefined && result.kind !== 'submitted' ? pending() : result;
     } finally {
       this.armed = false;
       clearTimeout(this.idleTimer);
-      absolute.signal.removeEventListener('abort', onAbsolute);
-      absolute.dispose();
-      this.absolute = undefined;
-      for (const pause of this.pendingAbsolutePauses) pause.release = undefined;
-      this.pendingAbsolutePauses.clear();
+      clearTimeout(this.settlementTimer);
+      this.waits.clear();
       this.completed = true;
     }
   }
 
-  private expire(bound: 'idle-timeout' | 'absolute-timeout'): void {
+  private expire(): void {
     if (this.reached !== undefined) return;
-    this.reached = bound;
+    this.reached = 'idle-timeout';
     for (const listener of this.reachedListeners) {
-      try {
-        listener(bound);
-      } catch {
-        // What a listener observes is never the bound's concern.
-      }
+      try { listener(this.reached); } catch { /* Observers cannot suppress recovery. */ }
     }
     void this.session?.stop().catch(() => undefined);
     this.expired();
   }
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 /** How a session ended, from the port's outcome and whether its submission bound was reached. */
 export function endedOf(kind: string, boundReached: boolean): InvocationOutcome['ended'] {
   if (kind === 'submitted') return 'submitted';
+  if (kind === 'resource-pending') return 'resource-pending';
   if (kind === 'context-budget-reached') return 'context-budget-reached';
   if (kind === 'failed') return 'failed';
   if (kind === 'stopped') return 'stopped';

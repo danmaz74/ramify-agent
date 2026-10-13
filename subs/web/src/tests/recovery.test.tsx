@@ -86,3 +86,22 @@ test('hard admission refusal is visible and stale inspection disables fresh comm
   await waitFor(() => expect((screen.getByRole('button', { name: 'Resume recovery' }) as HTMLButtonElement).disabled).toBe(true));
   expect(client.commands).toHaveLength(1);
 });
+
+test('resource recovery exposes pending obligations, unknown effects and lineage without a terminal replacement allowance', async () => {
+  const client = fixture();
+  client.runs.get(run.jobId)!.recovery = recoveryInspectionSchema.parse({ ...inspection, remaining: { invocations: null, activeMs: null },
+    continuity: { policy: 'run-policy/8', resource: 'context', predecessor: 'inv-original', successor: null, settlement: 'unknown', effects: 'unknown' },
+    blockers: ['Settlement: original command effects are unknown'], retained: { ...inspection.retained, task: {
+      candidate: inspection.retained.candidate, acceptedHead: 'accepted-head', configuration: 'configuration-id', work: { iteration: 'iteration-original' },
+      obligations: [{ kind: 'finding', id: 'cf-0003', revision: 2 }, { kind: 'gate', id: 'final' }],
+      sourceRecords: ['invocations/inv-original/invocation.json'], authority: { assignment: 'original' }, progressIdentity: 'retained-progress' } } });
+  render(<RecoveryPanel client={client} run={run} onChanged={() => {}} />);
+  await screen.findByRole('heading', { name: 'Recovery paused' });
+  expect(screen.getByText(/resource recovery has no terminal invocation or elapsed allowance/)).toBeTruthy();
+  expect(screen.getByText('Settlement unknown; effects unknown')).toBeTruthy();
+  expect(screen.getByText('Predecessor inv-original; successor awaiting admission')).toBeTruthy();
+  expect(screen.getByRole('list', { name: 'Pending obligations' }).textContent).toContain('cf-0003, revision 2');
+  expect(screen.getByRole('list', { name: 'Retained task evidence' }).textContent).toContain('inv-original/invocation.json');
+  expect(screen.queryByText('Historical remaining bounds')).toBeNull();
+  expect((screen.getByRole('button', { name: 'Resume recovery' }) as HTMLButtonElement).disabled).toBe(true);
+});

@@ -11,7 +11,7 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { installTestRunner, onlyRun, runPath, startRun } from './helpers/runs.js';
 
 /*
- * Compaction is allowed for an architect and forbidden for a writer, and it
+ * Compaction is allowed for every role, and it
  * is port policy rather than prompt text. Where it happens, the harness
  * records it: its trigger, whether it succeeded, and the sizes before and
  * after where the implementation reports them.
@@ -66,7 +66,7 @@ describe('compaction during a run', () => {
     const initial = await observations(fixture.root, receipt.jobId, 'inv-0002');
     const compacted = initial.filter(line => line.type === 'compaction');
     expect(compacted).toHaveLength(1);
-    expect(compacted[0]!.data).toEqual({ trigger: 'threshold', succeeded: true, before: 90_000, after: 21_000 });
+    expect(compacted[0]!.data).toEqual({ trigger: 'threshold', succeeded: true, before: 90_000, after: 21_000, error: null });
 
     // The observation after it reports no size, which is unknown and never
     // room: it is recorded as it arrived.
@@ -78,21 +78,15 @@ describe('compaction during a run', () => {
     const local = await observations(fixture.root, receipt.jobId, 'inv-0006');
     const localCompaction = local.filter(line => line.type === 'compaction');
     expect(localCompaction).toHaveLength(1);
-    expect(localCompaction[0]!.data).toEqual({ trigger: 'overflow', succeeded: true, before: 140_000, after: null });
+    expect(localCompaction[0]!.data).toEqual({ trigger: 'overflow', succeeded: true, before: 140_000, after: null, error: null });
   }, 300_000);
 
-  test('production compaction is allowed for coordinating architects and forbidden for writers', () => {
+  test('production compaction is native for every role with no harness context ceiling', () => {
     const policy = defaultRunPolicy({ projectRoot: '/work/project' });
-    expect(policy.context['initial-architect']).toMatchObject({ compaction: 'allowed' });
-    expect(policy.context['local-architect']).toMatchObject({ compaction: 'allowed' });
-    expect(policy.context['capability-architect']).toMatchObject({ compaction: 'allowed' });
-    expect(policy.context['contract-engineer']).toBeUndefined();
-    for (const role of ['global-fork', 'engineer'] as const) {
-      expect(policy.context[role]).toMatchObject({ compaction: 'forbidden' });
-    }
+    for (const context of Object.values(policy.context)) expect(context).toEqual({ compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 });
   });
 
-  test('a session whose policy forbids compaction never compacts, whatever its script asks', async () => {
+  test('a session records compaction without a role-specific prohibition', async () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     await installTestRunner(fixture.root);

@@ -102,10 +102,11 @@ const yieldFor = (requirements: readonly string[]) => ({
   summary: 'This work item runs against its fake and waits for the real provider.',
 });
 
-/** A module engineer turn that reaches its context budget: it is never a completion. */
+/** An explicit old-adapter return for the retained historical failure scenario. */
 const budgetTurn: Turn = [
   { kind: 'context', tokens: 200_000, window: null },
   { kind: 'message', text: 'I have read the module and have not changed anything yet.' },
+  { kind: 'legacy-context-return', tokens: 200_000 },
 ];
 
 /**

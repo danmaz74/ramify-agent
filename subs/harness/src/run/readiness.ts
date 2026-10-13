@@ -13,7 +13,6 @@ import { gitService, GitError, runBranchName, type GitService } from '../../subs
 import { runCommand, type CommandRunner } from '../../subs/evidence/src/run-command.js';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
-import { PausableDeadline } from './pausable-deadline.js';
 import type { RunFailureReason } from '../interfaces/protocol/runs.js';
 import { declaredModuleDirectories } from './project-config.js';
 import { removeScratchDirectories, trackedScratchPaths } from '../work/scratch.js';
@@ -148,17 +147,14 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
     steps.push({ step: 'run-branch', outcome: 'not-verified', detail: 'not reached: declared preparation did not pass' });
     return { attempt: attemptRecord(request, steps, nested, null), gate: null, ...(prepared.obstruction === undefined ? {} : { obstruction: prepared.obstruction }) };
   }
-  const bound = new PausableDeadline(policy.limits.runAbsoluteMs);
-  let releaseWait: (() => void) | undefined;
   let audit: ConfiguredFullAuditResult;
   try {
     audit = await execution.run({ projectRoot, sourceCommit: request.head, configuration: config!,
       mode: checkpointPolicies.readiness.audit, nested: checkpointPolicies.readiness.nested,
       runId: request.runId, attemptId: request.gateId,
-      signal: request.signal === undefined ? bound.signal : AbortSignal.any([request.signal, bound.signal]),
+      signal: request.signal ?? new AbortController().signal,
       started: request.started,
-      waiting: async (command, line) => { releaseWait ??= bound.pause(); await request.waiting?.(command, line); },
-      lockAcquired: () => { releaseWait?.(); releaseWait = undefined; },
+      waiting: request.waiting,
     });
   } catch (error) {
     audit = { status: 'failed', requestId: `${request.runId}:${request.gateId}`, mode: 'full', nested: checkpointPolicies.readiness.nested, projects: null, discovery: null,
@@ -166,7 +162,7 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
       requestedMode: null, executedMode: null, fallbackReason: null,
       verdict: null, reportCommit: null, runRef: null, treeRef: null, definition: { path: config!.path, blob: config!.blob },
       detail: error instanceof Error ? error.message : String(error), provider: { error: String(error) }, checks: {} };
-  } finally { releaseWait?.(); bound.dispose(); }
+  }
   const gate = configuredGate(request, audit);
   steps.push({ step: 'configured-full-audit', outcome: gate.verdict,
     detail: `${audit.detail}; requested ${audit.requestedSourceCommit}, audited ${audit.auditedSourceCommit ?? 'none'}` });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import { createSessionOperations } from '../session-operations.js';
 import { SessionDriverUnavailableError } from '../interfaces/session-operations.js';
 import { createScriptedAgent, createScriptedSessionDriver } from '../scripted.js';
@@ -37,6 +38,45 @@ function observation(promise: Promise<unknown>) { let ended = false; void promis
 async function flush() { for (let index = 0; index < 8; index++) await Promise.resolve(); }
 
 describe('Plan 23 F1 high-level session operations', () => {
+  it('reconciles a late admitted handler from its immutable owner receipt after stop without replay or submission authority', async () => {
+    const store = memoryStore(); const started = deferred(); const release = deferred(); let effects = 0;
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch(_, runtime) {
+      await runtime.callTool('late-write', 'write', { path: 'candidate.ts', content: 'retained partial work' });
+      return { kind: 'ended' };
+    } } });
+    const P = await operations.create(create);
+    const bound = bindings({ tools: [{ ...tools[1]!, execute: async () => {
+      effects++; started.resolve(); await release.promise; return { text: 'The originally admitted write completed' };
+    } }] });
+    const handle = await operations.continue(continuation(P.sessionId, P.point!, 'late-owner', bound));
+    await started.promise;
+    const stopping = handle.stop();
+    const original = await handle.receipt;
+    const premature = { runId: 'run-A', operationId: 'late-owner', sessionId: P.sessionId,
+      policyIdentity: task.policyIdentity, validatorIdentity: task.validatorIdentity, destinationIdentity: task.destinationIdentity,
+      effects: [{ callId: 'late-write', tool: 'write', input: { path: 'candidate.ts', content: 'retained partial work' },
+        result: { text: 'The originally admitted write completed' }, receiptIdentity: 'unavailable' }] };
+    await expect(operations.reconcileEffects!(premature)).rejects.toThrow('quiescent terminal owner');
+    expect((await store.read('run-A', 'operation:late-owner'))?.body['effects']).toMatchObject([{ phase: 'intent' }]);
+    expect(await store.read('run-A', 'effect-receipt:late-owner:late-write')).toBeNull();
+    release.resolve(); await stopping; await handle.settled();
+    const receipt = (await store.read('run-A', 'effect-receipt:late-owner:late-write'))!;
+    const receiptIdentity = createHash('sha256').update(JSON.stringify(receipt.body)).digest('hex');
+    await expect(operations.reconcileEffects!({ ...premature, effects: [{ ...premature.effects[0]!, receiptIdentity: 'invented' }] })).rejects.toThrow('immutable owner completion receipt');
+    const recorded = (await store.read('run-A', 'operation:late-owner'))!;
+    const reconciliation = { ...premature, effects: [{ ...premature.effects[0]!, receiptIdentity }] };
+    await operations.reconcileEffects!(reconciliation);
+    const reconciled = (await store.read('run-A', 'operation:late-owner'))!;
+    expect(reconciled.body['effects']).toMatchObject([{ phase: 'completed', result: { text: 'The originally admitted write completed' } }]);
+    expect(reconciled.body['receipt']).toEqual(original);
+    expect(reconciled.body['provider']).toEqual(recorded.body['provider']);
+    expect(await store.read('run-A', 'effect-receipt:late-owner:late-write')).toEqual(receipt);
+    await operations.reconcileEffects!(reconciliation);
+    expect(await store.read('run-A', 'operation:late-owner')).toEqual(reconciled);
+    expect(await (await operations.retry({ runId: 'run-A', operationId: 'late-owner', bindings: bound })).receipt).toEqual(original);
+    expect(effects).toBe(1);
+    expect(await operations.inspect('run-A', P.sessionId)).toBeNull();
+  });
   it('captures fresh JSON policy and declarations without losing literal text or prototype-shaped keys', async () => {
     const shared = { title: 'quote " slash \\ newline\n emoji 😀 lone \ud800', nested: [null, true, -0, { value: 'original' }] };
     const dictionary = Object.create(null) as Record<string, unknown>;

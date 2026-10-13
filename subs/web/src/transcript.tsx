@@ -523,6 +523,7 @@ function EntryContent({ entry, context }: { readonly entry: TranscriptEntry; rea
       return (
         <p className="entry-header">
           <strong>Compaction {entry.phase}</strong> <span className="muted">· {entry.reason}
+            {entry.native && <> · native reserve {entry.native.compaction.reserveTokens}, recent history {entry.native.compaction.keepRecentTokens}, projected request {entry.native.projectedTokens ?? 'unknown'} · {entry.native.source}</>}
             {entry.phase === 'ended' && <> · {entry.tokensBefore ?? 'unknown'} → {entry.tokensAfter ?? 'unknown'} tokens{entry.aborted ? ' · aborted' : ''}{entry.errorText ? ` · ${entry.errorText}` : ''}</>}
           </span>
         </p>

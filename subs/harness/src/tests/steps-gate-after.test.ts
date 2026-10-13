@@ -212,19 +212,31 @@ describe('S17: after a completion proposal, with and without its gate', () => {
     expect(composed.inputs.briefing.diffPayload).toContain('noteLimit = 500');
     const reviewInputs = join(scratch, 'review.json');
     await writeFile(reviewInputs, serializeStepInputs(composed.inputs));
+    const interrupted = await step(reviewInputs, run, [
+      { kind: 'tool', tool: snapshotToolNames.read, input: { path: notesSource } },
+      { kind: 'resource', resource: 'context', reason: 'Native compaction failed during the frozen code review' },
+    ], git, { candidates });
+    if (interrupted.status !== 'finished') throw new Error(interrupted.reason);
+    expect(interrupted.summary).toMatchObject({ pending: true, submission: null, resource: 'context' });
+    const heldReviews = await events(root, 'm-001');
+    expect(heldReviews.filter(event => event.type === 'review-attempt-finished')).toHaveLength(0);
+    const initialReview = heldReviews.find(event => event.type === 'review-attempt-started');
+    if (initialReview?.type !== 'review-attempt-started') throw new Error('The original frozen review attempt was not retained');
+    repository.tree = tree;
     const reviewed = await step(reviewInputs, run, [
       { kind: 'tool', tool: snapshotToolNames.read, input: { path: notesSource } },
       { kind: 'submit', input: { inspected: [notesSource], missing: [], concerns: [] } },
-    ], git, { candidates });
+    ], git, { candidates, recoveryResume: { occurrenceId: 'opr-0001', expectedRevision: 1, commandId: 'resume-frozen-code-review' } });
     if (reviewed.status !== 'finished') throw new Error(reviewed.reason);
     expect(reviewed.exitStatus).toBe(0);
     expect(reviewed.summary).toMatchObject({ role: 'reviewer', variant: 'code', ended: 'submitted' });
     expect(reviewed.summary.records.review).toBe(join(run, reviewLayout.attempt('rq-0001.a01')));
-    expect(await json(reviewed.summary.records.review!)).toMatchObject({ request: 'rq-0001', settles: true, invocation: reviewed.summary.invocation,
+    expect(await json(reviewed.summary.records.review!)).toMatchObject({ request: 'rq-0001', settles: true, invocation: initialReview.data.invocation,
+      transportInvocations: expect.arrayContaining([interrupted.summary.invocation, reviewed.summary.invocation]),
       result: { result: 'complete', inspected: [{ path: notesSource }], concerns: 0 } });
     const settled = await events(root, 'm-001');
     expect(settled.filter(event => event.type === 'review-attempt-started').map(event => event.data)).toEqual([
-      expect.objectContaining({ request: 'rq-0001', attempt: 'rq-0001.a01', invocation: reviewed.summary.invocation })]);
+      expect.objectContaining({ request: 'rq-0001', attempt: 'rq-0001.a01', invocation: initialReview.data.invocation })]);
     expect(settled.filter(event => event.type === 'review-attempt-finished')).toHaveLength(1);
     // A settled request composes no further attempt.
     expect(await reviewInputsFromRequest({ runDirectory: run, request: 'rq-0001', candidates, configuredAudit: passingAudit() }))

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { sha256Schema } from './evidence.js';
-import { roleSchema } from './runs.js';
+import { nativeContextObservationSchema, roleSchema } from './runs.js';
 
 /*
  * The transcript of one session, as the harness writes it: one JSON line per
@@ -129,7 +129,7 @@ export const transcriptWorkSchema = z.object({ workItem: text.optional(), iterat
 export const transcriptStartModeSchema = z.enum(['fresh', 'continue', 'fork']);
 
 /** How an invocation ended, as its outcome records it. */
-export const transcriptEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'invalid-submission']);
+export const transcriptEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']);
 /** What interrupted it, where something did. */
 export const transcriptInterruptionSchema = z.enum([
   'idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault', 'stopped-by-caller',
@@ -287,11 +287,12 @@ const harnessEntry = entry('harness', { invocation: text.nullable(), decision: t
 
 const compactionReason = z.enum(['manual', 'threshold', 'overflow']);
 const compactionEntry = z.discriminatedUnion('phase', [
-  entry('compaction', { ...ofInvocation, phase: z.literal('started'), reason: compactionReason }).strict(),
+  entry('compaction', { ...ofInvocation, phase: z.literal('started'), reason: compactionReason, native: nativeContextObservationSchema.optional() }).strict(),
   entry('compaction', {
     ...ofInvocation,
     phase: z.literal('ended'),
     reason: compactionReason,
+    native: nativeContextObservationSchema.optional(),
     tokensBefore: z.number().nullable(),
     tokensAfter: z.number().nullable(),
     aborted: z.boolean(),

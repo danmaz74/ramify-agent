@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { createScriptedAgent, type ScriptStep } from '../../subs/agent/src/scripted.js';
+import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { RamifyCheckResult } from '../../subs/evidence/src/ramify-cli.js';
 import { observationSchema } from '../run/observations.js';
 import { invocationOutcomeSchema, invocationSchema, manualRunRecordSchema, runLayout } from '../run/records.js';
@@ -85,10 +85,14 @@ async function writeInputs(scratch: string, name: string, inputs: unknown): Prom
 /** The tree as scripted Git reports it: the commit HEAD names and the paths that differ from it. */
 interface Tree { head: string; changed: string[] }
 
-function scriptedGit(tree: Tree) {
+function scriptedGit(tree: Tree, candidate?: string) {
   const branches = new Set<string>();
   const git = mockGit({
     currentHead: async () => tree.head,
+    previewCandidateTree: async root => {
+      if (!candidate) throw new Error('Scripted source evidence is unavailable');
+      return { repositoryRoot: root, head: tree.head, tree: candidate };
+    },
     changedPaths: async () => [...tree.changed],
     createRunBranch: async (_root, runId) => {
       const branch = `ramify-agent-run/${runId}`;
@@ -137,7 +141,7 @@ interface Stepped {
   readonly agent: ReturnType<typeof createScriptedAgent>;
 }
 
-async function step(root: string, inputs: string, run: string, script: readonly ScriptStep[], git: ReturnType<typeof scriptedGit>,
+async function step(root: string, inputs: string, run: string, script: Script, git: ReturnType<typeof scriptedGit>,
   extra: Partial<StepRunOptions> = {}): Promise<Stepped> {
   const agent = createScriptedAgent(script);
   const events: StepRunProgress[] = [];
@@ -166,6 +170,66 @@ async function tree(root: string): Promise<string[]> {
 }
 
 const json = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, 'utf8'));
+
+test('a standalone resource return retains partial candidate, scratch and the assignment without a submission', async () => {
+  const { root, scratch } = await project();
+  const inputs = await authoredInputs(root, scratch);
+  const temporary = join(root, notesDirectory, 'src/tmp/recovery.txt');
+  await mkdir(join(root, notesDirectory, 'src/tmp'), { recursive: true });
+  await writeFile(temporary, 'retain the pending repair');
+  const git = scriptedGit({ head: 'candidate-base', changed: [notesSource] });
+  const { result } = await step(root, inputs, manualRun(root, 'm-resource'), [
+    edit('notes.ts', '400', '450'),
+    write('tmp/recovery.txt', 'retain the pending repair'),
+    { kind: 'resource', resource: 'context', reason: 'Native compaction unavailable; need source-backed continuation', tokens: 205728 },
+  ], git);
+  const summary = finished(result);
+  expect(summary).toMatchObject({ ended: 'resource-pending', pending: true, resource: 'context', settled: true, submission: null });
+  expect(result.exitStatus).toBe(1);
+  expect(await readFile(join(root, notesSource), 'utf8')).toContain('450');
+  expect(await readFile(temporary, 'utf8')).toBe('retain the pending repair');
+  expect(parseStepInputs(await readFile(summary.records.inputs, 'utf8'))).toMatchObject({ role: 'engineer', assignment: expect.objectContaining({ goal: 'Raise the note limit to 500.' }) });
+  expect(invocationOutcomeSchema.parse(await json(summary.records.outcome))).toMatchObject({ ended: 'resource-pending', resource: 'context', submission: null });
+});
+
+test('an authored engineer step uses durable source after native compaction fails without consuming its assignment', async () => {
+  const { root, scratch } = await project();
+  const inputs = await authoredInputs(root, scratch);
+  const git = scriptedGit({ head: 'candidate-base', changed: [notesSource] }, 'a'.repeat(40));
+  let calls = 0;
+  const { result, agent } = await step(root, inputs, manualRun(root, 'm-native-fallback'), () => ++calls === 1 ? [
+    edit('notes.ts', '400', '450'), { kind: 'resource', resource: 'context', reason: 'Native overflow compaction failed' },
+  ] : [edit('notes.ts', '450', '500'), { kind: 'submit', input: completionProposed('The original note limit correction is complete.') }], git);
+  expect(result.exitStatus).toBe(0);
+  expect(agent.sessions).toHaveLength(2);
+  const summary = finished(result);
+  expect(summary.submissionKind).toBe('completion-proposed');
+  expect(agent.sessions[1]!.spec.prompt).toContain('Raise the note limit to 500.');
+  expect(agent.sessions[1]!.spec.prompt).toContain('No submission or partial result was inferred');
+  expect(invocationSchema.parse(await json(summary.records.invocation)).recoveryPredecessor).toBe('inv-0001');
+  expect(await readFile(join(root, notesSource), 'utf8')).toContain('500');
+});
+
+test('an authored step held on unavailable candidate evidence resumes only its exact retained occurrence', async () => {
+  const { root, scratch } = await project();
+  const inputs = await authoredInputs(root, scratch);
+  const run = manualRun(root, 'm-source-resume');
+  const git = scriptedGit({ head: 'candidate-base', changed: [] });
+  const held = await step(root, inputs, run, [{ kind: 'resource', resource: 'context', reason: 'Native compaction unavailable' }], git);
+  expect(finished(held.result)).toMatchObject({ pending: true, submission: null });
+  const refused = await step(root, inputs, run, [], git);
+  expect(refused.result).toMatchObject({ status: 'not-started', reason: expect.stringContaining('occurrence-bound') });
+  expect(refused.agent.sessions).toHaveLength(0);
+  vi.spyOn(git, 'previewCandidateTree').mockResolvedValue({ repositoryRoot: root, head: 'candidate-base', tree: 'a'.repeat(40) });
+  const restoredGit = git;
+  const recoveryResume = { occurrenceId: 'opr-0001', expectedRevision: 1, commandId: 'resume-authored-source' };
+  const resumed = await step(root, inputs, run, [{ kind: 'submit', input: unsuitableScope('Original scope cannot supply the requested behavior.') }], restoredGit, { recoveryResume });
+  expect(resumed.result.exitStatus).toBe(0);
+  expect(resumed.agent.sessions[0]!.spec.prompt).toContain('Explicit source-backed continuation from inv-0001');
+  const repeated = await step(root, inputs, run, [], restoredGit, { recoveryResume });
+  expect(repeated.result).toEqual(resumed.result);
+  expect(repeated.agent.sessions).toHaveLength(0);
+});
 
 describe('S09/S12: one engineer step in a manual run', () => {
   test('a new prospective capability caller is reconciled before manual submission admission', async () => {

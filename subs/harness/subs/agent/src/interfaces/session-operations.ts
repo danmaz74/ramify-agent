@@ -66,6 +66,13 @@ export interface SessionExecutionBindings {
 export interface SessionTranscriptEntry { readonly key: string; readonly payloadId: TranscriptPayloadId; readonly kind: 'agent' | 'provider' }
 /** A completed call whose handler threw records its error text as an error `result` and `thrown`, and replays as that error. */
 export interface SessionEffectRecord { readonly callId: string; readonly tool: string; readonly input: unknown; readonly phase: 'intent' | 'completed'; readonly result: ToolResult | null; readonly verdict: SubmissionVerdict | null; readonly thrown?: true }
+/** A finished admitted handler's immutable fact; it conveys no execution or submission authority. */
+export interface SessionEffectOwnerReceipt extends SessionOperationKey {
+  readonly sessionId: string; readonly callId: string; readonly tool: string; readonly input: unknown;
+  readonly result: ToolResult; readonly thrown: boolean;
+  readonly owner: SessionExecutionOwner;
+  readonly policyIdentity: string; readonly validatorIdentity: string; readonly destinationIdentity: string;
+}
 export interface AgentSessionSnapshot extends SessionLineage {
   readonly runId: string; readonly initialInstructions: string; readonly policy: SessionExecutionPolicy;
   readonly declarations: readonly SessionToolDeclaration[]; readonly activeTools: readonly string[];
@@ -100,6 +107,15 @@ export interface AppendSessionContextInput extends SessionOperationKey { readonl
 export interface ChangeSessionToolsInput extends SessionOperationKey { readonly sessionId: AgentSessionId; readonly expectedPoint: AgentSessionPoint; readonly toolChange: SessionToolChange }
 export interface RetrySessionInput extends SessionOperationKey { readonly bindings: SessionExecutionBindings }
 export interface StopSessionInput extends SessionOperationKey { readonly sessionId: AgentSessionId }
+/** Owner evidence reconciles a terminal operation without restoring execution authority. */
+export interface ReconcileSessionEffectsInput extends SessionOperationKey {
+  readonly sessionId: AgentSessionId;
+  readonly policyIdentity: string;
+  readonly validatorIdentity: string;
+  readonly destinationIdentity: string;
+  readonly effects: readonly { readonly callId: string; readonly tool: string; readonly input: unknown;
+    readonly result: ToolResult; readonly receiptIdentity: string }[];
+}
 export interface SessionOperationHandle {
   /** Durable terminal decision; Stop can resolve it while interrupted work is still draining. */
   readonly receipt: Promise<SessionOperationReceipt>;
@@ -118,6 +134,7 @@ export interface SessionOperations {
   changeTools(input: ChangeSessionToolsInput): Promise<SessionOperationReceipt>;
   retry(input: RetrySessionInput): Promise<SessionOperationHandle>;
   stop(input: StopSessionInput): Promise<SessionOperationReceipt>;
+  reconcileEffects?(input: ReconcileSessionEffectsInput): Promise<void>;
   /** Pure original intent lookup. Missing is null; corrupt/unavailable state rejects. No dispatch or acceptance. */
   operationIdentity(runId: string, operationId: SessionOperationId): Promise<SessionExecutionIdentity | null>;
   inspect(runId: string, sessionId: AgentSessionId, point?: AgentSessionPoint): Promise<AgentSessionSnapshot | null>;

@@ -210,10 +210,11 @@ export async function scriptedRuntime(scripted: ScriptedProvider): Promise<{ run
 
 export interface NativeCodexRuntime { readonly runtime: ModelRuntime; readonly model: Model; readonly agentDirectory: string; readonly requests: Record<string, unknown>[]; readonly wireRequests: Record<string, unknown>[]; readonly transports: unknown[]; readonly wireHeaders: Array<{ sessionId: string | null; clientRequestId: string | null }>; dispatches(): number; push(...items: Array<readonly Record<string, unknown>[]>): void; verify(): void; remove(): Promise<void> }
 /** Real installed Codex serializer/parser, with only its HTTP transport intercepted. */
-export async function nativeCodexRuntime(outputs: readonly (readonly Record<string, unknown>[] | null)[]): Promise<NativeCodexRuntime> {
+export async function nativeCodexRuntime(outputs: readonly (readonly Record<string, unknown>[] | null | { readonly error: string })[], fixtureOptions: { contextWindow?: number; usage?: { input_tokens: number; output_tokens: number } } = {}): Promise<NativeCodexRuntime> {
   const agentDirectory = await mkdtemp(join(tmpdir(), 'ramify-agent-native-pi-'));
   const runtime = await ModelRuntime.create({ authPath: join(agentDirectory, 'auth.json'), modelsPath: null, modelsStorePath: join(agentDirectory, 'models-store.json'), allowModelNetwork: false, refreshOnCreate: false });
-  const model = runtime.getModel('openai-codex', 'gpt-5.6-sol');
+  const originalModel = runtime.getModel('openai-codex', 'gpt-5.6-sol');
+  const model = originalModel && { ...originalModel, contextWindow: fixtureOptions.contextWindow ?? originalModel.contextWindow };
   if (!model) throw new Error('Installed pi catalog lacks the qualified model');
   // A second model under the same credentials but on another API: preservation refuses it, so tests can see that refusal rather than a credentials error.
   const native = await import(await installedPiPublicExport('./api/openai-codex-responses')) as { streamSimple: StreamFunction; stream: StreamFunction };
@@ -238,13 +239,14 @@ export async function nativeCodexRuntime(outputs: readonly (readonly Record<stri
         if (init?.signal?.aborted) aborted();
         else init?.signal?.addEventListener('abort', aborted, { once: true });
       });
+      if (!Array.isArray(output)) return new Response(JSON.stringify({ error: { message: (output as { error: string }).error, code: 'context_length_exceeded' } }), { status: 400 });
       const event = (value: unknown) => `data: ${JSON.stringify(value)}\n\n`;
       let sse = event({ type: 'response.created', response: { id: `resp_fixture_${index}` } });
       output.forEach((item, output_index) => {
         sse += event({ type: 'response.output_item.added', output_index, item });
         sse += event({ type: 'response.output_item.done', output_index, item });
       });
-      sse += event({ type: 'response.completed', response: { id: `resp_fixture_${index}`, status: 'completed', output, usage: { input_tokens: 30, output_tokens: 5, total_tokens: 35, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 1 } } } });
+      sse += event({ type: 'response.completed', response: { id: `resp_fixture_${index}`, status: 'completed', output, usage: { input_tokens: fixtureOptions.usage?.input_tokens ?? 30, output_tokens: fixtureOptions.usage?.output_tokens ?? 5, total_tokens: (fixtureOptions.usage?.input_tokens ?? 30) + (fixtureOptions.usage?.output_tokens ?? 5), input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 1 } } } });
       return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
     },
   } as StreamOptions); };

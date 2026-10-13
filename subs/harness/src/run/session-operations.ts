@@ -2,7 +2,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import type { AgentPort, AgentSession, AppendOutcome, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
-import type { AppendSessionContextInput, AgentSessionPoint, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
+import type { AppendSessionContextInput, AgentSessionPoint, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
 import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
 import { openSessionStore, type LedgerSessionStore } from './session-store.js';
@@ -214,6 +214,38 @@ export function composeOperationPacket(input: {
 
 /** Harness correlations are immutable; provider bytes and execution intent remain in the injected ledger store. */
 export class HarnessSessionOperations {
+  /** Reconcile only completed admitted handlers; source bytes and elapsed time supply no result. */
+  async reconcileOwnedEffects(runId: string, operationId: string): Promise<string[]> {
+    const original = await this.originalOperation(runId, operationId);
+    const operation = await this.store.read(runId, `operation:${operationId}`);
+    if (!original || !operation || !this.operations.reconcileEffects) return this.unresolvedEffects(runId, operationId);
+    const effects = operation.body['effects'];
+    if (!Array.isArray(effects)) throw new Error('Original effect journal is unreadable');
+    const completions = [];
+    for (const effect of effects as SessionEffectRecord[]) {
+      if (effect.phase !== 'intent' || effect.tool === original.task.submissionTool) continue;
+      const receipt = await this.store.read(runId, `effect-receipt:${operationId}:${effect.callId}`);
+      const fact = receipt?.body as unknown as SessionEffectOwnerReceipt | undefined;
+      if (!fact || fact.thrown || fact.result?.isError || fact.runId !== runId || fact.operationId !== operationId
+        || fact.callId !== effect.callId || fact.tool !== effect.tool || JSON.stringify(fact.input) !== JSON.stringify(effect.input)
+        || fact.policyIdentity !== original.task.policyIdentity || fact.validatorIdentity !== original.task.validatorIdentity || fact.destinationIdentity !== original.task.destinationIdentity) continue;
+      completions.push({ callId: effect.callId, tool: effect.tool, input: effect.input, result: fact.result,
+        receiptIdentity: exactInputHash(JSON.stringify(fact)) });
+    }
+    if (completions.length > 0) await this.operations.reconcileEffects({ runId, operationId, sessionId: operation.body['sessionId'] as string,
+      policyIdentity: original.task.policyIdentity, validatorIdentity: original.task.validatorIdentity, destinationIdentity: original.task.destinationIdentity, effects: completions });
+    return this.unresolvedEffects(runId, operationId);
+  }
+  /** Successful durable effects supply progress and reconciliation evidence. */
+  async completedEffects(runId: string, operationId: string): Promise<SessionEffectRecord[]> {
+    const operation = await this.store.read(runId, `operation:${operationId}`);
+    if (!operation) return [];
+    const effects = operation.body['effects'];
+    if (!Array.isArray(effects) || effects.some(effect => !effect || typeof effect.callId !== 'string' || typeof effect.tool !== 'string'
+      || !['intent', 'completed'].includes(effect.phase))) throw new Error('Original effect journal is unreadable');
+    return (effects as SessionEffectRecord[]).filter(effect => effect.phase === 'completed' && !effect.thrown && !effect.result?.isError
+      && (!effect.verdict || effect.verdict.accepted));
+  }
   /** Unacknowledged mutating effects forbid successor dispatch until independently reconciled. */
   async unresolvedEffects(runId: string, operationId: string): Promise<string[]> {
     const operation = await this.store.read(runId, `operation:${operationId}`);
@@ -228,11 +260,17 @@ export class HarnessSessionOperations {
     if (!identity) return true;
     const stopping = this.operations.stop({ runId, operationId, sessionId: identity.sessionId });
     const key = JSON.stringify([runId, operationId]);
-    this.pending.set(stopping, runId);
+    this.pending.set(stopping, { runId, operationId });
     void stopping.then(() => { this.pending.delete(stopping); this.unconfirmed.delete(key); }, () => { this.pending.delete(stopping); this.unconfirmed.add(key); });
     const observed = await settleSessionEquipment(() => stopping.then(() => undefined), boundMs);
     if (!observed) this.unconfirmed.add(key);
-    return observed && (await this.unresolvedEffects(runId, operationId)).length === 0;
+    else {
+      // Actual stop drainage supersedes only this occurrence's earlier
+      // observation waits. Other operations retain their own barriers.
+      for (const [wait, owner] of this.pending) if (owner.runId === runId && owner.operationId === operationId) this.pending.delete(wait);
+      this.unconfirmed.delete(key);
+    }
+    return observed;
   }
   async completedPoint(runId: string, operationId: string): Promise<string | null> {
     const operation = await this.store.read(runId, `operation:${operationId}`);
@@ -240,7 +278,7 @@ export class HarnessSessionOperations {
     const point = receipt?.point;
     return point && await this.operations.inspect(runId, point.sessionId, point) ? sessionPointReference(runId, point) : null;
   }
-  private readonly pending = new Map<Promise<unknown>, string>();
+  private readonly pending = new Map<Promise<unknown>, { readonly runId: string; readonly operationId: string }>();
   private readonly unconfirmed = new Set<string>();
   private constructor(private readonly directory: string, private readonly store: LedgerSessionStore, readonly operations: SessionOperations, private readonly agent: AgentPort) {}
   static async open(directory: string, agent: AgentPort): Promise<HarnessSessionOperations> {
@@ -251,7 +289,7 @@ export class HarnessSessionOperations {
   }
   /** Whether every dispatched operation of this run has confirmed its tool/session barrier. */
   settlementConfirmed(runId: string): boolean {
-    return ![...this.pending.values()].includes(runId)
+    return ![...this.pending.values()].some(entry => entry.runId === runId)
       && ![...this.unconfirmed].some(key => (JSON.parse(key) as string[])[0] === runId);
   }
 
@@ -400,8 +438,8 @@ export class HarnessSessionOperations {
     const barrierKey = JSON.stringify([runId, operationId]);
     const observeBarrier = () => {
       const barrier = handle.settled();
-      this.pending.set(barrier, runId);
-      void barrier.then(() => { this.pending.delete(barrier); this.unconfirmed.delete(barrierKey); }, () => { this.pending.delete(barrier); this.unconfirmed.add(barrierKey); });
+      this.pending.set(barrier, { runId, operationId });
+      void barrier.then(() => { if (this.pending.delete(barrier)) this.unconfirmed.delete(barrierKey); }, () => { if (this.pending.delete(barrier)) this.unconfirmed.add(barrierKey); });
       return barrier;
     };
     let barrier = observeBarrier();

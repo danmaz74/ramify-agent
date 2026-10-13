@@ -209,3 +209,30 @@ test('S05/S06: hand-authored old named append replays its unframed original afte
   await turn(next.adapter, { ...unchanged, brief: { ...unchanged.brief, sections: [...unchanged.brief.sections, section] } });
   expect((await next.adapter.packet('run', 'after-old-migration'))!.additions.map(item => item.key)).toEqual(['briefing-state', 'task']);
 });
+
+test('confirmed original-stop drainage clears only its exact prior observation waits', async () => {
+  const rejected = new Map<string, (error: Error) => void>();
+  const { adapter } = await open([{ kind: 'resource', resource: 'context', reason: 'Native compaction unavailable' }], undefined, agent => ({
+    ...agent,
+    bindSessionStore(store) {
+      const operations = agent.bindSessionStore!(store);
+      return { ...operations, async continue(input) {
+        const handle = await operations.continue(input);
+        return { ...handle, settled: () => new Promise((_, reject) => { rejected.set(input.operationId, reject); }) };
+      } };
+    },
+  }));
+  const first = await adapter.start(request('pending-a'));
+  const second = await adapter.start(request('pending-b'));
+  expect((await first.outcome).kind).toBe('resource-pending');
+  expect((await second.outcome).kind).toBe('resource-pending');
+  expect(adapter.settlementConfirmed('run')).toBe(false);
+  expect(await adapter.stopOriginal('run', 'pending-a', 1000)).toBe(true);
+  expect(adapter.settlementConfirmed('run')).toBe(false);
+  expect(await adapter.stopOriginal('run', 'pending-b', 1000)).toBe(true);
+  expect(adapter.settlementConfirmed('run')).toBe(true);
+  rejected.get('pending-a')!(new Error('Obsolete observation failed after confirmed stop'));
+  await Promise.resolve();
+  expect(adapter.settlementConfirmed('run')).toBe(true);
+  expect(await adapter.close()).toBe(true);
+});

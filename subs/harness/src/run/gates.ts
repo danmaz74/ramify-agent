@@ -81,7 +81,7 @@ export async function runCheckpoint(execution: CheckExecutionPort, request: Chec
 /**
  * Verify a committing checkpoint before its commit effect is allowed to
  * begin. It plans no command: its audit asks the committed definition in the
- * checkpoint's mode, bounded by the run's absolute limit, lock waits excepted.
+ * checkpoint's mode. The audit producer owns progress and check timing.
  */
 export async function prepareCheckpoint(request: CheckpointRequest): Promise<PreparedGate | GateAttempt> {
   const policy = checkpointPolicies[request.checkpoint];
@@ -89,7 +89,7 @@ export async function prepareCheckpoint(request: CheckpointRequest): Promise<Pre
   return prepareGate(request.checkpoint, {
     ...gateRequest(request),
     checks: [],
-    audit: { mode: policy.audit, ...(policy.nested ? { nested: true } : {}), timeoutMs: request.policy.limits.runAbsoluteMs },
+    audit: { mode: policy.audit, ...(policy.nested ? { nested: true } : {}) },
   });
 }
 

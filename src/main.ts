@@ -122,6 +122,7 @@ async function session(commandLine: Extract<CommandLine, { command: 'session' }>
       agent: commandLine.agent,
       write: commandLine.write,
       gate: commandLine.gate,
+      ...(commandLine.recoveryResume === undefined ? {} : { recoveryResume: commandLine.recoveryResume }),
       onAgent: description => console.log(`Agent: ${description}`),
       onProgress: event => {
         // A refusal is printed once, as the harness's text, and not again as the tool's error.

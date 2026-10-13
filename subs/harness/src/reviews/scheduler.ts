@@ -30,6 +30,8 @@
 export interface ReviewQueueOptions {
   readonly concurrency: number;
   readonly queue: number;
+  /** Resource pressure retains every requested review kind while slots remain finite. */
+  readonly preserveCoverage?: boolean;
   /** The unsettled requests in the order they were recorded, from the log as it stands. */
   readonly unsettled: () => readonly string[];
   /**
@@ -111,7 +113,7 @@ export class ReviewQueue {
     }
     const room = Math.max(0, this.options.concurrency - this.running.size);
     const starting = waiting.slice(0, room);
-    for (const request of waiting.slice(room + this.options.queue)) {
+    for (const request of this.options.preserveCoverage ? [] : waiting.slice(room + this.options.queue)) {
       this.finish(request, this.options.overflow, 'finished as overflowed');
     }
     for (const request of waiting.slice(room, room + this.options.queue)) this.prepare(request);

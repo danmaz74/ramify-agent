@@ -51,6 +51,8 @@ export interface EquipContext {
    * release is called when the command ends. Absent, nothing is held.
    */
   readonly hold?: ((timeoutMs: number) => () => void) | undefined;
+  /** Wait for an owned producer whose own watchdog observes progress and settlement. */
+  readonly waitForProducer?: (() => () => void) | undefined;
 }
 
 /** The tools and the guard of one invocation. */
@@ -506,9 +508,13 @@ function message(error: unknown): string {
 export function heldCommands(runner: CommandRunner, hold: ((timeoutMs: number) => () => void) | undefined): CommandRunner {
   if (hold === undefined) return runner;
   return async request => {
-    const release = hold(request.timeoutMs);
+    let release = hold(request.timeoutMs);
     try {
-      return await runner(request);
+      return await runner({ ...request, onProgress: () => {
+        release();
+        release = hold(request.timeoutMs);
+        request.onProgress?.();
+      } });
     } finally {
       release();
     }

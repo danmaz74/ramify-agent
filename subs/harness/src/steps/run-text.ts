@@ -67,6 +67,7 @@ export function summaryText(summary: StepRunSummary): string {
   const lines = [
     '',
     `Step ended: ${summary.ended} after ${seconds}s${summary.error === undefined ? '' : ` (${summary.error})`}.`,
+    ...(summary.pending ? [`Task pending: ${summary.resource ?? 'resource'} recovery${summary.resourceReason === undefined ? '' : ` (${summary.resourceReason})`}.`] : []),
     summary.submission === null
       ? `Submission: none accepted. Rejected submissions: ${summary.rejectedSubmissions}.`
       : `Submission: ${summary.submissionKind ?? 'accepted'}. Rejected submissions: ${summary.rejectedSubmissions}.`,

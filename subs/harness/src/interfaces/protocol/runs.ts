@@ -163,10 +163,16 @@ export const recoveryInspectionSchema = z.object({
   changes: z.array(z.object({ path: z.string(), before: z.string().nullable(), after: z.string().nullable() }).strict()).optional(),
   runtime: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
   configuration: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
-  remaining: z.object({ invocations: z.int().nonnegative(), activeMs: z.number().nonnegative() }).strict(),
+  remaining: z.object({ invocations: z.int().nonnegative().nullable(), activeMs: z.number().nonnegative().nullable() }).strict(),
+  continuity: z.object({ policy: z.literal('run-policy/8'), resource: z.enum(['context', 'stall']).nullable(),
+    predecessor: z.string().nullable(), successor: z.string().nullable(), settlement: z.enum(['confirmed', 'unknown']),
+    effects: z.enum(['reconciled', 'unknown']), observations: z.array(z.object({ invocation: z.string(), at: z.string(), groupsKilled: z.number(), lateWrites: z.array(z.string()), ref: z.string().nullable() }).strict()).optional() }).strict().optional(),
   totalInvocations: z.int().nonnegative().optional(),
   timing: z.object({ activeMs: z.number().nonnegative(), pausedMs: z.number().nonnegative(), currentPauseMs: z.number().nonnegative() }).strict().optional(),
-  retained: z.object({ candidate: z.object({ tree: z.string(), head: z.string() }).strict(), partialPaths: z.array(z.string()) }).strict(),
+  retained: z.object({ candidate: z.object({ tree: z.string(), head: z.string() }).strict(), partialPaths: z.array(z.string()), task: z.object({
+    candidate: z.object({ head: z.string(), tree: z.string() }).strict(), acceptedHead: z.string(), work: z.record(z.string(), z.string()),
+    configuration: z.string(), obligations: z.array(z.object({ kind: z.string(), id: z.string(), revision: z.number().optional() }).strict()),
+    sourceRecords: z.array(z.string()), authority: z.record(z.string(), z.unknown()), progressIdentity: z.string().optional() }).strict().optional() }).strict(),
 }).strict();
 export type RecoveryInspection = z.infer<typeof recoveryInspectionSchema>;
 
@@ -1607,6 +1613,16 @@ export type InvocationEfficiency = z.infer<typeof invocationEfficiencySchema>;
 export const scopeComparisonSchema = z.object({ mean: metricSchema, ratio: metricSchema, attributedWeight: z.number().nonnegative(), completeSizeWeight: z.number().nonnegative(), unknownSizeWeight: z.number().nonnegative(), unattributedWeight: z.number().nonnegative() }).strict();
 export type ScopeComparisonView = z.infer<typeof scopeComparisonSchema>;
 
+/** Effective Pi settings and context estimates; absent provider facts remain unknown. */
+export const nativeContextObservationSchema = z.object({ source: z.literal('pi@0.87.1:SettingsManager'),
+  compaction: z.object({ enabled: z.boolean(), reserveTokens: z.number(), keepRecentTokens: z.number() }).strict(),
+  occupancy: z.literal('current'), projectedTokens: z.number().nullable(), coverage: z.array(z.string()) }).strict();
+export const contextObservationViewSchema = z.object({ observations: z.array(z.object({ at: z.string(), tokens: z.number().nullable(),
+  window: z.number().nullable(), native: nativeContextObservationSchema.optional() }).strict()),
+  compactions: z.array(z.object({ at: z.string(), trigger: z.enum(['threshold', 'overflow', 'explicit']), succeeded: z.boolean(),
+    before: z.number().nullable(), after: z.number().nullable(), error: z.string().nullable(), native: nativeContextObservationSchema.optional() }).strict()),
+  coverage: z.array(z.string()) }).strict();
+
 /** One invocation's evaluation evidence: guarding, what changed outside its scope, hook checks and reads outside it. */
 export const invocationEvaluationSchema = z.object({
   invocation: text,
@@ -1617,6 +1633,7 @@ export const invocationEvaluationSchema = z.object({
   ended: text.nullable(),
   writer: z.boolean(),
   efficiency: invocationEfficiencySchema.optional(),
+  context: contextObservationViewSchema.optional(),
   guarding: guardingViewSchema,
   /** Writers only: uncommitted changed paths outside the write scope when it settled. */
   outsideScope: z.array(text), unknownPlacement: z.array(text).optional(), placementFailure: text.optional(),

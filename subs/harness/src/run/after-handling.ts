@@ -207,7 +207,7 @@ export class AfterHandling<R extends GateRun> {
         model: identity.model,
         context: run.policy.context.reviewer,
         scope: { projectRoot: this.host.projectRoot, workItem: closed.workItem, authority: 'read-only-candidate' },
-        execution: { history: 'complete', compaction: 'forbidden', snapshot: 'current-request-candidate' },
+        execution: { history: 'complete', compaction: 'pi-native-automatic', snapshot: 'current-request-candidate' },
       });
       return { guidance, forkPoint: { kind: 'orientation', key } };
     } catch (error) {

@@ -123,8 +123,9 @@ is `done` and what is `unfinished`; naming neither reports nothing. The work
 you did stays in the working directory, and whoever continues this iteration
 inspects the files with the harness's recorded result.
 
-This is also the report you write when the harness tells you the context
-budget is reached. It is never a completion.
+Pi may compact the conversation automatically. Continue the same assignment
+and pending obligations after compaction. A context recovery keeps work pending
+and never requires you to invent a partial submission.
 
 ## `unsuitable`
 

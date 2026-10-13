@@ -113,7 +113,8 @@ describe('the actual shell tool executor', () => {
 
     expect(result.isError).toBe(true);
     expect(recorded.ends[0]?.result.outcome).toEqual({ kind: 'timed-out', timeoutMs: 400 });
-    expect(result.text).toContain('killed with its process group');
+    expect(result.text).toContain('stopped for stall recovery');
+    expect(result.text).toContain('result remains unverified');
   });
 
   test('a command that leaves a descendant is settled by its process group', async () => {

@@ -34,6 +34,8 @@ export function projectEvent(event: RunEvent): ProjectedRunEvent {
 
 function describe(event: RunEvent): [string, Ref[]] {
   switch (event.type) {
+    case 'continuity-policy-adopted':
+      return [`Recovery ${event.data.occurrenceId} adopted execution continuity (${event.data.from} to ${event.data.to}); the original captured policy remains retained`, []];
     case 'operation-recovery-attempt':
       return [`Recovery group ${event.data.group}, attempt ${event.data.attempt}: ${event.data.invocation}`, ref('invocation', event.data.invocation)];
     case 'operation-recovery-pausing':
@@ -42,6 +44,8 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`Recovery ${event.data.occurrenceId} awaits explicit resume`, []];
     case 'operation-recovery-resumed':
       return [`Recovery ${event.data.occurrenceId} admitted group ${event.data.group} by ${event.data.command.commandId}`, []];
+    case 'operation-recovery-replied':
+      return [`Recovery command ${event.data.commandId} retained its result (${event.data.resultHash})`, []];
     case 'debug-pausing':
       return [`Settling the run before ${roleDisplayName(event.data.role).toLowerCase()}: ${event.data.goal}`, workRefs(event.data.work)];
     case 'debug-paused':

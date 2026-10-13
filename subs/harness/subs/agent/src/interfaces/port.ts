@@ -51,13 +51,13 @@ export interface ActualStart {
  * enforces it, and none of it is ever prompt text.
  */
 export interface ContextPolicy {
-  /** `forbidden` disables the implementation's automatic compaction for this session, and the implementation never compacts on its own. */
+  /** Historical policy evidence. Current Pi execution uses native automatic compaction for every role. */
   readonly compaction: 'forbidden' | 'allowed';
-  /** The harness's own budget in tokens, used when no window is reported. Null leaves the budget unbounded. */
+  /** Historical harness token ceiling; new execution captures null. */
   readonly budgetTokens: number | null;
-  /** The same budget as a fraction of the reported window; it applies whenever the window is known. */
+  /** Historical harness window fraction; new execution captures null. */
   readonly budgetFraction: number | null;
-  /** Room the role is left to write its report once the budget is reached. */
+  /** Historical harness report reserve; new execution captures zero. */
   readonly reportReserveTokens: number;
 }
 
@@ -66,7 +66,8 @@ export interface ContextPolicy {
  * report reserve. The fraction of a known window is the budget whenever the
  * window is known; the absolute figure applies only when no window is
  * reported. An unknown size never reaches a budget, because unknown is not
- * room. Every implementation applies this one rule.
+ * room. Retained historical policy interpretation uses this rule; current
+ * execution relies on Pi's native settings.
  */
 export function contextBudgetReached(policy: ContextPolicy, tokens: number | null, window: number | null): boolean {
   if (tokens === null) return false;
@@ -448,13 +449,14 @@ export type AgentEvent = (
    * and is never room: the budget cannot fire on it. No observation at all is
    * a coverage gap, not an empty context.
    */
-  | { readonly type: 'context-observed'; readonly tokens: number | null; readonly window: number | null }
-  | { readonly type: 'compaction'; readonly phase: 'started'; readonly reason: CompactionReason }
+  | { readonly type: 'progress'; readonly source: 'model-stream' }
+  | { readonly type: 'context-observed'; readonly tokens: number | null; readonly window: number | null; readonly native?: ContextNativeObservation }
+  | { readonly type: 'compaction'; readonly phase: 'started'; readonly reason: CompactionReason; readonly native?: ContextNativeObservation }
   /** Sizes and an error the executor did not report are null. */
   | {
       readonly type: 'compaction'; readonly phase: 'ended'; readonly reason: CompactionReason;
       readonly tokensBefore: number | null; readonly tokensAfter: number | null;
-      readonly aborted: boolean; readonly errorText: string | null;
+      readonly aborted: boolean; readonly errorText: string | null; readonly native?: ContextNativeObservation;
     }
   /**
    * The executor retrying a failed model call on its own: the failed
@@ -470,6 +472,15 @@ export type AgentEvent = (
   readonly replayed?: boolean;
   readonly observation?: AgentEventObservation;
 };
+
+/** Pi effective settings are observations, never a harness context ceiling. */
+export interface ContextNativeObservation {
+  readonly source: 'pi@0.87.1:SettingsManager';
+  readonly compaction: { readonly enabled: boolean; readonly reserveTokens: number; readonly keepRecentTokens: number };
+  readonly occupancy: 'current';
+  readonly projectedTokens: number | null;
+  readonly coverage: readonly string[];
+}
 
 /** Why a compaction ran. */
 export type CompactionReason = 'manual' | 'threshold' | 'overflow';
@@ -487,6 +498,8 @@ export type SessionOutcome =
   | { readonly kind: 'failed'; readonly error: string; readonly evidence?: InterruptionEvidence }
   /** The session ended because `stop` was called. */
   | { readonly kind: 'stopped' }
+  /** Resource recovery leaves the assignment pending; it supplies no semantic verdict. */
+  | { readonly kind: 'resource-pending'; readonly resource: 'context' | 'stall'; readonly reason: string; readonly tokens?: number | null; readonly evidence?: InterruptionEvidence }
   /**
    * The context budget was reached: the implementation disabled the tools,
    * allowed one final response and ended the session. `tokens` is the

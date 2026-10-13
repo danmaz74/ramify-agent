@@ -264,13 +264,15 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
   }, 120_000);
 });
 
+// Keep the historical acceptance matrix's owning title; the old adapter output is explicit.
 describe('X1a: an engineer reaches its context budget', () => {
-  test('a hard context limit fails the unfinished iteration without compaction or a fresh replacement', async () => {
+  test('an explicit legacy context return retains its original unfinished failure', async () => {
     const root = await target();
     const budgetTurn = [
       { kind: 'compaction' as const, reason: 'threshold' as const, tokensBefore: 130_000, tokensAfter: 40_000 },
       { kind: 'context' as const, tokens: 200_000, window: null },
       { kind: 'message' as const, text: 'I raised the limit and have not written its test.' },
+      { kind: 'legacy-context-return' as const, tokens: 200_000, report: 'I raised the limit and have not written its test.' },
     ];
     // No engineer accepts a return, so neither iteration nor later completion gates are admitted.
     const { service, runId, scripted, agent } = await run(root, {

@@ -48,6 +48,15 @@ const hookDispositionSchema = z.object({
 const observation = <T extends string, D extends z.ZodType>(type: T, data: D) =>
   z.object({ n: z.int().positive(), at: z.iso.datetime(), type: z.literal(type), data, sourceId: text.optional() }).strict();
 
+/** Native provider settings and missing estimates stay distinct from harness history. */
+const nativeContextSchema = z.object({
+  source: z.literal('pi@0.87.1:SettingsManager'),
+  compaction: z.object({ enabled: z.boolean(), reserveTokens: z.number(), keepRecentTokens: z.number() }).strict(),
+  occupancy: z.literal('current'),
+  projectedTokens: z.number().nullable(),
+  coverage: z.array(z.string()),
+}).strict();
+
 /** One line of an observation log. */
 export const observationSchema = z.discriminatedUnion('type', [
   observation('exploration', explorationObservationSchema),
@@ -113,12 +122,15 @@ export const observationSchema = z.discriminatedUnion('type', [
     tokens: z.number().nullable(),
     window: z.number().nullable(),
     threshold: z.number().nullable(),
+    native: nativeContextSchema.optional(),
   }).strict()),
   observation('compaction', z.object({
     trigger: z.enum(['threshold', 'overflow', 'explicit']),
     succeeded: z.boolean(),
     before: z.number().nullable(),
     after: z.number().nullable(),
+    error: z.string().nullable().optional(),
+    native: nativeContextSchema.optional(),
   }).strict()),
   observation('coverage-gap', z.object({
     kind: z.enum([

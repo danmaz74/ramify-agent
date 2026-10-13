@@ -947,7 +947,7 @@ export function gateOperation(prepared: PreparedGate, message: string): GateOper
       projectRoot: request.projectRoot,
       directory: request.directory,
       head: request.head,
-      audit: { mode: request.audit.mode, ...(request.audit.nested === true ? { nested: true } : {}), timeoutMs: request.audit.timeoutMs },
+      audit: { mode: request.audit.mode, ...(request.audit.nested === true ? { nested: true } : {}), ...(request.audit.timeoutMs === undefined ? {} : { timeoutMs: request.audit.timeoutMs }) },
       subject: request.subject ?? {},
       proposedBy: request.proposedBy ?? null,
       repairRound: request.repairRound ?? 0,

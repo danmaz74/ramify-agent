@@ -88,7 +88,7 @@ describe('the run log', () => {
   test('every event type is written and read back, and the terminal ones are named', () => {
     const types = runEventSchema.options.map(option => option.shape.type.value);
     expect(types).toEqual([
-      'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed',
+      'continuity-policy-adopted', 'operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'operation-recovery-replied',
       'readiness-preparation-started', 'readiness-preparation-completed', 'readiness-repair-committing', 'readiness-repair-committed',
       'repair-assignment-recorded', 'repair-preparation-recorded', 'repair-preparation-consumed', 'repair-incident-recorded', 'repair-export-recorded',
       'invocation-prepared', 'job-started', 'debug-pausing', 'debug-paused', 'debug-exchange-admitted', 'debug-exchange-settled', 'debug-resumed', 'session-opened', 'invocation-started', 'invocation-ended', 'session-finished', 'analysis-accepted',
@@ -185,7 +185,7 @@ describe('the record unions', () => {
   test('every way an invocation can end, with every disposition and interruption', async () => {
     const store = await ledger();
     const ends = invocationOutcomeSchema.shape.ended.options;
-    expect(ends).toEqual(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'invalid-submission']);
+    expect(ends).toEqual(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']);
     const dispositions = invocationOutcomeSchema.shape.disposition.options;
     expect(dispositions).toEqual(['applied', 'superseded', 'incomplete']);
     const interruptions = ['idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault'] as const;
@@ -912,8 +912,7 @@ describe('the protocol vocabulary', () => {
     for (const role of roleSchema.options) {
       const policy = defaultContextPolicies[role];
       expect(policy).toBeDefined();
-      expect(['forbidden', 'allowed']).toContain(policy.compaction);
-      expect(policy.reportReserveTokens).toBeGreaterThan(0);
+      expect(policy).toEqual({ compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 });
     }
     expect(roleSchema.options).toEqual(['initial-architect', 'catalog-extractor', 'global-fork', 'local-architect', 'engineer', 'contract-engineer', 'capability-architect', 'reviewer', 'failure-analyst', 'context-selector', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer']);
   });

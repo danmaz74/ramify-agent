@@ -217,7 +217,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     expect(fixture.run.log.all('invocation-started')).toHaveLength(count);
     await retainConsultationExample(fixture, 'interrupted-before-answer');
   });
-  test('C10: controlled nested idle holds preserve both waits, absolute deadline still stops them, listeners and holds release', async () => {
+  test('C10: nested owned waits survive the former lifetime while the child progresses and release after its answer', async () => {
     const reached = deferred(); const wait = deferred(); let globalRuntime!: SessionDriverRuntime;
     const fixture = await consultationFixture(cleanup, input => input.task.submissionTool !== 'answer_architect_consultation' ? [ask(), { kind: 'submit', input: {} }]
       : input.task.role === 'local-architect' ? [ask('Global wait', 'inner'), answer()]
@@ -227,28 +227,28 @@ describe('Plan 33 awaited consultation workflows', () => {
         } }));
     fixture.run.invocationLimits = { ...fixture.run.policy.limits, invocationIdleMs: 10, invocationAbsoluteMs: 100 };
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
-    const originalHold = InvocationBounds.prototype.hold; const released: string[] = [];
-    const holds = vi.spyOn(InvocationBounds.prototype, 'hold').mockImplementation(function(this: InvocationBounds, timeoutMs) {
-      const release = originalHold.call(this, timeoutMs); return () => { released.push('released'); release(); };
+    const originalHold = InvocationBounds.prototype.pauseForWait; const released: string[] = [];
+    const holds = vi.spyOn(InvocationBounds.prototype, 'pauseForWait').mockImplementation(function(this: InvocationBounds) {
+      const release = originalHold.call(this); return () => { released.push('released'); release(); };
     });
     const add = vi.spyOn(AbortSignal.prototype, 'addEventListener'); const remove = vi.spyOn(AbortSignal.prototype, 'removeEventListener');
     const controller = new AbortController();
     const active = fixture.caller('engineer', fixture.seeds['local-architect']!, fixture.seeds['global-fork']!, { signal: controller.signal });
     await reached.promise; expect(holds).toHaveBeenCalledTimes(2);
-    for (let tick = 0; tick < 19; tick++) {
+    for (let tick = 0; tick < 25; tick++) {
       await vi.advanceTimersByTimeAsync(5);
       globalRuntime.onEvent({ type: 'tool-started', callId: `read-${tick}`, tool: 'read', input: {}, action: { kind: 'read', path: 'facts', range: null }, mutating: false });
       globalRuntime.onEvent({ type: 'tool-finished', callId: `read-${tick}`, tool: 'read', isError: false, reachedTool: true });
     }
     expect(fixture.run.live.size).toBe(3); expect(released).toHaveLength(0);
-    await vi.advanceTimersByTimeAsync(5);
-    const caller = await active; wait.resolve();
-    expect(caller.interruption).toBe('absolute-timeout'); expect(fixture.run.live.size).toBe(0); expect(released).toHaveLength(2);
+    wait.resolve();
+    const caller = await active;
+    expect(caller.ended).toBe('submitted'); expect(caller.interruption).toBeUndefined(); expect(fixture.run.live.size).toBe(0); expect(released).toHaveLength(2);
     const stopListeners = add.mock.calls.filter(([event, listener]) => event === 'abort' && typeof listener === 'function' && listener.name === 'stop');
     expect(stopListeners).toHaveLength(3);
     for (const [, listener] of stopListeners) expect(remove.mock.calls.some(([event, removed]) => event === 'abort' && removed === listener)).toBe(true);
     holds.mockRestore(); add.mockRestore(); remove.mockRestore(); vi.useRealTimers();
-    await retainConsultationExample(fixture, 'absolute-bound');
+    await retainConsultationExample(fixture, 'owned-wait-continuity');
   });
   test('C11: interruption after answer acceptance and effect completion preserves unknown caller delivery on neutral replay', async () => {
     const accepted = deferred(); const wait = deferred(); const controller = new AbortController();

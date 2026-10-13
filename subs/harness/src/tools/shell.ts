@@ -163,7 +163,7 @@ export function shellToolDeclaration(maxTimeoutMs: number = shellMaxTimeoutMs): 
       'What this writes passes no write guard: it is observed afterwards, and a change outside your scope is',
       'reported rather than prevented. Stay inside your scope here as you do with `edit` and `write`.',
       'Whole-suite Vitest and Cucumber runs are refused: the gate\'s audit runs them. Name test files instead.',
-      `A command runs for ${defaultTimeoutMs} ms unless \`timeoutMs\` asks for more, up to ${maxTimeoutMs} ms.`,
+      `A command with no output for ${defaultTimeoutMs} ms is inspected as potentially stalled; \`timeoutMs\` can extend this interval up to ${maxTimeoutMs} ms. Output extends the interval.`,
     ].join(' '),
     inputSchema: z.toJSONSchema(shellInputSchemaFor(maxTimeoutMs)) as JsonSchema,
     mutating: true,
@@ -349,7 +349,7 @@ function describeOutcome(outcome: CommandOutcome, timeoutMs: number): string {
     case 'completed':
       return `Exit ${outcome.exitCode}.`;
     case 'timed-out':
-      return `The command did not finish within ${timeoutMs} ms and was killed with its process group.`;
+      return `The command produced no output for ${timeoutMs} ms and was stopped for stall recovery; its result remains unverified.`;
     case 'cancelled':
       return 'The command was cancelled and killed with its process group.';
     case 'runner-error':

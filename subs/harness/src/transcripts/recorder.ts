@@ -164,7 +164,11 @@ export class InvocationTranscript implements TranscriptNotes {
     if (event.type === 'message') {
       const output = event.role === 'tool-result' ? this.outputs.get(event.callId) : undefined;
       void this.append(`${event.role} message`, messageEntry(event, this.invocation, output), true);
-    } else if (event.type === 'compaction' || event.type === 'retry') {
+    } else if (event.type === 'compaction') {
+      const { native, ...display } = event;
+      void this.append(event.type, () => ({ ...display, invocation: this.invocation,
+        ...(native ? { native: { ...native, coverage: [...native.coverage] } } : {}) }), true);
+    } else if (event.type === 'retry') {
       void this.append(event.type, () => ({ ...event, invocation: this.invocation }), true);
     }
   }

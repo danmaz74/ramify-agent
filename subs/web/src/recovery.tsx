@@ -53,12 +53,26 @@ export function RecoveryPanel({ client, run, onChanged }: {
         <div><dt>Classification</dt><dd>{inspection.evidence.classification}</dd></div>
         {inspection.boundary.checkpoint && <div><dt>Checkpoint</dt><dd>{inspection.boundary.checkpoint}</dd></div>}
         <div><dt>Attempts</dt><dd>Group {inspection.group}; {inspection.automaticAttempts} automatic attempts; retained: {inspection.attempts.join(', ') || 'none'}</dd></div>
-        <div><dt>Remaining bounds</dt><dd>{inspection.remaining.invocations} invocations; {inspection.remaining.activeMs} ms active execution</dd></div>
+        {inspection.continuity ? <div><dt>Execution policy</dt><dd>{inspection.continuity.policy}; resource recovery has no terminal invocation or elapsed allowance</dd></div>
+          : <div><dt>Historical remaining bounds</dt><dd>{inspection.remaining.invocations} invocations; {inspection.remaining.activeMs} ms active execution</dd></div>}
+        {inspection.continuity && <>
+          <div><dt>Recovery trigger</dt><dd>{inspection.continuity.resource ?? 'Prerequisite obstruction'}; {inspection.evidence.diagnostic}</dd></div>
+          <div><dt>Recovery lineage</dt><dd>Predecessor {inspection.continuity.predecessor ?? 'not recorded'}; successor {inspection.continuity.successor ?? 'awaiting admission'}</dd></div>
+          <div><dt>Settlement and effects</dt><dd>Settlement {inspection.continuity.settlement}; effects {inspection.continuity.effects}</dd></div>
+          {inspection.continuity.observations?.map(observation => <div key={`${observation.invocation}:${observation.at}`}><dt>Later settlement observation</dt><dd>{observation.invocation} at {observation.at}; {observation.groupsKilled} groups killed; late writes {observation.lateWrites.join(', ') || 'none observed'}; point {observation.ref ?? 'unavailable'}</dd></div>)}
+        </>}
         {inspection.totalInvocations !== undefined && <div><dt>Total invocations</dt><dd>{inspection.totalInvocations}</dd></div>}
         {inspection.timing && <div><dt>Elapsed time</dt><dd>{inspection.timing.activeMs} ms active; {inspection.timing.pausedMs} ms operator waiting; {inspection.timing.currentPauseMs} ms at this recovery</dd></div>}
         <div><dt>Retained candidate</dt><dd>Tree <code>{inspection.retained.candidate.tree}</code>; head <code>{inspection.retained.candidate.head}</code></dd></div>
         <div><dt>Partial paths</dt><dd>{inspection.retained.partialPaths.join(', ') || 'none observed'}</dd></div>
       </dl>
+      {inspection.retained.task && <div>
+        <p>Retained task configuration <code>{inspection.retained.task.configuration}</code>; accepted head <code>{inspection.retained.task.acceptedHead}</code>.</p>
+        <p>Work: {Object.entries(inspection.retained.task.work).map(([kind, id]) => `${kind} ${id}`).join('; ') || 'plan task'}</p>
+        <ul aria-label="Pending obligations">{inspection.retained.task.obligations.map((obligation, index) => <li key={index}>{obligation.kind}: {obligation.id}{obligation.revision === undefined ? '' : `, revision ${obligation.revision}`}</li>)}</ul>
+        <ul aria-label="Retained task evidence">{inspection.retained.task.sourceRecords.map(source => <li key={source}><code>{source}</code></li>)}</ul>
+        <details><summary>Retained task authority</summary><pre>{JSON.stringify(inspection.retained.task.authority, null, 2)}</pre></details>
+      </div>}
       {inspection.changes && inspection.changes.length > 0 && <ul aria-label="External changes">{inspection.changes.map(change => <li key={change.path}><code>{change.path}</code>: {change.before ?? 'absent'} → {change.after ?? 'absent'}</li>)}</ul>}
       {inspection.runtime && <p>Runtime: {inspection.runtime.before} → {inspection.runtime.current}; {inspection.runtime.compatible ? 'compatible' : 'incompatible'}.</p>}
       {inspection.configuration && <p>Configuration: {inspection.configuration.before} → {inspection.configuration.current}; {inspection.configuration.compatible ? 'compatible' : 'incompatible'}.</p>}
@@ -80,7 +94,7 @@ export function RecoveryPanel({ client, run, onChanged }: {
           <label>Repair explanation<textarea aria-label="Repair explanation" maxLength={8192} value={explanation} onChange={event => setExplanation(event.target.value)} /></label>
           <label>Evidence references, one per line<textarea aria-label="Repair evidence" value={evidence} onChange={event => setEvidence(event.target.value)} /></label>
         </fieldset>
-        <p className="muted">Declare changes made while execution was quiescent. Exclude credentials. The harness verifies admission prerequisites and preserves spent bounds.</p>
+        <p className="muted">Declare changes made while execution was quiescent. Exclude credentials. The harness verifies admission prerequisites and preserves semantic decisions and pending obligations.</p>
         <button type="submit" disabled={!canSubmit || pending !== null}>Resume recovery</button>
       </form>
     </>}

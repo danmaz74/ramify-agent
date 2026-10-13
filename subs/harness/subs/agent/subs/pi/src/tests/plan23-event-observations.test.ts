@@ -82,7 +82,7 @@ describe('Plan 23 modern preserving Pi observations', () => {
     expect(finishes.find(event => event.tool === 'read')?.observation).toMatchObject({ returnedBytes: 2, files: [expect.stringMatching(/\/a\.ts$/)], coverage: ['Returned content truncated by the tool'] });
     expect(finishes.find(event => event.tool === 'grep')?.observation).toMatchObject({ returnedBytes: 0, files: [], coverage: ['Scanned bytes not reported; returned bytes are output only'] });
     const messages = f.events.filter(event => event.type === 'message' && event.role === 'assistant');
-    expect(messages.map(event => event.observation?.sourceId)).toEqual(['pi-message:2', 'pi-message:5']);
+    expect(messages.map(event => event.observation?.sourceId)).toEqual(['pi-message:3', 'pi-message:6']);
     for (const message of messages) { expect(message.execution).toEqual({ runId: 'run', operationId: 'execute', sessionId: f.P.sessionId, turn: 1, sourcePoint: f.P.point }); expect(message.observation?.charge).toMatchObject({ model: 'openai-codex/gpt-5.6-sol', ratesPerMillion: { newInput: 2, cachedInput: 0.5, cacheWrite: 3, output: 4 } }); expect(message.observation?.charge?.sourceRevision).toContain('model-runtime'); }
     const before = f.events.length; expect(await (await f.operations.retry({ runId: 'run', operationId: 'execute', bindings: f.bindings })).receipt).toEqual(receipt); expect(f.events).toHaveLength(before); expect(f.native.dispatches()).toBe(2); f.native.verify();
   });
@@ -93,7 +93,7 @@ describe('Plan 23 modern preserving Pi observations', () => {
     const receipt = await (await f.operations.continue(f.input)).receipt;
     expect(receipt.status).toBe('completed'); expect(f.native.dispatches()).toBe(1);
     const messages = f.events.filter(event => event.type === 'message' && event.role === 'assistant');
-    expect(messages.map(event => event.observation?.sourceId)).toEqual(['pi-message:2', 'pi-message:3']);
+    expect(messages.map(event => event.observation?.sourceId)).toEqual(['pi-message:3', 'pi-message:4']);
     expect(messages.map(event => event.observation?.at)).toEqual(['1970-01-01T00:00:02.000Z', '1970-01-01T00:00:02.500Z']);
     expect(messages.map(event => event.observation?.elapsedMs)).toEqual([1000, 1500]);
     expect(messages.filter(event => event.type === 'message' && event.role === 'assistant').map(event => event.usage?.input)).toEqual([30, 30]);

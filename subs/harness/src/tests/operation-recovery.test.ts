@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import { interruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import { runLayout, invocationOutcomeSchema } from '../run/records.js';
@@ -89,6 +89,12 @@ test('R03: a paused run survives close/reopen and spends only the explicitly res
     repair: { areas: ['environment'], explanation: 'Operator replaced rejected credentials without changing source' } } });
   await until(() => reopened.service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
   expect(opened.agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
+  const originalPolicy = JSON.parse(await readFile(join(opened.root, 'plans', plan, '.harness/jobs', receipt.jobId, runLayout.record), 'utf8')).policy;
+  expect(originalPolicy.version).toBe('run-policy/7');
+  expect(originalPolicy.continuity).toBeUndefined();
+  const adopted = reopened.service.events(plan, receipt.jobId)!.filter(event => event.type === 'continuity-policy-adopted');
+  expect(adopted).toHaveLength(1);
+  expect(adopted[0]!.data).toMatchObject({ from: 'run-policy/7', to: 'run-policy/8', occurrenceId: inspection.occurrenceId, policy: { continuity: { version: 'resource-continuity/1' } } });
   await reopened.service.execute(stopRun(plan, receipt.jobId, reopened.service.getRun(plan, receipt.jobId)!.version));
   await reopened.service.settled(plan, receipt.jobId);
 });
@@ -159,7 +165,7 @@ test('R07: mutated durable job and ledger bytes refuse admission before any mode
   await service.settled(plan, receipt.jobId);
 });
 
-test('R08: operator waiting excludes only reached recovery wait and never renews spent invocation allowance', async () => {
+test('R08: elapsed waiting and the historical invocation allowance cannot refuse compatible resume', async () => {
   let clock = new Date('2026-10-12T15:00:00Z');
   const { service } = await recoveryFixture(byRole({ 'initial-architect': [[{ kind: 'fail', error: 'lost connection', evidence: transport }], submit(emptyAnalysis())] }),
     { now: () => clock, policy: root => { const policy = testPolicy(root, { recovery: true }); return { ...policy,
@@ -175,9 +181,12 @@ test('R08: operator waiting excludes only reached recovery wait and never renews
   expect(waiting.timing?.currentPauseMs).toBe(100000);
   await service.execute({ commandId: 'r08-resume', expectedVersion: 0, type: 'resume-recovery', payload: {
     planId: plan, jobId: receipt.jobId, occurrenceId: first.occurrenceId, expectedRevision: first.revision } });
+  await until(() => service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
+  expect(service.getRun(plan, receipt.jobId)?.failure).toBeNull();
+  expect(service.events(plan, receipt.jobId)!.filter(event => event.type === 'invocation-started').length).toBeGreaterThan(3);
+  expect(service.events(plan, receipt.jobId)!.filter(event => event.type === 'continuity-policy-adopted')).toHaveLength(1);
+  await service.execute(stopRun(plan, receipt.jobId, service.getRun(plan, receipt.jobId)!.version));
   await service.settled(plan, receipt.jobId);
-  expect(service.getRun(plan, receipt.jobId)?.failure?.reason).toBe('limit-exceeded');
-  expect(service.events(plan, receipt.jobId)!.filter(event => event.type === 'invocation-started')).toHaveLength(3);
 
 });
 
@@ -384,7 +393,7 @@ test('R17: changed candidate prerequisites block a pending final effect after ac
   expect(await reopened.service.recoveryInspection(plan, receipt.jobId)).toBeNull();
 });
 
-test('R18: an interrupted ordinary operation with unconfirmed settlement stops for manual attention without a successor or usable pause', async () => {
+test('R18: unconfirmed settlement retains a nonterminal hold and forbids successors', async () => {
   const scripted = createScriptedAgent(declaringScenarios(byRole({ 'initial-architect': [[{ kind: 'fail', error: 'transport ended while provider idle acknowledgement was lost', evidence: transport }]] })));
   const agent = { ...scripted, bindSessionStore(store: Parameters<typeof scripted.bindSessionStore>[0]) {
     const operations = scripted.bindSessionStore(store);
@@ -396,12 +405,15 @@ test('R18: an interrupted ordinary operation with unconfirmed settlement stops f
   const { service } = await recoveryFixture([], { agent, policy: root => { const policy = testPolicy(root, { recovery: true }); return { ...policy,
     limits: { ...policy.limits, stopSettleMs: 20, writerSettleMs: 20 } }; } }, true);
   const receipt = await service.execute(startRun(plan, 'scripted', 'r18'));
-  await service.settled(plan, receipt.jobId);
-  expect(service.getRun(plan, receipt.jobId)?.failure).toMatchObject({ reason: 'writer-unsettled', message: expect.stringContaining('did not confirm settlement') });
+  const inspection = await paused(service, receipt.jobId);
+  expect(service.getRun(plan, receipt.jobId)?.state).toBe('running');
+  expect(inspection.canResume).toBe(false);
+  expect(inspection.blockers.some(blocker => blocker.includes('Settlement:'))).toBe(true);
   expect(scripted.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(1);
-  expect(service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused')).toBe(false);
-  expect(await service.recoveryInspection(plan, receipt.jobId)).toBeNull();
+  await service.execute(stopRun(plan, receipt.jobId, service.getRun(plan, receipt.jobId)!.version));
+  await service.settled(plan, receipt.jobId);
   await expect(service.close()).rejects.toThrow('settlement was not confirmed');
+
 });
 
 test('R19: stop cancels a captured retry delay before any successor dispatch', async () => {
@@ -451,12 +463,20 @@ test('R20: crash after a failed successor closes retains the consumed group befo
 
 /** Source-mode witnesses execute the real shared runner against an authenticated
  * accepted parent. Ordinary caller integration is qualified separately. */
-async function sourceOperation(mode: 'continue' | 'fork', loseSource = false, reconstruct = false) {
+async function sourceOperation(mode: 'continue' | 'fork', loseSource: boolean | 'temporarily-unavailable' = false, reconstruct = false) {
   const script = byRole({ 'initial-architect': [submit(emptyAnalysis())],
     'global-fork': [[{ kind: 'fail', error: 'source stream interrupted', evidence: transport }], submit({ decision: 'retained-source-read' })],
     'context-selector': [[{ kind: 'fail', error: 'reconstructed stream interrupted', evidence: transport }], submit({ decision: 'retained-source-read' })] });
   const declared = declaringScenarios(script);
-  const agent = createScriptedAgent(spec => spec.role === 'context-selector' ? (script as Exclude<Script, readonly unknown[]>)(spec) : typeof declared === 'function' ? declared(spec) : declared);
+  const scripted = createScriptedAgent(spec => spec.role === 'context-selector' ? (script as Exclude<Script, readonly unknown[]>)(spec) : typeof declared === 'function' ? declared(spec) : declared);
+  let sourceAvailable = true;
+  let sourceSession: string | undefined;
+  const agent = { ...scripted, bindSessionStore(store: Parameters<typeof scripted.bindSessionStore>[0]) {
+    const operations = scripted.bindSessionStore(store);
+    return { ...operations, inspect: (runId: string, sessionId: string, point?: import('../../subs/agent/src/interfaces/session-operations.js').AgentSessionPoint) =>
+      !sourceAvailable && sessionId === sourceSession ? Promise.resolve(null) : operations.inspect(runId, sessionId, point) };
+  } };
+
   const opened = await recoveryFixture([], { agent,
     policy: root => { const policy = testPolicy(root, { recovery: true }); return { ...policy, recovery: { ...policy.recovery!, automaticRetries: 0 } }; } });
   const receipt = await opened.service.execute(startRun(plan, 'scripted', `source-${mode}-${loseSource}`, true));
@@ -482,7 +502,11 @@ async function sourceOperation(mode: 'continue' | 'fork', loseSource = false, re
     allowFreshFallback: false,
   };
   const internal = opened.service as unknown as { runs: Map<string, unknown>; recoverableInvocation<T>(run: unknown, agent: typeof opened.agent, request: import('../steps/runner.js').InvocationRequest<T>): Promise<import('../steps/runner.js').InvocationResult<T>> };
-  if (loseSource) {
+  if (loseSource === 'temporarily-unavailable') {
+    const { readSessionPointReference } = await import('../run/session-operations.js');
+    sourceSession = readSessionPointReference(ref)!.point.sessionId; sourceAvailable = false;
+  }
+  if (loseSource === true) {
     const { readSessionPointReference } = await import('../run/session-operations.js');
     expect(opened.agent.loseSession(readSessionPointReference(ref)!.point)).toBe(true);
   }
@@ -514,7 +538,7 @@ async function sourceOperation(mode: 'continue' | 'fork', loseSource = false, re
   }
   const execution = internal.recoverableInvocation([...internal.runs.values()][0], opened.agent, executable);
   const inspection = await paused(opened.service, receipt.jobId);
-  return { ...opened, receipt, request, inspection, execution, directory, ref };
+  return { ...opened, receipt, request, inspection, execution, directory, ref, restoreSource: () => { sourceAvailable = true; } };
 }
 
 for (const mode of ['continue', 'fork'] as const) {
@@ -577,7 +601,7 @@ test('R13: unavailable source can use only the named reconstruction from capture
   await opened.service.settled(plan, opened.receipt.jobId);
 });
 
-test('R14: unknown completion of a journaled mutating shell call forbids successors and a usable pause', async () => {
+test('R14: an unknown mutating effect retains an inspectable hold and forbids successors', async () => {
   let acknowledgementLost = false;
   let shellExecutions = 0;
   const scripted = createScriptedAgent(declaringScenarios(byRole({ 'initial-architect': [submit(emptyAnalysis())],
@@ -621,13 +645,313 @@ test('R14: unknown completion of a journaled mutating shell call forbids success
     const pause = opened.service.events(plan, receipt.jobId)!.find(event => event.type === 'operation-recovery-paused');
     return !!pause || finished;
   }, 1500).catch(() => { throw new Error(`Unknown effect operation did not finish: ${JSON.stringify(opened.service.events(plan, receipt.jobId)!.slice(-8))}; ack=${acknowledgementLost}, executions=${shellExecutions}, sessions=${JSON.stringify(scripted.sessions.at(-1)?.outcome)}`); });
-  if (!finished) throw new Error(`Unexpected pause: ${JSON.stringify(await opened.service.recoveryInspection(plan, receipt.jobId))}; shellAcknowledgementLost=${acknowledgementLost}`);
-  await execution;
+  const inspection = (await opened.service.recoveryInspection(plan, receipt.jobId))!;
+  expect(inspection.canResume).toBe(false);
+  expect(inspection.blockers.some(blocker => blocker.includes('unknown external effect'))).toBe(true);
   expect(acknowledgementLost).toBe(true);
   expect(shellExecutions).toBe(0);
   expect(scripted.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
-  expect(opened.service.getRun(plan, receipt.jobId)?.failure).toMatchObject({ reason: 'writer-unsettled' });
-  expect(opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused')).toBe(false);
-  expect(await opened.service.recoveryInspection(plan, receipt.jobId)).toBeNull();
+  expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('running');
+  await expect(opened.service.execute({ commandId: 'r14-unsafe-resume', expectedVersion: 0, type: 'resume-recovery', payload: {
+    planId: plan, jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision } })).rejects.toMatchObject({ code: 'conflict' });
+  expect(shellExecutions).toBe(0);
+  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+  await execution;
   await opened.service.settled(plan, receipt.jobId);
+
+});
+
+// The owning consumer shares one resource recovery path across every role.
+// These scripted answers establish preservation and admission, not native Pi behavior.
+test.each([
+  'initial-architect', 'local-architect', 'global-fork', 'engineer', 'contract-engineer', 'capability-architect',
+  'reviewer', 'catalog-extractor', 'context-selector', 'failure-analyst', 'nonfunctional-coordinator', 'nonfunctional-repair-engineer',
+] as const)('C01: %s resource fallback preserves the task and validator without requiring a handoff report', async role => {
+  let probeCalls = 0;
+  let semanticAdmissions = 0;
+  let validations = 0;
+  const roleTask = {
+    'initial-architect': ['initial-analysis', 'submit_initial_analysis'], 'local-architect': ['assignment', 'submit_work_item_result'],
+    'global-fork': ['placement', 'submit_placement_decision'], engineer: ['engineering', 'submit_iteration_result'],
+    'contract-engineer': ['contract', 'submit_contract_result'], 'capability-architect': ['capability', 'submit_capability_action'],
+    reviewer: ['code', 'submit_review'], 'catalog-extractor': ['intake', 'submit_intake'],
+    'context-selector': ['selection', 'submit_context_selection'], 'failure-analyst': ['failure-analysis', 'submit_failure_analysis'],
+    'nonfunctional-coordinator': ['assessment', 'submit_nonfunctional_assessment'], 'nonfunctional-repair-engineer': ['repair', 'submit_nonfunctional_repair'],
+  } as const;
+  const [kind, toolName] = roleTask[role];
+  const startup = declaringScenarios(byRole({ 'initial-architect': [submit(emptyAnalysis())] }));
+  const scripted = createScriptedAgent(spec => spec.prompt.includes('Continuity probe')
+    ? ++probeCalls === 1 ? [{ kind: 'resource', resource: 'context', reason: 'Native compaction unavailable after provider overflow' }]
+      : [{ kind: 'submit', input: { kind: 'verified-probe', pendingFinding: 'cf-original' } }]
+    : typeof startup === 'function' ? startup(spec) : startup);
+  const opened = await recoveryFixture([], {
+    agent: scripted,
+    policy: root => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
+      recovery: { ...policy.recovery!, baseDelayMs: 0 }, limits: { ...policy.limits, maxInvocationsPerRun: 1, budgetReturnsPerIteration: 1, sessionReconstructionsPerWork: 1 } }; },
+  });
+  const receipt = await opened.service.execute(startRun(plan, 'scripted', `c01-${role}`, true));
+  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
+  const allPackages = (await (await import('../prompts/packages.js')).loadPromptPackages({ capabilityWorkflow: role !== 'contract-engineer' })).packages;
+  const loaded = allPackages.get(role)!;
+  const internal = opened.service as unknown as { runs: Map<string, unknown>; recoverableInvocation<T>(run: unknown, actor: typeof opened.agent, request: import('../steps/runner.js').InvocationRequest<T>): Promise<import('../steps/runner.js').InvocationResult<T>> };
+  let probeFinished = false;
+  const execution = internal.recoverableInvocation([...internal.runs.values()][0], opened.agent, {
+    role, work: {}, attempt: 1, loaded, systemPrompt: loaded.system,
+    prompt: 'Continuity probe: correct cf-original and qualify the retained candidate', start: { mode: 'fresh' },
+    brief: { kind, objective: 'Continuity probe', goal: 'Continuity probe: correct cf-original and qualify the retained candidate',
+      requirements: ['Original pending finding cf-original', 'Qualify the retained candidate; do not infer submission'], sections: [],
+      environment: { projectRoot: opened.root, workingDirectory: opened.root, candidate: tree, snapshot: tree, limits: testPolicy(opened.root, { recovery: true, continuity: true }).limits,
+        availableTools: [], views: [], supportPaths: [], cucumberConfiguration: null } },
+    task: { kind, goal: 'Continuity probe: correct cf-original and qualify the retained candidate',
+      requirements: ['Original pending finding cf-original', 'Qualify the retained candidate; do not infer submission'] },
+    toolName, description: 'Submit the preserved task result', inputSchema: { type: 'object' }, submissionSchema: 'ramify-agent.continuity-probe/1',
+    validate: input => { validations++; return { ok: true, value: input as { kind: string; pendingFinding: string } }; },
+    singleAdmission: true, onStarted: async () => { semanticAdmissions++; },
+    keep: () => ({ kept: false, finished: 'work-closed' }), scope: { write: null, measurement: null, size: null },
+  }).finally(() => { probeFinished = true; });
+  await until(() => probeFinished || opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
+  if (!probeFinished) throw new Error(`Probe ${role} paused: ${JSON.stringify(await opened.service.recoveryInspection(plan, receipt.jobId))}`);
+  const result = await execution;
+  expect(result).toMatchObject({ ended: 'submitted', value: { kind: 'verified-probe', pendingFinding: 'cf-original' } });
+  expect(probeCalls).toBe(2);
+  expect(semanticAdmissions).toBe(1);
+  expect(validations).toBe(1);
+  const events = opened.service.events(plan, receipt.jobId)!;
+  const predecessor = events.find(event => event.type === 'invocation-ended' && event.data.ended === 'resource-pending')!;
+  const record = invocationOutcomeSchema.parse(JSON.parse(await readFile(join(opened.root, 'plans', plan, '.harness/jobs', receipt.jobId,
+    runLayout.outcome((predecessor.data as { invocation: string }).invocation)), 'utf8')));
+  expect(record).toMatchObject({ ended: 'resource-pending', resource: 'context', submission: null, disposition: 'incomplete', settled: { confirmed: true } });
+  const successor = events.find(event => event.type === 'operation-recovery-attempt' && event.data.invocation === result.id)!;
+  expect(successor.data).toMatchObject({ predecessor: record.invocation });
+  expect(opened.agent.sessions.at(-1)?.spec.prompt).toContain('cf-original');
+  expect(events.some(event => event.type === 'job-failed')).toBe(false);
+  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+  await opened.service.settled(plan, receipt.jobId);
+});
+
+test('C02: finite resource groups retain an actionable hold and resume past historical counters without semantic admission duplication', async () => {
+  const { service, agent, root } = await recoveryFixture(byRole({ 'initial-architect': [
+    [{ kind: 'resource', resource: 'context', reason: 'First native overflow' }],
+    [{ kind: 'resource', resource: 'context', reason: 'Second native overflow' }],
+    [{ kind: 'resource', resource: 'context', reason: 'Third native overflow' }],
+    submit(emptyAnalysis()),
+  ] }), { policy: root => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
+    recovery: { ...policy.recovery!, automaticRetries: 1, baseDelayMs: 0 },
+    limits: { ...policy.limits, maxInvocationsPerRun: 1, budgetReturnsPerIteration: 1, sessionReconstructionsPerWork: 1, runAbsoluteMs: 1 } }; } });
+  const receipt = await service.execute(startRun(plan, 'scripted', 'c02', true));
+  const inspection = await paused(service, receipt.jobId);
+  expect(inspection).toMatchObject({ canResume: true, state: 'paused', automaticAttempts: 1, group: 0, boundary: { role: 'initial-architect' } });
+  expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
+  const resume = { commandId: 'c02-resume', expectedVersion: 0, type: 'resume-recovery' as const,
+    payload: { planId: plan, jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision } };
+  const [first, retry] = await Promise.all([service.execute(resume), service.execute(resume)]);
+  expect(retry).toEqual(first);
+  await until(() => service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
+  expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(4);
+  expect(service.events(plan, receipt.jobId)!.some(event => event.type === 'job-failed')).toBe(false);
+  await service.execute(stopRun(plan, receipt.jobId, service.getRun(plan, receipt.jobId)!.version));
+  await service.settled(plan, receipt.jobId);
+});
+
+test('C03: source-backed progress across seven context recoveries never spends semantic correction or historical resource caps', async () => {
+  let attempts = 0;
+  let currentTree = tree;
+  const { service, agent, root, git } = await recoveryFixture(spec => {
+    if (spec.role !== 'initial-architect') return [{ kind: 'end' }];
+    attempts++;
+    if (attempts <= 7) {
+      // Explicit scripted Git evidence changes independently of lifecycle event IDs.
+      currentTree = attempts.toString(16).repeat(40);
+      return [{ kind: 'resource', resource: 'context', reason: `Native fallback after retained source progress ${attempts}` }];
+    }
+    return submit(emptyAnalysis());
+  }, { policy: root => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
+    recovery: { ...policy.recovery!, automaticRetries: 2, baseDelayMs: 0 }, limits: { ...policy.limits,
+      maxInvocationsPerRun: 1, maxIterationsPerWorkItem: 1, budgetReturnsPerIteration: 1, sessionReconstructionsPerWork: 1 } }; } });
+  Object.assign(git, { previewCandidateTree: async () => ({ repositoryRoot: root, head: 'base', tree: currentTree }) });
+  const receipt = await service.execute(startRun(plan, 'scripted', 'c03', true));
+  await until(() => {
+    const events = service.events(plan, receipt.jobId)!;
+    const pause = events.find(event => event.type === 'operation-recovery-paused');
+    if (pause) throw new Error(`Meaningful candidate progress was held solely on resource count: ${JSON.stringify(pause)}`);
+    const failure = events.find(event => event.type === 'job-failed');
+    if (failure) throw new Error(JSON.stringify(failure));
+    return events.some(event => event.type === 'review-requested');
+  });
+  expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(8);
+  const events = service.events(plan, receipt.jobId)!;
+  expect(events.filter(event => event.type === 'invocation-ended' && event.data.ended === 'resource-pending')).toHaveLength(7);
+  expect(events.some(event => event.type === 'iteration-assigned' || event.type === 'iteration-closed')).toBe(false);
+  await service.execute(stopRun(plan, receipt.jobId, service.getRun(plan, receipt.jobId)!.version));
+  await service.settled(plan, receipt.jobId);
+});
+
+
+test('C04: restoring exact retained source enables occurrence-bound continuation without renewing a resource allowance', async () => {
+  const opened = await sourceOperation('fork', 'temporarily-unavailable');
+  expect(opened.inspection.blockers).toContain('The exact recorded session source is unavailable');
+  const initialSessions = opened.agent.sessions.filter(session => session.spec.role === 'global-fork').length;
+  expect(initialSessions).toBe(1);
+  const resume = { commandId: 'c04-unavailable', expectedVersion: 0, type: 'resume-recovery' as const, payload: {
+    planId: plan, jobId: opened.receipt.jobId, occurrenceId: opened.inspection.occurrenceId, expectedRevision: opened.inspection.revision } };
+  await expect(opened.service.execute(resume)).rejects.toMatchObject({ code: 'conflict' });
+  opened.restoreSource();
+  const restoredInspection = await opened.service.recoveryInspection(plan, opened.receipt.jobId);
+  expect(restoredInspection?.canResume, JSON.stringify(restoredInspection)).toBe(true);
+  await opened.service.execute({ ...resume, commandId: 'c04-restored' });
+  const result = await opened.execution;
+  expect(result.ended).toBe('submitted');
+  const successor = JSON.parse(await readFile(join(opened.directory, runLayout.invocation(result.id)), 'utf8'));
+  expect(successor.session).toMatchObject({ from: opened.ref, actual: 'fork' });
+  expect(opened.agent.sessions.filter(session => session.spec.role === 'global-fork')).toHaveLength(initialSessions + 1);
+  const originalPolicy = JSON.parse(await readFile(join(opened.directory, runLayout.record), 'utf8')).policy;
+  expect(originalPolicy.version).toBe('run-policy/7');
+  const transition = opened.service.events(plan, opened.receipt.jobId)!.find(event => event.type === 'continuity-policy-adopted');
+  expect(transition?.data).toMatchObject({ from: 'run-policy/7', to: 'run-policy/8', occurrenceId: opened.inspection.occurrenceId });
+  await opened.service.execute(stopRun(plan, opened.receipt.jobId, opened.service.getRun(plan, opened.receipt.jobId)!.version));
+  await opened.service.settled(plan, opened.receipt.jobId);
+});
+
+
+test('C05: an actual idle watchdog resource return admits one settled successor with the original pending task', async () => {
+  let calls = 0;
+  const startup = declaringScenarios(byRole({ 'initial-architect': [submit(emptyAnalysis())] }));
+  const scripted = createScriptedAgent(spec => spec.prompt.includes('Watchdog continuity probe')
+    ? ++calls === 1 ? [{ kind: 'wait', ms: 60_000 }] : submit({ kind: 'continued-pending-task' })
+    : typeof startup === 'function' ? startup(spec) : startup);
+  const opened = await recoveryFixture([], { agent: scripted, policy: root => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
+    recovery: { ...policy.recovery!, baseDelayMs: 0 }, limits: { ...policy.limits, invocationIdleMs: 300, stopSettleMs: 20, writerSettleMs: 20 } }; } });
+  const receipt = await opened.service.execute(startRun(plan, 'scripted', 'c05', true));
+  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
+  const loaded = (await (await import('../prompts/packages.js')).loadPromptPackages()).packages.get('engineer')!;
+  const internal = opened.service as unknown as { runs: Map<string, { live: Map<string, { role: string; session: unknown }> }>; recoverableInvocation<T>(run: unknown, actor: typeof opened.agent, request: import('../steps/runner.js').InvocationRequest<T>): Promise<import('../steps/runner.js').InvocationResult<T>> };
+  const run = [...internal.runs.values()][0]!;
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  try {
+    const execution = internal.recoverableInvocation(run, opened.agent, {
+      role: 'engineer', work: {}, attempt: 1, loaded, systemPrompt: loaded.system, prompt: 'Watchdog continuity probe: finish original pending qualification', start: { mode: 'fresh' },
+      brief: { kind: 'engineering', objective: 'Watchdog continuity probe', goal: 'Watchdog continuity probe: finish original pending qualification',
+        requirements: ['Retain the original finding and candidate; no report is inferred'], sections: [], environment: { projectRoot: opened.root, workingDirectory: opened.root,
+          candidate: tree, snapshot: tree, limits: testPolicy(opened.root, { recovery: true, continuity: true }).limits, availableTools: [], views: [], supportPaths: [], cucumberConfiguration: null } },
+      toolName: 'submit_iteration_result', description: 'Submit the original task', inputSchema: { type: 'object' }, submissionSchema: 'ramify-agent.watchdog-probe/1',
+      validate: input => ({ ok: true, value: input as { kind: string } }), keep: () => ({ kept: false, finished: 'work-closed' }), scope: { write: null, measurement: null, size: null },
+    });
+    while (![...run.live.values()].some(live => live.role === 'engineer' && live.session !== undefined)) await new Promise<void>(resolve => setImmediate(resolve));
+    await vi.advanceTimersByTimeAsync(301);
+    vi.useRealTimers();
+    const result = await execution;
+    expect(result).toMatchObject({ ended: 'submitted', value: { kind: 'continued-pending-task' } });
+    const events = opened.service.events(plan, receipt.jobId)!;
+    const interrupted = events.find(event => event.type === 'invocation-ended' && event.data.ended === 'resource-pending')!;
+    const outcome = invocationOutcomeSchema.parse(JSON.parse(await readFile(join(opened.root, 'plans', plan, '.harness/jobs', receipt.jobId,
+      runLayout.outcome((interrupted.data as { invocation: string }).invocation)), 'utf8')));
+    expect(outcome).toMatchObject({ resource: 'stall', interruption: 'idle-timeout', submission: null, settled: { confirmed: true }, disposition: 'incomplete' });
+    expect(calls).toBe(2);
+    expect(events.some(event => event.type === 'job-failed' || event.type === 'iteration-closed')).toBe(false);
+    await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+    await opened.service.settled(plan, receipt.jobId);
+  } finally { vi.useRealTimers(); }
+});
+
+
+test('C07: an owned effect completed after stop reconciles on exact resume without repeating the mutation', async () => {
+  let release!: () => void;
+  const completion = new Promise<void>(resolve => { release = resolve; });
+  let entered = false;
+  let mutations = 0;
+  let store!: Parameters<ReturnType<typeof createScriptedAgent>['bindSessionStore']>[0];
+  const scripted = createScriptedAgent(declaringScenarios(byRole({ 'initial-architect': [submit(emptyAnalysis())],
+    engineer: [[{ kind: 'tool', tool: 'shell', input: { command: 'owned-scripted-mutation' } }], submit({ kind: 'remaining-task-completed' })],
+  })));
+  const agent = { ...scripted, bindSessionStore(value: typeof store) { store = value; return scripted.bindSessionStore(value); } };
+  const opened = await recoveryFixture([], { agent, policy: root => { const policy = testPolicy(root, { recovery: true, continuity: true });
+    return { ...policy, limits: { ...policy.limits, stopSettleMs: 20, writerSettleMs: 20 } }; } });
+  const receipt = await opened.service.execute(startRun(plan, 'scripted', 'c07', true));
+  await until(() => opened.service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
+  const loaded = (await (await import('../prompts/packages.js')).loadPromptPackages()).packages.get('engineer')!;
+  const internal = opened.service as unknown as { runs: Map<string, { live: Map<string, { role: string; session?: import('../../subs/agent/src/interfaces/port.js').AgentSession }> }>;
+    recoverableInvocation<T>(run: unknown, actor: typeof opened.agent, request: import('../steps/runner.js').InvocationRequest<T>): Promise<import('../steps/runner.js').InvocationResult<T>> };
+  const run = [...internal.runs.values()][0]!;
+  const execution = internal.recoverableInvocation(run, opened.agent, {
+    role: 'engineer', work: {}, attempt: 1, loaded, systemPrompt: loaded.system, prompt: 'Complete the owned effect and original remaining task', start: { mode: 'fresh' },
+    brief: { kind: 'engineering', objective: 'Complete the owned effect and original remaining task', goal: 'Retain the original admission and reconcile the exact owned command',
+      requirements: ['Do not repeat the already admitted mutation'], sections: [], environment: { projectRoot: opened.root, workingDirectory: opened.root,
+        candidate: tree, snapshot: tree, limits: testPolicy(opened.root, { recovery: true, continuity: true }).limits, availableTools: ['shell'], views: [], supportPaths: [], cucumberConfiguration: null } },
+    toolName: 'submit_iteration_result', description: 'Submit the original remaining task', inputSchema: { type: 'object' }, submissionSchema: 'ramify-agent.owned-effect-probe/1',
+    validate: input => ({ ok: true, value: input as { kind: string } }), keep: () => ({ kept: false, finished: 'work-closed' }), scope: { write: 1, measurement: null, size: null }, writer: true,
+    equip: () => ({ builtinTools: [], guard: async () => ({ allow: true }), tools: [{ name: 'shell', description: 'Scripted owned mutation', mutating: true,
+      inputSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] },
+      action: input => ({ kind: 'command', command: (input as { command: string }).command }),
+      execute: async () => { mutations++; entered = true; await completion; return { text: 'Original owned mutation completed' }; },
+    }] }),
+  });
+  await until(() => entered);
+  const live = [...run.live.values()].find(value => value.role === 'engineer')!;
+  const stopping = live.session!.stop();
+  const hold = await paused(opened.service, receipt.jobId);
+  expect(hold.canResume).toBe(false);
+  expect(hold.blockers.some(reason => reason.includes('unknown external effect'))).toBe(true);
+  expect(scripted.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
+  const predecessor = hold.boundary.invocation!;
+  const directory = join(opened.root, 'plans', plan, '.harness/jobs', receipt.jobId);
+  const originalOutcome = await readFile(join(directory, runLayout.outcome(predecessor)), 'utf8');
+  const originalOperation = (await store.read(receipt.jobId, `operation:${predecessor}`))!;
+  const command = { commandId: 'c07-compatible-resume', expectedVersion: 0, type: 'resume-recovery' as const, payload: { planId: plan, jobId: receipt.jobId,
+    occurrenceId: hold.occurrenceId, expectedRevision: hold.revision, repair: { areas: ['environment' as const], explanation: 'The exact original owned handler completed; its immutable receipt and owner drainage are available' } } };
+  await expect(opened.service.execute({ ...command, commandId: 'c07-premature' })).rejects.toMatchObject({ code: 'conflict' });
+  expect(mutations).toBe(1);
+  release(); await stopping; await live.session!.settled();
+  const [first, duplicate] = await Promise.all([opened.service.execute(command), opened.service.execute(command)]);
+  expect(duplicate).toEqual(first);
+  const result = await execution;
+  expect(result).toMatchObject({ ended: 'submitted', value: { kind: 'remaining-task-completed' }, settlementConfirmed: true });
+  expect(mutations).toBe(1);
+  expect(scripted.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(2);
+  expect(await readFile(join(directory, runLayout.outcome(predecessor)), 'utf8')).toBe(originalOutcome);
+  const reconciled = (await store.read(receipt.jobId, `operation:${predecessor}`))!;
+  expect(reconciled.body['receipt']).toEqual(originalOperation.body['receipt']);
+  expect(reconciled.body['provider']).toEqual(originalOperation.body['provider']);
+  expect(reconciled.body['effects']).toMatchObject([{ phase: 'completed', tool: 'shell', result: { text: 'Original owned mutation completed' } }]);
+  expect(opened.service.events(plan, receipt.jobId)!.filter(event => event.type === 'operation-recovery-resumed')).toHaveLength(1);
+  await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+  await opened.service.settled(plan, receipt.jobId);
+});
+
+test('C06: restart after an accepted result preserves it and supplies no authority for the next model or gate', async () => {
+  let frozen = false;
+  let opened!: Awaited<ReturnType<typeof recoveryFixture>>;
+  opened = await recoveryFixture(byRole({ 'initial-architect': [submit(emptyAnalysis())] }), {
+    policy: root => testPolicy(root, { recovery: true, continuity: true }),
+    afterWrite: async (write, runId) => {
+      if (write !== 'invocation-ended') return;
+      const events = opened.service.events(plan, runId)!;
+      const last = events.filter(event => event.type === 'invocation-ended').at(-1);
+      const role = events.find(event => event.type === 'invocation-started' && event.data.invocation === (last?.data as { invocation?: string })?.invocation);
+      if (role?.type === 'invocation-started' && role.data.role === 'initial-architect' && last?.type === 'invocation-ended' && last.data.ended === 'submitted') { frozen = true; await freeze(); }
+    },
+  }, true);
+  const internal = opened.service as unknown as { options: { configuredAudit: import('../../subs/audit/src/check-execution.js').ConfiguredAuditPort } };
+  const port = internal.options.configuredAudit;
+  const checks = vi.spyOn(port, 'run');
+  const receipt = await opened.service.execute(startRun(plan, 'scripted', 'c06', true));
+  await until(() => frozen);
+  const originalModels = opened.agent.sessions.length;
+  const originalChecks = checks.mock.calls.length;
+  const accepted = opened.service.events(plan, receipt.jobId)!.filter(event => event.type === 'invocation-ended' && event.data.ended === 'submitted');
+  await staleCrashLock(opened.root);
+  const reopened = await openRuns(opened.root, { ...opened.options, afterWrite: undefined, configuredAudit: port });
+  cleanup.push(() => reopened.service.close());
+  const inspection = await paused(reopened.service, receipt.jobId);
+  expect(inspection).toMatchObject({ canResume: true, boundary: { kind: 'preparation', checkpoint: 'startup' }, continuity: { policy: 'run-policy/8' } });
+  expect(opened.agent.sessions).toHaveLength(originalModels);
+  expect(checks).toHaveBeenCalledTimes(originalChecks);
+  expect(reopened.service.events(plan, receipt.jobId)!.filter(event => event.type === 'invocation-ended' && event.data.ended === 'submitted')).toEqual(accepted);
+  await reopened.service.execute({ commandId: 'c06-resume', expectedVersion: 0, type: 'resume-recovery', payload: {
+    planId: plan, jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision } });
+  await until(() => reopened.service.events(plan, receipt.jobId)!.some(event => event.type === 'review-requested'));
+  expect(opened.agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(1);
+  expect(opened.agent.sessions.length).toBeGreaterThan(originalModels);
+  await reopened.service.execute(stopRun(plan, receipt.jobId, reopened.service.getRun(plan, receipt.jobId)!.version));
+  await reopened.service.settled(plan, receipt.jobId);
+  checks.mockRestore();
 });

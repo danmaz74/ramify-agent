@@ -4,6 +4,10 @@
 
 The whole-tree scope and verification rules adopted on 2026-10-01 are
 normative design decisions; their implementation remains pending.
+The execution-continuity principles adopted on 2026-10-13 are normative;
+their runtime migration remains pending.
+The architect tracking-authority and external-tracker independence principles
+adopted on 2026-10-13 are normative; their runtime migration remains pending.
 
 ## Purpose
 
@@ -37,6 +41,14 @@ from an ROI point of view, evaluating costs in terms of human attention first,
 and agent time and tokens second.
 
 ## Principles
+
+### Resource Observations Preserve Run Continuity
+
+A run never terminates because a context-size or time threshold is reached.
+Context-size checks serve only to optimize work through compaction or handoff
+to a new session. Time-limit checks serve only to recover a session that may
+be stuck. Compaction, handoff and recovery preserve the run's task, accepted
+work, authority and pending obligations.
 
 ### An Executable Specification Is a Translation
 
@@ -201,6 +213,22 @@ and enforces the model within it.
 The tree states who has authority over an interface. A parent owns the
 boundaries of its children. An interface between two branches belongs to
 neither side.
+
+### Architects Can Update Plans and Tracking Without Writing Code
+
+Architects delegate implementation code changes to module engineers. They may
+update plans, decisions and progress tracking within their assigned authority
+through harness-controlled operations. The harness validates and persists
+durable run state. A restriction on code writes does not prohibit authorized
+planning or administrative updates.
+
+### Ordinary Execution Is Independent of External Trackers
+
+The harness retains the planning and progress state needed to execute a run.
+Ordinary implementation, review and qualification do not require an external
+project tracker. Optional integrations preserve honest pending status without
+blocking that work. A plan explicitly delivering tracker integration retains
+its product acceptance requirements.
 
 ### A Module Carries Its Own Onboarding
 

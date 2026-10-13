@@ -97,6 +97,8 @@ export function exitsAfter(failFrom: number, cwd: string, counter: string, timeo
 }
 
 export interface TestPolicyOptions {
+  /** Exercise the adopted continuity contract; omitted fixtures retain their original policy. */
+  readonly continuity?: boolean;
   /** Opt into new-policy recovery. Existing lifecycle fixtures retain their historical captured policy. */
   readonly recovery?: boolean;
   /** Which of the standalone diagnosis's commands fails, and with which code. */
@@ -131,14 +133,17 @@ export function testPolicy(projectRoot: string, options: TestPolicyOptions = {})
     }
     return exits(options.failing === name ? 1 : 0, projectRoot);
   };
-  const { reviews: _reviews, recovery: capturedRecovery, ...unreviewed } = base;
+  const { reviews: _reviews, recovery: capturedRecovery, continuity: capturedContinuity, ...unreviewed } = base;
   return {
     ...unreviewed,
     ...(options.recovery === true ? { recovery: capturedRecovery } : {}),
-    version: 'run-policy/7',
+    ...(options.continuity === true ? { continuity: capturedContinuity } : {}),
+    version: options.continuity === true ? 'run-policy/8' : 'run-policy/7',
     // These fixture runs exercise the contract engineer, which the default
     // policy omits from its context and prompt manifest, so they capture it.
-    context: { ...base.context, 'contract-engineer': defaultContextPolicies['contract-engineer'] },
+    context: options.continuity === true
+      ? { ...base.context, 'contract-engineer': defaultContextPolicies['contract-engineer'] }
+      : historicalContextPolicies,
     ...(options.reviews === undefined ? {} : { reviews: options.reviews }),
     commands: {
       ...base.commands,
@@ -147,6 +152,18 @@ export function testPolicy(projectRoot: string, options: TestPolicyOptions = {})
     },
   };
 }
+
+/** Captured /7 policy evidence used by historical lifecycle fixtures only. */
+const historicalContextPolicies = {
+  ...Object.fromEntries(['initial-architect', 'local-architect', 'capability-architect', 'nonfunctional-coordinator']
+    .map(role => [role, { compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000 }])),
+  ...Object.fromEntries(['engineer', 'contract-engineer', 'nonfunctional-repair-engineer']
+    .map(role => [role, { compaction: 'forbidden', budgetTokens: 140_000, budgetFraction: 0.7, reportReserveTokens: 12_000 }])),
+  ...Object.fromEntries(['reviewer', 'failure-analyst', 'context-selector']
+    .map(role => [role, { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 8_000 }])),
+  'global-fork': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 },
+  'catalog-extractor': { compaction: 'forbidden', budgetTokens: 120_000, budgetFraction: 0.6, reportReserveTokens: 16_000 },
+} as RunPolicy['context'];
 
 /**
  * Inputs for tests of the run's lifecycle, which need no evidence: the plan

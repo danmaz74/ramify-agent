@@ -1,7 +1,11 @@
 import type { RunPolicy } from '../run/records.js';
 
 /** The policy version captured by every new production run. */
-export const capabilityRunPolicyVersion = 'run-policy/7';
+export const capabilityRunPolicyVersion = 'run-policy/8';
+
+export function supportedCapabilityPolicy(version: string): boolean {
+  return version === 'run-policy/7' || version === capabilityRunPolicyVersion;
+}
 
 export interface CapabilityLimits {
   readonly maxAssignments: number;
@@ -12,7 +16,7 @@ export interface CapabilityLimits {
 /** Capture limits in the task record at delegation. A task never reads live
  * defaults, and owner changes, repairs and reconstruction cannot reset them. */
 export function captureCapabilityLimits(policy: RunPolicy): CapabilityLimits {
-  if (policy.version !== capabilityRunPolicyVersion || policy.limits.maxIterationsPerCapabilityTask === undefined) {
+  if (!supportedCapabilityPolicy(policy.version) || policy.limits.maxIterationsPerCapabilityTask === undefined) {
     throw new Error('Capability coordination requires a captured run-policy/7 task limit');
   }
   return {
@@ -25,11 +29,11 @@ export function captureCapabilityLimits(policy: RunPolicy): CapabilityLimits {
 /** The first capability policy uses the existing per-work-item assignment
  * limit as its default, while recording the distinct task limit explicitly. */
 export function capabilityPolicyFrom(previous: RunPolicy): RunPolicy {
-  if (previous.version !== capabilityRunPolicyVersion) throw new Error(`Run policy ${previous.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
+  if (!supportedCapabilityPolicy(previous.version)) throw new Error(`Run policy ${previous.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
   return {
     ...previous,
     context: { ...previous.context, 'capability-architect': {
-      compaction: 'allowed', budgetTokens: 150_000, budgetFraction: 0.75, reportReserveTokens: 16_000,
+      compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0,
     } },
     limits: { ...previous.limits, maxIterationsPerCapabilityTask: previous.limits.maxIterationsPerWorkItem },
   };

@@ -82,5 +82,6 @@ obligation and no requirement. Name what is `done` and what is `unfinished`,
 and what you found. The work you did stays in the working directory, and the
 consumer's architect accounts for it.
 
-This is also the report you write when the harness tells you the context
-budget is reached. It is never an agreement.
+Pi may compact the conversation automatically. Continue the same agreement
+obligation after compaction. A context recovery keeps work pending and never
+requires an incomplete submission.

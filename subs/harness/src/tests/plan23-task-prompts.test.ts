@@ -159,7 +159,8 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(next.message).toContain('"workingDirectory": "/project/B"');
     expect(next.message).toContain('"candidate": "C1"');
     expect(next.message).toContain('"snapshot": "S1"');
-    expect(next.message).toContain('"invocationAbsoluteMs": 20');
+    expect(next.message).not.toContain('invocationAbsoluteMs');
+    expect(next.message).not.toContain('budgetReturnsPerIteration');
     // A command bound is delivered only to a role that has a shell.
     expect(next.message).not.toContain('commandTimeoutMs');
     expect(next.message).not.toContain('support/steps.mjs');

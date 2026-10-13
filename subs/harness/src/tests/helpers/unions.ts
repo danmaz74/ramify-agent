@@ -55,6 +55,7 @@ const wrappers = new Set(['optional', 'nullable', 'default', 'readonly', 'catch'
 export function unionInventory(roots: Readonly<Record<string, unknown>>): Map<unknown, UnionSite> {
   const sites = new Map<unknown, UnionSite>();
   const visited = new Set<unknown>();
+  const deferredPolicies: Array<() => void> = [];
 
   function walk(schema: unknown, path: string, depth: number): void {
     const def = defOf(schema);
@@ -73,7 +74,13 @@ export function unionInventory(roots: Readonly<Record<string, unknown>>): Map<un
     visited.add(schema);
     switch (def.type) {
       case 'object':
-        for (const [key, value] of Object.entries(def.shape as Record<string, unknown>)) walk(value, `${path}.${key}`, depth + 1);
+        for (const [key, value] of Object.entries(def.shape as Record<string, unknown>)) {
+          // Adoption publishes the captured policy schema again. Its owning
+          // job record supplies the stable union names; any genuinely new
+          // adoption-only values are still inventoried after the roots.
+          if (key === 'policy' && path.endsWith('[continuity-policy-adopted].data')) deferredPolicies.push(() => walk(value, `${path}.${key}`, depth + 1));
+          else walk(value, `${path}.${key}`, depth + 1);
+        }
         return;
       case 'union': {
         const byKey = discriminated(def);
@@ -103,6 +110,7 @@ export function unionInventory(roots: Readonly<Record<string, unknown>>): Map<un
   }
 
   for (const [name, schema] of Object.entries(roots)) walk(schema, name, 0);
+  for (const walkPolicy of deferredPolicies) walkPolicy();
   return sites;
 }
 

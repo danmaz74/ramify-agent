@@ -55,7 +55,7 @@ import { capabilityHandbackGuidance, capabilityRecordSection, capabilitySourceSe
 import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, capabilityLayout,
   type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange, type CapabilityHandback,
 } from '../capability/records.js';
-import { capabilityRunPolicyVersion, captureCapabilityLimits } from '../capability/policy.js';
+import { capabilityRunPolicyVersion, supportedCapabilityPolicy, captureCapabilityLimits } from '../capability/policy.js';
 import { createCapabilityWorkflow } from '../capability/workflow.js';
 import { commitCapabilityTransition } from '../capability/ledger.js';
 import { qualificationActionSchema, capabilityActionSchema, capabilityPlanUpdateSchema, buildCapabilityPlanRevision,
@@ -231,7 +231,7 @@ import type { RenderedFeatureFile } from '../../subs/scenarios/src/rendering.js'
 import { RunLog, type RunEvent, type RunEventInput, type RunEventOf } from './log.js';
 import { ObservationLog } from './observations.js';
 import { endedOf, InvocationBounds, PortEventRecorder, type CallInFlight } from './port-events.js';
-import { contextPolicyOf, defaultRunPolicy, invocationLimits, engineerBoundsOf, withProjectTimeouts, type EngineerBounds } from './policy.js';
+import { contextPolicyOf, defaultContextPolicies, defaultRunPolicy, invocationLimits, engineerBoundsOf, withProjectTimeouts, type EngineerBounds } from './policy.js';
 import { captureProjectConfig, moduleTestAreas, type TestArea } from './project-config.js';
 import {
   commitForMaterialization, commitForScenarios, contentHash as featureContentHash, expectedFeatureFiles, expectedFeatureHashes,
@@ -598,7 +598,8 @@ class Run implements RunnerRun {
   get jobId(): string { return this.record.jobId; }
   get planId(): string { return this.record.planId; }
   get createdAt(): string { return this.record.createdAt; }
-  get policy(): RunRecord['policy'] { return this.record.policy; }
+  effectivePolicy?: RunPolicy;
+  get policy(): RunRecord['policy'] { return this.effectivePolicy ?? this.record.policy; }
   get baselineMeasurement(): RecordRef | null { return 'measurement' in this.record.baseline ? this.record.baseline.measurement : null; }
 
   /** The sessions of every open invocation, the writer's and the readers'. */
@@ -747,12 +748,6 @@ export class RunService {
         await changed;
       }
       if (this.ignoring(run)) return false;
-      const now = this.now().getTime();
-      const activeMs = now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now);
-      if (activeMs > run.policy.limits.runAbsoluteMs) {
-        await this.fail(run, 'limit-exceeded', `Gate dispatch has spent ${activeMs} ms of the captured ${run.policy.limits.runAbsoluteMs} ms execution bound`);
-        return false;
-      }
       const recovery = this.latestOperationRecovery(run);
       if (!resumedGroup || recovery?.state !== 'resumed' || !recovery.admission) return true;
       const blockers = repairDispatchBlockers(recovery.admission, await this.captureRecoveryIdentity(run));
@@ -779,6 +774,7 @@ export class RunService {
       openedOperations: () => service.sessionOperations,
       ignoring: run => service.ignoring(run),
       base: run => service.accepted(run),
+      resourceInvocation: (run, agent, request) => service.recoverableInvocation(run, agent, request),
       refusal: run => service.invocationRefusal(run),
       refused: async (run, reason, reader) => {
         if (!reader) await service.fail(run, 'limit-exceeded', reason);
@@ -793,29 +789,13 @@ export class RunService {
     };
   }
 
-  /**
-   * Why the run starts no further invocation: the run-wide bounds, read
-   * before an invocation is started, so a run that has spent them starts
-   * nothing more. The absolute bound is checked at each invocation
-   * boundary; an invocation already running is bounded by its own limits.
-   */
+  /** Resource observations never refuse invocation admission. Authority and compatibility have their own barriers. */
   private invocationRefusal(run: Run): string | null {
-    const limits = run.record.policy.limits;
-    const invocations = run.log.count('invocation-started');
-    // The time the run waited for a person at its review stop is not its own.
-    const now = this.now().getTime();
-    const age = now - Date.parse(run.record.createdAt) - callerPauseMs(run.log.events, now);
-    if (invocations + 1 > limits.maxInvocationsPerRun) return `The run has made ${invocations} invocations; the policy allows ${limits.maxInvocationsPerRun}`;
-    if (age > limits.runAbsoluteMs) return `The run has run for ${age} ms; the policy allows ${limits.runAbsoluteMs}`;
     return null;
   }
 
-  /** Checks consume active time without reserving another model invocation. */
+  /** Elapsed execution is an observation, never a check admission allowance. */
   private executionTimeRefusal(run: Run): string | null {
-    const now = this.now().getTime();
-    const age = now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now);
-    if (age > run.policy.limits.runAbsoluteMs) return `The run has run for ${age} ms; the policy allows ${run.policy.limits.runAbsoluteMs}`;
-    if (run.log.count('invocation-started') > run.policy.limits.maxInvocationsPerRun) return 'The captured whole-run invocation allowance is exhausted';
     return null;
   }
 
@@ -941,11 +921,12 @@ export class RunService {
    * policy requests reviews. Each wake starts what the policy has room for.
    */
   private startReviews(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): void {
-    const policy = run.record.policy.reviews;
+    const policy = run.policy.reviews;
     if (policy === undefined || run.reviews !== undefined) return;
     run.reviews = new ReviewQueue({
       concurrency: policy.concurrency,
       queue: policy.queue,
+      preserveCoverage: run.policy.continuity !== undefined,
       unsettled: () => unsettledRequests(run.log.events).map(request => request.id),
       attempt: request => this.runReviewAttempt(run, agent, packages, request),
       prepare: request => this.prepareReview(run, agent, packages, request),
@@ -1000,7 +981,8 @@ export class RunService {
   }
 
   private rawReviewDeadline(run: Run, id: string): number | null {
-    const policy = run.record.policy.reviews;
+    if (run.policy.continuity) return null;
+    const policy = run.policy.reviews;
     if (policy === undefined) return null;
     const recorded = run.log.all('review-request-recorded').find(event => event.data.request === id);
     if (recorded === undefined) return null;
@@ -1130,7 +1112,7 @@ export class RunService {
    * nothing, and its reader's session was stopped and closed like any other.
    */
   private async runReviewAttempt(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, id: string): Promise<boolean> {
-    const policy = run.record.policy.reviews;
+    const policy = run.policy.reviews;
     const state = reviewStateOf(run.log.events).get(id);
     if (policy === undefined || state === undefined || state.settledBy !== null) return false;
     if (this.ignoring(run) || run.reviews?.accepting !== true) return false;
@@ -1207,8 +1189,8 @@ export class RunService {
     let prepared: PreparedReview;
     const preparation = new AbortController();
     const preparationStarted = Date.now();
-    const preparationTimer = setTimeout(() => preparation.abort(new Error('Review patch preparation exceeded its attempt bound')), policy.attemptMs);
-    preparationTimer.unref?.();
+    const preparationTimer = run.policy.continuity ? undefined : setTimeout(() => preparation.abort(new Error('Review patch preparation exceeded its attempt bound')), policy.attemptMs);
+    preparationTimer?.unref?.();
     run.reviewPreparations.set(id, preparation);
     try {
       prepared = await prepareReview({
@@ -1233,6 +1215,12 @@ export class RunService {
     }
     catch (error) {
       if (this.ignoring(run) || run.reviews?.accepting !== true || reviewStateOf(run.log.events).get(id)?.settledBy !== null) return false;
+      if (run.policy.continuity) {
+        const resumed = await this.waitOperationRecovery(run, { kind: 'preparation', role: 'reviewer', reviewRequest: id, candidate: request.key.candidate,
+          work: { workItem: request.workItem, iteration: request.key.iteration, request: id } },
+          { classification: 'preparation', diagnostic: `The frozen review candidate's patches are unavailable: ${message(error)}` }, [], 0);
+        return resumed ? this.runReviewAttempt(run, agent, packages, id) : false;
+      }
       return await unavailable(`The audited candidate's patches could not be collected: ${message(error)}`) === 'committed';
     } finally {
       clearTimeout(preparationTimer);
@@ -1250,7 +1238,7 @@ export class RunService {
       const reviewInputs = validateReviewInputs({
         schema: stepInputsSchemaId, role: 'reviewer', question: kind, run: { planId: run.record.planId, runId: run.record.jobId },
         work: { workItem: request.workItem, iteration: request.key.iteration }, attempt: state.attempts.length + 1,
-        capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits, context: contextPolicyOf(run.record.policy, 'reviewer'),
+        capabilityWorkflow: this.workflow !== null, limits: run.policy.limits, context: contextPolicyOf(run.policy, 'reviewer'),
         request, snapshotTree: snapshot.tree,
         briefing: {
           assignment: intent, checkFindings, ...(assignmentPackage === undefined ? {} : { package: assignmentPackage }), planDocument,
@@ -1275,6 +1263,7 @@ export class RunService {
     let fenced = false;
     const result = await this.runInvocation<ReviewSubmission>(run, agent, {
       recoveryReviewRequest: id,
+      singleAdmission: true,
       role: step.role,
       brief: step.brief,
       context: step.context,
@@ -1301,7 +1290,6 @@ export class RunService {
       equip: () => ({ builtinTools: [...step.equipment.builtinTools], tools: [...prepared.tools.definitions] }),
       // The start is recorded only for a request still unsettled, under the
       // mutex its deadline settles it under; a settled one's reader never starts.
-      singleAdmission: true,
       onStarted: async (invocation, session) => {
         const at = this.now();
         const recorded = await run.mutex.run(async () => {
@@ -1453,7 +1441,7 @@ export class RunService {
     const source = this.sessionsOf(run)?.get(from.session);
     if (source === undefined) return fresh('The captured review session is unavailable');
     if (!source.invocations.includes(from.invocation) || source.awaiting === from.invocation) throw new EvidenceUnavailableError(`${from.session} has not reached the end of ${from.invocation}`);
-    const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(from.invocation);
+    const outcome = this.effectiveInvocationOutcome(run, from.invocation);
     if (outcome?.session?.ref !== from.ref) throw new EvidenceUnavailableError('The captured review source differs from its accepted invocation point');
     if (!await (await this.operations(agent)).hasPoint(run.record.jobId, from.ref)) {
       if (from.reason === 'scope-review') return fresh('The captured assignment point is unavailable; reconstructing the complete scope review packet');
@@ -1501,7 +1489,7 @@ export class RunService {
   }
 
   private async orient(run: Run, agent: AgentPort, loaded: LoadedPackage, request: ReviewRequest, key: string, guidance: readonly CapturedInput[]): Promise<ReviewOrientation> {
-    const policy = run.record.policy.reviews!;
+    const policy = run.policy.reviews!;
     const workspace = join(dirname(reviewLayout.orientation(key)), key.slice(0, 16));
     await mkdir(run.path(workspace), { recursive: true });
     // The orientation is its own invocation, built from its inputs by its
@@ -1509,7 +1497,7 @@ export class RunService {
     const step = constructDesignOrientationStep({
       schema: stepInputsSchemaId, role: 'reviewer', question: 'design-orientation', run: { planId: run.record.planId, runId: run.record.jobId },
       work: { workItem: request.workItem, iteration: request.key.iteration }, attempt: 1, capabilityWorkflow: this.workflow !== null,
-      limits: run.record.policy.limits, context: contextPolicyOf(run.record.policy, 'reviewer'), request: request.id, key,
+      limits: run.policy.limits, context: contextPolicyOf(run.policy, 'reviewer'), request: request.id, key,
       guidance: guidance.map(({ ref, hash, text }) => ({ ref, hash, text })), workspace: { run: workspace }, bounds: { absoluteMs: policy.attemptMs },
       architectView: this.architectViewInputs(run), start: { kind: 'fresh' },
     }, { projectRoot: this.projectRoot, packages: new Map([['reviewer', loaded]]) });
@@ -1625,8 +1613,9 @@ export class RunService {
    * settled and no reader left.
    */
   private async settleReviews(run: Run): Promise<void> {
-    const policy = run.record.policy.reviews;
+    const policy = run.policy.reviews;
     if (policy === undefined || run.reviews === undefined) return;
+    if (run.policy.continuity) { run.reviews.wake(); await run.reviews.settled(); return; }
     // From here every waiting request has a deadline, and one that could not
     // finish by it is finished at once rather than started.
     run.settleDeadline = this.now().getTime() + policy.settleMs;
@@ -1637,7 +1626,7 @@ export class RunService {
       new Promise<void>(resolve => { timer = setTimeout(resolve, policy.settleMs); }),
     ]);
     clearTimeout(timer);
-    await this.stopReaders(run, 'deadline', run.record.policy.limits.stopSettleMs);
+    await this.stopReaders(run, 'deadline', run.policy.limits.stopSettleMs);
   }
 
   /**
@@ -1648,7 +1637,7 @@ export class RunService {
    * open for the rest of the run. Answers false once the run has ended.
    */
   private async settleWorkItemReviews(run: Run, workItem: string): Promise<boolean> {
-    const policy = run.record.policy.reviews;
+    const policy = run.policy.reviews;
     const queue = run.reviews;
     if (policy === undefined || queue === undefined) return !this.ignoring(run);
     for (;;) {
@@ -1659,11 +1648,12 @@ export class RunService {
       const stopped = run.changed();
       const unsettled = unsettledRequests(run.log.events).filter(request => request.workItem === workItem);
       if (unsettled.length === 0) return true;
+      if (run.policy.continuity) { queue.wake(); await Promise.race([ended, stopped]); continue; }
       const deadlines = unsettled.map(request => this.reviewDeadline(run, request.id)).filter((deadline): deadline is number => deadline !== null);
       const deadline = deadlines.length === 0 ? this.now().getTime() + policy.settleMs : Math.max(...deadlines);
       const remaining = deadline - this.now().getTime();
       if (remaining <= 0) {
-        await this.stopWorkItemReaders(run, workItem, run.record.policy.limits.stopSettleMs);
+        await this.stopWorkItemReaders(run, workItem, run.policy.limits.stopSettleMs);
         return !this.ignoring(run);
       }
       queue.wake();
@@ -1716,7 +1706,7 @@ export class RunService {
    * was running lost its session with the harness.
    */
   private async recoverReviews(run: Run): Promise<string[]> {
-    if (run.record.policy.reviews === undefined) return [];
+    if (run.policy.reviews === undefined) return [];
     const recovered: string[] = [];
     for (const closed of this.reviewableClosings(run)) {
       for (const request of await this.handling.requestReviews(run, closed)) recovered.push(`review request ${request} of ${closed.iteration}`);
@@ -1734,7 +1724,7 @@ export class RunService {
     const run = this.runs.get(key(planId, runId));
     if (run === undefined) return undefined;
     const requests = [...reviewStateOf(run.log.events).values()].filter(request => workItem === undefined || request.workItem === workItem);
-    return { coverage: reviewCoverage(run.record.policy, run.log.events, workItem), requests };
+    return { coverage: reviewCoverage(run.policy, run.log.events, workItem), requests };
   }
 
   // Reconciliation
@@ -1823,8 +1813,8 @@ export class RunService {
    */
   private async reconcileWorkItem(run: Run, agent: AgentPort, loaded: LoadedPackage, item: WorkItem, parent: ParentSession,
     owner: ReconciliationOwner = { id: item.id, role: 'local-architect' }): Promise<Reconciled | null> {
-    const limit = run.record.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
-    const minimum = run.record.policy.limits.laterRoundMinimumRisk ?? 'medium';
+    const limit = run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
+    const minimum = run.policy.limits.laterRoundMinimumRisk ?? 'medium';
     for (;;) {
       if (!await this.settleWorkItemReviews(run, owner.id)) return null;
       if (!await this.awaitUserDecisions(run, owner.id)) return null;
@@ -1948,7 +1938,7 @@ export class RunService {
     const source = this.sessionsOf(run)?.get(from.session);
     if (source === undefined) return fresh('The captured review session is unavailable');
     if (!source.invocations.includes(from.invocation) || source.awaiting === from.invocation) throw new EvidenceUnavailableError(`${from.session} has not reached the end of ${from.invocation}`);
-    const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(from.invocation);
+    const outcome = this.effectiveInvocationOutcome(run, from.invocation);
     if (outcome?.session?.ref !== point.ref) throw new EvidenceUnavailableError('The recorded completion point does not match its accepted invocation');
     if (!await (await this.operations(agent)).hasPoint(run.record.jobId, point.ref)) return fresh('The recorded completion session point is unavailable; reconstructing the complete reconciliation packet');
     const ended = run.log.all('invocation-ended').find(event => event.data.invocation === from.invocation)?.sequence ?? 0;
@@ -2294,8 +2284,8 @@ export class RunService {
 
   /** Shared completion check for a work item or bounded capability task. */
   private async completionBasisRefusal(run: Run, owner: string, gate: GateAttempt, basis: CompletionBasis): Promise<string | null> {
-    const limit = run.record.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
-    const minimum = run.record.policy.limits.laterRoundMinimumRisk ?? 'medium';
+    const limit = run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
+    const minimum = run.policy.limits.laterRoundMinimumRisk ?? 'medium';
     const lineage = basis.decided ? await this.sourceLineage(run, basis.commit, gate.audited) : null;
     const now = this.basisState(run, owner);
     const rounds = run.log.all('reconciliation-started').filter(event => event.data.workItem === owner).length;
@@ -2313,7 +2303,7 @@ export class RunService {
   }
 
   private async completeWorkItem(run: Run, item: WorkItem, gate: GateAttempt, basis: CompletionBasis): Promise<'completed' | 'ended' | { readonly refused: string }> {
-    const limit = run.record.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
+    const limit = run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
     const outcome = await run.mutex.run(async () => {
       if (run.log.terminal !== undefined) return 'ended' as const;
       if (this.workflow !== null) {
@@ -2461,7 +2451,7 @@ export class RunService {
         }
         if (kind !== 'implementation') continue;
         const policy = (parsed as { policy?: { version?: unknown } }).policy?.version;
-        if (policy !== capabilityRunPolicyVersion) {
+        if (typeof policy !== 'string' || !supportedCapabilityPolicy(policy)) {
           const recorded = typeof policy === 'string' ? policy : '(missing policy)';
           this.refusedPolicies.set(key(planId, jobId), recorded);
           report.skipped.push(key(planId, jobId));
@@ -2480,6 +2470,8 @@ export class RunService {
         const base = await this.runBase(record, log);
         let loaded!: Run;
         loaded = new Run(record, directory, log, base, this.newWriter(record.policy, () => this.accepted(loaded)));
+        const adopted = log.all('continuity-policy-adopted').at(-1);
+        if (adopted) loaded.effectivePolicy = adopted.data.policy;
         run = loaded;
       } catch (error) {
         report.skipped.push(key(planId, jobId));
@@ -2512,12 +2504,24 @@ export class RunService {
 
       if (!run.log.terminal) {
         const repair = this.latestRepairIncident(run);
-        if (repair !== undefined && ['admitted', 'running'].includes(repair.stage)) {
+        if (repair !== undefined && ['admitted', 'running'].includes(repair.stage) && this.latestOperationRecovery(run)?.state !== 'paused') {
           const incident = { ...repair.incident, revision: repair.incident.revision + 1,
             endedAt: this.now().toISOString(), continuation: { delivered: false, reason: 'Service interruption requires manual attention; repair is never restarted automatically', evidence: [] } };
           await this.persistRepairIncident(run, incident, 'interrupted');
-          await this.fail(run, 'recovery-exhausted', 'An interrupted automatic repair requires manual attention; no repair invocation was restarted');
+          if (!run.policy.recovery) await this.fail(run, 'recovery-exhausted', 'An interrupted automatic repair requires manual attention; no repair invocation was restarted');
           report.interrupted.push(run.key);
+          if (run.policy.recovery && !run.stopRequested) {
+            await this.waitOperationRecovery(run, { kind: 'preparation', role: 'engineer',
+              work: { workItem: incident.workItem, automaticRepair: incident.incidentId },
+              retainedTask: { candidate: { head: incident.candidateBefore?.head ?? '', tree: incident.candidateBefore?.tree ?? '' },
+                acceptedHead: this.accepted(run), work: { workItem: incident.workItem, automaticRepair: incident.incidentId },
+                configuration: recoveryHash(run.record.auditConfiguration), obligations: [{ kind: 'automatic-repair', id: incident.incidentId }],
+                sourceRecords: [incident.preparation.path, posix.join('repairs', 'sources', `${incident.incidentId}.json`), runLayout.contingentRepairAssignment],
+                authority: { assignment: incident.authority.assignment, submission: 'submit_automatic_repair' } } },
+              { classification: 'unknown', diagnostic: 'The service stopped during the admitted automatic repair; original source, authority and pending preparation are retained. Restart supplies no successor authority.' },
+              run.log.all('invocation-started').filter(event => event.data.work.automaticRepair === incident.incidentId).map(event => event.data.invocation), 0, 0, false);
+            continue;
+          }
         }
       }
 
@@ -2545,31 +2549,26 @@ export class RunService {
         const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
         const latestAttempt = run.log.all('operation-recovery-attempt').at(-1);
         const lastOutcome = latestAttempt === undefined ? undefined : invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(latestAttempt.data.invocation)));
-        const interruptedGroup = latestAttempt && lastOutcome?.success && lastOutcome.data.ended === 'failed' && !['absolute-timeout', 'idle-timeout'].includes(lastOutcome.data.interruption ?? '')
+        const interruptedGroup = latestAttempt && lastOutcome?.success && ['failed', 'resource-pending', 'context-budget-reached'].includes(lastOutcome.data.ended)
           && (recovery?.state !== 'resumed' || latestAttempt.data.group >= recovery.group) ? latestAttempt : undefined;
         const unfinished = [];
         for (const event of pending) if (!(await operations?.acceptance(run.jobId, event.data.invocation))) unfinished.push(event);
         if (unfinished.length > 0) {
           let safe = true;
+          const unconfirmed = new Set<string>();
           for (const event of pending) {
-            try { if (await operations?.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs) === false) safe = false; }
-            catch (error) { safe = false; this.warn(`Original operation settlement failed: ${message(error)}`); }
+            try { if (await operations?.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs) === false) { safe = false; unconfirmed.add(event.data.invocation); } }
+            catch (error) { safe = false; unconfirmed.add(event.data.invocation); this.warn(`Original operation settlement failed: ${message(error)}`); }
           }
-          if (!safe) {
-            await this.fail(run, 'writer-unsettled', 'Startup interruption retains an unresolved effect or an unreconciled accepted operation');
-            report.interrupted.push(run.key); continue;
-          }
-          for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
+          for (const invocation of await this.closeInterruptedInvocations(run, new Set(), unconfirmed)) report.invocations.push(`${run.key}: ${invocation}`);
           const event = unfinished.at(-1)!;
           const invocation = this.invocationRecord(run, event.data.invocation).body;
-          const ended = invocationOutcomeSchema.parse(this.committedBody(run, runLayout.outcome(event.data.invocation)));
-          if (!ended.settled.confirmed) { await this.fail(run, 'writer-unsettled', 'Startup writer settlement is unavailable'); report.interrupted.push(run.key); continue; }
           const mode = invocation.session.requested;
           const start: RecoveryBoundary['start'] = mode === 'fresh' ? { mode: 'fresh' } : mode === 'fork' ? { mode: 'fork', from: invocation.session.from } : { mode: 'continue', ref: invocation.session.from };
           await this.waitOperationRecovery(run, { kind: 'invocation', role: invocation.role, work: invocation.work, invocation: invocation.id,
             source: invocation.session.from ?? null, start, session: event.data.session,
             requestHash: sha256(canonicalJson({ role: invocation.role, work: invocation.work, prompt: invocation.prompt.requestedInputsHash })) },
-            { classification: 'unknown', diagnostic: 'The service stopped during this original operation; no accepted result was found and no automatic attempt was authorized by restart' },
+            { classification: 'unknown', diagnostic: safe ? 'The service stopped during this original operation; no accepted result was found and no automatic attempt was authorized by restart' : 'Startup retains unconfirmed operation settlement or an unresolved effect. Pending work is held until its owner and effects are independently reconciled.' },
             unfinished.map(event => event.data.invocation), 0, recovery?.group ?? 0, false);
           continue;
         }
@@ -2590,7 +2589,32 @@ export class RunService {
         if (pending.length > 0) run.startupRecovery = true;
       }
 
-      if (!run.log.terminal && this.workflow !== null && run.record.policy.version === capabilityRunPolicyVersion) {
+      if (!run.log.terminal && run.policy.continuity && run.policy.recovery) {
+        // Reconcile an authenticated accepted destination without dispatching a successor.
+        const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
+        const unconfirmed = new Set<string>();
+        const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
+        for (const event of pending) if (!await operations?.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs)) unconfirmed.add(event.data.invocation);
+        for (const invocation of await this.closeInterruptedInvocations(run, new Set(), unconfirmed)) report.invocations.push(`${run.key}: ${invocation}`);
+        const gate = run.log.all('gate-committing').find(event => !run.log.all('gate-attempted').some(attempt => attempt.data.gate === event.data.gate));
+        const operation = gate ? this.committedBody(run, runLayout.gateOperation(gate.data.gate)) as GateOperation | null : null;
+        const candidate = await this.previewCandidateTree().catch(() => ({ head: '', tree: '' }));
+        const latest = run.log.all('invocation-started').at(-1);
+        const boundary: RecoveryBoundary = operation
+          ? { kind: 'gate', checkpoint: operation.checkpoint, work: operation.request.subject, candidate: operation.request.head }
+          : { kind: !run.log.find('analysis-accepted') || run.log.find('readiness-passed') ? 'preparation' : 'readiness', checkpoint: !run.log.find('analysis-accepted') || run.log.find('readiness-passed') ? 'startup' : 'readiness',
+            ...(latest ? { role: latest.data.role as Role, work: latest.data.work, invocation: latest.data.invocation } : {}) };
+        boundary.retainedTask = { candidate: { head: candidate.head, tree: candidate.tree }, acceptedHead: this.accepted(run), work: boundary.work ?? {},
+          configuration: recoveryHash(run.record.auditConfiguration), obligations: operation ? [{ kind: 'gate', id: gate!.data.gate }] : [{ kind: 'retained-workflow', id: run.jobId }],
+          sourceRecords: [runLayout.record, runLayout.events, ...(gate ? [runLayout.gateOperation(gate.data.gate)] : [])],
+          authority: { source: 'explicit-occurrence-bound-resume-required', policy: run.policy.version } };
+        await this.waitOperationRecovery(run, boundary, { classification: 'unknown', diagnostic: 'The service restarted after retained work. Authenticated accepted destinations are preserved; a new model, writer or gate producer requires explicit compatible resume.' },
+          pending.map(event => event.data.invocation), 0, this.latestOperationRecovery(run)?.group ?? 0, false);
+        report.interrupted.push(run.key);
+        continue;
+      }
+
+      if (!run.log.terminal && this.workflow !== null && supportedCapabilityPolicy(run.policy.version)) {
         try {
           await this.reconcileSuspendedCapabilityRequest(run);
         } catch (error) {
@@ -2601,7 +2625,7 @@ export class RunService {
 
 
       if (!run.log.terminal) {
-        if (this.workflow !== null && run.record.policy.version === capabilityRunPolicyVersion &&
+        if (this.workflow !== null && supportedCapabilityPolicy(run.policy.version) &&
           run.log.find('capability-requested') !== undefined) {
           for (const effect of await this.completeEffects(run)) report.effects.push(`${run.key}: ${effect}`);
           for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
@@ -2737,7 +2761,7 @@ export class RunService {
     const sourceChanges = await documentChanges(this.projectRoot, run.record.planId, run.directory, run.record.manifest);
     if (sourceChanges.length > 0) return `captured documents changed: ${sourceChanges.join('; ')}`;
     const marker = run.log.find('nonfunctional-phase-started')!;
-    if (marker.data.maxRounds !== (run.record.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) {
+    if (marker.data.maxRounds !== (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) {
       return 'phase marker round bound differs from captured policy';
     }
     const source = run.log.find('analysis-accepted')?.data.evidence.catalog.hash;
@@ -2908,8 +2932,9 @@ export class RunService {
    * again, and the tree it left is what that run's engineer reads. Its
    * session is finished with it, as `interrupted`.
    */
-  private async closeInterruptedInvocations(run: Run, preserved: ReadonlySet<string> = new Set()): Promise<string[]> {
+  private async closeInterruptedInvocations(run: Run, preserved: ReadonlySet<string> = new Set(), unconfirmed: ReadonlySet<string> = new Set()): Promise<string[]> {
     const closed: string[] = [];
+    const unreconciled = new Set(unconfirmed);
     const ended = new Set(run.log.all('invocation-ended').map(event => event.data.invocation));
     for (const started of run.log.all('invocation-started')) {
       const id = started.data.invocation;
@@ -2924,12 +2949,15 @@ export class RunService {
           if (event.data.invocation !== id) continue;
           const current = await processGroupIdentity(event.data.pid);
           if (current !== null && current === event.data.identity) run.writer.register(id, event.data.pid);
-          else this.warn(`Run ${run.record.jobId}: process group ${event.data.pid} cannot be authenticated after restart; it will not be signalled`);
+          else {
+            if ((this.options.groups ?? nodeProcessGroups).alive(event.data.pid)) unreconciled.add(id);
+            this.warn(`Run ${run.record.jobId}: process group ${event.data.pid} cannot be authenticated after restart; it will not be signalled`);
+          }
         }
       }
       const priorReleases = run.log.all('writer-released').filter(event => event.data.invocation === id);
-      const settled = acquired && !released ? await run.writer.release(id).catch(() => ({ confirmed: false, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] }))
-        : { confirmed: !acquired || priorReleases.length === 1 && priorReleases[0]!.data.confirmed, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] };
+      const settled = acquired && !released ? await run.writer.release(id, unreconciled.has(id) ? { settled: async () => 'timed-out' } : undefined).catch(() => ({ confirmed: false, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] }))
+        : { confirmed: !unreconciled.has(id) && (!acquired || priorReleases.length === 1 && priorReleases[0]!.data.confirmed), at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] };
       if (run.policy.recovery !== undefined && acquired && !released) await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
       // Observations are appended without a transaction, by decision 2, so
       // the last of an invocation the harness was interrupted in may be
@@ -3177,7 +3205,7 @@ export class RunService {
     }
     if (this.options.policy !== undefined) {
       const policy = this.options.policy(this.projectRoot);
-      if (policy.version !== capabilityRunPolicyVersion) throw new CommandRejection('conflict', `Run policy ${policy.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
+      if (!supportedCapabilityPolicy(policy.version)) throw new CommandRejection('conflict', `Run policy ${policy.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
     }
     this.commands.requireVersion(command, 0, 'A start creates a run, whose version is 0');
     const agent = this.options.agent;
@@ -3302,7 +3330,7 @@ export class RunService {
       throw error;
     }
     const policy = (this.options.policy ?? ((root: string) => defaultRunPolicy({ projectRoot: root })))(this.projectRoot);
-    if (policy.version !== capabilityRunPolicyVersion) {
+    if (!supportedCapabilityPolicy(policy.version)) {
       throw new CommandRejection('conflict', `Run policy ${policy.version} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
     }
     return { manifest, packages, promptManifest, policy };
@@ -3416,6 +3444,7 @@ export class RunService {
       if (pause.state !== 'paused') throw new CommandRejection('busy', `The run is ${pause.state}`);
       if (pause.taskState !== 'pending') throw new CommandRejection('conflict', 'An outcome is held; resume consumes it without another model call');
       run.writer.requireSettled('Debugger exchange requires settled tools');
+      await this.adoptContinuityPolicy(run, pauseId);
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       await run.log.append({ type: 'debug-exchange-admitted', data: { pauseId, revision: pause.revision, message: text, command: accepted } }, at);
@@ -3476,6 +3505,7 @@ export class RunService {
       // A held terminal outcome can return to ordinary failure handling without
       // acquiring a writer or starting a model. The unsettled barrier stays set.
       if (run.writer.isUnsettled && (pause.taskState !== 'terminal' || !run.debugPrepared?.held())) throw new CommandRejection('busy', run.writer.blocked!);
+      await this.adoptContinuityPolicy(run, pauseId);
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       await run.log.append({ type: 'debug-resumed', data: { pauseId, revision: pause.revision + 1, command: accepted, ...(command.payload.message === undefined ? {} : { message: command.payload.message }) } }, at);
@@ -3521,7 +3551,7 @@ export class RunService {
    * not they became idle. Whatever a session produces afterwards is rejected.
    */
   private async endStopped(run: Run): Promise<void> {
-    const grace = this.options.stopGraceMs ?? run.record.policy.limits.stopSettleMs;
+    const grace = this.options.stopGraceMs ?? run.policy.limits.stopSettleMs;
     const settled = await this.stopReaders(run, 'stopped', grace, true);
     const readiness = run.readiness;
     if (readiness !== undefined) {
@@ -3569,7 +3599,7 @@ export class RunService {
       new Promise<void>(resolve => { timer = setTimeout(resolve, grace); }),
     ]);
     clearTimeout(timer);
-    if (!this.closed && run.record.policy.reviews !== undefined) {
+    if (!this.closed && run.policy.reviews !== undefined) {
       await this.finishUnsettledReviews(run, (_request, running) => ({
         reason,
         detail: reason === 'deadline'
@@ -3598,6 +3628,7 @@ export class RunService {
       if (refusal !== null) throw new CommandRejection('conflict', refusal);
       const changes = await documentChanges(this.projectRoot, planId, run.directory, run.record.manifest);
       if (changes.length > 0) throw new CommandRejection('inputs-changed', changes.join('; '));
+      await this.adoptContinuityPolicy(run, 'analysis-approval');
       const at = this.now();
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       await run.log.append({
@@ -3775,7 +3806,7 @@ export class RunService {
       await this.fail(run, 'analysis-invalid', 'The fixed non-functional catalog has no accepted hash');
       return null;
     }
-    const maxRounds = run.record.policy.limits.nonfunctionalRoundsPerPlan ?? 3;
+    const maxRounds = run.policy.limits.nonfunctionalRoundsPerPlan ?? 3;
     if (!run.log.find('nonfunctional-phase-started')) {
       await this.write(run, { type: 'nonfunctional-phase-started', data: { catalogHash, maxRounds } });
       await this.afterWrite('nonfunctional-phase-started', run.record.jobId);
@@ -3866,7 +3897,7 @@ export class RunService {
       return false;
     }
     const nfrIds = assessedElements(evidence.catalog);
-    const replay = replayNonfunctionalPhase(run.log.ledger.replay(), nfrIds, run.record.policy.limits.nonfunctionalRoundsPerPlan ?? 3);
+    const replay = replayNonfunctionalPhase(run.log.ledger.replay(), nfrIds, run.policy.limits.nonfunctionalRoundsPerPlan ?? 3);
     if (!replay.ok) return unavailable(replay.reason);
     const decision = decideNonfunctionalRound(replay.value.input);
     if (decision.action !== 'stop' || replay.value.final?.candidateId !== binding.candidateId
@@ -4182,7 +4213,7 @@ export class RunService {
     const workingDirectory = await repairWorkingDirectory(this.projectRoot, assignment.startingModule, index);
     const guarded = guardedScopeOf(assignment.scope, await deniedFiles(this.projectRoot,
       [...await this.deniedFiles(run), ...assignment.guarded.map(file => file.path)]), this.options.ramify, undefined, this.ownershipAuthority(run, assignment));
-    const commandTimeoutMs = engineerBoundsOf(run.record.policy.limits).defaults.commandTimeoutMs;
+    const commandTimeoutMs = engineerBoundsOf(run.policy.limits).defaults.commandTimeoutMs;
     const tools = this.implementationTools(run, { workingDirectory, scopeRevision: 1, guarded, commandTimeoutMs, submissions: { legalOutcomes: ['completed', 'partial'], completionOutcome: null } });
     // A writer like any other: its scope size from the frozen baseline, and
     // its line events from the snapshots around it.
@@ -4426,20 +4457,101 @@ export class RunService {
       capturedInputs: inputs.sort((a, b) => a.path.localeCompare(b.path)), durableIdentity: recoveryHash(durable), acceptedHead: this.accepted(run) };
   }
 
+  /** A later authenticated settlement is new evidence; the original outcome remains immutable. */
+  private effectiveInvocationOutcome(run: Run, id: string): InvocationOutcome | undefined {
+    const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(id);
+    if (!outcome || outcome.settled.confirmed) return outcome;
+    for (const event of [...run.log.all('operation-recovery-resumed')].reverse()) {
+      const recovered = operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision)));
+      const observation = recovered.settlementObservations?.find(item => item.invocation === id);
+      if (observation && recovered.settled && recovered.reconciledInvocations?.includes(id)) return { ...outcome,
+        settled: { confirmed: true, at: observation.at, groupsKilled: observation.groupsKilled, lateWrites: observation.lateWrites },
+        ...(observation.ref && outcome.session ? { session: { ...outcome.session, ref: observation.ref } } : {}) };
+    }
+    return outcome;
+  }
+
+  private async settlementBlockers(run: Run, recovery: OperationRecovery): Promise<string[]> {
+    const blockers: string[] = [];
+    if (run.writer.blocked) blockers.push(`Settlement: ${run.writer.blocked}`);
+    if (run.live.size > 0) blockers.push('Settlement: admitted operations are still live');
+    const preparation = run.log.all('readiness-preparation-started').find(started => !run.log.all('readiness-preparation-completed').some(completed => completed.sequence > started.sequence && completed.data.attempt === started.data.attempt && completed.data.key === started.data.key));
+    if (preparation) blockers.push(`Settlement: readiness setup effect ${preparation.data.key} has no independently confirmed completion`);
+    const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
+    for (const started of run.log.all('invocation-started')) {
+      const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation)));
+      if ((!outcome.success || !outcome.data.settled.confirmed) && !recovery.reconciledInvocations?.includes(started.data.invocation)) blockers.push(`Settlement: invocation ${started.data.invocation} is unconfirmed`);
+      for (const group of !outcome.success || !outcome.data.settled.confirmed && !recovery.reconciledInvocations?.includes(started.data.invocation)
+        ? run.log.all('writer-process-registered').filter(event => event.data.invocation === started.data.invocation) : []) {
+        if ((this.options.groups ?? nodeProcessGroups).alive(group.data.pid)) blockers.push(`Settlement: invocation ${started.data.invocation} retains a registered process group ${group.data.pid}`);
+      }
+      try {
+        if (operations && (await operations.unresolvedEffects(run.jobId, started.data.invocation)).length > 0) blockers.push(`Settlement: invocation ${started.data.invocation} retains an unknown external effect`);
+      } catch (error) { blockers.push(`Settlement: invocation ${started.data.invocation} effect evidence is unavailable: ${message(error)}`); }
+    }
+    if (operations?.settlementConfirmed(run.jobId) === false) blockers.push('Settlement: session effects have not confirmed settlement');
+    return blockers;
+  }
+
+  /** Only an explicit occurrence-bound resume may reconcile a predecessor barrier. */
+  private async reconcileRecoverySettlement(run: Run, recovery: OperationRecovery): Promise<void> {
+    const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
+    if (!operations) return;
+    const reconciled = new Set(recovery.reconciledInvocations ?? []);
+    const observations = [...recovery.settlementObservations ?? []];
+    for (const started of run.log.all('invocation-started')) {
+      const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation)));
+      const unknown = await operations.unresolvedEffects(run.jobId, started.data.invocation);
+      if (unknown.length === 0 && (outcome.success && outcome.data.settled.confirmed || reconciled.has(started.data.invocation))) continue;
+      if (!await operations.stopOriginal(run.jobId, started.data.invocation, run.policy.limits.stopSettleMs)) continue;
+      if ((await operations.reconcileOwnedEffects(run.jobId, started.data.invocation)).length > 0) continue;
+      const registrations = outcome.success && outcome.data.settled.confirmed ? [] : run.log.all('writer-process-registered').filter(event => event.data.invocation === started.data.invocation);
+      const groups = this.options.groups ?? nodeProcessGroups;
+      const alive = registrations.filter(event => groups.alive(event.data.pid));
+      let authenticated = true;
+      for (const group of alive) {
+        const current = await processGroupIdentity(group.data.pid);
+        if (group.data.identity === null || current === null || current !== group.data.identity) authenticated = false;
+      }
+      // A surviving group without its recorded identity is an obstruction, not permission to kill a reused PID.
+      if (!authenticated) continue;
+      let settlement = { confirmed: true, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] as string[] };
+      if (run.writer.unsettledInvocation === undefined && alive.length > 0) {
+        if (run.writer.held !== undefined) continue;
+        run.writer.acquire(started.data.invocation);
+        for (const group of alive) run.writer.register(started.data.invocation, group.data.pid);
+        const observed = await run.writer.release(started.data.invocation, { settled: async () => 'settled' });
+        if (!observed.confirmed) continue;
+        settlement = observed;
+      }
+      if (run.writer.unsettledInvocation === started.data.invocation) {
+        const observation = await run.writer.reinspect(started.data.invocation, { settled: async () => 'settled' });
+        if (!observation?.confirmed) continue;
+        settlement = observation;
+      }
+      observations.push({ invocation: started.data.invocation, at: settlement.at, groupsKilled: settlement.groupsKilled, lateWrites: settlement.lateWrites,
+        ref: await operations.completedPoint(run.jobId, started.data.invocation) });
+      reconciled.add(started.data.invocation);
+    }
+    recovery.reconciledInvocations = [...reconciled]; recovery.settlementObservations = observations;
+    recovery.settled = (await this.settlementBlockers(run, recovery)).length === 0;
+  }
+
   private async recoveryBlockers(run: Run, recovery: OperationRecovery, declared = false): Promise<string[]> {
-    const blockers = [...recovery.prerequisites];
+    const blockers = recovery.prerequisites.filter(reason => !reason.startsWith('Settlement:'));
+    blockers.push(...await this.settlementBlockers(run, recovery));
     if (run.log.terminal || run.stopRequested || this.closed) blockers.push('Stop or service shutdown takes precedence');
     if (!run.policy.recovery) blockers.push('This historical policy does not authorize interruption recovery');
     if (!declared && ['permanent', 'adapter-fault', 'preparation', 'check-execution'].includes(recovery.evidence.classification)) blockers.push('This nontransport obstruction requires an external repair declaration');
-    if (recovery.state !== 'paused' || !recovery.settled) blockers.push('Ordinary writers and tools have not reached a confirmed pause');
+    if (recovery.state !== 'paused') blockers.push('Ordinary writers and tools have not reached a confirmed pause');
     if (run.writer.isUnsettled || run.live.size > 0) blockers.push('Writer or tool settlement is unavailable');
     const reservesInvocation = recovery.boundary.kind === 'invocation' || recovery.boundary.kind === 'preparation';
     const refusal = reservesInvocation ? this.invocationRefusal(run) : this.executionTimeRefusal(run);
     if (refusal !== null) blockers.push(refusal);
     const repair = this.latestRepairIncident(run);
-    if (repair && ['admitted', 'running', 'interrupted', 'blocked', 'unverified'].includes(repair.stage)) blockers.push('An unfinished automatic root repair requires manual attention');
+    if (repair && ['admitted', 'running', 'interrupted', 'blocked', 'unverified'].includes(repair.stage) && recovery.boundary.work?.automaticRepair !== repair.incident.incidentId) blockers.push('An unfinished automatic root repair requires manual attention');
     if (!recovery.boundary.reconstruction && recovery.boundary.source && this.options.agent && !(await (await this.operations(this.options.agent)).hasPoint(run.jobId, recovery.boundary.source))) blockers.push('The exact recorded session source is unavailable');
-    if (recovery.boundary.reconstruction) {
+    if (recovery.boundary.reconstruction?.name === 'fresh-step-construction') {
       try {
         const inputs = validateStepInputs(recovery.boundary.reconstruction.inputs);
         if (recoveryHash(inputs) !== recovery.boundary.reconstruction.inputsHash || inputs.role !== recovery.boundary.role) blockers.push('Named source reconstruction inputs changed or name another role');
@@ -4448,6 +4560,10 @@ export class RunService {
     if (this.options.agent) {
       try {
         const operations = await this.operations(this.options.agent);
+        if (recovery.boundary.reconstruction?.name === 'retained-task-request') {
+          const source = await operations.originalOperation(run.jobId, recovery.boundary.reconstruction.invocation);
+          if (!source || recoveryHash(source) !== recovery.boundary.reconstruction.inputsHash) blockers.push('Retained original task inputs are unavailable or changed');
+        }
         for (const id of recovery.attempts.filter(id => /^inv-/u.test(id))) {
           if ((await operations.unresolvedEffects(run.jobId, id)).length > 0) blockers.push(`Invocation ${id} retains an unknown external effect`);
           const original = await operations.originalOperation(run.jobId, id);
@@ -4492,9 +4608,13 @@ export class RunService {
         ...(recovery.evidence.retryAfterMs === undefined ? {} : { retryAfterMs: recovery.evidence.retryAfterMs }) },
       group: recovery.group, automaticAttempts: recovery.automaticAttempts, attempts: recovery.attempts, pausedAt: recovery.pausedAt,
       canResume: blockers.length === 0, blockers: [...new Set(blockers)], remaining: {
-        invocations: Math.max(0, run.policy.limits.maxInvocationsPerRun - run.log.count('invocation-started')),
-        activeMs: Math.max(0, run.policy.limits.runAbsoluteMs - (now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now))) },
-      retained: { candidate: recovery.candidate, partialPaths: recovery.partialPaths },
+        invocations: run.policy.continuity ? null : Math.max(0, run.policy.limits.maxInvocationsPerRun - run.log.count('invocation-started')),
+        activeMs: run.policy.continuity ? null : Math.max(0, run.policy.limits.runAbsoluteMs - (now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now))) },
+      ...(run.policy.continuity ? { continuity: { policy: 'run-policy/8', resource: recovery.boundary.invocation ? this.effectiveInvocationOutcome(run, recovery.boundary.invocation)?.resource ?? (this.effectiveInvocationOutcome(run, recovery.boundary.invocation)?.settled.confirmed === false ? 'stall' : null) : null,
+        predecessor: recovery.boundary.invocation ?? null, successor: null, settlement: recovery.settled && !blockers.some(value => value.startsWith('Settlement:')) ? 'confirmed' : 'unknown',
+        effects: recovery.settled && !blockers.some(value => /[Ee]ffect|[Ss]ettlement/.test(value)) ? 'reconciled' : 'unknown',
+        ...(recovery.settlementObservations ? { observations: recovery.settlementObservations } : {}) } } : {}),
+      retained: { candidate: recovery.candidate, partialPaths: recovery.partialPaths, ...(recovery.boundary.retainedTask ? { task: recovery.boundary.retainedTask } : {}) },
       totalInvocations: run.log.count('invocation-started'),
       timing: { activeMs: Math.max(0, now - Date.parse(run.createdAt) - callerPauseMs(run.log.events, now)),
         pausedMs: callerPauseMs(run.log.events, now), currentPauseMs: recovery.pausedAt === null ? 0 : Math.max(0, now - Date.parse(recovery.pausedAt)) },
@@ -4511,7 +4631,9 @@ export class RunService {
     while (run.recoveryPause) { const changed = run.changed(); if (this.ignoring(run)) return false; await changed; }
     const id = `opr-${String(run.log.count('operation-recovery-pausing') + 1).padStart(4, '0')}`;
     const recovery: OperationRecovery = { schema: 'ramify-agent.operation-recovery/1', id, revision: 1, state: 'pausing', boundary, evidence,
-      group, automaticAttempts, attempts: [...attempts], pausedAt: null, settled: false, candidate: { head: '', tree: '' }, partialPaths: [], prerequisites: [] };
+      group, automaticAttempts, attempts: [...attempts], pausedAt: null, settled: false, candidate: { head: '', tree: '' }, partialPaths: [], prerequisites: [],
+      reconciledInvocations: [...new Set(run.log.all('operation-recovery-resumed').flatMap(event => operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision))).reconciledInvocations ?? []))],
+      settlementObservations: run.log.all('operation-recovery-resumed').flatMap(event => operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision))).settlementObservations ?? []) };
     run.recoveryPause = recovery;
     run.recoveryReviewRelease = run.reviews?.suspend(false);
     await this.write(run, { type: 'operation-recovery-pausing', data: { occurrenceId: id, revision: 1 } },
@@ -4521,30 +4643,19 @@ export class RunService {
     while (run.live.size > 0) await Promise.all([...run.live.values()].map(live => live.done));
     await run.reviews?.settledExcept(id => run.recoveryReviewPipelines.has(id), () => run.changed());
     if (this.ignoring(run)) return false;
-    run.writer.requireSettled('Interruption recovery requires confirmed writer settlement');
-    const unresolvedPreparation = run.log.all('readiness-preparation-started').find(started => !run.log.all('readiness-preparation-completed').some(completed => completed.sequence > started.sequence && completed.data.attempt === started.data.attempt && completed.data.key === started.data.key));
-    if (unresolvedPreparation) { await this.fail(run, 'writer-unsettled', `Readiness setup effect ${unresolvedPreparation.data.key} has no independently confirmed completion`); return false; }
     const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
-    for (const started of run.log.all('invocation-started')) {
-      const body = this.committedBody(run, runLayout.outcome(started.data.invocation));
-      const outcome = invocationOutcomeSchema.safeParse(body);
-      if (!outcome.success || !outcome.data.settled.confirmed || operations && (await operations.unresolvedEffects(run.jobId, started.data.invocation)).length > 0) {
-        await this.fail(run, 'writer-unsettled', `Invocation ${started.data.invocation} has unconfirmed settlement or an unresolved effect; no usable recovery pause is published`); return false;
-      }
-    }
-    if (operations?.settlementConfirmed(run.jobId) === false) { await this.fail(run, 'writer-unsettled', 'Session effects did not confirm settlement'); return false; }
-    const refusal = boundary.kind === 'gate' || boundary.kind === 'readiness' ? this.executionTimeRefusal(run) : this.invocationRefusal(run);
-    if (refusal !== null) { await this.fail(run, 'limit-exceeded', refusal); return false; }
+    recovery.prerequisites = await this.settlementBlockers(run, recovery);
+    recovery.settled = recovery.prerequisites.length === 0;
     try {
       const observed = await this.captureRecoveryIdentity(run);
       recovery.identity = expectedIdentity ?? observed;
       recovery.candidate = { head: recovery.identity.candidate.head, tree: recovery.identity.candidate.tree };
       recovery.partialPaths = expectedIdentity === undefined ? await this.git.changedPaths(this.projectRoot, this.accepted(run))
         : [...this.latestOperationRecovery(run)?.partialPaths ?? []];
-    } catch (error) { await this.fail(run, 'recovery-exhausted', `Recovery identity cannot be authenticated: ${message(error)}`); return false; }
+    } catch (error) { recovery.prerequisites.push(`Recovery identity cannot be authenticated: ${message(error)}`); }
     await run.mutex.run(async () => {
       if (this.ignoring(run)) return;
-      recovery.state = 'paused'; recovery.revision++; recovery.settled = true; recovery.pausedAt = this.now().toISOString();
+      recovery.state = 'paused'; recovery.revision++; recovery.pausedAt = this.now().toISOString();
       recovery.waitingReviews = unsettledRequests(run.log.events).filter(request => !run.reviews?.active.includes(request.id)).flatMap(request => {
         const deadline = this.reviewDeadline(run, request.id); const remainingMs = deadline === null ? null : deadline - this.now().getTime();
         return remainingMs !== null && remainingMs >= (run.policy.reviews?.attemptMs ?? 0) ? [{ request: request.id, remainingMs }] : [];
@@ -4560,6 +4671,15 @@ export class RunService {
     return true;
   }
 
+  private async adoptContinuityPolicy(run: Run, occurrenceId: string): Promise<void> {
+    if (run.policy.continuity) return;
+    const original = run.policy;
+    const defaults = defaultRunPolicy({ projectRoot: this.projectRoot });
+    const effective: RunPolicy = { ...original, version: 'run-policy/8', continuity: defaults.continuity, context: { ...original.context, ...Object.fromEntries(Object.keys(original.context).map(role => [role, defaultContextPolicies[role as Role]])) }, recovery: defaults.recovery };
+    await run.log.append({ type: 'continuity-policy-adopted', data: { from: original.version, to: 'run-policy/8', occurrenceId, policy: effective } }, this.now());
+    run.effectivePolicy = effective;
+  }
+
   private async resumeRecovery(command: Extract<RunCommand, { type: 'resume-recovery' }>, contentHash: string): Promise<Receipt> {
     const { planId, jobId, occurrenceId, expectedRevision, repair } = command.payload;
     this.refuseEarlierPolicy(planId, jobId);
@@ -4569,6 +4689,7 @@ export class RunService {
       const recovery = run.recoveryPause;
       if (!recovery || recovery.id !== occurrenceId) throw new CommandRejection('conflict', 'This is not the current recovery occurrence');
       if (recovery.revision !== expectedRevision) throw new CommandRejection('stale-version', `Recovery is at revision ${recovery.revision}`, recovery.revision);
+      await this.reconcileRecoverySettlement(run, recovery);
       const blockers = await this.recoveryBlockers(run, recovery, repair !== undefined);
       let identity: RecoveryIdentity | undefined;
       try { identity = await this.captureRecoveryIdentity(run); } catch (error) { blockers.push(message(error)); }
@@ -4578,11 +4699,12 @@ export class RunService {
       if (admission && (admission.requiresReassessment || admission.before.candidate.tree !== admission.after.candidate.tree) && recovery.boundary.checkpoint === 'final' && run.log.count('nonfunctional-round-closed') >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) blockers.push('The retained final candidate needs responsible reassessment, but its captured non-functional round allowance is exhausted');
       if (blockers.length > 0) throw new CommandRejection('conflict', blockers.join('; '), recovery.revision);
       const at = this.now();
+      await this.adoptContinuityPolicy(run, occurrenceId);
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
       const resumed = operationRecoverySchema.parse({ ...recovery, state: 'resumed', revision: recovery.revision + 1, group: recovery.group + 1, admission });
       await commitRecord(run.log.ledger, { event: run.log.next({ type: 'operation-recovery-resumed', data: { occurrenceId, revision: resumed.revision, group: resumed.group, command: accepted } }, at),
         records: [{ path: runLayout.operationRecovery(occurrenceId, resumed.revision), id: occurrenceId, revision: resumed.revision, body: resumed }] });
-      this.commands.remember(accepted); run.recoveryPause = undefined;
+      this.commands.remember(accepted); run.recoveryPause = undefined; run.startupRecovery = false;
       return accepted.receipt;
     });
     run.recoveryReviewRelease?.(); run.recoveryReviewRelease = undefined;
@@ -4605,10 +4727,40 @@ export class RunService {
       .catch(error => this.warn(`Run ${run.jobId}: ${message(error)}`));
   }
 
+  /** Reconstruct the current task from committed state, without asking the predecessor for a report. */
+  private async retainedResourceTask<T>(run: Run, request: InvocationRequest<T>): Promise<NonNullable<RecoveryBoundary['retainedTask']>> {
+    const candidate = await this.previewCandidateTree();
+    const records = committedRecords(run.log.ledger.replay());
+    const findings = [...checkFindingStateOf(run.log.ledger).findings.values()].filter(entry => entry.standing === 'open');
+    const scenarioRecords = trackedScenarios(run.log.ledger.replay()).records;
+    const obligations: NonNullable<RecoveryBoundary['retainedTask']>['obligations'] = [
+      ...findings.map(entry => ({ kind: 'check-finding', id: entry.id, revision: entry.revision })),
+      ...[...records.capabilityRequests.keys()].filter(id => !records.capabilityHandbacks.has(id)).map(id => ({ kind: 'capability-request', id })),
+      ...[...records.requirements.values()].map(requirement => ({ kind: 'requirement', id: requirement.id, revision: requirement.revision })),
+      ...unsettledRequests(run.log.events).map(review => ({ kind: `review:${review.kind}`, id: review.id })),
+      ...scenarioRecords.map(scenario => ({ kind: 'scenario', id: scenario.id })),
+      { kind: 'submission', id: request.toolName },
+    ];
+    const paths = new Set<string>();
+    for (const entry of run.log.ledger.replay()) for (const record of entry.transaction.records) {
+      if (/^(?:work-items|architecture|contracts|capabilities|check-findings|scenarios|gates)\//u.test(record.path)
+        || record.path === runLayout.events || record.path.startsWith('invocations/') && record.path.endsWith('/submission.json')) paths.add(record.path);
+    }
+    return { candidate: { head: candidate.head, tree: candidate.tree }, acceptedHead: this.accepted(run), work: request.work,
+      configuration: this.latestOperationRecovery(run)?.admission?.after.configuration.identity ?? recoveryHash(run.record.auditConfiguration),
+      progressIdentity: recoveryHash({ candidate: candidate.tree, acceptedHead: this.accepted(run),
+        registry: records.registry, decisions: [...records.decisions.values()], requirements: [...records.requirements.values()],
+        findings: findings.map(entry => ({ id: entry.id, revision: entry.revision, standing: entry.standing })),
+        capabilityState: [...replayCapabilityState(run.log.events).tasks.values()] }),
+      obligations, sourceRecords: [...paths],
+      authority: { role: request.role, writer: request.writer === true, scope: request.scope, submission: request.toolName,
+        assignment: request.work.iteration ?? request.work.automaticRepair ?? null, policy: run.policy.version } };
+  }
+
   /** A transport attempt group is independent of semantic role and request budgets. */
   private async recoverableInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     const policy = run.policy.recovery;
-    if (!policy || request.task?.kind === 'automatic-repair' || request.work.automaticRepair) return this.runner.runInvocation(run, agent, request);
+    if (!policy) return this.runner.runInvocation(run, agent, request);
     while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
     if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
     if (run.startupRecovery) {
@@ -4625,13 +4777,13 @@ export class RunService {
       }
     }
     const prior = this.latestOperationRecovery(run);
-    const consumed = prior?.state === 'resumed' && run.log.all('operation-recovery-attempt').some(event => event.data.group === prior.group && event.data.requestHash === prior.boundary.requestHash && (() => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(event.data.invocation))); return outcome.success && outcome.data.ended !== 'failed'; })());
+    const consumed = prior?.state === 'resumed' && run.log.all('operation-recovery-attempt').some(event => event.data.group === prior.group && event.data.requestHash === prior.boundary.requestHash && (() => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(event.data.invocation))); return outcome.success && ['submitted', 'ended', 'invalid-submission'].includes(outcome.data.ended); })());
     const resumed = prior?.state === 'resumed' && !consumed && prior.boundary.kind === 'invocation' && prior.boundary.role === request.role && (prior.boundary.tool === undefined || prior.boundary.tool === request.toolName) && canonicalJson(prior.boundary.work) === canonicalJson(request.work) ? prior : undefined;
     const requestHash = resumed?.boundary.requestHash ?? sha256(canonicalJson({ role: request.role, work: request.work, tool: request.toolName, prompt: request.prompt, system: request.systemPrompt }));
     let group = resumed?.group ?? 0;
     let current = resumed?.boundary.start ? { ...request, start: resumed.boundary.start as SessionStart, session: resumed.boundary.session,
       originalInvocation: undefined, restore: false, recoveryPredecessor: resumed.attempts.at(-1) } : request;
-    if (resumed?.boundary.reconstruction?.inputs !== undefined) {
+    if (resumed?.boundary.reconstruction?.name === 'fresh-step-construction' && resumed.boundary.reconstruction.inputs !== undefined) {
       const retained = validateStepInputs(resumed.boundary.reconstruction.inputs);
       const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
       current = { ...current, allowFreshFallback: true, fallback: () => {
@@ -4639,7 +4791,12 @@ export class RunService {
         return { prompt: step.prompt, brief: step.brief, stepInputs: step.before.inputs };
       } };
     }
-    if (resumed?.boundary.start?.mode === 'continue' && resumed.boundary.start.ref) {
+    if (resumed?.boundary.reconstruction?.name === 'retained-task-request') {
+      const source = await (await this.operations(agent)).originalOperation(run.jobId, resumed.boundary.reconstruction.invocation);
+      current = { ...current, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
+        task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:resource-recovery', text: `${source?.task.message ?? request.prompt}\nCurrent retained task: ${JSON.stringify(resumed.boundary.retainedTask)}. Effects and authoritative records: ${run.path(runLayout.events)}.` }] } : request.task };
+    }
+    if (resumed?.boundary.reconstruction?.name !== 'retained-task-request' && resumed?.boundary.start?.mode === 'continue' && resumed.boundary.start.ref) {
       const original = run.log.all('invocation-started').find(event => event.data.invocation === resumed.attempts[0]);
       if (original?.data.continues) current = { ...current, start: { mode: 'fork', from: resumed.boundary.start.ref }, session: undefined, continuing: undefined,
         fork: { from: original.data.continues.from, briefs: original.data.continues.briefs, reason: 'interruption-recovery' },
@@ -4651,9 +4808,13 @@ export class RunService {
       brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: resumed.admission.after.candidate.tree } } : undefined,
       ...(request.singleAdmission ? { onStarted: undefined } : {}) };
     const all = [...resumed?.attempts ?? []];
-    let usedMs = all.reduce((total, id) => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(id))); return total + (outcome.success ? outcome.data.elapsedMs : 0); }, 0);
+    const seenEffects = new Set<string>();
+    for (const id of all) for (const effect of await (await this.operations(agent)).completedEffects(run.jobId, id)) {
+      if (!effect.tool.startsWith('afterMutation:')) seenEffects.add(recoveryHash({ tool: effect.tool, input: effect.input, result: effect.result, verdict: effect.verdict }));
+    }
     const groupEvents = run.log.all('operation-recovery-attempt').filter(event => event.data.requestHash === requestHash && event.data.group === group);
     let automatic = Math.max(0, ...groupEvents.map(event => event.data.attempt));
+    let lastResourceProgress = resumed?.boundary.retainedTask?.progressIdentity;
     for (;;) {
       while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
       if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
@@ -4665,6 +4826,7 @@ export class RunService {
       }
       const beforeInvocations = run.log.count('invocation-started');
       const result = await this.runner.runInvocation(run, agent, { ...current, recoveryGroup: group,
+        context: run.policy.continuity ? contextPolicyOf(run.policy, request.role) : current.context,
         onStarted: async (id, session) => {
           // Admission is durable before provider dispatch and before the caller's
           // semantic start callback, so a crash cannot renew this attempt.
@@ -4681,28 +4843,64 @@ export class RunService {
             { type: 'operation-recovery-attempt', data: { requestHash, group, attempt: automatic, invocation: id, predecessor: this.invocationRecord(run, id).body.recoveryPredecessor ?? null } });
         }
       }
-      usedMs += result.elapsedMs ?? 0;
-      if (result.ended !== 'failed' || result.interruption === 'idle-timeout' || result.interruption === 'absolute-timeout' || this.ignoring(run)) return result;
-      if (result.settlementConfirmed !== true) { await this.fail(run, 'writer-unsettled', `Interrupted invocation ${result.id} did not confirm settlement`); return result; }
-      const unresolved = await (await this.operations(agent)).unresolvedEffects(run.jobId, result.id);
-      if (unresolved.length > 0) { await this.fail(run, 'writer-unsettled', `Invocation ${result.id} retains unknown external effects: ${unresolved.join(', ')}`); return result; }
-      const evidence = result.interruptionEvidence ?? { classification: 'unknown' as const, diagnostic: result.error ?? 'Provider interruption has insufficient structured classification evidence' };
-      const reconstruction = request.fallback?.('Recovery source reconstruction');
+      const resource = result.settlementConfirmed === false || result.ended === 'resource-pending' || result.ended === 'context-budget-reached' || result.interruption === 'idle-timeout' || result.interruption === 'absolute-timeout';
+      if ((!resource && result.ended !== 'failed') || this.ignoring(run)) return result;
+      let unresolved: string[] = [];
+      let evidence: InterruptionEvidence = resource ? { ...result.interruptionEvidence, classification: 'transport', diagnostic: result.resourceReason ?? result.error ?? `Resource recovery remains pending (${result.ended})` }
+        : result.interruptionEvidence ?? { classification: 'unknown', diagnostic: result.error ?? 'Provider interruption has insufficient structured classification evidence' };
+      let reconstruction: ReturnType<NonNullable<InvocationRequest<T>['fallback']>> = undefined;
+      let retainedState: RecoveryBoundary['retainedTask'];
+      let retainedTask: Awaited<ReturnType<HarnessSessionOperations['originalOperation']>> = null;
+      try {
+        const operations = await this.operations(agent);
+        unresolved = await operations.unresolvedEffects(run.jobId, result.id);
+        reconstruction = request.fallback?.('Recovery source reconstruction');
+        retainedState = resource ? await this.retainedResourceTask(run, request) : undefined;
+        retainedTask = resource ? await operations.originalOperation(run.jobId, result.id) : null;
+        let usefulEffects = false;
+        for (const effect of await operations.completedEffects(run.jobId, result.id)) {
+          if (effect.tool.startsWith('afterMutation:')) continue;
+          const identity = recoveryHash({ tool: effect.tool, input: effect.input, result: effect.result, verdict: effect.verdict });
+          if (!seenEffects.has(identity)) { seenEffects.add(identity); usefulEffects = true; }
+        }
+        if (resource && usefulEffects || retainedState?.progressIdentity && lastResourceProgress && retainedState.progressIdentity !== lastResourceProgress) automatic = 0;
+        if (retainedState?.progressIdentity) lastResourceProgress = retainedState.progressIdentity;
+      } catch (error) {
+        evidence = { ...evidence, classification: 'preparation', diagnostic: `${evidence.diagnostic}; recovery source or effect evidence is unavailable: ${message(error)}` };
+      }
       const boundary: RecoveryBoundary = { kind: 'invocation', role: request.role, work: request.work, invocation: result.id,
         source: request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from,
-        requestHash, start: request.start, ...(request.recoveryReviewRequest === undefined ? {} : { reviewRequest: request.recoveryReviewRequest }), ...(request.session === undefined ? {} : { session: request.session }), tool: request.toolName,
-        ...(reconstruction ? { reconstruction: { name: 'fresh-step-construction', mode: 'fresh', inputsHash: recoveryHash(reconstruction.stepInputs), inputs: reconstruction.stepInputs } } : {}) };
-      if (evidence.classification !== 'transport' || automatic >= policy.automaticRetries) {
+        requestHash, start: request.start, ...(retainedState === undefined ? {} : { retainedTask: retainedState }), ...(request.recoveryReviewRequest === undefined ? {} : { reviewRequest: request.recoveryReviewRequest }), ...(request.session === undefined ? {} : { session: request.session }), tool: request.toolName,
+        ...(reconstruction ? { reconstruction: { name: 'fresh-step-construction', mode: 'fresh', inputsHash: recoveryHash(reconstruction.stepInputs), inputs: reconstruction.stepInputs } } : retainedTask ? { reconstruction: { name: 'retained-task-request', mode: 'fresh', invocation: result.id, inputsHash: recoveryHash(retainedTask) } } : {}) };
+      if (resource && !retainedTask || result.settlementConfirmed !== true || unresolved.length > 0 || evidence.classification !== 'transport' || automatic >= policy.automaticRetries) {
         if (!await this.waitOperationRecovery(run, boundary, evidence, all, automatic, group)) return { ...result, ended: 'stopped', outcomeKind: 'stopped', value: undefined };
         group++; automatic = 0;
       } else {
         automatic++;
         const delay = Math.min(policy.maxDelayMs, Math.max(policy.baseDelayMs * 2 ** (automatic - 1), evidence.retryAfterMs ?? 0));
-        usedMs += delay;
         await Promise.race([new Promise<void>(resolve => { const timer = setTimeout(resolve, delay); void run.changed().then(() => { clearTimeout(timer); resolve(); }); }), ...(request.signal ? [new Promise<void>(resolve => request.signal!.addEventListener('abort', () => resolve(), { once: true }))] : [])]);
         if (this.ignoring(run) || request.signal?.aborted) return { ...result, ended: 'stopped', outcomeKind: 'stopped', value: undefined };
       }
-      if (request.absoluteMs !== undefined && usedMs >= request.absoluteMs) return { ...result, interruption: 'absolute-timeout', error: 'The logical attempt exhausted its captured execution budget' };
+      if (resource && result.ended === 'submitted' && result.value !== undefined) {
+        const confirmed = this.effectiveInvocationOutcome(run, result.id);
+        if (confirmed?.settled.confirmed) return { ...result, settlementConfirmed: true, pending: false, ref: confirmed.session?.ref ?? result.ref };
+      }
+      if (resource) {
+        retainedState ??= await this.retainedResourceTask(run, request);
+        retainedTask ??= await (await this.operations(agent)).originalOperation(run.jobId, result.id);
+        const successor = request.fallback?.('Source-backed resource recovery');
+        const recoveryContext = `Original task source: ${result.id}. Interrupted work remains pending; no partial or completion report was inferred. Retained candidate and accepted effects must be reconciled, never discarded or replayed.\nCurrent durable task: ${JSON.stringify(retainedState)}.\nAuthority is the current assignment and validator; earlier sessions are revoked. Accepted records and effects are available at ${run.path(runLayout.events)} and ${run.path('session-operations')}.\n${retainedTask?.task.message ?? request.freshPrompt ?? request.prompt}`;
+        current = { ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
+          recoveryPredecessor: result.id, recoveryGroup: group,
+          prompt: [successor?.prompt ?? request.freshPrompt ?? request.prompt, `\nContinue the original pending task after resource interruption ${result.id}. No report or submission was inferred. Preserve current obligations, partial candidate and accepted effects; do not replay authenticated effects.`,
+            `Durable predecessor inputs: ${run.path(runLayout.stepInputs(result.id))}. Retained transcript: ${run.path(runLayout.transcript(result.session))}.`].join('\n'),
+          ...(successor ? { stepInputs: successor.stepInputs } : {}),
+          brief: successor?.brief ?? (request.brief ? { ...request.brief, sections: [...request.brief.sections, { key: 'support:resource-recovery', text: recoveryContext }] } : undefined),
+          task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:resource-recovery', text: recoveryContext }] } : request.task,
+          ...(request.singleAdmission ? { onStarted: undefined } : {}),
+          degraded: { requested: request.start.mode === 'continue' ? 'continued' : request.start.mode === 'fork' ? 'fork' : 'fresh', reason: 'Source-backed successor retains the current task after native recovery or watchdog interruption' } };
+        continue;
+      }
       // A successor gets a new identity and reuses only the original exact source.
       const admitted = this.latestOperationRecovery(run);
       const originalStart = request.start;
@@ -4718,14 +4916,16 @@ export class RunService {
           task: request.task ? { ...request.task, candidate: admitted.admission.after.candidate.tree } : undefined,
           brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: admitted.admission.after.candidate.tree } } : undefined,
         } : {}),
-        attempt: request.attempt, ...(request.absoluteMs === undefined ? {} : { absoluteMs: Math.max(1, request.absoluteMs - usedMs) }), allowFreshFallback: request.fallback !== undefined ? request.allowFreshFallback : false };
+        attempt: request.attempt, allowFreshFallback: request.fallback !== undefined ? request.allowFreshFallback : false };
     }
   }
 
   /** One invocation, through the invocation runner every role shares. */
   private async runInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (run.record.breakpoint !== undefined && ['engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role)) {
-      let current = request;
+      let current = request.stepInputs && request.fallback === undefined
+        ? { ...request, fallback: this.stepFallback(request.stepInputs, request.consultationPackages ?? new Map([[request.role, request.loaded]])) }
+        : request;
       let held: InvocationResult<T> | undefined;
       run.debugPrepared = {
         inspect: () => this.runner.preview(run, agent, current),
@@ -5297,8 +5497,8 @@ export class RunService {
         continue;
       }
       if (records.workItems.length === 0) return true;
-      if (records.workItems.length > run.record.policy.limits.maxWorkItems) {
-        await this.fail(run, 'limit-exceeded', `The run has ${records.workItems.length} work items; the policy allows ${run.record.policy.limits.maxWorkItems}`);
+      if (records.workItems.length > run.policy.limits.maxWorkItems) {
+        await this.fail(run, 'limit-exceeded', `The run has ${records.workItems.length} work items; the policy allows ${run.policy.limits.maxWorkItems}`);
         return false;
       }
       const state = this.scheduleStateOf(run, records);
@@ -5319,9 +5519,9 @@ export class RunService {
       }
       const turns = run.log.all('work-item-started').filter(event => event.data.workItem === next.item.id).length
         + run.log.all('work-item-resumed').filter(event => event.data.workItem === next.item.id).length;
-      if (turns > run.record.policy.limits.maxIterationsPerWorkItem) {
+      if (turns > run.policy.limits.maxIterationsPerWorkItem) {
         await this.fail(run, 'limit-exceeded',
-          `${next.item.id} has been taken up ${turns} times, and the policy allows ${run.record.policy.limits.maxIterationsPerWorkItem}`);
+          `${next.item.id} has been taken up ${turns} times, and the policy allows ${run.policy.limits.maxIterationsPerWorkItem}`);
         return false;
       }
       if (await this.takeWorkItem(run, agent, packages, baseline, next.item, next.resumes) === null) return false;
@@ -5405,7 +5605,7 @@ export class RunService {
     const latest = [...run.log.all('invocation-started')].reverse().find(event => event.data.role === 'capability-architect' &&
       event.data.work.capabilityTask === activeId && event.data.work.request === request.id &&
       !reconciliationSessions.has(event.data.session));
-    if (this.capabilityBudgetReturns(run, activeId) >= run.record.policy.limits.budgetReturnsPerIteration) {
+    if (!run.policy.continuity && (this.capabilityBudgetReturns(run, activeId) >= run.policy.limits.budgetReturnsPerIteration)) {
       await this.fail(run, 'limit-exceeded', `Capability architect of ${activeId} exhausted its captured context-budget return bound; unfinished task remains`);
       return false;
     }
@@ -5555,7 +5755,7 @@ export class RunService {
       return { kind: 'failed' };
     }
     const selector = packages.get('context-selector');
-    if (selector === undefined || run.record.policy.context['context-selector'] === undefined) {
+    if (selector === undefined || run.policy.context['context-selector'] === undefined) {
       await this.fail(run, 'internal', 'The run has no context selector package or captured context policy');
       return { kind: 'failed' };
     }
@@ -5566,8 +5766,8 @@ export class RunService {
     // constructor, which `step render` uses too.
     const orientationInputs = (attempt: number, known: KnownFactsInputs): OrientationStepInputs => ({
       schema: stepInputsSchemaId, role: 'local-architect', phase: 'orientation', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
-      work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits,
-      context: contextPolicyOf(run.record.policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
+      work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.policy.limits,
+      context: contextPolicyOf(run.policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
       briefing: workBriefingInputs(briefing), requirements: orientationRequirements, known, architectView: orientationViews,
       start: { kind: 'fresh' },
     });
@@ -5611,7 +5811,7 @@ export class RunService {
         } catch { /* Another local submission is not an orientation. */ }
       }
       if (prior === undefined) {
-        const count = run.record.policy.limits.forkRetriesPerRequest + 1;
+        const count = run.policy.limits.forkRetriesPerRequest + 1;
         for (let attempt = attempts.length + 1; attempt <= count && !this.ignoring(run); attempt++) {
           const step = attempt === 1 ? first : await orientationStep(attempt);
           const result = await this.runInvocation<WorkOrientationSubmission>(run, agent, {
@@ -5778,7 +5978,7 @@ export class RunService {
   ): Promise<RunEventOf<'context-selection-recorded'> | undefined | 'failed'> {
     const supersedes = run.log.all('context-selection-recorded').filter(event => event.data.workItem === item.id).at(-1)?.data.selection;
     let selectionEvent: RunEventOf<'context-selection-recorded'> | undefined;
-    const count = run.record.policy.limits.forkRetriesPerRequest + 1;
+    const count = run.policy.limits.forkRetriesPerRequest + 1;
     const workspace = join('work', item.id, 'selector-workspace');
     for (let attempt = 1; attempt <= count && !this.ignoring(run); attempt++) {
       const forked = from.point !== null && from.session !== undefined;
@@ -5789,7 +5989,7 @@ export class RunService {
       const oriented = await this.orientationStartingPoints(run, item.id);
       const inputs = validateSelectorInputs({
         schema: stepInputsSchemaId, role: 'context-selector', run: { planId: run.record.planId, runId: run.record.jobId }, work: { workItem: item.id },
-        attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits, context: contextPolicyOf(run.record.policy, 'context-selector'),
+        attempt, capabilityWorkflow: this.workflow !== null, limits: run.policy.limits, context: contextPolicyOf(run.policy, 'context-selector'),
         kind: supersedes === undefined ? 'selection' : 'reselection', goal: item.goal,
         requirements: [this.planPackage(run, source.catalog, source.workItemElements)],
         packet: from.packet, ...(from.update === undefined ? {} : { update: from.update }),
@@ -6016,7 +6216,7 @@ export class RunService {
     /** How many times completion was refused for an open requirement. */
     let refusals = 0;
     let released = resumes;
-    const bound = run.record.policy.limits.repairRoundsPerWorkItemGate;
+    const bound = run.policy.limits.repairRoundsPerWorkItemGate;
     /** The reconciliation that returns this work item to its architect: a correction, or a brief that did not land. */
     let returned: string | undefined;
     /** The rounds whose brief the architect's own session lacks, which its next input carries from the log. */
@@ -6025,7 +6225,7 @@ export class RunService {
     // A recovered handback still owes the original A engineer its suspended
     // iteration. Its assignment remains open; no new module architect turn
     // may assign over it or treat the handback as completion of A's goal.
-    if (this.workflow !== null && run.record.policy.version === capabilityRunPolicyVersion) {
+    if (this.workflow !== null && supportedCapabilityPolicy(run.policy.version)) {
       const saved = committedRecords(run.log.ledger.replay());
       const capabilityState = replayCapabilityState(run.log.events);
       const unqualified = [...saved.capabilityRequests.values()].find(request =>
@@ -6146,7 +6346,7 @@ export class RunService {
       if (latest?.type === 'invocation-started' && !run.log.all('work-item-yielded').some(event => event.data.invocation === latest.data.invocation)) {
         originalLocalInvocation = latest.data.invocation;
         const original = invocationSchema.parse(this.committedBody(run, runLayout.invocation(originalLocalInvocation)));
-        const previous = committedRecords(run.log.ledger.replay()).outcomes.get(originalLocalInvocation);
+        const previous = this.effectiveInvocationOutcome(run, originalLocalInvocation);
         attempt = original.attempt - 1; session = latest.data.session;
         sessionRef = previous?.session?.ref || original.session.from || undefined;
         continuing = latest.data.continues?.reason;
@@ -6253,7 +6453,7 @@ export class RunService {
               : lastAssignment === undefined ? {} : { bounds: this.engineerBounds(run, lastAssignment) }),
           },
         }),
-        bounds: engineerBoundsOf(run.record.policy.limits),
+        bounds: engineerBoundsOf(run.policy.limits),
         runDirectory: run.directory,
         projectRoot: this.projectRoot,
         workingDirectory,
@@ -6315,8 +6515,8 @@ export class RunService {
         }
         const turn = validateWorkTurnInputs({
           schema: stepInputsSchemaId, role: 'local-architect', phase: 'work-turn', consultation: localConsultationInputs(run.log.events, item.id), run: { planId: run.record.planId, runId: run.record.jobId },
-          work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.record.policy.limits,
-          context: contextPolicyOf(run.record.policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
+          work: { workItem: item.id }, attempt, capabilityWorkflow: this.workflow !== null, limits: run.policy.limits,
+          context: contextPolicyOf(run.policy, 'local-architect'), workingDirectory: this.projectRelative(workingDirectory),
           briefing: workBriefingInputs(briefing),
           ...(contextPackage === undefined ? {} : {
             package: { hash: contextPackage.citation.hash, elements: [...contextPackage.citation.elements], deviations: [...contextPackage.citation.deviations], text: contextPackage.text },
@@ -6714,7 +6914,7 @@ export class RunService {
         }
         // Each refusal found another round warranted; the rounds bound them.
         refusedCompletions += 1;
-        if (refusedCompletions > (run.record.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds)) {
+        if (refusedCompletions > (run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds)) {
           await this.fail(run, 'repair-exhausted', `${item.id}'s completion was refused ${refusedCompletions} times: ${completed.refused}`);
           return null;
         }
@@ -6871,9 +7071,9 @@ export class RunService {
     }
 
     const count = run.log.count('placement-requested') + 1;
-    if (existingId === undefined && count > run.record.policy.limits.maxPlacementRequests) {
+    if (existingId === undefined && count > run.policy.limits.maxPlacementRequests) {
       await this.fail(run, 'limit-exceeded',
-        `The run has made ${count - 1} placement requests; the policy allows ${run.record.policy.limits.maxPlacementRequests}`);
+        `The run has made ${count - 1} placement requests; the policy allows ${run.policy.limits.maxPlacementRequests}`);
       return null;
     }
 
@@ -6920,7 +7120,7 @@ export class RunService {
     if (this.ignoring(run)) return null;
 
     const systemPrompt = renderGlobalForkPrompt(loaded, this.projectRoot);
-    const bound = run.record.policy.limits.forkRetriesPerRequest;
+    const bound = run.policy.limits.forkRetriesPerRequest;
     const measured = baselineScope(
       this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',
       // Each invocation's own package and the plan are its support documents.
@@ -7127,9 +7327,9 @@ export class RunService {
     // Unresolved requests fork the architect context as placement requests
     // do, and count against the same bound.
     const forks = run.log.count('placement-requested') + run.log.count('unresolved-requested') + 1;
-    if (existingId === undefined && forks > run.record.policy.limits.maxPlacementRequests) {
+    if (existingId === undefined && forks > run.policy.limits.maxPlacementRequests) {
       await this.fail(run, 'limit-exceeded',
-        `The run has made ${forks - 1} placement and unresolved requests; the policy allows ${run.record.policy.limits.maxPlacementRequests}`);
+        `The run has made ${forks - 1} placement and unresolved requests; the policy allows ${run.policy.limits.maxPlacementRequests}`);
       return null;
     }
 
@@ -7192,7 +7392,7 @@ export class RunService {
       `The module architect of ${item.id} reports the request cannot be met as stated (${answer.conflict}), and ${detail}`,
       [deviationLayout.request(id), runLayout.submission(answer.invocation), ...answer.evidence, ...evidence]);
     const systemPrompt = renderGlobalForkPrompt(loaded, this.projectRoot);
-    const bound = run.record.policy.limits.forkRetriesPerRequest;
+    const bound = run.policy.limits.forkRetriesPerRequest;
     const measured = baselineScope(
       this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',
       // Each invocation's own package and the plan are its support documents.
@@ -7544,7 +7744,7 @@ export class RunService {
 
   /** How many deviations the run records before the next one waits for the person. */
   private deviationLimit(run: Run): number {
-    return run.record.policy.limits.maxPlanDeviations ?? defaultMaxPlanDeviations;
+    return run.policy.limits.maxPlanDeviations ?? defaultMaxPlanDeviations;
   }
 
   /**
@@ -7821,9 +8021,9 @@ export class RunService {
     // Contract sub-sessions are iterations of this work item too, so they
     // count: two assignments must never derive the same identifier.
     const number = this.assignedCount(run, item.id) + 1;
-    if (number > run.record.policy.limits.maxIterationsPerWorkItem) {
+    if (number > run.policy.limits.maxIterationsPerWorkItem) {
       await this.fail(run, 'limit-exceeded',
-        `${item.id} has reached ${run.record.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
+        `${item.id} has reached ${run.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
       return null;
     }
 
@@ -8029,8 +8229,8 @@ export class RunService {
       },
       projectRoot: this.projectRoot,
       ramify: this.options.ramify,
-      commands: run.record.policy.commands,
-      bounds: run.record.policy.limits,
+      commands: run.policy.commands,
+      bounds: run.policy.limits,
       refresh: () => this.refreshIndex(run),
       index: () => run.index,
       submissions: { legalOutcomes: this.workflow === null ? ['completion-proposed', 'partial', 'unsuitable', 'contract-needed'] : ['completion-proposed', 'partial', 'unsuitable', 'capability-needed'], completionOutcome: 'completion-proposed' },
@@ -8104,7 +8304,7 @@ export class RunService {
     parent: { readonly session: SessionId | undefined; readonly point: string | undefined; readonly workingDirectory: string },
     existingRequest?: CapabilityRequest,
   ): Promise<{ readonly kind: 'satisfied'; readonly guidance: string; readonly parent: { readonly session: SessionId; readonly point: string } } | { readonly kind: 'delegated' } | null> {
-    if (this.workflow === null || run.record.policy.version !== capabilityRunPolicyVersion) {
+    if (this.workflow === null || !supportedCapabilityPolicy(run.policy.version)) {
       await this.fail(run, 'internal', 'A capability request reached a run without its captured workflow');
       return null;
     }
@@ -8146,10 +8346,10 @@ export class RunService {
     const recovered = existingRequest === undefined ? undefined : await this.replayAcceptedCapabilityQualification(run, request, 'local-architect');
     if (recovered === null) return null;
     let qualification: InvocationResult<QualificationAction> | undefined = recovered;
-    const priorTurns = run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' &&
+    const priorTurns = run.log.all('invocation-started').filter(event => !['resource-pending', 'context-budget-reached'].includes(committedRecords(run.log.ledger.replay()).outcomes.get(event.data.invocation)?.ended ?? '') && event.data.role === 'local-architect' &&
       event.data.work.request === request.id).length;
     for (let count = priorTurns - (recovered === undefined ? 0 : 1);
-      count < run.record.policy.limits.maxIterationsPerWorkItem; count += 1) {
+      count < run.policy.limits.maxIterationsPerWorkItem; count += 1) {
       qualification ??= await this.runInvocation<QualificationAction>(run, agent, {
       role: 'local-architect', task: { kind: 'capability-qualification', goal: request.original.need,
         requirements: [`Qualify capability request ${request.id} under its complete original constraints, usage and example identities and the current work-item package.`], modules: [item.module],
@@ -8267,7 +8467,7 @@ export class RunService {
       ...(prior === undefined || request.original.revises === undefined ? {} : { revises: {
         handback: refOf(prior.task, 1, prior), sourceRevision: prior.sourceRevision, reason: request.original.revises.reason,
       } }),
-      limits: captureCapabilityLimits(run.record.policy),
+      limits: captureCapabilityLimits(run.policy),
     };
     let plan: CapabilityPlan = {
       schema: 'ramify-agent.capability-plan/1', task: task.id, revision: 1, basedOn: 0,
@@ -8370,7 +8570,7 @@ export class RunService {
     // Consultation children never replace the original suspended consumer source.
     let consumerPoint = request.continuation.point;
     let consumerSession: SessionId | undefined = request.continuation.session;
-    for (let attempt = resume?.attempt ?? 1; attempt <= task.limits.maxInvocations; attempt += 1) {
+    for (let attempt = resume?.attempt ?? 1; !this.ignoring(run); attempt += 1) {
     const coordinatorIndex = await this.refreshIndex(run);
     const recovery = await this.continuationEvidence(run, { task: task.id }, coordinatorIndex);
     // The task's architect may register a case of its current plan revision.
@@ -8394,7 +8594,7 @@ export class RunService {
         registeredFeatureFiles: new Set(trackedScenarios(run.log.ledger.replay()).records.map(record => record.file)),
         package: packageElements,
         guardedPaths: capabilityGuardedPolicy(this.requiredArtifacts(records)),
-        revising: true, bounds: engineerBoundsOf(run.record.policy.limits),
+        revising: true, bounds: engineerBoundsOf(run.policy.limits),
         obligations: { actor: capabilityActor(), projection: this.obligationProjection(run), registrations: checked.value.registrations },
       })];
       // The scope is captured before the action is accepted, so a scope the
@@ -8673,7 +8873,7 @@ export class RunService {
         ], consultationSubmissionSchema: JSON.stringify(z.toJSONSchema(responseSchema)) }, work: { capabilityTask: task.id, request: request.id },
       attempt: run.log.all('invocation-started').filter(event => event.data.role === 'engineer' &&
         event.data.work.capabilityTask === task.id && event.data.work.request === request.id).length + 1,
-      loaded, systemPrompt: renderEngineerPrompt(loaded, this.projectRoot, run.record.policy.limits.commandTimeoutMs, this.projectRoot),
+      loaded, systemPrompt: renderEngineerPrompt(loaded, this.projectRoot, run.policy.limits.commandTimeoutMs, this.projectRoot),
       prompt: [`# Read-only consumer consultation ${id}`, `Question: ${action.question}`,
         `Current plan revision ${plan.revision} is in support:capability-plan; original request and suspended source are in support:capability-request.`,
         `References: ${action.references.join(', ')}`, 'Answer directly; source edits require a separate A-scoped assignment.'].join('\n\n'),
@@ -8776,7 +8976,7 @@ export class RunService {
         parsed.data.proposedBy !== null && records.invocations.get(parsed.data.proposedBy)?.work.capabilityTask === task.id
         ? [parsed.data] : [];
     });
-    const gateLimit = run.record.policy.limits.repairRoundsPerWorkItemGate;
+    const gateLimit = run.policy.limits.repairRoundsPerWorkItemGate;
     if (failedTaskGates.length > gateLimit) {
       await this.fail(run, 'repair-exhausted',
         `The ${task.id} gate did not pass after ${gateLimit} repair round${gateLimit === 1 ? '' : 's'}; the first cause was ${failedTaskGates[0]?.cause ?? 'unknown'} at gate ${failedTaskGates[0]?.id ?? 'unknown'}`,
@@ -8832,7 +9032,7 @@ export class RunService {
       checks: [refOf(gate.id, 1, this.committedBody(run, runLayout.gate(gate.id)))],
       reviews: reviewRefs, limitations: [...action.limitations,
         ...this.unresolvedOf(run, task.id, checkFindingStateOf(run.log.ledger),
-          run.record.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds)
+          run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds)
           .map(entry => `Unresolved CheckFinding ${entry.checkFinding}: ${entry.reason}`)],
     };
     await run.mutex.run(() => commitCapabilityTransition(run.log, { type: 'capability-handed-back', data: {
@@ -8931,10 +9131,10 @@ export class RunService {
     let point = coordinator.point;
     let session = coordinator.session;
     let returned = '';
-    const priorTurns = run.log.all('invocation-started').filter(event => event.data.role === 'capability-architect' &&
+    const priorTurns = run.log.all('invocation-started').filter(event => !['resource-pending', 'context-budget-reached'].includes(committedRecords(run.log.ledger.replay()).outcomes.get(event.data.invocation)?.ended ?? '') && event.data.role === 'capability-architect' &&
       event.data.work.request === request.id).length;
     for (let count = priorTurns - (recovered === undefined ? 0 : 1);
-      count < run.record.policy.limits.maxIterationsPerWorkItem; count += 1) {
+      count < run.policy.limits.maxIterationsPerWorkItem; count += 1) {
     const appended = qualification !== undefined || point === undefined ? { outcome: 'session-lost' as const }
       : await (await this.operations(agent)).append(point, `nested:${request.id}:${count}`, `Qualify nested request ${request.id} from ${assignment.id}`);
     if (appended.outcome === 'conflict') throw new Error(`The capability architect did not take its note: ${appended.reason}`);
@@ -9016,7 +9216,7 @@ export class RunService {
       authority: [{ owner: assignmentOwner, reason: 'Requesting consumer integration and task-local architecture' },
         ...(decision.provider === assignmentOwner ? [] : [{ owner: decision.provider, reason: decision.placementReason }])],
       relatedEntries: providerItems.map(entry => ({ entry: entry.id, reason: 'Provider entry remains separate from this task' })),
-      deferredWorkItems: providerItems.map(entry => entry.id), source, limits: captureCapabilityLimits(run.record.policy) };
+      deferredWorkItems: providerItems.map(entry => entry.id), source, limits: captureCapabilityLimits(run.policy) };
     const plan: CapabilityPlan = { schema: 'ramify-agent.capability-plan/1', task: child.id, revision: 1, basedOn: 0,
       updatedBy: qualification.id, revisionReason: 'Initial nested request', need: request.original.need,
       proposedInterface: 'Undecided; inspect actual source and consumer use',
@@ -9059,7 +9259,7 @@ export class RunService {
     if (state === undefined) { await this.fail(run, 'recovery-exhausted', `Capability task ${task.id} has no state`); return null; }
     const sequence = existingAssignment?.coordination?.kind === 'capability-task'
       ? existingAssignment.coordination.sequence : state.nextAssignmentSequence;
-    if (sequence > task.limits.maxAssignments || sequence > (run.record.policy.limits.maxIterationsPerCapabilityTask ?? task.limits.maxAssignments)) {
+    if (sequence > task.limits.maxAssignments || sequence > (run.policy.limits.maxIterationsPerCapabilityTask ?? task.limits.maxAssignments)) {
       await this.fail(run, 'limit-exceeded', `Capability task ${task.id} exhausted its assignment bound`);
       return null;
     }
@@ -9082,7 +9282,7 @@ export class RunService {
         registeredFeatureFiles: new Set(trackedScenarios(run.log.ledger.replay()).records.map(record => record.file)),
         package: packageElements,
         guardedPaths: capabilityGuardedPolicy(this.requiredArtifacts(records)),
-        revising: true, bounds: engineerBoundsOf(run.record.policy.limits),
+        revising: true, bounds: engineerBoundsOf(run.policy.limits),
         // The action's registrations were recorded on acceptance, before it.
         obligations: {
           actor: { kind: 'capability-task', id: task.id, useCases: new Set(plan.useCases.map(useCase => useCase.id)) },
@@ -9235,7 +9435,7 @@ export class RunService {
     const savedResult = committedRecords(run.log.ledger.replay()).results.get(assignment.id);
     if (run.restoring && savedResult) {
       for (const invocation of [...savedResult.invocations].reverse()) {
-        const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(invocation);
+        const outcome = this.effectiveInvocationOutcome(run, invocation);
         if (!outcome?.settled.confirmed) throw new Error('Original iteration outcome has no confirmed settlement');
         if (!outcome.submission) continue;
         const bytes = await readIfExists(run.path(runLayout.submission(invocation)));
@@ -9283,7 +9483,7 @@ export class RunService {
     if (latestStart !== undefined && resume?.priorInvocation !== latestStart.data.invocation &&
       !priorGates.some(gate => gate.proposedBy === latestStart.data.invocation)) {
       const ended = run.log.all('invocation-ended').find(event => event.data.invocation === latestStart.data.invocation);
-      const recorded = committedRecords(run.log.ledger.replay()).outcomes.get(latestStart.data.invocation);
+      const recorded = this.effectiveInvocationOutcome(run, latestStart.data.invocation);
       if (ended !== undefined && recorded !== undefined && recorded.settled.confirmed) {
         const bytes = recorded.submission === null ? undefined : await readIfExists(run.path(runLayout.submission(latestStart.data.invocation)));
         if (bytes !== undefined && sha256(bytes) !== recorded.submission?.hash) {
@@ -9437,11 +9637,11 @@ export class RunService {
         continuing: step.start.mode === 'continue' ? step.start.continuing : resume === undefined ? 'repair' : 'capability-returned',
         ...(replacing === undefined ? {} : { replaces: { session: replacing, reason: 'reconstructed' } }),
         ...(degraded === undefined ? {} : { degraded }),
-        // A proposed completion is kept for the repair its gate may ask
-        // for; a raw budget limit retains unfinished work and ends this run below.
+        // A proposed completion is kept for the repair its gate may ask for.
+        // Resource returns retain the assignment through recovery regardless of count.
         keep: (ended, value) => {
           if (ended === 'context-budget-reached') {
-            return finished(this.budgetReturns(run, assignment.id) + 1 >= run.record.policy.limits.budgetReturnsPerIteration ? 'work-closed' : 'not-kept');
+            return finished('not-kept');
           }
           if (ended !== 'submitted' || value === undefined) return finished('not-kept');
           return value.kind === 'completion-proposed' || (value.kind === 'capability-needed' && this.workflow !== null)
@@ -9857,9 +10057,9 @@ export class RunService {
       return null;
     }
     const number = this.assignedCount(run, item.id) + 1;
-    if (number > run.record.policy.limits.maxIterationsPerWorkItem) {
+    if (number > run.policy.limits.maxIterationsPerWorkItem) {
       await this.fail(run, 'limit-exceeded',
-        `${item.id} has reached ${run.record.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
+        `${item.id} has reached ${run.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
       return null;
     }
 
@@ -10020,7 +10220,7 @@ export class RunService {
     const priorRepair = [...priorGates].reverse().find(gate => gate.next === 'repair');
     if (priorRepair) failedGate = await this.diagnosticsOf(run, priorRepair);
     if (latestStart) {
-      const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(latestStart.data.invocation);
+      const outcome = this.effectiveInvocationOutcome(run, latestStart.data.invocation);
       const ended = run.log.all('invocation-ended').find(event => event.data.invocation === latestStart.data.invocation);
       if (ended?.data.kept && outcome?.settled.confirmed && outcome.session?.ref) { session = latestStart.data.session; sessionRef = outcome.session.ref; }
     }
@@ -10170,7 +10370,7 @@ export class RunService {
         return { findings, result: closed, ...(registration.cycle === undefined ? {} : { cycle: registration.cycle }) };
       }
 
-      if (gate.next === 'repair' && repairRound + 1 < run.record.policy.limits.repairRoundsPerIteration) {
+      if (gate.next === 'repair' && repairRound + 1 < run.policy.limits.repairRoundsPerIteration) {
         repairRound += 1;
         failedGate = await this.diagnosticsOf(run, gate);
         continue;
@@ -10241,7 +10441,7 @@ export class RunService {
       projectRoot: this.projectRoot,
       directory: run.path(runLayout.gateOutput(gateId)),
       head: await this.git.currentHead(this.projectRoot),
-      policy: run.record.policy,
+      policy: run.policy,
       proposedBy: invocation,
       repairRound,
       infrastructureAttempt: 0,
@@ -10624,7 +10824,7 @@ export class RunService {
     await this.afterWrite('dependency-cycle-detected', run.record.jobId);
     if (this.ignoring(run)) return undefined;
 
-    const replans = run.record.policy.limits.cycleReplansPerWorkItem;
+    const replans = run.policy.limits.cycleReplansPerWorkItem;
     if (detection > replans) {
       await this.fail(run, 'dependency-cycle',
         `The capability cycle ${identity} was detected ${detection} times, and the policy allows ${replans} re-plan${replans === 1 ? '' : 's'} of it`,
@@ -10836,14 +11036,14 @@ export class RunService {
       run: { planId: run.record.planId, runId: run.record.jobId },
       base: this.accepted(run),
       capabilityWorkflow: this.workflow !== null,
-      capabilityPolicy: run.record.policy.version === capabilityRunPolicyVersion,
+      capabilityPolicy: supportedCapabilityPolicy(run.policy.version),
       workingDirectory: this.projectRelative(collected.workingDirectory),
       testAreas: await this.ownedTestAreas(run, assignment.gate.tests),
       startingPoints: record === undefined ? null : this.assignmentStartingPoints(run, record),
       known,
       protectedFiles: await this.protectedFiles(run, assignment),
-      limits: run.record.policy.limits,
-      context: contextPolicyOf(run.record.policy, 'engineer'),
+      limits: run.policy.limits,
+      context: contextPolicyOf(run.policy, 'engineer'),
     });
   }
 
@@ -10886,7 +11086,7 @@ export class RunService {
 
   /** The bounds one iteration's engineers run under: the policy's, and what its assignment raised. */
   private engineerBounds(run: Run, assignment: IterationAssignment): EngineerBounds {
-    return engineerBoundsFor(run.record.policy.limits, assignment);
+    return engineerBoundsFor(run.policy.limits, assignment);
   }
 
   /**
@@ -10985,7 +11185,7 @@ export class RunService {
     const unavailable = (reason: string, invocation: string | null = null): FailureAnalysis => ({ outcome: 'unavailable', invocation, reason });
     const loaded = packages.get('failure-analyst');
     if (loaded === undefined) return unavailable('no prompt package is loaded for the failure analyst');
-    if (run.record.policy.context['failure-analyst'] === undefined) return unavailable(`the run's policy (${run.record.policy.version}) has no context policy for the failure analyst`);
+    if (run.policy.context['failure-analyst'] === undefined) return unavailable(`the run's policy (${run.policy.version}) has no context policy for the failure analyst`);
     if (this.ignoring(run)) return unavailable('the run is ending');
     try {
       const recordOwner = subject.assignment.coordination?.kind === 'capability-task'
@@ -11146,7 +11346,7 @@ export class RunService {
 
   private async reachReadinessOwned(run: Run, signal: AbortSignal): Promise<boolean> {
     if (run.log.find('readiness-passed')) return true;
-    const bound = run.record.policy.limits.readinessRecoveries;
+    const bound = run.policy.limits.readinessRecoveries;
     let group = this.latestOperationRecovery(run)?.boundary.kind === 'readiness' ? this.latestOperationRecovery(run)!.group : 0;
     const groupStart = group === 0 ? 0 : run.log.all('operation-recovery-resumed').at(-1)?.sequence ?? 0;
     let groupSpent = run.log.all('readiness-failed').filter(event => event.sequence > groupStart && event.data.recovery !== null).length;
@@ -11183,8 +11383,10 @@ export class RunService {
       const unresolved = run.log.all('readiness-preparation-started').filter(event => !run.log.all('readiness-preparation-completed')
         .some(completion => completion.sequence > event.sequence && completion.data.key === event.data.key && completion.data.attempt === event.data.attempt));
       if (unresolved.length > 0) {
-        await this.fail(run, 'writer-unsettled', 'Readiness preparation has an unconfirmed command effect; reconcile it before further execution');
-        return false;
+        const resumed = await this.waitOperationRecovery(run, { kind: 'readiness', checkpoint: 'readiness' },
+          { classification: 'check-execution', diagnostic: 'Readiness preparation has an unconfirmed command effect; its producer must independently establish completion' }, unresolved.map(entry => entry.data.key), 0, group);
+        if (!resumed) return false;
+        group++; groupSpent = 0; continue;
       }
       await this.write(run, { type: 'gate-started', data: { gate: gateId, checkpoint: 'readiness' } });
       let result = await runReadiness(this.options.configuredAudit, {
@@ -11193,7 +11395,7 @@ export class RunService {
         projectRoot: this.projectRoot,
         gateDirectory: run.path(runLayout.gateOutput(gateId)),
         gateId,
-        policy: run.record.policy,
+        policy: run.policy,
         projectConfig: run.record.projectConfig,
         auditConfiguration,
         index: run.index,
@@ -11231,7 +11433,7 @@ export class RunService {
       }
 
       const step = failingStep(result.attempt);
-      const plan = signal.aborted || this.ignoring(run) ? null : recoveryFor(result.attempt, result.gate, run.record.policy, result.obstruction);
+      const plan = signal.aborted || this.ignoring(run) ? null : recoveryFor(result.attempt, result.gate, run.policy, result.obstruction);
       const spent = run.log.all('readiness-failed').filter(event => event.data.recovery !== null).length;
       const recoverable = plan !== null && (group === 0 ? spent : groupSpent) < bound && !signal.aborted && !this.ignoring(run);
 
@@ -11242,7 +11444,7 @@ export class RunService {
           attempt: attemptNumber,
           plan,
           projectRoot: this.projectRoot,
-          policy: run.record.policy,
+          policy: run.policy,
           auditConfiguration,
           ramify: this.options.ramify,
           commandExecution: this.options.commandExecution,
@@ -11354,7 +11556,7 @@ export class RunService {
           projectRoot: this.projectRoot,
           directory: run.path(runLayout.gateOutput(gateId)),
           head,
-          policy: run.record.policy,
+          policy: run.policy,
           proposedBy: null,
         }, undefined, undefined, undefined, binding);
       } catch (error) {
@@ -11408,7 +11610,7 @@ export class RunService {
       await this.fail(run, 'inputs-changed', 'The source tree changed during final verification', [runLayout.assessment(binding.assessment.id), runLayout.gate(gateId)]);
       return;
     }
-    if (run.record.policy.version === capabilityRunPolicyVersion) {
+    if (supportedCapabilityPolicy(run.policy.version)) {
       const blockers = committedRecords(run.log.ledger.replay()).workItems.flatMap(item =>
         this.capabilityBlockers(run, item.id));
       if (blockers.length > 0) {
@@ -11752,11 +11954,15 @@ export class RunService {
   private async automaticProjectRepair(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot,
     preparation: RepairPreparation, obstruction: unknown, prepare: (report: RepairResult) => Promise<ConstructedWorkTurnStep>):
     Promise<{ step: ConstructedWorkTurnStep; incident: RepairIncidentRecord; delta: RepairDelta } | { refusal: string } | null> {
-    const id = repairIncidentId(new Set(run.log.all('repair-incident-recorded').map(event => event.data.incidentId)).size + 1);
+    const retainedIncident = this.latestRepairIncident(run);
+    const resumedIncident = run.restoring && retainedIncident?.incident.preparation.id === preparation.id && ['admitted', 'running', 'interrupted'].includes(retainedIncident.stage) ? retainedIncident : undefined;
+    const id = resumedIncident?.incident.incidentId ?? repairIncidentId(new Set(run.log.all('repair-incident-recorded').map(event => event.data.incidentId)).size + 1);
+    const sourcePath = posix.join('repairs', 'sources', `${id}.json`);
+    const originalSource = resumedIncident === undefined ? undefined : this.committedBody(run, sourcePath) as { before: Awaited<ReturnType<typeof captureRepairFiles>>; protectedBefore: Awaited<ReturnType<typeof captureRepairFiles>>; head: string; tree: string; dirty: string[] } | undefined;
     const assignment = automaticRepairAssignmentSchema.safeParse(this.committedBody(run, runLayout.contingentRepairAssignment));
     const original = preparation.originalAssignment === null ? undefined : committedRecords(run.log.ledger.replay()).assignments.get(preparation.originalAssignment);
-    const originalOutcome = preparation.originalInvocation === null ? undefined : committedRecords(run.log.ledger.replay()).outcomes.get(preparation.originalInvocation);
-    let reason: string | null = this.ignoring(run) ? 'Stop or terminal run prevents automatic repair'
+    const originalOutcome = preparation.originalInvocation === null ? undefined : this.effectiveInvocationOutcome(run, preparation.originalInvocation);
+    let reason: string | null = resumedIncident && !originalSource ? 'The original automatic repair source evidence is unavailable; restore its retained before-state before continuation' : this.ignoring(run) ? 'Stop or terminal run prevents automatic repair'
       : run.writer.blocked ?? this.invocationRefusal(run);
     const durableTarget = repairPreparationSchema.safeParse(this.committedBody(run, runLayout.repairPreparation(preparation.id)));
     if (reason === null && (!durableTarget.success || JSON.stringify(durableTarget.data) !== JSON.stringify(preparation)
@@ -11769,7 +11975,7 @@ export class RunService {
     const previousWriters = run.log.all('writer-acquired');
     if (reason === null && previousWriters.some(writer => {
       const release = run.log.all('writer-released').filter(event => event.data.invocation === writer.data.invocation);
-      return release.length !== 1 || release[0]!.data.confirmed !== true;
+      return !this.latestOperationRecovery(run)?.reconciledInvocations?.includes(writer.data.invocation) && (release.length !== 1 || release[0]!.data.confirmed !== true);
     })) reason = 'A previous writer has no unique confirmed settlement';
     if (reason === null && (obstruction instanceof OwnershipUnavailableError || obstruction instanceof OwnershipAuthorityError || obstruction instanceof z.ZodError)) reason = 'Typed ownership or input validation outcomes continue through ordinary handling';
     let dirty: string[] = [], tree: string | null = null, head: string | null = null;
@@ -11779,9 +11985,11 @@ export class RunService {
       dirty = await this.git.changedPaths(this.projectRoot, this.accepted(run));
       head = await this.git.currentHead(this.projectRoot);
       tree = (await this.previewCandidateTree()).tree;
-      if (reason === null && (preparation.candidateBefore === null || tree !== preparation.candidateBefore.tree || head !== preparation.candidateBefore.head)) reason = 'Candidate changed after the recorded preparation target';
+      if (reason === null && !resumedIncident && (preparation.candidateBefore === null || tree !== preparation.candidateBefore.tree || head !== preparation.candidateBefore.head)) reason = 'Candidate changed after the recorded preparation target';
       if (reason === null && original !== undefined) {
-        const guarded = await this.engineerGuard(run, original);
+        const guarded = resumedIncident && assignment.success
+          ? guardedScopeOf(assignment.data.scope, await deniedFiles(this.projectRoot, await this.deniedFiles(run)), this.options.ramify, undefined, this.ownershipAuthority(run, assignment.data))
+          : await this.engineerGuard(run, original);
         const retainedRepairPaths = new Set<string>();
         if (run.policy.recovery) {
           const ledger = run.log.ledger.replay();
@@ -11812,8 +12020,9 @@ export class RunService {
         before = [...new Map([...await captureRepairSource(this.projectRoot, assignment.data.scope), ...await captureRepairFiles(this.projectRoot, dirty)].map(file => [file.path, file])).values()].sort((a, b) => a.path.localeCompare(b.path));
       }
     } catch (error) { reason ??= `Candidate and repair authority cannot be established: ${message(error)}`; }
-    let eligibleRefusal = false;
-    if (reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) {
+    if (originalSource) { before = originalSource.before; protectedBefore = originalSource.protectedBefore; head = originalSource.head; tree = originalSource.tree; dirty = originalSource.dirty; }
+    let eligibleRefusal = !!resumedIncident && !originalSource;
+    if (reason === null && !resumedIncident && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) {
       reason = 'The run has spent its one automatic repair invocation';
       const previous = this.latestRepairIncident(run);
       eligibleRefusal = previous?.stage === 'continued' && previous.incident.verification?.verified === true && previous.incident.continuation?.delivered === true;
@@ -11835,7 +12044,9 @@ export class RunService {
       candidateAfter: null, invocation: null, session: null, result: null, verification: null, continuation: null,
       startedAt: null, endedAt: null, elapsedMs: null, usage: null, versions: { ramify: assignment.success ? assignment.data.scope.resolved.ownership.ramifyVersion : 'unavailable' },
       export: { externalRef: repairExternalRef(repairProjectKey(this.projectRoot), run.record.jobId, id), state: 'pending', issueId: null, reason: 'Not exported', attemptedAt: null } });
-    incident = await this.persistRepairIncident(run, incident, reason === null ? 'admitted' : 'refused');
+    if (resumedIncident) incident = { ...resumedIncident.incident, revision: resumedIncident.incident.revision + 1, continuation: null };
+    incident = await this.persistRepairIncident(run, incident, reason === null ? 'admitted' : 'refused', reason !== null || originalSource ? [] : [{
+      path: sourcePath, id, revision: 1, body: { schema: 'ramify-agent.automatic-repair-source/1', before, protectedBefore, head, tree, dirty } }]);
     if (reason !== null || !assignment.success || original === undefined) {
       if (run.policy.recovery && eligibleRefusal && reason !== null) return { refusal: reason };
       await this.fail(run, 'inputs-changed', `Architect preparation failed: ${message(obstruction)}. Automatic repair refused: ${reason}`);
@@ -11844,17 +12055,15 @@ export class RunService {
     const assigned = assignment.data;
     const guarded = guardedScopeOf(assigned.scope, await deniedFiles(this.projectRoot,
       [...await this.deniedFiles(run), ...protectedBefore.map(file => file.path)]), this.options.ramify, undefined, this.ownershipAuthority(run, assigned));
-    const remaining = run.record.policy.limits.runAbsoluteMs - (this.now().getTime() - Date.parse(run.record.createdAt) - callerPauseMs(run.log.events, this.now().getTime()));
-    const bounds = engineerBoundsOf(run.record.policy.limits).defaults;
-    const absoluteMs = Math.min(bounds.absoluteMs, remaining);
-    if (absoluteMs <= 0 || this.ignoring(run)) {
+    const bounds = engineerBoundsOf(run.policy.limits).defaults;
+    const absoluteMs = bounds.absoluteMs;
+    if (this.ignoring(run)) {
       await this.persistRepairIncident(run, { ...incident, revision: incident.revision + 1, endedAt: this.now().toISOString() }, 'blocked');
-      if (!this.ignoring(run)) await this.fail(run, 'limit-exceeded', 'Automatic repair has no remaining whole-run time budget');
       return null;
     }
     const toolName = 'submit_automatic_repair';
     const tools = this.implementationTools(run, { workingDirectory: this.projectRoot, scopeRevision: assigned.scope.revision,
-      guarded, commandTimeoutMs: Math.min(bounds.commandTimeoutMs, absoluteMs), submissions: { legalOutcomes: ['ready', 'blocked'], completionOutcome: null } });
+      guarded, commandTimeoutMs: bounds.commandTimeoutMs, submissions: { legalOutcomes: ['ready', 'blocked'], completionOutcome: null } });
     const loaded = packages.get('engineer');
     if (loaded === undefined) throw new Error('Engineer prompt package is unavailable for automatic repair');
     const prompt = ['Restore only the named architect preparation operation so its responsible architect can continue.',
@@ -11878,14 +12087,14 @@ export class RunService {
       systemPrompt: `You are the bounded automatic project repair engineer. Work only under the captured root assignment. ${prompt}`,
       prompt, start: { mode: 'fresh' }, toolName, description: 'Report preparation repair readiness, evidence and remaining implementation work.',
       inputSchema: z.toJSONSchema(repairResultSchema) as JsonSchema, submissionSchema: 'ramify-agent.automatic-repair-result/1', validate: input => validateAgainst(repairResultSchema, input),
-      bounds: { idleMs: Math.min(bounds.idleMs, absoluteMs), absoluteMs, commandTimeoutMs: Math.min(bounds.commandTimeoutMs, absoluteMs) },
-      context: contextPolicyOf(run.record.policy, 'engineer'), keep: () => finished('work-closed'),
+      bounds: { idleMs: Math.min(bounds.idleMs, absoluteMs), absoluteMs, commandTimeoutMs: bounds.commandTimeoutMs },
+      context: contextPolicyOf(run.policy, 'engineer'), keep: () => finished('work-closed'),
       scope: { write: assigned.scope.revision, measurement: this.baselineReference(run), size: null },
       measured: { snapshot: baseline, scope: writeScopeMeasurement(assigned.scope), readScope: readScopeMeasurement(assigned.scope) },
       writer: true, guarded, readModules: [], workingDirectory: this.projectRoot, equip: tools.equip, previewEquipment: tools.preview,
     });
     await this.recordLineEvents(run, result.id, linesBefore, await takeLineSnapshot(this.projectRoot, this.accepted(run), this.git));
-    const outcome = result.id === '' ? undefined : committedRecords(run.log.ledger.replay()).outcomes.get(result.id);
+    const outcome = result.id === '' ? undefined : this.effectiveInvocationOutcome(run, result.id);
     const started = run.log.all('invocation-started').find(event => event.data.invocation === result.id);
     incident = { ...incident, revision: incident.revision + 1, invocation: result.id || null, session: started?.data.session ?? null,
       result: result.value ?? null, endedAt: this.now().toISOString(), elapsedMs: outcome?.elapsedMs ?? null,
@@ -12112,7 +12321,7 @@ export class RunService {
   private async fail(run: Run, reason: RunFailureReason, text: string, evidence: readonly string[] = []): Promise<void> {
     // A failure is the run's final decision; its readers are stopped and
     // their requests finished first, so no review is left running past it.
-    if (run.reviews !== undefined && !run.log.terminal) await this.stopReaders(run, 'stopped', run.record.policy.limits.stopSettleMs);
+    if (run.reviews !== undefined && !run.log.terminal) await this.stopReaders(run, 'stopped', run.policy.limits.stopSettleMs);
     await this.endRun(run, { type: 'job-failed', data: { reason, message: text, evidence: [...evidence] } });
   }
 
@@ -12150,7 +12359,7 @@ export class RunService {
       }
 
       if (drivers.length > 0) {
-        const bound = Math.max(...drivers.map(run => run.record.policy.limits.stopSettleMs));
+        const bound = Math.max(...drivers.map(run => run.policy.limits.stopSettleMs));
         let timer: NodeJS.Timeout | undefined;
         const quiescent = await Promise.race([
           Promise.all(drivers.map(run => run.idle())).then(() => true),

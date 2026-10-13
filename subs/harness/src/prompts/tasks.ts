@@ -74,8 +74,8 @@ function projectRelative(projectRoot: string, path: string): string {
  *
  * - The project root and working directory reach only a role that reads the
  *   project's files; tasks that use views receive them project-relative.
- * - The limits are the invocation's own bounds; the command timeout and the
- *   budget returns reach only a role with a shell.
+ * - The limits describe quiet intervals and submission judgments; the command
+ *   quiet interval reaches only a role with a shell.
  * - A null candidate, snapshot or Cucumber configuration says nothing, nor
  *   does a snapshot equal to the candidate. An available Cucumber
  *   configuration is the focused command the brief already states.
@@ -96,7 +96,7 @@ export function selectedEnvironment(environment: TaskEnvironment, task?: { reado
   }
   if (environment.snapshot !== null && environment.snapshot !== environment.candidate) selected.snapshot = environment.snapshot;
   const limits = environment.limits;
-  const own = ['invocationAbsoluteMs', 'invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs', 'budgetReturnsPerIteration'] : [])];
+  const own = ['invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs'] : [])];
   selected.limits = Object.fromEntries(own.filter(key => limits[key] !== undefined).map(key => [key, limits[key]]));
   selected.availableTools = environment.availableTools;
   const usesViews = task === undefined || !(task.role === 'catalog-extractor' && ['intake', 'principles', 'check'].includes(task.kind));

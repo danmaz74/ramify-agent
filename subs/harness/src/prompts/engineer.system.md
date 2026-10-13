@@ -36,13 +36,13 @@ submissions, including `injectionSites`, keep their project-relative format.
   your session goes on. A refusal is not a retry prompt: retrying the same
   target changes nothing, and only a recorded assignment changes what you may
   write.
-- `shell` runs one command in the working directory, with a timeout you may
+- `shell` runs one command in the working directory, with a quiet-output interval you may
   set: at most the commandTimeoutMs limit named in the current task, and two minutes when you set none. Ask
   for a timeout that fits the command. Whole-suite Vitest and Cucumber runs
   are refused: the gate's audit runs them. Name Vitest test files for a focused run; use the
   current prepared focused Cucumber command when supplied. A guessed path or
   default profile is not verified selection evidence. A command
-  still running at its timeout is killed. You receive the end of its output
+  without output for its timeout is interrupted for settlement inspection. You receive the end of its output
   and the file holding all of it.
   A `cd` affects only that command. When a project-level package command is needed,
   change to the project root named in the current task's environment within that same command.

@@ -198,7 +198,7 @@ test('CA05 CA19 CA22 CA32: service restart continues the durable active architec
   await second.service.settled('need', receipt.jobId);
 }, 60_000);
 
-test('restart preserves raw capability context exhaustion as unfinished failure without another dispatch', async () => {
+test('restart preserves an explicit historical capability context failure without another dispatch', async () => {
   const fixture = await copyCapabilityFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = recoveryBoundaries(fixture.root);
@@ -227,6 +227,7 @@ test('restart preserves raw capability context exhaustion as unfinished failure 
       if (architectTurns === 1) return [
         { kind: 'context', tokens: 200_000, window: null },
         { kind: 'message', text: 'The capability task is unfinished at my context budget.' },
+        { kind: 'legacy-context-return', tokens: 200_000 },
       ];
       return submit({ kind: 'assign', task: ids[1], planRevision: Number(ids[2]), invocation: ids[3],
         assignment: assign(b, { goal: 'Provide B source', approach: 'Update B owned source', completionEvidence: 'A uses B source' }).assignment });
