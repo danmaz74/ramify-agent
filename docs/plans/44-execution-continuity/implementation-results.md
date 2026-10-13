@@ -168,6 +168,18 @@ no model; the matching explicit resume retained `wi-001.i01`, scratch and partia
 edits, without semantic failure or reassignment. This witness retains its existing
 Plan 21 boundary registration and uses installed configured audits and Git.
 
+The second default audit of `1aa8645a` selected eight affected modules and carried
+the first audit's 23 failures. All 370 selected test files ran: 3,284 tests passed,
+one failed and two were skipped. The other five configured checks passed. The
+receipt is `refs/audited/runs/2026-10-13T07-52-57Z-1aa8645a3` (report
+`889cc7cab0a6be2d527901b7c17458455768b79e`). Its single outstanding failure was a
+capability restart fixture opening a recovering ledger reader during a live
+append. That reader can repair a partial tail and therefore cannot inspect a live
+owner's log. Inspection now follows explicit stop and settlement; the production
+ledger corruption rule remains enforced. Final qualification remains pending.
+The complete capability recovery file passed all 16 cases after this correction,
+all four TypeScript configurations passed, and `git diff --check` passed.
+
 The final composed service group passed 98 cases across six files, including
 the late owner completion and restart authority regressions. The standalone
 and generic owner group passed 117 cases across four files. All four TypeScript

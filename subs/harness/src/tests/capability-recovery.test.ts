@@ -814,16 +814,21 @@ for (const boundary of ['capability-exchange-opened', 'capability-exchange-answe
     expect(events.filter(event => event.type === 'job-failed'), JSON.stringify(events.slice(-12))).toHaveLength(0);
     expect(events.filter(event => event.type === 'capability-exchange-opened')).toHaveLength(1);
     expect(events.filter(event => event.type === 'capability-exchange-answered')).toHaveLength(1);
-    const records = committedRecords((await RunLog.open(join(fixture.root, 'plans/need/.harness/jobs', receipt.jobId,
-      'events.jsonl'), receipt.jobId)).ledger.replay());
-    expect(records.capabilityExchanges.get('cap-001-ex01')).toHaveLength(2);
-    expect(records.capabilityExchanges.get('cap-001-ex01')?.[1]?.answer?.text).toContain('original source');
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const current = second.service.events('need', receipt.jobId)!;
       try { await second.service.execute(stopRun('need', receipt.jobId, current.at(-1)!.sequence)); break; }
       catch (error) { if (!String(error).includes('at version') || attempt === 19) throw error; }
     }
     await second.service.settled('need', receipt.jobId);
+    // RunLog.open owns crash-tail repair. Inspect through it only after the
+    // current writer drains; opening it during append can truncate a partial line.
+    expect(second.service.events('need', receipt.jobId)!.at(-1)?.type).toBe('job-stopped');
+    const path = runPath(fixture.root, 'need', receipt.jobId, runLayout.events);
+    const settledBytes = await readFile(path);
+    const records = committedRecords((await RunLog.open(path, receipt.jobId)).ledger.replay());
+    expect(records.capabilityExchanges.get('cap-001-ex01')).toHaveLength(2);
+    expect(records.capabilityExchanges.get('cap-001-ex01')?.[1]?.answer?.text).toContain('original source');
+    expect(await readFile(path)).toEqual(settledBytes);
   }, 60_000);
 }
 
