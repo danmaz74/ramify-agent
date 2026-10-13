@@ -156,6 +156,7 @@ export const runPolicySchema = z.object({
     maxWorkItems: z.int().positive(),
     maxPlacementRequests: z.int().positive(),
     maxInvocationsPerRun: z.int().positive(),
+    unlimitedRunDuration: z.boolean().optional(),
     runAbsoluteMs: z.int().positive(),
     /** Assessment and correction rounds of one work item's reconciliation. */
     reconciliationRoundsPerWorkItem: z.int().positive().optional(),
@@ -358,6 +359,7 @@ export const runRecordSchema = z.object({
   jobId: jobIdSchema,
   planId: planIdSchema,
   kind: z.literal('implementation'),
+  restart: z.object({ sourceRun: jobIdSchema, sourceCursor: z.int().nonnegative(), sourceDigest: sha256Schema, importDigest: sha256Schema, importPath: text, generation: z.int().positive() }).strict().optional(),
   agent: runAgentSchema,
   createdAt: timestamp,
   manifest: inputManifestSchema,
@@ -1045,6 +1047,7 @@ export const runLayout = {
   nonfunctionalRepairAssignment: (id: string): string => join('nonfunctional', 'repairs', `${id}.json`),
   nonfunctionalDeviation: (id: string): string => join('deviations', `${id}.json`),
   events: 'events.jsonl',
+  restartImport: 'restart/import.json',
   promptManifest: join('prompts', 'manifest.json'),
   entries: join('analysis', 'entries.json'),
   /** One tracked scenario, `sc-001`, committed by `analysis-accepted` and immutable. */

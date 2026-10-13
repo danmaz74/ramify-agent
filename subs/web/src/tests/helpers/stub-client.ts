@@ -8,7 +8,7 @@ import type { ExecutionCapabilityDetail, ExecutionScenarioDetail } from '../../.
 import type { Receipt } from '../../../../harness/src/interfaces/protocol/jobs.js';
 import type { PlanDocument, PlanEntry } from '../../../../harness/src/interfaces/protocol/queries.js';
 import type {
-  RecoveryInspection, AnalysisResponse, CapabilityListResponse, DebugExchangeResponse, DebugInspectionResponse, DebugStateResponse, DecisionListResponse, GateView, MetricsResponse, ModuleCapabilityComparisonResponse, ProjectedRunEvent,
+  RestartInspection, RecoveryInspection, AnalysisResponse, CapabilityListResponse, DebugExchangeResponse, DebugInspectionResponse, DebugStateResponse, DecisionListResponse, GateView, MetricsResponse, ModuleCapabilityComparisonResponse, ProjectedRunEvent,
   MergeReadinessResponse, RunCommandInput, RunEventPage, RunListResponse, RunSnapshot, ScenarioListResponse, WorkItemListResponse, WorkItemResponse,
 } from '../../../../harness/src/interfaces/protocol/runs.js';
 import type {
@@ -25,6 +25,7 @@ export const project: ProjectInfo = { name: 'collection-review', root: '/work/co
 export interface StubRun {
   snapshot: RunSnapshot;
   recovery?: RecoveryInspection | null;
+  restart?: RestartInspection | null;
   events: ProjectedRunEvent[];
   analysis?: AnalysisResponse;
   decisions?: DecisionListResponse;
@@ -203,6 +204,11 @@ export class StubClient implements ProtocolClient {
     return this.answer(runId, current => current.reviews?.[workItem ?? ''], `reviews of ${workItem ?? 'the run'}`);
   }
   async getMetrics(_planId: string, runId: string) { this.calls.push(`getMetrics:${runId}`); return this.answer(runId, run => run.metrics, 'metrics'); }
+  async getRestartInspection(_planId: string, runId: string): Promise<RestartInspection | null> {
+    this.calls.push(`getRestartInspection:${runId}`);
+    return this.runs.get(runId)?.restart ?? null;
+  }
+
   async getRecoveryInspection(_planId: string, runId: string): Promise<RecoveryInspection | null> {
     this.calls.push(`getRecoveryInspection:${runId}`);
     return this.run(runId).recovery ?? null;

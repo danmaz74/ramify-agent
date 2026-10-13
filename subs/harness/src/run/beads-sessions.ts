@@ -29,6 +29,7 @@ Tracker delivery is administrative and cannot alter plan acceptance or completio
 export class BeadsSessions {
   private readonly queues = new Map<string, Promise<void>>();
   private readonly active = new Map<string, SessionOperationHandle>();
+  private readonly admitted = new Set<string>();
   private stopped = false;
   private closed = false;
   private constructor(private readonly options: BeadsSessionsOptions, private readonly store: BeadsStateStore) {}
@@ -38,6 +39,8 @@ export class BeadsSessions {
   scheduleStart(input: BeadsStageInput): Promise<void> { return this.enqueue('start', input); }
   scheduleFinish(input: BeadsStageInput): Promise<void> { return this.enqueue('finish', input); }
   inspect(runId: string): Promise<BeadsRunState | null> { return this.store.read(runId); }
+  /** Pending tracker delivery is not a barrier; an admitted shared-store owner is. */
+  settlementConfirmed(runId: string): boolean { return !this.active.has(runId) && !this.admitted.has(runId); }
   private async enqueue(stage: Stage, value: BeadsStageInput): Promise<void> {
     if (this.stopped) throw new Error('Beads administrative queue is closed');
     const input = beadsStageInputSchema.parse(value);
@@ -82,6 +85,7 @@ export class BeadsSessions {
       await this.patch(runId, stage, { status: 'pending', reason: 'Awaiting confirmed start administration and durable issue bindings' }); return;
     }
     let receipt: SessionOperationReceipt | null = request.receipt;
+    this.admitted.add(runId);
     try {
       if (this.active.has(runId)) throw new Error('A prior administrative session has unconfirmed settlement; retry remains pending');
       const operations = await this.options.operations();
@@ -168,7 +172,7 @@ export class BeadsSessions {
       const reason = error instanceof Error ? error.message : String(error);
       await this.patch(runId, stage, { status: 'pending', reason, receipt });
       try { this.options.onPending?.(runId, reason); } catch { /* No main-run failure. */ }
-    }
+    } finally { this.admitted.delete(runId); }
   }
   /** Gracefully drain detached work, then stop within a separate settlement bound. */
   async close(options: { readonly timeoutMs?: number; readonly settleMs?: number } = {}): Promise<boolean> {

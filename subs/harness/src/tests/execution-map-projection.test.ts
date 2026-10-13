@@ -4,7 +4,11 @@ import { entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema } fro
 import { iterationAssignmentSchema, iterationResultSchema } from '../work/iterations.js';
 import { executionCapabilityDetailSchema, executionNodeSchema, executionScenarioDetailSchema } from '../interfaces/protocol/execution-map.js';
 import { executionCapabilityDetailOf, executionCoreOf, executionScenarioDetailOf } from '../projections/execution-map.js';
+import { eventPage } from '../projections/events.js';
+import { snapshotOf } from '../projections/snapshot.js';
+import { runSnapshotSchema, scenarioListResponseSchema } from '../interfaces/protocol/runs.js';
 import { scenarioListOf } from '../projections/scenarios.js';
+import type { RunEvent } from '../run/log.js';
 import { runView } from '../projections/inputs.js';
 import { at, constructedRun, hash, item, registered, reviews, type Line } from './helpers/constructed.js';
 
@@ -240,4 +244,27 @@ describe('execution core from committed run records', () => {
     ]);
     expect(executionCapabilityDetailOf(view, 'shared-provider').detail).toMatchObject({ state: 'available', level: 'lower', description: 'Full provider behavior.' });
   });
+});
+
+
+it('projects inherited reports with original source identity while the successor remains paused', () => {
+  const sourceId = '20260921T080000Z-source';
+  const source = recordedRun([{ type: 'work-item-completed', data: { workItem: 'wi-001', gate: 'ga-1' } }]);
+  const imported = source.entries.map((entry, index) => ({ ...entry, sequence: index - source.entries.length,
+    source: { runId: sourceId, sequence: entry.sequence }, transaction: { ...entry.transaction,
+      event: { ...entry.transaction.event, sequence: index - source.entries.length, jobId: sourceId,
+        ...(entry.transaction.event.type === 'analysis-accepted' ? { data: { invocation: 'inv-001', entries: 1, hypotheses: 0, registry: 1, workItems: 1, scenarios: 1, warnings: [] } } : {}) } as RunEvent } }));
+  const successor = constructedRun([
+    { type: 'job-started', data: {} },
+    { type: 'operation-recovery-paused', data: { occurrenceId: 'rec-1', revision: 1, group: 0 } },
+  ], { ...source.record, restart: { sourceRun: sourceId, sourceCursor: 3, sourceDigest: hash, importDigest: hash, importPath: 'restart-import.json', generation: 1 } });
+  const view = runView({ ...successor, entries: [...imported, ...successor.entries] });
+  const list = scenarioListResponseSchema.parse(scenarioListOf(view));
+  expect(list.obligations[0]?.report).toMatchObject({ sequence: 2, sourceRun: sourceId, judgment: 'done' });
+  const detail = executionCapabilityDetailSchema.parse(executionCapabilityDetailOf(view, 'full-description'));
+  expect(detail.detail).toMatchObject({ source: { sequence: 1, sourceRun: sourceId } });
+  const snapshot = runSnapshotSchema.parse(snapshotOf(view));
+  expect(snapshot).toMatchObject({ state: 'running', version: 2, counts: { workItems: 1, completedWorkItems: 1, scenarios: { done: 1 } },
+    recovery: { occurrenceId: 'rec-1', state: 'paused' }, restart: { sourceRun: sourceId } });
+  expect(eventPage(view, 0).events.map(event => event.transition)).toEqual(['job-started', 'operation-recovery-paused']);
 });

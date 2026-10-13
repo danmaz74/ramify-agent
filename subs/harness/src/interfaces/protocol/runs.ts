@@ -153,6 +153,7 @@ export type RecoveryResumeCommand = z.infer<typeof recoveryResumeCommandSchema>;
 /** The retained obstruction and current prerequisites for a person's next attempt. */
 export const recoveryInspectionSchema = z.object({
   planId: planIdSchema, runId: runIdSchema, cursor: jobVersionSchema,
+  restart: z.object({ sourceRun: runIdSchema, sourceCursor: z.int().nonnegative(), sourceDigest: z.string(), importDigest: z.string(), generation: z.int().positive() }).strict().optional(),
   occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']),
   boundary: z.object({ kind: z.enum(['invocation', 'preparation', 'readiness', 'gate']), role: roleSchema.optional(), checkpoint: z.string().optional(),
     work: z.record(z.string(), z.string()).optional(), invocation: z.string().optional(), source: z.string().optional(), candidate: z.string().optional() }).strict(),
@@ -175,6 +176,25 @@ export const recoveryInspectionSchema = z.object({
     sourceRecords: z.array(z.string()), authority: z.record(z.string(), z.unknown()), progressIdentity: z.string().optional() }).strict().optional() }).strict(),
 }).strict();
 export type RecoveryInspection = z.infer<typeof recoveryInspectionSchema>;
+
+/** A read-only, authenticated proposal for a successor to one terminal execution. */
+export const restartInspectionSchema = z.object({
+  planId: planIdSchema, runId: runIdSchema, cursor: jobVersionSchema,
+  sourceDigest: z.string(), generation: z.int().nonnegative(), canPrepare: z.boolean(), blockers: z.array(z.string()), limitations: z.array(z.string()),
+  successor: runIdSchema.nullable(), boundary: recoveryInspectionSchema.shape.boundary.nullable(),
+  preserved: z.array(z.string()), inapplicable: z.array(z.string()),
+  candidate: z.object({ source: z.object({ head: z.string(), tree: z.string() }).strict().nullable(), current: z.object({ head: z.string(), tree: z.string() }).strict().nullable() }).strict(),
+  runtime: z.object({ before: z.string(), current: z.string(), compatible: z.boolean() }).strict().optional(),
+  policy: z.object({ before: z.string(), current: z.literal('run-policy/8') }).strict(),
+  settlement: z.enum(['confirmed', 'unknown']), effects: z.enum(['reconciled', 'unknown']),
+  changes: z.array(z.object({ path: z.string(), before: z.string().nullable(), after: z.string().nullable() }).strict()),
+}).strict();
+export type RestartInspection = z.infer<typeof restartInspectionSchema>;
+export const prepareRestartCommandSchema = z.object({
+  commandId: commandIdSchema, expectedVersion: jobVersionSchema, type: z.literal('prepare-restart'),
+  payload: z.object({ planId: planIdSchema, jobId: runIdSchema }).strict(),
+}).strict();
+export type PrepareRestartCommand = z.infer<typeof prepareRestartCommandSchema>;
 
 /**
  * Starts an implementation run for a plan. It creates the run, so it expects
@@ -218,7 +238,7 @@ export type ApproveAnalysisCommand = z.infer<typeof approveAnalysisCommandSchema
  * revocation, each against a CheckFinding's revision.
  */
 export const runCommandSchema = z.discriminatedUnion('type', [
-  startRunCommandSchema, stopJobCommandSchema, approveAnalysisCommandSchema, debugResumeCommandSchema, debugMessageCommandSchema, recoveryResumeCommandSchema,
+  startRunCommandSchema, prepareRestartCommandSchema, stopJobCommandSchema, approveAnalysisCommandSchema, debugResumeCommandSchema, debugMessageCommandSchema, recoveryResumeCommandSchema,
   respondToCheckFindingCommandSchema, waiveCheckFindingCommandSchema, revokeCheckFindingWaiverCommandSchema,
 ]);
 /** A command as the harness receives it, with every default applied. */
@@ -324,6 +344,7 @@ const moduleNotice = <K extends 'module-created' | 'module-removed'>(kind: K) =>
   kind: z.literal(kind),
   at: timestamp,
   sequence: z.int().positive(),
+  sourceRun: runIdSchema.optional(),
   summary: text,
   module: text,
   /** The `module.ramify` the accepted commit added or deleted. */
@@ -346,6 +367,7 @@ export const runNoticeSchema = z.discriminatedUnion('kind', [
     kind: z.literal('dependency-cycle'),
     at: timestamp,
     sequence: z.int().positive(),
+    sourceRun: runIdSchema.optional(),
     summary: text,
     /** The capabilities of the cycle, in their normalized order. */
     cycle: z.array(text).min(1),
@@ -469,6 +491,7 @@ export const runSnapshotSchema = z.object({
   /** The breakpoint the run was started with, or null. Answers that omit it parse as null. */
   breakpoint: breakpointSelectorSchema.nullable().default(null),
   /** Recovery holds the ordinary phase while retaining its unfinished operation. Legacy responses omit it. */
+  restart: recoveryInspectionSchema.shape.restart.optional(),
   recovery: z.object({ occurrenceId: z.string().min(1), revision: z.int().positive(), state: z.enum(['pausing', 'paused']) }).strict().nullable().optional(),
 }).strict();
 export type RunSnapshot = z.infer<typeof runSnapshotSchema>;
@@ -772,7 +795,7 @@ export type AnalysisResponse = z.infer<typeof analysisResponseSchema>;
 
 export const placementOutcomeViewSchema = z.enum(['reuse', 'create', 'extract', 'external']);
 
-const decisionBase = { at: timestamp, sequence: z.int().positive(), workItem: text };
+const decisionBase = { at: timestamp, sequence: z.int().positive(), sourceRun: runIdSchema.optional(), workItem: text };
 
 /**
  * One choice the run made, read from the record that holds it. There is no
@@ -1469,6 +1492,7 @@ export const obligationViewSchema = z.object({
     invocation: text,
     submission: text,
     sequence: z.int().positive(),
+    sourceRun: runIdSchema.optional(),
     at: timestamp,
   }).strict().nullable(),
   /** The responsible architect's latest accepted report; null while there is none. */
@@ -1480,6 +1504,7 @@ export const obligationViewSchema = z.object({
     invocation: text,
     submission: text,
     sequence: z.int().positive(),
+    sourceRun: runIdSchema.optional(),
     at: timestamp,
   }).strict().nullable(),
 }).strict();

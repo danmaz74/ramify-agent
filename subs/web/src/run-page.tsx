@@ -7,6 +7,7 @@ import type {
 import { CapabilityDependencyGraph } from './capability-graph.js';
 import { CapabilityTasksArea } from './capability-tasks.js';
 import { RecoveryPanel } from './recovery.js';
+import { RestartPanel } from './restart.js';
 import { RepairIncidents } from './repair-incidents.js';
 import { CatalogReview } from './catalog-review.js';
 import { EnvironmentProblems, ModuleCheckFindings, PlanDeviations, WorkItemCheckFindings } from './check-findings.js';
@@ -105,6 +106,7 @@ export function RunPage({ client, planId, runId, interval }: {
           {run && <span><RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} />{run.decisionRequests.waiting && <DecisionWaitBadge />}{pause && <DebugPauseBadge />}</span>}
         </header>
         {run && <DecisionBanner requests={run.decisionRequests} onOpen={openDecision} />}
+        {run && <RestartPanel key={`restart:${planId}/${runId}`} client={client} run={run} onChanged={refresh} />}
         {run && <RecoveryPanel key={`${planId}/${runId}`} client={client} run={run} onChanged={refresh} />}
         {pause && <DebugPauseBanner current={pause} onOpen={() => setArea('debugger')} />}
         <p className={`connection-line connection-line-${error ? 'lost' : connection}`} aria-label="Connection to the harness">
@@ -172,6 +174,7 @@ function Overview({ client, run, events, onApproved, onOpenGate }: {
         </header>
         {stop.status === 'failed' && <p className="failure" role="alert">The stop was refused: {stop.message}</p>}
         <dl className="facts">
+          {run.restart && <div><dt>Continues source run</dt><dd><a href={routeHref({ page: 'run', planId: run.planId, runId: run.restart.sourceRun })}><code>{run.restart.sourceRun}</code></a> at version {run.restart.sourceCursor}; generation {run.restart.generation}</dd></div>}
           <div><dt>Run state</dt><dd><RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} />{run.stopRequested ? ' (a stop was requested)' : ''}</dd></div>
           {run.planDeviations.recorded > 0 && (
             <div><dt>Plan deviations</dt><dd>{run.planDeviations.recorded} recorded, {run.planDeviations.toReview} to review</dd></div>

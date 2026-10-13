@@ -583,6 +583,14 @@
       "owningCases": [
         "released installed ownership adapter answers missing-export source while affected fails, and retains invalid acquisition diagnostics"
       ]
+    },
+    {
+      "file": "subs/harness/src/tests/restart-git.boundary.test.ts",
+      "boundary": "Native Git HEAD, source refs, index and retained dirty source during restart preparation and resumed branch setup",
+      "whyFakeCannotProve": "Scripted Git answers cannot establish actual index bytes, source ref preservation or dirty source preservation across linked successor preparation and execution branch setup. Models, Ramify and audit answers remain scripted.",
+      "owningCases": [
+        "restart preparation and resumed branch setup preserve native source refs index and dirty files"
+      ]
     }
   ]
 }

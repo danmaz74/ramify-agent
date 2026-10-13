@@ -10,7 +10,7 @@ import { capabilityProgressOf } from './progress.js';
 import { gatesByScenario, scenariosOf } from './scenarios.js';
 import { runSessionViews } from './sessions.js';
 import { allWorkItemsOf, capabilityOfItem } from './work.js';
-import type { RunView } from './inputs.js';
+import { publicSequence, type RunView } from './inputs.js';
 import type { ModuleTree } from '../interfaces/protocol/evidence.js';
 import { capturedLinesOf, executionModuleMapOf } from './execution-modules.js';
 
@@ -43,7 +43,7 @@ function recordSource(view: RunView, schema: string, id: string, kind: Execution
     for (const record of records) {
       const body = record.body as { schema?: string; id?: string; capability?: string; workItem?: string };
       if (body.schema === schema && (body.id ?? body.capability ?? body.workItem) === id) {
-        return { kind, id, sequence: line.sequence, revision: record.revision > 0 ? record.revision : null };
+        return { kind, id, ...publicSequence(view.entries, line.sequence), revision: record.revision > 0 ? record.revision : null };
       }
     }
   }
@@ -51,7 +51,8 @@ function recordSource(view: RunView, schema: string, id: string, kind: Execution
 }
 
 function eventSource(view: RunView, sequence: number): ExecutionSourceRef {
-  return { kind: 'run-event', id: `event-${sequence}`, sequence, revision: null };
+  const source = publicSequence(view.entries, sequence);
+  return { kind: 'run-event', id: `${source.sourceRun ? `${source.sourceRun}:` : ''}event-${source.sequence}`, ...source, revision: null };
 }
 
 function sourceOf(view: RunView, schema: string, id: string, kind: ExecutionSourceRef['kind']): ExecutionSourceRef {
@@ -65,7 +66,7 @@ function scenarioSources(view: RunView): Map<string, ExecutionSourceRef> {
   for (const line of view.entries) for (const record of line.transaction.records) {
     const body = record.body as { schema?: string; id?: string };
     if (body.schema === 'ramify-agent.scenario/1' && body.id !== undefined && !sources.has(body.id)) {
-      sources.set(body.id, { kind: 'tracked-scenario', id: body.id, sequence: line.sequence, revision: null });
+      sources.set(body.id, { kind: 'tracked-scenario', id: body.id, ...publicSequence(view.entries, line.sequence), revision: null });
     }
   }
   return sources;
@@ -183,8 +184,8 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   const iterationCounts = new Map<string, number>();
   const startedIterations = new Set(view.events.filter(event => event.type === 'invocation-started')
     .flatMap(event => event.data.work.iteration === undefined ? [] : [event.data.work.iteration]));
-  for (const { body: assignment, sequence } of view.assignments) {
-    const source: ExecutionSourceRef = { kind: 'iteration-assignment', id: assignment.id, sequence, revision: assignment.outline.revision };
+  for (const { body: assignment, sequence, sourceRun } of view.assignments) {
+    const source: ExecutionSourceRef = { kind: 'iteration-assignment', id: assignment.id, sequence, ...(sourceRun === undefined ? {} : { sourceRun }), revision: assignment.outline.revision };
     const ordinal = (iterationCounts.get(assignment.workItem) ?? 0) + 1;
     iterationCounts.set(assignment.workItem, ordinal);
     const result = view.records.results.get(assignment.id);
@@ -221,7 +222,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     const source = sourceOf(view, 'ramify-agent.gate-attempt/3', gate.id, 'gate');
     const auditRecord = view.gateAuditOutcomes.get(gate.id);
     add({ ...base(key('gate', gate.id), `${label(gate.checkpoint)} gate ${gate.id}`, source), kind: 'gate',
-      sourceRefs: auditRecord === undefined ? [source] : [source, { kind: 'audit', id: gate.id, sequence: auditRecord.sequence, revision: 1 }],
+      sourceRefs: auditRecord === undefined ? [source] : [source, { kind: 'audit', id: gate.id, sequence: auditRecord.sequence, ...(auditRecord.sourceRun === undefined ? {} : { sourceRun: auditRecord.sourceRun }), revision: 1 }],
       checkpoint: gate.checkpoint, verdict: gate.verdict, audit: auditOf(view, gate), repairRound: gate.repairRound,
       commit: gate.commit, auditedCommit: gate.audited, active: false,
       subject: { workItem: gate.subject.workItem ?? null, iteration: gate.subject.iteration ?? null },
@@ -362,7 +363,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
   for (const assignment of view.assignments) {
     const before = previous.get(assignment.body.workItem);
     if (before !== undefined) relate('follows', key('iteration', before), key('iteration', assignment.body.id),
-      { kind: 'iteration-assignment', id: assignment.body.id, sequence: assignment.sequence, revision: assignment.body.outline.revision });
+      { kind: 'iteration-assignment', id: assignment.body.id, sequence: assignment.sequence, ...(assignment.sourceRun === undefined ? {} : { sourceRun: assignment.sourceRun }), revision: assignment.body.outline.revision });
     previous.set(assignment.body.workItem, assignment.body.id);
   }
   for (const item of view.records.workItems) if (item.follows !== undefined && known().has(key('work-item', item.follows))) {
@@ -432,9 +433,15 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     ids.add(link.id);
     if (!keys.has(link.from.key) || !keys.has(link.to.key)) throw new Error(`Execution link ${link.id} has an absent endpoint`);
   }
-  nodes.sort((a, b) => (a.sourceRefs[0]?.sequence ?? Infinity) - (b.sourceRefs[0]?.sequence ?? Infinity)
+  const sourceOrder = new Map(view.entries.map((entry, index) => {
+    const source = publicSequence(view.entries, entry.sequence);
+    return [`${source.sourceRun ?? ''}:${source.sequence}`, index];
+  }));
+  const orderOf = (source: ExecutionSourceRef | undefined) => source?.sequence == null ? Infinity
+    : sourceOrder.get(`${source.sourceRun ?? ''}:${source.sequence}`) ?? Infinity;
+  nodes.sort((a, b) => orderOf(a.sourceRefs[0]) - orderOf(b.sourceRefs[0])
     || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key));
-  links.sort((a, b) => (a.source.sequence ?? Infinity) - (b.source.sequence ?? Infinity) || a.id.localeCompare(b.id));
+  links.sort((a, b) => orderOf(a.source) - orderOf(b.source) || a.id.localeCompare(b.id));
   return { runVersion, nodes, links, gaps, current };
 }
 
@@ -448,7 +455,7 @@ export function executionCapabilityDetailOf(view: RunView, capability: string): 
   const entry = view.entryAssignments?.entries.find(candidate => candidate.capability === capability);
   if (entry !== undefined) {
     const accepted = view.events.find(event => event.type === 'analysis-accepted');
-    const source: ExecutionSourceRef = { kind: 'analysis-entry', id: capability, sequence: accepted?.sequence ?? null, revision: null };
+    const source: ExecutionSourceRef = { kind: 'analysis-entry', id: capability, ...(accepted === undefined ? { sequence: null } : publicSequence(view.entries, accepted.sequence)), revision: null };
     return { schema: 'execution-map/1', runVersion, key: key('capability', capability),
       detail: { state: 'available', level: 'entry', description: entry.description, source } };
   }

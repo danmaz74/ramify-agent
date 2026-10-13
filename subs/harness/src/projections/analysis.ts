@@ -2,7 +2,7 @@ import type { Hypothesis } from '../analysis/records.js';
 import { runQueryLimits, type AnalysisResponse, type DecisionView, type HypothesisView } from '../interfaces/protocol/runs.js';
 import { runLayout } from '../run/records.js';
 import { capabilityOf } from '../work/frontier.js';
-import { readRunFile, type RunView } from './inputs.js';
+import { publicSequence, readRunFile, type RunView } from './inputs.js';
 import { analysisScenariosOf } from './scenarios.js';
 import { readAcceptedEvidence } from '../analysis/evidence.js';
 import { elementKinds } from '../../subs/plan-evidence/src/interfaces/catalog.js';
@@ -138,11 +138,11 @@ export function hypothesesOf(view: RunView): HypothesisView[] {
  */
 export function decisionsOf(view: RunView): DecisionView[] {
   const decisions: DecisionView[] = [];
-  const committed = new Map<string, { sequence: number; at: string }>();
+  const committed = new Map<string, { sequence: number; at: string; sourceRun?: string }>();
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
       if ((record.body as { schema?: unknown } | null)?.schema === 'ramify-agent.placement-decision/1') {
-        committed.set((record.body as { id: string }).id, { sequence: line.sequence, at: line.at });
+        committed.set((record.body as { id: string }).id, { ...publicSequence(view.entries, line.sequence), at: line.at });
       }
     }
   }
@@ -153,6 +153,7 @@ export function decisionsOf(view: RunView): DecisionView[] {
       kind: 'placement',
       at: when.at,
       sequence: when.sequence,
+      ...(when.sourceRun === undefined ? {} : { sourceRun: when.sourceRun }),
       workItem: decision.workItem,
       id: decision.id,
       authority: decision.authority,
@@ -172,13 +173,14 @@ export function decisionsOf(view: RunView): DecisionView[] {
     });
   }
 
-  for (const { body: assignment, sequence, at } of view.assignments) {
+  for (const { body: assignment, sequence, at, sourceRun } of view.assignments) {
     const base = assignment.scope.base;
     const broad = 'modules' in base;
     decisions.push({
       kind: 'scope',
       at,
       sequence,
+      ...(sourceRun === undefined ? {} : { sourceRun }),
       workItem: assignment.workItem,
       iteration: assignment.id,
       iterationKind: assignment.kind,
@@ -195,11 +197,12 @@ export function decisionsOf(view: RunView): DecisionView[] {
     });
   }
 
-  for (const { body: outline, sequence, at } of view.outlines) {
+  for (const { body: outline, sequence, at, sourceRun } of view.outlines) {
     decisions.push({
       kind: 'plan-revision',
       at,
       sequence,
+      ...(sourceRun === undefined ? {} : { sourceRun }),
       workItem: outline.workItem,
       outlineRevision: outline.revision,
       decomposition: outline.decomposition.kind,
@@ -212,6 +215,7 @@ export function decisionsOf(view: RunView): DecisionView[] {
         kind: 'breaking',
         at,
         sequence,
+        ...(sourceRun === undefined ? {} : { sourceRun }),
         workItem: outline.workItem,
         outlineRevision: outline.revision,
         guarantee: change.guarantee,
@@ -221,12 +225,13 @@ export function decisionsOf(view: RunView): DecisionView[] {
     }
   }
 
-  for (const { body: contract, sequence, at } of view.contracts) {
+  for (const { body: contract, sequence, at, sourceRun } of view.contracts) {
     const assignment = view.records.assignments.get(contract.establishedBy.iteration);
     decisions.push({
       kind: 'contract',
       at,
       sequence,
+      ...(sourceRun === undefined ? {} : { sourceRun }),
       workItem: assignment?.workItem ?? contract.establishedBy.iteration.split('.')[0]!,
       contract: contract.id,
       revision: contract.revision,
@@ -239,5 +244,9 @@ export function decisionsOf(view: RunView): DecisionView[] {
     });
   }
 
-  return decisions.sort((a, b) => a.sequence - b.sequence);
+  const order = new Map(view.entries.map((entry, index) => {
+    const source = publicSequence(view.entries, entry.sequence);
+    return [`${source.sourceRun ?? ''}:${source.sequence}`, index];
+  }));
+  return decisions.sort((a, b) => (order.get(`${a.sourceRun ?? ''}:${a.sequence}`) ?? 0) - (order.get(`${b.sourceRun ?? ''}:${b.sequence}`) ?? 0));
 }

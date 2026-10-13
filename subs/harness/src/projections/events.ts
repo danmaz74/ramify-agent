@@ -34,6 +34,12 @@ export function projectEvent(event: RunEvent): ProjectedRunEvent {
 
 function describe(event: RunEvent): [string, Ref[]] {
   switch (event.type) {
+    case 'restart-branch-setting-up':
+      return [`Preparing successor branch ${event.data.branch} from admitted HEAD ${event.data.head}`, ref('commit', event.data.head)];
+    case 'restart-branch-ready':
+      return [`Successor branch ${event.data.branch} preserves admitted candidate ${event.data.tree}`, ref('commit', event.data.head)];
+    case 'restart-prepared':
+      return [`Linked successor prepared from run ${event.data.sourceRun} at version ${event.data.sourceCursor}; recovery ${event.data.occurrenceId} awaits explicit resume`, []];
     case 'continuity-policy-adopted':
       return [`Recovery ${event.data.occurrenceId} adopted execution continuity (${event.data.from} to ${event.data.to}); the original captured policy remains retained`, []];
     case 'operation-recovery-attempt':

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import { childEnvironment } from '../../subs/evidence/src/run-command.js';
 import type {
   AuditInvocationReceipt,
@@ -31,6 +32,21 @@ const workspaceSchema = z.object({
   cleanedAt: z.iso.datetime().optional(),
 }).strict();
 type WorkspaceRecord = z.infer<typeof workspaceSchema>;
+
+/** A non-repairing observation of an audit owner's completed receipt and cleanup.
+ * Process absence and a cleaned workspace alone establish no producer settlement. */
+export async function inspectAuditSettlement(projectRoot: string, runId: string, attemptId: string, sourceCommit: string): Promise<{ confirmed: boolean; evidence: string[] }> {
+  try {
+    const workspacePath = await recordPath(projectRoot, runId, attemptId);
+    const receiptPath = join(dirname(workspacePath), 'audit-invocation.json');
+    const [workspaceBytes, receiptBytes] = await Promise.all([readFile(workspacePath), readFile(receiptPath)]);
+    const workspace = workspaceSchema.parse(JSON.parse(workspaceBytes.toString('utf8')));
+    const receipt = invocationSchema.parse(JSON.parse(receiptBytes.toString('utf8')));
+    if (workspace.state !== 'cleaned' || !workspace.cleanedAt || workspace.runId !== runId || workspace.attemptId !== attemptId
+      || workspace.sourceCommit !== sourceCommit || receipt.runId !== runId || receipt.attemptId !== attemptId || receipt.sourceCommit !== sourceCommit) return { confirmed: false, evidence: [] };
+    return { confirmed: true, evidence: [workspacePath, receiptPath].map((path, index) => `${path}#sha256:${createHash('sha256').update(index === 0 ? workspaceBytes : receiptBytes).digest('hex')}`) };
+  } catch { return { confirmed: false, evidence: [] }; }
+}
 
 const verdict = z.enum(['pass', 'fail', 'indeterminate']);
 /** The receipt of one completed nested audit invocation: its projects' identities, discovery and verdict. */

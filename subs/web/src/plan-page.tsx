@@ -84,6 +84,7 @@ function Runs({ client, planId, navigate }: { readonly client: ProtocolClient; r
           {list.runs.map(run => (
             <li key={run.jobId}>
               <a href={routeHref({ page: 'run', planId, runId: run.jobId })}><code>{run.jobId}</code></a>
+              {run.restart && <span className="muted">continues <a href={routeHref({ page: 'run', planId, runId: run.restart.sourceRun })}><code>{run.restart.sourceRun}</code></a> · </span>}
               <RunState state={run.state} planDeviations={run.planDeviations} recovery={run.recovery} />
               {run.breakpoint !== null && <span className="badge breakpoint" title={`Started with the breakpoint ${run.breakpoint}`}>breakpoint</span>}
               {run.decisionRequests.waiting && (

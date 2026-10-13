@@ -10,7 +10,7 @@ import { trackedScenarios, type TrackedScenarios } from '../run/feature-files.js
 import { capabilityOf } from '../work/frontier.js';
 import { integrationScenarioOf } from '../work/records.js';
 import { obligationsOf } from '../work/obligations.js';
-import type { RunView } from './inputs.js';
+import { publicSequence, type RunView } from './inputs.js';
 
 /*
  * The acceptance scenarios of a run, as a client reads them: the review's
@@ -140,12 +140,12 @@ export function obligationViewsOf(view: RunView, tracked: TrackedScenarios = sce
     registeredBy: obligation.registeredBy === null ? null : { invocation: obligation.registeredBy.by, submission: obligation.registeredBy.submission },
     binding: obligation.binding === null ? null : {
       fakes: [...obligation.binding.fakes], invocation: obligation.binding.by, submission: obligation.binding.submission,
-      sequence: obligation.binding.sequence, at: obligation.binding.at,
+      ...publicSequence(view.entries, obligation.binding.sequence), at: obligation.binding.at,
     },
     report: obligation.report === null ? null : {
       judgment: obligation.report.judgment, revision: obligation.report.revision, basedOnRevision: obligation.report.basedOnRevision,
       where: obligation.report.where, invocation: obligation.report.by, submission: obligation.report.submission,
-      sequence: obligation.report.sequence, at: obligation.report.at,
+      ...publicSequence(view.entries, obligation.report.sequence), at: obligation.report.at,
     },
   }));
 }

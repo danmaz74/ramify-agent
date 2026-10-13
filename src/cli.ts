@@ -28,6 +28,7 @@ export type CommandLine =
   | { readonly command: 'repair-export'; readonly run: string; readonly executable: string; readonly workspace: string; readonly incident?: string; readonly json: boolean }
   | { readonly command: 'consultations'; readonly run: string; readonly session: string | undefined; readonly id: string | undefined; readonly format: 'text' | 'json' }
   | { readonly command: 'recovery'; readonly recovery: RecoveryOptions }
+  | { readonly command: 'restart'; readonly restart: RestartOptions }
   | { readonly command: 'debug'; readonly debug: DebugOptions }
   | { readonly command: 'serve'; readonly projectRoot: string; readonly port: number; readonly agent: AgentName | undefined; readonly model: string | undefined;
       readonly repairIncidentExport?: { readonly executable: string; readonly workspace: string } }
@@ -71,6 +72,8 @@ export const usage = [
   '  ramify-agent consultations --run <run-directory> [--session <session-id>] [--format text|json]',
   '  ramify-agent consultations --run <run-directory> --id <consultation-id> [--format text|json]',
   '                       Reads retained exchanges, child investigations and caller result positions without changing run state.',
+  '  ramify-agent restart <inspect|prepare> --server <url> --plan <id> --run <source-run> [--json] [--timeout-ms <n>]',
+  '                       prepare: --expected-version <source-cursor> --command-id <stable-id>. Creates a successor awaiting recovery resume.',
   '  ramify-agent recovery <inspect|resume> --server <url> --plan <id> --run <id> [--json] [--timeout-ms <n>]',
   '                       resume: --occurrence <id> --expected-revision <n> --command-id <id> [--repair-file <JSON file>]',
   '                       A repair file declares areas, explanation and optional evidence; exclude credentials.',
@@ -149,9 +152,44 @@ export function parseCommandLine(argv: readonly string[]): CommandLine {
   if (command === 'serve') return parseServe(rest);
   if (command === 'session') return parseSession(rest);
   if (command === 'step') return parseStep(rest);
+  if (command === 'restart') return { command: 'restart', restart: parseRestart(rest) };
   if (command === 'recovery') return { command: 'recovery', recovery: parseRecovery(rest) };
   if (command === 'debug') return { command: 'debug', debug: parseDebug(rest) };
   throw new UsageError(`Unknown command "${command}"`);
+}
+
+export interface RestartOptions {
+  readonly action: 'inspect' | 'prepare';
+  readonly server: string; readonly planId: string; readonly runId: string;
+  readonly expectedVersion?: number; readonly commandId?: string;
+  readonly json: boolean; readonly timeoutMs: number;
+}
+
+function parseRestart(rest: readonly string[]): RestartOptions {
+  const [action, ...flags] = rest;
+  if (action !== 'inspect' && action !== 'prepare') throw new UsageError('restart needs inspect or prepare');
+  const values: Record<string, string> = {};
+  let json = false;
+  options(flags, (flag, value, inline, argument) => {
+    if (flag in values || flag === '--json' && json) throw new UsageError(`Give ${flag} once`);
+    if (flag === '--json' && inline === undefined) json = true;
+    else if (['--server', '--plan', '--run', '--expected-version', '--command-id', '--timeout-ms'].includes(flag)) values[flag] = value();
+    else throw new UsageError(`Unknown option "${argument}"`);
+  });
+  for (const flag of ['--server', '--plan', '--run']) if (!values[flag]) throw new UsageError(`restart ${action} needs ${flag}`);
+  if (action === 'prepare') {
+    for (const flag of ['--expected-version', '--command-id']) if (!values[flag]) throw new UsageError(`restart prepare needs ${flag}`);
+  } else if (values['--expected-version'] !== undefined || values['--command-id'] !== undefined) throw new UsageError('restart inspect takes no mutation options');
+  const number = (flag: string, fallback: number, minimum: number): number => {
+    const text = values[flag]; const n = text === undefined ? fallback : Number(text);
+    if (text !== undefined && !/^\d+$/.test(text) || !Number.isSafeInteger(n) || n < minimum || n > 2147483647) throw new UsageError(`${flag} needs an integer from ${minimum} to 2147483647`);
+    return n;
+  };
+  return { action, server: values['--server']!, planId: values['--plan']!, runId: values['--run']!, json,
+    timeoutMs: number('--timeout-ms', 10000, 1),
+    ...(values['--expected-version'] === undefined ? {} : { expectedVersion: number('--expected-version', 0, 0) }),
+    ...(values['--command-id'] === undefined ? {} : { commandId: values['--command-id'] }),
+  };
 }
 
 export interface RecoveryOptions {

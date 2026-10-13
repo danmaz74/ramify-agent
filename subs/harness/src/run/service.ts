@@ -1,3 +1,4 @@
+import { inspectAuditSettlement } from './audit-workspaces.js';
 import { localViewInputsOf } from '../work/view-inputs.js';
 import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths,
   type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair-preparation.js';
@@ -15,6 +16,8 @@ import { taskSupportSections } from '../work/task-support.js';
 import { declaredCheckInputs, moduleInputPointers, startingPointsSection, type StartingPointGroup } from '../work/starting-inputs.js';
 export { taskSupportSections } from '../work/task-support.js';
 import type { ProvisionalSourceGit } from '../../subs/evidence/src/provisional-git.js';
+import { sourceRestartRuntime, restartRuntimeCompatibility, validateRestartRepair, normalizeRestartIdentityForComparison } from './restart-runtime.js';
+import { planRestartImport, restartWorkflowEntries, stageRestartImport, readRestartImport, inspectRestartArtifacts, type RestartImport, type RestartRecognizedEffect } from './restart-import.js';
 import { runCommand, type CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { z } from 'zod';
 import { lstat, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -119,7 +122,7 @@ import { captureInstalledRecoveryRuntime } from './recovery-runtime.js';
 import { captureRecoveryCandidate, recoveryHash, recoveryRuntimeSchema, repairDispatchBlockers, validateExternalRepair, type RecoveryIdentity, type RecoveryRuntime } from './recovery-admission.js';
 import { commitReadinessRepair, readinessRepairOperationPath, readinessRepairOperationSchema } from './readiness-commit.js';
 import { operationRecoverySchema, type OperationRecovery, type RecoveryBoundary } from './records.js';
-import { recoveryInspectionSchema, type RecoveryInspection } from '../interfaces/protocol/runs.js';
+import { recoveryInspectionSchema, restartInspectionSchema, type RestartInspection, type RecoveryInspection } from '../interfaces/protocol/runs.js';
 import type { InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import { composeTaskBrief, type KnownProjectFacts } from './task-brief.js';
 import { constructEngineerStep, engineerStepInputsOf, type ConstructedEngineerStep } from '../steps/engineer.js';
@@ -213,7 +216,7 @@ import {
   scopeConfigurationPaths, missingHistoricalAuthority, captureGuardedFiles, deniedFiles, guardedScopeOf, protectedScopeOf, injectionSiteRule, moduleOwning,
   resolveWriteScope, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles,
 } from '../work/scope.js';
-import { committedRecords, refOf } from '../work/committed.js';
+import { committedRecords, refOf, recordHash } from '../work/committed.js';
 import {
   obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection,
 } from '../work/obligations.js';
@@ -251,7 +254,7 @@ import {
 } from './project-facts.js';
 import { assertScratchSafe, ensureScratchRule, scratchSafetyRule, ScratchIgnoreConflictError } from '../work/scratch.js';
 import {
-  globalForkSourceSchema, gateAttemptId, gateAttemptSchema, invocationId, invocationOutcomeSchema, invocationSchema, lineEventSummarySchema,
+  globalForkSourceSchema, gateAttemptId, gateAttemptSchema, gateOperationSchema, invocationId, invocationOutcomeSchema, invocationSchema, lineEventSummarySchema,
   measurementSnapshotSchema, readinessAttemptSchema, recoveryId, runDirectory, runLayout, runRecordSchema, runSchemas, sessionId, snapshotId,
   type GateOperation, type Invocation, type InvocationOutcome, type LineEventSummary, type MeasurementSnapshot, type RecordRef, type RunPolicy,
   type RunRecord, type ArchitectRef, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type ReplaceRelation,
@@ -302,6 +305,8 @@ export type RunWrite =
   | 'evidence-reopened'
   | 'revision-needed'
   | 'dependency-cycle-detected'
+  | 'restart-staged'
+  | 'restart-prepared'
   | 'session-opened'
   | 'invocation-started'
   | 'invocation-ended'
@@ -400,6 +405,8 @@ export interface RunServiceOptions {
   readonly now?: (() => Date) | undefined;
   /** Trusted installed-runtime evidence seam. Production hashes its installed implementation. */
   readonly recoveryRuntime?: (() => Promise<RecoveryRuntime>) | undefined;
+  /** Settled producer evidence independent of a source commit acknowledgement. */
+  readonly auditSettlement?: ((sourceRun: string, gate: string, commit: string) => Promise<{ confirmed: boolean; evidence: string[] }>) | undefined;
   readonly warn?: ((message: string) => void) | undefined;
 }
 
@@ -529,6 +536,7 @@ class ScratchSetupRefusal extends Error {
 }
 
 class Run implements RunnerRun {
+  restartImport: RestartImport | undefined;
   recoveryPause: OperationRecovery | undefined;
   recoveryRestart = false;
   startupRecovery = false;
@@ -641,6 +649,9 @@ class Run implements RunnerRun {
 
 export class RunService {
   private readonly runs = new Map<string, Run>();
+  /** Claims are rebuilt only from committed successor initialization events. */
+  private readonly restartUnavailable = new Map<string, string>();
+  private readonly restartClaims = new Map<string, { readonly jobId: string; readonly sourceDigest: string }>();
   /**
    * Write scopes captured while an assignment was judged, by the accepted
    * body they were captured for, so the assignment applies the scope its
@@ -714,6 +725,12 @@ export class RunService {
       afterWrite: (write, runId) => service.afterWrite(write, runId),
       warn: text => service.warn(text),
       harnessFiles: run => service.harnessFiles(run),
+      importedCommitReceipt: async (run, request) => {
+        const effect = run.restartImport?.recognizedEffects.find(receipt => receipt.checkpoint === request.checkpoint && receipt.subjectWorkItem === request.subject?.workItem && receipt.commit === request.head);
+        if (!effect || (await service.previewCandidateTree()).tree !== effect.tree) return undefined;
+        return { commit: effect.commit, tree: effect.tree };
+      },
+      evidenceApplicable: (run, event) => event.sequence >= 0 || !run.restartImport || !service.latestOperationRecovery(run)?.admission?.invalidatesQualification,
       // The provider's definition as the run captured it, whatever the candidate commit holds.
       auditDefinition: async run => {
         const recovered = service.latestOperationRecovery(run)?.admission;
@@ -880,6 +897,7 @@ export class RunService {
       if (run.log.terminal || this.closed || (run.stopRequested && terminal.type !== 'job-stopped' && terminal.type !== 'job-interrupted')) return 'ended';
       const sessions = this.sessionsOf(run);
       for (const session of sessions?.values() ?? []) {
+        if (run.restartImport && !run.log.ownEvents.some(event => event.type === 'session-opened' && event.data.session === session.id)) continue;
         const reason = session.state === 'suspended' ? 'run-ended' : session.state === 'live' && session.awaiting === null ? opening : null;
         if (reason !== null) await run.log.append({ type: 'session-finished', data: { session: session.id, reason } });
       }
@@ -897,7 +915,7 @@ export class RunService {
    * invocation ended, or the run has ended.
    */
   private async finishSession(run: Run, session: SessionId | undefined, reason: SessionFinishReason): Promise<void> {
-    if (session === undefined) return;
+    if (session === undefined || run.restartImport && !run.log.ownEvents.some(event => event.type === 'session-opened' && event.data.session === session)) return;
     const written = await run.mutex.run(async () => {
       if (run.log.terminal || this.sessionsOf(run)?.get(session)?.state !== 'suspended') return false;
       await run.log.append({ type: 'session-finished', data: { session, reason } });
@@ -2481,15 +2499,24 @@ export class RunService {
         if (typeof policy !== 'string' || !supportedCapabilityPolicy(policy)) {
           const recorded = typeof policy === 'string' ? policy : '(missing policy)';
           this.refusedPolicies.set(key(planId, jobId), recorded);
+          this.restartUnavailable.set(key(planId, jobId), `Unsupported retained run policy ${recorded}`);
           report.skipped.push(key(planId, jobId));
           this.warn(`Run policy ${recorded} is refused by ${capabilityRunPolicyVersion}; a fresh run is required`);
           continue;
         }
         const record = runRecordSchema.parse(parsed);
         if (record.jobId !== jobId || record.planId !== planId) throw new Error('job.json names another run');
-        const log = await RunLog.open(join(directory, runLayout.events), jobId);
+        const log = await RunLog.open(join(directory, runLayout.events), jobId, undefined, record.restart !== undefined);
+        const preparation = log.find('restart-prepared');
+        if (preparation) this.restartClaims.set(key(planId, preparation.data.sourceRun), { jobId, sourceDigest: preparation.data.sourceDigest });
         const captured = await readCapturedDocuments(directory, record.manifest);
-        if (!log.find('job-started')) throw new Error('Document capture stopped before the run was published');
+        if (!log.find('job-started') && !log.find('restart-prepared')) continue;
+        let imported: RestartImport | undefined;
+        if (record.restart) {
+          if (!preparation || Object.entries(record.restart).some(([field, value]) => value !== preparation.data[field as keyof typeof preparation.data])) throw new Error('Restart initialization provenance is unavailable or inconsistent');
+          imported = await readRestartImport(directory, record.restart.importDigest);
+          log.installWorkflowImport(restartWorkflowEntries(imported));
+        }
         if (!log.find('document-manifest-committed')) await log.append({ type: 'document-manifest-committed', data: {
           manifest: record.manifest.documentManifest.path, hash: record.manifest.documentManifest.hash,
           documents: captured.manifest.documents.length,
@@ -2499,14 +2526,17 @@ export class RunService {
         loaded = new Run(record, directory, log, base, this.newWriter(record.policy, () => this.accepted(loaded)));
         const adopted = log.all('continuity-policy-adopted').at(-1);
         if (adopted) loaded.effectivePolicy = adopted.data.policy;
+        loaded.restartImport = imported;
         run = loaded;
       } catch (error) {
+        this.restartUnavailable.set(key(planId, jobId), `Retained source is unreadable or incompatible: ${message(error)}`);
         report.skipped.push(key(planId, jobId));
         this.warn(`Skipping ${directory}: ${message(error)}. It declares ${declaredSchemaOf(await readJson(recordPath))}.`);
         continue;
       }
       this.runs.set(run.key, run);
 
+      for (const event of run.log.ownEvents) if (event.type === 'restart-prepared' || event.type === 'operation-recovery-resumed' || event.type === 'stop-requested') this.commands.remember(event.data.command);
       const rewritten = await recoverCommits(run.log.ledger);
       if (rewritten.rewritten.length > 0) report.rematerialized.push(`${run.key}: ${rewritten.rewritten.length} record file(s)`);
       if (!run.log.terminal && run.record.breakpoint !== undefined) {
@@ -3225,6 +3255,7 @@ export class RunService {
       }
       switch (command.type) {
         case 'start-run': return this.start(command, admitted.contentHash);
+        case 'prepare-restart': return this.prepareRestart(command, admitted.contentHash);
         case 'stop-job': return this.stop(command, admitted.contentHash);
         case 'approve-analysis': return this.approve(command, admitted.contentHash);
         case 'debug-message': return this.messageDebug(command, admitted.contentHash);
@@ -3236,6 +3267,159 @@ export class RunService {
           return this.checkFindingCommand(command, admitted.contentHash);
       }
     });
+  }
+
+  /** Build the same authenticated import for inspection and durable preparation. */
+  private async restartPlan(source: Run) {
+    const blockers: string[] = [];
+    if (!await this.options.lock.held()) blockers.push('The harness no longer holds the project execution lock');
+    const live = [...this.runs.values()].find(run => !run.log.terminal);
+    if (live) blockers.push(`Run ${live.jobId} is still live or awaiting resume in this project`);
+    const successor = [...this.runs.values()].find(run => run.record.restart?.sourceRun === source.jobId) ?? this.restartClaims.get(source.key);
+    if (successor) blockers.push(`Source occurrence already has successor ${successor.jobId}`);
+    const terminal = source.log.terminal;
+    if (!terminal) blockers.push('Source is nonterminal; use its existing recovery occurrence');
+    else if (!['job-failed', 'job-interrupted'].includes(terminal.type)) blockers.push(terminal.type === 'job-completed' ? 'Completed execution has no unfinished plan obligation' : 'The recorded operator stop stands');
+    const recognizedEffects: RestartRecognizedEffect[] = [];
+    for (const effect of source.log.ledger.pendingEffects()) {
+      try {
+        if (!effect.key.startsWith('gate-commit:') || effect.event.type !== 'gate-committing') throw new Error('unsupported external effect');
+        const gate = effect.event.data.gate;
+        const operation = gateOperationSchema.parse(this.committedBody(source, runLayout.gateOperation(gate)));
+        if (operation.checkpoint !== 'work-item' || operation.request.runId !== source.jobId || operation.request.id !== gate || !operation.request.proposedBy || !operation.request.subject.workItem || operation.unauthorized || operation.ruleFailed) throw new Error('unsupported or unauthenticated owning gate');
+        const invocation = this.invocationRecord(source, operation.request.proposedBy).body;
+        const outcome = this.effectiveInvocationOutcome(source, operation.request.proposedBy);
+        if (invocation.role !== 'local-architect' || invocation.work.workItem !== operation.request.subject.workItem || outcome?.ended !== 'submitted' || !outcome.settled.confirmed) throw new Error('owning architect destination is unavailable');
+        if (!operation.message.split('\n').includes(`Ramify-Run: ${source.jobId}`) || !operation.message.split('\n').includes(`Ramify-Gate: ${gate}`)) throw new Error('original gate trailers do not match');
+        const commit = await this.git.findCommitByTrailers(this.projectRoot, [{ key: 'Ramify-Run', value: source.jobId }, { key: 'Ramify-Gate', value: gate }]);
+        if (!commit) throw new Error('no authenticated commit receipt');
+        const currentHead = await this.git.currentHead(this.projectRoot);
+        if (this.git.isAncestor === undefined || !await this.git.isAncestor(this.projectRoot, this.accepted(source), commit) || !await this.git.isAncestor(this.projectRoot, commit, currentHead)) throw new Error('receipt history is not preserved');
+        const producer = await (this.options.auditSettlement ? this.options.auditSettlement(source.jobId, gate, commit) : inspectAuditSettlement(this.projectRoot, source.jobId, gate, commit));
+        if (!producer.confirmed || producer.evidence.length === 0) throw new Error('external audit producer settlement is unknown');
+        recognizedEffects.push({ producerSettlement: producer.evidence, sourceRun: source.jobId, gate, commit, tree: await this.candidates.commitTree(this.projectRoot, commit), recordHash: recordHash(operation), proposedBy: operation.request.proposedBy, checkpoint: operation.checkpoint, subjectWorkItem: operation.request.subject.workItem });
+      } catch (error) { blockers.push(`Settlement: source effect ${effect.key} has no authenticated completion: ${message(error)}`); }
+    }
+    if (source.live.size || source.writer.isUnsettled) blockers.push('Settlement: source has a live or unsettled owner');
+    if (this.beadsSessions && !(await this.beadsSessions).settlementConfirmed(source.jobId)) blockers.push('Settlement: an administrative owner still holds shared session storage');
+    let current: RecoveryIdentity | undefined, original: RecoveryIdentity | undefined;
+    let settlement: 'confirmed' | 'unknown' = 'unknown';
+    if (!blockers.some(reason => reason.includes('lock') || reason.startsWith('Settlement:'))) {
+      try {
+        const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
+        for (const event of source.log.all('invocation-started')) {
+          const outcome = this.effectiveInvocationOutcome(source, event.data.invocation);
+          if (!outcome?.settled.confirmed) blockers.push(`Settlement: invocation ${event.data.invocation} is unconfirmed`);
+          if (!operations) blockers.push('Settlement: original session/effect owner evidence is unavailable');
+          else {
+            if ((await operations.unresolvedEffects(event.jobId, event.data.invocation)).length) blockers.push(`Settlement: invocation ${event.data.invocation} has an unknown external effect`);
+            const operation = await operations.originalOperation(event.jobId, event.data.invocation);
+            const invocation = this.invocationRecord(source, event.data.invocation).body;
+            if (!operation || invocation.prompt.inputsHash && inputsHash([operation.packet.roleInstructions, operation.packet.message]) !== invocation.prompt.inputsHash) blockers.push(`Original task ${event.data.invocation} cannot be authenticated`);
+          }
+        }
+        for (const group of source.log.all('writer-process-registered')) if ((this.options.groups ?? nodeProcessGroups).alive(group.data.pid)) blockers.push(`Settlement: retained process group ${group.data.pid} has live ownership`);
+        if (operations?.settlementConfirmed(source.jobId) === false) blockers.push('Settlement: source session owner has not confirmed drainage');
+        if (!blockers.some(reason => reason.startsWith('Settlement:'))) settlement = 'confirmed';
+        current = await this.captureRecoveryIdentity(source, true);
+        const recovery = this.latestOperationRecovery(source);
+        const retained = recovery?.state === 'resumed' ? recovery.admission?.after : recovery?.identity;
+        if (retained) original = { ...retained, acceptedHead: this.accepted(source), durableIdentity: current.durableIdentity };
+        else {
+          const recognized = recognizedEffects.at(-1);
+          const sourceTree = recognized?.tree ?? [...source.log.all('invocation-ended')].reverse().map(event => this.effectiveInvocationOutcome(source, event.data.invocation)?.candidateAfter).find(Boolean)
+            ?? [...source.log.all('invocation-started')].reverse().map(event => this.invocationRecord(source, event.data.invocation).body.candidateBefore).find(Boolean)
+            ?? await this.candidates.commitTree(this.projectRoot, this.accepted(source));
+          if (!sourceTree) blockers.push('Retained source candidate identity is unavailable');
+          else {
+            const entries = await this.candidates.treeEntries(this.projectRoot, sourceTree);
+            if (entries.some(entry => !entry.objectId)) throw new Error('Retained candidate has no exact source object identity');
+            const sourceHead = recognized?.commit ?? this.accepted(source);
+            const unchanged = sourceTree === current.candidate.tree && sourceHead === current.candidate.head;
+            original = { ...current, runtime: sourceRestartRuntime(source.record, source.log.ledger.replay()),
+              capturedInputs: current.capturedInputs.map(input => input.path.startsWith('prompt:') ? { ...input, hash: source.record.prompts[input.path.slice(7) as Role]?.hash ?? input.hash } : input),
+              configuration: source.record.auditConfiguration && 'config' in source.record.auditConfiguration ? { identity: recoveryHash(source.record.auditConfiguration.config), policy: source.record.auditConfiguration.config } : current.configuration,
+              candidate: { head: sourceHead, tree: sourceTree, index: unchanged ? current.candidate.index : 'historical-index-unavailable', staged: [], unstaged: [], untracked: [], files: entries.map(entry => ({ path: entry.path, hash: entry.objectId!, mode: ({ file: '100644', executable: '100755', symlink: '120000', submodule: '160000' } as const)[entry.kind] })).sort((a, b) => a.path.localeCompare(b.path)) } };
+            // Configuration's protected policy is historical; its identity uses the same
+            // comparison form when the committed policy and bytes are unchanged.
+            if (recoveryHash({ ...original.configuration.policy as object, sourceCommit: undefined }) === recoveryHash({ ...current.configuration.policy as object, sourceCommit: undefined })) original.configuration.identity = current.configuration.identity;
+          }
+        }
+      } catch (error) { blockers.push(message(error)); }
+    }
+    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    if (current) blockers.push(...restartRuntimeCompatibility(source.record, source.log.ledger.replay(), current.runtime, packages).blockers);
+    const planned = planRestartImport({ record: source.record, entries: source.log.ledger.replay(), sourceDigest: source.log.ledger.committedContentHash, recognizedEffects,
+      ...(original ? { sourceIdentity: original } : {}), ...(current ? { currentIdentity: current } : {}), ...(source.restartImport ? { previousImport: source.restartImport } : {}) });
+    blockers.push(...planned.blockers);
+    if (planned.seed) try { await inspectRestartArtifacts(planned.seed, source.directory); } catch (error) { blockers.push(message(error)); }
+    return { ...planned, blockers: [...new Set(blockers)], current, original, packages, successor, settlement };
+  }
+
+  async restartInspection(planId: string, sourceRunId: string): Promise<RestartInspection | null> {
+    return this.commandMutex.run(async () => {
+      const source = this.runs.get(key(planId, sourceRunId));
+      if (!source) {
+        const unavailable = this.restartUnavailable.get(key(planId, sourceRunId));
+        return unavailable ? restartInspectionSchema.parse({ planId, runId: sourceRunId, cursor: 0, sourceDigest: 'unavailable', generation: 1, canPrepare: false, blockers: [unavailable], successor: null, boundary: null, preserved: [], inapplicable: [], candidate: { source: null, current: null }, policy: { before: this.refusedPolicies.get(key(planId, sourceRunId)) ?? 'unavailable', current: 'run-policy/8' }, limitations: [], settlement: 'unknown', effects: 'unknown', changes: [] }) : null;
+      }
+      const planned = await this.restartPlan(source);
+      const pending = planned.seed?.pending;
+      let comparison;
+      try { comparison = planned.original && planned.current ? validateRestartRepair(planned.original, planned.current, undefined, source.record, source.log.ledger.replay(), planned.packages) : undefined; } catch { /* Compatibility refusals are already concrete planner blockers. */ }
+      return restartInspectionSchema.parse({ planId, runId: sourceRunId, cursor: source.log.version, sourceDigest: source.log.ledger.committedContentHash,
+        generation: (source.record.restart?.generation ?? 0) + 1, canPrepare: planned.blockers.length === 0, blockers: planned.blockers,
+        successor: planned.successor?.jobId ?? null, boundary: pending ? { kind: pending.kind === 'final-gate' ? 'gate' : 'invocation', ...(pending.role ? { role: pending.role } : {}), ...(pending.work ? { work: pending.work } : {}), ...(pending.originalInvocation ? { invocation: pending.originalInvocation } : {}) } : null,
+        preserved: planned.preserved, inapplicable: planned.inapplicable, candidate: { source: planned.original ? { head: planned.original.candidate.head, tree: planned.original.candidate.tree } : null, current: planned.current ? { head: planned.current.candidate.head, tree: planned.current.candidate.tree } : null },
+        ...(planned.original && planned.current ? { runtime: { before: planned.original.runtime.harness, current: planned.current.runtime.harness, compatible: !planned.blockers.some(reason => /runtime|contract|prompt/i.test(reason)) } } : {}),
+        policy: { before: source.policy.version, current: 'run-policy/8' }, limitations: planned.current ? restartRuntimeCompatibility(source.record, source.log.ledger.replay(), planned.current.runtime, planned.packages).limitations : [], settlement: planned.settlement, effects: planned.settlement === 'confirmed' ? 'reconciled' : 'unknown',
+        changes: comparison?.changes.map(change => ({ path: change.path, before: change.before.hash, after: change.after.hash })) ?? [] });
+    });
+  }
+
+  private async prepareRestart(command: Extract<RunCommand, { type: 'prepare-restart' }>, contentHash: string): Promise<Receipt> {
+    const source = this.runs.get(key(command.payload.planId, command.payload.jobId));
+    if (!source) throw new CommandRejection(this.restartUnavailable.has(key(command.payload.planId, command.payload.jobId)) ? 'conflict' : 'not-found', this.restartUnavailable.get(key(command.payload.planId, command.payload.jobId)) ?? 'The source run is unavailable');
+    this.commands.requireVersion(command, source.log.version);
+    const planned = await this.restartPlan(source);
+    if (planned.blockers.length || !planned.seed || !planned.original || !planned.current) throw new CommandRejection('conflict', planned.blockers.join('; ') || 'Authenticated restart import unavailable');
+    const at = this.now(), runId = newJobId(at), directory = runDirectory(this.projectRoot, source.planId, runId);
+    const seed = planned.seed;
+    await stageRestartImport(source.directory, directory, seed);
+    const currentPrompts = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    await writeFile(join(directory, runLayout.promptManifest), `${JSON.stringify(currentPrompts.manifest, null, 2)}\n`);
+    const defaults = defaultRunPolicy({ projectRoot: this.projectRoot });
+    const policy: RunPolicy = { ...source.policy, version: 'run-policy/8', continuity: defaults.continuity, recovery: defaults.recovery,
+      context: { ...source.policy.context, ...Object.fromEntries(Object.keys(source.policy.context).map(role => [role, defaultContextPolicies[role as Role]])) } };
+    const restart = { sourceRun: source.jobId, sourceCursor: source.log.version, sourceDigest: source.log.ledger.committedContentHash,
+      importDigest: seed.digest, importPath: runLayout.restartImport, generation: (source.record.restart?.generation ?? 0) + 1 };
+    const record = runRecordSchema.parse({ ...source.record, jobId: runId, createdAt: at.toISOString(), restart, policy, reviewStop: false, breakpoint: undefined,
+      prompts: Object.fromEntries([...planned.packages].map(([role, loaded]) => [role, { package: loaded.package, hash: loaded.hash }])) });
+    await writeOnce(join(directory, runLayout.record), `${JSON.stringify(record, null, 2)}\n`);
+    await this.afterWrite('restart-staged', runId);
+    if (this.closed || !await this.options.lock.held()) throw new CommandRejection('conflict', 'Project ownership or service shutdown changed before restart initialization');
+    this.commands.requireVersion(command, source.log.version);
+    if (!source.log.ledger.matchesCommittedContent(await readFile(source.log.path))) throw new CommandRejection('conflict', 'Source ledger bytes changed before restart initialization');
+    if (recoveryHash(await this.captureRecoveryIdentity(source, true)) !== recoveryHash(planned.current)) throw new CommandRejection('conflict', 'Candidate, runtime, configuration or captured input changed during restart preparation');
+    const log = await RunLog.open(join(directory, runLayout.events), runId);
+    log.installWorkflowImport(restartWorkflowEntries(seed));
+    let run!: Run; run = new Run(record, directory, log, source.base, this.newWriter(policy, () => this.accepted(run)));
+    run.restartImport = seed;
+    const id = 'restart-resume-1';
+    const recovery = operationRecoverySchema.parse({ schema: 'ramify-agent.operation-recovery/1', id, revision: 1, state: 'paused',
+      boundary: { kind: seed.pending.kind === 'final-gate' ? 'gate' : 'invocation', ...(seed.pending.role ? { role: seed.pending.role } : {}), ...(seed.pending.work ? { work: seed.pending.work } : {}),
+        ...(seed.pending.originalInvocation ? { invocation: seed.pending.originalInvocation } : {}), ...(seed.pending.submission ? { tool: seed.pending.submission } : {}), start: { mode: 'fresh' }, source: null,
+        requestHash: recoveryHash(seed.pending), ...(seed.pending.kind === 'final-gate' ? { checkpoint: 'final' } : {}) },
+      evidence: { classification: 'preparation', diagnostic: 'Linked successor prepared from authenticated retained progress; explicit recovery resume authorizes execution' },
+      group: 0, automaticAttempts: 0, attempts: [], pausedAt: at.toISOString(), settled: true, candidate: { head: planned.current.candidate.head, tree: planned.current.candidate.tree },
+      partialPaths: planned.current.candidate.files.filter(file => planned.current!.candidate.staged.includes(file.path) || planned.current!.candidate.unstaged.includes(file.path) || planned.current!.candidate.untracked.includes(file.path)).map(file => file.path), prerequisites: [], identity: planned.original });
+    const accepted = this.commands.accept(command, contentHash, runId, log.nextSequence, at);
+    await commitRecord(log.ledger, { event: log.next({ type: 'restart-prepared', data: { ...restart, occurrenceId: id, revision: 1, command: accepted } }, at),
+      records: [{ path: runLayout.operationRecovery(id), id, revision: 1, body: recovery }] });
+    run.recoveryPause = recovery; run.recoveryRestart = true;
+    this.runs.set(run.key, run); this.restartClaims.set(source.key, { jobId: runId, sourceDigest: restart.sourceDigest }); this.commands.remember(accepted);
+    await this.afterWrite('restart-prepared', runId);
+    return accepted.receipt;
   }
 
   private async start(command: Extract<RunCommand, { type: 'start-run' }>, contentHash: string): Promise<Receipt> {
@@ -3795,6 +3979,18 @@ export class RunService {
 
   /** A repaired candidate receives new semantic evidence within the remaining captured round allowance. */
   private async qualifyFinal(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): Promise<void> {
+    const restartRecovery = this.latestOperationRecovery(run);
+    if (run.restartImport?.pending.kind === 'final-gate' && restartRecovery?.state === 'resumed' && restartRecovery.admission?.invalidatesQualification
+      && !run.log.all('nonfunctional-final-invalidated').some(event => event.data.occurrenceId === restartRecovery.id)) {
+      const replay = replayNonfunctionalPhase(run.log.ledger.replay(), assessedElements(await this.frozenCatalog(run)), run.policy.limits.nonfunctionalRoundsPerPlan ?? 3);
+      if (!replay.ok) throw new Error(`Imported final assessment cannot be reconstructed: ${replay.reason}`);
+      if (replay.value.final) {
+        const spent = replay.value.input.closedRounds.length;
+        if (spent >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) throw new Error('Imported qualification requires reassessment, but its captured semantic round allowance is spent');
+        await this.write(run, { type: 'nonfunctional-final-invalidated', data: { occurrenceId: restartRecovery.id, revision: restartRecovery.revision,
+          round: spent, candidate: replay.value.final.candidateId, assessment: replay.value.final.assessment.id, tree: (await this.previewCandidateTree()).tree } });
+      }
+    }
     while (!this.ignoring(run)) {
       const binding = await this.assessNonfunctional(run, agent, packages);
       if (binding === null || this.ignoring(run)) return;
@@ -4469,7 +4665,7 @@ export class RunService {
 
   /** Recovery records are read from committed revisions, independently of the live driver. */
   private latestOperationRecovery(run: Run): OperationRecovery | undefined {
-    const event = run.log.events.filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed'].includes(event.type)).at(-1);
+    const event = run.log.ownEvents.filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'restart-prepared'].includes(event.type)).at(-1);
     if (!event || !('occurrenceId' in event.data)) return undefined;
     return operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId as string, (event.data as { revision: number }).revision)));
   }
@@ -4478,8 +4674,9 @@ export class RunService {
     return recoveryRuntimeSchema.parse(await (this.options.recoveryRuntime?.() ?? captureInstalledRecoveryRuntime(this.options.agent?.name ?? 'unavailable')));
   }
 
-  private async captureRecoveryIdentity(run: Run): Promise<RecoveryIdentity> {
+  private async captureRecoveryIdentity(run: Run, allowPromptMigration = false): Promise<RecoveryIdentity> {
     if (!run.log.ledger.matchesCommittedContent(await readFile(run.log.path))) throw new Error('Harness-owned durable ledger bytes changed');
+    if (canonicalJson(JSON.parse(await readFile(run.path(runLayout.record), 'utf8'))) !== canonicalJson(run.record)) throw new Error('Harness-owned execution record changed');
     const candidate = await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates);
     const acceptedHead = this.accepted(run);
     if (candidate.head !== acceptedHead && (this.git.isAncestor === undefined || !await this.git.isAncestor(this.projectRoot, acceptedHead, candidate.head))) throw new Error('Current target HEAD does not preserve the accepted Git history');
@@ -4487,13 +4684,13 @@ export class RunService {
     const inputs = captured.manifest.documents.map(document => ({ path: document.path, hash: document.sha256 }));
     const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
     for (const [role, loaded] of packages) {
-      if (run.record.prompts[role]?.hash !== loaded.hash) throw new Error(`Captured prompt package changed: ${role}`);
+      if (!allowPromptMigration && run.record.prompts[role]?.hash !== loaded.hash) throw new Error(`Captured prompt package changed: ${role}`);
       inputs.push({ path: `prompt:${role}`, hash: loaded.hash });
     }
     const documents = await documentChanges(this.projectRoot, run.planId, run.directory, run.record.manifest);
     if (documents.length > 0) throw new Error(`Captured inputs changed: ${documents.join('; ')}`);
     const latest = new Map<string, { path: string; body: unknown }>();
-    for (const entry of run.log.ledger.replay()) for (const record of entry.transaction.records) if (!record.path.startsWith('operation-recoveries/')) latest.set(record.path, record);
+    for (const entry of run.log.ledger.replay()) for (const record of entry.transaction.records) if (!record.path.startsWith('operation-recoveries/') && record.path !== 'restart/branch.json') latest.set(record.path, record);
     const durable = [];
     for (const [path, record] of latest) {
       const bytes = await readFile(run.path(path));
@@ -4517,6 +4714,13 @@ export class RunService {
   private effectiveInvocationOutcome(run: Run, id: string): InvocationOutcome | undefined {
     const outcome = committedRecords(run.log.ledger.replay()).outcomes.get(id);
     if (!outcome || outcome.settled.confirmed) return outcome;
+    if (run.restartImport) for (const record of [...run.restartImport.records].reverse()) {
+      const proof = operationRecoverySchema.safeParse(record.body);
+      if (!proof.success || !proof.data.settled || !proof.data.reconciledInvocations?.includes(id)) continue;
+      const observation = proof.data.settlementObservations?.find(entry => entry.invocation === id);
+      if (observation) return { ...outcome, settled: { confirmed: true, at: observation.at, groupsKilled: observation.groupsKilled, lateWrites: observation.lateWrites },
+        ...(observation.ref && outcome.session ? { session: { ...outcome.session, ref: observation.ref } } : {}) };
+    }
     for (const event of [...run.log.all('operation-recovery-resumed')].reverse()) {
       const recovered = operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision)));
       const observation = recovered.settlementObservations?.find(item => item.invocation === id);
@@ -4535,6 +4739,7 @@ export class RunService {
     if (preparation) blockers.push(`Settlement: readiness setup effect ${preparation.data.key} has no independently confirmed completion`);
     const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
     for (const started of run.log.all('invocation-started')) {
+      if (run.restartImport && started.sequence < 0) continue;
       const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation)));
       if ((!outcome.success || !outcome.data.settled.confirmed) && !recovery.reconciledInvocations?.includes(started.data.invocation)) blockers.push(`Settlement: invocation ${started.data.invocation} is unconfirmed`);
       for (const group of !outcome.success || !outcome.data.settled.confirmed && !recovery.reconciledInvocations?.includes(started.data.invocation)
@@ -4556,6 +4761,7 @@ export class RunService {
     const reconciled = new Set(recovery.reconciledInvocations ?? []);
     const observations = [...recovery.settlementObservations ?? []];
     for (const started of run.log.all('invocation-started')) {
+      if (run.restartImport && started.sequence < 0) continue;
       const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation)));
       const unknown = await operations.unresolvedEffects(run.jobId, started.data.invocation);
       if (unknown.length === 0 && (outcome.success && outcome.data.settled.confirmed || reconciled.has(started.data.invocation))) continue;
@@ -4620,7 +4826,7 @@ export class RunService {
           const source = await operations.originalOperation(run.jobId, recovery.boundary.reconstruction.invocation);
           if (!source || recoveryHash(source) !== recovery.boundary.reconstruction.inputsHash) blockers.push('Retained original task inputs are unavailable or changed');
         }
-        for (const id of recovery.attempts.filter(id => /^inv-/u.test(id))) {
+        for (const id of recovery.attempts.filter(id => /^inv-/u.test(id) && !run.restartImport)) {
           if ((await operations.unresolvedEffects(run.jobId, id)).length > 0) blockers.push(`Invocation ${id} retains an unknown external effect`);
           const original = await operations.originalOperation(run.jobId, id);
           const recorded = this.invocationRecord(run, id).body;
@@ -4629,6 +4835,22 @@ export class RunService {
       } catch (error) { blockers.push(`Original session/effect records cannot be authenticated: ${message(error)}`); }
     }
     return blockers;
+  }
+
+  private async compareRecoveryIdentity(run: Run, before: RecoveryIdentity, current: RecoveryIdentity, declaration?: import('../interfaces/protocol/runs.js').ExternalRepairDeclaration) {
+    if (!run.restartImport || !run.record.restart) return validateExternalRepair(before, current, declaration);
+    const authenticated = await readRestartImport(run.directory, run.record.restart.importDigest);
+    if (authenticated.sourceRun !== run.record.restart.sourceRun || authenticated.sourceDigest !== run.record.restart.sourceDigest || recoveryHash(authenticated) !== recoveryHash(run.restartImport)) throw new Error('Prepared restart source identity or lineage changed');
+    if (recoveryHash(before) !== recoveryHash(authenticated.sourceIdentity)) return validateExternalRepair(before, current, declaration);
+    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
+    // Cross-run proof was authenticated above; the successor's physical record
+    // identity differs from the source's by construction.
+    const compared = validateRestartRepair({ ...before, durableIdentity: current.durableIdentity }, current, declaration,
+      authenticated.sourceRecord, authenticated.inventory, packages);
+    return { ...compared, before, restartComparison: { sourceRun: run.record.restart.sourceRun, sourceCursor: run.record.restart.sourceCursor,
+      sourceDigest: run.record.restart.sourceDigest, importDigest: run.record.restart.importDigest,
+      normalizedBefore: normalizeRestartIdentityForComparison({ ...before, durableIdentity: current.durableIdentity }, current,
+        authenticated.sourceRecord, authenticated.inventory, packages) } };
   }
 
   /** Read-only inspection never launches or prepares an agent operation. */
@@ -4642,11 +4864,11 @@ export class RunService {
       const current = await this.captureRecoveryIdentity(run);
       if (!recovery.identity) blockers.push('Settled recovery identity is unavailable');
       else {
-        const compared = validateExternalRepair(recovery.identity, current);
+        const compared = await this.compareRecoveryIdentity(run, recovery.identity, current);
         blockers.push(...compared.blockers);
         observations = { changes: compared.changes.map(change => ({ path: change.path, before: change.before.hash, after: change.after.hash })),
           runtime: { before: recovery.identity.runtime.harness + '/' + recovery.identity.runtime.provider, current: current.runtime.harness + '/' + current.runtime.provider,
-            compatible: recoveryHash(recovery.identity.runtime.contracts) === recoveryHash(current.runtime.contracts) },
+            compatible: run.restartImport ? !compared.blockers.some(blocker => /contracts are incompatible|Unsupported captured.*(?:runtime|prompt)|Captured prompt package is missing/iu.test(blocker)) : recoveryHash(recovery.identity.runtime.contracts) === recoveryHash(current.runtime.contracts) },
           configuration: { before: recovery.identity.configuration.identity, current: current.configuration.identity,
             compatible: !compared.blockers.some(blocker => blocker.includes('required checks')) },
           repairRequired: [...compared.blockers, ...blockers].some(blocker => blocker.includes('declaration')) };
@@ -4654,7 +4876,7 @@ export class RunService {
     } catch (error) { blockers.push(message(error)); }
     const now = this.now().getTime();
     const { kind, role, work, invocation, source, candidate, checkpoint } = recovery.boundary;
-    return recoveryInspectionSchema.parse({ planId, runId, cursor: run.log.version, occurrenceId: recovery.id, revision: recovery.revision,
+    return recoveryInspectionSchema.parse({ planId, runId, cursor: run.log.version, ...(run.record.restart ? { restart: { sourceRun: run.record.restart.sourceRun, sourceCursor: run.record.restart.sourceCursor, sourceDigest: run.record.restart.sourceDigest, importDigest: run.record.restart.importDigest, generation: run.record.restart.generation } } : {}), occurrenceId: recovery.id, revision: recovery.revision,
       state: recovery.state, boundary: { kind, ...(role === undefined ? {} : { role }), ...(work === undefined ? {} : { work }),
         ...(invocation === undefined ? {} : { invocation }), ...(source ? { source } : {}), ...(candidate === undefined ? {} : { candidate }),
         ...(checkpoint === undefined ? {} : { checkpoint }) },
@@ -4750,7 +4972,8 @@ export class RunService {
       let identity: RecoveryIdentity | undefined;
       try { identity = await this.captureRecoveryIdentity(run); } catch (error) { blockers.push(message(error)); }
       if (!recovery.identity || !identity) blockers.push('Authenticated settled recovery identities are unavailable');
-      const admission = recovery.identity && identity ? validateExternalRepair(recovery.identity, identity, repair) : undefined;
+      let admission;
+      try { admission = recovery.identity && identity ? await this.compareRecoveryIdentity(run, recovery.identity, identity, repair) : undefined; } catch (error) { blockers.push(message(error)); }
       blockers.push(...admission?.blockers ?? []);
       if (admission && (admission.requiresReassessment || admission.before.candidate.tree !== admission.after.candidate.tree) && recovery.boundary.checkpoint === 'final' && run.log.count('nonfunctional-round-closed') >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) blockers.push('The retained final candidate needs responsible reassessment, but its captured non-functional round allowance is exhausted');
       if (blockers.length > 0) throw new CommandRejection('conflict', blockers.join('; '), recovery.revision);
@@ -4772,8 +4995,43 @@ export class RunService {
     return receipt;
   }
 
+  private async initializeRestartBranch(run: Run): Promise<void> {
+    if (!run.restartImport || run.log.ownEvents.some(event => event.type === 'restart-branch-ready')) return;
+    const recovery = this.latestOperationRecovery(run);
+    if (!recovery?.admission?.admitted) throw new Error('Restart branch setup has no admitted candidate identity');
+    if (!this.git.inspectRunBranch) throw new Error('Exact successor branch inspection is unavailable');
+    const identity = recovery.admission.after;
+    const intent = run.log.ownEvents.find(event => event.type === 'restart-branch-setting-up');
+    const branch = await this.git.inspectRunBranch(this.projectRoot, run.jobId);
+    if (branch.head !== null && !intent) throw new Error(`Successor branch ${branch.branch} already exists without an admitted setup effect`);
+    if (branch.head !== null && branch.head !== identity.candidate.head) throw new Error(`Successor branch ${branch.branch} conflicts with the admitted HEAD`);
+    if (recoveryHash(await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates)) !== recoveryHash(identity.candidate)) throw new Error('Candidate or index drifted before successor branch setup');
+    await run.log.ledger.effect({ key: `restart-branch:${run.jobId}`, serialize: work => run.mutex.run(work),
+      intent: () => ({ event: run.log.next({ type: 'restart-branch-setting-up', data: { branch: branch.branch, head: identity.candidate.head, tree: identity.candidate.tree } }, this.now()),
+        records: [{ path: 'restart/branch.json', id: run.jobId, revision: 1, body: { schema: 'ramify-agent.restart-branch/1', branch: branch.branch, identity } }] }),
+      perform: async () => {
+        if (this.ignoring(run) || !await this.options.lock.held()) throw new Error('Stop or project ownership loss precedes branch dispatch');
+        const current = await this.git.inspectRunBranch!(this.projectRoot, run.jobId);
+        if (current.head !== null && (current.head !== identity.candidate.head || current.current !== current.branch)) throw new Error('An existing successor ref has no authenticated admitted branch receipt');
+        if (current.head === null) await this.git.createRunBranch(this.projectRoot, run.jobId);
+        const settled = await this.git.inspectRunBranch!(this.projectRoot, run.jobId);
+        if (settled.branch !== branch.branch || settled.current !== branch.branch || settled.head !== identity.candidate.head) throw new Error('Successor branch setup did not preserve the admitted HEAD');
+        if (recoveryHash(await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates)) !== recoveryHash(identity.candidate)) throw new Error('Successor branch setup changed the admitted source or index');
+        return { branch: settled.branch, head: identity.candidate.head, tree: identity.candidate.tree };
+      },
+      complete: result => ({ event: run.log.next({ type: 'restart-branch-ready', data: result }, this.now()), records: [] }),
+    });
+  }
+
   private async startRecoveredDriver(run: Run): Promise<void> {
     if (this.ignoring(run) || !this.options.agent) return;
+    try { await this.initializeRestartBranch(run); }
+    catch (error) {
+      const pending = run.restartImport?.pending;
+      await this.waitOperationRecovery(run, { kind: 'preparation', checkpoint: 'restart-branch', ...(pending?.role ? { role: pending.role as Role } : {}),
+        ...(pending?.work ? { work: pending.work } : {}), source: null, start: { mode: 'fresh' } }, { classification: 'preparation', diagnostic: message(error) }, [], 0, 0, false);
+      return;
+    }
     const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
     run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
     const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
@@ -4816,6 +5074,14 @@ export class RunService {
 
   /** A transport attempt group is independent of semantic role and request budgets. */
   private async recoverableInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+    if (run.restartImport) {
+      const historical = request.originalInvocation && run.restartImport.inventory.some(entry => entry.transaction.event.type === 'invocation-started' && entry.transaction.event.data.invocation === request.originalInvocation);
+      const requestedPoint = request.start.mode === 'continue' ? request.start.ref : request.start.mode === 'fork' ? request.start.from : undefined;
+      const historicalPoint = requestedPoint ? readSessionPointReference(requestedPoint)?.runId !== run.jobId : false;
+      if (historical || historicalPoint) request = { ...request, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
+        originalInvocation: historical ? request.originalInvocation : undefined, allowFreshFallback: true,
+        task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:restart-provenance', text: `Source-backed reconstruction from ${run.restartImport.sourceRun}; pending task ${JSON.stringify(run.restartImport.pending)}. Outstanding obligations: ${run.restartImport.outstanding.join('; ')}. Source sessions have no successor authority. Authenticated historical proof: ${run.path(runLayout.restartImport)}.` }] } : request.task };
+    }
     const policy = run.policy.recovery;
     if (!policy) return this.runner.runInvocation(run, agent, request);
     while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
@@ -4864,6 +5130,8 @@ export class RunService {
       task: request.task ? { ...request.task, candidate: resumed.admission.after.candidate.tree } : undefined,
       brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: resumed.admission.after.candidate.tree } } : undefined,
       ...(request.singleAdmission ? { onStarted: undefined } : {}) };
+    if (run.restartImport && resumed?.id === 'restart-resume-1') current = { ...current,
+      callerText: [current.callerText, `Source-backed reconstruction from ${run.restartImport.sourceRun}; exact pending task ${JSON.stringify(run.restartImport.pending)}. Outstanding obligations: ${run.restartImport.outstanding.join('; ')}. Historical proof: ${run.path(runLayout.restartImport)}. Earlier sessions have no successor authority.`].filter(Boolean).join('\n') };
     const all = [...resumed?.attempts ?? []];
     const seenEffects = new Set<string>();
     for (const id of all) for (const effect of await (await this.operations(agent)).completedEffects(run.jobId, id)) {
@@ -5088,8 +5356,12 @@ export class RunService {
       const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(event.data.invocation)));
       const closed = run.log.all('invocation-ended').find(item => item.data.invocation === event.data.invocation);
       if (closed && closed.data.ended !== 'submitted') continue;
+      if (event.sequence < 0 && run.restartImport && request.role === 'local-architect' && this.latestOperationRecovery(run)?.admission?.requiresReassessment) {
+        const submission = await readIfExists(run.path(runLayout.submission(event.data.invocation)));
+        if (submission && (JSON.parse(submission.toString('utf8')) as { kind?: string }).kind === 'request-completion') continue;
+      }
       if (record.prompt.hash !== request.loaded.hash || request.originalInvocation !== event.data.invocation && record.prompt.requestedInputsHash !== inputsHash([request.systemPrompt, request.prompt, ...(request.callerText === undefined ? [] : [request.callerText])])) continue;
-      const packet = await (await this.operations(agent)).packet(run.record.jobId, event.data.invocation);
+      const packet = await (await this.operations(agent)).packet(event.sequence < 0 && run.restartImport ? event.jobId : run.record.jobId, event.data.invocation);
       if (packet && packet.submissionTool !== request.toolName) continue;
       matched.push({ event, record, packet });
     }
@@ -5645,7 +5917,7 @@ export class RunService {
     // Registration can publish a provider before its consumer has received
     // the original contract handback. Finish that captured active turn first;
     // only then may the new frontier's provider priority take effect.
-    let restoredActiveItem = run.restoring && this.workflow === null
+    let restoredActiveItem = run.restoring && (this.workflow === null || run.restartImport !== undefined)
       ? [...run.log.events].reverse().find(event =>
         (event.type === 'work-item-started' || event.type === 'work-item-resumed') &&
         !run.log.events.some(later => later.sequence > event.sequence &&
@@ -6508,7 +6780,7 @@ export class RunService {
     if (run.restoring && preparationRecovery === undefined && continuing !== 'capability-returned') {
       const main: typeof run.log.events[number][] = [];
       for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' && event.data.work.workItem === item.id)) {
-        const packet = await (await this.operations(agent)).packet(run.record.jobId, event.data.invocation);
+        const packet = await (await this.operations(agent)).packet(event.sequence < 0 && run.restartImport ? event.jobId : run.record.jobId, event.data.invocation);
         if (packet?.submissionTool === localArchitectToolName) main.push(event);
       }
       const latest = main.at(-1);
@@ -11702,7 +11974,7 @@ export class RunService {
       await this.fail(run, 'inputs-changed', 'The source tree changed after non-functional assessment', [runLayout.assessment(binding.assessment.id)]);
       return;
     }
-    const previousFinal = run.log.all('gate-attempted').filter(event => event.data.checkpoint === 'final').at(-1);
+    const previousFinal = run.log.all('gate-attempted').filter(event => event.data.checkpoint === 'final' && (event.sequence >= 0 || !run.restartImport || !this.latestOperationRecovery(run)?.admission?.invalidatesQualification)).at(-1);
     let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount(run) + 1);
     let attempt!: GateAttempt;
     if (previousFinal !== undefined) {

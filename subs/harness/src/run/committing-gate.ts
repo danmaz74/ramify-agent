@@ -74,6 +74,11 @@ export interface GateRun {
 
 /** What a run supplies to its committing gates. */
 export interface GateHost<R extends GateRun> {
+  /** Imported execution receipts remain history even when their verdict needs renewal. */
+  evidenceApplicable?(run: R, event: RunEvent): boolean;
+  /** Authenticated source commit effects can survive a lost acknowledgement;
+   * their source verdict never substitutes for this gate's qualification. */
+  importedCommitReceipt?(run: R, request: CheckpointRequest): Promise<{ readonly commit: string; readonly tree: string } | undefined>;
   /** Quiescent recovery and whole-run bounds govern dispatch, including a restored explicit group. */
   awaitGateAdmission?(run: R, resumedGroup?: boolean): Promise<boolean>;
   /** Settled check execution pauses the accepted producer's pending gate, without rerunning that producer. */
@@ -486,7 +491,7 @@ export class CommittingGates<R extends GateRun> {
         // tree against the rendering the assignment captured.
         let commit: string | null;
         try {
-          commit = await commitForGate(this.host.projectRoot, run.jobId, identity.id, message, undefined, this.host.git, async () => {
+          const prepareCommit = async () => {
             let currentOwnership = ownership;
             if (recordedMessage !== undefined) {
               const candidate = await this.candidateAuthority(run, { checkpoint: prepared.checkpoint, subject: identity.subject });
@@ -506,7 +511,15 @@ export class CommittingGates<R extends GateRun> {
               if (current.tree !== binding.assessment.candidate.tree) throw new CandidateDriftError('Final gate source changed after assessment');
             }
             await assertScratchSafe(this.host.projectRoot, await declaredModuleDirectories(this.host.projectRoot), this.host.git);
-          });
+          };
+          const receipt = await this.host.importedCommitReceipt?.(run, { ...identity, checkpoint: prepared.checkpoint, policy: run.policy });
+          if (receipt && receipt.commit === identity.head) {
+            await prepareCommit();
+            if ((await this.host.previewCandidateTree()).tree !== receipt.tree || await this.host.git.currentHead(this.host.projectRoot) !== receipt.commit) {
+              throw new CandidateDriftError('The imported commit receipt no longer matches the prepared candidate');
+            }
+            commit = receipt.commit;
+          } else commit = await commitForGate(this.host.projectRoot, run.jobId, identity.id, message, undefined, this.host.git, prepareCommit);
         } catch (error) {
           if (error instanceof RecoveredGateRefusal) return { attempt: error.attempt };
           throw error;
@@ -614,7 +627,11 @@ export class CommittingGates<R extends GateRun> {
 
   /** The count of committed gate attempts: every readiness and every checkpoint. */
   gateCount(run: R): number {
-    return run.log.count('readiness-passed') + run.log.all('readiness-failed').length + run.log.count('gate-attempted');
+    const count = run.log.count('readiness-passed') + run.log.all('readiness-failed').length + run.log.count('gate-attempted');
+    // An imported intent reserves its source gate label even if the producer's
+    // acknowledgement was lost. A successor allocates beyond that inventory.
+    const reserved = run.log.all('gate-committing').map(event => /^ga-\d+$/u.test(event.data.gate) ? Number(event.data.gate.slice(3)) : 0);
+    return Math.max(count, ...reserved);
   }
 
   /** Exact ledger-owned feature bytes cannot borrow authority through an alias. */
@@ -857,6 +874,7 @@ export class CommittingGates<R extends GateRun> {
       let candidate: string | undefined;
       const owner = taskOwner ?? item.id;
       for (const event of [...run.log.all('gate-attempted')].reverse()) {
+        if (this.host.evidenceApplicable?.(run, event) === false) continue;
         const recorded = gateAttemptSchema.safeParse(committedBody(run, runLayout.gate(event.data.gate)));
         if (!recorded.success || recorded.data.checkpoint !== 'work-item' ||
           recorded.data.subject?.workItem !== owner || recorded.data.proposedBy !== invocation ||

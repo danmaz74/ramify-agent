@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { externalRepairDeclarationSchema, type ExternalRepairDeclaration, type RecoveryInspection, type RecoveryResumeCommand, type RunSnapshot } from '../../harness/src/interfaces/protocol/runs.js';
+import { routeHref } from './routes.js';
 import { ClientError, newCommandId, type ProtocolClient } from './client.js';
 
 /** Recovery is a separate interaction from review stops and breakpoint exchanges. */
@@ -47,6 +48,7 @@ export function RecoveryPanel({ client, run, onChanged }: {
   return <section className="panel" aria-labelledby="recovery-heading">
     <h2 id="recovery-heading">Recovery {inspection ? inspection.state === 'paused' ? 'paused' : 'settling' : ''}</h2>
     {inspection && <>
+      {inspection.restart && <p>Continues source run <a href={routeHref({ page: 'run', planId: run.planId, runId: inspection.restart.sourceRun })}><code>{inspection.restart.sourceRun}</code></a> at version {inspection.restart.sourceCursor}. The imported pending workflow awaits resume.</p>}
       <p>The retained {inspection.boundary.kind} operation{inspection.boundary.role ? ` (${inspection.boundary.role})` : ''} awaits recovery. {inspection.evidence.diagnostic}</p>
       <dl>
         <div><dt>Occurrence and revision</dt><dd><code>{inspection.occurrenceId}</code>, {inspection.revision}</dd></div>
