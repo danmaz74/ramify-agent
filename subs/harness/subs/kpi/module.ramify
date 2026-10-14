@@ -1,6 +1,9 @@
 ramify 1
 module kpi
 
+// Scope accounting and factual delivered-support input closure for forthcoming collection/query consumers.
+expose-src scopeSizePolicy, DeclaredScope, baselineScope, scopeSize, componentSubtotal, projectOnlySize, revisionMismatch, rootModuleOfSnapshot, captureSnapshot, SnapshotRequest, deliveredScopeInputs, DeliveredSupportEntry, DeliveredSupportSource, DeliveredScopeInputs from "capture.ts" to parent
+
 // Pure provider behavior and all owner-local signature companions.
 expose-src verifySetupLineIdentities, SetupLineIdentityInput, RecordedSetupDelta, SetupCandidatePartition, SetupLineMappingFacts, SetupSourceLine, SetupAddedLineFact, SetupDeletedLineFact from "setup-attribution.ts" to parent
 expose-src HarnessLineIdentities, deliveredChange, DeliveredChangeRequest, DeliveredChange, cachedChangeHistory from "delivered.ts" to parent

@@ -1,4 +1,151 @@
-# Bounded attribution bootstrap
+# Bounded KPI provider transition
+
+## Snapshot/scope provider continuation (current iteration)
+
+Comparison basis: unchanged parent capture.ts and baseline tests at candidate
+`c2a1ad1f02669ac9d06a63b560bd831c5a79522b`; accepted attribution boundary
+`4563684b93785fb5076b98a25311a6ebbf9dd936`. The historical bootstrap evidence
+below is retained, not relabelled as current verification.
+
+### Ownership and selected API
+
+`src/capture.ts` now owns DeclaredScope, scopeSizePolicy, baselineScope,
+captureSnapshot, scopeSize, componentSubtotal, projectOnlySize, revisionMismatch,
+rootModuleOfSnapshot and deliveredScopeInputs. Private rules remain private:
+selectModules, isDescendant, ownedSource, apiViews, architectView,
+supportDocuments, directoryBytes and measuredDirectory. No pure helper is exposed
+merely for tests. Production exports target forthcoming harness collection and
+projections comparisons, not a browser API. No durable writer enters KPI.
+
+New owner-local companions are SnapshotRequest, DeliveredScopeInputs,
+DeliveredSupportEntry and DeliveredSupportSource; all are exposed to parent.
+DeclaredScope recursively uses primitives and anonymous location/file facts.
+SnapshotRequest names original harness SnapshotId, ViewIdentity and evidence
+RamifyCli. Scope calculations name original MeasurementSnapshot, ScopeComponent
+and ScopeSize and retain original measurementSnapshotSchema/scopeSizeSchema
+validation. No schema or durable record definition was copied or derived.
+
+Parent declaration adds only SnapshotId reading exposure and selected evidence
+relays: readMeasurement, MeasurementRead, MeasurementDocument, ModuleMeasurement,
+documentSchema, moduleSchema, architectViewDirectory, RamifyCli, RamifyRun,
+RamifyCheckResult, CheckProvider, MaterializeResult, OwnershipQueryResult,
+OwnershipAnswer, OwnershipPath, RawOwnershipEvidence, ProviderFailureEvidence,
+RecoveryEvidence. The last ownership/failure contracts close the existing
+RamifyCli class's members, not an extra KPI analyzer. Toolkit signature types
+(CheckedPath, AffectedDocument, ProjectOwnership, StageExecution,
+CliFailureDocument) remain installed package types. Existing parent evidence
+access already receives this closure. The descendant exposures apply across the
+harness subtree; public/browser parent exposures are unchanged. Initial Ramify
+closure diagnostics for three companions were repaired, not ignored.
+
+Current ordinary and testing received pages were refreshed together at
+`rev/1:d0001883-7e08-4e19-9c18-bf8fcf94f85e:19`: ordinary coverage 39,
+testing 78, each truncated 4. Required measurement, CLI, record, SnapshotId and
+ViewIdentity pages are present in both areas. These retain source-analysis
+limitations; absent entries are not evidence of absent capabilities. Earlier
+supplied revision 15 and first local refresh 14 are historical, not combined
+with revision 19. Unsupported materialize --module and --help calls claimed no
+result; --from src and --from src/tests succeeded.
+
+### Factual adapter recipe for the later harness assignment
+
+Keep writeScopeMeasurement/readScopeMeasurement and invocationScope, planSupportPath,
+locationFiles, inventoryPath, fileBytes, supportDocument and plan/package discovery
+with harness. Translate WriteScope base modules/bootstrap/provider modules to
+unique exactOwners, included child scopes to subtrees, nested-project directories
+to nestedProjects, extras to locations. Read scope stays a separate proxy. Obtain
+location bytes/files/absent/unreadable facts at invocation start, retaining error
+text and every forward-slash path; no callback carries counting policy.
+
+For delivered inputs, map manifest.entries in their current order to
+`{kind, source, hash, bytes, sources: [{path, hash, bytes}]}`. Do not flatten or
+pre-deduplicate, re-hash, substitute expanded entry bytes for source bytes, or
+read current disk. Pass that ordered array and the declared selection to KPI
+`deliveredScopeInputs`; use its scope and supplementary answer. Empty-source
+non-null entries count their source; null-source role-instructions/procedure/skill/
+tool-declaration count synthetic delivered-inputs/kind/hash identities. Briefs
+count by hash unless the same source/hash/bytes is already support. Environment
+entries without sources are not support. Same path with incompatible hash OR
+bytes throws the baseline error. Additionally, the requested factual boundary
+rejects same brief hash with conflicting byte counts instead of silently
+replacing the earlier count (new counterexample, not baseline parity claim).
+
+Call captureSnapshot with the evidence-owned CLI, current head/view, snapshot ID,
+ordered captured supplementary facts and signal. KPI computes raw UTF-8 producer
+SHA-256 locally using node:crypto (same bytes as parent prompt sha256), retains
+producer document/revision and acquisition reasons and counts published architect
+files recursively. Harness continues choosing collection time and committing
+returned records. No collection/query/root production consumer is migrated here.
+
+### Complete baseline case map
+
+Baseline scope-size-recipe has 15 cases in source order. Child scope tests preserve
+their expected figures/reasons and ordering without execution implementation imports:
+
+| Baseline case | Child evidence / retained coordination |
+| --- | --- |
+| 1 B support/architect dedup | same named case, 950 support and 7305 total |
+| 2 role support/brief | same named case, 550 documents + 700 brief |
+| 3 absent support | same named case, unavailable not zero |
+| 4 inventoried extra/soft read | factual p/a plus three exact extra paths, 760; WriteScope translation retained parent |
+| 5 outside/absent extra | same facts/reasons, 600 |
+| 6 unreadable extra | same EACCES reason/buckets, subtotal600; on-disk ENOTDIR/absent/file adapter assertions remain parent |
+| 7 child subtree/nested/bootstrap | translated exact/subtree/nested facts, unknown new owner, known510 without new owner; WriteScope discovery retained parent |
+| 8 contract provider whole | adapter-only assertion remains parent, no provider rule moved |
+| 9 revision mismatch | same reasons, support subtotal950 only |
+| 10 omitted architect view | same zero/unknown components |
+| 11 independent baseline/writer | same project120/50 and total200/90 |
+| 12 delivered inherited sources | ordered factual repeated entries, 20+10 source bytes, brief5, shared brief0, synthetic schema6, conflict; manifest construction retained parent |
+| 13 partial bootstrap/support/policy | same known725/project520, mismatch200 and historical policy subtotal0 |
+| 14 per-file/aggregate overlap | same held10+new7 and aggregate17 arithmetic; read/write adapter checks retained parent |
+| 15 unselected/selected support | same 860 and710 totals |
+
+Thus 14 scope baseline behavioral cases have child provider evidence; the sole
+adapter-only case and mixed adapter assertions remain unchanged with harness.
+Child scope has 19 expanded cases: these 14 plus subtree overlap, two hash/byte
+source conflicts, brief byte conflict and unavailable API-view subtotal1230.
+No baseline expectation was changed.
+
+Baseline measurement has 13 cases: measurementCase 1 (run freezes B/job.json),
+2 (invocation records snapshot/size), and4 (run still starts/failed readiness)
+remain coordinating integration cases. Cases3 (producer cannot measure),5
+(subtree overlap),6 (unknown new module) and7 (architect publication) have child
+provider cases with identical behavioral assertions; case7 supplies a small real
+published directory rather than invoking materialization. The six subsequent
+script-boundary cases (caught Git/Ramify/candidate arguments, unused required
+materialization, exhausted mutation, ownership argument/exhaustion) remain
+harness helper checks. Child measurement additionally tests exact raw-byte hash,
+producer extra field/revision/head/support retention and three invalid-document
+states; total8. CLI answers alone are scripted, never KPI calculation.
+Attribution source/contracts/tests are unchanged: setup38 and delivered16.
+
+### Temporary duplicates and consumers still owed
+
+All old production bodies and baseline tests remain, not forwarders. Retire the
+parent snapshot/scope/delivered-support algorithms and their private rule helpers
+only with real consumer migrations. Parent execution adapters must call the new
+provider, not retain policies in callbacks. Existing run/service.ts,
+steps/runner.ts and projections metrics.ts still call baseline bodies; old internal
+KPI helpers, run collectors and root qualification remain untouched. The full
+remaining inventory below still applies, including old attribution duplicates.
+No provider/requester, composed acceptance or scenario binding is claimed.
+
+### Current focused verification
+
+Project-root logs: plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/
+invocations/inv-0037/shell/. 004.log: check:self passes, 15 owners/933 sources,
+0 errors/warnings, 456 analysis limits (partial coverage); all four type-check
+commands pass. Exact four child quick filters pass 81 cases: scope19,
+measurement8, setup38, delivered16, zero failures/skips. 005.log: exact baseline
+scope15 + measurement13 pass (28 total), zero failures/skips. 006.log summarizes
+baseline run and authoritative configured discovery from005: 441 files, all four
+KPI files in node and25 projections files. Discovery is not execution. Config
+and guard/native registrations are unchanged. No new exemptions/processes or
+whole-suite engineer run. Native witnesses, Cucumber, web build and full committed
+default audit are unrun here and belong to the gate. Focused passing baseline
+coordination still exercises the old provider, not a migrated requester.
+
+## Historical attribution bootstrap
 
 ## Authority and comparison basis
 

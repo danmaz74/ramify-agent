@@ -1,10 +1,20 @@
 # kpi
 
 Measurement and attribution rules. This ordinary, untagged direct harness child
-owns pure exact setup-line verification and delivered-change attribution.
+owns snapshot construction, scope-size/2 accounting, delivered-support identity
+rules, pure exact setup-line verification and delivered-change attribution.
 
 ## Contracts and invariants
 
+- `src/capture.ts`: `captureSnapshot` reads the evidence-owned measurement
+  producer and published architect bytes. It preserves raw producer SHA-256,
+  revision, document and unavailable reasons. `scopeSize` consumes `DeclaredScope`
+  factual selections and captured location bytes, deduplicating source, API,
+  architect and support components. Unknown totals retain known disjoint buckets;
+  incompatible revisions clear state-bound buckets. `deliveredScopeInputs` consumes
+  ordered `DeliveredSupportEntry` facts, not manifests or prompt packages; source
+  identity conflicts throw, repeated briefs count once by hash. Acquisition of
+  assignment locations and execution/package discovery stays with harness.
 - `src/setup-attribution.ts`: `verifySetupLineIdentities` accepts authenticated
   ordered Git facts, recorded setup deltas and complete direct-diff partitions.
   It returns revision-bound `HarnessLineIdentities`. No lineage guessing,
@@ -33,7 +43,7 @@ Follow the root [testing rules](../../../../docs/testing.spec.md). Tests in
 Run from the project root:
 
 ```
-npm run test:quick -- subs/harness/subs/kpi/src/tests/setup-attribution.test.ts subs/harness/subs/kpi/src/tests/delivered-change.test.ts
+npm run test:quick -- subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/measurement.test.ts subs/harness/subs/kpi/src/tests/setup-attribution.test.ts subs/harness/subs/kpi/src/tests/delivered-change.test.ts
 ```
 
 The process guard, configured discovery and exact native registrations are
