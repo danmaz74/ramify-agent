@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { declaredRoots, explorationDetails, explorationIdentity, explorationMetrics, type ExplorationObservation } from '../kpi/exploration.js';
+import { explorationDetails, explorationIdentity, explorationMetrics, type ExplorationObservation } from '../kpi/exploration.js';
+import { declaredRoots } from '../measurement/inputs.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import { estimateRecordedCharge, invocationTiming } from '../kpi/efficiency.js';
 

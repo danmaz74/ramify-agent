@@ -1,9 +1,10 @@
 import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { expect } from 'vitest';
+import { expect, vi } from 'vitest';
+import * as provider from '../../../subs/kpi/src/capture.js';
 import type { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import { architectViewDirectory } from '../../../subs/evidence/src/views.js';
-import { baselineScope, captureSnapshot, scopeSize } from '../../kpi/capture.js';
+import { baselineScope, captureSnapshot, scopeSize } from '../../../subs/kpi/src/capture.js';
 import { runLayout, type Invocation, type MeasurementSnapshot, type RunRecord } from '../../run/records.js';
 import { RunQueries } from '../../../subs/projections/src/queries.js';
 import { createQuerySource } from '../../http/query-source.js';
@@ -65,6 +66,10 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
 
   row('the plan architect\'s invocation records its snapshot reference and its S_s components', async () => {
     const root = await environment.target();
+    // Observation only: spies call the actual provider, never a calculator substitute.
+    const capture = vi.spyOn(provider, 'captureSnapshot');
+    const sizes = vi.spyOn(provider, 'scopeSize');
+    environment.cleanups.push(() => { capture.mockRestore(); sizes.mockRestore(); return Promise.resolve(); });
     const { service } = await environment.open(root, { script: [{ kind: 'submit', input: emptyAnalysis() }], ramify: environment.ramify(root) });
     environment.cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
@@ -74,6 +79,10 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
     expect(invocation.role).toBe('initial-architect');
     expect(invocation.scope.measurement).toMatchObject({ id: 'ms-0001', revision: 1 });
     const size = invocation.scope.size!;
+    expect(capture).toHaveBeenCalled();
+    const captured = await capture.mock.results[0]!.value as MeasurementSnapshot;
+    expect(JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.measurement(captured.id)), 'utf8'))).toEqual(captured);
+    expect(sizes.mock.results.map(result => result.value)).toContainEqual(size);
     expect(size.policy).toBe('scope-size/2');
     expect(size.snapshot).toBe('ms-0001');
     expect(size.components.map(component => component.component)).toEqual([

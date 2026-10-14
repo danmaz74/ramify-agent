@@ -1,8 +1,8 @@
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { AgentEvent, AgentPort, AgentSession, ContextPolicy, SessionOutcome } from '../../subs/agent/src/interfaces/port.js';
 import type { SessionExecutionIdentity } from '../../subs/agent/src/interfaces/session-operations.js';
-import { estimateRecordedCharge } from '../kpi/efficiency.js';
-import type { ExplorationObservation } from '../kpi/exploration.js';
+import { estimateRecordedCharge } from '../../subs/kpi/src/efficiency.js';
+import type { ExplorationObservation } from '../../subs/kpi/src/exploration.js';
 import { activityOf } from '../jobs/activity.js';
 import type { InvocationTranscript } from '../transcripts/recorder.js';
 import type { ExcursionWatcher } from './excursions.js';

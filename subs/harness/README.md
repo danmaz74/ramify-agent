@@ -46,6 +46,17 @@ excursions use that general lookup without metric knowledge. No `src/kpi/lines.t
 forwarder remains. See `subs/kpi/transition.md` for case/import maps, evidence and
 remaining scope/calculator, root and projections migrations.
 
+## Scope and snapshot collection
+
+Execution translates assignment and prompt-delivery facts in
+`src/measurement/inputs.ts`. Run service and the shared invocation runner call
+the real KPI child for snapshot construction, scope accounting and delivered
+support identity policy; port events use its recorded-rate charge calculator.
+The harness still chooses collection timing and owns every durable write.
+Manual steps without a frozen snapshot retain explicit partial scope coverage.
+See [measurement-integration.md](measurement-integration.md) for composition,
+parity evidence, API limitations and the remaining query/root migration.
+
 ## Durable sessions
 
 The harness owns the shared production session ledger and original immutable

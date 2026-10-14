@@ -1,5 +1,3 @@
-import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
-import type { DeclaredScope } from './capture.js';
 
 /** The frozen C6 observation wire. No environment values or file content are retained. */
 export interface ExplorationObservation {
@@ -174,20 +172,4 @@ export function explorationMetrics(input: readonly ExplorationObservation[], col
   return explorationDetails(input, collectionLimits).metrics;
 }
 
-/**
- * The project-relative roots an invocation without a write scope is judged
- * against for outside-scope status: the directories of the modules its
- * declared scope selects, the global view where its profile includes it, and
- * the further locations it names. Empty where the scope selects nothing or
- * the architect view is unknown, which leaves the status unknown.
- */
-export function declaredRoots(index: ArchitectIndex | null, scope: DeclaredScope | undefined): string[] {
-  if (scope === undefined) return [];
-  const modules = [...scope.exactOwners, ...scope.subtrees];
-  const entries = modules.map(module => index?.modules.get(module));
-  // A selected module the view cannot place leaves every status unknown,
-  // rather than calling a read inside it outside.
-  if (entries.some(entry => entry === undefined)) return [];
-  const directories = entries.map(entry => entry!.dir.replace(/\/+$/, '') || '.');
-  return [...new Set([...directories, ...(scope.architectView ? ['.ramify-architect'] : []), ...(scope.locations ?? []).map(location => location.path)])];
-}
+

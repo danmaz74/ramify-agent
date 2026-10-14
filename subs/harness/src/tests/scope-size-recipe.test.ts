@@ -3,7 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { architectViewDirectory } from '../../subs/evidence/src/views.js';
-import { baselineScope, deliveredScopeInputs, invocationScope, projectOnlySize, readScopeMeasurement, scopeSize, writeScopeMeasurement, type DeclaredScope } from '../kpi/capture.js';
+import { baselineScope, projectOnlySize, scopeSize, type DeclaredScope } from '../../subs/kpi/src/capture.js';
+import { deliveredScopeInputs, invocationScope, readScopeMeasurement, writeScopeMeasurement } from '../measurement/inputs.js';
+import { deliveredScopeInputs as historicalDeliveredScopeInputs, scopeSize as historicalScopeSize } from '../kpi/capture.js';
 import type { MeasurementSnapshot, ScopeComponent } from '../run/records.js';
 import type { LoadedPackage } from '../prompts/packages.js';
 import { buildDeliveredManifest, type DeliveredInput, type DeliveredManifest } from '../prompts/delivered-manifest.js';
@@ -196,12 +198,14 @@ describe('real baseline/child delivered-input conformance', () => {
       })),
     };
     const declared = scope({});
-    const baseline = deliveredScopeInputs(declared, manifest);
+    const baseline = historicalDeliveredScopeInputs(declared, manifest);
+    expect(deliveredScopeInputs(declared, manifest)).toEqual(baseline);
     const child = childDeliveredScopeInputs(declared, manifest.entries.map(({ kind, source, hash, bytes, sources }) => ({ kind, source, hash, bytes, sources })));
     expect(child).toEqual(baseline);
     expect(baseline).toEqual({ scope: { ...declared, brief: expected }, supplementary: [] });
     const taken = snapshot({ supplementary: [...baseline.supplementary] });
-    const baselineSize = scopeSize(taken, baseline.scope);
+    const baselineSize = historicalScopeSize(taken, baseline.scope);
+    expect(scopeSize(taken, baseline.scope)).toEqual(baselineSize);
     expect(childScopeSize({ ...taken, supplementary: [...child.supplementary] }, child.scope)).toEqual(baselineSize);
     expect(baselineSize.bytes).toBe(expected);
   });
@@ -229,7 +233,8 @@ describe('real baseline/child delivered-input conformance', () => {
       }
       throw new Error('Expected delivered support conflict');
     };
-    const baseline = error(() => deliveredScopeInputs(scope({}), manifest));
+    const baseline = error(() => historicalDeliveredScopeInputs(scope({}), manifest));
+    expect(error(() => deliveredScopeInputs(scope({}), manifest))).toEqual(baseline);
     const child = error(() => childDeliveredScopeInputs(scope({}), manifest.entries.map(({ kind, source, hash, bytes, sources }) => ({ kind, source, hash, bytes, sources }))));
     expect(child).toEqual(baseline);
     expect(baseline).toEqual({ name: 'Error', message: 'Conflicting delivered support revisions for same' });
