@@ -1,7 +1,7 @@
 # Plan 46: Extract harness measurement and attribution
 
-**Date:** 2026-10-14. **Status:** proposed; execution waits for the projections
-extraction to be merged. **Target:** ramify-agent. **Executor:** ramify-agent
+**Date:** 2026-10-14. **Status:** implementation in progress; continuation from
+the retained partial extraction after the projections prerequisite was met. **Target:** ramify-agent. **Executor:** ramify-agent
 operating from a separate bootstrap checkout.
 
 ## Problem and intended result
@@ -39,6 +39,50 @@ directory or assume the in-progress branch's exposure list is final.
 
 Independent changes included in the selected baseline remain supported. This
 plan does not depend on Plan 45 or authorize changing progress/recovery behavior.
+
+## Continuation baseline and remaining outcome
+
+The projections prerequisite is satisfied. Acceptance source
+`f227116f16514dd3500b2f4ae1e716272af1845a` was incorporated linearly at
+`9f63d4e4660fba64c004941b2acab2c95eec46fc`. The retained extraction candidate
+`e99a3ae8f39dabdef0fbb7ec777c1d9b657a7cf2` passed all six configured default
+audit checks (report `ee6e09dba5aad6c43378e54e49fc3c91551813bb`), including
+3871 regression cases with two existing opt-in skips. This is intermediate
+execution health, not acceptance of this plan's completed outcome.
+
+The continuation includes that candidate, retained composed query verification
+from the interrupted writer, and the three independently committed guidance
+changes through `0c74a7d2`. Inspect current source rather than recreating delivered
+work. In particular, `harness/kpi` already exists as the ordinary direct child;
+its real algorithms serve execution collection, invocation charge observations,
+projections and root setup qualification through selected exposures. The general
+ownership helper and trial destination validation have already moved to execution
+utilities. Query tests now assert the exact weighted 2500/100000/40 result, ratio
+0.25/reduction4, missing-writer subtotals, zero versus failed history and recorded
+usage/rates/search uncertainty. Reverify these cases and all required outcomes.
+No acceptance scenario is claimed complete by this baseline statement.
+
+A concrete remaining ownership gap is in `steps/runner.ts`'s
+`prepareInvocation`: it still builds scope results for an absent snapshot,
+missing owned-source declaration and acquisition failure. These are measurement
+qualification rules. They must belong to the child through factual inputs,
+with collection timing, acquisition and durable commits retained by the harness.
+Preserve the existing absent-snapshot two-component result, component order,
+role details, error reasons, known support subtotal, partial/unknown states and
+read-size behavior. A synthetic unavailable snapshot that changes the component
+shape, or parent callbacks that calculate these results, does not satisfy this
+extraction. This obligation was observed in current source; architects choose
+its API and execution decomposition.
+
+The old parent `src/kpi/` still contains duplicate algorithms retained for
+comparison tests. Complete its retirement and the case-mapped relocation or
+retirement of transitional parity tests without losing independent assertions
+or native witness coverage. Finish the complete source/API ownership comparison,
+all ten composed acceptance examples, root qualification handback and final
+clean committed default audit. Existing integration notes are intermediate
+receipts whose limitations remain historical; update the final delivery report
+with the actual completed result. The interrupted run's records remain untouched
+and are not relabeled as successful execution.
 
 ## Required ownership and integration
 

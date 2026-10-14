@@ -2,7 +2,19 @@
 
 ## Status
 
-Root baseline captured; awaiting `harness-measurement-extraction`. No extracted-provider integration, final KPI candidate, scenario acceptance, performance benefit or cache benefit is claimed. sc-010 remains unbound; sc-001–sc-009 are outside this root iteration.
+Implementation in progress. The original run retained audited source e99a3ae8
+and passing partial query-test additions but is blocked by an interrupted
+consultation effect without a completion receipt. The continuation worktree
+retains those source changes at 4b6c1744, and incorporates the three independently
+committed guidance changes through main 0c74a7d2. Its own execution must establish
+all acceptance outcomes and final qualification. No scenario completion,
+performance benefit or cache benefit is claimed here.
+
+The sections below retain the original root-baseline handback and its historical
+paths and commands. They describe that early iteration, not the present source:
+root setup qualification now imports the real child verifier; destination
+validation is in harness qualification utilities. The executable plan's
+continuation baseline identifies the remaining ownership and acceptance work.
 
 ## Preparation provenance (supplied, not re-executed here)
 
