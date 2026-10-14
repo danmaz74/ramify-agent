@@ -1,3 +1,11 @@
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { commitRecord } from '../../jobs/commit.js';
+import { RunLog } from '../../run/log.js';
+import { runLayout } from '../../run/records.js';
+import { repairExportPayloadPath } from '../../run/repair-export.js';
+import { constructedRecord, runId } from './constructed.js';
 import { repairIncidentRecordSchema, type RepairIncidentRecord } from '../../run/repair-records.js';
 import { createRepairExportPayload, repairExternalRef, repairProjectKey, type RepairExportPayload } from '../../run/repair-export.js';
 
@@ -16,4 +24,33 @@ export function repairExportFixture(projectRoot: string, runId = 'run-1', extra:
       issueId: null, reason: null, attemptedAt: null }, ...extra,
   });
   return createRepairExportPayload(projectRoot, runId, incident);
+}
+
+export async function retainedRepairRun(viaSymlink = false, terminal = true, admitted = false) {
+  const root = await mkdtemp(join(tmpdir(), 'repair-export-command-'));
+  const directories = [root];
+  await mkdir(join(root, '.beads'));
+  let serviceRoot = root;
+  if (viaSymlink) {
+    const aliasDirectory = await mkdtemp(join(tmpdir(), 'repair-export-alias-'));
+    directories.push(aliasDirectory);
+    serviceRoot = join(aliasDirectory, 'target');
+    await symlink(root, serviceRoot, 'dir');
+  }
+  const directory = join(serviceRoot, 'plans', 'review-notes', '.harness', 'jobs', runId);
+  await mkdir(directory, { recursive: true });
+  const record = constructedRecord();
+  await writeFile(join(directory, runLayout.record), JSON.stringify(record));
+  const original = repairExportFixture(serviceRoot, runId);
+  const incident = admitted ? repairIncidentRecordSchema.parse({ ...original.incident,
+    admission: { admitted: true, reason: 'Bounded repair admitted' } }) : original.incident;
+  const payload = { ...original, incident };
+  const log = await RunLog.open(join(directory, runLayout.events), runId);
+  await commitRecord(log.ledger, { event: log.next({ type: 'repair-incident-recorded', data: { incidentId: incident.incidentId, revision: 1, stage: admitted ? 'admitted' : 'refused' } }),
+    records: [{ path: runLayout.repairIncident(incident.incidentId, 1), id: incident.incidentId, revision: 1, body: incident },
+      { path: repairExportPayloadPath(incident.incidentId, 1), id: incident.incidentId, revision: 1, body: payload }] });
+  if (terminal) await log.append({ type: 'job-failed', data: { reason: 'internal', message: 'Original preparation failure', evidence: [] } });
+  return { root, directory, record, payload, log,
+    close: async () => { await Promise.all(directories.map(path => rm(path, { recursive: true, force: true }))); },
+    options: { run: directory, executable: '/tools/bd', workspace: root, json: true } };
 }

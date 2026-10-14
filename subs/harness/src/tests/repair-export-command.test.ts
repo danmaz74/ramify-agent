@@ -1,5 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { commitRecord } from '../jobs/commit.js';
@@ -12,36 +11,15 @@ import { runRepairExportCommandWith as runRepairExportCommand } from '../run/rep
 import { repairExportPayloadPath, repairProjectKey } from '../run/repair-export.js';
 import { acquireProjectLock } from '../store/lock.js';
 import { commandResult } from './helpers/command-result.js';
-import { constructedRecord, runId } from './helpers/constructed.js';
-import { repairExportFixture } from './helpers/repair-export-fixture.js';
+import { runId } from './helpers/constructed.js';
+import { retainedRepairRun } from './helpers/repair-export-fixture.js';
 
-const directories: string[] = [];
-afterEach(async () => { await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
+const cleanups: Array<() => Promise<void>> = [];
+afterEach(async () => { await Promise.all(cleanups.splice(0).map(close => close())); });
 async function retainedRun(viaSymlink = false, terminal = true, admitted = false) {
-  const root = await mkdtemp(join(tmpdir(), 'repair-export-command-'));
-  directories.push(root);
-  await mkdir(join(root, '.beads'));
-  let serviceRoot = root;
-  if (viaSymlink) {
-    const aliasDirectory = await mkdtemp(join(tmpdir(), 'repair-export-alias-'));
-    directories.push(aliasDirectory);
-    serviceRoot = join(aliasDirectory, 'target');
-    await symlink(root, serviceRoot, 'dir');
-  }
-  const directory = join(serviceRoot, 'plans', 'review-notes', '.harness', 'jobs', runId);
-  await mkdir(directory, { recursive: true });
-  const record = constructedRecord();
-  await writeFile(join(directory, runLayout.record), JSON.stringify(record));
-  const original = repairExportFixture(serviceRoot, runId);
-  const incident = admitted ? repairIncidentRecordSchema.parse({ ...original.incident,
-    admission: { admitted: true, reason: 'Bounded repair admitted' } }) : original.incident;
-  const payload = { ...original, incident };
-  const log = await RunLog.open(join(directory, runLayout.events), runId);
-  await commitRecord(log.ledger, { event: log.next({ type: 'repair-incident-recorded', data: { incidentId: incident.incidentId, revision: 1, stage: admitted ? 'admitted' : 'refused' } }),
-    records: [{ path: runLayout.repairIncident(incident.incidentId, 1), id: incident.incidentId, revision: 1, body: incident },
-      { path: repairExportPayloadPath(incident.incidentId, 1), id: incident.incidentId, revision: 1, body: payload }] });
-  if (terminal) await log.append({ type: 'job-failed', data: { reason: 'internal', message: 'Original preparation failure', evidence: [] } });
-  return { root, directory, record, payload, log, options: { run: directory, executable: '/tools/bd', workspace: root, json: true } };
+  const fixture = await retainedRepairRun(viaSymlink, terminal, admitted);
+  cleanups.push(fixture.close);
+  return fixture;
 }
 
 // The public child consumes only committed reading facts, not the log writer.
