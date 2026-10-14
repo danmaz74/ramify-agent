@@ -80,6 +80,26 @@ export function createFakeRunLineGit(root: string, git: ScriptedGit, notesChange
   } });
 }
 
+/** Committed declarations are present in clean checkouts; requester views are engineer evidence only.
+ * The configured type/self checks validate the actual typed imports and access decisions. */
+async function parentContracts(declarationPath: string, file: string, symbols: readonly string[]): Promise<void> {
+  const text = await readFile(new URL(declarationPath, import.meta.url), 'utf8');
+  const exposed = text.split('\n').map(line => line.replace(/\/\/.*$/, '').trim())
+    .flatMap(line => {
+      const match = /^expose-src\s+(.+?)\s+from\s+"([^"]+)"\s+to\s+parent$/.exec(line);
+      return match?.[2] === file ? match[1]!.split(',').map(name => name.trim()) : [];
+    });
+  for (const symbol of symbols) assert.ok(exposed.includes(symbol), `${declarationPath}: missing parent exposure ${symbol} from ${file}`);
+}
+
+export async function projectionImplementationBase(): Promise<void> {
+  await parentContracts('../../../subs/projections/module.ramify', 'queries.ts', ['RunQueries', 'RunSource']);
+  await parentContracts('../../../subs/projections/module.ramify', 'session-queries.ts', ['SessionQueries']);
+  assert.equal(typeof RunQueries.prototype.metrics, 'function');
+  assert.equal(typeof SessionQueries.prototype.runSessions, 'function');
+  assert.equal(typeof SessionQueries.prototype.runSession, 'function');
+}
+
 export async function runCollectionFixture() {
   const target = await protocolTarget(false);
   const { root } = target;
@@ -189,16 +209,20 @@ export async function runCollectionFixture() {
       for (const session of sessions.sessions) assert.deepEqual(await get(protocolPaths.runSession('review-notes', runId, session.session)), await queries.runSession('review-notes', runId, session.session));
     },
     async contracts() {
-      // Read the requester-specific ordinary/testing contracts, not foreign exports.
-      for (const area of ['../../.ramify', '../.ramify']) {
-        const page = await readFile(new URL(`${area}/children/subs/harness/subs/kpi/src/capture.ts.md`, import.meta.url), 'utf8');
-        for (const symbol of ['captureSnapshot', 'SnapshotRequest', 'invocationScopeSize', 'DeclaredScope', 'DeliveredScopeInputs', 'InvocationScopeDeclaration']) {
-          assert.ok(page.includes(`## \`${symbol}\``), `${area}: missing named signature companion ${symbol}`);
-        }
-        const lines = await readFile(new URL(`${area}/children/subs/harness/subs/kpi/src/lines.ts.md`, import.meta.url), 'utf8');
-        for (const symbol of ['takeLineSnapshot', 'lineEvents', 'LineSnapshot', 'LineEventRequest', 'LineChange']) assert.ok(lines.includes(`## \`${symbol}\``));
-        const queries = await readFile(new URL(`${area}/children/subs/harness/subs/projections/src/queries.ts.md`, import.meta.url), 'utf8');
-        assert.ok(queries.includes('## `RunQueries`')); assert.ok(queries.includes('## `RunSource`'));
+      await parentContracts('../../../subs/kpi/module.ramify', 'capture.ts', [
+        'captureSnapshot', 'SnapshotRequest', 'invocationScopeSize', 'DeclaredScope', 'DeliveredScopeInputs', 'InvocationScopeDeclaration',
+      ]);
+      await parentContracts('../../../subs/kpi/module.ramify', 'lines.ts', ['takeLineSnapshot', 'lineEvents', 'LineSnapshot', 'LineEventRequest', 'LineChange']);
+      await projectionImplementationBase();
+      // These committed production consumers are typed and checked by the configured type/self checks.
+      for (const [path, names] of [
+        ['../../run/service.ts', ['captureSnapshot', 'takeLineSnapshot', 'lineEvents']],
+        ['../../steps/runner.ts', ['invocationScopeSize', 'DeclaredScope']],
+        ['../../measurement/inputs.ts', ['DeliveredScopeInputs', 'DeclaredScope']],
+      ] as const) {
+        const source = await readFile(new URL(path, import.meta.url), 'utf8');
+        const imports = source.match(/\bimport\s+(?:type\s+)?\{[^}]*\}\s+from ['"][^'"]*subs\/kpi\/src\/(?:capture|lines)\.js['"];?/g)?.join('\n') ?? '';
+        for (const name of names) assert.match(imports, new RegExp(`\\b${name}\\b`), `${path}: typed KPI consumer import ${name}`);
       }
       await assert.rejects(readdir(new URL('../../kpi/', import.meta.url)), { code: 'ENOENT' });
     },

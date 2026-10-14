@@ -1,13 +1,10 @@
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { Given, When, Then, After } from '@cucumber/cucumber';
-import { runCollectionFixture } from '../helpers/kpi-run-collection.js';
+import { runCollectionFixture, projectionImplementationBase } from '../helpers/kpi-run-collection.js';
 
 let fixture: Awaited<ReturnType<typeof runCollectionFixture>> | undefined;
 function current() { if (!fixture) throw new Error('Run collection fixture was not prepared'); return fixture; }
 Given('an implementation base containing the merged projections extraction', async () => {
-  const received = await readFile(new URL('../../.ramify/children/subs/harness/subs/projections/src/queries.ts.md', import.meta.url), 'utf8');
-  assert.ok(received.includes('## `RunQueries`'));
+  await projectionImplementationBase();
 });
 Given('a scripted run with invocation measurements and accepted changes', async () => { fixture = await runCollectionFixture(); });
 When('run collection and the projections child produce its metric answers', { timeout: 60000 }, async () => { await current().exercise(); });
