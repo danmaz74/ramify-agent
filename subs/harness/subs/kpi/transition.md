@@ -1,5 +1,236 @@
 # Bounded KPI provider transition
 
+## Recorded-fact provider iteration (current candidate)
+
+Comparison basis: accepted `8d0fe4760e490014dc46b8e8ded2b68b5e9773c4`,
+starting candidate `c50a478956edcf018feeb100682b0bf9f02170f9`, and unchanged
+current harness `src/kpi` baseline bodies/tests. Earlier receipts below remain
+historical, not current audit claims. This iteration adds real child metrics.ts,
+lineage.ts, exploration.ts, efficiency.ts, guarding.ts and sessions.ts; only
+selected reading vocabulary is added to the parent declaration. No baseline
+production/test, projections, root, registration, configuration or feature edit.
+No consumer migration, cap-001/composed/requesting-consumer acceptance is claimed.
+
+### Ownership, consumers and complete selected API
+
+The production import inventory was checked across src, scripts and harness:
+projections metrics.ts needs kpiMetrics/comparableScopeMetrics and policies,
+InvocationFacts, guardingReport, lineageMetrics/LineageInputs and policy,
+explorationDetails/SearchCount/SearchCounts and invocationTiming. Projections
+lineage.ts needs LineageInputs/SegmentFacts/StartKind. Harness port-events.ts
+needs estimateRecordedCharge and ExplorationObservation. Harness steps/runner.ts
+needs declaredRoots; this execution adapter remains there, outside this move.
+Session summary is the selected recorded-fact provider contract, currently used
+by the retained harness line-events test; no production sessionMetrics consumer
+was found in that bounded inventory. Root/scripts have no selected production
+metric/session imports. Future consumer integration remains separately scoped.
+
+Child declaration exposes to parent the entry points above, sessionMetrics,
+and owner-local signature closure:
+InvocationFacts, MetricInputs, ScopeComparison; LineageInputs, SegmentFacts,
+SegmentUsage, StartKind; ExplorationObservation, ExplorationMetrics, SearchCount,
+SearchCounts; InvocationTiming, RecordedCharge, ChargeInput; GuardingReport,
+GuardVerdictCounts; SessionEntry, SessionMetrics. All three policy constants have
+explicit literal signatures. Foreign named companions remain original harness
+Metric, LineageMetric, Role, Observation, InvocationOutcome, LineEventSummary,
+ScopeSize, ContinueReason, DegradeRelation and ReplaceRelation, which harness owns
+and already receives in its source. No foreign wire/schema definition is copied,
+no ReturnType/private-shape derivation or writable collaborator is introduced.
+
+Parent extra exposure is only roles, replaceReasonSchema and rawOutputGapKinds
+with CoverageGapKind/ObservationOf/ObservationType closure. The two initial
+missing-companion diagnostics were repaired before implementation continued.
+These descendant reading exposures apply across the harness subtree, not only
+KPI. Public/browser and writer exposure are unchanged. Child source uses child
+capture/projectOnlySize and delivered contracts, never parent calculators.
+Testing-only real baseline comparators use pre-existing selected exposures.
+No private helpers are exposed solely for tests; explorationIdentity/searchCount
+stay private, observedElapsedMs is module-local sharing with efficiency and is
+not declared as a consumer API. ChargeInput is owned by its calculator.
+
+Rules now implemented in the child (temporary parent duplicates still exist):
+metrics private metric/ratio/observedCount/readable/sizeGap/lines,
+bytesPerChangedLine/overBaseline/sessionsOf/historiesOf/sessionWeightedTotal,
+usageTotals/usageMetrics/adaptationMetrics/byRole/repeatedBudgetReturns,
+blockedWrites/isObservationGap/observationCoverage and comparable calculations;
+lineage measurement/startOf/measures/figureOf/mean/profile/ended/globalRoles,
+localFork/forkCost/continuationGrowth/repairCost/degradedStarts/replacements,
+served/forksServed; exploration identity/status/duration/dedup/conflict rules;
+efficiency recorded amount and boundary/duration rules; guarding verdict/tool/
+mutation/excursion/gap aggregation; session change/usage/end aggregation.
+Harness acquisition, immutable record reading, lifecycle, commits, rates and
+observation production remain with their owners. No new process, analyzer,
+pricing lookup, policy, score or error is introduced.
+
+### Formula and per-case parity inventory
+
+Known baseline arithmetic is preserved: weights10/30 and scopes1000/3000 over
+B10000 give numerator100000, denominator40, mean2500, ratio0.25, inverse4.
+Unknown second scope at weight3 retains subtotal10000 over known weight10 and
+coverage1/2, not zero. Partial component buckets retain weighted known bytes but
+not complete-size denominator weight. Unattributed lines prevent a whole-run
+ratio. Captured zero subtotal differs from absent size; zero delivered weight is
+not-applicable, failed history is unavailable. Corresponding project50/120 and
+total90/200 remain distinct. Continued scopes use per-component maxima; degraded
+fresh model histories count again while harness session count does not.
+Lineage means require every segment input, retain missing-first evidence order,
+actual/requested/degraded starts, generation and local forks. Usage categories
+remain input/cache-read/cache-write/output. Recorded charges are category tokens
+* recorded rate / 1000000: 100/50/0/10 at2/.2/0/8 yields .00029 USD; absent
+rates/usage leave total null and preserve known components. Parallel10ms tools
+sum20ms with wall10ms and explicit milestone4ms. Replay uses invocation,
+operation, session, turn, call and kind; conflicting facts are excluded and
+unknown statuses retain search coverage. Guarding remains descriptive. Session
+entries include every end and unchanged repair attempt.
+
+All original baseline tests are retained unchanged for later owner retirement.
+The following map uses source-order case numbers (not new policy IDs):
+
+| Baseline source / case | Child evidence / retained owner |
+| --- | --- |
+| harness kpi-metrics 1 weighted mean/ratio/inverse/gate attempts | metrics same named case, full real baseline answer equality |
+| 2 missing size/known subtotal | same named case, full equality |
+| 3 zero weight | same named case, full equality |
+| 4 unattributed delivered lines | same named case, full equality |
+| 5 surviving/shared delivered share | same named case, full equality |
+| 6 no accepted commit/failed Git | same named case, full equality |
+| 7 historical size policy | same named case, full equality |
+| 8 unavailable B | same named case, full equality |
+| 9 separate usage/unreported session | same named case, full equality |
+| 10 continued maxima/all session ends | same named case, full equality |
+| 11 blocked calls/unguarded qualification | same named case, full equality |
+| 12 unreadable observations | same named case, full equality |
+| 13 raw-output gaps | same named case, full equality |
+| 14 no writer | same named case, full equality |
+| 15 corresponding project/total baselines | same named case, full comparable answer equality |
+| 16 partial sizes/unattributed overlap | same named case, full comparable and KPI equality |
+| 17 missing/zero B, zero weight, policy/snapshot, measured zero | same named case, full comparable equality |
+| 18 captured partial zero versus absent size | same named case, full equality |
+| harness plan23-exploration 1 known bytes/read counts/duration/zero matches | exploration same named case, full equality; literal expected identity replaces private helper import |
+| 2 replay/inheritance versus new identity fields | same named case, full equality |
+| 3 unknown bytes/files/status/duration/failed/log limit | same named case, full equality |
+| 4 conflicting replay/timestamp duration | same named case, full equality |
+| 5 partial outside-scope status | same named case, full equality |
+| 6 wholly unknown/no searches | same named case, full equality |
+| 7 failed search/unknown matches | same named case, full equality |
+| 8-9 declaredRoots directories/unknown placement | retained execution adapter tests only, no child assignment/index discovery |
+| 10 parallel/wall/milestone/missing/out-of-bounds | efficiency same named case, full real baseline timing equality |
+| 11 recorded charge categories/missing rate or usage | efficiency same named case; expected values plus whitespace-only production body/signature comparison, no baseline charge exposure added |
+| harness line-events 1-7 snapshots/ownership and 8 collection | retained coordinating owner; not moved into session tests |
+| 9 failed/stopped/repaired/context-limited/unchanged sessions and usage gap | sessions same named case, original expected figures; whitespace-only body/signature equality, no parent session calculator exposure |
+| harness unguarded-write sole native execution case | retained at owner; child guarding scripts recorded facts and preserves its report assertions without copying execution service |
+
+Projections lineage-metrics has 14 real query/session/disk-composition cases,
+not standalone pure tests: all remain at their owner. Child lineage supplies
+recorded-fact equivalents for cases1 fork profiles,2 growth,3 repair profiles,
+4 degraded rates,5 separate fallback,7 replacements/forks served,8 ordering/policy,
+9 local-source forks,10 unavailable context/usage subtotals,11 missing previous
+context,13 unknown-start coverage and14 empty group/no generation2. They retain
+the corresponding expected values/evidence, with full real baseline
+lineageMetrics equality on each input. Case6 project session list/run snapshot
+counts and case12 actual ENOENT observation-log path/error remain projection-only
+integration cases; no disk reader or service was copied. A recorded reason is
+supplied in child facts, not discovered by the calculator.
+
+New small provider cases are metrics19 distinct degraded model histories;
+lineage13 unended/wholly unknown starts/empty replacement denominator;
+efficiency3 conflicting duration exclusion; guarding3 recorded shell report,
+verdict/attribution/sorted counts and unnamed snapshot gap (no baseline pure
+file found); sessions2 empty zero and earlier unavailable usage. These preserve
+existing baseline rules, no changed expectation or new policy/error.
+
+Runtime equality compares all fields and order, not merely selected numbers:
+metrics19, lineage13, exploration7 and guarding3 compare against real baseline
+answers on every call in their wrappers; efficiency3 compares timing calls
+only. Charges and sessions lack selected baseline function exposure, so runtime
+cross-provider comparison is unrun there; matching production bodies/signatures
+(ignore whitespace only), both old/new focused expectations and schema/type
+checks are narrower evidence, not a fabricated independent oracle. Existing
+baseline/source fixtures and child pure facts remain temporary duplicates.
+
+### Current evidence and limitations
+
+Project-root logs are under
+`plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/invocations/inv-0052/shell/`.
+007 and011: npm run type-check passed all four compilers; npm run check:self
+completed/passed with partial coverage, 15 owners,947 sources,92 resources,
+0 errors/warnings,457 analysis limits,0 denied accesses. Hook deadline-exceeded
+results verified nothing; these completed structural checks supply subsequent
+evidence. No engineer command failed and no selected test skipped.
+
+008 initial and011 comparator-enhanced exact command:
+
+```
+npm run test:quick -- subs/harness/subs/kpi/src/tests/metrics.test.ts subs/harness/subs/kpi/src/tests/lineage.test.ts subs/harness/subs/kpi/src/tests/exploration.test.ts subs/harness/subs/kpi/src/tests/efficiency.test.ts subs/harness/subs/kpi/src/tests/guarding.test.ts subs/harness/subs/kpi/src/tests/sessions.test.ts subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/measurement.test.ts subs/harness/subs/kpi/src/tests/setup-attribution.test.ts subs/harness/subs/kpi/src/tests/delivered-change.test.ts
+```
+
+130 passed in10 files: metrics19,lineage13,exploration7,efficiency3,guarding3,
+sessions2,scope21,measurement8,setup38,delivered16. Zero failed/skipped/unrun
+within this selection. 009 baseline exact command:
+
+```
+npm run test:quick -- subs/harness/src/tests/kpi-metrics.test.ts subs/harness/src/tests/plan23-exploration-metrics.test.ts subs/harness/src/tests/line-events.test.ts subs/harness/subs/projections/src/tests/lineage-metrics.test.ts
+```
+
+52 passed in4 files: KPI18,exploration11,line-events9,projections lineage14;
+zero failed/skipped/unrun in selection. These production coordination tests
+still use old providers, not migrated consumers.
+
+012 authoritative configured vitest list --filesOnly --json discovers447 files,
+all10 KPI tests in node and25 projections files. Discovery is not execution.
+Process guard, configured projects/exclusions and exact native registrations
+are unchanged. No native file moved or exemption added; native witnesses are
+unrun here. Complete suite, Cucumber, web build and default committed audit are
+unrun by engineer; gate owns that audit. No scenario binding added.
+
+012 refreshed all four ordinary/testing areas together;013 records metadata
+and declaration closure at one revision
+`rev/1:82037a30-96a7-4a92-91d0-73a0eb600b88:13`: KPI ordinary39/testing78,
+harness ordinary1/testing27 analysis limits, each truncated4. Required reading
+vocabulary pages and parent-received six child calculation pages are present
+in ordinary and testing areas. Bounded page reads verify selected signatures;
+coverage limits are retained, never proof that an absent interface is unavailable.
+013 verifies charge body/signature equality; initial session comparison differed
+only by return trailing comma, restored to baseline punctuation and014 verifies
+session body/signature equality. This did not change behavior or expectations.
+
+Final015 repeats both exact commands above after baseline session punctuation
+restoration: same130 child and52 baseline passes, zero failures/skips. It also
+passes all four type checks and check:self with the same partial coverage and
+457 analysis limits. Final016 refreshes all four areas at one revision
+`rev/1:82037a30-96a7-4a92-91d0-73a0eb600b88:15`, with unchanged ordinary/testing
+coverage39/78 and1/27, each truncated4; revision13 above is the earlier bounded
+page-read evidence, not merged metadata. Signature text is unchanged by return
+punctuation. All14 final file guard receipts in exact root cwd and window
+2026-10-14T13:39:39.635Z through13:39:47.841Z are ordinary (`native:false`),
+with zero allowed launches and zero refused attempts. Guard SHA-256
+`af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d`,
+registration SHA-256
+`5d41a78c29317736864e1ac6027bd962f20b04cba8b22884c02638ff1b71587c`.
+016 retains the individual receipts; native integration is still unrun.
+
+### Temporary retirement and next owner work (not completion)
+
+Parent retains all six original production bodies and their pure helpers;
+remove them only with real consumer migrations and selected child re-exposure
+through harness to projections. Current declarations deliberately do not replace
+old descendant algorithms or add browser APIs. Retire all18 old harness pure KPI
+cases and9 pure exploration/timing/charge cases after consumers migrate, retaining
+2 declaredRoots adapter cases. Retire old M5 session test duplication after
+provider integration, retaining8 line/collection cases. Projections14 and native
+unguarded-write stay at coordinating owners. Child baseline comparators then
+must be retired with the removed baselines, retaining independent assertions.
+
+Invocation lineEvents/ownerOf/takeLineSnapshot extraction is still separate;
+trial-report destination protection remains harness-owned. All earlier capture,
+setup and delivered duplicate retirement obligations below still apply.
+Production migrations, real querying/collection/reopen/root integration,
+old-directory retirement and final cap-001/composed evidence are required next.
+The parent still knows old rules until that work removes them. The new contract
+cost is immutable recorded measurement facts and complete named type closure,
+not parent callbacks containing domain rules or new writable authority.
+
+
 ## Baseline brief-byte repair (retained partial and current conformance)
 
 The accepted child boundary `0396e5aa8758c4ad4e393902e23ebb294608a9fd`

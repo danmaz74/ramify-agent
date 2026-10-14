@@ -130,7 +130,9 @@ expose-src RunEventOf, RunEventType, terminalRunEvents from "run/log.ts" to desc
 expose-src DeviationOrigin, FinalAuditFacts, MergeReadinessInput, ReadinessDeviation, projectMergeReadiness from "run/merge-readiness.ts" to descendants
 expose-src CommittedNonfunctionalPhase, NonfunctionalPhaseReplay, replayNonfunctionalPhase from "run/nonfunctional-phase.ts" to descendants
 expose-src MergeReadiness, NonfunctionalRepairAssignment, deviationOriginSchema, mergeReadinessSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema from "run/nonfunctional-records.ts" to descendants
-expose-src Observation, observationSchema from "run/observations.ts" to descendants
+expose-src Observation, observationSchema, rawOutputGapKinds, CoverageGapKind, ObservationOf, ObservationType from "run/observations.ts" to descendants
+// KPI reading vocabulary only; durable schemas and role authority remain here.
+expose-src roles, replaceReasonSchema from "run/records.ts" to descendants
 expose-src runPolicyVersion from "run/policy.ts" to descendants
 expose-src SnapshotId from "run/records.ts" to descendants
 expose-src ContinueReason, DegradeRelation, EntryAssignments, ForkRelation, Invocation, InvocationOutcome, InvocationWork, LineEventSummary, MeasurementSnapshot, ModuleProposal, ReplaceRelation, RequestRelation, ReviewKind, RunPolicy, RunRecord, ScopeComponent, ScopeSize, SessionFinishReason, SessionId, SessionPoint, continueReasonSchema, degradeRelationSchema, entryAssignmentsSchema, forkRelationSchema, gateAttemptSchema, gateAuditOutcomeSchema, invocationOutcomeSchema, invocationSchema, invocationWorkSchema, lineEventSummarySchema, manualRunRecordSchema, measurementSnapshotSchema, moduleProposalSchema, replaceRelationSchema, requestRelationSchema, reviewKindSchema, runLayout, runPolicySchema, runRecordSchema, scopeComponentSchema, scopeSizeSchema, runSessionFinishReasonSchema, sessionPointSchema from "run/records.ts" to descendants

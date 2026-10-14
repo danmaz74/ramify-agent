@@ -7,3 +7,11 @@ expose-src scopeSizePolicy, DeclaredScope, baselineScope, scopeSize, componentSu
 // Pure provider behavior and all owner-local signature companions.
 expose-src verifySetupLineIdentities, SetupLineIdentityInput, RecordedSetupDelta, SetupCandidatePartition, SetupLineMappingFacts, SetupSourceLine, SetupAddedLineFact, SetupDeletedLineFact from "setup-attribution.ts" to parent
 expose-src HarnessLineIdentities, deliveredChange, DeliveredChangeRequest, DeliveredChange, cachedChangeHistory from "delivered.ts" to parent
+
+// Recorded-fact calculation entry points for harness composition and projections.
+expose-src kpiMetrics, comparableScopeMetrics, kpiPolicyVersion, measurementPolicyVersion, InvocationFacts, MetricInputs, ScopeComparison from "metrics.ts" to parent
+expose-src lineageMetrics, lineagePolicyVersion, LineageInputs, SegmentFacts, SegmentUsage, StartKind from "lineage.ts" to parent
+expose-src explorationDetails, ExplorationObservation, ExplorationMetrics, SearchCount, SearchCounts from "exploration.ts" to parent
+expose-src invocationTiming, InvocationTiming, estimateRecordedCharge, ChargeInput, RecordedCharge from "efficiency.ts" to parent
+expose-src guardingReport, GuardingReport, GuardVerdictCounts from "guarding.ts" to parent
+expose-src sessionMetrics, SessionEntry, SessionMetrics from "sessions.ts" to parent

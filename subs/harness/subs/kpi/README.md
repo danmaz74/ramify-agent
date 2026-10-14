@@ -2,7 +2,8 @@
 
 Measurement and attribution rules. This ordinary, untagged direct harness child
 owns snapshot construction, scope-size/2 accounting, delivered-support identity
-rules, pure exact setup-line verification and delivered-change attribution.
+rules, pure exact setup-line verification, delivered-change attribution and
+recorded-fact KPI, lineage, exploration, timing/charge, guarding and session rules.
 
 ## Contracts and invariants
 
@@ -28,6 +29,34 @@ rules, pure exact setup-line verification and delivered-change attribution.
   FINAL, counts only surviving change, splits shared commits by recorded per-path
   additions/deletions, and preserves binary paths, unattributed reasons, ordering,
   partial subtotals, unavailable and not-applicable outcomes.
+- `src/metrics.ts`: `kpiMetrics` retains kpi/1 ordering, units and evidence.
+  Delivered weights are surviving BASE-to-FINAL lines, not gross session edits.
+  Missing sizes retain known byte-line subtotals and complete-size weight;
+  unattributed weight prevents a whole-run ratio. Zero weight is not-applicable.
+  `comparableScopeMetrics` compares corresponding project-only and total sizes
+  under scope-size/2 and the same frozen snapshot. Continued model histories
+  count each component at its maximum; a degraded fresh start counts another
+  history, not another harness session. Usage categories stay separate.
+- `src/lineage.ts`: `lineageMetrics` keeps lineage/2 and glossary order. Actual
+  starts govern grouping; unknown starts retain requested groups but lack
+  coverage. Local-source forks are separate from global generations; degraded
+  fresh starts inherit nothing. Replacement reasons use harness vocabulary.
+- `src/exploration.ts`: `explorationDetails` consumes recorded observations in
+  call order, deduplicates source identity (not storage row id), excludes
+  conflicting replays and retains unknown scope/match/duration status. Known
+  subtotals are not complete counts. No scanned-byte estimates. `declaredRoots`
+  stays with harness execution; KPI does not discover assignment/prompt roots.
+- `src/efficiency.ts`: `invocationTiming` separates wall boundaries from summed
+  tool durations and retains explicit milestones and coverage. Recorded charge
+  components use tokens times their recorded category rates per million; a
+  missing usage/rate leaves that component and complete total unknown, without
+  discarding other components. No rate lookup or inferred cache saving.
+- `src/guarding.ts`: `guardingReport` describes guarded versus unguarded tools,
+  sorted unique excursions and gap counts. Its original completeness policy is
+  descriptive, not proof of scope compliance or a gate license.
+- `src/sessions.ts`: `sessionMetrics` counts every supplied invocation including
+  failed, stopped, repaired, context-limited and unchanged entries. Any missing
+  usage makes the token total unknown; empty entries are a known zero.
 - `cachedChangeHistory` keeps argument-keyed promises, evicts oldest entries past
   its bound (default 512), and discards rejected answers. Hits do not refresh FIFO.
 
@@ -45,11 +74,16 @@ Follow the root [testing rules](../../../../docs/testing.spec.md). Tests in
 Run from the project root:
 
 ```
-npm run test:quick -- subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/measurement.test.ts subs/harness/subs/kpi/src/tests/setup-attribution.test.ts subs/harness/subs/kpi/src/tests/delivered-change.test.ts
+npm run test:quick -- subs/harness/subs/kpi/src/tests/metrics.test.ts subs/harness/subs/kpi/src/tests/lineage.test.ts subs/harness/subs/kpi/src/tests/exploration.test.ts subs/harness/subs/kpi/src/tests/efficiency.test.ts subs/harness/subs/kpi/src/tests/guarding.test.ts subs/harness/subs/kpi/src/tests/sessions.test.ts subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/measurement.test.ts subs/harness/subs/kpi/src/tests/setup-attribution.test.ts subs/harness/subs/kpi/src/tests/delivered-change.test.ts
 ```
 
 The process guard, configured discovery and exact native registrations are
 unchanged. Scratch-cwd and lineEvents collection coordination remain harness-owned.
 See [transition inventory](transition.md) for retained baseline duplicates,
 comparison evidence, access limitations and subsequent owner-scoped migration.
-This bootstrap does not establish consumer composition or cap-001 completion.
+Owned calculation tests also compare full answers with the real, temporarily
+retained baseline through existing testing exposures; no KPI fake is used.
+Sessions and recorded charges retain baseline bodies and expected cases but lack
+selected baseline function exposure for a child runtime comparator. Production
+consumers are not migrated: this provider iteration does not establish consumer
+composition, old-directory retirement or cap-001 completion.
