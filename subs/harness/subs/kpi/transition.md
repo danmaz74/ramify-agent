@@ -1,5 +1,35 @@
 # Bounded KPI provider transition
 
+## ga-0005 patch-integrity repair
+
+Original audit receipt `20261014T103040Z-9c4e05:ga-0005` assessed
+`49a7eb7dbcfd87912321c830dd6c38be165b4fd2` under ramify-audit.json,
+requested/executed ramify-partial, composed verdict fail. Exact failed check:
+patch-integrity / git-diff-check, `subs/harness/subs/kpi/src/exploration.ts:147:
+new blank line at EOF.` This repair removes only that extra terminal blank
+line; calculations, contracts and assertions are unchanged. The failed receipt
+and candidate remain historical evidence, not reclassified by a focused pass.
+
+The supplied audit reports agent-typecheck, agent-structure, agent-web-build,
+agent-tests and agent-scenarios passing. Recorded test totals: 412 files passed,
+1 skipped of413; 3428 tests passed,2 skipped of3430,0 failed. Cucumber:6 scenarios
+and61 steps passed,0 failed/skipped/undefined. Aggregate counts are partial-audit
+provider evidence, not proof of whole configured discovery execution; skipped
+cases retain their status and their names were not supplied in this repair
+brief. Structure retains analysis coverage limits. No new whole-suite command
+or direct audit was run by engineer.
+
+Repair verification at
+`plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/invocations/inv-0053/shell/001.log`
+asserts exactly one terminal newline and no blank EOF line. Exact focused command
+`npm run test:quick -- subs/harness/subs/kpi/src/tests/exploration.test.ts subs/harness/subs/kpi/src/tests/efficiency.test.ts`
+passes10 tests (7 exploration,3 efficiency),0 failed/skipped. This does not erase
+ga-0005 or establish patch-integrity acceptance; the next committed gate owns
+verification and may reuse applicable provider evidence. Prior required type,
+structural and full focused selections are retained below. No new policy/error,
+consumer migration or cap-001/composed completion is claimed.
+
+
 ## Recorded-fact provider iteration (current candidate)
 
 Comparison basis: accepted `8d0fe4760e490014dc46b8e8ded2b68b5e9773c4`,

@@ -144,4 +144,3 @@ export function explorationDetails(input: readonly ExplorationObservation[], col
     observations,
   };
 }
-
