@@ -78,6 +78,7 @@ test('C13/C14/C15: actual nested exchanges, session descendants, complete per-in
   const filtered = await readConsultations({ run: f.directory, session: caller.session }); expect(filtered.consultations.map(value => value.id)).toEqual([outer.id, inner.id]);
   const detail = await readConsultations({ run: f.directory, id: outer.id }); expect(detail.consultations).toHaveLength(1); expect(detail.usage).toEqual(view.usage);
   const json = await runConsultationsCommand({ run: f.directory, format: 'json' }); expect(JSON.parse(json.stdout)).toEqual(view);
+  expect(json.stdout).toBe(`${JSON.stringify(view, null, 2)}\n`);
   expect(json).toMatchObject({ exitStatus: 0, stderr: '' });
   const cliText = await runConsultationsCommand({ run: f.directory });
   expect(cliText).toEqual({ stdout: consultationText(view), stderr: '', exitStatus: 0 });
@@ -89,6 +90,18 @@ test('C13/C14/C15: actual nested exchanges, session descendants, complete per-in
   const text = consultationText(view); expect(text).toContain(`  ${inner.id}`); expect(text).toContain('cumulative top-level call time (not session wall time)');
   expect(text).toContain(outer.child!.investigation!.path); expect(consultationText(detail, true)).toContain(outer.question);
   expect(await bytes(f.directory)).toEqual(before); expect(f.seen.length).toBe(seen);
+});
+
+test('consultation CLI option refusals preserve exact stderr and status before retained-record reading', async () => {
+  const run = '/not-a-retained-run';
+  expect(await runConsultationsCommand({ run, id: 'call', session: 'ses-0001' })).toEqual({
+    stdout: '', stderr: `Cannot read consultations from ${run}: Choose --id or --session, not both\n`, exitStatus: 2,
+  });
+  // The public parser ordinarily constrains this value; retain the command's runtime refusal too.
+  // @ts-expect-error Deliberately invalid external option.
+  expect(await runConsultationsCommand({ run, format: 'yaml' })).toEqual({
+    stdout: '', stderr: `Cannot read consultations from ${run}: --format must be text or json\n`, exitStatus: 2,
+  });
 });
 
 test('C14: accepted answer and cancellation error remain distinct from absent delivery; unknown IDs and malformed bodies fail', async () => {
