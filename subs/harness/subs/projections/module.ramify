@@ -1,0 +1,12 @@
+ramify 1
+module projections
+
+// Node reading provider, deliberately untagged and available only to harness.
+expose-src RunQueries, RunSource from "queries.ts" to parent
+expose-src SessionQueries from "session-queries.ts" to parent
+expose-src CommittedRun, CommittedLine, ProjectionError from "inputs.ts" to parent
+expose-src currentModuleTree from "tree.ts" to parent
+expose-src ExecutionPageError from "execution-pages.ts" to parent
+expose-src ExecutionCoreIndex from "execution-map.ts" to parent
+expose-src CheckFindingListQuery from "check-findings.ts" to parent
+expose-src readConsultations, consultationText, ConsultationInspectionOptions, ConsultationInspection, Usage, UsageTotal, Category from "consultations.ts" to parent
