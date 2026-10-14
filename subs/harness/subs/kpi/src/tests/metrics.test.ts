@@ -2,16 +2,9 @@ import { size, usage, find } from './metric-fixtures.js';
 import { describe, expect, test } from 'vitest';
 import { metricSchema, type Metric } from '../../../../src/interfaces/protocol/runs.js';
 import type { DeliveredChange } from '../delivered.js';
-import { comparableScopeMetrics as ownedComparable, kpiMetrics, type InvocationFacts, type MetricInputs, type ScopeComparison } from '../metrics.js';
-import { comparableScopeMetrics as baselineComparable, kpiMetrics as baselineKpi } from '../../../../src/kpi/metrics.js';
+import { comparableScopeMetrics, kpiMetrics, type InvocationFacts, type MetricInputs } from '../metrics.js';
 import type { Observation } from '../../../../src/run/observations.js';
 import type { LineEventSummary, ScopeSize } from '../../../../src/run/records.js';
-
-function comparableScopeMetrics(value: { readonly baseline: ScopeSize | { readonly unavailable: string }; readonly writers: ReadonlyMap<string, ScopeSize | null>; readonly delivered: DeliveredChange }): { readonly projectOnly: ScopeComparison; readonly total: ScopeComparison } {
-  const result = ownedComparable(value);
-  expect(result).toEqual(baselineComparable(value));
-  return result;
-}
 const guarded = { statement: 'Every observed mutation passed the guard (edit).', complete: true };
 function lines(invocation: string, added: number, deleted: number, coverage: 'complete' | 'partial' = 'complete'): LineEventSummary {
   return { schema: 'ramify-agent.line-events/1', invocation,
@@ -37,7 +30,6 @@ function inputs(invocations: InvocationFacts[], extra: Partial<MetricInputs> = {
 }
 function computed(value: MetricInputs, guarding = guarded): Metric[] {
   const metrics = kpiMetrics(value, guarding);
-  expect(metrics).toEqual(baselineKpi(value, guarding));
   for (const metric of metrics) metricSchema.parse(metric);
   return metrics;
 }

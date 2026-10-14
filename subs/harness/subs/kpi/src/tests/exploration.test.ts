@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { explorationDetails as ownedDetails, type ExplorationObservation, type ExplorationMetrics, type SearchCounts } from '../exploration.js';
-import { explorationDetails as baselineDetails } from '../../../../src/kpi/exploration.js';
-function explorationDetails(input: readonly ExplorationObservation[], limits: readonly string[] = []): { readonly metrics: ExplorationMetrics; readonly zeroMatchSearches: number; readonly searches: SearchCounts; readonly observations: readonly ExplorationObservation[] } {
-  const result = ownedDetails(input, limits);
-  expect(result).toEqual(baselineDetails(input, limits));
-  return result;
-}
+import { explorationDetails, type ExplorationObservation, type ExplorationMetrics } from '../exploration.js';
 function explorationMetrics(input: readonly ExplorationObservation[], limits: readonly string[] = []): ExplorationMetrics {
   return explorationDetails(input, limits).metrics;
 }

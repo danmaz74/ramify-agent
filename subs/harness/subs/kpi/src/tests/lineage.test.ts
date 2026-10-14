@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { lineageMetricSchema, type LineageMetric } from '../../../../src/interfaces/protocol/runs.js';
 import { lineageMetrics, type LineageInputs, type SegmentFacts } from '../lineage.js';
-import { lineageMetrics as baselineLineage } from '../../../../src/kpi/lineage.js';
 const use = (input: number, cacheRead: number, cacheWrite: number, output: number) => ({ input, cacheRead, cacheWrite, output });
 const segment = (invocation: string, session: string, extra: Partial<SegmentFacts> = {}): SegmentFacts => ({ invocation, session,
   role: 'engineer', ended: true, requested: 'fresh', actual: 'fresh', unknown: null, degraded: null, continues: null,
@@ -26,7 +25,6 @@ const inputs: LineageInputs = {
 };
 function computed(value = inputs): LineageMetric[] {
   const metrics = lineageMetrics(value);
-  expect(metrics).toEqual(baselineLineage(value));
   metrics.forEach(metric => lineageMetricSchema.parse(metric));
   return metrics;
 }

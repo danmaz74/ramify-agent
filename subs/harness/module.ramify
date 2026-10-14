@@ -113,14 +113,14 @@ expose-src AnalysisResponse, AnalysisScenario, BreakpointSelector, CapabilityLis
 expose-src RunSessionResponse, RunSessionView, RunSessionsResponse, SessionAppend, SessionBodyResponse, SessionCursor, SessionInvocation, SessionListEntry, SessionListResponse, SessionReach, SessionRef, SessionSuspension, SessionTranscriptResponse, SessionUpdatesResponse, ShownSessionState, StandaloneSessionResponse, TranscriptPage, UnservedSessionSource, runSessionResponseSchema, runSessionViewSchema, runSessionsResponseSchema, sessionAppendSchema, sessionBodyHashSchema, sessionBodyResponseSchema, sessionCursorSchema, sessionInvocationSchema, sessionListEntrySchema, sessionListResponseSchema, sessionQueryLimits, sessionReachSchema, sessionRefSchema, sessionStateSchema, sessionSuspensionSchema, sessionTranscriptResponseSchema, sessionUpdatesResponseSchema, standaloneSessionIdSchema, standaloneSessionResponseSchema, transcriptPageSchema, unservedSessionSourceSchema from "interfaces/protocol/sessions.ts" to descendants
 expose-src TranscriptBody, TranscriptEntry, transcriptBodySchema, transcriptEntrySchema from "interfaces/protocol/transcripts.ts" to descendants
 expose-src jobSchemaVersion, jobsDirectory from "jobs/records.ts" to descendants
-expose-src DeclaredScope, baselineScope, rootModuleOfSnapshot, scopeSize from "kpi/capture.ts" to descendants
-expose-src deliveredChange, DeliveredChange, DeliveredChangeRequest, HarnessLineIdentities from "kpi/delivered.ts" to descendants
-expose-src InvocationTiming, invocationTiming from "kpi/efficiency.ts" to descendants
-expose-src ExplorationMetrics, ExplorationObservation, SearchCount, SearchCounts, explorationDetails from "kpi/exploration.ts" to descendants
-expose-src GuardVerdictCounts, GuardingReport, guardingReport from "kpi/guarding.ts" to descendants
-expose-src LineageInputs, SegmentFacts, SegmentUsage, StartKind, lineageMetrics, lineagePolicyVersion from "kpi/lineage.ts" to descendants
-expose-src InvocationFacts, MetricInputs, ScopeComparison, comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion from "kpi/metrics.ts" to descendants
-expose-src RecordedSetupDelta, SetupAddedLineFact, SetupCandidatePartition, SetupDeletedLineFact, SetupLineIdentityInput, SetupLineMappingFacts, SetupSourceLine, verifySetupLineIdentities from "kpi/setup-attribution.ts" to descendants
+expose-sub DeclaredScope, baselineScope, rootModuleOfSnapshot, scopeSize from kpi to descendants
+expose-sub deliveredChange, DeliveredChange, DeliveredChangeRequest, HarnessLineIdentities from kpi to descendants
+expose-sub InvocationTiming, invocationTiming from kpi to descendants
+expose-sub ExplorationMetrics, ExplorationObservation, SearchCount, SearchCounts, explorationDetails from kpi to descendants
+expose-sub GuardVerdictCounts, GuardingReport, guardingReport from kpi to descendants
+expose-sub LineageInputs, SegmentFacts, SegmentUsage, StartKind, lineageMetrics, lineagePolicyVersion from kpi to descendants
+expose-sub InvocationFacts, MetricInputs, ScopeComparison, comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion from kpi to descendants
+expose-sub RecordedSetupDelta, SetupAddedLineFact, SetupCandidatePartition, SetupDeletedLineFact, SetupLineIdentityInput, SetupLineMappingFacts, SetupSourceLine, verifySetupLineIdentities from kpi to descendants
 expose-src assessedElements from "nonfunctional/submissions.ts" to descendants
 expose-src NotVerifiedReason, ReviewAttempt, ReviewRequest, notVerifiedReasonSchema, reviewAttemptSchema, reviewRequestSchema from "reviews/records.ts" to descendants
 expose-src ReviewAttemptState, ReviewCoverage, ReviewRequestState, reviewCoverage, reviewStateOf from "reviews/state.ts" to descendants
@@ -182,10 +182,10 @@ expose-sub readPiNativeRequestArtifact, PiNativeRequestArtifact from agent to pa
 // Exact setup-line attribution: the pure verifier the root's trial scripts
 // run over their own collected Git facts, with the types its signature names,
 // and the one guard every trial's evidence destination passes.
-expose-src HarnessLineIdentities from "kpi/delivered.ts" to parent
-expose-src verifySetupLineIdentities, SetupLineIdentityInput, SetupCandidatePartition, RecordedSetupDelta from "kpi/setup-attribution.ts" to parent
-expose-src SetupSourceLine, SetupLineMappingFacts, SetupAddedLineFact, SetupDeletedLineFact from "kpi/setup-attribution.ts" to parent
-expose-src trialReportDestination from "kpi/trial-report.ts" to parent
+expose-sub HarnessLineIdentities from kpi to parent
+expose-sub verifySetupLineIdentities, SetupLineIdentityInput, SetupCandidatePartition, RecordedSetupDelta from kpi to parent
+expose-sub SetupSourceLine, SetupLineMappingFacts, SetupAddedLineFact, SetupDeletedLineFact from kpi to parent
+expose-src trialReportDestination from "qualification/trial-report.ts" to parent
 
 // Production ledger reopening belongs to the descendant Pi native witness.
 // Only the store contract and its signature companions cross this boundary.

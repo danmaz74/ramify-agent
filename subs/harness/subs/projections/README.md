@@ -1,5 +1,11 @@
 # Projections
 
+KPI queries now consume real sibling child originals through selected harness
+re-exposures. See [KPI integration](kpi-integration.md) for the signature inventory,
+repeated/reopened HTTP response and durable-byte evidence, retained baseline
+files, and the unresolved out-of-scope KPI test comparator failures. This
+candidate has focused passes, not a passing structural check or audit acceptance.
+
 Read-only Node query provider, a direct untagged child of harness. This owner
 contains all 23 baseline query implementations formerly owned at
 `subs/harness/src/projections/`. That old directory is removed without

@@ -893,3 +893,68 @@ revision `rev/1:f4c829fe-9f73-4302-97dd-c52909514d9e:89`, limits 1/27/39/78;
 no new cross-owner import is required for this repair. This focused pass neither
 erases ga-0007 nor proves a flake. The next gate selects execution/reuse and owns
 the qualifying committed audit verdict; no full audit was run by the engineer.
+
+## i13 — comparator ownership corrected; composed selection still partial
+
+The five child behavior suites retain all describe/test identities, inputs,
+literal/schema/error expectations and fixtures. Parent baseline imports and
+parity-only assertions are removed; timing/exploration/guarding/comparable
+wrappers become direct local calls, computed metrics/lineage keep schema parsing.
+First preserved complete genuine parent/child comparisons in coordinating
+harness `src/tests/measurement-parity/`, with harness-local fixture copies.
+No private child fixture imports, production helpers, declarations or provider
+algorithms changed. Temporary coordinator suites last until assigned case-mapped
+parent baseline retirement; no parent bodies retire here.
+
+Exact one-to-one map (same basename and all test titles/bodies, in order):
+
+| Child `src/tests/` file | Harness `src/tests/measurement-parity/` file | Cases each | Baseline comparisons |
+| --- | --- | ---: | --- |
+| efficiency.test.ts | efficiency.test.ts | 3 | 5 timing sites, all end/milestone/duration edge inputs; charge-only case not parity |
+| exploration.test.ts | exploration.test.ts | 7 | 11 details sites (5 through metrics helper), source replay/conflicts, unknown search statuses, collection limits |
+| guarding.test.ts | guarding.test.ts | 3 | 4 report sites, shell/gaps/verdicts/empty input |
+| lineage.test.ts | lineage.test.ts | 13 | 13 computed sites, recorded and missing starts, local/global forks, degradation/repair/generations |
+| metrics.test.ts | metrics.test.ts | 19 | 21 KPI sites plus 9 comparable sites, complete/partial/zero/missing/incompatible evidence |
+
+[Coordinator receipt](../../src/tests/measurement-parity/README.md) gives exact
+commands, all compared inputs/case groups, discovery and remaining owner-local
+baselines. Inv-0089 shell/008 proves all seven copied suite/fixture files exact
+apart from defining imports before repair; shell/016 verifies child/coordinator
+test bodies remain byte-identical. Child tests have no parent KPI imports.
+Harness baseline reads remain in owner-local kpi-metrics.test.ts,
+plan23-exploration-metrics.test.ts and unguarded-write.test.ts, inventoried for
+future retirement; no re-exposure was restored to satisfy tests.
+
+Current inv-0089 receipts: shell/009 `npm run type-check && npm run check:self`
+passes all four TypeScript projects and structure, with partial coverage:
+15 owners, 959 sources, 92 resources, 18502 accesses; 13694 allowed, 0 denied,
+4802 external; 0 errors, 0 warnings, 458 limits. Not-checked deadline hooks remain
+not passes. Shell/010 exact five-child/five-parity `test:quick` selection passes
+10 files/90 tests, zero failures/skips, with counts in the table.
+
+Shell/011 required i12 nine-file quick selection **failed**: eight files/68 tests
+passed, one suite failed with zero tests. Retained projections kpi-metrics.test.ts
+contains only JSON discovery output: `No test suite found`. No write to that file
+by this invocation; no origin inference. Projections tests cannot be repaired on
+this assignment. Advisory architect confirmed preserve failure and return partial
+for recorded restoration of all three original query cases/child import migration.
+Other exact counts: lineage 14, efficiency 1, observation 9, setup 4, session 1,
+run-protocol 9, projections-pure 3, root collector 27. The root/script original
+examples still execute actual child/relocated validator; repeated/reopened actual
+HTTP and durable/event/process evidence stays unchanged and passed. Shell/012
+separate exact attribution boundary selection passes seven native cases, no skips.
+Shell/015 configured discovery lists all 19 exact node files plus native file,
+including five added parity suites; discovering the defective file is not a pass.
+
+Shell/013–014 refresh separate root/projections/KPI ordinary/testing areas at
+`rev/1:9ef78384-9e9a-4944-94f2-d73967d04806:35`: coverage limits root 39/77,
+projections 39/69, KPI 39/78; truncations 2/2, 4/4, 4/4. These incomplete views
+cannot prove absence; supplied revision 24 and historical revisions stay separate.
+
+Gate owns committed default audit over the retained composed candidate; no audit
+requested for the failed selection. Historical failed audits/i09/i11/i12 limits
+are not erased; two opt-in fixture skips remain unrerun/not passing. Still owed:
+composed weighted 2500/100000/40, missing writer subtotal, zero versus failed
+history, complete cache/rates/search-conflict cases, full selected feature evidence
+and assigned parent-body/pure-test retirement. No scenario binding, capability
+completion or task handback.

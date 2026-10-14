@@ -6,6 +6,7 @@ import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { runEventPageSchema, runListResponseSchema, workItemListResponseSchema } from '../interfaces/protocol/runs.js';
 import { startServerWith, type RunningServer } from '../http/server.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
+import { SessionQueries } from '../../subs/projections/src/session-queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { runEventSchema, type RunEvent } from '../run/log.js';
 import { authenticateRepairHistory, type RepairHistoryEntry } from '../run/repair-history.js';
@@ -72,7 +73,12 @@ describe('a projection never writes, and no query appends an event', () => {
     const lastSequence = (await runEventsOnDisk(root, plan, runId)).at(-1)!.sequence;
     const projectRecords = await fileHashes(join(root, 'subs'));
     const gitOperations = ports.git.operations();
-    const queries = new RunQueries(createQuerySource(opened.service));
+    const source = createQuerySource(opened.service);
+    const queries = new RunQueries(source);
+    const sessions = new SessionQueries(source);
+    const originalMetrics = await queries.metrics(plan, runId);
+    const originalSessions = await sessions.runSessions(plan, runId);
+    expect(originalSessions.sessions.length).toBeGreaterThan(0);
     for (let round = 0; round < 2; round += 1) {
       await queries.list(plan);
       await queries.run(plan, runId);
@@ -84,7 +90,11 @@ describe('a projection never writes, and no query appends an event', () => {
       await queries.capabilities(plan, runId);
       await queries.moduleCapabilities(plan, runId);
       await queries.scenarios(plan, runId);
-      await queries.metrics(plan, runId);
+      expect(await queries.metrics(plan, runId)).toEqual(originalMetrics);
+      expect(await sessions.runSessions(plan, runId)).toEqual(originalSessions);
+      for (const session of originalSessions.sessions) {
+        expect((await sessions.runSession(plan, runId, session.session)).session).toEqual(session);
+      }
       const events = await queries.events(plan, runId, 0);
       for (const gate of new Set(events.events.flatMap(event => event.refs.filter(ref => ref.kind === 'gate').map(ref => ref.id)))) {
         await queries.gate(plan, runId, gate);
@@ -116,6 +126,8 @@ describe('a projection never writes, and no query appends an event', () => {
         protocolPaths.runModuleCapabilities(plan, runId),
         protocolPaths.runModuleCapabilities(plan, '20990101T000000Z-000000'),
         protocolPaths.runMetrics(plan, runId),
+        protocolPaths.runSessions(plan, runId),
+        ...originalSessions.sessions.map(session => protocolPaths.runSession(plan, runId, session.session)),
         protocolPaths.runScenarios(plan, runId),
         protocolPaths.runWorkItem(plan, runId, 'wi-999'),
         protocolPaths.runGate(plan, runId, 'ga-9999'),
@@ -132,6 +144,13 @@ describe('a projection never writes, and no query appends an event', () => {
       const answered: number[] = [];
       for (let round = 0; round < 2; round += 1) {
         for (const path of paths) answered.push((await status(server, path)).status);
+        expect(await status(server, protocolPaths.runMetrics(plan, runId))).toEqual({ status: 200, body: originalMetrics });
+        expect(await status(server, protocolPaths.runSessions(plan, runId))).toEqual({ status: 200, body: originalSessions });
+        for (const session of originalSessions.sessions) {
+          expect(await status(server, protocolPaths.runSession(plan, runId, session.session))).toEqual({
+            status: 200, body: { version: originalSessions.version, session },
+          });
+        }
       }
       expect(new Set(answered)).toEqual(new Set([200, 404, 400]));
       expect(runListResponseSchema.parse((await status(server, protocolPaths.runs(plan))).body).runs[0]!.version).toBe(lastSequence);
@@ -157,8 +176,8 @@ describe('a projection never writes, and no query appends an event', () => {
     const directory = fileURLToPath(new URL('../../subs/projections/src/', import.meta.url));
     const files = [
       ...(await readdir(directory)).filter(name => name.endsWith('.ts')).map(name => join(directory, name)),
-      fileURLToPath(new URL('../kpi/metrics.ts', import.meta.url)),
-      fileURLToPath(new URL('../kpi/guarding.ts', import.meta.url)),
+      fileURLToPath(new URL('../../subs/kpi/src/metrics.ts', import.meta.url)),
+      fileURLToPath(new URL('../../subs/kpi/src/guarding.ts', import.meta.url)),
       fileURLToPath(new URL('../../subs/kpi/src/lines.ts', import.meta.url)),
       fileURLToPath(new URL('../measurement/owners.ts', import.meta.url)),
     ];

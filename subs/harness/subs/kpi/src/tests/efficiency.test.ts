@@ -1,12 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { estimateRecordedCharge, invocationTiming as ownedTiming, type InvocationTiming } from '../efficiency.js';
-import { invocationTiming as baselineTiming } from '../../../../src/kpi/efficiency.js';
-import type { ExplorationObservation } from '../exploration.js';
-function invocationTiming(input: Pick<InvocationTiming, 'startedAt' | 'endedAt' | 'milestone' | 'milestoneAt'> & { readonly modelElapsedMs?: number | null; readonly checkElapsedMs?: number | null; readonly exploration?: readonly ExplorationObservation[]; readonly coverage?: readonly string[] }): InvocationTiming {
-  const result = ownedTiming(input);
-  expect(result).toEqual(baselineTiming(input));
-  return result;
-}
+import { estimateRecordedCharge, invocationTiming } from '../efficiency.js';
 import { observation, fixture } from './exploration-fixtures.js';
 
 describe('Plan23 F6 timing and charges with recorded inputs', () => {

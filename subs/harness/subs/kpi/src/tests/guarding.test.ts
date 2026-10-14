@@ -1,11 +1,5 @@
 import { expect, test } from 'vitest';
-import { guardingReport as ownedReport, type GuardingReport } from '../guarding.js';
-import { guardingReport as baselineReport } from '../../../../src/kpi/guarding.js';
-function guardingReport(input: readonly Observation[]): GuardingReport {
-  const result = ownedReport(input);
-  expect(result).toEqual(baselineReport(input));
-  return result;
-}
+import { guardingReport } from '../guarding.js';
 import { observationSchema, type Observation } from '../../../../src/run/observations.js';
 const at = '2026-01-01T00:00:00.000Z';
 const guard = (tool: string, verdict: 'allowed' | 'blocked-scope' | 'blocked-unresolved'): Observation => ({ n: 1, at, type: 'guard',
