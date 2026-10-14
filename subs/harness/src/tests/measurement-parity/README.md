@@ -125,10 +125,13 @@ There are 15 surviving same-title attribution/cache cases plus this relocated ca
 | single uncertain writer | known path2 survives/overlap3 unknown; global overlap gap makes all5 unknown |
 
 The child's additional bounded-cache case remains (reads2→4→7; FIFO hits do not
-refresh; roots, paths and ranges separate). `H/plan23-trial-attribution` retains
-all verifier, cwd, corruption and destination tests, now importing the real child
-original. Native trial registration/file is unchanged. Root collector/script and
-external report destination tests remain unchanged; no verifier fake is introduced.
+refresh; roots, paths and ranges separate). Every pure setup identity fixture and
+assertion from `H/plan23-trial-attribution` survives in `K/setup-attribution`: the
+entire pure section is byte-identical after imports, comments and blank lines
+are normalized. Operator review retired that remaining duplicate section;
+`H/plan23-trial-attribution` retains the distinct execution cwd assertion. Native
+trial registration/file, root collector/script and external report destination
+tests remain unchanged; no verifier fake is introduced.
 
 ## Scope adapter and private API retirement
 

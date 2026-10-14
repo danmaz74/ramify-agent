@@ -24,7 +24,7 @@ the child before deletion; none was redirected to a substitute calculator.
 | lines.ts: snapshots, per-invocation deltas, overlap/binary/unmapped qualifications | harness run/service.ts chooses snapshot timing and commits original returned records |
 | capture.ts: snapshot construction, scope accounting, delivered-source identity rules, invocation qualification | run/service.ts baseline; measurement/inputs.ts translates manifests/write/read scopes and acquires locations; steps/runner.ts selects collection timing and commits invocation |
 | delivered.ts: surviving BASE→FINAL weight, exact setup exclusions, shared writers, bounded history cache | run/service.ts owns cached reading dependency; projections metrics.ts supplies recorded writers/Git facts |
-| setup-attribution.ts: exact revision-bound line verification | projections metrics.ts and root scripts/trial-attribution.ts; parent trial test retains actual verifier use |
+| setup-attribution.ts: exact revision-bound line verification | projections metrics.ts and root scripts/trial-attribution.ts; root/native consumers retain actual verifier use |
 | metrics.ts: KPI and corresponding project/total comparison | projections metrics.ts; no browser calculator contract |
 | lineage.ts: actual/requested history, generations, degradation/replacement/order | projections lineage.ts/metrics.ts translate durable recorded facts |
 | exploration.ts: source dedup, unknown/conflicting search coverage | projections metrics.ts and harness run/port-events.ts observation vocabulary |
@@ -93,8 +93,11 @@ Nine pure parent scope cases retire to same-title child evidence. Remaining pare
 scope cases exercise real manifest/write/read/location adapters against literal
 results and exact errors, never child-to-itself equalities.
 
-Trial39 ordinary cases and unguarded native execution case retain their assertions
-while importing real selected child originals. Projections and root collector
+Operator review additionally retired the parent pure setup-identity section after
+verifying complete fixture/assertion identity with the child setup suite (ignoring
+imports, comments and blank lines only). The distinct parent execution cwd case
+remains. The earlier39-case parent trial selection below describes the pre-cleanup
+source; child setup assertions and the unguarded native execution case remain. Projections and root collector
 source/tests are unchanged. Native registration, process guards and both inherited
 opt-in skips are unchanged. Historical failed/limited/interrupted receipts remain
 labelled history in integration/transition notes and measurement-parity/history.md.
@@ -158,3 +161,16 @@ web-build, other native witnesses and whole-run default audit were not run here.
 The two inherited opt-in skips were neither removed nor relabelled passed.
 Semantic all-ten-example and plan acceptance remain the responsible operator's
 judgment. Passing focused tests alone is not a claim that Plan46 is accepted.
+
+
+## Operator review follow-up
+
+After the standalone engineer settled, operator review retained its delivery at
+7babce6c and removed the last duplicate pure setup-identity section as mapped
+above. The real child keeps every original fixture and assertion; the parent keeps
+the distinct execution cwd test. The exact focused selection of child
+setup-attribution, parent plan23-trial-attribution and parent scope-size-recipe
+passed52 cases across3 files. All four TypeScript projects and check:self passed
+again (0 errors,0 denied accesses,457 analysis limits; partial structural coverage).
+These operator checks are separate from the engineer receipts and do not establish
+committed audit or full-plan acceptance.

@@ -88,8 +88,6 @@ describe('scope-size/2 measures what a writer was given to write', () => {
     expect(component(size.components, 'owned-source')).toMatchObject({ state: 'measured', bytes: 760, buckets: { production: 650, tests: 100, documentation: 10 } });
   });
 
-
-
   test('an extra location that cannot be read is a coverage limit with its error, not an absent location', async () => {
     const unreadable = scopeSize(snapshot(), scope({ exactOwners: ['p/a'], locations: [{ path: 'package.json', bytes: 90 }, { path: 'vendor/blob', bytes: null, files: [], unreadable: 'EACCES: permission denied' }] }));
     const owned = component(unreadable.components, 'owned-source');
@@ -131,7 +129,6 @@ describe('scope-size/2 measures what a writer was given to write', () => {
 });
 
 // Pure revision comparison cases live with the child-owned implementation.
-
 
 describe('delivered-manifest adapter preserves recorded facts', () => {
   // Harness owns manifest translation and has testing access to the real child.
@@ -209,8 +206,6 @@ describe('Plan23 F6 delivered scope and partial byte arithmetic', () => {
       appended: [{ ...role, sources: [{ path: 'role.md', hash: 'different-revision', bytes: 21 }] }] }))).toThrow('Conflicting delivered support revisions');
   });
 
-
-
   test('outside inventory per-file identities remove held/extra/read overlaps: held10 + new7 adds only7', () => {
     const taken = snapshot();
     taken.measure = { revision: 'rev/1:g:1', hash: 'a'.repeat(64), document: { schema: 'ramify.measure/2', revision: 'rev/1:g:1', views: 'measured',
@@ -225,6 +220,5 @@ describe('Plan23 F6 delivered scope and partial byte arithmetic', () => {
     expect(readScopeMeasurement(write).exactOwners).toEqual(['p/a']);
     expect(writeScopeMeasurement(write).exactOwners).toEqual(['p']);
   });
-
 
 });
