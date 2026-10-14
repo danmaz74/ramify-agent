@@ -3,7 +3,8 @@
 Read-only Node query provider, a direct untagged child of harness. This owner
 contains all 23 baseline query implementations formerly owned at
 `subs/harness/src/projections/`. Parent copies remain an explicit temporary
-baseline: parent caller integration and deletion are subsequent work. HTTP,
+baseline for remaining parent tests: real HTTP/CLI consumer integration is
+accepted; old-tree deletion and further test migration remain subsequent work. HTTP,
 CLI, run coordination, durable/public protocol authority and repair-export
 admission have not moved here.
 
@@ -31,15 +32,20 @@ sibling `../../<owner>/src/`, never generated views. See
 Run from the project root:
 
 ```
-npm test -- --maxWorkers=4 subs/harness/subs/projections/src/tests/committed-queries.test.ts subs/harness/subs/projections/src/tests/execution-map-pages.test.ts subs/harness/subs/projections/src/tests/continuity-projections.test.ts subs/harness/subs/projections/src/tests/consultation-reading.test.ts subs/harness/subs/projections/src/tests/repair-reading.test.ts subs/harness/subs/projections/src/tests/session-reading.test.ts
+npm test -- --maxWorkers=4 subs/harness/subs/projections/src/tests/execution-map-causal.test.ts subs/harness/subs/projections/src/tests/execution-map-modules.test.ts subs/harness/subs/projections/src/tests/execution-map-projection.test.ts subs/harness/subs/projections/src/tests/run-projections.test.ts subs/harness/subs/projections/src/tests/committed-queries.test.ts subs/harness/subs/projections/src/tests/execution-map-pages.test.ts subs/harness/subs/projections/src/tests/continuity-projections.test.ts subs/harness/subs/projections/src/tests/consultation-reading.test.ts subs/harness/subs/projections/src/tests/repair-reading.test.ts subs/harness/subs/projections/src/tests/session-reading.test.ts
 ```
 
 Real queries read scripted committed inputs or retained historical files.
 Baseline cursor-page and continuity assertions are preserved; targeted
 consultation reading assertions retain partial-evidence, exact-answer and
-hash-refusal behavior. Existing parent tests and native boundary registrations
-remain untouched, including the parent HTTP/CLI/full-run/no-write composition
-assertions. This provider-only step does not establish real HTTP/query-source,
-session-query or consultation CLI integration. Configured Node discovery
+hash-refusal behavior. The focused causal, module-map, structured-evidence and run-projection tests
+now import private projectors locally. The parent page test had an identical
+non-import body to this owner's page test and was removed without losing cases.
+Constructed committed-input fixtures remain parent-owned, received only through
+selected testing contracts with reading-type companions; no service is copied
+or injected. HTTP/CLI/full-run/recovery integration stays with harness, including
+`execution-map-durable.test.ts`; native boundary registrations are unchanged.
+See `notes/focused-test-migration.md` for this slice's evidence and remaining
+old-tree dependencies. Focused test health is not scenario completion. Configured Node discovery
 includes `subs/**/src/**/*.test.ts`; ordinary tests retain root process guarding
 and receive no new exemptions.

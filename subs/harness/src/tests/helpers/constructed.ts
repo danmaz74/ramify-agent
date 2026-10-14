@@ -1,5 +1,5 @@
 import { hypothesisSchema, registryEntrySchema, type Hypothesis, type RegistryEntry } from '../../analysis/records.js';
-import { consumerRequirementSchema, providerObligationSchema } from '../../contracts/records.js';
+import { consumerRequirementSchema, providerObligationSchema, type ConsumerRequirement, type ProviderObligation } from '../../contracts/records.js';
 import type { CommittedLine, CommittedRun } from '../../../subs/projections/src/inputs.js';
 import type { RunEvent } from '../../run/log.js';
 import type { RunRecord } from '../../run/records.js';
@@ -15,8 +15,8 @@ import { minimalProjectConfig } from './project-config.js';
  */
 
 export const runId = '20260921T080000Z-c0ffee';
-export const reviews = 'collection-review/workspace/reviews';
-export const hash = 'a'.repeat(64);
+export const reviews: string = 'collection-review/workspace/reviews';
+export const hash: string = 'a'.repeat(64);
 
 /** The record of a constructed run: only what the projections read of it. */
 export function constructedRecord(extra: Partial<RunRecord> = {}): RunRecord {
@@ -46,7 +46,7 @@ export function constructedRecord(extra: Partial<RunRecord> = {}): RunRecord {
 export type Line = { readonly type: RunEvent['type']; readonly data: unknown; readonly records?: ReadonlyArray<{ path: string; body: unknown }> };
 
 /** A run of these lines, sequenced in order. */
-export function constructedRun(lines: readonly Line[], record: RunRecord = constructedRecord(), directory = '/nonexistent/run'): CommittedRun {
+export function constructedRun(lines: readonly Line[], record: RunRecord = constructedRecord(), directory: string = '/nonexistent/run'): CommittedRun {
   const entries: CommittedLine[] = lines.map((line, index) => {
     const at = new Date(Date.parse('2026-09-21T08:00:00.000Z') + index * 1000).toISOString();
     return {
@@ -89,7 +89,7 @@ export function item(id: string, origin: WorkItem['origin'], extra: Partial<Work
   });
 }
 
-export function obligation(contract: string, capability: string, revision = 1) {
+export function obligation(contract: string, capability: string, revision: number = 1): ProviderObligation {
   return providerObligationSchema.parse({
     schema: 'ramify-agent.provider-obligation/1', id: `ob-${contract}`, revision,
     contract: { id: contract, revision, hash }, capability, provider: reviews, behavior: `The provider of ${capability}.`,
@@ -97,7 +97,7 @@ export function obligation(contract: string, capability: string, revision = 1) {
   });
 }
 
-export function requirement(id: string, workItem: string, forCapability: string, contract: string, revision = 1) {
+export function requirement(id: string, workItem: string, forCapability: string, contract: string, revision: number = 1): ConsumerRequirement {
   return consumerRequirementSchema.parse({
     schema: 'ramify-agent.consumer-requirement/1', id, revision, workItem, consumer: reviews, forCapability,
     obligation: `ob-${contract}`, contractRevision: revision, behavior: `What ${forCapability} needs.`,
@@ -106,4 +106,4 @@ export function requirement(id: string, workItem: string, forCapability: string,
 }
 
 /** The path a body is materialized at; the projections read the body, not the path. */
-export const at = (kind: string, id: string, revision = 1) => `${kind}/${id}/${revision}.json`;
+export const at = (kind: string, id: string, revision: number = 1): string => `${kind}/${id}/${revision}.json`;

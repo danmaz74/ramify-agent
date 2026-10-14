@@ -159,7 +159,7 @@ expose-sub ChangeHistory, ChangedFile, GitLineRange, LineCommit, ModuleEntry, lo
 expose-sub JsonLines, LedgerEntry, RecordBody, Transaction, readJsonLines from ledger to descendants
 expose-sub Assessment, Candidate, ClosedRound, Outcome, Phase, RoundDecision, RoundDecisionInput, assessmentSchema, candidateSchema, decideNonfunctionalRound, roundSchema from nonfunctional to descendants
 expose-sub DocumentManifest, ElementCatalog, PackageCitation, PackageDeviation, documentManifestSchema, elementCatalogSchema, elementKinds, packageCitationSchema, packageDeviationSchema from plan-evidence to descendants
-expose-sub ScenarioId, ScenarioRecord, ScenarioState, ScenarioStates, scenarioIdSchema, scenarioRecordSchema, scenarioStateSchema from scenarios to descendants
+expose-sub ScenarioId, ScenarioRecord, ScenarioState, ScenarioStates, scenarioIdSchema, scenarioRecordSchema, scenarioSourceHash, scenarioStateSchema from scenarios to descendants
 
 // Temporary local guards forward to root enforcement in Plan 22 iteration 6.
 expose-test guardedChildProcess, spawnAttempts from "helpers/process-guard.ts" to descendants
@@ -193,3 +193,9 @@ expose-src schemaErrors, SubmissionError, SubmissionValidation from "run/submiss
 expose-src canonicalJson from "jobs/commands.ts" to descendants
 expose-test scriptedCandidates, ScriptedCommit, ScriptedCandidates from "helpers/candidates.ts" to descendants
 expose-test scratchCandidateReplies from "helpers/scratch-candidate-replies.ts" to descendants
+
+// Constructed committed-input witnesses for focused child query regressions.
+// Signature companions are the selected reading records exposed above and
+// CommittedRun/CommittedLine received from projections (never writer ports).
+expose-sub CommittedRun, CommittedLine from projections to descendants
+expose-test at, constructedRun, hash, item, obligation, registered, requirement, reviews, Line from "helpers/constructed.ts" to descendants

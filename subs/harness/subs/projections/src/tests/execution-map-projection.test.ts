@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { scenarioRecordSchema, scenarioSourceHash } from '../../subs/scenarios/src/records.js';
-import { entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema } from '../run/records.js';
-import { iterationAssignmentSchema, iterationResultSchema } from '../work/iterations.js';
-import { executionCapabilityDetailSchema, executionNodeSchema, executionScenarioDetailSchema } from '../interfaces/protocol/execution-map.js';
-import { executionCapabilityDetailOf, executionCoreOf, executionScenarioDetailOf } from '../projections/execution-map.js';
-import { eventPage } from '../projections/events.js';
-import { snapshotOf } from '../projections/snapshot.js';
-import { runSnapshotSchema, scenarioListResponseSchema } from '../interfaces/protocol/runs.js';
-import { scenarioListOf } from '../projections/scenarios.js';
-import type { RunEvent } from '../run/log.js';
-import { runView } from '../projections/inputs.js';
-import { at, constructedRun, hash, item, registered, reviews, type Line } from './helpers/constructed.js';
+import { scenarioRecordSchema, scenarioSourceHash } from '../../../scenarios/src/records.js';
+import { entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema } from '../../../../src/run/records.js';
+import { iterationAssignmentSchema, iterationResultSchema } from '../../../../src/work/iterations.js';
+import { executionCapabilityDetailSchema, executionNodeSchema, executionScenarioDetailSchema } from '../../../../src/interfaces/protocol/execution-map.js';
+import { executionCapabilityDetailOf, executionCoreOf, executionScenarioDetailOf } from '../execution-map.js';
+import { eventPage } from '../events.js';
+import { snapshotOf } from '../snapshot.js';
+import { runSnapshotSchema, scenarioListResponseSchema } from '../../../../src/interfaces/protocol/runs.js';
+import { scenarioListOf } from '../scenarios.js';
+import type { RunEvent } from '../../../../src/run/log.js';
+import { runView } from '../inputs.js';
+import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 const description = `The full capability description.\n${'Retain this sentence. '.repeat(300)}`;
 const source = ['Scenario: A complete block', '  Given the state is recorded', '  When the work runs', '  Then the whole block remains available'];

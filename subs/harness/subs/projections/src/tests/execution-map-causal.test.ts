@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { contractRecordSchema } from '../contracts/records.js';
-import { executionCoreOf } from '../projections/execution-map.js';
-import { runView } from '../projections/inputs.js';
-import { entryAssignmentsSchema } from '../run/records.js';
-import { gateAttemptSchema } from '../run/records.js';
-import { at, constructedRun, hash, item, obligation, registered, requirement, reviews, type Line } from './helpers/constructed.js';
+import { contractRecordSchema } from '../../../../src/contracts/records.js';
+import { executionCoreOf } from '../execution-map.js';
+import { runView } from '../inputs.js';
+import { entryAssignmentsSchema } from '../../../../src/run/records.js';
+import { gateAttemptSchema } from '../../../../src/run/records.js';
+import { at, constructedRun, hash, item, obligation, registered, requirement, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 const provider = 'shared-provider';
 const first = 'first-consumer';

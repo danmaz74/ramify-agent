@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { gateViewSchema, runEventPageSchema, runQueryLimits, runSnapshotSchema } from '../interfaces/protocol/runs.js';
-import { eventPage } from '../projections/events.js';
-import { ProjectionError, runView } from '../projections/inputs.js';
-import { snapshotOf } from '../projections/snapshot.js';
-import { boundedTail, gateOf } from '../projections/work.js';
-import type { GateAttempt } from '../checks/records.js';
-import { at, constructedRun, hash, item, registered, reviews, type Line } from './helpers/constructed.js';
+import { gateViewSchema, runEventPageSchema, runQueryLimits, runSnapshotSchema } from '../../../../src/interfaces/protocol/runs.js';
+import { eventPage } from '../events.js';
+import { ProjectionError, runView } from '../inputs.js';
+import { snapshotOf } from '../snapshot.js';
+import { boundedTail, gateOf } from '../work.js';
+import type { GateAttempt } from '../../../../src/checks/records.js';
+import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 /*
  * The projections over constructed runs: the event page's limit and cursor,
