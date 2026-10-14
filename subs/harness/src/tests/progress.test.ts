@@ -112,4 +112,3 @@ async function inventory(directory: string): Promise<Array<[string, number, numb
   await walk(directory);
   return found.sort();
 }
-

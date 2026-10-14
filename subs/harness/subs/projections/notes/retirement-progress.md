@@ -119,6 +119,33 @@ Current committed iteration audit is requested by completion proposal, not claim
 passed by these focused results. No whole-suite or scenario command or manual Git
 was run; final qualification remains the harness's supported gate authority.
 
+### Committed gate ga-0013 and bounded repair
+
+The original provider receipt is retained: audit
+`20261013T215727Z-a3e5c9:ga-0013` of candidate
+`bf4bb7df9a7f422e6a200cca5d9666376a87b0fd`, composed verdict **fail**.
+Requested ramify-partial executed full because drift-cap selected 57 paths
+(limit 25) since full audit `f6a5ed3713b9b62b2d43f10682e2833b406e141d`.
+Agent tests passed: 422 files passed / 1 skipped, 3666 tests passed / 2 skipped;
+typecheck, structure and web build passed. Scenario check reported pass with
+**zero scenarios and zero steps**, not acceptance evidence for pending scenarios.
+
+Only patch-integrity failed, reporting new blank lines at EOF in:
+- `subs/harness/src/tests/kpi-metrics.test.ts:276`
+- `subs/harness/src/tests/progress.test.ts:115`
+- `subs/harness/src/tests/scenario-projections.test.ts:189`
+- `subs/harness/subs/projections/src/tests/automatic-repair-incidents.test.ts:142`
+
+Repair removed exactly those four trailing blank lines, leaving final newlines,
+assertions and imports unchanged. This is repair of the actual reported failure,
+not a cosmetic change to force audit execution. The failed candidate and receipt
+retain their original attribution. Current supplied API revision is now
+`rev/1:6fb6dafb-b976-4f1e-b8b3-fa44398352a2:119`, with unchanged supplied
+coverage limits 1/26 and 39/67; prior view observations above describe revision
+106, not this newer snapshot. No new API use is needed for the whitespace repair.
+The next normal gate owns selection/reuse and the qualifying verdict; the original
+failed audit is not erased by repair or focused checks.
+
 ## Historical i06 assertion-preservation map: completed adaptations
 
 All full-run, HTTP, command, recovery and native coordination stays with harness.

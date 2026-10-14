@@ -273,4 +273,3 @@ test('Plan23 captured partial zero subtotal remains zero while absent scope rema
   const missing = computed(inputs([writer('one', { size: null })], { delivered: delivered([['one', 1]]) }));
   expect(find(missing, 'scope-bytes-per-changed-line')).toMatchObject({ state: 'unavailable', subtotal: null, value: null, denominator: null });
 });
-

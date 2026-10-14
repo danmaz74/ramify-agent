@@ -139,4 +139,3 @@ test('repair session work retains its distinct incident identity and confirmed e
   expect(transcriptWorkSchema.parse({ workItem: 'wi-001', automaticRepair: 'apr-0001' })).toEqual({ workItem: 'wi-001', automaticRepair: 'apr-0001' });
   expect(() => incident({ export: { ...incident().export, state: 'exported', issueId: null } })).toThrow(/must name its Beads task/);
 });
-
