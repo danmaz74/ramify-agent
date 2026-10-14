@@ -1,6 +1,28 @@
 # Bounded KPI provider transition
 
-## Standalone continuation — partial, not baseline retirement
+## Current: legacy ownership retired
+
+The nine duplicate parent implementations and the parent `src/kpi/` directory
+are removed, with no forwarding files. The five coordinator runtime suites and
+the parent pure metrics/delivered duplicate suites are retired after mapping to
+independent child assertions. The overlapping snapshot case was relocated
+verbatim into child `lines.test.ts`. Coordinating trial/unguarded-write tests now
+call real selected child originals. The scope adapter uses literal results and
+errors, not child-to-itself comparisons.
+
+`sessionMetrics`, SessionEntry/SessionMetrics, `componentSubtotal`,
+`scopeSizePolicy` and `projectOnlySize` are private to this owner. Other selected
+contracts remain because actual collection, projections or root callers use
+them or their named signature closure. No new testing-only production API.
+
+Current inventory/checks: harness `measurement-integration.md` and
+`measurement-retirement.md`. Exact case preservation:
+`src/tests/measurement-parity/README.md` under harness. Full committed default
+audit, root results.md and feature disposition remain operator-owned.
+
+## Historical receipts (not current retirement status)
+
+### Standalone continuation — partial, not baseline retirement
 
 The remaining invocation qualification rules formerly constructed in parent
 `steps/runner.ts` now execute in the real child's `capture.ts` through factual

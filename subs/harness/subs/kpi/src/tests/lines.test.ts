@@ -81,6 +81,12 @@ describe('what one writer invocation changed', () => {
     expect(summary.coverage).toBe('complete');
     expect(summary.gaps).toEqual([]);
   });
+  test('Plan23 overlapping line snapshots retain known path deltas with an explicit attribution limit', () => {
+    const events = lineEvents({ invocation: 'one', before: { available: true, changes: [] },
+      after: { available: true, changes: [{ path: 'a.ts', added: 3, deleted: 0, binary: false, bytes: null }] },
+      index: null, overlappingWriters: ['one', 'two'] });
+    expect(events).toMatchObject({ coverage: 'partial', paths: [{ path: 'a.ts', added: 3, deleted: 0 }], gaps: expect.arrayContaining([expect.stringContaining('overlapping-writers:')]) });
+  });
   test('binary byte changes and overlapping writers retain sorted partial contributions', async () => {
     const binary = (bytes: number): LineChange => ({ path: 'src/z.bin', binary: true, bytes, added: 0, deleted: 0 });
     const index = architectIndex([moduleEntry('root', '', null)]);

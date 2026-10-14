@@ -1,6 +1,20 @@
 # Collection composition
 
-## Standalone continuation: invocation qualification (partial source delivery)
+## Current final source ownership
+
+The legacy parent `src/kpi/` is completely removed. Current source/API ownership,
+consumer/signature inventory and scoped verification are recorded in
+[measurement-retirement.md](measurement-retirement.md). The exact retired-case
+map is [src/tests/measurement-parity/README.md](src/tests/measurement-parity/README.md).
+That directory contains documentation only. Production algorithms now have one
+owner, the existing KPI child; durable writing, timing and factual acquisition
+remain in harness. No public browser calculator API was added.
+
+The invocation qualification seam described below is retained unchanged. Root
+results.md, captured feature bindings, operator review and committed default
+composed audit remain outside this scoped source retirement.
+
+## History: invocation qualification (partial source delivery)
 
 The current continuation moves the remaining `prepareInvocation` result rules
 into the existing KPI child's `capture.ts`. The parent still reads/parses the

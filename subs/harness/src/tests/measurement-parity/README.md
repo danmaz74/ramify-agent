@@ -1,165 +1,168 @@
-# Temporary coordinator baseline parity — i13 receipt
+# Final retirement case map
 
-These are transition-only comparisons, not provider APIs or a second owner of
-measurement behavior. Retain until case-mapped parent baseline retirement is
-assigned and equivalent literal/schema/error evidence is preserved. Do not
-retire parent bodies in this repair. The child owns its original behavior tests;
-the harness coordinates independent real parent/real child comparisons.
+The legacy harness `src/kpi/` directory is absent. This directory is documentation
+only: no calculators, fixtures, runtime comparisons or child-to-itself equalities.
+[Historical receipt](history.md) describes the earlier partial repair, including
+its failures, interrupted/limited checks and then-unfinished work; it is not the
+current inventory or acceptance evidence.
 
-## Exact child-to-coordinator map
+## Mapping convention and comparison
 
-For each basename below, the child file is
-`subs/harness/subs/kpi/src/tests/<basename>.test.ts` and its coordinator companion
-is `subs/harness/src/tests/measurement-parity/<basename>.test.ts`.
-Every describe/test identity and body maps one-to-one, in order, with identical
-inputs, literals and assertions. No child private fixtures/tests are imported.
-`exploration-fixtures.ts` and `metric-fixtures.ts` are local copies: exact values
-and bytes apart from defining imports. Shell/008 verified all seven copies
-against the pre-repair child files, changing only import paths. Shell/016 verified
-all child/coordinator describe/test bodies byte-identical after repair.
+`K/<file>` below means `subs/harness/subs/kpi/src/tests/<file>.test.ts`.
+`H/<file>` means `subs/harness/src/tests/<file>.test.ts`. Same-title means the
+original test title in the named surviving file, not a broad suite-level claim.
+The five former coordinator suites were inspected against the child originals:
+all 45 test bodies match after import/wrapper removal (3 efficiency, 7 exploration,
+3 guarding, 13 lineage, 19 metrics). The only removed assertions are transitional
+real-parent/real-child equalities in wrappers/computed helpers. Independent literal,
+schema, error, state, reason and ordering assertions remain in child originals.
+Fixtures remain child-local; they are not imported from another owner's tests.
 
-| Basename | Child cases passed | Coordinator cases passed | Genuine compared calls |
-| --- | ---: | ---: | --- |
-| efficiency | 3 | 3 | 5 invocationTiming calls: parallel 10ms tools/wall/milestone, missing end, partial fixture duration, milestone beyond end, conflicting source duration |
-| exploration | 7 | 7 | 11 explorationDetails calls (6 direct, 5 via explorationMetrics): fixture totals, replay/inheritance dedup, new source identities, missing bytes/files/breadth/duration/failed call plus collection limit, unknown matches, conflicting replay, timestamp duration, partial outside-scope status, unavailable status, no-search, failed versus zero/unknown matches |
-| guarding | 3 | 3 | 4 guardingReport calls: unguarded shell/excursion/gap, sorted verdicts/attribution/repeated gap, unattributed snapshot/shell gap, empty observations |
-| lineage | 13 | 13 | 13 lineageMetrics calls through computed: all 8 ST13 recorded-fact cases and 5 missing-evidence cases, including generations, local fork, continuation/repair, fresh fallback, degraded/unknown starts, replacements, unended segments and exact ordering/schema |
-| metrics | 19 | 19 | 21 kpiMetrics calls through computed; 9 comparableScopeMetrics calls, covering all 14 M4 cases, 3 F6 component cases and both standalone partial-zero/degraded-history cases |
+## Metrics: exact ordered case map
 
-Metrics comparisons retain 2500/100000/40, missing-writer subtotal, zero delivery
-versus failed Git, unmapped/shared/replaced weights, incompatible policy,
-unavailable baseline/usage, session counts, guarding/observation gaps, component
-ratios, partial overlaps, missing/zero B and snapshot identity qualifications.
-Each wrapper compares the real baseline defined under harness `src/kpi/` with
-the selected production contract defined under child `src/`. No alias to the
-child is used as a baseline. The copied charge-only efficiency case (1 of 3)
-retains literal tests but was never a parent comparison: no new charge parity
-claim is made. Counts above are static call-site inventory, not test counts.
-There was no separate budget test among the former wrappers; collection-limit
-inputs and all original cases are retained, not supplemented by invented cases.
+All 19 former `measurement-parity/metrics` cases map in order to the same-title
+`K/metrics` cases. The 18 former `H/kpi-metrics` cases map to cases 1–18 of that
+same file (formatting/comments differ, not the expected facts). Every computed
+metric still passes `metricSchema.parse`.
 
-Child timing/exploration/guarding/comparable wrappers are now direct local calls;
-metrics/lineage computed helpers keep schema parsing and shed only parent equality.
-No algorithms, declarations, root script or projections implementation/tests were
-written by this repair.
+| Case / original distinguishing identity | Independent surviving evidence in K/metrics |
+| --- | --- |
+| 1 measured sum(w_e*S_e)/sum(w_e), over B and inverse | 1000*10 + 3000*30 = numerator100000; denominator40; value2500; B10000; ratio.25; inverse4; policies/evidence |
+| 2 missing size component | subtotal10000; denominator10; covered1/total2; inv-0003 weight3 and owned-source unknown reason; complete value null |
+| 3 sum(w_e)=0 | not-applicable; numerator0/denominator0; ratio not-applicable, not unavailable |
+| 4 no named writer | partial numerator10000/weight10; 50 of60 unattributed; inv-0003 delivered zero evidence |
+| 5 replaced/shared delivered shares | 4,4.5,1.5 weights at1000,3000,5000; numerator25000/10; 4.50 evidence |
+| 6 no accepted commit versus failed Git | not-applicable versus unavailable, original Git failure reason |
+| 7 incompatible size policy | unavailable, incompatible scope-size/1 reason retained |
+| 8 unavailable baseline | ratios unavailable with baseline reason |
+| 9 separate usage categories | recorded input/cache/output; missing usage unavailable; no price/cost metric |
+| 10 every session/continued max | continued component maxima, session count and coverage retained |
+| 11 blocked writes | measured .5 =1/2; engineer blocked-scope evidence; unguarded statement makes partial |
+| 12 unreadable observations | explicit observations.jsonl reason; absent initial-architect compactions not-applicable |
+| 13 transcript incomplete is raw output | observation coverage2/3, only inv-0003 usage gap; no transcript-incomplete metric |
+| 14 no writer session | change ratios not-applicable, empty gate/accepted inputs |
+| 15 corresponding components | project50/120; total90/200; weights3,1 at90,50 => mean80, numerator320/4 |
+| 16 partial writer plus overlap | attributed4, complete3, unknown1, unattributed2; partial subtotal350; project subtotal200; old KPI denominator3 |
+| 17 missingB/zeroB/zero delivery/policy/snapshot | distinct states and reasons, frozen snapshot identity retained |
+| 18 partial zero versus absent | captured subtotal0, absent subtotal null, both unavailable; denominator null |
+| 19 degraded fresh continuation | one harness session, two scope histories; numerator4000; value.4; fresh-two evidence |
 
-Remaining owner-local baseline test accesses to these five parent bodies are
-`subs/harness/src/tests/kpi-metrics.test.ts` (metrics),
-`plan23-exploration-metrics.test.ts` (exploration/timing/charge), and
-`unguarded-write.test.ts` (guarding). These remain inventoried for later retirement.
-The bounded TypeScript scan in shell/016 finds parent comparator access only in
-these owner-local files and this coordinator directory, none in KPI child tests
-or projections. Root testing scan in shell/017 finds no parent KPI imports.
+## Exploration, timing and guarding
 
-## Commands and actual outcomes
+Former `measurement-parity/exploration` cases 1–7 map to same-title `K/exploration`
+cases 1–7. Former `H/plan23-exploration-metrics` pure cases 1–7 map there too;
+timing/charge cases map to `K/efficiency` cases1–2. The parent retains both
+`declaredRoots` tests with their original assertions (shop/orders, global view,
+named location; empty declaration/view/unplaceable owner).
 
-All logs below are under
-`plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/invocations/inv-0089/shell/`.
-Commands run from project root; no whole suite/audit was run by this engineer.
+| Original distinguishing case | Independent surviving assertion |
+| --- | --- |
+| known calls | K/exploration: reads3/unique2/repeated1/bytes22/searches2/broad1/outside1/time17; one zero-match; r3 duration unknown; no scannedBytes |
+| replay/inheritance | same source counted once: reads1/bytes10/time5; changed op/invocation/turn/kind yields reads4/search1/bytes50 |
+| unknown/failed/truncated | bytes10 known; explicit unknown bytes/files/duration/breadth and observation-log-truncated; unknown matches not zero |
+| conflicting replay/timestamps | conflicting bytes11 excluded => reads0/bytes0; explicit timestamps yield10ms |
+| outside scope unknown | known1, partial covered2/total4; broad measured0 with4/4 |
+| all unknown versus no searches | unavailable covered0/1 versus not-applicable0/0 |
+| failed versus zero/unknown matches | completed3/failed1; zeroMatch1, partial2/3 |
+| timing parallel tools | K/efficiency: wall10/tool20/milestone4; no end gives null; fixture subtotal17 but complete time null; milestone beyond end null |
+| recorded charges | new100/cache50/write0/output10 at2/.2/0/8 per million => .0002/.00001/0/.00008, total.00029; missing cache usage or output rate gives null total |
+| conflicting durations | K/efficiency case3: wall10/model0/check0/tool null; exact three coverage reasons, including excluded source identity |
+| unguarded shell report | K/guarding case1: same edit/shell/mutation/excursion/gap fixture, exact integration statement and completeness |
+| sorted verdicts/attribution/repeated gap | K/guarding case2: schema-valid observations, sorted unique tools, original verdict and gap counts |
+| snapshot/shell gap | K/guarding case3: unattributed mutation remains incomplete; empty observations retain original report |
 
-Shell/009:
+All three former coordinator efficiency and guarding cases map to the same-title
+child cases above. `H/unguarded-write` is retained intact, now calling the selected
+child `guardingReport`, alongside real execution/guard/durable assertions.
 
-```sh
-npm run type-check && npm run check:self
-```
+## Lineage
 
-Both exit 0; all four configured TypeScript projects pass with no diagnostics.
-Structural execution completed/passed with **partial coverage**: 15 owners,
-959 sources, 92 resources, 18502 accesses; 13694 allowed, 0 denied,
-4802 external; 0 errors, 0 warnings, 458 analysis limits. Earlier mutation hooks
-reported deadline-exceeded/not-checked (not passes); the complete check supplies
-current structural evidence, not retrospective success for those hooks.
+All 13 former `measurement-parity/lineage` bodies map in order and by exact title
+to `K/lineage`; its computed helper still parses every `lineageMetricSchema`.
+The complete ordered inv-0001…inv-0011 fixture remains: global contexts24000/26000,
+local8000→11000, degraded fresh7000, engineer10000→15000 repair, replacement12000,
+global fresh18000 and degraded fork9000; recorded usage categories are unchanged.
 
-Shell/010:
+| Original case (ordered) | Surviving independent qualification |
+| --- | --- |
+| 1 fork inherited context/cost by generation | generation1 versus fresh global forks, recorded categories |
+| 2 continuation growth | current minus previous start; degraded excluded |
+| 3 repair cost | repair segments separate from fresh engineer entries |
+| 4 degraded requested relation | exact executor reasons: session file gone / executor cannot fork |
+| 5 separate fallback invocations | requested relation retained without invented fork |
+| 6 replacements and generations | reconstructed/context-rebuilt reasons; forks served per generation |
+| 7 glossary order | exact metric ID order and lineage/2 schema |
+| 8 local fork | local group, not global generation |
+| 9 missing fork context | known subtotal, coverage and each missing-input reason |
+| 10 missing previous context | growth unavailable, not zero |
+| 11 unknown actual start | partial degraded rate and forks served |
+| 12 empty groups/generation2 | not-applicable, no invented rebuild |
+| 13 unended/unknown requested | unended excluded; wholly unknown unavailable |
 
-```sh
-npm run test:quick -- subs/harness/subs/kpi/src/tests/efficiency.test.ts subs/harness/subs/kpi/src/tests/exploration.test.ts subs/harness/subs/kpi/src/tests/guarding.test.ts subs/harness/subs/kpi/src/tests/lineage.test.ts subs/harness/subs/kpi/src/tests/metrics.test.ts subs/harness/src/tests/measurement-parity/efficiency.test.ts subs/harness/src/tests/measurement-parity/exploration.test.ts subs/harness/src/tests/measurement-parity/guarding.test.ts subs/harness/src/tests/measurement-parity/lineage.test.ts subs/harness/src/tests/measurement-parity/metrics.test.ts
-```
+## Delivered changes and setup qualification
 
-10 files/90 tests passed, zero failures/skips. Per-suite counts are above.
+Former `H/delivered-change` cases map to same-title `K/delivered-change` assertions
+except the overlapping-line-snapshot case, relocated verbatim to `K/lines`.
+There are 15 surviving same-title attribution/cache cases plus this relocated case.
 
-Shell/011 (required retained i12 selection):
+| Original case identity | Independent surviving fixture/value/reason |
+| --- | --- |
+| later rewrite/deleted base | final origins and last-seen base positions => inv-0007:2, inv-0009:3 |
+| harness/path/binary | harness commit and feature path excluded, binary has no line weight |
+| shared per-path increases | exact recorded fractional split, unmapped lines remain unattributed |
+| shared unreadable/no writer | original unavailable line-event and absent writer reasons |
+| no accepted/failed Git | not-applicable versus unavailable with original error |
+| kept history | one Git answer per question, failures not cached |
+| exact commit/path setup | .gitignore setup2 excluded; later same-path writer inv-0007:2/inv-0009:1 |
+| unknown overlap | unrelated writer three:2 survives, overlap2 unattributed with reason |
+| complete shell snapshots | shared4 => one3/two1; missing snapshot => all4 unattributed |
+| overlapping snapshots | K/lines: a.ts added3/deleted0 retained, coverage partial, overlapping-writers gap |
+| rename/reverted | final diff empty line weights, no harness or unattributed lines |
+| mixed same-commit/path | only recorded revision-bound setup identities excluded; stale identities refuse exemption |
+| reverted setup | verified empty positions exempt nothing; agent lines retained |
+| deleted setup | BASE positions and removing commit exclude2, writer retains1 |
+| unknown mapping | no path-wide exemption, weight2 unattributed |
+| single uncertain writer | known path2 survives/overlap3 unknown; global overlap gap makes all5 unknown |
 
-```sh
-npm run test:quick -- subs/harness/subs/projections/src/tests/kpi-metrics.test.ts subs/harness/subs/projections/src/tests/lineage-metrics.test.ts subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts subs/harness/subs/projections/src/tests/plan23-observation-presentation.test.ts subs/harness/subs/projections/src/tests/plan23-setup-attribution.test.ts subs/harness/subs/projections/src/tests/session-reading.test.ts subs/harness/src/tests/run-protocol.test.ts subs/harness/src/tests/projections-pure.test.ts src/tests/plan23-trial-collector.test.ts
-```
+The child's additional bounded-cache case remains (reads2→4→7; FIFO hits do not
+refresh; roots, paths and ranges separate). `H/plan23-trial-attribution` retains
+all verifier, cwd, corruption and destination tests, now importing the real child
+original. Native trial registration/file is unchanged. Root collector/script and
+external report destination tests remain unchanged; no verifier fake is introduced.
 
-**Exit 1: 1 failed suite, 8 passed files; 68 passed tests, zero skipped.**
-Per-file counts: projections kpi-metrics **0/no suite**; lineage-metrics 14;
-efficiency-provenance 1; plan23-observation-presentation 9;
-plan23-setup-attribution 4; session-reading 1; harness run-protocol 9;
-projections-pure 3; root collector 27. Exact diagnostic:
-`No test suite found in file .../subs/harness/subs/projections/src/tests/kpi-metrics.test.ts`.
-The retained file contains only a JSON discovery array, not TypeScript tests.
-This invocation did not write it. Its provenance is not established. The i12
-reported 3 passing cases remain historical, not current. Advisory architect
-confirmed projections-test repair needs recorded authority; do not omit this
-file, weaken discovery or reconstruct lesser expectations. The chained native
-command did not execute after quick failure; it was then executed separately.
+## Scope adapter and private API retirement
 
-Shell/012:
+`H/scope-size-recipe` now asserts actual adapter results against literals, never
+against another alias of the child. Repeated brief hash cases [5,6]→6, [6,5]→5,
+[5,5]→5 retain exact scope/supplementary/total expectations. Both orders of source
+hash and byte conflicts retain Error name and exact message
+`Conflicting delivered support revisions for same`. Child same-title/purpose cases
+independently assert these rules on factual entries.
 
-```sh
-npm run test:boundaries -- subs/harness/src/tests/plan23-trial-attribution.boundary.test.ts
-```
+The removed pure 100/20/30/50 versus40/10/15/20/5 body maps to same-title
+`K/scope-size-recipe`: project120/50 and total200/90. The private partial
+project-only subtotal520 assertion maps to its same-title child partial-support
+case (total725; policy mismatch0; revision mismatch200; unselected components0).
+The other eight removed pure scope bodies map by same title to
+`K/scope-size-recipe` (no adapter was exercised in those bodies):
 
-1 file/7 tests passed, zero failures/skips. Exact native case identities:
+| Original case | Independent child assertion |
+| --- | --- |
+| B support once/architect separate | architect5000, support950, total1100+200+30+25+5000+950, scope-size/2 |
+| own role support/brief | documents550 + brief700 =1250; exact three-distinct-documents detail |
+| uncaptured support | nowhere.md unavailable, bytes null, explicit reason |
+| outside inventory/absent | package.json90 + owned510 =600; absent new.ts adds nothing; both exact detail strings |
+| revision mismatch | rev/1:g:1 versus rev/1:g:2 reason on three state-bound components; support950 survives, partial subtotal950 |
+| unselected architect at mismatch | architect measured0, selected owned-source unavailable |
+| partial support/bootstrap | total725/project520; revision mismatch200; no-selected API/architect/owned0; policy mismatch subtotal0 |
+| unselected support owner | unselected b.ts adds350 to510 =>860; selected p/b counts only710 |
 
-- public trial attribution CLI verifies the exact established scratch append from original Git objects
-- public trial attribution CLI attributes missing EOF newline replacement as two setup additions and one deletion
-- public trial attribution CLI preserves shifted setup identities and retains later same-file agent lines
-- public trial attribution CLI proves reverted setup empty without exempting remaining agent lines
-- public trial attribution CLI refuses mixed unknown binary dirty and symlink setup exemptions
-- prepared trial tool uses actual assigned module src cwd and external report destination
-- native Git authenticates renamed nested-project source positions and arbitrary setup-before deletions
+Parent adapter/collection tests retain acquired locations including ENOTDIR,
+scope translations, support/brief dedup, nested/bootstrapped owners and read scope.
+The four invocation qualification child cases and corresponding steps-run tests
+are unchanged: absent snapshot exactly two components; unknown owned replacement;
+failure retains declared subtotal/snapshot/reason; read-size before acquisition.
 
-The 27 root collector cases still execute the actual child verifier and relocated
-`qualification/trial-report.ts` validator. Original ex01–ex04 semantics documented
-in measurement-integration.md retain current root/native passes: exact identities,
-unavailable corruption/coverage, same-file/revert distinctions and external versus
-internal/symlink destination with unchanged target bytes. Root script retains its
-actual two defining specifiers (child setup-attribution import, harness
-qualification trial-report re-export). No KPI fake is used. Existing repeated and
-reopened in-process/HTTP metrics/session equality and durable/event/process
-assertions in projections-pure remain unchanged and passed.
-
-Shell/013–014: separate materializations for root, projections and KPI:
-
-```sh
-node_modules/.bin/ramify materialize --from . --root .
-node_modules/.bin/ramify materialize --from subs/harness/subs/projections --root .
-node_modules/.bin/ramify materialize --from subs/harness/subs/kpi --root .
-```
-
-All six ordinary/testing areas share
-`rev/1:9ef78384-9e9a-4944-94f2-d73967d04806:35`.
-Root ordinary/testing limits 39/77, truncations 2/2;
-projections 39/69, truncations 4/4; KPI 39/78, truncations 4/4.
-These are incomplete analyses, not proof of absent interfaces. Supplied revision
-24 and historical revision 22 remain separately labelled evidence. Shell/019–020
-inspect root verifier/validator and projections selected child original signature
-pages separately for ordinary/testing areas; complete check establishes allowed
-accesses within the stated limits. No parent exposure was restored.
-
-Shell/015: authoritative configured discovery used `vitest list` with all 20 exact
-file paths from shell/010, shell/011 and shell/012 as positional filters, followed
-by `--filesOnly --json` (no JSON output filename). Exactly 19 node files and one
-boundaries file discovered, including all five new coordinator files and all five
-child originals. Discovery of kpi-metrics does **not** mean it defines tests; its
-zero-suite failure above is retained. No configuration, registration, process
-exemption, retry, skip or timeout changed.
-
-## Unfinished / historical status
-
-This is partial: restoring the retained projections kpi-metrics three-case query
-suite requires a recorded narrow scope correction and original valid source;
-then rerun the exact selection. Gate owns the committed default audit over the
-entire composed candidate; it has not been requested for this failed selection.
-Preserve historical i09/i11/i12 failed/limited checks and original audit receipts;
-no focused pass erases them or proves a flake. Two previously skipped opt-in
-fixture cases were not rerun and are not passing. Full scenarios, web-build,
-other witnesses/default audit are unrun here and retain gate-owned status.
-Still owed: meaningful composed weighted 2500/100000/40, missing-writer subtotal,
-zero-versus-failed-history and complete cache/rates/search-conflict cases;
-case-mapped parent-body/pure-test retirement and full selected feature evidence.
-No scenario binding, capability completion, task handback or acceptance claim.
+No native file/registration, process rule, runner configuration, opt-in skip,
+protocol, algorithm, score or durable version changed. Final whole-run acceptance,
+root results.md and captured feature/ledger updates belong to the operator.

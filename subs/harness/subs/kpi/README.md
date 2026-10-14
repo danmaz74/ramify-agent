@@ -17,11 +17,12 @@ The harness acquires inputs and remains the sole durable writer. Four independen
 child recipe cases assert exact answers/order/reasons and read behavior; actual
 collection/query and native witnesses remain with their coordinating owners.
 
-This continuation is partial: the old parent duplicates/parity files and their
-case-mapped retirement/API minimization are still owed. Historical transition
-receipts below are not a final source ownership report or all-ten-scenario
-acceptance. See harness `measurement-integration.md` for the new rule map and
-observed checks; see `transition.md` for historical evidence preserved unchanged.
+The legacy parent `src/kpi/` and runtime parity suites are retired. Independent
+child assertions remain; the exact case-preservation map is in harness
+`src/tests/measurement-parity/README.md`. See harness `measurement-integration.md`
+for the current source/API inventory and scoped verification. Full-run acceptance
+and the root delivery report remain operator obligations; historical transition
+receipts are not evidence that those obligations are complete.
 
 ## Contracts and invariants
 
@@ -78,7 +79,7 @@ observed checks; see `transition.md` for historical evidence preserved unchanged
 - `src/guarding.ts`: `guardingReport` describes guarded versus unguarded tools,
   sorted unique excursions and gap counts. Its original completeness policy is
   descriptive, not proof of scope compliance or a gate license.
-- `src/sessions.ts`: `sessionMetrics` counts every supplied invocation including
+- Private `src/sessions.ts`: `sessionMetrics` counts every supplied invocation including
   failed, stopped, repaired, context-limited and unchanged entries. Any missing
   usage makes the token total unknown; empty entries are a known zero.
 - `cachedChangeHistory` keeps argument-keyed promises, evicts oldest entries past
@@ -103,14 +104,10 @@ npm run test:quick -- subs/harness/subs/kpi/src/tests/metrics.test.ts subs/harne
 
 The process guard, configured discovery and exact native registrations are
 unchanged. Scratch-cwd and lineEvents collection coordination remain harness-owned.
-See [transition inventory](transition.md) for retained baseline duplicates,
-comparison evidence, access limitations and subsequent owner-scoped migration.
-Owned calculation tests also compare full answers with the real, temporarily
-retained baseline through existing testing exposures; no KPI fake is used.
-Sessions and recorded charges retain baseline bodies and expected cases but lack
-selected baseline function exposure for a child runtime comparator. Run service
-now consumes real child line measurement; other calculator, scope adapter,
-root and projections composition remains owed. This one seam does not establish
-whole old-directory retirement or cap-001 completion.
+Child tests call their own real originals with independent literal/schema/error
+assertions; no parent comparison or KPI fake remains. `sessionMetrics` and its
+SessionEntry/SessionMetrics companions, `componentSubtotal`, `scopeSizePolicy`
+and `projectOnlySize` are not exposed. Meaningful owner-local tests remain.
+See [transition inventory](transition.md) for current status and labelled history.
 
 Focused line checks: `npm run test:quick -- subs/harness/subs/kpi/src/tests/lines.test.ts subs/harness/src/tests/owners.test.ts subs/harness/src/tests/line-events.test.ts`.
