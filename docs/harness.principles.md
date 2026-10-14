@@ -8,6 +8,8 @@ The execution-continuity principles adopted on 2026-10-13 are normative;
 their runtime migration is implemented.
 The architect tracking-authority and external-tracker independence principles
 adopted on 2026-10-13 are normative; their runtime migration remains pending.
+The audit-report delivery rule adopted on 2026-10-14 is normative;
+its runtime delivery change is implemented.
 
 ## Purpose
 
@@ -83,6 +85,11 @@ harness preserves the evidence and its qualifications; it does not build a
 parallel runner, parser, failure tally or verdict for information ramify-audit
 already supplies. Missing provider information is an explicit integration gap,
 not permission to invent a replacement fact.
+
+Full audit reports remain separate evidence artifacts and are never attached to
+prompts, messages or tool responses. Supply a usable report location only when
+analysis of that report helps the current task. Agents retrieve relevant details
+as needed.
 
 The agent doing the work receives the relevant failures and their complete
 diagnostics, investigates them and makes the repairs. It asks its architect

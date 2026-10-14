@@ -676,12 +676,7 @@ function GateDetail({ client, planId, runId, version, gate }: AreaProps & { read
             </dl>
             {data.audit !== undefined && <AuditRequestFacts audit={data.audit} />}
             <GateScenarioResults scenarios={data.scenarios} />
-            {data.provider === undefined
-              ? <p className="muted">This attempt recorded no provider results, so complete provider diagnostics are unavailable.</p>
-              : <details><summary>Complete provider report and diagnostics</summary>
-                <p>Producer results, counts, qualifications and artifact references are shown as recorded.</p>
-                <pre aria-label="Complete provider evidence">{JSON.stringify(data.provider, null, 2)}</pre>
-              </details>}
+            {data.reportPath && <p>Full audit report: <code>{data.reportPath}</code>. Consult relevant details when needed.</p>}
             {data.ownershipPreflight && <div className="warn" aria-label="Current ownership unavailable"><p>Current ownership {data.ownershipPreflight.failureStatus}: {data.ownershipPreflight.reason}</p><p>Queried paths: {data.ownershipPreflight.paths.join(', ')}</p><details><summary>Provider evidence</summary><pre>{data.ownershipPreflight.stdout || data.ownershipPreflight.stderr}</pre></details></div>}
             {data.guardedChanges.length > 0 && (
               <ul>{data.guardedChanges.map(change => <li key={change.path}>Guarded change <code>{change.path}</code>{change.after === null ? ' (deleted)' : ''}: {change.authorizedBy ? `authorized by ${change.authorizedBy.id}@${change.authorizedBy.revision}` : 'not authorized'}</li>)}</ul>

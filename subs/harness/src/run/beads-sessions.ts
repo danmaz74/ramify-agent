@@ -91,6 +91,14 @@ export class BeadsSessions {
       const operations = await this.options.operations();
       const operationId = `beads:${stage}:turn`;
       const identity = await operations.operationIdentity(runId, operationId);
+      if (stage === 'finish' && initial.bindings.length === 0 && !identity
+        && request.receipt === null && !initial.mutations.some(mutation => mutation.phase === 'intent')) {
+        // Start is confirmed above. No eligible issue requires interpretation,
+        // and no earlier model operation or tracker effect is being abandoned.
+        await this.patch(runId, stage, { status: 'completed', reason: null,
+          submission: { summary: 'No associated issues; no tracker updates required', decisions: [] } });
+        return;
+      }
       let fork: SessionOperationReceipt | null = null;
       let inheritedTools: readonly string[] = [];
       const forkId = `beads:${stage}:fork`;

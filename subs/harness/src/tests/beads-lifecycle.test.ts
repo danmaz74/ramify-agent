@@ -1,6 +1,8 @@
 import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { readSessionPointReference } from '../run/session-operations.js';
+import { sha256 } from '../prompts/packages.js';
 import { copyFixture } from './helpers/fixture.js';
 import { writeProjectConfig } from './helpers/project-config.js';
 import { emptyAnalysis, installTestRunner, onlyRun, startRun, stopRun, until } from './helpers/runs.js';
@@ -58,7 +60,9 @@ describe('optional run issue administration lifecycle', () => {
   test('queues implementation start after accepted analysis and readiness, then supplies terminal acceptance evidence', async () => {
     const root = await target({ workspace: { path: '../tracker' }, executable: 'my-bd' });
     const phases: string[] = [];
-    const { service, receipt } = await completed(root, { afterWrite: async write => { phases.push(write); } });
+    const auditDetails = 'AUDIT_PROVIDER_DETAILS_REMAIN_IN_THE_REPORT';
+    const { service, receipt } = await completed(root, { afterWrite: async write => { phases.push(write); },
+      checkScript: () => ({ stdout: auditDetails }) });
     const start = administration.scheduleStart.mock.calls[0]![0] as { runId: string; sourceRef: string; context: string; workspace: string; executable: string };
     const finish = administration.scheduleFinish.mock.calls[0]![0] as typeof start & { outcome: string };
     expect(service.recordOf('review-notes', receipt.jobId)?.beadsAdministration).toEqual({ trackerWorkspace: join(root, '..', 'tracker'), executable: 'my-bd' });
@@ -74,6 +78,16 @@ describe('optional run issue administration lifecycle', () => {
     expect(finish.context).toContain('ramify-agent.prepared-candidate/1');
     expect(finish.context).toContain('ramify-agent.nonfunctional-assessment/1');
     expect(finish.context).toContain('ramify-agent.gate-attempt/');
+    expect(finish.context).not.toContain(auditDetails);
+    expect(finish.context).not.toContain('"provider":');
+    const evidence = JSON.parse(finish.context.split('Retained evidence: ')[1]!);
+    const gate = evidence.find((entry: { path: string }) => entry.path.startsWith('gates/')).body;
+    expect(gate).toMatchObject({ verdict: 'passed', audit: { status: 'completed', verdict: 'pass' },
+      reportPath: expect.stringContaining('/gates/') });
+    const retainedReport = await readFile(gate.reportPath, 'utf8');
+    expect(retainedReport).toContain(auditDetails);
+    expect((finish as typeof finish & { reports: Array<{ path: string; hash: string }> }).reports)
+      .toEqual([{ path: gate.reportPath, hash: sha256(retainedReport) }]);
     expect(finish.context).toContain('"type":"job-completed"');
     expect(finish.context).toContain('unresolved deviations');
     expect(finish.sourceRef).toBe(start.sourceRef);

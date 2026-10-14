@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import {
   runQueryLimits,
   type GateAuditView, type GateView, type WorkItemResponse, type WorkItemSummary,
@@ -293,7 +294,7 @@ export function gateOf(view: RunView, id: string): GateView {
     commit: gate.commit,
     audited: gate.audited,
     evidence: gate.evidence === null ? null : { ...gate.evidence },
-    ...(gate.provider === undefined ? {} : { provider: gate.provider }),
+    reportPath: join(view.directory, view.gates.get(id)!.path),
     ...(gate.audit === undefined ? {} : { audit: gateAuditView(gate.audit) }),
     scenarios: gateScenarioViewsOf(gate),
     verdict: gate.verdict,

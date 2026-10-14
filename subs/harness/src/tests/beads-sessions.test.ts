@@ -11,6 +11,7 @@ import { BeadsSessions, type BeadsStageInput } from '../run/beads-sessions.js';
 import { BeadsStateStore } from '../run/beads-storage.js';
 import { createBeadsTools } from '../run/beads-tools.js';
 import { sessionPointReference } from '../run/session-operations.js';
+import { sha256 } from '../prompts/packages.js';
 
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose(); });
@@ -114,6 +115,30 @@ it('retains missing inherited context as pending and orders finish behind start 
   expect(state.finish).toMatchObject({ status: 'pending', reason: expect.stringContaining('Awaiting confirmed start') });
 });
 
+it('finishes an empty confirmed issue set without a model turn or source context, including after restart', async () => {
+  const entered = deferred(); const release = deferred(); const dispatched: string[] = [];
+  const f = await fixture({ async dispatch(invocation, runtime) {
+    dispatched.push(invocation.key.operationId);
+    entered.release(); await release.promise;
+    const input = { summary: 'No relevant existing mentioned issues', decisions: [] };
+    expect((await runtime.submit('empty-start', input)).accepted).toBe(true);
+    return { kind: 'submitted', input };
+  } }, async () => { throw new Error('No tracker command is needed'); });
+  await f.manager.scheduleStart(f.input); await entered.promise;
+  await f.manager.scheduleFinish({ ...f.input, sourceRef: null, outcome: 'job-failed' });
+  expect((await f.manager.inspect('run-1'))?.finish?.status).toBe('pending');
+  release.release(); const state = await retained(f);
+  expect(dispatched).toEqual(['beads:start:turn']);
+  expect(state.finish).toMatchObject({ status: 'completed', receipt: null, observations: [],
+    submission: { decisions: [], summary: 'No associated issues; no tracker updates required' } });
+  expect(await f.operations.operationIdentity('run-1', 'beads:finish:turn')).toBeNull();
+  const recovered = await BeadsSessions.open(f.options); cleanup.push(async () => { expect(await recovered.close()).toBe(true); });
+  await recovered.recover('run-1'); expect(await recovered.close()).toBe(true);
+  expect(dispatched).toEqual(['beads:start:turn']);
+  const reader = await BeadsSessions.open(f.options); cleanup.push(async () => { expect(await reader.close()).toBe(true); });
+  expect((await reader.inspect('run-1'))?.finish).toEqual(state.finish);
+});
+
 it('keeps tracker command failure pending and never redelivers a failed terminal model operation on recovery', async () => {
   const commands = scripted([{ args: ['show', 'proj-1'], result: {}, failure: true }]); let dispatches = 0;
   const f = await fixture({ async dispatch(_invocation, runtime) {
@@ -141,6 +166,36 @@ it('reconciles uncertain updates from stable evidence readback without resending
   expect(await tools.recoverEffect(effect)).toBeNull(); expect((await store.read('run-1'))?.mutations[0]?.phase).toBe('intent');
   expect(await tools.recoverEffect(effect)).toMatchObject({ text: expect.stringContaining('Recovered readback') });
   expect((await store.read('run-1'))?.mutations[0]).toMatchObject({ phase: 'confirmed', delivery: 'verified' }); commands.done();
+});
+
+it('retrieves only bounded selected check evidence from an unchanged captured report', async () => {
+  const f = await fixture({ async dispatch() { throw new Error('No model call is needed'); } });
+  const store = await BeadsStateStore.open(join(f.root, 'report-tools')); cleanup.push(() => store.close());
+  const path = join(f.root, 'retained-gate.json');
+  const checks = { tests: { status: 'failed', diagnostics: `${'x'.repeat(4000)}last failure` },
+    types: { status: 'passed', output: 'UNREQUESTED_CHECK_DETAILS' } };
+  const bytes = JSON.stringify({ provider: { result: { unrelated: 'FULL_AUDIT_METADATA' }, checks } });
+  await writeFile(path, bytes);
+  const request = { ...f.input, reports: [{ path, hash: sha256(bytes) }] };
+  const runner: CommandRunner = async () => { throw new Error('Report inspection needs no tracker command'); };
+  const tools = await createBeadsTools({ stage: 'finish', request, store, runner, timeoutMs: 1000 });
+  const read = tools.tools.find(tool => tool.name === 'beads_read_check')!;
+  const signal = new AbortController().signal;
+  const list = await read.execute({ path }, signal);
+  expect(list.text).toContain('tests'); expect(list.text).toContain('types');
+  expect(list.text).not.toContain('UNREQUESTED_CHECK_DETAILS');
+  const first = JSON.parse((await read.execute({ path, checkId: 'tests' }, signal)).text);
+  expect(first.excerpt).toHaveLength(4000); expect(first.nextOffset).toBe(4000);
+  expect(first.excerpt).not.toContain('FULL_AUDIT_METADATA');
+  const rest = JSON.parse((await read.execute({ path, checkId: 'tests', offset: first.nextOffset }, signal)).text);
+  expect(first.excerpt + rest.excerpt).toBe(JSON.stringify(checks.tests, null, 2));
+  expect(rest.nextOffset).toBeNull();
+  await expect(read.execute({ path: join(f.root, 'unbound.json') }, signal)).rejects.toThrow('Only captured');
+  await expect(read.execute({ path, checkId: 'missing' }, signal)).rejects.toThrow('not present');
+  await writeFile(path, '{}');
+  await expect(read.execute({ path }, signal)).rejects.toThrow('retained hash');
+  const start = await createBeadsTools({ stage: 'start', request, store, runner, timeoutMs: 1000 });
+  expect(start.tools.some(tool => tool.name === 'beads_read_check')).toBe(false);
 });
 
 it('refuses redirected trackers before issuing any command', async () => {

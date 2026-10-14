@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { lstat, realpath, readFile } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -11,6 +12,7 @@ const readInput = z.object({ id: identifier }).strict();
 const bindInput = z.object({ id: identifier, mention: z.string().trim().min(1), relevance: z.string().trim().min(1) }).strict();
 const updateInput = z.object({ id: identifier, reason: z.string().trim().min(1) }).strict();
 const searchInput = z.object({ query: z.string().trim().min(1).max(1000) }).strict();
+const reportInput = z.object({ path: z.string().min(1), checkId: z.string().min(1).optional(), offset: z.int().nonnegative().default(0) }).strict();
 const success = (text: string): ToolResult => ({ text });
 
 export interface BeadsTools {
@@ -97,16 +99,37 @@ export async function createBeadsTools(input: {
   async function confirm(id: string, reason: string, observedStatus: string, delivery: 'observed' | 'verified'): Promise<void> {
     await store.update(request.runId, state => ({ ...state, mutations: [...state.mutations.filter(mutation => !(mutation.id === id && mutation.status === desiredStatus)), { id, status: desiredStatus, reason, phase: 'confirmed', observedStatus, delivery }] }));
   }
+  async function readCheck(raw: unknown): Promise<ToolResult> {
+    const value = reportInput.parse(raw);
+    const report = request.reports?.find(report => report.path === value.path);
+    if (stage !== 'finish' || !report) throw new Error('Only captured audit report paths may be read');
+    const bytes = await readFile(report.path);
+    if (createHash('sha256').update(bytes).digest('hex') !== report.hash) throw new Error('Captured audit report differs from its retained hash');
+    const gate = JSON.parse(bytes.toString('utf8')) as { provider?: { checks?: unknown } };
+    const rawChecks = gate.provider?.checks;
+    const checks = rawChecks !== null && typeof rawChecks === 'object' ? rawChecks as Record<string, unknown> : {};
+    if (value.checkId !== undefined && !Object.hasOwn(checks, value.checkId)) throw new Error('Requested check is not present in this captured report');
+    const content = value.checkId === undefined ? Object.entries(checks).map(([id, check]) => ({ id,
+      status: check !== null && typeof check === 'object' ? (check as { status?: unknown }).status ?? null : null })) : checks[value.checkId];
+    const text = JSON.stringify(content, null, 2);
+    const end = Math.min(text.length, value.offset + 4000);
+    return success(JSON.stringify({ path: report.path, checkId: value.checkId ?? null, offset: value.offset,
+      excerpt: text.slice(value.offset, end), nextOffset: end < text.length ? end : null }));
+  }
   const tool = (name: string, description: string, schema: z.ZodType, execute: ToolDefinition['execute'], mutating = false): ToolDefinition => ({
     name, description, inputSchema: z.toJSONSchema(schema) as Record<string, unknown>, mutating, action: () => ({ kind: 'harness' }), execute,
   });
   const tools = [
+    ...(stage === 'finish' && request.reports?.length ? [tool('beads_read_check',
+      'Read captured audit evidence only when useful for an issue judgment. Supply a report path from the task. Omit checkId to list check IDs and statuses; select one checkId for a diagnostic excerpt of at most 4000 characters. Use nextOffset for further excerpts. Full reports are never returned.',
+      reportInput, readCheck)] : []),
     tool('beads_show', 'Inspect one existing issue in the captured tracker workspace. Only mentioned relevant issues may be bound.', readInput, async (raw, signal) => success(JSON.stringify(await show(readInput.parse(raw).id, signal)))),
     tool('beads_search', 'Search existing issues by text mentioned in the plan or inherited context; this does not bind or update issues.', searchInput, async (raw, signal) => success(JSON.stringify(await command(['search', searchInput.parse(raw).query, '--limit', '20'], signal)))),
     ...(stage === 'start' ? [tool('beads_bind', 'Bind an inspected existing issue semantically relevant to this implementation, with its concrete mention and relevance rationale.', bindInput, bind)] : []),
     tool('beads_update', stage === 'start' ? 'Mark a bound existing issue in_progress; already closed issues remain closed.' : 'Close one bound issue only after judging its own requirements resolved using concrete implementation and validation evidence. reason must contain that evidence.', updateInput, update, true),
   ];
   return { tools, async recoverEffect(effect) {
+    if (effect.tool === 'beads_read_check') return readCheck(effect.input);
     if (effect.tool === 'beads_update') {
       const value = updateInput.parse(effect.input);
       const state = await store.read(request.runId);

@@ -5435,8 +5435,8 @@ export class RunService {
       const records = committedRecords(run.log.ledger.replay());
       const sourceRef = globalContext({ events: run.log.events,
         sessionRef: invocation => records.outcomes.get(invocation)?.session?.ref }).ref;
-      const context = await this.beadsContext(run, phase);
-      const input = { runId: run.record.jobId, sourceRef, context,
+      const evidence = await this.beadsContext(run, phase);
+      const input = { runId: run.record.jobId, sourceRef, ...evidence,
         workspace: destination.trackerWorkspace, executable: destination.executable };
       if (phase === 'start') await administration.scheduleStart(input);
       else await administration.scheduleFinish({ ...input, outcome: run.log.terminal?.type ?? 'unknown' });
@@ -5444,7 +5444,8 @@ export class RunService {
   }
 
   /** Retained acceptance evidence is supplied directly; administration does not inspect mutable source. */
-  private async beadsContext(run: Run, phase: 'start' | 'finish'): Promise<string> {
+  private async beadsContext(run: Run, phase: 'start' | 'finish'): Promise<{ context: string; reports: Array<{ path: string; hash: string }> }> {
+    const reports: Array<{ path: string; hash: string }> = [];
     const capturedText = async (path: string, hash: string): Promise<string> => {
       try {
         const bytes = await readFile(run.path(path));
@@ -5475,7 +5476,27 @@ export class RunService {
       const gate = run.log.all('gate-attempted').at(-1)?.data.gate ?? binding?.data.gate;
       if (candidate !== undefined) include(runLayout.candidate(candidate));
       if (assessment !== undefined) include(runLayout.assessment(assessment));
-      if (gate !== undefined) include(runLayout.gate(gate));
+      if (gate !== undefined) {
+        const path = runLayout.gate(gate);
+        const body = latest.get(path)?.body;
+        const parsed = gateAttemptSchema.safeParse(body);
+        if (parsed.success) reports.push({ path: run.path(path), hash: sha256(`${JSON.stringify(body, null, 2)}\n`) });
+        evidence.push({ path, body: parsed.success ? {
+          schema: parsed.data.schema, id: parsed.data.id, checkpoint: parsed.data.checkpoint,
+          subject: parsed.data.subject, audited: parsed.data.audited,
+          verdict: parsed.data.verdict, cause: parsed.data.cause, next: parsed.data.next,
+          audit: parsed.data.audit === undefined ? null : {
+            status: parsed.data.audit.status, verdict: parsed.data.audit.verdict,
+            requestedSourceCommit: parsed.data.audit.requestedSourceCommit,
+            auditedSourceCommit: parsed.data.audit.auditedSourceCommit,
+            requestedMode: parsed.data.audit.requestedMode, executedMode: parsed.data.audit.executedMode,
+            fallbackReason: parsed.data.audit.fallbackReason, reuse: parsed.data.audit.reuse,
+            nested: parsed.data.audit.nested,
+          },
+          evidence: parsed.data.evidence, reportPath: run.path(path),
+          scope: 'Full audit evidence remains in the referenced report. Consult relevant details only when needed for an issue judgment.',
+        } : 'Retained gate unavailable; this is an evidence limitation' });
+      }
       evidence.push({ path: 'candidate-bound-to-gate', body: { latestBinding: binding ?? null,
         current: binding !== undefined && candidate === binding.data.candidate && assessment === binding.data.assessment && gate === binding.data.gate,
         scope: 'An earlier binding does not establish acceptance of a later candidate, assessment or gate.' } });
@@ -5502,7 +5523,7 @@ export class RunService {
       }
     }
     const terminal = run.log.terminal;
-    return [
+    return { reports, context: [
       `Plan ${run.record.planId}; run ${run.record.jobId}; administrative phase ${phase}.`,
       `Implementation workspace: ${this.projectRoot}. Retained run evidence: ${run.directory}.`,
       `Accepted Git boundary: ${this.accepted(run)}.`,
@@ -5513,7 +5534,7 @@ export class RunService {
       `Accepted analysis: ${JSON.stringify(analysis ?? null)}`,
       `Run snapshot: ${JSON.stringify(runSnapshot(run.record, run.log.events))}`,
       `Retained evidence: ${JSON.stringify(evidence)}`,
-    ].join('\n\n');
+    ].join('\n\n') };
   }
 
   private assignmentStartingPoints(run: Run, assignment: IterationAssignment): StartingPointGroup {
