@@ -37,7 +37,7 @@ Feature: extracted-query-consumers
     And stale versions and invalid cursors retain their existing refusals
     And finished-session caching preserves the same answers
 
-  @ramify-sc-004 @ramify-pending
+  @ramify-sc-004
   Scenario: Reopening preserves compatibility and explicit failures
     Given supported run and historical standalone-session records
     And records with unsupported versions or malformed required content

@@ -69,7 +69,7 @@ export async function captureProjectionFiles(root: string) {
   await walk(root); return files;
 }
 
-export async function recordedProjectionConsumers(paging = false) {
+export async function recordedProjectionConsumers(paging = false, prepare?: (root: string, directory: string) => Promise<void>, warn: (message: string) => void = message => { throw new Error(message); }) {
   const root = await mkdtemp(join(tmpdir(), 'projection-consumers-'));
   const directory = join(root, 'plans', plan, '.harness', 'jobs', runId);
   await mkdir(directory, { recursive: true });
@@ -143,18 +143,22 @@ export async function recordedProjectionConsumers(paging = false) {
   }
   await log.append({ type: 'job-completed', data: { gate: 'ga-recorded', commit: 'a'.repeat(40), workItems: 0 } });
   const effects = new FakeQueryEffects();
+  await prepare?.(root, directory);
+  async function open() {
   const lock = await acquireProjectLock(root);
-  const { service, recovery } = await RunService.open({ projectRoot: root, lock, agent: effects.agent, ramify: effects,
+  return RunService.open({ projectRoot: root, lock, agent: effects.agent, ramify: effects,
     inputs: { capture: async () => { throw new Error('No evidence capture'); }, index: async () => null, changes: async () => [], refresh: async () => null },
     configuredAudit: effects.audit, commandExecution: effects.commandExecution, changeHistory: effects.history,
-    repairIncidentExport: { executable: '/tools/scripted-exporter', workspace: root }, warn: message => { throw new Error(message); } });
+    repairIncidentExport: { executable: '/tools/scripted-exporter', workspace: root }, warn });
+  }
+  let { service, recovery } = await open();
   assert.deepEqual(recovery.skipped, []);
-  const source = createQuerySource(service);
-  const queries = new RunQueries(source);
-  const sessions = new SessionQueries(source);
-  const server = createApp({ projectRoot: root, runs: service }).listen(0, '127.0.0.1');
+  let source = createQuerySource(service);
+  let queries = new RunQueries(source);
+  let sessions = new SessionQueries(source);
+  let server = createApp({ projectRoot: root, runs: service }).listen(0, '127.0.0.1');
   await new Promise<void>(resolve => server.once('listening', resolve));
-  const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  let origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const delivered = new Map<string, string>();
   function stable(key: string, value: unknown) {
     const bytes = JSON.stringify(value);
@@ -269,7 +273,18 @@ export async function recordedProjectionConsumers(paging = false) {
       assert.deepEqual(await runConsultationsCommand({ run: directory, id: start.id, session }), { stdout: '', stderr: `Cannot read consultations from ${directory}: Choose --id or --session, not both\n`, exitStatus: 2 });
     }
   }
-  return { root, directory, effects, exercise, queries, sessions, get, version, priorVersion, pagingEntries,
+  return { root, directory, effects, exercise, get queries() { return queries; }, get sessions() { return sessions; }, get, version, priorVersion, pagingEntries,
+    reopen: async () => {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      await service.close();
+      ({ service, recovery } = await open());
+      assert.deepEqual(recovery.skipped, []);
+      source = createQuerySource(service); queries = new RunQueries(source); sessions = new SessionQueries(source);
+      server = createApp({ projectRoot: root, runs: service }).listen(0, '127.0.0.1');
+      await new Promise<void>(resolve => server.once('listening', resolve));
+      origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      return recovery;
+    },
     capture: async () => { assert.deepEqual(await captureProjectionFiles(root), snapshot); },
     unchanged: async () => { assert.deepEqual(await captureProjectionFiles(root), snapshot); assert.equal(await readFile(join(directory, runLayout.events), 'utf8'), events); assert.equal(service.events(plan, runId)!.at(-1)!.sequence, version); },
     noEffects: () => assert.deepEqual(effects.calls, { agent: 0, audit: 0, exporter: 0, evidence: 0 }),
