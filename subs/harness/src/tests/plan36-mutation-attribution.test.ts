@@ -2,10 +2,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
-import { invocationEvaluationSchema, metricsResponseSchema, workItemResponseSchema } from '../interfaces/protocol/runs.js';
-import { runView } from '../projections/inputs.js';
-import { evaluationOf, metricsOf, outsideScopeEvidenceOf, readObservationLog } from '../projections/metrics.js';
-import { workItemOf } from '../projections/work.js';
+import { metricsResponseSchema, workItemResponseSchema } from '../interfaces/protocol/runs.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
 import type { Observation } from '../run/observations.js';
 import { gateAttemptSchema, invocationOutcomeSchema, invocationSchema, runLayout } from '../run/records.js';
 import { iterationAssignmentSchema, iterationResultSchema } from '../work/iterations.js';
@@ -62,9 +60,10 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
     { type: 'gate-attempted', data: {}, records: [{ path: 'gates/ga-001/attempt.json', body: gate }, { path: 'result.json', body: result }] },
   ], constructedRecord(), directory);
   const original = JSON.stringify(run);
-  const view = runView(run);
-  const metrics = metricsResponseSchema.parse(await metricsOf(view));
-  const work = workItemResponseSchema.parse(await workItemOf(view, 'wi-001'));
+  const queries = new RunQueries({ projectRoot: directory, agentName: undefined,
+    committed: () => run, committedRuns: () => [run], runVersions: () => [] });
+  const metrics = metricsResponseSchema.parse(await queries.metrics(run.record.planId, run.record.jobId));
+  const work = workItemResponseSchema.parse(await queries.workItem(run.record.planId, run.record.jobId, 'wi-001'));
   const evidence = paths.map(path => ({ path, attributable: observation.data.attributable,
     observations: [{ number: observation.n, callId: observation.data.callId, observedBy: observation.data.observedBy,
       attributable: observation.data.attributable }], uncertainty: null,
@@ -79,48 +78,4 @@ test.each(projectionObservations)('candidate differences preserve recorded prove
   expect(work.iterations[0]!.gates[0]!.verdict).toBe('passed');
   expect(JSON.stringify(run)).toBe(original);
   expect(await readFile(observationsPath, 'utf8')).toBe(bytes);
-});
-
-test('a recorded tool mutation establishes attribution while retaining the separate candidate snapshot', () => {
-  const tool: Observation = { ...snapshot, n: 257, data: { ...snapshot.data, paths: [paths[0]!], observedBy: 'tool', callId: 'write-1', attributable: true } };
-  const evidence = outsideScopeEvidenceOf(paths, [tool, snapshot]);
-  expect(evidence[0]).toMatchObject({ attributable: true, observations: [
-    { number: 257, observedBy: 'tool', callId: 'write-1', attributable: true },
-    { number: 258, observedBy: 'snapshot', attributable: false },
-  ] });
-  expect(evidence[1]!.attributable).toBe(false);
-});
-
-test.each([[], { unavailable: 'observations.jsonl is missing' }])('older outcomes without mutation evidence retain unknown attribution (%j)', observations => {
-  const evaluation = invocationEvaluationSchema.parse(evaluationOf({ invocation, outcome, observations, lines: null }));
-  expect(evaluation.outsideScope).toEqual(paths);
-  expect(evaluation.outsideScopeEvidence).toEqual(paths.map(path => ({ path, attributable: null, observations: [], uncertainty: expect.any(String) })));
-  const { outsideScopeEvidence: ignored, ...olderResponse } = evaluation;
-  expect(invocationEvaluationSchema.parse(olderResponse).outsideScopeEvidence).toBeUndefined();
-});
-
-test('corrupt mutation rows preserve known snapshot provenance and explicitly incomplete attribution', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'plan36-attribution-corrupt-'));
-  directories.push(directory);
-  const path = join(directory, 'observations.jsonl');
-  await writeFile(path, `{corrupt}\n${JSON.stringify(snapshot)}\n`);
-  const observations = await readObservationLog(path, 'observations.jsonl');
-  const evidence = outsideScopeEvidenceOf(paths, observations);
-  expect(evidence[0]).toMatchObject({ attributable: false, observations: [{ number: 258, observedBy: 'snapshot', attributable: false }],
-    uncertainty: expect.stringContaining('1 unreadable rows'),
-  });
-  await writeFile(path, '{corrupt}\n');
-  expect(outsideScopeEvidenceOf(paths, await readObservationLog(path, 'observations.jsonl'))[0]).toMatchObject({
-    attributable: null, observations: [], uncertainty: expect.stringContaining('Mutation evidence is incomplete'),
-  });
-});
-
-test('unknown current placement retains mutation attribution without becoming an outside-scope metric', () => {
-  const unknown = invocationOutcomeSchema.parse({ ...outcome, outsideScope: [], unknownPlacement: paths, placementFailure: 'Invalid acquisition' });
-  const value = invocationEvaluationSchema.parse(evaluationOf({ invocation, outcome: unknown, observations: [snapshot], lines: null }));
-  expect(value.outsideScope).toEqual([]);
-  expect(value.outsideScopeEvidence).toEqual([]);
-  expect(value.unknownPlacement).toEqual(paths);
-  expect(value.placementFailure).toBe('Invalid acquisition');
-  expect(value.unknownPlacementEvidence).toEqual(paths.map(path => ({ path, attributable: false, observations: [{ number: 258, callId: null, observedBy: 'snapshot', attributable: false }], uncertainty: null })));
 });

@@ -6,13 +6,13 @@ import { runEventSchema, terminalRunEvents, type RunEvent } from '../run/log.js'
 import { ObservationLog, observationSchema, type ObservationInput } from '../run/observations.js';
 import {
   capabilityStateSchema, decisionViewSchema, hypothesisStandingSchema, metricSchema, metricStateSchema,
-  failureCauseSchema, roleSchema, runEventRefKindSchema, runFailureReasonSchema, runNoticeSchema, runPhaseSchema, workItemStateSchema,
+  failureCauseSchema, roleSchema, runFailureReasonSchema, runNoticeSchema, runPhaseSchema, workItemStateSchema,
 } from '../interfaces/protocol/runs.js';
 import { errorCodeSchema, errorHttpStatus, errorResponseSchema } from '../interfaces/protocol/errors.js';
-import { decisionsOf } from '../projections/analysis.js';
-import { projectEvent } from '../projections/events.js';
-import { runView } from '../projections/inputs.js';
-import { constructedRun } from './helpers/constructed.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import type { CommittedRun } from '../../subs/projections/src/inputs.js';
+import { createQuerySource } from '../http/query-source.js';
+import { constructedRun, constructedRecord } from './helpers/constructed.js';
 import {
   infrastructureRecoverySchema, invocationOutcomeSchema, measurementSnapshotSchema, readinessSteps,
   gateRuleSchema, runLayout, runSchemas, sessionModeSchema,
@@ -84,6 +84,12 @@ async function ledger() {
 
 const settled = { confirmed: true, at: '2026-09-20T10:15:00.000Z', groupsKilled: 0, lateWrites: [] };
 
+function queriesOf(run: CommittedRun) {
+  return new RunQueries(createQuerySource({ projectRoot: '/nonexistent', agentName: 'scripted',
+    committed: () => run, committedRuns: () => [run], runVersions: () => [],
+  }));
+}
+
 describe('the run log', () => {
   test('every event type is written and read back, and the terminal ones are named', () => {
     const types = runEventSchema.options.map(option => option.shape.type.value);
@@ -139,9 +145,11 @@ describe('the run log', () => {
     for (const event of events) await store.log.append({ event, records: [] });
     const restored = await openLedger<RunEvent>({ logPath: `${store.directory}/events.jsonl`, recordsRoot: store.directory, eventSchema: runEventSchema });
     expect(restored.replay().map(entry => entry.transaction.event)).toEqual(events);
-    expect(projectEvent(events[0]!)).toMatchObject({ sequence: 1, transition: 'restart-prepared', summary: expect.stringContaining('version 700') });
-    expect(projectEvent(events[1]!)).toMatchObject({ transition: 'restart-branch-setting-up', refs: [{ kind: 'commit', id: candidate.head }] });
-    expect(projectEvent(events[2]!)).toMatchObject({ transition: 'restart-branch-ready', summary: expect.stringContaining(candidate.tree) });
+    const projected = (await queriesOf({ record: constructedRecord(), directory: store.directory,
+      entries: restored.replay() }).events('review-notes', jobId, 0)).events;
+    expect(projected[0]).toMatchObject({ sequence: 1, transition: 'restart-prepared', summary: expect.stringContaining('version 700') });
+    expect(projected[1]).toMatchObject({ transition: 'restart-branch-setting-up', refs: [{ kind: 'commit', id: candidate.head }] });
+    expect(projected[2]).toMatchObject({ transition: 'restart-branch-ready', summary: expect.stringContaining(candidate.tree) });
     expect(runEventSchema.safeParse({ ...events[0]!, data: { ...events[0]!.data, sourceRun: '../unretained' } }).success).toBe(false);
     expect(runEventSchema.safeParse({ ...events[2]!, data: { ...candidate, tree: '' } }).success).toBe(false);
   });
@@ -996,61 +1004,7 @@ describe('the run protocol a client reads', () => {
     expect(hypothesisStandingSchema.options).toEqual(['tentative', 'confirmed', 'superseded']);
   });
 
-  test('every reference kind of a projected event has a producer among the run log\'s events', () => {
-    const r = { id: 'x', revision: 1, hash: hash64 };
-    const events: Array<[RunEvent['type'], unknown]> = [
-      ['repair-incident-recorded', { incidentId: 'apr-0001', revision: 1, stage: 'admitted' }],
-      ['repair-export-recorded', { incidentId: 'apr-0001', revision: 2, state: 'exported' }],
-      ['placement-requested', { request: 'pr-001', workItem: 'wi-001', requester: 'm', capability: 'c' }],
-      ['decision-accepted', { request: 'pr-001', decision: 'gd-001', workItem: 'wi-001', invocation: 'inv-0002', registry: 0, hypotheses: 0 }],
-      ['iteration-closed', { workItem: 'wi-001', iteration: 'wi-001.i01', outcome: 'accepted', gate: 'ga-0001', commit: 'abc', notices: [] }],
-      ['contract-registered', { contract: 'ct-001', revision: 1, mode: 'fake-backed', iteration: 'wi-001.i02', obligation: 'ob-ct-001', requirements: ['rq-001'], providerWorkItem: 'wi-002' }],
-      ['invocation-started', { invocation: 'inv-0001', role: 'engineer', session: 'ses-0001', work: {}, start: 'opened' }],
-      ['revision-needed', { obligation: r, iteration: 'wi-002.i01', consumerWorkItem: 'wi-001' }],
-      ['obligation-reported', { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, by: 'inv-0003', submission: hash64 }],
-      ['capability-requested', { request: 'need-001', parent: 'wi-001', assignment: 'wi-001.i01', invocation: 'inv-0003' }],
-      ['capability-delegated', { task: 'cap-001', request: 'need-001', parent: 'wi-001', invocation: 'inv-0003', planRevision: 1 }],
-      ['capability-assigned', { task: 'cap-001', assignment: 'cap-001.i01', sequence: 1, invocation: 'inv-0004' }],
-    ];
-    const kinds = new Set(events.flatMap(([type, data], index) =>
-      projectEvent(runEventSchema.parse({ sequence: index + 1, jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z', type, data })).refs.map(ref => ref.kind)));
-    expect([...kinds].sort()).toEqual([...runEventRefKindSchema.options].sort());
-  });
-
-  test('the materialization summaries agree in number with their feature files', () => {
-    const summary = (type: 'scenarios-materializing' | 'scenarios-materialized', files: string[]) => projectEvent(runEventSchema.parse({
-      sequence: 1, jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z', type, data: type === 'scenarios-materialized' ? { commit: 'c', files } : { files } })).summary;
-    const one = ['src/tests/features/p/e.feature'];
-    const two = [...one, 'src/tests/features/p/f.feature'];
-    expect(summary('scenarios-materializing', one)).toBe('The feature file of the plan\'s scenarios is being written onto the run branch');
-    expect(summary('scenarios-materialized', one)).toBe('The feature file of the plan\'s scenarios is on the run branch');
-    expect(summary('scenarios-materializing', two)).toBe('The 2 feature files of the plan\'s scenarios are being written onto the run branch');
-    expect(summary('scenarios-materialized', two)).toBe('The 2 feature files of the plan\'s scenarios are on the run branch');
-  });
-
-  test('a kept session whose invocation retained no point is not reported as simply kept', () => {
-    const summary = (data: Record<string, unknown>) => projectEvent(runEventSchema.parse({ sequence: 1, jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z', type: 'invocation-ended',
-      data: { invocation: 'inv-0004', ended: 'submitted', submission: null, session: 'ses-0004', kept: true, ...data } })).summary;
-    expect(summary({})).toBe('Invocation inv-0004 ended: submitted; session ses-0004 is kept');
-    expect(summary({ pointRetained: false })).toBe('Invocation inv-0004 ended: submitted; session ses-0004 is kept, but retained no point to continue from');
-  });
-
-  test('each prepared revision of an invocation names the part it recorded', () => {
-    const summary = (data: Record<string, unknown>) => projectEvent(runEventSchema.parse({ sequence: 1, jobId: '20260920T101500Z-3f9a1c', at: '2026-09-20T10:15:00.000Z', type: 'invocation-prepared',
-      data: { invocation: 'inv-0001', ...data } })).summary;
-    expect(summary({ recorded: 'delivered-inputs' })).toBe('Invocation inv-0001 prepared its actual delivered inputs');
-    expect(summary({ recorded: 'operation-identity' })).toBe('Invocation inv-0001 recorded its session operation identity');
-    expect(summary({})).toBe('Invocation inv-0001 prepared its actual delivered inputs and operation identity');
-  });
-
-  test('every event type of the run log has a projection that names its transition', () => {
-    for (const option of runEventSchema.options) {
-      const type = option.shape.type.value;
-      expect(() => projectEvent({ sequence: 1, jobId: 'j', at: '2026-09-20T10:15:00.000Z', type, data: sampleData(type) } as RunEvent)).not.toThrow();
-    }
-  });
-
-  test('every kind of decision is produced from the record that holds it, and no choice is copied', () => {
+  test('every kind of decision is produced from the record that holds it, and no choice is copied', async () => {
     const outlineRef = { id: 'wi-001', revision: 1, hash: hash64 };
     const run = constructedRun([
       { type: 'job-started', data: {} },
@@ -1095,7 +1049,7 @@ describe('the run protocol a client reads', () => {
         } }],
       },
     ]);
-    const decisions = decisionsOf(runView(run));
+    const { decisions } = await queriesOf(run).decisions('review-notes', run.record.jobId);
     for (const decision of decisions) decisionViewSchema.parse(decision);
     expect(decisions.map(decision => decision.kind)).toEqual(['plan-revision', 'breaking', 'scope', 'placement', 'contract']);
     expect([...new Set(decisions.map(decision => decision.kind))].sort()).toEqual([...decisionViewSchema.options.map(option => option.shape.kind.value)].sort());
@@ -1103,116 +1057,3 @@ describe('the run protocol a client reads', () => {
     expect(decisions.find(decision => decision.kind === 'placement')).toMatchObject({ hypotheses: [{ id: 'mail', revision: 2 }], registry: ['send-email'] });
   });
 });
-
-/** The smallest data each event type's schema accepts, for the projection's exhaustiveness. */
-function sampleData(type: RunEvent['type']): unknown {
-  const hash64 = 'a'.repeat(64);
-  const r = { id: 'x', revision: 1, hash: 'a'.repeat(64) };
-  const command = { commandId: 'c', contentHash: 'h', receipt: { commandId: 'c', jobId: 'j', sequence: 1, acceptedAt: '2026-09-20T10:15:00.000Z' } };
-  const samples: Partial<Record<RunEvent['type'], unknown>> = {
-    'debug-pausing': { pauseId: 'pause-0001', revision: 1, role: 'engineer', work: {}, goal: 'Task', nextAction: 'Execute task' },
-    'debug-paused': { pauseId: 'pause-0001', revision: 1 },
-    'debug-exchange-admitted': { pauseId: 'pause-0001', revision: 1, message: 'Explain', command },
-    'debug-exchange-settled': { pauseId: 'pause-0001', revision: 2, commandId: command.commandId, result: { kind: 'exchange', planId: 'example', runId: 'r1', pauseId: 'pause-0001', revision: 2, cursor: 1, state: 'paused', role: 'engineer', work: {}, goal: 'Task', nextAction: 'Continue', taskState: 'pending', summary: 'Pending', commandId: command.commandId, status: 'settled', answer: 'Explained', invocation: 'inv-0001', session: 'ses-0001', point: null, outcome: 'ended', error: null, continuityLoss: null, verdicts: [], evidence: [] } },
-    'debug-resumed': { pauseId: 'pause-0001', revision: 2, command },
-    'invocation-prepared': { invocation: 'inv-0001' },
-    'session-opened': { session: 'ses-0001', role: 'engineer', work: { workItem: 'wi-001', iteration: 'wi-001.i01' }, executor: 'scripted', model: null },
-    'invocation-started': { invocation: 'inv-0001', role: 'engineer', session: 'ses-0001', work: {}, start: 'opened' },
-    'invocation-ended': { invocation: 'inv-0001', ended: 'submitted', submission: null, session: 'ses-0001', kept: false, finished: 'work-closed' },
-    'session-finished': { session: 'ses-0001', reason: 'run-ended' },
-    'analysis-accepted': { invocation: 'inv-0001', entries: 0, hypotheses: 0, registry: 0, workItems: 0 },
-    'document-manifest-committed': { manifest: 'input/documents.json', hash: hash64, documents: 1 },
-    'work-orientation-recorded': { workItem: 'wi-001', invocation: 'inv-0002', packetHash: hash64, point: 'p' },
-    'context-selection-recorded': { workItem: 'wi-001', selection: 'sel-001', packageHash: hash64 },
-    'context-package-append-requested': { workItem: 'wi-001', selection: 'sel-001', session: 'ses-0002', appendKey: 'selection' },
-    'context-package-appended': { workItem: 'wi-001', selection: 'sel-001', session: 'ses-0002', appendKey: 'selection', ref: 'r', outcome: 'appended', reason: null },
-    'context-package-prompt-bound': { workItem: 'wi-001', selection: 'sel-001', packageHash: hash64, invocation: 'inv-0004', session: 'ses-0002' },
-    'candidate-prepared': { candidate: 'cand-001', tree: 'a'.repeat(40) },
-    'nonfunctional-phase-started': { catalogHash: hash64, maxRounds: 3 },
-    'nonfunctional-assessed': { assessment: 'nfa-001', candidate: 'cand-001', round: 1, phase: 'initial' },
-    'nonfunctional-investigated': { round: 1, invocation: 'inv-0005', assessment: 'nfa-001', nfrs: ['nfr-001'] },
-    'nonfunctional-repair-assigned': { round: 1, assignment: 'repair-001', assessment: 'nfa-001', candidate: 'cand-001', nfrs: ['nfr-001'], startingModule: 'm' },
-    'nonfunctional-repair-committed': { round: 1, invocation: 'inv-0006', assignment: 'repair-001' },
-    'nonfunctional-round-closed': { round: 1, record: 'round-001', outcome: 'exhausted' },
-    'nonfunctional-deviation-recorded': { deviation: 'pd-001', nfr: 'nfr-001', assessment: 'nfa-001', checkFinding: 'cf-0001', checkFindings: [] },
-    'candidate-bound-to-gate': { candidate: 'cand-001', assessment: 'nfa-001', gate: 'ga-0004', commit: 'c', tree: 'a'.repeat(40) },
-    'capability-requested': { request: 'need-001', parent: 'wi-001', assignment: 'wi-001.i01', invocation: 'inv-0003' },
-    'capability-qualified': { request: 'need-001', invocation: 'inv-0004', outcome: 'satisfied', evidence: ['existing API'] },
-    'capability-delegated': { task: 'cap-001', request: 'need-001', parent: 'wi-001', invocation: 'inv-0004', planRevision: 1 },
-    'capability-plan-revised': { task: 'cap-001', revision: 2, basedOn: 1, invocation: 'inv-0005' },
-    'capability-coordinator-resumed': { task: 'cap-001', invocation: 'inv-0005', session: 'ses-0005' },
-    'capability-exchange-opened': { task: 'cap-001', exchange: 'ex-001', invocation: 'inv-0005' },
-    'capability-exchange-answered': { task: 'cap-001', exchange: 'ex-001', invocation: 'inv-0006' },
-    'capability-assigned': { task: 'cap-001', assignment: 'cap-001.i01', sequence: 1, invocation: 'inv-0005' },
-    'capability-assignment-settled': { task: 'cap-001', assignment: 'cap-001.i01', outcome: 'accepted' },
-    'capability-verification-started': { task: 'cap-001', invocation: 'inv-0005' },
-    'capability-handed-back': { task: 'cap-001', handback: 'hb-001', invocation: 'inv-0005' },
-    'capability-stopped': { task: 'cap-001', reason: 'Stopped by the operator' },
-    'review-requested': {},
-    'analysis-approved': { command, reviewer: 'r', note: null, duringRun: false },
-    'readiness-passed': { attempt: 1, gate: 'ga-0001' },
-    'readiness-failed': { attempt: 1, step: 'git-clean', detail: '', recovery: null, final: true },
-    'scratch-setting-up': { originalIgnoreBase64: null },
-    'scratch-setup-complete': { commit: null, appended: false },
-    'scenarios-materializing': { files: ['src/tests/features/p/e.feature'] },
-    'scenarios-materialized': { commit: 'c', files: ['src/tests/features/p/e.feature'] },
-    'obligation-registered': { id: 'test-001', kind: 'test', responsible: { kind: 'work-item', id: 'wi-001' }, by: 'inv-0003', submission: hash64, description: 'The duplicate send regression test' },
-    'obligation-bound': { id: 'sc-001', fakes: ['FakeMailer'], by: 'inv-0003', submission: hash64 },
-    'obligation-reported': { id: 'sc-001', judgment: 'done', basedOnRevision: 0, revision: 1, where: 'subs/a/src/a.ts — sendOnce', by: 'inv-0003', submission: hash64 },
-    'consultation-started': { consultation: 'consult-inv-0003:tool-1', caller: 'inv-0003', toolCall: 'tool-1', parent: null },
-    'consultation-finished': { consultation: 'consult-inv-0003:tool-1', status: 'answered', delivery: 'recorded' },
-    'consultation-delivery-recorded': { consultation: 'consult-inv-0003:tool-1', revision: 2 },
-    'work-item-started': { workItem: 'wi-001', module: 'm', origin: 'integration', scenario: 'sc-003' },
-    'hypotheses-delivered': { workItem: 'wi-001', refs: [r] },
-    'placement-requested': { request: 'pr-001', workItem: 'wi-001', requester: 'm', capability: 'c' },
-    'view-refreshed': { request: 'pr-001', attempt: 1, view: { status: 'placeholder' }, unavailable: null },
-    'fork-returned-partial': { request: 'pr-001', invocation: 'inv-0002', retry: 1 },
-    'unresolved-requested': { request: 'ur-001', workItem: 'wi-001', requester: 'm', invocation: 'inv-0002' },
-    'plan-deviation-recorded': { request: 'ur-001', deviation: 'pd-001', workItem: 'wi-001', invocation: 'inv-0003', checkFinding: 'cf-0001', held: false, checkFindings: [] },
-    'environment-reported': { request: 'ur-001', problem: 'ep-001', workItem: 'wi-001', invocation: 'inv-0003', checkFinding: 'cf-0001', checkFindings: [] },
-    'scenarios-rewording': { deviation: 'pd-001', rewording: 1, scenarios: ['sc-001'], files: ['src/tests/features/p/e.feature'] },
-    'scenarios-reworded': { deviation: 'pd-001', commit: 'c' },
-    'decision-accepted': { request: 'pr-001', decision: 'gd-001', workItem: 'wi-001', invocation: 'inv-0002', registry: 0, hypotheses: 0 },
-    'brief-appended': { decision: 'gd-001', generation: 1, session: 'ses-0001', ref: 's', outcome: 'appended' },
-    'global-context-rebuilt': { generation: 2, reason: 'lost' },
-    'brief-not-appended': { decision: 'gd-001', generation: 1, reason: 'lost' },
-    'decision-delivered': { decision: 'gd-001', workItem: 'wi-001' },
-    'outline-revised': { workItem: 'wi-001', revision: 1, invocation: 'inv-0002' },
-    'ownership-evidence-retained': { assignment: 'a'.repeat(64), hash: 'b'.repeat(64), bytes: 1, provider: 'ramify.ownership/1', ramifyVersion: '0.4.4', root: '/project', inputId: 'input' },
-    'iteration-assigned': { workItem: 'wi-001', iteration: 'wi-001.i01', kind: 'ordinary', scopeRevision: 1, invocation: 'inv-0002', decisions: [] },
-    'iteration-closed': { workItem: 'wi-001', iteration: 'wi-001.i01', outcome: 'partial', gate: null, commit: null, notices: [] },
-    'scratch-preserved': { iteration: 'wi-001.i01', paths: ['subs/notes/src/tmp/indexed.txt'] },
-    'contract-requested': { workItem: 'wi-001', iteration: 'wi-001.i02', scopeRevision: 1, invocation: 'inv-0003', capability: 'c', consumer: 'm', provider: 'p', requestedBy: null, revises: null },
-    'contract-registered': { contract: 'ct-001', revision: 1, mode: 'access-only', iteration: 'wi-001.i02', obligation: null, requirements: [], providerWorkItem: null },
-    'work-item-yielded': { workItem: 'wi-001', requirements: ['rq-001'], invocation: 'inv-0003' },
-    'work-item-resumed': { workItem: 'wi-001', requirements: ['rq-001'] },
-    'provider-conformed': { obligation: 'ob-ct-001', revision: 1, workItem: 'wi-002', iteration: 'wi-002.i01', gate: 'ga-0002' },
-    'requirement-verified': { requirement: 'rq-001', revision: 1, workItem: 'wi-001', iteration: 'wi-001.i03', gate: 'ga-0003' },
-    'evidence-reopened': { cause: 'contract-revision', contract: 'ct-001', revision: 2, iteration: 'wi-001.i04', obligation: null, requirements: [], bindings: [], followUps: [], superseded: [] },
-    'revision-needed': { obligation: r, iteration: 'wi-002.i01', consumerWorkItem: 'wi-001' },
-    'dependency-cycle-detected': { members: ['a', 'b'], requirements: [], workItems: [], closedBy: 'wi-001', detection: 1 },
-    'work-item-completed': { workItem: 'wi-001', gate: 'ga-0004' },
-    'writer-acquired': { invocation: 'inv-0003', scopeRevision: 1 },
-    'writer-process-registered': { invocation: 'inv-0003', pid: 1234, identity: 'boot:42' },
-    'writer-released': { invocation: 'inv-0003', confirmed: false, groupsKilled: 0 },
-    'gate-started': { gate: 'ga-0001', checkpoint: 'readiness' },
-    'gate-committing': { gate: 'ga-0001', checkpoint: 'final' },
-    'gate-command-started': { gate: 'ga-0001', checkpoint: 'final', kind: 'type-check', position: 2, total: 4 },
-    'gate-command-waiting': { gate: 'ga-0001', checkpoint: 'final', kind: 'configured', position: 3, total: 4, line: 'Waiting for another test run (fixture)' },
-    'gate-attempted': { gate: 'ga-0001', checkpoint: 'final', verdict: 'passed', next: 'accept' },
-    'check-findings-recorded': { cause: { kind: 'recovery', detail: 'd' }, checkFindings: [] },
-    'review-request-recorded': { request: 'rq-0001', workItem: 'wi-001', iteration: 'wi-001.i01', kind: 'code', gate: 'ga-0002', candidate: 'c1' },
-    'review-attempt-started': { request: 'rq-0001', attempt: 'rq-0001.a01', invocation: 'inv-0004', session: 'ses-0004', requestedStart: 'fresh' },
-    'review-orientation-recorded': { key: 'b'.repeat(64), request: 'rq-0003', invocation: 'inv-0005', session: 'ses-0005', outcome: 'oriented' },
-    'review-attempt-finished': { request: 'rq-0001', attempt: 'rq-0001.a01', result: 'complete', reason: null, settles: true, checkFindings: [] },
-    'reconciliation-started': { workItem: 'wi-001', reconciliation: 'wi-001.rc01', round: 1 },
-    'reconciliation-assessed': { workItem: 'wi-001', reconciliation: 'wi-001.rc01', invocation: 'inv-0009', next: 'complete', checkFindings: [] },
-    'reconciliation-brief-appended': { reconciliation: 'wi-001.rc01', session: 'ses-0002', ref: 'r', outcome: 'appended', reason: null },
-    'reconciliation-refused': { workItem: 'wi-001', reconciliation: null, stage: 'completion', reason: 'a CheckFinding became open after the basis' },
-    'job-completed': { gate: 'ga-0001', commit: null, workItems: 0 },
-    'job-failed': { reason: 'internal', message: '', evidence: [] },
-    'job-stopped': { settled: false },
-    'job-interrupted': { message: 'm' },
-  };
-  return samples[type] ?? { command };
-}

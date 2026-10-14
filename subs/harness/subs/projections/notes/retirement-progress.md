@@ -1,11 +1,193 @@
-# Old-tree retirement: retained partial candidate
+# Old-tree retirement: accumulated migration
 
-Starting accepted boundary: `ba7cec652a0f79b441c76d83df48798b5a2d1ab0`.
-This is current migration progress, not an acceptance receipt. The old production
-copy directory is intentionally still present: 9 test/helper files depend on it.
-No scenario is bound or claimed done. Historical receipts remain unchanged.
-Current iteration requests normal gate qualification of this reached slice, not
-completion of old-tree retirement or the plan's scenarios.
+Current work starts from accepted boundary
+`a6339359b67b46b7b5aa7e29d04d0763009a6dea`.
+This is migration progress, not an acceptance receipt. Only Plan23 still depends
+on the old production copy tree. Its final split, removal of all 23 old files,
+architectural comparison and scenario qualification are an explicit separate
+final slice. No scenario is bound or claimed done. Historical receipts below
+remain unchanged. The current narrower iteration requests the normal gate for
+accumulated source, not completed retirement.
+
+## Current focused closure (i10)
+
+| Seam | Exact preservation map |
+| --- | --- |
+| capability-tasks-projection | Eight public parent cases retain answers, request/task/assignment refs, durable reopen, failed handback and HTTP version/errors. CA24's private contract decoding expect moves verbatim to child capability-private-witnesses, while its original empty public answer stays parent. The entire CA23/CA34 reach witness moves unchanged to the same child file. Original lines/failedTaskGate and registry/contract fixture definitions are shared once in parent helpers/capability-projection.ts through two selected testing functions, with explicit Line[] and CommittedRun returns and existing companion exposures. No private production function is exposed. |
+| union-values | Forty-one parent ledger/schema/producer/public-decision cases stay parent. The original exhaustive projection test and complete sampleData function move intact to child union-event-exhaustiveness. Earlier child event refs and three summary cases remain unchanged. Event-only fixtures still lack repair records: no authentication relaxation or manufactured history. |
+| Plan23 | All retained parent recorder/full-run/private cases and four child setup-attribution cases remain unchanged. The single old import is evaluationOf/readObservationLog in plan23-observation-integration.test.ts:12. Its responsibility-preserving final split remains separate. |
+
+The former 102 cases across the last three seams now distribute as parent
+8 + 41 + 43 and child 2 + 1 + 1 + 3 + 4 = 103: splitting CA24 adds one test
+boundary, not a new or removed assertion. All original expectations and fixture
+values remain. Composition's producer inventory passes unchanged: no citation
+names the newly relocated witnesses, so no citation repair is needed.
+Bounded untruncated old-path scan (inv-0102 shell 005) finds exactly one test
+file / one import line. The old tree still contains 23 files.
+
+### Verification and API qualifications (inv-0102)
+
+- shell 003: exact parent capability/union/composition plus both new child files:
+  **5 files / 65 tests passed**, including unchanged complete producer inventory.
+- shell 004: exact retained Plan23/setup, breakpoint/gate, lifecycle/session,
+  standalone state, parent/child Plan36, HTTP/repair, projections-pure and child
+  event reference/summary files: **14 files / 109 tests passed**. All four supported
+  type-check configurations passed. Explicit check:self completed/passed with
+  partial coverage: 14 owners, 929 source files, 90 resources, 18544 accesses,
+  0 errors/warnings, 455 analysis limits, 13863 allowed, 0 denied, 4675 external.
+- All 19 focused files / 174 tests passed; original i08/i09 failures and prior
+  committed audit failure below retain their attribution. No flake claim.
+
+Supplied API revision is `rev/1:6fb6dafb-b976-4f1e-b8b3-fa44398352a2:157`,
+with harness ordinary/testing limits 1/26 and child 39/67. Selected child testing
+pages confirm constructedRun/Line/hash, RunSession and runEventSchema/RunEvent;
+constructed/schema signatures retain inference/truncation qualifications. New
+selected testing fixture declarations use explicit already-exposed companion
+contracts, but the supplied generated views predate them. Structural success
+with partial coverage is not proof of complete signature closure. Mutation
+hooks that report deadline-exceeded verify nothing; shell 004 is the explicit
+qualified structural result.
+
+No production semantics, configurations, native registrations, process guard,
+features, scenarios, generated views or production exposures changed. Both new
+files ran under configured Node discovery. No whole-suite/scenario command or
+manual Git operation ran. Normal iteration gate is requested; final Plan23
+retirement and scenario qualification are not claimed here.
+
+## Retained mixed-seam progress (i09, partial; historical state)
+
+The six retained seams below remain unchanged and passed the current focused run.
+The final three files are now partially adapted, but still have four old import
+lines. All 23 baseline implementation files remain; deleting them would currently
+break retained original assertions. No retirement gate is requested for this
+incomplete candidate.
+
+| Final seam | Current preserved adaptation | Still unfinished |
+| --- | --- | --- |
+| capability-tasks-projection | All 9 cases remain parent-owned. Capability task answers and request/task/assignment refs now use real child public capabilityTasks/events; durable RunLog reopen and HTTP version/error assertions retain their original fixtures and expectations. HTTP query inputs use createQuerySource. | Private contract-record decoding assertion and capability architect reachOf witness still use the baseline runView/sessions (2 old imports). |
+| union-values | Restart event assertions read real public events on exactly the reopened ledger entries; all decision kinds read public decisions on the same constructed record bodies. Ledger/schema/producer authority stays parent. Original event-ref fixture and assertion moved to child union-event-references (1 case); 3 original summary witnesses moved to child union-event-summaries (9 expect sites). | Original event exhaustiveness assertion and its complete sampleData fixture remain parent with 1 old projectEvent import; must split, not weaken. |
+| plan23-observation-integration | Full-run packet/role recording remains parent and metrics use RunQueries(createQuerySource(service)). The four setup attribution cases and all fixture/scripted history/original expectations moved unchanged to child plan23-setup-attribution. Nested origins, later same-file effects, binary path, missing OIDs, invalid bytes, source mismatch and repeated intent are retained. | Parent still imports evaluationOf/readObservationLog (1 line) for original recorder/durable-log cases and immutable sibling/checkpoint private witness. Public durable fixture composition and the remaining private split are not implemented. |
+
+Original 102 cases across the three files are preserved: current parent counts
+9 + 42 + 43, child splits 1 + 3 + 4. Existing composition producer citations did
+not name any relocated case; complete inventory checks pass unchanged. The two
+Plan23 usage/charge citations still identify the original parent recorder test,
+and capability event-ref citation still identifies the public parent case.
+No producer check was relaxed.
+
+### Current failure and verification receipts (inv-0098)
+
+- shell 004: first exact four-file selection: 101 passed / 1 failed. The attempted
+  public event-ref adaptation failed: `ProjectionError: Repair event 1 must commit
+  exactly one matching incident revision` through automaticRepairsOf -> snapshotOf
+  -> eventPage -> RunQueries.events. The original fixture intentionally consists
+  of individual event payloads without incident records; do not manufacture a
+  valid history or relax validation. Correction relocates that exact original
+  private-focused witness to child, not a weakened public assertion. This focused
+  failure remains historical evidence, not a flake claim or audit receipt.
+- shell 006: exact six changed/split files plus composition/producer,
+  projections-pure and all retained breakpoint/gate/lifecycle/historical session/
+  Plan36/HTTP/repair seams: **17 files / 173 tests passed**. All four supported
+  type-check configurations passed. Explicit check:self completed/passed with
+  partial coverage: 14 owners, 926 source files, 90 resources, 18526 accesses,
+  0 errors/warnings, 455 analysis limits, 13849 allowed, 0 denied, 4671 external.
+- shell 007: bounded old-path import scan: 3 files / 4 lines, untruncated;
+  baseline tree count remains 23 files. No zero-reference retirement claim.
+
+Supplied current API revision is `rev/1:6fb6dafb-b976-4f1e-b8b3-fa44398352a2:142`,
+with harness ordinary/testing limits 1/26 and child 39/67. Refreshed parent testing
+historical-layout page confirms historicalSessionLayout: HistoricalSessionLayout
+and all four readonly string members; defining explicit signature and declaration
+were inspected. RunQueries received page remains truncated; defining public
+methods confirm events/decisions/capabilityTasks/metrics and explicit protocol
+return contracts. ConstructedRun/Line, observation/schema, durable event and selected
+CandidateSource/ChangeHistory pages were inspected for child splits, with their
+inference/truncation limits retained. Passing structural evidence does not prove
+complete inferred signature closure. Deadline-exceeded mutation hooks are not
+passes; shell 006 is the explicit qualified structural result.
+
+Configured discovery and process guarding are unchanged; all three new child
+files were selected under Node in shell 006. No configuration, feature/view,
+registration, process exemption, fixture exclusion, whole-suite/scenario command,
+manual Git operation or new production exposure was changed. Current iteration
+gate is **not requested** because retirement remains unfinished. No scenario
+fulfillment, final qualification, architectural-comparison completion or missing
+outside-owner capability is claimed.
+
+## Retained mixed-seam progress (i08, partial; historical state)
+
+Six of the nine old-import files no longer depend on the baseline copy tree.
+No assertion expectation was relaxed or removed without relocation.
+
+| Seam | Preserved parent responsibility | Child responsibility / selected seam |
+| --- | --- | --- |
+| execution-breakpoints | All 16 coordination cases and 78 literal expect lines remain. The debug-paused event assertion now reads real RunQueries.events on the same service committed fixture, after its last event's sequence minus one. | No private projector exposed. |
+| gate-progress | All 3 executor/run cases and 18 literal expect lines remain. Wait/start event assertions now read RunQueries.events after the exact original event's sequence minus one. | Public event mapping; no fabricated event record. |
+| helpers/legacy-sessions | Installs identical retained directories and bytes. | historicalSessionLayout testing helper selects directory/outcome/transcript/session from existing private definitions; HistoricalSessionLayout has four explicit readonly string members. No copied policy or active writer format. |
+| session-queries | Both HTTP/poll/transcript/cache cases, all 86 literal expect lines and original file paths/bytes remain. | Consumes only the selected historical testing metadata. |
+| session-lifecycle | Scripted coordinator/session trace stays parent: 1 case / 18 literal expect lines. | Final pure standalone outcome/null case moves unchanged to standalone-session-state.test.ts: 1 case / 2 expect lines. |
+| plan36-mutation-attribution | Both recorded-file snapshot/tool parameterizations stay parent: 2 cases / 8 literal expect lines. Real RunQueries.metrics/workItem consume the same constructed committed run; original recorded assignment/outcome/gate/result, bytes, unchanged-input assertions remain. | Private tool-vs-snapshot, old missing evidence, corrupt-row and unknown-placement witnesses move unchanged to child plan36-mutation-attribution.test.ts: 5 cases / 12 literal expect lines. Identical paths, invocation identity, time, hash, original observation numbers/callId/observedBy/attributable values retained. |
+
+Plan36's producer citation in composition remains parent: it names the retained
+recorded-file integration test. No relocated standalone/private Plan36 case has
+a producer citation to update. Composition's complete producer-inventory check
+passed unchanged. No query bodies were moved into parent callbacks, private
+production projectors exposed, or writable child authority added.
+
+### Remaining work (not a missing-provider claim)
+
+Bounded untruncated old-import text inventory (inv-0096 shell 003):
+3 files / 11 import lines:
+- capability-tasks-projection.test.ts: RunQueries, capabilityTasksOf,
+  projectEvent, reachOf, runView (5).
+- union-values.test.ts: decisionsOf, projectEvent, runView (3).
+- plan23-observation-integration.test.ts: evaluationOf/readObservationLog/
+  setupLineIdentitiesOf, RunView, RunQueries (3).
+
+These three files are unchanged; every original witness remains available.
+Their mixed assertion splits/public entry adaptations, resulting producer
+citation repairs, complete nine-seam assertion map and deletion of all 23 old
+production files remain unfinished. No public-equivalence failure or outside-owner
+block is established. Keep the old tree until those dependencies are retired.
+The final architectural comparison and all eight scenario bindings remain the
+separate follow-up specified by the assignment. No iteration gate was requested
+for this incomplete retirement candidate.
+
+### Current verification and limits
+
+Supplied API revision is `rev/1:6fb6dafb-b976-4f1e-b8b3-fa44398352a2:127`,
+with ordinary/testing limits harness 1/26 and child 39/67. Parent testing pages
+confirm RunQueries/RunSource (query class truncated); selected child testing pages
+confirm Observation, invocation schemas and original constructed hash fixture.
+New historical helper's declaration explicitly exposes its named type companion;
+its generated received page was not supplied/refreshed here. Coverage limits and
+inferred/truncated signatures remain qualifications, not proof of complete
+cross-module closure. Private projectors remain local to child tests.
+
+inv-0096 focused receipts:
+- shell 001: exact changed breakpoint, gate-progress, lifecycle, session HTTP,
+  and child standalone state files: 5 files / 23 tests passed.
+- shell 002: exact parent/child Plan36, composition, projections-pure, HTTP and
+  repair-export files: 6 files / 48 tests passed. All four supported type-check
+  configurations passed. check:self completed/passed with partial coverage:
+  14 owners, 923 source files, 90 resources, 18511 accesses, 0 errors/warnings,
+  455 analysis limits, 13841 allowed, 0 denied, 4664 external.
+- shell 003: import and literal expect-line inventories; no exact native
+  registration for touched or split files. The related breakpoint process/native
+  registrations still name their unchanged original files.
+
+Configured Node discovery is unchanged: `subs/**/src/**/*.test.ts`, excluding
+web/fixture/tmp and exact registered native files, with existing root process
+and mock-session-store setup. Both new child files were actually selected under
+Node by the named focused runs. No configuration, native test registration,
+feature/view, process exemption, fixture exclusion, scenario or whole-suite
+command, or manual Git operation changed. Deadline-exceeded mutation hooks did
+not verify anything; the explicit completed check:self is the qualified check.
+
+## Prior accepted slices and historical receipts
+
+The following inventory describes earlier states, not the current three-file
+remaining-dependency count.
 
 ## Current focused ownership slice (i07)
 

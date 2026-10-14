@@ -199,6 +199,8 @@ expose-test scratchCandidateReplies from "helpers/scratch-candidate-replies.ts" 
 // CommittedRun/CommittedLine received from projections (never writer ports).
 expose-sub CommittedRun, CommittedLine from projections to descendants
 expose-test at, constructedRun, constructedRecord, forecast, runId, hash, item, obligation, registered, requirement, reviews, Line from "helpers/constructed.ts" to descendants
+// Exact shared capability query fixtures; no private projector or writable authority.
+expose-test capabilityProjectionLines, capabilityContractRun from "helpers/capability-projection.ts" to descendants
 
 // Selected pure replay and fixture contracts for child-owned reading witnesses.
 expose-sub decideCheckFindingChange, applyCheckFindingEvent, emptyCheckFindingState, CheckFindingCommand, CheckFindingEvent, CheckFindingChange, CheckFindingApplied, CheckFindingDecisionInput, CheckFindingReportInput, checkFindingCommandSchema, checkFindingEventSchema, checkFindingDecisionInputSchema, checkFindingReportInputSchema from check-findings to descendants

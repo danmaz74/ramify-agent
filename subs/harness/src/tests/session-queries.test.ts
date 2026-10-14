@@ -17,7 +17,7 @@ import {
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import { runLayout } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
-import { sessionLayout, sessionsDirectory } from '../projections/standalone-records.js';
+import { historicalSessionLayout } from '../../subs/projections/src/tests/helpers/historical-session-layout.js';
 import { ContentStore } from '../transcripts/store.js';
 import { readTranscript } from '../transcripts/writer.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
@@ -110,7 +110,7 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     // `echo checking`; nothing writes this layout any more, and it is still read.
     const { finished, crashed } = await installLegacySessions(root);
     // The harness died before it wrote the outcome, which it writes last.
-    await rm(join(root, sessionsDirectory, crashed, sessionLayout.outcome));
+    await rm(join(root, historicalSessionLayout.directory, crashed, historicalSessionLayout.outcome));
 
     const server = await startServerWith({
       projectRoot: root, port: 0, assetsDirectory: join(root, 'no-such-build'), ramify: new FakeRamifyCli(),
@@ -255,19 +255,19 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     expect(await ok(origin, protocolPaths.standaloneSession(finished), standaloneSessionResponseSchema)).toEqual(done);
     const gone = await ok(origin, protocolPaths.standaloneSession(crashed), standaloneSessionResponseSchema);
     expect(gone).toMatchObject({ session: { state: 'interrupted' }, outcome: null, evaluation: { ended: null, usage: { unavailable: 'the invocation has not ended' } } });
-    const crashedEntries = (await readTranscript(join(root, sessionsDirectory, crashed, sessionLayout.transcript))).entries;
+    const crashedEntries = (await readTranscript(join(root, historicalSessionLayout.directory, crashed, historicalSessionLayout.transcript))).entries;
     expect(gone.session.changedAt).toBe(crashedEntries.at(-1)!.at);
     expect(await refused(origin, protocolPaths.standaloneSession('20200101T000000Z-000000'))).toEqual([404, 'not-found']);
 
     const standaloneRef: SessionRef = { source: 'standalone', session: finished };
     const transcript = await ok(origin, protocolPaths.standaloneTranscript(finished, 0), sessionTranscriptResponseSchema);
     expect(transcript.session).toEqual(standaloneRef);
-    expect(transcript.page.entries).toEqual((await readTranscript(join(root, sessionsDirectory, finished, sessionLayout.transcript))).entries);
+    expect(transcript.page.entries).toEqual((await readTranscript(join(root, historicalSessionLayout.directory, finished, historicalSessionLayout.transcript))).entries);
     // The shell's complete output, by the path its result names.
     const output = transcript.page.entries.flatMap(fileBodies).find(path => path.startsWith('shell/'))!;
     expect(output).toBe('shell/001.log');
     expect(await ok(origin, protocolPaths.standaloneFile(finished, output), sessionBodyResponseSchema)).toEqual({ content: 'checking\n', bytes: 9, truncated: false });
-    expect(await refused(origin, protocolPaths.standaloneFile(finished, sessionLayout.session))).toEqual([404, 'not-found']);
+    expect(await refused(origin, protocolPaths.standaloneFile(finished, historicalSessionLayout.session))).toEqual([404, 'not-found']);
     const systemPrompt = transcript.page.entries[0] as Extract<TranscriptEntry, { type: 'started' }>;
     const blob = systemPrompt.systemPrompt as Extract<TranscriptBody, { stored: 'blob' }>;
     expect((await ok(origin, protocolPaths.standaloneBody(finished, blob.hash), sessionBodyResponseSchema)).bytes).toBe(blob.bytes);

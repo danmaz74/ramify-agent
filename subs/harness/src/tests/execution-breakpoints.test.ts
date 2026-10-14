@@ -2,7 +2,8 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { breakpointStateSchema, startRunCommandSchema, type DebugResumeCommand } from '../interfaces/protocol/runs.js';
-import { projectEvent } from '../projections/events.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
@@ -79,7 +80,7 @@ test('B01 B04 B15: prepared engineer pause has no model invocation or writer; st
   state.work.iteration = 'caller-mutated';
   expect(service.debugState(plan, runId)?.work.iteration).toBe('wi-001.i01');
   expect(service.events(plan, runId)!.length).toBe(before);
-  expect(service.events(plan, runId)!.map(projectEvent).at(-1)?.transition).toBe('debug-paused');
+  expect((await new RunQueries(createQuerySource(service)).events(plan, runId, service.events(plan, runId)!.at(-1)!.sequence - 1)).events.at(-1)?.transition).toBe('debug-paused');
   await stop(service, runId);
   expect(service.getRun(plan, runId)?.state).toBe('stopped');
   expect(service.debugState(plan, runId)).toBeNull();

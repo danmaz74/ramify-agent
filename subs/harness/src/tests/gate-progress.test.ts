@@ -5,7 +5,8 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { createInPlaceCheckExecution, type GateCommandStart } from '../checks/execution.js';
 import { runGate } from '../checks/gate.js';
 import { checkCommand } from '../checks/records.js';
-import { projectEvent } from '../projections/events.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import type { RunEvent } from '../run/log.js';
 import { inPlaceReplies } from './helpers/in-place-replies.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -89,7 +90,7 @@ describe('a run', () => {
       const started = events.find(event => event.type === 'gate-command-started' &&
         event.data.gate === wait.data.gate && event.data.position === wait.data.position && event.sequence > wait.sequence);
       expect(started).toBeDefined();
-      expect(projectEvent(wait)).toMatchObject({ transition: 'gate-command-waiting', refs: [{ kind: 'gate', id: 'ga-0001' }] });
+      expect((await new RunQueries(createQuerySource(service)).events('review-notes', receipt.jobId, wait.sequence - 1)).events[0]).toMatchObject({ transition: 'gate-command-waiting', refs: [{ kind: 'gate', id: 'ga-0001' }] });
     }
   }, 120_000);
 
@@ -128,7 +129,7 @@ describe('a run', () => {
     expect(types.indexOf('gate-committing')).toBeLessThan(events.indexOf(final[0]!));
     expect(events.indexOf(final.at(-1)!)).toBeLessThan(types.indexOf('gate-attempted'));
 
-    expect(projectEvent(final[1]!)).toMatchObject({
+    expect((await new RunQueries(createQuerySource(service)).events('review-notes', receipt.jobId, final[1]!.sequence - 1)).events[0]).toMatchObject({
       transition: 'gate-command-started',
       summary: `Gate ga-0002 (final): the configured check "type-check" started, command 2 of ${final.length}`,
       refs: [{ kind: 'gate', id: 'ga-0002' }],

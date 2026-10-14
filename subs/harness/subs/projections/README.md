@@ -2,8 +2,8 @@
 
 Read-only Node query provider, a direct untagged child of harness. This owner
 contains all 23 baseline query implementations formerly owned at
-`subs/harness/src/projections/`. Parent copies still support 9 remaining
-test/helper files; retirement is incomplete. Public-query parent integration
+`subs/harness/src/projections/`. Parent copies still support 1 remaining
+test file; retirement is incomplete. Public-query parent integration
 now uses this real child, including native audit/recovery, persisted execution
 maps and repair-export presentation. See `notes/retirement-progress.md` for the
 current assertion map and exact outstanding imports. HTTP,
@@ -21,7 +21,9 @@ Repair presentation uses harness `authenticateRepairHistory` and
 `RepairHistoryError`; no validator or effect admission is duplicated.
 
 The exact explicit parent surface and owned companions are in `module.ramify`.
-No browser tags, descendant exports or private projector exports are added.
+No browser tags, descendant exports or private production projector exports are added.
+The selected historicalSessionLayout testing seam exposes only retained fixture
+location metadata and its explicit HistoricalSessionLayout type companion.
 Parent-owned public/durable return/parameter types and sibling reading port
 companions already belong to/are received by harness; they are not copied or
 redefined here. Reading dependencies resolve to parent `../../../src/` and
@@ -60,4 +62,19 @@ is retired; this owner retains all four cases. See
 `notes/retirement-progress.md` for current progress and the remaining old-tree
 inventory. Focused test health is not scenario completion. Configured Node discovery
 includes `subs/**/src/**/*.test.ts`; ordinary tests retain root process guarding
-and receive no new exemptions.
+and receive no new exemptions. The standalone outcome/null-state case and private
+Plan36 attribution witnesses are child-owned; lifecycle, recorded-file metrics /
+work-item and session HTTP integration stay parent-owned. Historical fixtures use
+the narrow child testing metadata seam rather than production-private imports.
+The four exact Plan23 setup-attribution cases and four private union event
+reference/summary witnesses are also child-owned, with unchanged fixture identities
+and expectations. Public capability-task, restart-event and decision assertions
+stay with their coordinating parent through narrow reading composition.
+Exact capability reach/contract decoding and exhaustive union event witnesses
+now live here in capability-private-witnesses and union-event-exhaustiveness.
+Capability's pure fixtures are shared once through selected parent testing
+contracts; union retains its entire original sampleData without invented repair
+records. Only Plan23 retains one old evaluationOf/readObservationLog import.
+All 23 parent baseline files remain until this last dependency retires;
+see the current partial assertion map and failed public-fixture equivalence
+receipt in retirement-progress.md. This is not completed retirement.
