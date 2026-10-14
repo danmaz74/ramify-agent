@@ -211,3 +211,7 @@ expose-src ReviewPolicy, reviewPolicySchema, reviewPolicyVersion, ContinueRelati
 expose-test concern, ConcernOptions, decision, dispose, failure, producerCause, report from "helpers/check-findings.ts" to descendants
 expose-test size, usage, find from "helpers/metric-fixtures.ts" to descendants
 expose-test plan from "helpers/integration-scenario.ts" to descendants
+
+// Real Plan23 recorder stimuli: only recorded rows and plain fixture facts.
+// No recorder, writable log or private presentation function crosses the seam.
+expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23RestoreFacts, plan23Identity, Plan23Identity, plan23Invocation, Plan23Invocation, plan23Outcome, Plan23Outcome, Plan23Usage, plan23Time from "helpers/plan23-recorded.ts" to descendants

@@ -2,11 +2,11 @@
 
 Read-only Node query provider, a direct untagged child of harness. This owner
 contains all 23 baseline query implementations formerly owned at
-`subs/harness/src/projections/`. Parent copies still support 1 remaining
-test file; retirement is incomplete. Public-query parent integration
-now uses this real child, including native audit/recovery, persisted execution
-maps and repair-export presentation. See `notes/retirement-progress.md` for the
-current assertion map and exact outstanding imports. HTTP,
+`subs/harness/src/projections/`. That old directory is removed without
+forwarders or duplicate query bodies. Public-query parent integration uses
+this real child, including native audit/recovery, persisted execution maps and
+repair-export presentation. See `notes/retirement-progress.md` for the current
+assertion map and qualified verification evidence. HTTP,
 CLI, run coordination, durable/public protocol authority and repair-export
 admission have not moved here.
 
@@ -59,8 +59,8 @@ six corresponding `src/tests/*.test.ts` files by exact name from the project
 root; see the current assertion and verification map in retirement-progress.md. The identical parent continuity duplicate
 is retired; this owner retains all four cases. See
 `notes/focused-test-migration.md` for the earlier slice's receipt and
-`notes/retirement-progress.md` for current progress and the remaining old-tree
-inventory. Focused test health is not scenario completion. Configured Node discovery
+`notes/retirement-progress.md` for current progress and historical old-tree
+inventories. Focused test health is not scenario completion. Configured Node discovery
 includes `subs/**/src/**/*.test.ts`; ordinary tests retain root process guarding
 and receive no new exemptions. The standalone outcome/null-state case and private
 Plan36 attribution witnesses are child-owned; lifecycle, recorded-file metrics /
@@ -74,7 +74,14 @@ Exact capability reach/contract decoding and exhaustive union event witnesses
 now live here in capability-private-witnesses and union-event-exhaustiveness.
 Capability's pure fixtures are shared once through selected parent testing
 contracts; union retains its entire original sampleData without invented repair
-records. Only Plan23 retains one old evaluationOf/readObservationLog import.
-All 23 parent baseline files remain until this last dependency retires;
-see the current partial assertion map and failed public-fixture equivalence
-receipt in retirement-progress.md. This is not completed retirement.
+records. Plan23's nine private evaluation/readObservationLog witnesses now
+live in plan23-observation-presentation.test.ts, with all original values,
+null/zero distinctions and exact coverage text. The selected parent-owned
+recordPlan23Stimulus testing fixture uses real recorders and returns only rows,
+plain identity/usage/bytes/path facts and cleanup, with explicit companion types.
+Recorder restoration/deduplication/numbering/milestones and packet/role/full-run
+integration stay parent-owned; no production writer exposure is added.
+Four setup-attribution cases remain unchanged. No old consumers remain in the
+bounded source scan; all 23 old production files and their directory are removed.
+Historical failures remain in retirement-progress.md. Scenario qualification
+and final architectural comparison are separate follow-up, not claimed here.

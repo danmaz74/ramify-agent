@@ -1,15 +1,92 @@
 # Old-tree retirement: accumulated migration
 
-Current work starts from accepted boundary
-`a6339359b67b46b7b5aa7e29d04d0763009a6dea`.
-This is migration progress, not an acceptance receipt. Only Plan23 still depends
-on the old production copy tree. Its final split, removal of all 23 old files,
-architectural comparison and scenario qualification are an explicit separate
-final slice. No scenario is bound or claimed done. Historical receipts below
-remain unchanged. The current narrower iteration requests the normal gate for
-accumulated source, not completed retirement.
+## Current narrow retirement (i11)
 
-## Current focused closure (i10)
+Starts from accepted boundary `2f34093d37f6f0cd62e593f5186738d980e70825`.
+The last Plan23 recorder/presentation seam is split and all 23 old production
+files and their directory are removed, without forwarders, copied policy or
+production changes in the child. No scenarios are bound or claimed done. Final
+architectural comparison and scenario qualification remain follow-up. This is
+source/verification progress, not an acceptance receipt; the normal iteration
+gate owns the qualifying verdict. Historical receipts below remain unchanged.
+
+### Exact final assertion distribution
+
+Original Plan23 observation file's 43 cases now distribute as **38 parent + 9
+child**; four mixed cases acquire a second boundary, not new replacement
+expectations. The already moved four setup-line cases are unchanged. Across the
+last three seams, parent 8 + 41 + 38 and child 2 + 1 + 1 + 3 + 4 + 9 = 107
+preserve the original 102 cases with five split boundaries (CA24 plus four here).
+
+| Original witness | Parent recorder/authority assertion | Child private presentation assertion |
+| --- | --- | --- |
+| snapshot workspace | Six real snapshot-tool calls, exploration length, candidate-root rather than reader-workspace paths and exact first requested/resolved/files row | Reads 3/unique 1/repeated 2/searches 3/broad 2/outside 0, actual output bytes, 60 ms and exact matched-files-unknown coverage |
+| identities/bytes/zero/rates/restoration | Real exploration/edit/message stimulus; duplicate usage recorded once; original usage total and first-engineering-action at t(4) | Original identity, returned bytes 12, search counts, zero match 1, full recorded-rate charge including 0.00033 totals, timing, units, schema and identical evaluation of reopened rows |
+| failed/completed search | Original failed missing-path and completed s1 outcome/outside-scope rows | Original completed/failed/broad/outside/zero count objects and coverage |
+| undeclared roots | Real reviewer recorder with no roots, owned by shared stimulus | Null outsideScope, unavailable rather than zero count and schema admission |
+| durations | Real no-tool message followed by original read/edit, owned by shared stimulus | 0 versus unreadable null; known subtotal 10 over 1 of 2; unchanged exact coverage and exploration duration |
+| engineering milestone | Original reads/searches/nonmutating shell produce none; mutating shell produces t(4) | No private assertion existed |
+| sibling/checkpoint/charge-copy | Same original real usage row from shared stimulus | Original L/R identity/turn, charge-copy isolation, measured zero versus missing rate, partial subtotal 0.00025 and all wire schemas |
+| torn/historical unknown | Same real read and malformed/torn bytes from shared stimulus | Private readObservationLog preserves 9 bytes/read 1, missing durations/charge, unreadable-row/files-unknown text, null historical identities/scope and schema |
+| conflicting source | Same original usage/read rows from shared stimulus | Original conflicting second row/third original row and coverage-gap, excluded charges, 10 ms partial subtotal/3 bytes and exact conflict text |
+| reopened malformed rows | Usage/context counts before/after, truncated gap, duplicate false/new context true, unique numbering | Original reopened charge subtotal 0.00033 |
+| role/packet/full run | All routing, independent role/task table, thirty actual packet/identity cases and real full-run metrics assertions stay unchanged | None |
+
+`tests/helpers/plan23-recorded.ts` is the single selected parent-owned real
+recorder stimulus producer. It returns plain recorded rows, identity, partial
+invocation/outcome fixtures, usage/bytes/path facts and cleanup; no writable
+collaborator or private projection escapes. Partial invocation/outcome shapes
+are deliberately preserved, not fabricated durable records. The child imports
+private evaluationOf/readObservationLog locally only. Every fixture signature
+has an explicit named companion declaration; Observation was already selected
+as a reading type. No new production exposure was added.
+
+The two composition union-producer citations now name the child restoration
+presentation case because that is where the actual usage/model-duration/rate
+presentation assertions moved. The complete inventory/producer checks and all
+original failure receipts remain intact. Parent recorder case retains its title.
+
+### Current verification and limitations (inv-0108)
+
+- shell 001: exact parent Plan23 + child split/setup: **3 files / 51 tests
+  passed**. All four supported type-check configurations passed.
+- shell 003: path-resolved import scan of **978 TS/TSX files** in src/subs/scripts
+  (excluding generated views, node_modules, harness artifacts and the old tree):
+  **zero old imports** before deletion; exact 23-file inventory printed.
+- shell 004: deleted exactly those 23 files and removed their directory.
+- shell 005: composition/union/capability plus four child witnesses: **7 files /
+  69 tests passed**; session/lifecycle/HTTP/repair/purity/breakpoint/gate/Plan36
+  plus child standalone/Plan36: **10 files / 58 tests passed**. All four supported
+  type-check configurations passed after deletion. Explicit check:self completed,
+  passed with partial coverage: 14 owners, 908 source files, 90 resources,
+  18080 accesses, 0 errors/warnings, 455 analysis limits, 13417 allowed,
+  0 denied, 4657 external.
+- shell 006: post-deletion parent Plan23 + child split/setup + purity **4 files /
+  54 tests passed**, including the new old-directory ENOENT tripwire. All four
+  supported type-check configurations and explicit check:self passed again with
+  the same partial-coverage figures. Across focused selections, **20 unique
+  files / 178 tests passed** (repeat runs are not counted twice).
+- shell 007: post-retirement scan of 978 TS/TSX files again found zero resolved
+  old imports; old directory absent. Nine touched surviving source/docs files
+  have no trailing whitespace or blank EOF. This bounded text check is not the
+  gate's patch-integrity verdict.
+
+Supplied API revision remains `rev/1:6fb6dafb-b976-4f1e-b8b3-fa44398352a2:166`,
+with ordinary/testing coverage limits harness 1/26 and child 39/67. The selected
+child testing Observation page explicitly names Observation and observationSchema;
+its inferred/truncated Zod signature limits are retained. New fixture declarations
+postdate the supplied views: access is explicitly declared and checked, but no
+refreshed received page was supplied. This is not proof of complete signature
+closure across all inferred contracts. Mutation hooks marked cold/deadline-exceeded
+verified nothing; the explicit completed check:self is the qualified evidence.
+No configuration/native registration/feature/view, process exemption, audit
+policy or discovery change; no whole-suite/scenario command or manual Git ran.
+
+## Historical focused closure (i10)
+
+Work then started from accepted boundary
+`a6339359b67b46b7b5aa7e29d04d0763009a6dea`.
+The following receipts describe that state, before the current narrow retirement.
 
 | Seam | Exact preservation map |
 | --- | --- |

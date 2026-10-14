@@ -663,20 +663,22 @@ hiding or measured complexity justifies it.
   production HTTP run/session queries, module tree and consultation readers.
   `http/app.ts` and `consultations/command.ts` import its public entries directly;
   `http/query-source.ts` supplies the frozen seven-key reading port. The old
-  `src/projections/` tree still supports 1 remaining test file pending
-  private-focused migration and mixed-test splitting; it is not production
-  HTTP/consultation composition. Public-query integration tests now use the real
-  child, with service inputs narrowed by `createQuerySource`. See
-  `subs/projections/notes/retirement-progress.md` for the current assertion map,
-  remaining dependencies and verification limitations; retirement is not yet complete.
+  `src/projections/` tree is removed, with no forwarding implementations.
+  Public-query integration tests use the real child, with service inputs narrowed
+  by `createQuerySource`. See `subs/projections/notes/retirement-progress.md` for
+  the current assertion map and verification limitations. Scenario qualification
+  and the final architectural comparison remain follow-up.
   Historical session fixtures consume selected child testing layout metadata;
   lifecycle and HTTP integration remain here. Private standalone state, Plan36
   attribution, four Plan23 setup-attribution and four union event reference/summary
   witnesses are child-owned. Capability-task queries, restart event ledger reads,
   decisions and full-run Plan23 metrics now read public child entries here through
-  narrow reading composition, with unchanged fixtures and expectations. Remaining
-  Plan23 evaluation/log witnesses still depend on the old tree; retirement remains
-  incomplete. Exact capability reach/contract decoding and exhaustive union event
+  narrow reading composition, with unchanged fixtures and expectations. Plan23
+  evaluation/log witnesses are child-owned; selected parent testing stimuli in
+  `tests/helpers/plan23-recorded.ts` supply real recorded rows, plain identities,
+  usage/byte/path facts and cleanup, never writable collaborators. Recorder
+  restoration, deduplication, numbering and milestones stay parent-owned.
+  Exact capability reach/contract decoding and exhaustive union event
   witnesses now live in child tests, with selected shared capability fixture
   contracts and the complete original event sampleData.
   The child owns every answer of the run protocol, computed from what the

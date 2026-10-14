@@ -148,6 +148,7 @@ describe('a projection never writes, and no query appends an event', () => {
   }, 300_000);
 
   test('the projection source calls nothing that writes', async () => {
+    await expect(readdir(new URL('../projections/', import.meta.url))).rejects.toMatchObject({ code: 'ENOENT' });
     // A tripwire beside the behavioral test above: the projections and the
     // KPI projection name no writing primitive of the file system, the
     // ledger or the run service. Zod's `z.record(` is a schema, not a write.

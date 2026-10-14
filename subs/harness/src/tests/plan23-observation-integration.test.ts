@@ -1,24 +1,18 @@
 import { readFileSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AgentEvent, AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { deliveredManifestViewSchema, invocationEfficiencySchema, metricsResponseSchema, type Role } from '../interfaces/protocol/runs.js';
+import { deliveredManifestViewSchema, metricsResponseSchema, type Role } from '../interfaces/protocol/runs.js';
 import { deliveredScopeInputs } from '../kpi/capture.js';
 import { loadPromptPackages } from '../prompts/packages.js';
 import type { TaskKind, TaskPacket } from '../prompts/tasks.js';
 import { HarnessSessionOperations } from '../run/session-operations.js';
-import { evaluationOf, readObservationLog } from '../projections/metrics.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { ExcursionWatcher } from '../run/excursions.js';
-import { ObservationLog } from '../run/observations.js';
-import { PortEventRecorder } from '../run/port-events.js';
 import { runLayout } from '../run/records.js';
-import { openCandidateSnapshot, snapshotTools } from '../../subs/reviews/src/snapshot.js';
-import { scriptedCandidates } from './helpers/candidates.js';
 import { temporaryDirectory } from './helpers/fixture.js';
+import { recordPlan23Stimulus, plan23Time as t, type Plan23Stimulus } from './helpers/plan23-recorded.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
 import { byWork } from './helpers/iterations.js';
@@ -27,217 +21,38 @@ import { runPath } from './helpers/runs.js';
 vi.mock('node:child_process', async original => (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); try { expectNoProcesses(); } finally { forgetExternalTools(); } });
-const t = (seconds: number) => `2026-10-08T00:00:${String(seconds).padStart(2, '0')}.000Z`;
-const identity = { runId: 'run', operationId: 'inv-1', sessionId: 'original-session', turn: 2, sourcePoint: { sessionId: 'original-session', turn: 1, kind: 'checkpoint' as const, checkpoint: 'brief-C1' } };
-const invocation = { id: 'inv-1', role: 'engineer' as const, work: {}, writer: true, startedAt: t(0), sessionOperation: identity };
-const noDetail = { model: null, thinkingLevel: null, stopReason: null, error: null, reasoningTokens: null, cost: null, cacheWrites: null };
-const usageEvent: AgentEvent = { type: 'message', role: 'assistant', blocks: [], text: '', detail: noDetail,
-  usage: { input: 100, cacheRead: 40, cacheWrite: 10, output: 20, total: 170 }, execution: identity,
-  observation: { sourceId: 'message-7', at: t(3), elapsedMs: 120, charge: { model: 'fixed/model', sourceRevision: 'captured-model-r1', ratesPerMillion: { newInput: 2, cachedInput: 0.5, cacheWrite: 3, output: 4 } } } };
-const outcome = { ended: 'submitted' as const, outsideScope: [], usage: { input: 100, cacheRead: 40, cacheWrite: 10, output: 20, total: 170 }, settled: { at: t(5), confirmed: true, groupsKilled: 0, lateWrites: [] } };
-async function observed() {
-  const directory = await temporaryDirectory(); cleanups.push(directory.remove);
-  const path = join(directory.path, 'observations.jsonl'); const observations = await ObservationLog.open(path);
-  const recorder = new PortEventRecorder({ projectRoot: directory.path, observations, invocation: { id: 'inv-1', role: 'engineer', startedAt: t(0), submissionTool: 'submit', declaredPaths: [join(directory.path, 'src')] },
-    context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, excursions: new ExcursionWatcher({ projectRoot: directory.path, index: null, scope: undefined }), judge: { countImplementationRejection: () => async () => {} } });
-  recorder.identify(identity); return { directory, path, observations, recorder };
-}
-/** A module engineer's edit: the first mutating call, which reads and searches before it are not. */
-async function edited(recorder: PortEventRecorder, callId: string, seconds: number) {
-  await recorder.record({ type: 'tool-started', tool: 'edit', callId, input: {}, action: { kind: 'write', paths: ['src/a.ts'] }, mutating: true, execution: identity, observation: { sourceId: `${callId}:start`, at: t(seconds) } });
-  await recorder.record({ type: 'tool-finished', tool: 'edit', callId, isError: false, reachedTool: true, execution: identity, observation: { sourceId: `${callId}:end`, at: t(seconds + 1), elapsedMs: 10 } });
-}
-async function explored(recorder: PortEventRecorder, callId: string, kind: 'read' | 'search', root: string, bytes: number | null, files: string[] | null, seconds: number) {
-  const action = kind === 'read' ? { kind, path: 'src/a.ts', range: null } : { kind, path: '..', glob: '**/*.ts', pattern: 'absent' };
-  await recorder.record({ type: 'tool-started', tool: kind, callId, input: {}, action, mutating: false, execution: identity, observation: { sourceId: `${callId}:start`, at: t(seconds) } });
-  await recorder.record({ type: 'tool-finished', tool: kind, callId, isError: false, reachedTool: true, execution: identity,
-    observation: { sourceId: `${callId}:end`, at: t(seconds + 1), elapsedMs: 10, returnedBytes: bytes, files, resolvedScope: [kind === 'read' ? join(root, 'src/a.ts') : join(root, '..')], coverage: kind === 'search' ? ['Scanned bytes unavailable'] : [] } });
-}
+async function recorded(kind: Plan23Stimulus) { const f = await recordPlan23Stimulus(kind); cleanups.push(f.cleanup); return f; }
 
 describe('Plan 23 F6 durable observation integration', () => {
   test('snapshot inspection reaches exploration metrics with candidate-root paths from a separate reader workspace', async () => {
-    const f = await observed();
-    const source = scriptedCandidates(f.directory.path, { c1: { tree: 't1', base: 'c0',
-      changes: [{ status: 'M', path: 'src/a.ts' }], files: { 'src/a.ts': 'export const a = 1;\n' } } });
-    const snapshot = await openCandidateSnapshot(source, f.directory.path, { commit: 'c1', base: 'c0' });
-    const tools = snapshotTools(snapshot, source, f.directory.path);
-    const recorder = new PortEventRecorder({ projectRoot: f.directory.path, workingDirectory: join(f.directory.path, 'reviews/workspace'),
-      observations: f.observations, invocation: { id: 'inv-1', role: 'reviewer', startedAt: t(0), submissionTool: 'submit_review', declaredPaths: [f.directory.path] },
-      context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 },
-      excursions: new ExcursionWatcher({ projectRoot: f.directory.path, index: null, scope: undefined }),
-      judge: { countImplementationRejection: () => async () => {} } });
-    recorder.identify(identity);
-    const calls = [
-      ['snapshot_read', { path: 'src/a.ts' }], ['snapshot_read', { path: 'src/a.ts', startLine: 1, lineCount: 1 }],
-      ['snapshot_list', {}], ['snapshot_search', { path: 'src', pattern: 'absent' }],
-      ['snapshot_diff', {}], ['snapshot_diff', { path: 'src/a.ts' }],
-    ] as const;
-    let returnedBytes = 0;
-    for (const [index, [name, input]] of calls.entries()) {
-      const tool = tools.definitions.find(tool => tool.name === name)!;
-      const action = tool.action?.(input) ?? { kind: 'harness' as const };
-      const callId = `snapshot-${index}`;
-      await recorder.record({ type: 'tool-started', tool: name, input, callId, action, mutating: false, execution: identity,
-        observation: { sourceId: `${callId}:start`, at: t(index + 1) } });
-      const result = await tool.execute(input, new AbortController().signal);
-      returnedBytes += Buffer.byteLength(result.text);
-      const target = action.kind === 'read' || action.kind === 'search' ? action.path : null;
-      await recorder.record({ type: 'tool-finished', tool: name, callId, isError: result.isError === true, reachedTool: true, execution: identity,
-        observation: { sourceId: `${callId}:finish`, at: t(index + 2), elapsedMs: 10, returnedBytes: Buffer.byteLength(result.text),
-          resolvedScope: target === null ? null : [target], files: action.kind === 'read' && target ? [target] : null,
-          coverage: action.kind === 'search' ? ['Matched file identities not reported'] : [] } });
-    }
-    await recorder.drain();
-    const projected = evaluationOf({ invocation: { ...invocation, role: 'reviewer', writer: false }, outcome,
-      observations: f.observations.observations, lines: null }).efficiency!;
-    expect(projected.exploration.metrics).toMatchObject({ reads: 3, uniqueFilesRead: 1, repeatedReads: 2,
-      searches: 3, broadSearches: 2, outsideScopeSearches: 0, returnedBytes, toolElapsedMs: 60 });
-    const exploration = f.observations.observations.filter(row => row.type === 'exploration');
+    const f = await recorded('snapshot');
+    const exploration = f.rows.filter(row => row.type === 'exploration');
     expect(exploration).toHaveLength(6);
     expect(exploration.every(row => row.type === 'exploration' && row.data.resolvedScope?.every(path => !path.includes('reviews/workspace')))).toBe(true);
     expect(exploration[0]).toMatchObject({ data: { requestedScope: ['src/a.ts'], resolvedScope: ['src/a.ts'], files: ['src/a.ts'] } });
-    expect(projected.exploration.metrics.coverage.join('\n')).toContain('matched files unknown');
   });
   test('captures original identities, exact output bytes, zero matches and recorded-rate estimates once across restoration', async () => {
-    const f = await observed();
-    await explored(f.recorder, 'r1', 'read', f.directory.path, 7, [join(f.directory.path, 'src/a.ts')], 1);
-    await explored(f.recorder, 'r2', 'read', f.directory.path, 5, [join(f.directory.path, 'src/a.ts')], 2);
-    await explored(f.recorder, 's1', 'search', f.directory.path, 0, [], 3);
-    await edited(f.recorder, 'e1', 4);
-    await f.recorder.record(usageEvent); await f.recorder.record(usageEvent); await f.recorder.drain();
-    const projected = evaluationOf({ invocation, outcome, observations: f.observations.observations, lines: null }).efficiency!;
-    expect(projected.operation).toEqual(identity);
-    expect(projected.exploration.metrics).toMatchObject({ reads: 2, uniqueFilesRead: 1, repeatedReads: 1, returnedBytes: 12, searches: 1, broadSearches: 1, outsideScopeSearches: 1, toolElapsedMs: 30 });
-    expect(projected.exploration.zeroMatchSearches).toBe(1);
-    expect(projected.charges).toEqual([{ model: 'fixed/model', sourceRevision: 'captured-model-r1', currency: 'USD', source: 'estimated-from-recorded-rates', newInputTokens: 100, cachedInputTokens: 40, cacheWriteTokens: 10, outputTokens: 20,
-      ratesPerMillion: { newInput: 2, cachedInput: 0.5, cacheWrite: 3, output: 4 }, newInput: 0.0002, cachedInput: 0.00002, cacheWrite: 0.00003, output: 0.00008, total: 0.00033, coverage: [] }]);
-    expect(projected.chargeSubtotal).toBeCloseTo(0.00033); expect(projected.chargeTotal).toBeCloseTo(0.00033);
-    // The milestone is the edit at t(4), not the first read at t(1); the tool
-    // duration covers the three exploration calls (30 ms) and the edit (10 ms).
-    expect(f.observations.observations.filter(row => row.type === 'milestone')).toEqual([expect.objectContaining({ data: { kind: 'first-engineering-action', at: t(4) } })]);
-    expect(projected.timing).toMatchObject({ elapsedMs: 5000, milestone: 'first-engineering-action', toMilestoneMs: 4000, modelElapsedMs: 120, toolElapsedMs: 40, toolSubtotalMs: 40, checkElapsedMs: null });
-    expect(projected.timing.coverage.filter(reason => /tool duration/i.test(reason))).toEqual([]);
-    expect(projected.units).toEqual({ scope: 'bytes', returned: 'UTF-8 output bytes', duration: 'ms', charge: 'USD' });
-    expect(invocationEfficiencySchema.safeParse(projected).success).toBe(true);
-    const reopened = await ObservationLog.open(f.path);
-    expect(evaluationOf({ invocation, outcome, observations: reopened.observations, lines: null }).efficiency).toEqual(projected);
-    expect(f.recorder.usage).toEqual({ input: 100, cacheRead: 40, cacheWrite: 10, output: 20, total: 170 });
+    const f = await recorded('restoration');
+    expect(f.rows.filter(row => row.type === 'milestone')).toEqual([expect.objectContaining({ data: { kind: 'first-engineering-action', at: t(4) } })]);
+    expect(f.usage).toEqual({ input: 100, cacheRead: 40, cacheWrite: 10, output: 20, total: 170 });
   });
   test('a search the tool resolved nothing for is judged by the path it asked for, and failed apart from completed', async () => {
-    const f = await observed();
-    // "Path not found": the tool ran, answered with an error and reported no resolved scope.
-    await f.recorder.record({ type: 'tool-started', tool: 'grep', callId: 'missing', input: {}, action: { kind: 'search', path: 'docs/absent', glob: null, pattern: 'x' }, mutating: false, execution: identity, observation: { sourceId: 'missing:start', at: t(1) } });
-    await f.recorder.record({ type: 'tool-finished', tool: 'grep', callId: 'missing', isError: true, reachedTool: true, errorText: 'Path not found', execution: identity,
-      observation: { sourceId: 'missing:end', at: t(2), elapsedMs: 5, returnedBytes: 14, files: null, resolvedScope: null, coverage: [] } });
-    await explored(f.recorder, 's1', 'search', join(f.directory.path, 'src', 'sub'), 0, [], 3);
-    await f.recorder.drain();
-    const rows = f.observations.observations.filter(row => row.type === 'exploration');
+    const f = await recorded('failed-search');
+    const rows = f.rows.filter(row => row.type === 'exploration');
     expect(rows.map(row => row.type === 'exploration' ? [row.data.callId, row.data.outcome, row.data.outsideScope] : null)).toEqual([['missing', 'failed', true], ['s1', 'completed', false]]);
-    const { searches } = evaluationOf({ invocation, outcome, observations: f.observations.observations, lines: null }).efficiency!.exploration;
-    expect(searches).toEqual({ completed: 1, failed: 1,
-      broad: { state: 'measured', known: 1, coverage: { covered: 2, total: 2 } },
-      outsideScope: { state: 'measured', known: 1, coverage: { covered: 2, total: 2 } },
-      zeroMatch: { state: 'measured', known: 1, coverage: { covered: 1, total: 1 } } });
-  });
-  test('an invocation with no declared roots leaves outside-scope status unknown, and its count unavailable rather than zero', async () => {
-    const directory = await temporaryDirectory(); cleanups.push(directory.remove);
-    const observations = await ObservationLog.open(join(directory.path, 'observations.jsonl'));
-    const recorder = new PortEventRecorder({ projectRoot: directory.path, observations, invocation: { id: 'inv-1', role: 'reviewer', startedAt: t(0), submissionTool: 'submit_review', declaredPaths: [] },
-      context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, excursions: new ExcursionWatcher({ projectRoot: directory.path, index: null, scope: undefined }), judge: { countImplementationRejection: () => async () => {} } });
-    recorder.identify(identity);
-    await explored(recorder, 's1', 'search', join(directory.path, 'src'), 0, ['src/a.ts'], 1);
-    await recorder.drain();
-    const exploration = evaluationOf({ invocation: { ...invocation, role: 'reviewer', writer: false }, outcome, observations: observations.observations, lines: null }).efficiency!.exploration;
-    expect(exploration.observations[0]!.outsideScope).toBeNull();
-    expect(exploration.searches!.outsideScope).toEqual({ state: 'unavailable', known: 0, coverage: { covered: 0, total: 1 } });
-    expect(invocationEfficiencySchema.parse(evaluationOf({ invocation: { ...invocation, role: 'reviewer', writer: false }, outcome, observations: observations.observations, lines: null }).efficiency).exploration.searches).toBeDefined();
-  });
-  test('an invocation of no tool calls has a tool duration of 0 ms, one of an unreadable log none, and an incomplete one names its single known subtotal', async () => {
-    const f = await observed(); await f.recorder.record(usageEvent); await f.recorder.drain();
-    const none = evaluationOf({ invocation, outcome, observations: f.observations.observations, lines: null }).efficiency!;
-    expect(none.timing.toolElapsedMs).toBe(0); expect(none.timing.toolSubtotalMs).toBe(0);
-    expect(none.timing.coverage.filter(reason => /tool duration/i.test(reason))).toEqual([]);
-    const unreadable = evaluationOf({ invocation, outcome, observations: { unavailable: 'missing' }, lines: null }).efficiency!;
-    expect(unreadable.timing.toolElapsedMs).toBeNull(); expect(unreadable.timing.toolSubtotalMs).toBe(0);
-    // A read of unknown duration beside an edit of 10 ms: one entry, over
-    // every tool call, rather than one for the reads and one for all.
-    await explored(f.recorder, 'r1', 'read', f.directory.path, 7, [join(f.directory.path, 'src/a.ts')], 1);
-    await edited(f.recorder, 'e1', 2); await f.recorder.drain();
-    const rows = f.observations.observations.map(row => row.type === 'tool-duration' && row.data.callId === 'r1' ? { ...row, data: { ...row.data, elapsedMs: null } } : row);
-    const partial = evaluationOf({ invocation, outcome, observations: rows, lines: null }).efficiency!;
-    expect(partial.timing.toolElapsedMs).toBeNull(); expect(partial.timing.toolSubtotalMs).toBe(10);
-    expect(partial.timing.coverage.filter(reason => /known subtotal/i.test(reason))).toEqual(['tool duration: known subtotal 10 ms over 1 of 2 tool calls; total unavailable']);
-    // The exploration row's own recorded 10 ms stays with the exploration
-    // metrics, which the tool-duration subtotal does not touch.
-    expect(partial.exploration.metrics).toMatchObject({ toolElapsedMs: 10, coverage: [] });
   });
   test('an engineer\'s reads and searches alone record no milestone, while a mutating shell command does', async () => {
-    const f = await observed();
-    await explored(f.recorder, 'r1', 'read', f.directory.path, 7, [join(f.directory.path, 'src/a.ts')], 1);
-    await explored(f.recorder, 's1', 'search', f.directory.path, 0, [], 2);
-    await f.recorder.record({ type: 'tool-started', tool: 'shell', callId: 'c1', input: {}, action: { kind: 'command', command: 'ls' }, mutating: false, execution: identity, observation: { sourceId: 'c1:start', at: t(3) } });
-    await f.recorder.drain();
-    expect(f.observations.observations.filter(row => row.type === 'milestone')).toEqual([]);
-    await f.recorder.record({ type: 'tool-started', tool: 'shell', callId: 'c2', input: {}, action: { kind: 'command', command: 'sed -i' }, mutating: true, execution: identity, observation: { sourceId: 'c2:start', at: t(4) } });
-    await f.recorder.drain();
-    expect(f.observations.observations.filter(row => row.type === 'milestone')).toEqual([expect.objectContaining({ data: { kind: 'first-engineering-action', at: t(4) } })]);
-  });
-  test('plain immutable sibling/checkpoint fixtures keep actual zero and missing-rate states distinct', async () => {
-    const f = await observed(); await f.recorder.record(usageEvent);
-    const source = f.observations.observations;
-    const L = { ...identity, sessionId: 'left', sourcePoint: { ...identity.sourcePoint, sessionId: 'left', checkpoint: 'left-C1' } };
-    const R = { ...identity, operationId: 'right-op', sessionId: 'right', sourcePoint: { ...identity.sourcePoint, sessionId: 'right', checkpoint: 'right-C1' } };
-    const left = evaluationOf({ invocation: { ...invocation, sessionOperation: L }, outcome, observations: source, lines: null }).efficiency!;
-    const right = evaluationOf({ invocation: { ...invocation, sessionOperation: R }, outcome, observations: [], lines: null }).efficiency!;
-    expect(left.operation).toEqual(L); expect(right.operation).toEqual(R); expect(left.operation?.turn).toBe(right.operation?.turn);
-    expect(right.chargeTotal).toBeNull(); expect(right.chargeSubtotal).toBe(0);
-    left.charges[0]!.ratesPerMillion.output = 99; left.charges[0]!.coverage.push('client-only');
-    const retry = evaluationOf({ invocation: { ...invocation, sessionOperation: L }, outcome, observations: source, lines: null }).efficiency!;
-    expect(retry.charges[0]?.ratesPerMillion.output).toBe(4); expect(retry.charges[0]?.coverage).toEqual([]);
-    const recordedUsage = source.find(row => row.type === 'usage')!;
-    const zero = { ...recordedUsage, data: { ...recordedUsage.data, usage: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0, total: 0 }, charge: { ...recordedUsage.data.charge!, newInputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, newInput: 0, cachedInput: 0, cacheWrite: 0, output: 0, total: 0 } } };
-    const measuredZero = evaluationOf({ invocation, outcome, observations: [zero], lines: null }).efficiency!;
-    expect(measuredZero.chargeTotal).toBe(0); expect(measuredZero.chargeSubtotal).toBe(0);
-    const absentRate = { ...recordedUsage, data: { ...recordedUsage.data, charge: { ...recordedUsage.data.charge!, ratesPerMillion: { ...recordedUsage.data.charge!.ratesPerMillion, output: null }, output: null, total: null, coverage: ['output rate absent'] } } };
-    const partial = evaluationOf({ invocation, outcome, observations: [absentRate], lines: null }).efficiency!;
-    expect(partial.chargeTotal).toBeNull(); expect(partial.chargeSubtotal).toBeCloseTo(0.00025);
-    for (const wire of [retry, right, measuredZero, partial]) expect(invocationEfficiencySchema.safeParse(JSON.parse(JSON.stringify(wire))).success).toBe(true);
-  });
-  test('keeps known subtotals after unreadable and torn rows without inventing zero usage or complete durations', async () => {
-    const f = await observed(); await explored(f.recorder, 'r', 'read', f.directory.path, 9, null, 1);
-    await writeFile(f.path, `${await readFile(f.path, 'utf8')}{broken}\n{"trailing":`);
-    const log = await readObservationLog(f.path, 'observations.jsonl');
-    const projected = evaluationOf({ invocation, outcome: null, observations: log, lines: null }).efficiency!;
-    expect(projected.exploration.metrics.returnedBytes).toBe(9); expect(projected.exploration.metrics.reads).toBe(1);
-    expect(projected.chargeTotal).toBeNull(); expect(projected.chargeSubtotal).toBe(0);
-    expect(projected.timing.elapsedMs).toBeNull(); expect(projected.timing.modelElapsedMs).toBeNull();
-    expect(projected.coverage.join('\n')).toContain('unreadable rows');
-    expect(projected.exploration.metrics.coverage.join('\n')).toContain('files read unknown');
-    const unknown = evaluationOf({ invocation: { id: 'old', role: 'engineer', work: {}, writer: true }, outcome: null, observations: { unavailable: 'missing' }, lines: null }).efficiency!;
-    expect(unknown.operation).toBeNull(); expect(unknown.manifest).toBeNull(); expect(unknown.declared).toBeNull(); expect(unknown.readScope).toBeNull();
-    expect(invocationEfficiencySchema.safeParse(unknown).success).toBe(true);
-  });
-  test('conflicting source identity remains excluded through a third original row and partial logs retain timing subtotals', async () => {
-    const f = await observed(); await f.recorder.record(usageEvent); await explored(f.recorder, 'read', 'read', f.directory.path, 3, [], 1);
-    const usage = f.observations.observations.find(row => row.type === 'usage')!;
-    const rows = [...f.observations.observations, { ...usage, n: 100, data: { ...usage.data, modelElapsedMs: 999 } }, { ...usage, n: 101 },
-      { n: 102, at: t(4), type: 'coverage-gap' as const, data: { kind: 'observation-truncated' as const, detail: 'Lost finish rows' } }];
-    const projected = evaluationOf({ invocation, outcome, observations: rows, lines: null }).efficiency!;
-    expect(projected.charges).toEqual([]); expect(projected.chargeTotal).toBeNull(); expect(projected.chargeSubtotal).toBe(0);
-    expect(projected.timing.toolElapsedMs).toBeNull(); expect(projected.timing.toolSubtotalMs).toBe(10); expect(projected.exploration.metrics.returnedBytes).toBe(3);
-    expect(projected.coverage.join('\n')).toContain('conflicting source observation');
+    const f = await recorded('milestone');
+    expect(f.rows.filter(row => row.type === 'milestone')).toEqual([]);
+    expect(f.laterRows.filter(row => row.type === 'milestone')).toEqual([expect.objectContaining({ data: { kind: 'first-engineering-action', at: t(4) } })]);
   });
   test('reopens valid/malformed/valid/torn observation rows without weakening the session ledger or duplicating source effects', async () => {
-    const f = await observed(); await f.recorder.record(usageEvent); const usage = f.observations.observations.find(row => row.type === 'usage')!;
-    const context = { n: usage.n + 2, at: t(4), type: 'context', data: { tokens: null, window: null, threshold: null } };
-    await writeFile(f.path, `${JSON.stringify(usage)}\n{broken complete JSON}\n${JSON.stringify(context)}\n{torn`);
-    const reopened = await ObservationLog.open(f.path); expect(reopened.count('usage')).toBe(1); expect(reopened.count('context')).toBe(1);
-    expect(reopened.observations.at(-1)).toMatchObject({ type: 'coverage-gap', data: { kind: 'observation-truncated' } });
-    expect(await reopened.record({ type: 'usage', sourceId: usage.sourceId!, data: usage.data })).toBe(false);
-    expect(await reopened.record({ type: 'context', data: { tokens: 0, window: null, threshold: null } })).toBe(true);
-    const again = await ObservationLog.open(f.path); expect(again.count('usage')).toBe(1); expect(again.count('context')).toBe(2);
-    expect(new Set(again.observations.map(row => row.n)).size).toBe(again.observations.length);
-    expect(evaluationOf({ invocation, outcome, observations: again.observations, lines: null }).efficiency?.chargeSubtotal).toBeCloseTo(0.00033);
+    const f = await recorded('reopened'); const restored = f.restore!;
+    expect(restored.usageBefore).toBe(1); expect(restored.contextBefore).toBe(1);
+    expect(restored.lastBefore).toMatchObject({ type: 'coverage-gap', data: { kind: 'observation-truncated' } });
+    expect(restored.duplicateAccepted).toBe(false); expect(restored.contextAccepted).toBe(true);
+    expect(restored.usageAfter).toBe(1); expect(restored.contextAfter).toBe(2);
+    expect(new Set(f.restoredRows.map(row => row.n)).size).toBe(f.restoredRows.length);
   });
   test('work-item scripted routing selects the current owning objective after inherited and quoted different identities', () => {
     const routed = byWork({ 'local-architect:wi-001': [[{ kind: 'end', message: 'old' }]], 'local-architect:wi-002': [[{ kind: 'end', message: 'current' }]] });
