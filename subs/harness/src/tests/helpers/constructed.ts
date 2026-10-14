@@ -1,6 +1,6 @@
 import { hypothesisSchema, registryEntrySchema, type Hypothesis, type RegistryEntry } from '../../analysis/records.js';
 import { consumerRequirementSchema, providerObligationSchema } from '../../contracts/records.js';
-import type { CommittedLine, CommittedRun } from '../../projections/inputs.js';
+import type { CommittedLine, CommittedRun } from '../../../subs/projections/src/inputs.js';
 import type { RunEvent } from '../../run/log.js';
 import type { RunRecord } from '../../run/records.js';
 import { workItemSchema, type WorkItem } from '../../work/records.js';

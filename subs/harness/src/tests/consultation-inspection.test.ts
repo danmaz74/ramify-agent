@@ -5,7 +5,7 @@ import { afterEach, expect, test } from 'vitest';
 import { noMessageDetail } from '../../subs/agent/src/interfaces/port.js';
 import { consultationId, consultationLayout, type ConsultationStart, type ConsultationOutcome } from '../consultations/records.js';
 import { runConsultationsCommand } from '../consultations/command.js';
-import { readConsultations, consultationText } from '../projections/consultations.js';
+import { readConsultations, consultationText } from '../../subs/projections/src/consultations.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { sessionPointReference } from '../run/session-operations.js';
 import { temporaryDirectory } from './helpers/fixture.js';

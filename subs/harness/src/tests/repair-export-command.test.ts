@@ -1,10 +1,12 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { commitRecord } from '../jobs/commit.js';
 import { runView } from '../projections/inputs.js';
 import { automaticRepairsOf } from '../projections/repairs.js';
+import { RunQueries, type RunSource } from '../../subs/projections/src/queries.js';
+import { ProjectionError, type CommittedRun } from '../../subs/projections/src/inputs.js';
 import { RunLog } from '../run/log.js';
 import { runLayout } from '../run/records.js';
 import { repairIncidentRecordSchema } from '../run/repair-records.js';
@@ -44,6 +46,25 @@ async function retainedRun(viaSymlink = false, terminal = true, admitted = false
   return { root, directory, record, payload, log, options: { run: directory, executable: '/tools/bd', workspace: root, json: true } };
 }
 
+// The public child consumes only committed reading facts, not the log writer.
+async function childRepairs(projectRoot: string, run: CommittedRun) {
+  const source: RunSource = {
+    projectRoot, agentName: undefined,
+    committed: () => run, committedRuns: () => [run],
+    runVersions: () => [{ planId: 'review-notes', runId, version: run.entries.at(-1)?.sequence ?? 0 }],
+  };
+  return (await new RunQueries(source).run('review-notes', runId)).run.automaticRepairs;
+}
+
+async function childRefusal(fixture: Awaited<ReturnType<typeof retainedRun>>, diagnostic: string,
+  code = 'unreadable', evidence?: unknown) {
+  const read = () => childRepairs(fixture.root, { record: fixture.record,
+    directory: fixture.directory, entries: fixture.log.ledger.replay() });
+  await expect(read()).rejects.toBeInstanceOf(ProjectionError);
+  await expect(read()).rejects.toThrow(diagnostic);
+  await expect(read()).rejects.toMatchObject({ code, ...(evidence === undefined ? {} : { evidence }) });
+}
+
 test.each([
   ['record identity mismatch', 'repair-incident-recorded', 2, false, 'does not identify'],
   ['revision gap', 'repair-export-recorded', 3, false, 'consecutive'],
@@ -61,6 +82,7 @@ test.each([
   await commitRecord(fixture.log.ledger, { event, records: [{ path,
     id: _name === 'record identity mismatch' ? 'apr-9999' : incident.incidentId, revision, body: incident }] });
   const view = runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() });
+  await childRefusal(fixture, diagnostic);
   expect(() => automaticRepairsOf(view)).toThrow(diagnostic);
   try { automaticRepairsOf(view); } catch (error) { expect(error).toMatchObject({ code: 'unreadable' }); }
   // A deliberately damaged recoverable copy makes ordering observable. A
@@ -86,6 +108,7 @@ test.each([
   await commitRecord(fixture.log.ledger, { event: fixture.log.next({ type: 'repair-export-recorded', data: {
     incidentId: 'apr-0001', revision: 2, state: 'pending',
   } }), records: [{ path: 'contracts/damaged.json', id: 'damaged', revision: 1, body }] });
+  await childRefusal(fixture, diagnostic, code, expect.arrayContaining([expect.stringContaining('contracts/damaged.json')]));
   expect(() => runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() })).toThrow(diagnostic);
   try { runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() }); }
   catch (error) { expect(error).toMatchObject({ code, evidence: expect.arrayContaining([expect.stringContaining('contracts/damaged.json')]) }); }
@@ -122,6 +145,7 @@ test.each(['invocation conflict', 'session conflict', 'unverified continuation']
   }
   const diagnostic = kind === 'unverified continuation' ? 'has no verified continuation' : 'names a different invocation or session';
   const view = runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() });
+  await childRefusal(fixture, diagnostic, 'unreadable', []);
   expect(() => automaticRepairsOf(view)).toThrow(diagnostic);
   try { automaticRepairsOf(view); } catch (error) { expect(error).toMatchObject({ code: 'unreadable', evidence: [] }); }
   const copies = [runLayout.repairIncident('apr-0001', 1), repairExportPayloadPath('apr-0001', 1)].map(path => join(fixture.directory, path));
@@ -173,6 +197,13 @@ test('manual export updates a retained terminal run through ledger without chang
   expect(payload.incident.export.issueId).toBe('tracker-1');
   const before = await readFile(join(fixture.directory, runLayout.events), 'utf8');
   const payloadBefore = await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8');
+  const paths = [runLayout.record, runLayout.events, runLayout.repairIncident('apr-0001', 2), repairExportPayloadPath('apr-0001', 2)]
+    .map(path => join(fixture.directory, path));
+  const capture = () => Promise.all(paths.map(async path => ({ bytes: await readFile(path), mtime: (await stat(path)).mtimeMs })));
+  const captured = await capture();
+  for (let read = 0; read < 3; read++) expect(await childRepairs(fixture.root, { record: fixture.record,
+    directory: fixture.directory, entries: reopened.ledger.replay() })).toEqual(projected);
+  expect(await capture()).toEqual(captured);
   for (let read = 0; read < 3; read++) expect(automaticRepairsOf(runView({ record: fixture.record,
     directory: fixture.directory, entries: reopened.ledger.replay() }))).toEqual(projected);
   expect(calls).toBe(1);
@@ -211,6 +242,8 @@ test('manual export retains conflicting tracker identities without changing inci
   expect(reopened.terminal).toEqual(fixture.log.terminal);
   const projected = automaticRepairsOf(runView({ record: fixture.record, directory: fixture.directory, entries: reopened.ledger.replay() }));
   expect(projected).toMatchObject({ attempted: 0, refused: 1, incidents: [{ stage: 'refused', export: { state: 'conflict', issueId: null } }] });
+  expect(await childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: reopened.ledger.replay() })).toEqual(projected);
 });
 
 test('a live service project lock prevents manual effects and ledger writes', async () => {

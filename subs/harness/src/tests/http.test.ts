@@ -6,7 +6,9 @@ import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { moduleTreeResponseSchema } from '../interfaces/protocol/evidence.js';
 import { planListResponseSchema, planResponseSchema, projectResponseSchema } from '../interfaces/protocol/queries.js';
-import { unservedRun } from '../projections/inputs.js';
+import { unservedRun } from '../projections/inputs.js'; // Temporary private baseline fixture only.
+import { RunQueries, type RunSource } from '../../subs/projections/src/queries.js';
+import { ProjectionError } from '../../subs/projections/src/inputs.js';
 import { constructedRecord, runId } from './helpers/constructed.js';
 import { ProjectRootError, startServerWith as startServer, type RunningServer } from '../http/server.js';
 import { copyFixture, temporaryDirectory } from './helpers/fixture.js';
@@ -50,6 +52,11 @@ describe('the protocol over HTTP, with the web assets absent', () => {
       expect(refusal!.message).toContain(version ?? '(missing policy)');
       expect(refusal!.message).toContain('run-policy/8');
       expect(refusal!.message).toContain('fresh run');
+      const source: RunSource = { projectRoot: fixture.root, agentName: undefined,
+        committed: () => undefined, committedRuns: () => [], runVersions: () => [] };
+      const queries = new RunQueries(source);
+      await expect(queries.run('review-notes', runId)).rejects.toBeInstanceOf(ProjectionError);
+      await expect(queries.run('review-notes', runId)).rejects.toMatchObject({ code: refusal!.code, message: refusal!.message });
       const response = await query(server, protocolPaths.run('review-notes', runId));
       expect(response.status).toBe(422);
       const error = errorResponseSchema.parse(response.body).error;

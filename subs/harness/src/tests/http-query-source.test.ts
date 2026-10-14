@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 import { createQuerySource } from '../http/query-source.js';
-import { RunQueries, type RunSource } from '../projections/queries.js';
-import { SessionQueries } from '../projections/session-queries.js';
-import { ProjectionError } from '../projections/inputs.js';
+import { RunQueries, type RunSource } from '../../subs/projections/src/queries.js';
+import { SessionQueries } from '../../subs/projections/src/session-queries.js';
+import { ProjectionError } from '../../subs/projections/src/inputs.js';
 import { constructedRun } from './helpers/constructed.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { scriptedCandidates } from './helpers/candidates.js';

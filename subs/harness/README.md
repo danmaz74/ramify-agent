@@ -304,12 +304,13 @@ hiding or measured complexity justifies it.
     `RunEvent`, explicitly exposed with `runEventSchema` to descendants; neither
     `RunLog` nor writable run authority is exposed. Schema-inference coverage
     limits and intermediate qualification evidence are retained in
-    `notes/repair-history-intermediate-correction.md`. Actual child consumption
-    and extraction remain future work.
+    `notes/repair-history-intermediate-correction.md`. The projections child now
+    uses this authentication for presentation; the command authenticates before
+    copy recovery and export, independently of the child projector.
   - `committed-history.ts`: durable schema/version admission used by both the
     reader and repair export before effects, independent of response mapping.
-    The local projections directory remains temporary; no child extraction is
-    completed by this correction.
+    The local projections directory remains a temporary baseline fixture tree;
+    HTTP and consultation inspection use the real projections child.
   - `sessions.ts`: the run's sessions, derived from its log by a pure
     reducer: `session-opened`, the invocations each session awaits, the
     briefs appended to it and `session-finished`. A session is live,
@@ -658,7 +659,13 @@ hiding or measured complexity justifies it.
   reading-only RunSource for both query providers; commands and recovery/restart
   inspection retain the RunService separately. Preparation inventory and focused
   compatibility limitations are recorded in `query-composition-baseline.md`.
-- `projections/`: every answer of the run protocol, computed from what the
+- `subs/projections/src/` (child module, not a parent source directory): the
+  production HTTP run/session queries, module tree and consultation readers.
+  `http/app.ts` and `consultations/command.ts` import its public entries directly;
+  `http/query-source.ts` supplies the frozen seven-key reading port. The old
+  `src/projections/` tree remains only for deferred cleanup and temporary private
+  baseline test fixtures; it is not production HTTP/consultation composition.
+  The child owns every answer of the run protocol, computed from what the
   run service's `committed` hands out (the run's record, its directory and
   the complete lines of its log with their record bodies) and from the run's
   own files, read and never written. No projection appends an event, writes

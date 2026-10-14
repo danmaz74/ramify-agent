@@ -1,4 +1,4 @@
-import { readConsultations, consultationText } from '../projections/consultations.js';
+import { readConsultations, consultationText } from '../../subs/projections/src/consultations.js';
 
 /** The root parses these options; consultation meaning and retained-record reading belong to harness. */
 export interface ConsultationCommandOptions {

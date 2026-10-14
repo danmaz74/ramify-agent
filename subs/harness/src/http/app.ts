@@ -30,11 +30,11 @@ import {
 } from '../interfaces/protocol/sessions.js';
 import { CommandRejection } from '../jobs/commands.js';
 import { discoverPlans, readPlan } from '../plans/discover.js';
-import { ProjectionError } from '../projections/inputs.js';
-import { ExecutionPageError } from '../projections/execution-pages.js';
-import { currentModuleTree } from '../projections/tree.js';
-import { RunQueries } from '../projections/queries.js';
-import { SessionQueries } from '../projections/session-queries.js';
+import { ProjectionError } from '../../subs/projections/src/inputs.js';
+import { ExecutionPageError } from '../../subs/projections/src/execution-pages.js';
+import { currentModuleTree } from '../../subs/projections/src/tree.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { SessionQueries } from '../../subs/projections/src/session-queries.js';
 import type { RunService } from '../run/service.js';
 import { createQuerySource } from './query-source.js';
 

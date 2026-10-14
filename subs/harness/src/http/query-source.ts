@@ -1,4 +1,4 @@
-import type { RunSource } from '../projections/queries.js';
+import type { RunSource } from '../../subs/projections/src/queries.js';
 
 /** The HTTP readers receive reading ports, never the service's writable surface. */
 export function createQuerySource(source: RunSource): RunSource {

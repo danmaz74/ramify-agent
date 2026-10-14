@@ -1,4 +1,5 @@
-import { appendFile, readFile, rename, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { appendFile, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -54,6 +55,20 @@ afterEach(async () => {
 
 const plan = 'review-notes';
 const notes = 'collection-review/workspace/reviews/notes';
+
+async function capturedFiles(root: string): Promise<Record<string, { sha256: string; mtime: number }>> {
+  const files: Record<string, { sha256: string; mtime: number }> = {};
+  async function walk(directory: string): Promise<void> {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await walk(path);
+      else if (entry.isFile()) files[path] = { sha256: createHash('sha256').update(await readFile(path)).digest('hex'),
+        mtime: (await stat(path)).mtimeMs };
+    }
+  }
+  await walk(root);
+  return files;
+}
 
 async function get(origin: string, path: string): Promise<{ status: number; body: unknown }> {
   const response = await fetch(`${origin}${path}`);
@@ -137,8 +152,14 @@ describe('ST09: the project\'s sessions, a run\'s sessions, their transcripts an
     expect([...views.keys()]).toEqual([...sessions.keys()]);
     // Repeated HTTP reads exercise the real reader's version cache, not a
     // canned endpoint response; finished run answers keep exact ordering.
-    expect(await ok(origin, protocolPaths.runSessions(plan, runId), runSessionsResponseSchema)).toEqual(answer);
-    expect(await ok(origin, protocolPaths.sessions(), sessionListResponseSchema)).toEqual(list);
+    const captured = await capturedFiles(root);
+    for (let read = 0; read < 3; read++) {
+      expect(await ok(origin, protocolPaths.runSessions(plan, runId), runSessionsResponseSchema)).toEqual(answer);
+      expect(await ok(origin, protocolPaths.sessions(), sessionListResponseSchema)).toEqual(list);
+    }
+    // Includes project content, durable events and transcripts: queries do not
+    // rewrite copies or manufacture fresh evidence, even on cache hits.
+    expect(await capturedFiles(root)).toEqual(captured);
     for (const session of sessions.values()) {
       expect(views.get(session.id), session.id).toMatchObject({
         state: 'finished', finished: session.finished, awaiting: null, point: session.point, opened: session.opened, changed: session.changed,
