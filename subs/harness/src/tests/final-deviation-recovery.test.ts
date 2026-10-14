@@ -11,7 +11,8 @@ import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { gateDiagnostics } from '../checks/diagnostics.js';
 import { gateAttemptSchema, runLayout } from '../run/records.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
@@ -95,7 +96,7 @@ test.each(['target', 'configuration'] as const)('a final %s repair retains earli
   const deviations = events.filter(event => event.type === 'nonfunctional-deviation-recorded');
   expect(deviations).toHaveLength(2);
   expect(new Set(deviations.map(event => event.data.assessment)).size).toBe(2);
-  const readiness = await new RunQueries(service).mergeReadiness('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version);
+  const readiness = await new RunQueries(createQuerySource(service)).mergeReadiness('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version);
   expect(readiness.readiness).toMatchObject({ status: 'pending-review', checkFindings: [deviations[1]!.data.checkFinding] });
   expect(events.at(-1)).toMatchObject({ type: 'job-completed', data: { planDeviations: 1 } });
   const attempted = events.filter(event => event.type === 'gate-attempted').map(event => event.data.gate);

@@ -12,7 +12,8 @@ import { commandResponseSchema } from '../interfaces/protocol/jobs.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { runCommandSchema, runResponseSchema, runSnapshotSchema, startRunCommandSchema } from '../interfaces/protocol/runs.js';
 import { startServerWith, type RunningServer } from '../http/server.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { RunLog } from '../run/log.js';
 import { runLayout } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
@@ -252,7 +253,7 @@ describe('a run started with the review stop', () => {
     expect(accepted.data.findings?.map(finding => [finding.invocation, finding.action, finding.elements])).toEqual([
       ['inv-0003', 'rewrite', ['fr-001']], ['inv-0003', 'add', ['nfr-001']],
     ]);
-    const projection = await new RunQueries(service).analysis(plan, receipt.jobId);
+    const projection = await new RunQueries(createQuerySource(service)).analysis(plan, receipt.jobId);
     if (projection.analysis.status !== 'accepted' || projection.analysis.planEvidence?.status !== 'available') throw new Error('no accepted plan evidence');
     const evidence = projection.analysis.planEvidence;
     expect(evidence.elements.map(element => [element.id, element.kind])).toEqual([['fr-001', 'functional'], ['fr-002', 'functional'], ['nfr-001', 'non-functional']]);
@@ -381,7 +382,7 @@ describe('approve-analysis in a run without the stop', () => {
       .rejects.toMatchObject({ code: 'conflict', message: expect.stringContaining('already approved') });
 
     // The snapshot a client reads carries the review.
-    const snapshot = await new RunQueries(second.service).run(plan, receipt.jobId);
+    const snapshot = await new RunQueries(createQuerySource(second.service)).run(plan, receipt.jobId);
     expect(runSnapshotSchema.parse(snapshot.run).review).toEqual({ reviewer: 'sam@example.com', at: approved.acceptedAt, duringRun: false });
   }, 120_000);
 

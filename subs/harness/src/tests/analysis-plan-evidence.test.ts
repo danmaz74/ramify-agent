@@ -6,7 +6,8 @@ import { afterEach, expect, test } from 'vitest';
 import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { elementCatalogSchema, openElementCatalog, serializeElementCatalog } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { validateInitialAnalysis } from '../analysis/submission.js';
 import { acceptIntake, checkMessage, intakeMessage, intakeToolName, type CheckState, type IntakeSubmission } from '../analysis/extraction.js';
 import { readCapturedDocuments } from '../run/document-inputs.js';
@@ -99,7 +100,7 @@ test('accepts the intake\'s elements and incorporation once, and projects them b
   expect(hash(incorporationFile)).toBe(accepted.data.evidence.incorporation.hash);
   expect(JSON.parse(incorporationFile)).toMatchObject({ schema: 'ramify-agent.document-incorporation/2' });
 
-  const projection = await new RunQueries(service).analysis(planId, receipt.jobId);
+  const projection = await new RunQueries(createQuerySource(service)).analysis(planId, receipt.jobId);
   expect(projection.analysis.status).toBe('accepted');
   if (projection.analysis.status !== 'accepted') return;
   expect(projection.analysis.planEvidence?.status).toBe('available');

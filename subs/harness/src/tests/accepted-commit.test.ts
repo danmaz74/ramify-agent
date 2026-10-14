@@ -15,7 +15,8 @@ import { passingAudit } from './helpers/direct-check-execution.js';
 import { gateGit, scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import {
   staleCrashLock, freeze, installTestRunner, onlyRun, openRuns,
   runEventsOnDisk, runPath, startRun, until,
@@ -544,7 +545,7 @@ describe('the accepted boundary after an audit infrastructure retry', () => {
     expect(scripted.revisions()).toEqual([materialized, accepted]);
     expect(attempts.map(attempt => attempt.head)).toEqual([base, materialized, accepted, accepted, accepted]);
 
-    const queries = new RunQueries(opened.service);
+    const queries = new RunQueries(createQuerySource(opened.service));
     const metrics = await queries.metrics('review-notes', receipt.jobId);
     expect(metrics.metrics.find(metric => metric.id === 'gate-attempts-per-accepted-iteration')).toMatchObject({
       state: 'measured', numerator: 2, denominator: 1, value: 2,

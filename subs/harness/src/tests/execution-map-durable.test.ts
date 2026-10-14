@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executionCoreOf, executionCapabilityDetailOf, executionScenarioDetailOf } from '../projections/execution-map.js';
-import { runView } from '../projections/inputs.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
+import { gateAuditOutcomeSchema, runLayout } from '../run/records.js';
 import type { RunService } from '../run/service.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
@@ -23,11 +23,11 @@ afterEach(async () => {
   } finally { forgetExternalTools(); }
 });
 
-function indexOf(service: RunService, runId: string) {
+async function indexOf(service: RunService, runId: string) {
   const committed = service.committed('review-notes', runId);
   if (committed === undefined) throw new Error(`Missing committed run ${runId}`);
-  const view = runView(committed);
-  return { index: executionCoreOf(view), view };
+  const queries = new RunQueries(createQuerySource(service));
+  return { index: await queries.executionCore('review-notes', runId), queries, committed };
 }
 
 describe('execution projection over a persisted run', () => {
@@ -45,14 +45,16 @@ describe('execution projection over a persisted run', () => {
     cleanup.push(() => first.service.close());
     const receipt = await first.service.execute(startRun('review-notes'));
     await first.service.settled('review-notes', receipt.jobId);
-    const before = indexOf(first.service, receipt.jobId);
+    const before = await indexOf(first.service, receipt.jobId);
     const final = before.index.nodes.find(node => node.kind === 'gate' && node.checkpoint === 'final');
     expect(final).toMatchObject({ verdict: 'passed', audit: 'passed', evidencePresent: true });
-    expect(before.view.gateAuditOutcomes.get(final!.key.slice('gate:'.length))?.body.overall).toBe('pass');
+    const auditBody = before.committed.entries.flatMap(line => line.transaction.records)
+      .find(record => record.path === runLayout.gateAuditOutcome(final!.key.slice('gate:'.length)))?.body;
+    expect(gateAuditOutcomeSchema.parse(auditBody).overall).toBe('pass');
     await first.service.close();
     const reopened = await openUnchangedRuns(fixture.root, { script: [] });
     cleanup.push(() => reopened.service.close());
-    expect(indexOf(reopened.service, receipt.jobId).index).toEqual(before.index);
+    expect((await indexOf(reopened.service, receipt.jobId)).index).toEqual(before.index);
   }, 120_000);
 
   it('replays the same complete roots, scenario blocks and sessions after service restart', async () => {
@@ -67,8 +69,8 @@ describe('execution projection over a persisted run', () => {
     cleanup.push(() => first.service.close());
     const receipt = await first.service.execute(startRun('review-notes', 'scripted', 'start-map', true));
     await until(() => first.service.getRun('review-notes', receipt.jobId)?.phase === 'awaiting-review');
-    const beforeStop = indexOf(first.service, receipt.jobId);
-    const queries = new RunQueries(first.service);
+    const beforeStop = await indexOf(first.service, receipt.jobId);
+    const queries = new RunQueries(createQuerySource(first.service));
     expect(await queries.executionCore('review-notes', receipt.jobId)).toEqual(beforeStop.index);
     expect(beforeStop.index.nodes.filter(node => node.kind === 'capability').map(node => node.key))
       .toEqual(['capability:first-root', 'capability:second-root']);
@@ -76,7 +78,7 @@ describe('execution projection over a persisted run', () => {
     expect(beforeStop.index.nodes.filter(node => node.kind === 'work-item')).toHaveLength(2);
     // The catalog intake's, the plan architect's and the plan checker's.
     expect(beforeStop.index.nodes.filter(node => node.kind === 'session')).toHaveLength(3);
-    expect(executionCapabilityDetailOf(beforeStop.view, 'first-root').detail).toMatchObject({
+    expect((await beforeStop.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root')).detail).toMatchObject({
       state: 'available', description: 'The first complete capability description.',
     });
     expect((await queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root')).detail).toMatchObject({
@@ -84,30 +86,32 @@ describe('execution projection over a persisted run', () => {
     });
     const scenarioId = beforeStop.index.nodes.find(node => node.kind === 'scenario')?.key.slice('scenario:'.length);
     if (scenarioId === undefined) throw new Error('Missing tracked scenario');
-    expect(executionScenarioDetailOf(beforeStop.view, scenarioId).detail).toMatchObject({ state: 'available', source: expect.arrayContaining([expect.stringMatching(/^Scenario:/)]) });
+    expect((await beforeStop.queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId)).detail).toMatchObject({ state: 'available', source: expect.arrayContaining([expect.stringMatching(/^Scenario:/)]) });
     expect((await queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId)).detail.state).toBe('available');
 
     const version = first.service.getRun('review-notes', receipt.jobId)!.version;
     await first.service.execute(stopRun('review-notes', receipt.jobId, version));
     await first.service.settled('review-notes', receipt.jobId);
-    const settled = indexOf(first.service, receipt.jobId);
+    const settled = await indexOf(first.service, receipt.jobId);
     const settledVersion = settled.index.runVersion;
-    const firstPage = await new RunQueries(first.service).executionMapPage('review-notes', receipt.jobId,
+    const firstPage = await new RunQueries(createQuerySource(first.service)).executionMapPage('review-notes', receipt.jobId,
       { version: settledVersion, limit: 1 });
     expect(firstPage.nextCursor).not.toBeNull();
-    const followingPage = await new RunQueries(first.service).executionMapPage('review-notes', receipt.jobId,
+    const followingPage = await new RunQueries(createQuerySource(first.service)).executionMapPage('review-notes', receipt.jobId,
       { version: settledVersion, cursor: firstPage.nextCursor!, limit: 1 });
     await first.service.close();
 
     const reopened = await openUnchangedRuns(fixture.root, { script: [] });
     cleanup.push(() => reopened.service.close());
-    const replayed = indexOf(reopened.service, receipt.jobId);
+    const replayed = await indexOf(reopened.service, receipt.jobId);
     expect(replayed.index).toEqual(settled.index);
-    expect(await new RunQueries(reopened.service).executionMapPage('review-notes', receipt.jobId,
+    expect(await new RunQueries(createQuerySource(reopened.service)).executionMapPage('review-notes', receipt.jobId,
       { version: settledVersion, limit: 1 })).toEqual(firstPage);
-    expect(await new RunQueries(reopened.service).executionMapPage('review-notes', receipt.jobId,
+    expect(await new RunQueries(createQuerySource(reopened.service)).executionMapPage('review-notes', receipt.jobId,
       { version: settledVersion, cursor: firstPage.nextCursor!, limit: 1 })).toEqual(followingPage);
-    expect(executionCapabilityDetailOf(replayed.view, 'first-root')).toEqual(executionCapabilityDetailOf(settled.view, 'first-root'));
-    expect(executionScenarioDetailOf(replayed.view, scenarioId)).toEqual(executionScenarioDetailOf(settled.view, scenarioId));
+    expect(await replayed.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root'))
+      .toEqual(await settled.queries.executionCapabilityDetail('review-notes', receipt.jobId, 'first-root'));
+    expect(await replayed.queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId))
+      .toEqual(await settled.queries.executionScenarioDetail('review-notes', receipt.jobId, scenarioId));
   }, 120_000);
 });

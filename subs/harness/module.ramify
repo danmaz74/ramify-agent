@@ -198,4 +198,14 @@ expose-test scratchCandidateReplies from "helpers/scratch-candidate-replies.ts" 
 // Signature companions are the selected reading records exposed above and
 // CommittedRun/CommittedLine received from projections (never writer ports).
 expose-sub CommittedRun, CommittedLine from projections to descendants
-expose-test at, constructedRun, hash, item, obligation, registered, requirement, reviews, Line from "helpers/constructed.ts" to descendants
+expose-test at, constructedRun, constructedRecord, forecast, runId, hash, item, obligation, registered, requirement, reviews, Line from "helpers/constructed.ts" to descendants
+
+// Selected pure replay and fixture contracts for child-owned reading witnesses.
+expose-sub decideCheckFindingChange, applyCheckFindingEvent, emptyCheckFindingState, CheckFindingCommand, CheckFindingEvent, CheckFindingChange, CheckFindingApplied, CheckFindingDecisionInput, CheckFindingReportInput, checkFindingCommandSchema, checkFindingEventSchema, checkFindingDecisionInputSchema, checkFindingReportInputSchema from check-findings to descendants
+expose-src CheckFindingCause, checkFindingCauseSchema from "check-findings/records.ts" to descendants
+expose-src BoundReport from "check-findings/report.ts" to descendants
+expose-src defaultReviewPolicy from "run/policy.ts" to descendants
+expose-src ReviewPolicy, reviewPolicySchema, reviewPolicyVersion, ContinueRelation, continueRelationSchema from "run/records.ts" to descendants
+expose-test concern, ConcernOptions, decision, dispose, failure, producerCause, report from "helpers/check-findings.ts" to descendants
+expose-test size, usage, find from "helpers/metric-fixtures.ts" to descendants
+expose-test plan from "helpers/integration-scenario.ts" to descendants

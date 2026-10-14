@@ -5,7 +5,8 @@ import type { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import { architectViewDirectory } from '../../../subs/evidence/src/views.js';
 import { baselineScope, captureSnapshot, scopeSize } from '../../kpi/capture.js';
 import { runLayout, type Invocation, type MeasurementSnapshot, type RunRecord } from '../../run/records.js';
-import { RunQueries } from '../../projections/queries.js';
+import { RunQueries } from '../../../subs/projections/src/queries.js';
+import { createQuerySource } from '../../http/query-source.js';
 import type { RunInputs } from '../../run/inputs.js';
 import { temporaryDirectory } from './fixture.js';
 import { emptyAnalysis, onlyRun, runPath, startRun, type OpenRunsOptions, type openRuns } from './runs.js';
@@ -58,7 +59,7 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
     // by iteration 12: the composition suite found no run whose metrics
     // answered a measured baseline, because every other run test's `ramify`
     // is the stub that measures nothing.
-    const metrics = await new RunQueries(service).metrics('review-notes', receipt.jobId);
+    const metrics = await new RunQueries(createQuerySource(service)).metrics('review-notes', receipt.jobId);
     expect(metrics.baseline, JSON.stringify(metrics.baseline)).toMatchObject({ state: 'measured' });
   }, 180_000);
 

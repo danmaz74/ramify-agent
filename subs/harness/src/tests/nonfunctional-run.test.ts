@@ -3,7 +3,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, onlyRun, openRuns, runEventsOnDisk, startRun } from './helpers/runs.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
@@ -47,7 +48,7 @@ test('an empty fixed catalog records a candidate-bound empty assessment and audi
   if (prepared?.type !== 'candidate-prepared' || bound?.type !== 'candidate-bound-to-gate') return;
   expect(bound.data.tree).toBe(prepared.data.tree);
   expect(await boundaryAnswers.options.candidates.commitTree(fixture.root, bound.data.commit)).toBe(prepared.data.tree);
-  const readiness = await new RunQueries(service).mergeReadiness('review-notes', receipt.jobId,
+  const readiness = await new RunQueries(createQuerySource(service)).mergeReadiness('review-notes', receipt.jobId,
     service.getRun('review-notes', receipt.jobId)!.version);
   expect(readiness.readiness.status, readiness.readiness.reason).toBe('ready');
   expect(readiness.readiness).toMatchObject({ candidate: { tree: prepared.data.tree },

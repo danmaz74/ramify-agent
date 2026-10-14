@@ -11,7 +11,8 @@ import { contextSelectorToolName, workOrientationToolName } from '../context-sel
 import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
 import { runLayout } from '../run/records.js';
 import { iterationAssignmentSchema, iterationLayout } from '../work/iterations.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { copyFixture } from './helpers/fixture.js';
 import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
@@ -141,7 +142,7 @@ test('functional work cites one NFR while the coordinator assesses the complete 
   const bound = events.find(event => event.type === 'candidate-bound-to-gate');
   expect(bound?.type).toBe('candidate-bound-to-gate');
   if (bound?.type !== 'candidate-bound-to-gate') throw new Error('Missing final candidate binding');
-  const readiness = await new RunQueries(opened.service).mergeReadiness('revision-diff', receipt.jobId,
+  const readiness = await new RunQueries(createQuerySource(opened.service)).mergeReadiness('revision-diff', receipt.jobId,
     opened.service.getRun('revision-diff', receipt.jobId)!.version);
   expect(readiness.readiness.status, readiness.readiness.reason).toBe('ready');
   expect(readiness.readiness).toMatchObject({ candidate: { tree },

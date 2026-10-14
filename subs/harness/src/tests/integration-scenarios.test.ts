@@ -3,7 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { workItemListResponseSchema } from '../interfaces/protocol/runs.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { runLayout, type InvocationOutcome } from '../run/records.js';
 import { assignmentErrors } from '../work/assignment.js';
 import { assignedObligationErrors, obligationsOf } from '../work/obligations.js';
@@ -223,7 +224,7 @@ describe('the integration work item', () => {
     expect(log.at(-1)!.type).toBe('job-completed');
     expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 3 });
     // The work items a client reads: the integration one by its origin, with no capability of its own.
-    const listed = workItemListResponseSchema.parse(await new RunQueries(service).workItems(plan, runId));
+    const listed = workItemListResponseSchema.parse(await new RunQueries(createQuerySource(service)).workItems(plan, runId));
     expect(listed.workItems.map(one => [one.id, one.module, one.origin, one.capability, one.state])).toEqual([
       ['wi-001', notes, 'entry', 'review-note', 'completed'],
       ['wi-002', tags, 'entry', 'review-tags', 'completed'],

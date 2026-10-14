@@ -1,24 +1,24 @@
 import { describe, expect, test } from 'vitest';
-import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
-import { applyCheckFindingEvent, emptyCheckFindingState } from '../../subs/check-findings/src/replay.js';
-import type { CheckFindingCommand, CheckFindingEvent, CheckFindingState } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import type { CheckFindingCause } from '../check-findings/records.js';
+import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
+import { applyCheckFindingEvent, emptyCheckFindingState } from '../../../check-findings/src/replay.js';
+import type { CheckFindingCommand, CheckFindingEvent, CheckFindingState } from '../../../check-findings/src/interfaces/check-findings.js';
+import type { CheckFindingCause } from '../../../../src/check-findings/records.js';
 import {
   checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, reviewListResponseSchema,
   type CheckFindingSummaryView,
-} from '../interfaces/protocol/check-findings.js';
-import { planDecisionWaitSchema } from '../interfaces/protocol/queries.js';
-import { runSnapshotSchema } from '../interfaces/protocol/runs.js';
+} from '../../../../src/interfaces/protocol/check-findings.js';
+import { planDecisionWaitSchema } from '../../../../src/interfaces/protocol/queries.js';
+import { runSnapshotSchema } from '../../../../src/interfaces/protocol/runs.js';
 import {
   checkFindingDetailOf, checkFindingListOf, checkFindingModulesOf, reviewListOf, type CheckFindingListQuery,
-} from '../projections/check-findings.js';
-import { ProjectionError, runView, type CommittedRun } from '../projections/inputs.js';
-import { RunQueries } from '../projections/queries.js';
-import { snapshotOf } from '../projections/snapshot.js';
-import { defaultReviewPolicy } from '../run/policy.js';
-import { reviewPolicyVersion, type RunPolicy } from '../run/records.js';
-import { concern, decision, dispose, failure, producerCause, report } from './helpers/check-findings.js';
-import { constructedRecord, constructedRun, runId, type Line } from './helpers/constructed.js';
+} from '../check-findings.js';
+import { ProjectionError, runView, type CommittedRun } from '../inputs.js';
+import { RunQueries } from '../queries.js';
+import { snapshotOf } from '../snapshot.js';
+import { defaultReviewPolicy } from '../../../../src/run/policy.js';
+import { reviewPolicyVersion, type RunPolicy } from '../../../../src/run/records.js';
+import { concern, decision, dispose, failure, producerCause, report } from '../../../../src/tests/helpers/check-findings.js';
+import { constructedRecord, constructedRun, runId, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 /*
  * The CheckFinding protocol's projections over constructed runs: each

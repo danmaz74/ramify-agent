@@ -5,7 +5,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { runEventPageSchema, runListResponseSchema, workItemListResponseSchema } from '../interfaces/protocol/runs.js';
 import { startServerWith, type RunningServer } from '../http/server.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { runEventSchema, type RunEvent } from '../run/log.js';
 import { authenticateRepairHistory, type RepairHistoryEntry } from '../run/repair-history.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
@@ -71,7 +72,7 @@ describe('a projection never writes, and no query appends an event', () => {
     const lastSequence = (await runEventsOnDisk(root, plan, runId)).at(-1)!.sequence;
     const projectRecords = await fileHashes(join(root, 'subs'));
     const gitOperations = ports.git.operations();
-    const queries = new RunQueries(opened.service);
+    const queries = new RunQueries(createQuerySource(opened.service));
     for (let round = 0; round < 2; round += 1) {
       await queries.list(plan);
       await queries.run(plan, runId);
@@ -151,7 +152,7 @@ describe('a projection never writes, and no query appends an event', () => {
     // KPI projection name no writing primitive of the file system, the
     // ledger or the run service. Zod's `z.record(` is a schema, not a write.
     const writing = /\b(writeFile|appendFile|appendJsonLine|writeFileAtomic|writeFileExclusive|commitRecord|recoverCommits|mkdir|rm|unlink|truncate|rename)\s*\(|\.append\(|\.write\(|\.execute\(|(?<!\bz)\.record\(/;
-    const directory = fileURLToPath(new URL('../projections/', import.meta.url));
+    const directory = fileURLToPath(new URL('../../subs/projections/src/', import.meta.url));
     const files = [
       ...(await readdir(directory)).filter(name => name.endsWith('.ts')).map(name => join(directory, name)),
       fileURLToPath(new URL('../kpi/metrics.ts', import.meta.url)),

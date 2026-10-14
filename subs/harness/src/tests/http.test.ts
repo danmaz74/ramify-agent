@@ -6,7 +6,6 @@ import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { moduleTreeResponseSchema } from '../interfaces/protocol/evidence.js';
 import { planListResponseSchema, planResponseSchema, projectResponseSchema } from '../interfaces/protocol/queries.js';
-import { unservedRun } from '../projections/inputs.js'; // Temporary private baseline fixture only.
 import { RunQueries, type RunSource } from '../../subs/projections/src/queries.js';
 import { ProjectionError } from '../../subs/projections/src/inputs.js';
 import { constructedRecord, runId } from './helpers/constructed.js';
@@ -44,17 +43,17 @@ describe('the protocol over HTTP, with the web assets absent', () => {
     const directory = join(fixture.root, 'plans/review-notes/.harness/jobs', runId);
     await mkdir(directory, { recursive: true });
     const path = join(directory, 'job.json');
+    const source: RunSource = { projectRoot: fixture.root, agentName: undefined,
+      committed: () => undefined, committedRuns: () => [], runVersions: () => [] };
+    const queries = new RunQueries(source);
     for (const version of [undefined, ...Array.from({ length: 6 }, (_, index) => `run-policy/${index + 1}`)]) {
       const text = JSON.stringify({ schema: 'ramify-agent.job/3', policy: version === undefined ? {} : { version }, body: 'deliberately not a current record' });
       await writeFile(path, text);
-      const refusal = await unservedRun(fixture.root, 'review-notes', runId);
+      const refusal = (await queries.list('review-notes')).unserved.find(entry => entry.jobId === runId);
       expect(refusal).toMatchObject({ code: 'unsupported-version' });
       expect(refusal!.message).toContain(version ?? '(missing policy)');
       expect(refusal!.message).toContain('run-policy/8');
       expect(refusal!.message).toContain('fresh run');
-      const source: RunSource = { projectRoot: fixture.root, agentName: undefined,
-        committed: () => undefined, committedRuns: () => [], runVersions: () => [] };
-      const queries = new RunQueries(source);
       await expect(queries.run('review-notes', runId)).rejects.toBeInstanceOf(ProjectionError);
       await expect(queries.run('review-notes', runId)).rejects.toMatchObject({ code: refusal!.code, message: refusal!.message });
       const response = await query(server, protocolPaths.run('review-notes', runId));
@@ -65,7 +64,7 @@ describe('the protocol over HTTP, with the web assets absent', () => {
       expect(await readFile(path, 'utf8')).toBe(text);
     }
     await writeFile(path, '{broken JSON');
-    expect(await unservedRun(fixture.root, 'review-notes', runId)).toMatchObject({ code: 'unreadable' });
+    expect((await queries.list('review-notes')).unserved.find(entry => entry.jobId === runId)).toMatchObject({ code: 'unreadable' });
     await writeFile(path, JSON.stringify(constructedRecord()));
   });
 

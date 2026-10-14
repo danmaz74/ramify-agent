@@ -12,7 +12,8 @@ import { submissionHash } from './helpers/obligations.js';
 import { mockGit } from './helpers/mock-git.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { openRuns, runPath } from './helpers/runs.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(directory => rm(directory, { recursive: true, force: true }))); });
@@ -192,7 +193,7 @@ describe('PB3-D01 PB3-D05: registrations beside the capability records', () => {
       const refusal = /Run policy run-policy\/6 is refused by run-policy\/8; a fresh run is required/u;
       expect(() => opened.service.getRun('need', id)).toThrow(refusal);
       expect(() => opened.service.committed('need', id)).toThrow(refusal);
-      const queries = new RunQueries(opened.service);
+      const queries = new RunQueries(createQuerySource(opened.service));
       await expect(queries.scenarios('need', id)).rejects.toThrow(refusal);
       expect((await queries.list('need')).unserved).toEqual([expect.objectContaining({ jobId: id, code: 'unsupported-version', message: expect.stringMatching(refusal) })]);
       for (const [file, text] of Object.entries(files)) expect(await readFile(join(directory, file), 'utf8')).toBe(text);

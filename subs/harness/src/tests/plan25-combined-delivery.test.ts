@@ -13,7 +13,8 @@ import type { BriefingRevision } from '../prompts/briefings.js';
 import { effectiveBlocks } from '../prompts/blocks.js';
 import { deliveredScopeInputs } from '../kpi/capture.js';
 import { HarnessSessionOperations } from '../run/session-operations.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { declaringScenarios } from './helpers/declarations.js';
@@ -179,7 +180,7 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
   expect(assessed.results.find(result => result.tool === 'snapshot_diff' && result.text.includes('original-to-candidate note-store patch'))).toBeDefined();
   expect(assessed.results.find(result => result.tool === 'snapshot_diff' && result.text === `Comparison accepted-boundary: base ${B}; target ${C}\nThe candidate changed nothing`)).toBeDefined();
   expect(assessed.spec.builtinTools).toEqual([]); expect(assessed.spec.tools.every(tool => !tool.mutating)).toBe(true);
-  const metrics = await new RunQueries(opened.service).metrics('review-notes', receipt.jobId);
+  const metrics = await new RunQueries(createQuerySource(opened.service)).metrics('review-notes', receipt.jobId);
   expect(metricsResponseSchema.safeParse(metrics).success).toBe(true);
   for (const evaluation of metrics.evaluation.invocations) {
     expect(evaluation.efficiency!.manifest).toEqual(intents.get(evaluation.invocation)!.packet.manifest);

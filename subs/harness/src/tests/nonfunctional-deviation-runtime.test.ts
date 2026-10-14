@@ -4,7 +4,8 @@ import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { coordinatorActionToolName, coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
 import { intakeToolName } from '../analysis/extraction.js';
 import type { CheckFindingUserCommand } from '../interfaces/protocol/check-findings.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { copyFixture } from './helpers/fixture.js';
 import { onlyRun, openRuns, runEventsOnDisk, startRun, testPolicy } from './helpers/runs.js';
 
@@ -78,7 +79,7 @@ async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun(plan));
   await opened.service.settled(plan, receipt.jobId);
-  return { fixture, opened, receipt, boundaryAnswers, queries: new RunQueries(opened.service) };
+  return { fixture, opened, receipt, boundaryAnswers, queries: new RunQueries(createQuerySource(opened.service)) };
 }
 
 test('an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding', async () => {
@@ -188,7 +189,7 @@ test('a rejected NFR decision remains current after a ledger rebuild and require
   await opened.service.close();
   const reopened = await openRuns(fixture.root, { ...boundaryAnswers.options });
   cleanups.push(() => reopened.service.close());
-  const rebuilt = new RunQueries(reopened.service);
+  const rebuilt = new RunQueries(createQuerySource(reopened.service));
   const reconstructedVersion = reopened.service.getRun(plan, receipt.jobId)!.version;
   expect(reconstructedVersion).toBe(after);
   expect((await rebuilt.mergeReadiness(plan, receipt.jobId, reconstructedVersion)).readiness.status).toBe('rejected');

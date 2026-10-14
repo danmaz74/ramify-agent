@@ -5,7 +5,8 @@ import { afterEach, describe, expect, test } from 'vitest';
 import type { GateAttempt } from '../checks/records.js';
 import { scenarioResultsOf } from '../checks/scenario-results.js';
 import { scenarioListResponseSchema } from '../interfaces/protocol/runs.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import type { RunEvent } from '../run/log.js';
 import { runLayout, type ReadinessAttempt } from '../run/records.js';
 import { requestCompletion } from './helpers/analysis.js';
@@ -344,7 +345,7 @@ async function expectTrial(trial: Trial): Promise<void> {
   // The final states: every scenario reported done, untagged in its file, and
   // passed by the final gate's full audit.
   expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 3 });
-  const list = scenarioListResponseSchema.parse(await new RunQueries(service).scenarios(plan, trial.runId));
+  const list = scenarioListResponseSchema.parse(await new RunQueries(createQuerySource(service)).scenarios(plan, trial.runId));
   expect(list.scenarios.map(scenario => `${scenario.id} ${scenario.kind} ${scenario.state} ${scenario.workItem} ${scenario.owner}`)).toEqual([
     `sc-001 entry done wi-001 ${notes}`,
     `sc-002 entry done wi-002 ${tags}`,
@@ -363,7 +364,7 @@ async function expectTrial(trial: Trial): Promise<void> {
   ]);
   // Plan 11's disk-backed provider witness: query the same completed scripted
   // run that drove real workflow records, then cross one bounded page boundary.
-  const queries = new RunQueries(service);
+  const queries = new RunQueries(createQuerySource(service));
   const execution = await queries.executionMap(plan, trial.runId);
   expect(execution.nodes.filter(node => node.kind === 'capability' && node.level === 'entry').map(node => node.key))
     .toEqual(['capability:review-note', 'capability:review-tags']);

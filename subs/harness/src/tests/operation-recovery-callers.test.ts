@@ -29,8 +29,9 @@ import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
-import { SessionQueries } from '../projections/session-queries.js';
-import { RunQueries } from '../projections/queries.js';
+import { SessionQueries } from '../../subs/projections/src/session-queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { scenarioGit } from './helpers/recovery-git.js';
 
 vi.mock('node:child_process', async original =>
@@ -121,7 +122,7 @@ describe('ordinary recovery through actual workflow callers', () => {
       const invocation = JSON.parse(await readFile(runPath(run.root, plan, run.runId, runLayout.invocation(successor.data.invocation)), 'utf8')) as Invocation;
       expect(invocation.recoveryPredecessor).toBe(successor.data.predecessor);
       expect(invocation.id).not.toBe(invocation.recoveryPredecessor);
-      const projected = await new SessionQueries(run.service).runSessions(plan, run.runId);
+      const projected = await new SessionQueries(createQuerySource(run.service)).runSessions(plan, run.runId);
       expect(projected.sessions.flatMap(session => session.invocations).find(value => value.invocation === invocation.id))
         .toMatchObject({ recoveryPredecessor: invocation.recoveryPredecessor, recoveryGroup: invocation.recoveryGroup });
       expect(run.events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
@@ -218,7 +219,7 @@ describe('ordinary recovery through actual workflow callers', () => {
     expect(new Date(attempt.finishedAt).getTime() - new Date(attempt.startedAt!).getTime()).toBeGreaterThanOrEqual(25);
     expect(attempt.transportInvocations).toHaveLength(2);
     expect(new Set(attempt.transportInvocations).size).toBe(2);
-    const projected = await new RunQueries(opened.service).reviews(plan, receipt.jobId, { workItem: null, after: null, limit: 100 });
+    const projected = await new RunQueries(createQuerySource(opened.service)).reviews(plan, receipt.jobId, { workItem: null, after: null, limit: 100 });
     expect(projected.requests.find(request => request.attempts.some(value => value.id === attempt.id))!.attempts[0]!.transportInvocations).toEqual(attempt.transportInvocations);
     if (mode === 'transport') expect(agent.sessions.filter(session => session.spec.role === 'reviewer').map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
     else {

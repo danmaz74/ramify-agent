@@ -663,8 +663,12 @@ hiding or measured complexity justifies it.
   production HTTP run/session queries, module tree and consultation readers.
   `http/app.ts` and `consultations/command.ts` import its public entries directly;
   `http/query-source.ts` supplies the frozen seven-key reading port. The old
-  `src/projections/` tree remains only for deferred cleanup and temporary private
-  baseline test fixtures; it is not production HTTP/consultation composition.
+  `src/projections/` tree still supports 9 remaining test/helper files pending
+  private-focused migration and mixed-test splitting; it is not production
+  HTTP/consultation composition. Public-query integration tests now use the real
+  child, with service inputs narrowed by `createQuerySource`. See
+  `subs/projections/notes/retirement-progress.md` for the current assertion map,
+  remaining dependencies and verification limitations; retirement is not yet complete.
   The child owns every answer of the run protocol, computed from what the
   run service's `committed` hands out (the run's record, its directory and
   the complete lines of its log with their record bodies) and from the run's
@@ -866,8 +870,8 @@ hiding or measured complexity justifies it.
     and the run policy stay internal.
   - `plans/.harness/sessions/` is retired. Nothing writes it any more, and
     existing directories are left in place.
-    `projections/standalone-records.ts` reads them for the session
-    projections.
+    `subs/projections/src/standalone-records.ts` reads them for the session
+    queries. Remaining parent compatibility fixtures still need old-tree import retirement.
 - `steps/`: one harness step at a time, from files, for an agent or a person
   implementing a plan; the root's `step` command runs it. The root
   [README](../../README.md#steps) describes the workflow, the command
@@ -996,7 +1000,7 @@ raw runner output its audit published, for display only: a failed tracked
 scenario stays on its gate attempt, where the same module engineer session answers
 it with the gate's digest, and a passing gate withdraws no report.
 
-`src/projections/check-findings.ts` answers the CheckFinding protocol from
+`subs/projections/src/check-findings.ts` answers the CheckFinding protocol from
 the committed run alone: the state replayed from the log's carriers, the
 child's attention order, the review coverage from the review events, and
 each work item's `work-item-completed` for the reason an open signal was
@@ -1479,10 +1483,13 @@ The run's own tests are beside them.
   rule through the real validation path and under the per-turn bound, and
   follows acceptance to the scenario records, their IDs, owners, files,
   hashes and warnings, and the snapshot's counts.
-- `progress.test.ts` covers the capability projection and shows the record
-  kinds in distinct directories, a `Hypothesis` with no reference to a work
-  item, and a projection that leaves every file and the log's version exactly
-  as it found them.
+- `progress.test.ts` retains the real-run witness: record kinds in distinct
+  directories, a `Hypothesis` with no reference to a work item, and public
+  child queries leaving every file and the log's version as they found them.
+  Constructed capability progress and module comparisons live with projections,
+  alongside focused repair, CheckFinding, KPI-reading, lineage and scenario
+  witnesses. KPI calculation, ledger authority and scenario HTTP composition
+  remain here; see `subs/projections/notes/retirement-progress.md`.
 - `compaction.test.ts` compacts during an initial analysis and during a module
   architect session and reads the observations back.
 - `run-commands.test.ts` covers the three command rules for `start-run` and

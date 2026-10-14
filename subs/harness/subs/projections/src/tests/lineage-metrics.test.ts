@@ -2,17 +2,17 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { lineageMetricSchema, type LineageMetric, type Role } from '../interfaces/protocol/runs.js';
-import { runView } from '../projections/inputs.js';
-import { metricsOf } from '../projections/metrics.js';
-import { runSessionEntry, runSessionViews } from '../projections/sessions.js';
-import { snapshotOf } from '../projections/snapshot.js';
-import { reduceSessions } from '../run/sessions.js';
+import { lineageMetricSchema, type LineageMetric, type Role } from '../../../../src/interfaces/protocol/runs.js';
+import { runView } from '../inputs.js';
+import { metricsOf } from '../metrics.js';
+import { runSessionEntry, runSessionViews } from '../sessions.js';
+import { snapshotOf } from '../snapshot.js';
+import { reduceSessions } from '../../../../src/run/sessions.js';
 import {
   invocationOutcomeSchema, invocationSchema, runLayout,
   type ContinueRelation, type DegradeRelation, type ForkRelation, type ReplaceRelation,
-} from '../run/records.js';
-import { constructedRun, hash, type Line } from './helpers/constructed.js';
+} from '../../../../src/run/records.js';
+import { constructedRun, hash, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 /*
  * ST13: each lineage measurement is computed from a run's records, the

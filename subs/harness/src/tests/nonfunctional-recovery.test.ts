@@ -8,7 +8,8 @@ import { intakeToolName } from '../analysis/extraction.js';
 import { withDefaultTurns } from './helpers/declarations.js';
 import { analysis } from './helpers/analysis.js';
 import { submit, write } from './helpers/iterations.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { emptyAnalysis, freeze, onlyRun, openRuns,
   runEventsOnDisk, runPath, staleCrashLock, startRun, until } from './helpers/runs.js';
 import { runLayout, type Invocation } from '../run/records.js';
@@ -255,6 +256,6 @@ test('an exhausted crash with changed source leaves merge readiness unavailable'
   expect(events.filter(event => event.type === 'job-completed')).toHaveLength(0);
   expect(await readFile(join(fixture.root, 'changed-after-exhaustion.ts'), 'utf8')).toBe('export const changed = true;\n');
   const version = reopened.service.getRun('review-notes', receipt.jobId)!.version;
-  expect((await new RunQueries(reopened.service).mergeReadiness('review-notes', receipt.jobId, version)).readiness.status)
+  expect((await new RunQueries(createQuerySource(reopened.service)).mergeReadiness('review-notes', receipt.jobId, version)).readiness.status)
     .toBe('unavailable');
 }, 60_000);

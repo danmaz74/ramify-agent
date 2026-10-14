@@ -7,8 +7,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { gateDiagnostics } from '../checks/diagnostics.js';
 import type { GateAttempt } from '../checks/records.js';
 import { gateViewSchema } from '../interfaces/protocol/runs.js';
-import { runView } from '../projections/inputs.js';
-import { gateOf } from '../projections/work.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { runReadiness } from '../run/readiness.js';
@@ -120,13 +119,16 @@ async function exportGateViews(name: string, gates: Readonly<Record<string, Gate
     const { auditOverall: _overall, ...attempt } = gate;
     return gateAttemptSchema.parse(JSON.parse(JSON.stringify(attempt)));
   });
-  const view = runView(constructedRun(durable.map(attempt => ({
+  const run = constructedRun(durable.map(attempt => ({
     type: 'gate-attempted', data: { gate: attempt.id, checkpoint: attempt.checkpoint, verdict: attempt.verdict, next: attempt.next },
     records: [{ path: `gates/${attempt.id}/attempt.json`, body: attempt }],
-  }))));
+  })));
+  const queries = new RunQueries({ projectRoot: '/nonexistent', agentName: undefined,
+    committed: () => run, committedRuns: () => [run], runVersions: () => [] });
   await evidence(name, {
     schema: 'plan21.iteration10.gate-views/1', source: 'project-boundary-audit.integration.test.ts',
-    gates: Object.fromEntries(Object.entries(gates).map(([label, gate]) => [label, gateViewSchema.parse(gateOf(view, gate.id))])),
+    gates: Object.fromEntries(await Promise.all(Object.entries(gates).map(async ([label, gate]) =>
+      [label, gateViewSchema.parse((await queries.gate(run.record.planId, run.record.jobId, gate.id)).gate)]))),
   });
 }
 

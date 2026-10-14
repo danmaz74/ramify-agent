@@ -5,7 +5,8 @@ import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.j
 import type { RunEvent } from '../run/log.js';
 import { runLayout } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
-import { RunQueries } from '../projections/queries.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { reviewLayout } from '../reviews/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
@@ -165,7 +166,7 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     expect([...reduceSessions(events).values()].filter(session => session.state !== 'finished')).toEqual([]);
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 2, partial: 0, notVerified: 1, pending: 0 });
     // Each reviewer's evaluation names the review request it served.
-    const metrics = await new RunQueries(service).metrics(plan, runId);
+    const metrics = await new RunQueries(createQuerySource(service)).metrics(plan, runId);
     const served = new Map(eventsOf(events, 'review-attempt-started').map(event => [event.data.invocation, event.data.request]));
     const reviewers = metrics.evaluation.invocations.filter(evaluation => evaluation.role === 'reviewer');
     expect(reviewers).toHaveLength(3);

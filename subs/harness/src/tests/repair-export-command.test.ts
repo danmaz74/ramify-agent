@@ -3,8 +3,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { commitRecord } from '../jobs/commit.js';
-import { runView } from '../projections/inputs.js';
-import { automaticRepairsOf } from '../projections/repairs.js';
 import { RunQueries, type RunSource } from '../../subs/projections/src/queries.js';
 import { ProjectionError, type CommittedRun } from '../../subs/projections/src/inputs.js';
 import { RunLog } from '../run/log.js';
@@ -81,10 +79,11 @@ test.each([
     : fixture.log.next({ type, data: { incidentId: incident.incidentId, revision, stage: 'refused' } });
   await commitRecord(fixture.log.ledger, { event, records: [{ path,
     id: _name === 'record identity mismatch' ? 'apr-9999' : incident.incidentId, revision, body: incident }] });
-  const view = runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() });
   await childRefusal(fixture, diagnostic);
-  expect(() => automaticRepairsOf(view)).toThrow(diagnostic);
-  try { automaticRepairsOf(view); } catch (error) { expect(error).toMatchObject({ code: 'unreadable' }); }
+  await expect(childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: fixture.log.ledger.replay() })).rejects.toThrow(diagnostic);
+  await expect(childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: fixture.log.ledger.replay() })).rejects.toMatchObject({ code: 'unreadable' });
   // A deliberately damaged recoverable copy makes ordering observable. A
   // command that recovered before authenticating would overwrite this marker.
   const copy = join(fixture.directory, repairExportPayloadPath('apr-0001', 1));
@@ -109,9 +108,10 @@ test.each([
     incidentId: 'apr-0001', revision: 2, state: 'pending',
   } }), records: [{ path: 'contracts/damaged.json', id: 'damaged', revision: 1, body }] });
   await childRefusal(fixture, diagnostic, code, expect.arrayContaining([expect.stringContaining('contracts/damaged.json')]));
-  expect(() => runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() })).toThrow(diagnostic);
-  try { runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() }); }
-  catch (error) { expect(error).toMatchObject({ code, evidence: expect.arrayContaining([expect.stringContaining('contracts/damaged.json')]) }); }
+  await expect(childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: fixture.log.ledger.replay() })).rejects.toThrow(diagnostic);
+  await expect(childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: fixture.log.ledger.replay() })).rejects.toMatchObject({ code, evidence: expect.arrayContaining([expect.stringContaining('contracts/damaged.json')]) });
   const copy = join(fixture.directory, repairExportPayloadPath('apr-0001', 1));
   await writeFile(copy, 'not recovered');
   const events = await readFile(join(fixture.directory, runLayout.events), 'utf8');
@@ -144,10 +144,11 @@ test.each(['invocation conflict', 'session conflict', 'unverified continuation']
     } }), records: [{ path: runLayout.repairIncident(continued.incidentId, 3), id: continued.incidentId, revision: 3, body: continued }] });
   }
   const diagnostic = kind === 'unverified continuation' ? 'has no verified continuation' : 'names a different invocation or session';
-  const view = runView({ record: fixture.record, directory: fixture.directory, entries: fixture.log.ledger.replay() });
   await childRefusal(fixture, diagnostic, 'unreadable', []);
-  expect(() => automaticRepairsOf(view)).toThrow(diagnostic);
-  try { automaticRepairsOf(view); } catch (error) { expect(error).toMatchObject({ code: 'unreadable', evidence: [] }); }
+  await expect(childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: fixture.log.ledger.replay() })).rejects.toThrow(diagnostic);
+  await expect(childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
+    entries: fixture.log.ledger.replay() })).rejects.toMatchObject({ code: 'unreadable', evidence: [] });
   const copies = [runLayout.repairIncident('apr-0001', 1), repairExportPayloadPath('apr-0001', 1)].map(path => join(fixture.directory, path));
   for (const copy of copies) await writeFile(copy, 'not recovered');
   const events = await readFile(join(fixture.directory, runLayout.events), 'utf8');
@@ -191,7 +192,7 @@ test('manual export updates a retained terminal run through ledger without chang
   const reopened = await RunLog.open(join(fixture.directory, runLayout.events), runId);
   expect(reopened.terminal).toEqual(fixture.log.terminal);
   expect(reopened.events.at(-1)?.type).toBe('repair-export-recorded');
-  const projected = automaticRepairsOf(runView({ record: fixture.record, directory: fixture.directory, entries: reopened.ledger.replay() }));
+  const projected = await childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory, entries: reopened.ledger.replay() });
   expect(projected).toMatchObject({ attempted: 0, refused: 1, incidents: [{ stage: 'refused', revision: 2, export: { issueId: 'tracker-1', state: 'exported' } }] });
   const payload = JSON.parse(await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8'));
   expect(payload.incident.export.issueId).toBe('tracker-1');
@@ -204,8 +205,8 @@ test('manual export updates a retained terminal run through ledger without chang
   for (let read = 0; read < 3; read++) expect(await childRepairs(fixture.root, { record: fixture.record,
     directory: fixture.directory, entries: reopened.ledger.replay() })).toEqual(projected);
   expect(await capture()).toEqual(captured);
-  for (let read = 0; read < 3; read++) expect(automaticRepairsOf(runView({ record: fixture.record,
-    directory: fixture.directory, entries: reopened.ledger.replay() }))).toEqual(projected);
+  for (let read = 0; read < 3; read++) expect(await childRepairs(fixture.root, { record: fixture.record,
+    directory: fixture.directory, entries: reopened.ledger.replay() })).toEqual(projected);
   expect(calls).toBe(1);
   expect(await readFile(join(fixture.directory, runLayout.events), 'utf8')).toBe(before);
   expect(await readFile(join(fixture.directory, repairExportPayloadPath('apr-0001', 2)), 'utf8')).toBe(payloadBefore);
@@ -240,7 +241,7 @@ test('manual export retains conflicting tracker identities without changing inci
   const reopened = await RunLog.open(join(fixture.directory, runLayout.events), runId);
   expect(reopened.events.at(-1)).toMatchObject({ type: 'repair-export-recorded', data: { state: 'conflict' } });
   expect(reopened.terminal).toEqual(fixture.log.terminal);
-  const projected = automaticRepairsOf(runView({ record: fixture.record, directory: fixture.directory, entries: reopened.ledger.replay() }));
+  const projected = await childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory, entries: reopened.ledger.replay() });
   expect(projected).toMatchObject({ attempted: 0, refused: 1, incidents: [{ stage: 'refused', export: { state: 'conflict', issueId: null } }] });
   expect(await childRepairs(fixture.root, { record: fixture.record, directory: fixture.directory,
     entries: reopened.ledger.replay() })).toEqual(projected);

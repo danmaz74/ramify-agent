@@ -4,8 +4,8 @@ import { basename, dirname, join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AgentEvent, AgentPort } from '../../subs/agent/src/interfaces/port.js';
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
-import { runView } from '../projections/inputs.js';
-import { metricsOf } from '../projections/metrics.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { observationSchema } from '../run/observations.js';
 import { runLayout, invocationSchema, type InvocationOutcome } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
@@ -288,7 +288,7 @@ describe('a transcript that cannot be written', () => {
     // observation coverage, and the invocation's evaluation still names it.
     // The scripted executor reports no usage or context, which are
     // observation gaps.
-    const metrics = await metricsOf(runView(service.committed('review-notes', receipt.jobId)!));
+    const metrics = await new RunQueries(createQuerySource(service)).metrics('review-notes', receipt.jobId);
     expect(metrics.metrics.filter(metric => metric.id.startsWith('observation-coverage.')).map(metric => metric.id))
       .toEqual(['observation-coverage.context-unavailable', 'observation-coverage.usage-unavailable']);
     const evaluation = metrics.evaluation.invocations.find(entry => entry.invocation === 'inv-0001');

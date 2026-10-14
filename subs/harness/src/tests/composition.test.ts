@@ -36,8 +36,8 @@ import {
   workItemResponseSchema,
 } from '../interfaces/protocol/runs.js';
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
-import { RunQueries } from '../projections/queries.js';
-import { evaluationOf } from '../projections/metrics.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 import { ObservationLog } from '../run/observations.js';
 import { PortEventRecorder } from '../run/port-events.js';
 import { ExcursionWatcher } from '../run/excursions.js';
@@ -81,7 +81,7 @@ beforeAll(async () => {
   // write, so the states and phases of a running run are answered too.
   const names = Object.keys(scenarios) as ScenarioName[];
   const results = await Promise.allSettled(names.map(name => runToEnd(scenarios[name], async (service, runId) => {
-    const queries = new RunQueries(service);
+    const queries = new RunQueries(createQuerySource(service));
     answeredWhileRunning.push({ schema: runResponseSchema, value: await queries.run(plan, runId) });
     answeredWhileRunning.push({ schema: analysisResponseSchema, value: await queries.analysis(plan, runId) });
     answeredWhileRunning.push({ schema: scenarioListResponseSchema, value: await queries.scenarios(plan, runId) });
@@ -103,7 +103,7 @@ beforeAll(async () => {
 
     inputs: scenarios.iteration.inputs(),
   });
-  answeredWhileRunning.push({ schema: runListResponseSchema, value: await new RunQueries(unserving.service).list(plan) });
+  answeredWhileRunning.push({ schema: runListResponseSchema, value: await new RunQueries(createQuerySource(unserving.service)).list(plan) });
   await unserving.service.close();
   await project.remove();
 
@@ -116,7 +116,7 @@ beforeAll(async () => {
 
     inputs: scenarios.iteration.inputs(),
   });
-  const queries = new RunQueries(reopened.service);
+  const queries = new RunQueries(createQuerySource(reopened.service));
   answeredWhileRunning.push({ schema: runListResponseSchema, value: await queries.list(plan) });
   await reopened.service.close();
   await crashed.remove();
@@ -152,32 +152,7 @@ describe('the composed runs', () => {
       expect(observations.observations.filter(row => row.type === 'usage')).toEqual([]);
     } finally { await directory.remove(); }
   });
-  test('plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges', () => {
-    const skill = 'Exact supplied skill bytes\n';
-    const hash = createHash('sha256').update(skill).digest('hex');
-    const point = { sessionId: 'original-session', kind: 'checkpoint' as const, turn: 2, checkpoint: 'original-brief' };
-    const manifest = { schema: 'ramify-agent.delivered-inputs/1', inheritedPoint: null, hash,
-      entries: [{ key: 'supplied-skill', kind: 'skill', source: 'skills/supplied/SKILL.md', revision: 'recorded-r1', hash, bytes: Buffer.byteLength(skill), delivery: 'appended', sources: [] }],
-      currentMessage: { hash, bytes: Buffer.byteLength(skill) } };
-    const oldSize = { policy: 'scope-size/1', snapshot: 'ms-original', bytes: null, subtotal: 0, coverage: 'partial',
-      components: [{ component: 'owned-source', detail: 'Original source unavailable', state: 'unknown', bytes: null, reason: 'Not captured in the original record' }] };
-    const invocation = invocationSchema.parse({ schema: 'ramify-agent.invocation/1', id: 'original-op', role: 'engineer', work: {}, attempt: 1,
-      session: { requested: 'continued', actual: 'continued', ref: 'original-brief', from: 'original-brief' },
-      sessionOperation: { runId: 'original-run', operationId: 'original-op', sessionId: point.sessionId, turn: 3, sourcePoint: point, point },
-      prompt: { package: 'engineer', hash, inputsHash: hash, manifest }, scope: { write: null, measurement: null, size: oldSize },
-      writer: false, base: 'original-base', startedAt: '2026-10-08T00:00:00.000Z' });
-    const projected = evaluationOf({ invocation, outcome: null, observations: [], lines: null }).efficiency!;
-    expect(projected.operation?.point).toEqual(point);
-    expect(projected.manifest).toEqual(manifest);
-    expect(projected.declared).toEqual(oldSize);
-    expect(projected.chargeTotal).toBeNull();
-    expect(projected.charges).toEqual([]);
-    projected.manifest!.entries[0]!.sources.push({ path: 'client-only', hash, bytes: 0 });
-    expect(evaluationOf({ invocation, outcome: null, observations: [], lines: null }).efficiency?.manifest).toEqual(manifest);
-    const currentSize = { ...oldSize, policy: 'scope-size/2' as const, bytes: 7, subtotal: 7, coverage: 'complete' as const,
-      components: [{ component: 'owned-source' as const, detail: 'Exact current source', state: 'measured' as const, bytes: 7 }] };
-    expect(evaluationOf({ invocation: { ...invocation, scope: { ...invocation.scope, size: currentSize } }, outcome: null, observations: [], lines: null }).efficiency?.declared).toEqual(currentSize);
-  });
+  // The unique plain-efficiency witness is child-owned in efficiency-provenance.test.ts.
   test('a raw engineer hard limit leaves its assignment unfinished with no accepted partial, successor or iteration gate', async () => {
     const run = finished.get('engineer-budget')!;
     const events = run.service.events(plan, run.runId)!;
@@ -438,7 +413,7 @@ describe('no query appends an event', () => {
       // What the run had asked Git by the time it ended. A query that
       // observed the project at all would ask it something more.
       const asked = run.git.operations();
-      const queries = new RunQueries(run.service);
+      const queries = new RunQueries(createQuerySource(run.service));
       for (let round = 0; round < 2; round += 1) {
         await queries.list(plan);
         await queries.run(plan, run.runId);
@@ -540,7 +515,7 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
       if (bySchema.has(schema)) observeValues(bySchema.get(schema), { schema, ...body }, observed);
       else if (submissionSchemas[schema] !== undefined) observeValues(submissionSchemas[schema], body, observed);
     }
-    const queries = new RunQueries(run.service);
+    const queries = new RunQueries(createQuerySource(run.service));
     observeValues(runListResponseSchema, await queries.list(plan), observed);
     observeValues(runResponseSchema, await queries.run(plan, run.runId), observed);
     const page = await queries.events(plan, run.runId, 0);
@@ -621,7 +596,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['pending'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export preserves pending state and payload when the CLI is unavailable' },
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['exported'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export updates a retained terminal run through ledger without changing terminal or incident lifecycle' },
   { union: 'record ramify-agent.repair-incident/1.export.state', values: ['conflict'], file: 'subs/harness/src/tests/repair-export-command.test.ts', test: 'manual export retains conflicting tracker identities without changing incident lifecycle' },
-  { union: 'query events.events[].refs[].kind', values: ['repair-incident'], file: 'subs/harness/src/tests/automatic-repair-incidents.test.ts', test: 'retains original obstruction and partial-result reference after verified handback and terminal completion' },
+  { union: 'query events.events[].refs[].kind', values: ['repair-incident'], file: 'subs/harness/subs/projections/src/tests/automatic-repair-incidents.test.ts', test: 'retains original obstruction and partial-result reference after verified handback and terminal completion' },
   { union: 'submission engineer[capability-needed].request.usage[].prospective', values: ['false', 'true'], file: 'subs/harness/src/tests/revision-preview-submission-contracts.test.ts', test: 'prospective caller module is required structurally; actual usage may omit it' },
   { union: 'query work-item.iterations[].invocations[].outsideScopeEvidence[].observations[].observedBy', values: ['tool'], file: 'subs/harness/src/tests/plan36-mutation-attribution.test.ts', test: 'candidate differences preserve recorded provenance across metrics and work projections without changing settlement (%j)' },
   { union: 'run log.type', values: ['consultation-started', 'consultation-finished'], file: 'subs/harness/src/tests/consultation-records.test.ts', test: 'start and outcome commit exact content references and completed replay is one exchange' },
@@ -649,15 +624,15 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'observation log[usage].data.charge.source', values: ['estimated-from-recorded-rates'], file: 'subs/harness/src/tests/plan23-observation-integration.test.ts', test: 'captures original identities, exact output bytes, zero matches and recorded-rate estimates once across restoration' },
   { union: 'observation log[exploration].data.outcome', values: ['failed', 'refused', 'interrupted'], file: 'subs/harness/src/tests/composition.test.ts', test: 'failed reads, authority-refused reads and explicitly interrupted searches retain distinct recorded outcomes and unknown bytes' },
   { union: 'observation log[coverage-gap].data.kind', values: ['changed-paths-unknown'], file: 'subs/harness/src/tests/hook-checks.test.ts', test: 'a mutation whose changed set is unknown records the gap and runs a complete check' },
-  { union: 'record ramify-agent.invocation/1.sessionOperation.point.kind', values: ['checkpoint'], file: 'subs/harness/src/tests/composition.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.operation.point.kind', values: ['checkpoint'], file: 'subs/harness/src/tests/composition.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.manifest[ramify-agent.delivered-inputs/1].entries[].kind', values: ['skill'], file: 'subs/harness/src/tests/composition.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
+  { union: 'record ramify-agent.invocation/1.sessionOperation.point.kind', values: ['checkpoint'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.operation.point.kind', values: ['checkpoint'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.manifest[ramify-agent.delivered-inputs/1].entries[].kind', values: ['skill'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
   { union: 'query metrics.evaluation.invocations[].efficiency.manifest.schema', values: ['ramify-agent.delivered-inputs/1'], file: 'subs/harness/src/tests/plan25-blocks.test.ts', test: 'legacy manifest bytes, hashes and writer representation are unchanged' },
   { union: 'query metrics.evaluation.invocations[].efficiency.manifest.schema', values: ['ramify-agent.delivered-inputs/2'], file: 'subs/harness/src/tests/plan25-blocks.test.ts', test: 'new manifest retains physical identity and optional logical effects' },
   { union: 'query metrics.evaluation.invocations[].efficiency.manifest[ramify-agent.delivered-inputs/2].entries[].block.effect', values: ['set', 'remove'], file: 'subs/harness/src/tests/plan25-blocks.test.ts', test: 'new manifest retains physical identity and optional logical effects' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.declared.policy', values: ['scope-size/1'], file: 'subs/harness/src/tests/composition.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.declared.components[].state', values: ['unknown'], file: 'subs/harness/src/tests/composition.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.declared.coverage', values: ['complete'], file: 'subs/harness/src/tests/composition.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.declared.policy', values: ['scope-size/1'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.declared.components[].state', values: ['unknown'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.declared.coverage', values: ['complete'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.extra[].kind', values: ['file'], file: 'subs/harness/src/tests/write-guard.boundary.test.ts', test: 'PB3-S01–S05 S09: F1 whole owners, named physical children, independent trees and hard exclusions share tool/candidate decisions' },
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.resolved.ownership.exclusions[].kind', values: ['owned-unwired', 'owned-nested-project', 'external', 'output'], file: 'subs/harness/src/tests/write-guard.boundary.test.ts', test: 'PB3-S01–S05 S09: F1 whole owners, named physical children, independent trees and hard exclusions share tool/candidate decisions' },
   { union: 'record ramify-agent.nonfunctional-repair-assignment/1.scope.resolved.included[].kind', values: ['owned-nested-project'], file: 'subs/harness/src/tests/write-guard.boundary.test.ts', test: 'PB3-S01–S05 S09: F1 whole owners, named physical children, independent trees and hard exclusions share tool/candidate decisions' },
@@ -698,10 +673,10 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'submission local-architect[assign].registrations[].kind', values: ['scenario'], file: 'subs/harness/src/tests/capability-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: a capability architect registers a case and a test and reports during coordination; the run records exactly that' },
   { union: 'submission local-architect[assign].reports[].judgment', values: ['done'], file: 'subs/harness/src/tests/local-architect-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: an invalid report is refused before any effect; the accepted one records the test, the judgments and the where text as written' },
   { union: 'submission local-architect[assign].reports[].judgment', values: ['bound'], file: 'subs/harness/src/tests/capability-submission.test.ts', test: 'PB3-D01 PB3-D02 PB3-D04: a capability architect registers a case and a test and reports during coordination; the run records exactly that' },
-  { union: 'query scenarios.obligations[].kind', values: ['outcome', 'test'], file: 'subs/harness/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
-  { union: 'query scenarios.obligations[].responsible.kind', values: ['capability-task', 'integration-scenario'], file: 'subs/harness/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
-  { union: 'query scenarios.obligations[].status', values: ['bound', 'done'], file: 'subs/harness/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
-  { union: 'query scenarios.obligations[].report.judgment', values: ['done', 'bound'], file: 'subs/harness/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
+  { union: 'query scenarios.obligations[].kind', values: ['outcome', 'test'], file: 'subs/harness/subs/projections/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
+  { union: 'query scenarios.obligations[].responsible.kind', values: ['capability-task', 'integration-scenario'], file: 'subs/harness/subs/projections/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
+  { union: 'query scenarios.obligations[].status', values: ['bound', 'done'], file: 'subs/harness/subs/projections/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
+  { union: 'query scenarios.obligations[].report.judgment', values: ['done', 'bound'], file: 'subs/harness/subs/projections/src/tests/scenario-projections.test.ts', test: 'PB3-D04 the list carries each obligation with its responsible owner, its binding\'s fakes, its architect report and its where text, and the scenario states are its statuses' },
   // Plan 12: CheckFindings committed through a driven run's own transition, and iteration reviews.
   { union: 'run log.type', values: ['check-findings-recorded'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
   { union: 'run log[check-findings-recorded].data.cause.kind', values: ['producer'], file: 'subs/harness/src/tests/check-findings-run.test.ts', test: 'concurrent deliveries of one report are one issue, gates keep their verdicts, and a terminal run accepts none' },
@@ -750,7 +725,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log[review-attempt-finished].data.result', values: ['not-verified'], file: 'subs/harness/src/tests/review-attempts.test.ts', test: 'malformed output is retried once, useful review outlives its former allowance and an unreadable candidate is unavailable' },
   { union: 'run log[review-attempt-finished].data.reason', values: ['invalid-output', 'unavailable'], file: 'subs/harness/src/tests/review-attempts.test.ts', test: 'malformed output is retried once, useful review outlives its former allowance and an unreadable candidate is unavailable' },
   // Historical timeout outcomes remain readable; current useful reviews do not expire.
-  { union: 'run log[review-attempt-finished].data.reason', values: ['timed-out'], file: 'subs/harness/src/tests/check-findings-projection.test.ts', test: 'reviews list each request with its settling result and attempts, bounded and paged' },
+  { union: 'run log[review-attempt-finished].data.reason', values: ['timed-out'], file: 'subs/harness/subs/projections/src/tests/check-findings-projection.test.ts', test: 'reviews list each request with its settling result and attempts, bounded and paged' },
   { union: 'run log[review-attempt-finished].data.reason', values: ['stopped'], file: 'subs/harness/src/tests/review-lifecycle.test.ts', test: 'two live readers are stopped with the writer, each attempt is settled before job-stopped, and a reader that ignores its stop ingests nothing' },
   { union: 'run log[review-attempt-finished].data.reason', values: ['deadline'], file: 'subs/harness/src/tests/review-lifecycle.test.ts', test: 'the settlement bound stops a reader that never answers, and the run completes with no reader left' },
   { union: 'run log[review-attempt-finished].data.reason', values: ['execution-failed'], file: 'subs/harness/src/tests/review-lifecycle.test.ts', test: 'a crash while a reader runs finishes its attempt as not verified, and its session as interrupted' },
@@ -814,13 +789,13 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log.type', values: ['readiness-failed'], file: 'subs/harness/src/tests/readiness.test.ts', test: 'RunService stops immediately when a declared installation repair is ineffective' },
   { union: 'run log.type', values: ['scratch-preserved'], file: 'subs/harness/src/tests/accepted-commit.test.ts', test: 'a forced-staged scratch file fails the run gate and closure preserves only indexed scratch' },
   { union: 'run log.type', values: ['brief-not-appended'], file: 'subs/harness/src/tests/placement.test.ts', test: 'lost parent context uses ordinary fresh requests without rebuilding or promoting a replacement' },
-  { union: 'run log.type', values: ['global-context-rebuilt'], file: 'subs/harness/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
+  { union: 'run log.type', values: ['global-context-rebuilt'], file: 'subs/harness/subs/projections/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
   { union: 'run log.type', values: ['job-interrupted'], file: 'subs/harness/src/tests/run-recovery.test.ts', test: 'a crash after publishing the run and captured inputs leaves a run that loads and is interrupted' },
   { union: 'run log[invocation-ended].data[false].finished', values: ['interrupted'], file: 'subs/harness/src/tests/run-recovery.test.ts', test: 'a crash after invocation-started closes that invocation without an agent call and without a second one' },
   { union: 'run log[invocation-ended].data[false].finished', values: ['lost'], file: 'subs/harness/src/tests/placement.test.ts', test: 'lost parent context uses ordinary fresh requests without rebuilding or promoting a replacement' },
-  { union: 'run log[invocation-ended].data[false].finished', values: ['replaced'], file: 'subs/harness/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
-  { union: 'run log[session-opened].data.replaces.reason', values: ['reconstructed'], file: 'subs/harness/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
-  { union: 'run log[session-opened].data.replaces.reason', values: ['context-rebuilt'], file: 'subs/harness/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
+  { union: 'run log[invocation-ended].data[false].finished', values: ['replaced'], file: 'subs/harness/subs/projections/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
+  { union: 'run log[session-opened].data.replaces.reason', values: ['reconstructed'], file: 'subs/harness/subs/projections/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
+  { union: 'run log[session-opened].data.replaces.reason', values: ['context-rebuilt'], file: 'subs/harness/subs/projections/src/tests/lineage-metrics.test.ts', test: 'replacements by reason, and the forks each context generation served' },
   { union: 'run log[invocation-started].data.continues.reason', values: ['repair'], file: 'subs/harness/src/tests/session-lifecycle.test.ts', test: 'a continued local architect, a global fork, a contract sub-session and a repaired engineer derive the expected state after every event' },
   { union: 'run log[invocation-started].data.continues.reason', values: ['completion-refused'], file: 'subs/harness/src/tests/requirement-verification.test.ts', test: 'a passing verification that left the fake in place closes nothing, and completion is refused until it is gone' },
   { union: 'run log[invocation-ended].data[true].degraded.requested', values: ['continue', 'fork'], file: 'subs/harness/src/tests/placement.test.ts', test: 'is recorded at the invocation\'s end with what was requested, what was actual and the executor\'s reason' },
@@ -939,7 +914,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'query runs.runs[].phase', values: ['awaiting-review'], file: 'subs/harness/src/tests/review-stop.test.ts', test: 'start-run with reviewStop and approve-analysis are accepted as stop-job is, and a malformed approval is refused' },
   // The composed runs bind no scenario; the query projects the state from
   // obligation-bound, which scenario-projections produces.
-  { union: 'query scenarios.scenarios[].state', values: ['bound'], file: 'subs/harness/src/tests/scenario-projections.test.ts', test: 'every state, the entry\'s work item, an integration scenario without its work item yet, and no gate that did not run it' },
+  { union: 'query scenarios.scenarios[].state', values: ['bound'], file: 'subs/harness/subs/projections/src/tests/scenario-projections.test.ts', test: 'every state, the entry\'s work item, an integration scenario without its work item yet, and no gate that did not run it' },
   // Where a failed gate's cause was read from: a Ramify report in a driven
   // run, a declared tsc output and both together at a gate of their own.
   { union: 'run log[analysis-accepted].data.warnings[].kind', values: ['names-view-symbol', 'names-view-file', 'sub-scenario-shares-no-step', 'duplicate-architect-steps'], file: 'subs/harness/src/tests/analysis-scenarios.test.ts', test: 'with an architect view: a module\'s own directory and testing area, and every warning, by scenario ID' },
@@ -1403,14 +1378,22 @@ describe('the acceptance matrix, composed', () => {
       if (claims.length !== 1) problems.push(`${entry.case}: claimed by iterations ${claims.map(claim => claim.iteration).join(', ') || 'none'}`);
       else if (claims[0]!.iteration !== entry.owner) problems.push(`${entry.case}: owned by iteration ${claims[0]!.iteration}, the matrix names ${entry.owner}`);
       for (const evidence of entry.tests ?? []) {
-        const path = join(packageRoot, evidence.file);
+        // Current navigation only: the frozen M2 citation keeps its original
+        // owner and title; M1's service witness remains in the parent file.
+        const currentFile = entry.case === 'M2'
+          && evidence.file === 'subs/harness/src/tests/progress.test.ts'
+          && evidence.titles.length === 1
+          && evidence.titles[0] === 'M2: provider waits, verified reuse, reopened evidence and superseded hypotheses'
+          ? 'subs/harness/subs/projections/src/tests/progress.test.ts'
+          : evidence.file;
+        const path = join(packageRoot, currentFile);
         if (!existsSync(path)) {
-          problems.push(`${entry.case}: ${evidence.file} does not exist`);
+          problems.push(`${entry.case}: ${currentFile} does not exist`);
           continue;
         }
         const source = await readFile(path, 'utf8');
         for (const title of evidence.titles) {
-          if (titleLine(source, title) === undefined) problems.push(`${entry.case}: ${evidence.file} has no test named "${title}"`);
+          if (titleLine(source, title) === undefined) problems.push(`${entry.case}: ${currentFile} has no test named "${title}"`);
         }
         if (claims.length === 1 && !claims[0]!.files.includes(basename(evidence.file))) {
           problems.push(`${entry.case}: iteration ${entry.owner}'s results note does not name ${basename(evidence.file)}`);
