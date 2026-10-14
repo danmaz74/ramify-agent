@@ -1380,8 +1380,9 @@ describe('the acceptance matrix, composed', () => {
       for (const evidence of entry.tests ?? []) {
         // Current navigation only: the frozen M2 citation keeps its original
         // owner and title; M1's service witness remains in the parent file.
-        // M5's pure session case moved to KPI; its collection witness stays
-        // harness-owned. Keep the frozen citation/results-note checks intact.
+        // M4's pure metric cases and M5's pure session case moved to KPI;
+        // collection witnesses stay harness-owned. Keep the frozen
+        // citation/results-note checks intact.
         const currentFile = entry.case === 'M5'
           && evidence.file === 'subs/harness/src/tests/line-events.test.ts'
           && evidence.titles.length === 1
@@ -1392,6 +1393,9 @@ describe('the acceptance matrix, composed', () => {
           && evidence.titles.length === 1
           && evidence.titles[0] === 'M2: provider waits, verified reuse, reopened evidence and superseded hypotheses'
           ? 'subs/harness/subs/projections/src/tests/progress.test.ts'
+          : entry.case === 'M4'
+          && evidence.file === 'subs/harness/src/tests/kpi-metrics.test.ts'
+          ? 'subs/harness/subs/kpi/src/tests/metrics.test.ts'
           : evidence.file;
         const path = join(packageRoot, currentFile);
         if (!existsSync(path)) {

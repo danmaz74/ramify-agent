@@ -174,3 +174,15 @@ passed52 cases across3 files. All four TypeScript projects and check:self passed
 again (0 errors,0 denied accesses,457 analysis limits; partial structural coverage).
 These operator checks are separate from the engineer receipts and do not establish
 committed audit or full-plan acceptance.
+
+
+The first committed default audit ofba8b9cdd selected full execution and found
+one stale current-navigation failure: M4 in composition.test.ts still searched
+for the retired parent metrics test. Report118a891d429a226f3ee412f607bf0b132c2e8a46
+retains3754 passed,1 failed and2 opt-in skips; the other five checks passed.
+Operator review updated the current M4 lookup to the real child metrics file,
+following existing M2/M5 relocation handling. Frozen matrix citations and historical
+iteration results retain their original paths, titles, ownership and assertions.
+The exact composition selection then passed13/13. A new default configured audit
+is required for this correction; the failed report and readiness-failed run remain
+failed history, with no accepted scenario dispositions.
