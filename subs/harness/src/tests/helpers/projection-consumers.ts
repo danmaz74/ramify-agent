@@ -26,7 +26,7 @@ import { ContentStore } from '../../transcripts/store.js';
 import { TranscriptWriter } from '../../transcripts/writer.js';
 import { protocolPaths as paths } from '../../interfaces/protocol/paths.js';
 import { errorResponseSchema } from '../../interfaces/protocol/errors.js';
-import { runResponseSchema, runListResponseSchema, runEventPageSchema } from '../../interfaces/protocol/runs.js';
+import { analysisResponseSchema, decisionListResponseSchema, workItemListResponseSchema, capabilityListResponseSchema, scenarioListResponseSchema, metricsResponseSchema, runResponseSchema, runListResponseSchema, runEventPageSchema } from '../../interfaces/protocol/runs.js';
 import { runSessionsResponseSchema, sessionTranscriptResponseSchema, sessionUpdatesResponseSchema } from '../../interfaces/protocol/sessions.js';
 import { constructedRecord, runId } from './constructed.js';
 import { repairExportFixture } from './repair-export-fixture.js';
@@ -136,8 +136,15 @@ export async function recordedProjectionConsumers() {
   const server = createApp({ projectRoot: root, runs: service }).listen(0, '127.0.0.1');
   await new Promise<void>(resolve => server.once('listening', resolve));
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const delivered = new Map<string, string>();
+  function stable(key: string, value: unknown) {
+    const bytes = JSON.stringify(value);
+    if (delivered.has(key)) assert.equal(bytes, delivered.get(key), `Repeated answer changed: ${key}`);
+    else delivered.set(key, bytes);
+  }
   const get = async (path: string, expected = 200) => {
-    const response = await fetch(origin + path); assert.equal(response.status, expected, path); return await response.json();
+    const response = await fetch(origin + path); assert.equal(response.status, expected, path);
+    const value: unknown = await response.json(); stable(path, value); return value;
   };
   const version = 11;
   assert.equal(log.events.at(-1)!.sequence, version);
@@ -149,6 +156,7 @@ export async function recordedProjectionConsumers() {
       const run = runResponseSchema.parse(await queries.run(plan, runId));
       assert.equal(run.run.state, 'completed'); assert.equal(run.run.version, version);
       assert.deepEqual(run.run.automaticRepairs, { attempted: 0, refused: 1, incidents: run.run.automaticRepairs.incidents });
+      assert.equal(run.run.automaticRepairs.incidents.length, 1);
       const incident = run.run.automaticRepairs.incidents[0]!;
       assert.equal(incident.incidentId, 'apr-0001'); assert.equal(incident.stage, 'refused'); assert.equal(incident.revision, 1);
       assert.deepEqual(incident.export, repair.incident.export);
@@ -161,6 +169,12 @@ export async function recordedProjectionConsumers() {
       const page = runEventPageSchema.parse(await queries.events(plan, runId, 0));
       assert.deepEqual(page.events.map(row => row.sequence), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
       assert.deepEqual(await get(paths.runEvents(plan, runId, 0)), page);
+      // Expected from the recorded stimulus, not another projector's output.
+      assert.deepEqual(page.events.map(row => row.transition), [
+        'document-manifest-committed', 'job-started', 'session-opened', 'invocation-started',
+        'invocation-ended', 'consultation-started', 'consultation-finished',
+        'consultation-started', 'consultation-finished', 'repair-incident-recorded', 'job-completed',
+      ]);
       const summaries = runSessionsResponseSchema.parse(await sessions.runSessions(plan, runId));
       assert.equal(summaries.total, 1); assert.equal(summaries.version, version);
       assert.deepEqual(summaries.sessions.map(row => [row.session, row.state, row.finished, row.model]), [[session, 'finished', 'work-closed', 'recorded-model']]);
@@ -182,6 +196,14 @@ export async function recordedProjectionConsumers() {
       const poll = sessionUpdatesResponseSchema.parse(await sessions.updates(plan, runId, version, [{ session, after: 1 }]));
       assert.deepEqual(poll.sessions, []); assert.deepEqual(poll.transcripts[0]!.page.entries, []);
       assert.deepEqual(await get(paths.runSessionUpdates(plan, runId, version, [{ session, after: 1 }])), poll);
+      assert.deepEqual(analysisResponseSchema.parse(await queries.analysis(plan, runId)), {
+        plan: { markdown: '# Retained query fixture\n', hash: record.manifest.planHash }, analysis: { status: 'pending' },
+      });
+      assert.deepEqual(decisionListResponseSchema.parse(await queries.decisions(plan, runId)), { decisions: [], total: 0 });
+      assert.deepEqual(workItemListResponseSchema.parse(await queries.workItems(plan, runId)), { workItems: [], total: 0 });
+      assert.deepEqual(capabilityListResponseSchema.parse(await queries.capabilities(plan, runId)), { capabilities: [], total: 0 });
+      assert.deepEqual(scenarioListResponseSchema.parse(await queries.scenarios(plan, runId)), { scenarios: [], total: 0, obligations: [] });
+      metricsResponseSchema.parse(await queries.metrics(plan, runId));
       for (const [path, read] of [
         [paths.runAnalysis(plan, runId), () => queries.analysis(plan, runId)],
         [paths.runDecisions(plan, runId), () => queries.decisions(plan, runId)],
@@ -193,6 +215,7 @@ export async function recordedProjectionConsumers() {
       assert.equal(errorResponseSchema.parse(await get(paths.runSession(plan, runId, 'ses-9999'), 404)).error.code, 'not-found');
       assert.equal(errorResponseSchema.parse(await get(paths.runBody(plan, runId, 'not-a-hash'), 400)).error.code, 'invalid-request');
       const json = await runConsultationsCommand({ run: directory, format: 'json' });
+      stable('consultations-json', json);
       assert.equal(json.exitStatus, 0); assert.equal(json.stderr, '');
       const view = JSON.parse(json.stdout);
       assert.equal(view.schema, 'ramify-agent.consultation-inspection/1'); assert.equal(view.count, 2);
@@ -202,6 +225,7 @@ export async function recordedProjectionConsumers() {
       assert.equal(view.consultations[0].delivery.observed, 'unknown');
       assert.equal(json.stdout, JSON.stringify(view, null, 2) + '\n');
       const text = await runConsultationsCommand({ run: directory });
+      stable('consultations-text', text);
       assert.equal(text.exitStatus, 0); assert.equal(text.stderr, '');
       const expectedText = [
         `Consultations: 2 (run ${runId})`,
