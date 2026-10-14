@@ -57,10 +57,10 @@ describe('H05/H06: declared focused pending scenario preparation', () => {
     expect(classifyShellTestRun(`cucumber-js -c '${config}' -p other`, facts).kind).toBe('unverified');
     expect(classifyShellTestRun('cucumber-js features/A.feature:12', { workingDirectory: '/project', testScripts: {} })).toMatchObject({ kind: 'unverified', reason: expect.stringContaining('pending') });
   });
-  test('the exact focused command is briefed with why a plain feature path runs none of the assigned pending scenarios', async () => {
+  test('the prepared feature check describes whole-file selection including pending and unassigned cases', async () => {
     const source = await effective(); if (source.kind !== 'available') throw new Error(source.reason);
     expect(source.configuration['tags']).toBe('not @ramify-pending');
-    expect(focusedCommandPendingNote).toBe('The default profile\'s tag filter excludes `@ramify-pending` scenarios, so a plain `cucumber-js <feature>` would run none of your assigned scenarios; the generated profile enables them.');
+    expect(focusedCommandPendingNote).toBe('The prepared profile enables pending scenarios in the selected feature files. It selects whole files, so it can also run cases outside your assignment.');
   });
   test.each(['--help', '--version', '--dry-run'])('%s is non-executing rather than scenario evidence', flag => {
     expect(classifyShellTestRun(`cucumber-js features/A.feature ${flag}`, { workingDirectory: '/project', testScripts: {} })).toMatchObject({ kind: 'non-executing', mode: flag.slice(2) });

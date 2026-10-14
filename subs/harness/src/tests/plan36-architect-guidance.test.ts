@@ -9,6 +9,7 @@ import { effectiveBlocks } from '../prompts/blocks.js';
 import { exactInputHash } from '../prompts/delivered-manifest.js';
 import { classifyShellTestRun } from '../tools/shell-tests.js';
 import { moduleInputPointers } from '../work/starting-inputs.js';
+import { validateEngineer } from '../work/engineer.js';
 
 let packages: ReadonlyMap<Role, LoadedPackage>;
 let discovery: string;
@@ -95,7 +96,7 @@ test('engineer effective guidance resolves contradictory assignment instructions
   expect(blocks.get('brief:assignment')!.text).toContain(instruction);
   expect(blocks.get(packet.additions.find(item => item.kind === 'procedure')!.key)!.text).toContain('responsible architect');
   expect(packet.roleInstructions).toContain('Whole-suite Vitest and Cucumber runs\n  are refused');
-  expect(packet.roleInstructions).toContain('prepared focused Cucumber command');
+  expect(packet.roleInstructions).toContain('prepared Cucumber feature check');
   const facts = { workingDirectory: '/project', testScripts: {} };
   expect(classifyShellTestRun('vitest run', facts).kind).toBe('whole-suite');
   expect(classifyShellTestRun('cucumber-js', facts).kind).toBe('whole-suite');
@@ -125,4 +126,54 @@ test('module navigation treats supplied identity and coverage as authority witho
   expect(pointers).not.toContain('Read its metadata for revision');
   expect(pointers).toContain('supplied revision and coverage as authoritative delivery evidence');
   expect(pointers).toContain('Absence under coverage limits is not proof');
+});
+
+test.each([false, true])('assignment-based completion survives mixed feature results (capability workflow %s)', async capabilityWorkflow => {
+  const loaded = (await loadPromptPackages({ capabilityWorkflow })).packages.get('engineer')!;
+  const base = { ...input('engineer', 'engineering', 'submit_iteration_result'), loaded };
+  const assignment = 'Bind sc-001 and sc-002. The prepared feature command must pass.';
+  const result = 'Feature check exit 1: sc-001 passed; sc-002 passed; sc-003 undefined (unassigned).';
+  const current = taskBriefingRevision({ revision: 'assigned-feature', goal: base.goal, requirements: base.requirements,
+    sections: [{ key: 'assignment', text: assignment }, { key: 'check-results', text: result }] });
+  const first = buildTaskPacket({ ...base, briefing: buildBriefingDelivery({ mode: 'fresh', current, inheritedRevision: null, history: [] }) });
+  const continued = buildTaskPacket({ ...base, inheritedPoint: 'engineer:1', inherited: first.additions, supplyRoleInstructions: false,
+    briefing: buildBriefingDelivery({ mode: 'continue', current, inheritedRevision: current.revision, history: [current] }) });
+  for (const blocks of [effectiveBlocks(first.additions), effectiveBlocks([...first.additions, ...continued.additions])]) {
+    // Retain the authored request and failed receipt; the role procedure explains how to assess their scope.
+    expect(blocks.get('brief:assignment')!.text).toContain(assignment);
+    expect(blocks.get('brief:check-results')!.text).toContain(result);
+    const procedure = [...blocks.values()].find(block => block.kind === 'procedure')!.text.replace(/\s+/g, ' ');
+    expect(procedure).toContain('Propose completion when the assigned work is complete and supported by evidence.');
+    expect(procedure).toContain('Report actual case results and the command exit status in `findings`.');
+    expect(procedure).toContain('a request for a passing feature command adds no unassigned obligations');
+    expect(procedure).toContain('Pending or undefined unassigned cases alone do not require `partial`');
+    expect(procedure).toContain('assigned work remains unfinished');
+    expect(procedure).toContain('Investigate unexpected failures');
+    expect(procedure).toContain('all required gates still apply');
+  }
+  expect(continued.additions.some(block => block.kind === 'role-instructions')).toBe(false);
+  const evidence = { assigned: ['sc-001', 'sc-002'], capabilityWorkflow };
+  const proposal = { kind: 'completion-proposed', summary: 'Implemented the two assigned scenarios.', findings: [result],
+    bindings: evidence.assigned.map(id => ({ id, fakes: [] })) };
+  expect(validateEngineer(proposal, evidence)).toMatchObject({ ok: true, value: proposal });
+  expect(validateEngineer({ ...proposal, bindings: proposal.bindings.slice(0, 1) }, evidence).ok).toBe(false);
+  expect(validateEngineer({ kind: 'partial', done: ['sc-001'], unfinished: ['sc-002 still fails'], findings: [result] }, evidence).ok).toBe(true);
+  const regression = 'Feature check exit 1: sc-001 failed with a changed result; sc-003 undefined (unassigned).';
+  expect(validateEngineer({ kind: 'partial', done: [], unfinished: ['Assigned scenario sc-001 regressed'], findings: [regression] }, evidence))
+    .toMatchObject({ ok: true, value: { findings: [regression] } });
+});
+
+test.each([
+  [false, 'local-architect', 'assignment', 'submit_work_item_result'],
+  [true, 'local-architect', 'assignment', 'submit_work_item_result'],
+  [true, 'capability-architect', 'capability', 'submit_capability_action'],
+] as const)('assigning architect receives the feature-check completion rule (%s/%s)', async (capabilityWorkflow, role, kind, tool) => {
+  const loaded = (await loadPromptPackages({ capabilityWorkflow })).packages.get(role)!;
+  const packet = buildTaskPacket({ ...input(role, kind, tool), loaded });
+  const procedure = [...effectiveBlocks(packet.additions).values()].find(block => block.kind === 'procedure')!.text.replace(/\s+/g, ' ');
+  expect(procedure).toContain('Do not require an intermediate contribution to make the entire selected feature pass');
+  expect(procedure).toContain('including unexpected failures and regressions');
+  expect(procedure).toContain('unfinished assigned work requires `partial`');
+  expect(procedure).toContain('all applicable gates before acceptance');
+  expect(procedure).toContain('feature selection adds no completion obligations');
 });
