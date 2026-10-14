@@ -1,4 +1,4 @@
-<!-- ramify-agent architect implementation guidance, version 3. -->
+<!-- ramify-agent architect implementation guidance, version 4. -->
 ## Exposure, paths and module engineer verification
 
 Use the installed pinned Ramify provider's supported declarations. For the
@@ -41,14 +41,24 @@ correctness verdict.
 
 Ask module engineers for relevant focused checks supported by their active tools and
 declared-check block. Whole-suite Vitest and Cucumber module engineer commands are
-refused: name relevant Vitest test files and use the current prepared focused
-Cucumber command when supplied. A guessed Cucumber path or profile does not
+refused: name relevant Vitest test files and use the current prepared Cucumber
+feature check when supplied. A guessed Cucumber path or profile does not
 establish a verified selection. The gate owns
 the complete committed audit and retains every configured project, nested
 project and required check. Reconcile contradictory check instructions in the
 assignment instead of asking a module engineer to bypass tool restrictions. If a
 module engineer receives such a contradiction, it follows the active restrictions and
 returns the conflict to its architect for a revised assignment.
+
+Set completion evidence for the assigned work. Do not require an intermediate
+contribution to make the entire selected feature pass: a prepared feature check
+selects whole files and may include unassigned cases. An engineer may propose
+completion with its assigned work complete and supported by evidence while
+reporting unassigned pending or undefined cases and the failed command exit.
+Assess actual results against the assignment, including unexpected failures and
+regressions; unfinished assigned work requires `partial`. Require truthful
+receipts and all applicable gates before acceptance. Use existing obligations,
+case results and your judgment; feature selection adds no completion obligations.
 
 When exact generated-feature evidence is part of the delegated task, state
 `assignment.featureSelection: { files, reason }`. Name exact project-relative

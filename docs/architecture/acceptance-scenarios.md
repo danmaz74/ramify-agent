@@ -532,6 +532,15 @@ submission naming the missing IDs, under the existing per-turn bound, before
 any commit, audit or review. A `partial` report is exempt. `fakes` names the
 fake class or export names the binding relies on, possibly none.
 
+An intermediate engineer proposes completion when its assigned work is complete
+and supported by evidence. The prepared Cucumber feature check selects whole
+files, so pending or undefined unassigned cases alone do not require a partial
+return. The engineer records actual case results and the command exit status;
+the responsible architect assesses them against the assignment, including
+unexpected failures and regressions. Unfinished assigned work requires `partial`.
+All applicable gates remain required for acceptance. Feature selection creates
+no additional completion obligations.
+
 An accepted binding is recorded (`obligation-bound { id, fakes, by,
 submission }`) before the iteration gate. A `pending` obligation becomes
 `bound`; a `done` one stays `done` and records the new list. The architect

@@ -69,7 +69,7 @@ describe('S03: inputs from a run', () => {
       expect(discovery?.text).toContain('Configuration/support discovery evidence unavailable: No exact assigned feature files were selected');
       expect(discovery?.text).toContain('declared check/configuration pointers');
       expect(JSON.parse(step.brief.environment.cucumberConfiguration!)).toEqual({ kind: 'unavailable', reason: 'No exact assigned feature files were selected' });
-      expect(step.prompt).toContain('Focused scenario command unavailable: No exact assigned feature files were selected');
+      expect(step.prompt).toContain('Cucumber feature check unavailable: No exact assigned feature files were selected');
       expect(step.start.mode).toBe(invocation === freshId ? 'fresh' : 'continue');
     }
   });
@@ -115,6 +115,8 @@ describe('S03: inputs from a run', () => {
     const fresh = await renderStep(step, { projectRoot: run.root, packages, builtinDeclarations: piBuiltinDeclarations, operationId: 'discovery-fresh' });
     expect(fresh.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain('src/tests/support/**/*.ts');
     expect(fresh.packet.message.split('\ncucumber-js\n')).toHaveLength(2);
+    expect(fresh.packet.message).toContain('# Prepared Cucumber feature check');
+    expect(fresh.packet.message).toContain('It selects whole files, so it can also run cases outside your assignment.');
     expect(fresh.packet.message).toContain('sourceFiles contains hashes, not file contents');
     const repair = await imported(repairId);
     if (repair.status !== 'imported' || repair.recorded.role !== 'engineer') throw new Error('Expected repair engineer inputs');
@@ -142,10 +144,10 @@ describe('S03: inputs from a run', () => {
     const unavailableBlocks = effectiveBlocks([...prior.inherited, ...withdrawn.packet.additions]);
     expect(unavailableBlocks.get('environment:cucumberConfiguration')?.text).not.toContain('src/tests/support/**/*.ts');
     expect(unavailableBlocks.get('brief:support:cucumber-discovery')?.text).toContain('Current configuration cannot be read');
-    expect([...unavailableBlocks.values()].map(item => item.text).join('\n')).not.toContain('# Exact focused scenario command');
+    expect([...unavailableBlocks.values()].map(item => item.text).join('\n')).not.toContain('# Prepared Cucumber feature check');
     const inapplicable = constructEngineerStep({ ...repairInputs, scenarios: undefined, assignment: { ...repairInputs.assignment, obligations: [] } }, { projectRoot: run.root, packages });
     expect(inapplicable.brief.environment.cucumberConfiguration).toBeNull();
-    expect(inapplicable.prompt).not.toContain('Focused scenario command unavailable');
+    expect(inapplicable.prompt).not.toContain('Cucumber feature check unavailable');
     expect(inapplicable.brief.sections.some(section => section.key === 'support:cucumber-discovery')).toBe(false);
     // Current role remains pinned; the inapplicable environment withdraws old discovery facts.
     const updatedPrior: PointContext = { point, inherited: [...prior.inherited, ...withdrawn.packet.additions], history: withdrawn.history, revision: withdrawn.current.revision };
@@ -155,8 +157,8 @@ describe('S03: inputs from a run', () => {
     expect(currentBlocks.has('environment:cucumberConfiguration')).toBe(false);
     expect(currentBlocks.has('brief:support:cucumber-discovery')).toBe(false);
     const effectiveText = [...currentBlocks.values()].map(item => item.text).join('\n');
-    expect(effectiveText).not.toContain('# Exact focused scenario command');
-    expect(effectiveText).not.toContain('Focused scenario command unavailable');
+    expect(effectiveText).not.toContain('# Prepared Cucumber feature check');
+    expect(effectiveText).not.toContain('Cucumber feature check unavailable');
 
 
   });

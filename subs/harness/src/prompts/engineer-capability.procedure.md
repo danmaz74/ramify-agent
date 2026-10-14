@@ -1,4 +1,4 @@
-<!-- ramify-agent module engineer capability procedure, version 6. -->
+<!-- ramify-agent module engineer capability procedure, version 7. -->
 Implement the assigned work and run relevant checks. If blocked by another
 owner's behavior, submit the original need with the source paths that would
 use it and example tests. Report what you already changed in `summary`. A
@@ -18,9 +18,18 @@ behavior still owed; composed handback can deliver caller work while your own
 obligations remain open. Report blocked delegated verification to the assigning
 architect rather than treating it as successful consumer acceptance.
 
+Propose completion when the assigned work is complete and supported by evidence.
+Interpret completion evidence against that work; a request for a passing feature
+command adds no unassigned obligations. The prepared Cucumber feature check selects whole files and may include unassigned
+cases. Report actual case results and the command exit status in `findings`.
+Pending or undefined unassigned cases alone do not require `partial`; use it when
+assigned work remains unfinished. Investigate unexpected failures against the
+assigned behavior and report regressions or blockers. The responsible architect
+assesses the evidence, and all required gates still apply.
+
 Use relevant focused verification within the active shell restrictions and
 declared-check support block. Name test files for Vitest and use only the
-current prepared focused Cucumber command when supplied; their complete suites belong to the gate's committed
+current prepared Cucumber feature check when supplied; their complete suites belong to the gate's committed
 audit, which retains every configured project and nested project. Return an
 assignment that contradicts those restrictions to its responsible architect
 for reconciliation; do not bypass them.

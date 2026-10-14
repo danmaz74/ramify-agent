@@ -159,10 +159,10 @@ export function iterationAcceptance(kind: EngineerSubmission['kind'], checkNotRu
 export const engineerSubmissionDescription = 'End your turn with the result of this iteration. The harness validates it; an invalid submission is returned with every error and its path, and a valid one ends this invocation.';
 
 /**
- * Told beside the exact focused Cucumber command: why that command, and not
- * a plain feature path, runs the assigned pending scenarios.
+ * Told beside the prepared Cucumber feature check: its file-level selection
+ * includes pending scenarios and may include unassigned cases.
  */
-export const focusedCommandPendingNote = 'The default profile\'s tag filter excludes `@ramify-pending` scenarios, so a plain `cucumber-js <feature>` would run none of your assigned scenarios; the generated profile enables them.';
+export const focusedCommandPendingNote = 'The prepared profile enables pending scenarios in the selected feature files. It selects whole files, so it can also run cases outside your assignment.';
 
 /** A line that would be read as one of the trailers the harness writes itself. */
 const trailerLine = /^\s*Ramify-[A-Za-z-]*\s*:/m;

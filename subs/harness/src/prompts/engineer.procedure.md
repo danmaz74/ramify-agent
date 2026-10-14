@@ -1,4 +1,4 @@
-<!-- ramify-agent module engineer procedure, version 13. -->
+<!-- ramify-agent module engineer procedure, version 14. -->
 Do this, in order:
 
 1. Read the goal, the approach and the completion evidence in the message
@@ -96,6 +96,15 @@ with that call's result. It is never a pass when it says it did not check.
 
 The work of this iteration is done as far as you can tell, and you are asking
 for the gate.
+
+Propose completion when the assigned work is complete and supported by evidence.
+Interpret completion evidence against that work; a request for a passing feature
+command adds no unassigned obligations. The prepared Cucumber feature check selects whole files and may include unassigned
+cases. Report actual case results and the command exit status in `findings`.
+Pending or undefined unassigned cases alone do not require `partial`; use it when
+assigned work remains unfinished. Investigate unexpected failures against the
+assigned behavior and report regressions or blockers. The responsible architect
+assesses the evidence, and all required gates still apply.
 
 - `summary` is what you changed, in your own words, in a few sentences. It is
   the only text of yours that reaches the accepted commit's message, so write
