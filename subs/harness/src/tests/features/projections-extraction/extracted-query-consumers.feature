@@ -29,7 +29,7 @@ Feature: extracted-query-consumers
     Then those files and the event sequence are unchanged
     And no query invokes an agent, audit or external exporter
 
-  @ramify-sc-003 @ramify-pending
+  @ramify-sc-003
   Scenario: Paging and polling preserve their boundaries
     Given recorded execution data and sessions with transcript cursors
     When a client requests bounded pages and polls from its previous version

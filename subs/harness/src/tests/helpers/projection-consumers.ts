@@ -28,7 +28,7 @@ import { protocolPaths as paths } from '../../interfaces/protocol/paths.js';
 import { errorResponseSchema } from '../../interfaces/protocol/errors.js';
 import { analysisResponseSchema, decisionListResponseSchema, workItemListResponseSchema, capabilityListResponseSchema, scenarioListResponseSchema, metricsResponseSchema, runResponseSchema, runListResponseSchema, runEventPageSchema } from '../../interfaces/protocol/runs.js';
 import { runSessionsResponseSchema, sessionTranscriptResponseSchema, sessionUpdatesResponseSchema } from '../../interfaces/protocol/sessions.js';
-import { constructedRecord, runId } from './constructed.js';
+import { constructedRecord, runId, item, registered } from './constructed.js';
 import { repairExportFixture } from './repair-export-fixture.js';
 
 /** External collaborators only: the readers, HTTP answers and service are real. */
@@ -69,7 +69,7 @@ export async function captureProjectionFiles(root: string) {
   await walk(root); return files;
 }
 
-export async function recordedProjectionConsumers() {
+export async function recordedProjectionConsumers(paging = false) {
   const root = await mkdtemp(join(tmpdir(), 'projection-consumers-'));
   const directory = join(root, 'plans', plan, '.harness', 'jobs', runId);
   await mkdir(directory, { recursive: true });
@@ -122,6 +122,25 @@ export async function recordedProjectionConsumers() {
   await commitRecord(log.ledger, { event: log.next({ type: 'repair-incident-recorded', data: { incidentId: 'apr-0001', revision: 1, stage: 'refused' } }),
     records: [{ path: runLayout.repairIncident('apr-0001', 1), id: 'apr-0001', revision: 1, body: repair.incident },
       { path: repairExportPayloadPath('apr-0001', 1), id: 'apr-0001', revision: 1, body: repair }] });
+  // Parent-owned recording stimuli, never query callbacks or child implementation.
+  const pagingEntries = [entry];
+  const priorVersion = log.events.at(-1)!.sequence;
+  if (paging) {
+    for (let n = 0; n < 205; n++) pagingEntries.push(await writer.append(() => ({ type: 'message', invocation: 'inv-0001', role: 'user', blocks: [
+      { type: 'text', body: inline(n < 201 ? `entry-${n} é🙂` : 'é🙂'.repeat(40000)) },
+    ] })));
+    pagingEntries.push(await writer.append(() => ({ type: 'message', invocation: 'inv-0001', role: 'user', blocks: [{ type: 'text', body: inline('é🙂'.repeat(100000)) }] })));
+    await writer.drain();
+    await commitRecord(log.ledger, { event: log.next({ type: 'analysis-accepted', data: { invocation: 'inv-0001', entries: 1, hypotheses: 0, registry: 1, workItems: 105, scenarios: 0, warnings: [], catalog: { context: 0, functional: 0, nonFunctional: 0, fixed: 0, recommendation: 0 }, findings: [], evidence: { catalog: { path: 'recorded/catalog.json', hash: 'a'.repeat(64) }, incorporation: { path: 'recorded/incorporation.json', hash: 'b'.repeat(64) } } } }),
+      records: [{ path: 'registry/paging/1.json', id: 'paging', revision: 1, body: registered('paging') },
+        ...Array.from({ length: 105 }, (_, n) => { const id = `wi-${String(n).padStart(3, '0')}`; return { path: `work-items/${id}/item.json`, id, revision: 1, body: item(id, { entry: 'paging' }) }; })] });
+    await log.append({ type: 'session-opened', data: { session: 'ses-0002', role: 'engineer', work: {}, executor: 'scripted', model: 'recorded-model' } });
+    const secondWriter = new TranscriptWriter({ session: 'ses-0002', path: join(directory, runLayout.transcript('ses-0002')), root: directory,
+      store: new ContentStore(join(directory, runLayout.blobs)), inlineBytes: 1000000, now: () => new Date(at) });
+    await secondWriter.append(() => ({ type: 'message', invocation: 'inv-0002', role: 'user', blocks: [{ type: 'text', body: inline('Second session') }] }));
+    await secondWriter.drain();
+    await log.append({ type: 'session-finished', data: { session: 'ses-0002', reason: 'work-closed' } });
+  }
   await log.append({ type: 'job-completed', data: { gate: 'ga-recorded', commit: 'a'.repeat(40), workItems: 0 } });
   const effects = new FakeQueryEffects();
   const lock = await acquireProjectLock(root);
@@ -146,7 +165,7 @@ export async function recordedProjectionConsumers() {
     const response = await fetch(origin + path); assert.equal(response.status, expected, path);
     const value: unknown = await response.json(); stable(path, value); return value;
   };
-  const version = 11;
+  const version = paging ? 14 : 11;
   assert.equal(log.events.at(-1)!.sequence, version);
   const snapshot = await captureProjectionFiles(root);
   const events = await readFile(join(directory, runLayout.events), 'utf8');
@@ -250,7 +269,7 @@ export async function recordedProjectionConsumers() {
       assert.deepEqual(await runConsultationsCommand({ run: directory, id: start.id, session }), { stdout: '', stderr: `Cannot read consultations from ${directory}: Choose --id or --session, not both\n`, exitStatus: 2 });
     }
   }
-  return { root, directory, effects, exercise,
+  return { root, directory, effects, exercise, queries, sessions, get, version, priorVersion, pagingEntries,
     capture: async () => { assert.deepEqual(await captureProjectionFiles(root), snapshot); },
     unchanged: async () => { assert.deepEqual(await captureProjectionFiles(root), snapshot); assert.equal(await readFile(join(directory, runLayout.events), 'utf8'), events); assert.equal(service.events(plan, runId)!.at(-1)!.sequence, version); },
     noEffects: () => assert.deepEqual(effects.calls, { agent: 0, audit: 0, exporter: 0, evidence: 0 }),
