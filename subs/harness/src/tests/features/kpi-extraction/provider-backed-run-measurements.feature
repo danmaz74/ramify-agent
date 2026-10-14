@@ -11,7 +11,7 @@ Feature: provider-backed-run-measurements
   delegate provider needs, retire transitional duplication and verify the
   final ownership boundary.
 
-  @ramify-sc-001 @ramify-pending
+  @ramify-sc-001
   Scenario: Execution and projections use one measurement provider
     Given an implementation base containing the merged projections extraction
     And a scripted run with invocation measurements and accepted changes
@@ -67,7 +67,7 @@ Feature: provider-backed-run-measurements
     And the local fork remains distinct from global generation forks
     And unknown start evidence retains its existing coverage qualifications
 
-  @ramify-sc-007 @ramify-pending
+  @ramify-sc-007
   Scenario: Scope adapters preserve identities and revision limits
     Given delivered support with repeated source identities and overlapping module scopes
     When execution translates its inputs and asks the KPI child for scope measurements

@@ -191,6 +191,10 @@ test('a standalone resource return retains partial candidate, scratch and the as
   expect(summary).toMatchObject({ ended: 'resource-pending', pending: true, resource: 'context', settled: true, submission: null });
   expect(result.exitStatus).toBe(1);
   const collected = invocationSchema.parse(await json(summary.records.invocation));
+  // Manual steps deliberately have no frozen run baseline; preserve the child's two-component qualification.
+  expect(collected.scope.measurement).toBeNull();
+  expect(collected.scope.size?.components.map(component => component.component)).toEqual(['owned-source', 'support-documents']);
+  expect(collected.scope.size).toMatchObject({ bytes: null, coverage: 'partial' });
   expect(delivered).toHaveBeenCalled();
   const facts: DeliveredScopeInputs = delivered.mock.results[0]!.value;
   expect(collected.scope.size?.components.find(component => component.component === 'support-documents')).toEqual({
