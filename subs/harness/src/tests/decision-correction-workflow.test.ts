@@ -116,7 +116,8 @@ for (const coordinator of ['local', 'capability'] as const) test(`${coordinator}
       expect(spec.prompt).toContain('support/world.mjs');
       expect(spec.prompt).toContain('globally loaded support');
       expect(spec.prompt).toContain('ramify-focused');
-      expect(spec.prompt).toContain('ramify-pending');
+      expect(spec.prompt).toContain('The prepared profile enables pending scenarios');
+      expect(spec.prompt).toContain('It selects whole files');
       replacementReceived = true;
       return submit({ kind: 'completion-proposed', summary: 'Continued the retained implementation and verified corrected stored-record assertion', findings: [] },
         { kind: 'await', until: async () => { expect(await readFile(join(fixture.root, 'subs/a/src/caller.ts'), 'utf8')).toBe(retainedSource); } },
