@@ -6,7 +6,8 @@ import { architectViewDirectory } from '../../subs/evidence/src/views.js';
 import { baselineScope, deliveredScopeInputs, invocationScope, projectOnlySize, readScopeMeasurement, scopeSize, writeScopeMeasurement, type DeclaredScope } from '../kpi/capture.js';
 import type { MeasurementSnapshot, ScopeComponent } from '../run/records.js';
 import type { LoadedPackage } from '../prompts/packages.js';
-import { buildDeliveredManifest, type DeliveredInput } from '../prompts/delivered-manifest.js';
+import { buildDeliveredManifest, type DeliveredInput, type DeliveredManifest } from '../prompts/delivered-manifest.js';
+import { deliveredScopeInputs as childDeliveredScopeInputs, scopeSize as childScopeSize } from '../../subs/kpi/src/capture.js';
 import type { WriteScope } from '../work/scope.js';
 
 const directories: string[] = [];
@@ -177,6 +178,63 @@ describe('scope-size/2 never merges numbers of two revisions', () => {
   });
 });
 
+
+describe('real baseline/child delivered-input conformance', () => {
+  // Harness owns manifest translation and has testing access to the real child.
+  // Plain metadata preserves deliberately inconsistent delivered byte facts;
+  // building a manifest from text would re-hash and erase this counterexample.
+  test.each([
+    { bytes: [5, 6], expected: 6 },
+    { bytes: [6, 5], expected: 5 },
+    { bytes: [5, 5], expected: 5 },
+  ])('same brief hash with ordered bytes $bytes retains last bytes $expected', ({ bytes, expected }) => {
+    const manifest: DeliveredManifest = {
+      schema: 'ramify-agent.delivered-inputs/1', inheritedPoint: null, currentMessage: null, hash: 'manifest',
+      entries: bytes.map((bytes, index) => ({
+        key: `brief-${index}`, kind: 'brief', source: null, revision: null,
+        hash: 'h', bytes, delivery: 'appended', sources: [],
+      })),
+    };
+    const declared = scope({});
+    const baseline = deliveredScopeInputs(declared, manifest);
+    const child = childDeliveredScopeInputs(declared, manifest.entries.map(({ kind, source, hash, bytes, sources }) => ({ kind, source, hash, bytes, sources })));
+    expect(child).toEqual(baseline);
+    expect(baseline).toEqual({ scope: { ...declared, brief: expected }, supplementary: [] });
+    const taken = snapshot({ supplementary: [...baseline.supplementary] });
+    const baselineSize = scopeSize(taken, baseline.scope);
+    expect(childScopeSize({ ...taken, supplementary: [...child.supplementary] }, child.scope)).toEqual(baselineSize);
+    expect(baselineSize.bytes).toBe(expected);
+  });
+
+  test.each([
+    { conflict: 'hash', reverse: false, hash: 'other', bytes: 5 },
+    { conflict: 'hash', reverse: true, hash: 'other', bytes: 5 },
+    { conflict: 'bytes', reverse: false, hash: 'h', bytes: 6 },
+    { conflict: 'bytes', reverse: true, hash: 'h', bytes: 6 },
+  ])('same-source $conflict conflict preserves complete error, reverse=$reverse', ({ reverse, hash, bytes }) => {
+    const sources = [{ path: 'same', hash: 'h', bytes: 5 }, { path: 'same', hash, bytes }];
+    if (reverse) sources.reverse();
+    const manifest: DeliveredManifest = {
+      schema: 'ramify-agent.delivered-inputs/1', inheritedPoint: null, currentMessage: null, hash: 'manifest',
+      entries: sources.map((source, index) => ({
+        key: `skill-${index}`, kind: 'skill', source: source.path, revision: null,
+        hash: source.hash, bytes: source.bytes, delivery: 'appended', sources: [source],
+      })),
+    };
+    const error = (run: () => unknown) => {
+      try { run(); } catch (caught) {
+        expect(caught).toBeInstanceOf(Error);
+        if (caught instanceof Error) return { name: caught.name, message: caught.message };
+        throw caught;
+      }
+      throw new Error('Expected delivered support conflict');
+    };
+    const baseline = error(() => deliveredScopeInputs(scope({}), manifest));
+    const child = error(() => childDeliveredScopeInputs(scope({}), manifest.entries.map(({ kind, source, hash, bytes, sources }) => ({ kind, source, hash, bytes, sources }))));
+    expect(child).toEqual(baseline);
+    expect(baseline).toEqual({ name: 'Error', message: 'Conflicting delivered support revisions for same' });
+  });
+});
 
 describe('Plan23 F6 delivered scope and partial byte arithmetic', () => {
   test('independent 100/20/30/50 baseline and 40/10/15/20/5 writer have 120/200 and 50/90 bytes', () => {

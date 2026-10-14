@@ -60,7 +60,6 @@ export function deliveredScopeInputs(declared: DeclaredScope, entries: readonly 
   }
   for (const entry of entries) if (entry.kind === 'brief' &&
     !(entry.source !== null && identities.get(entry.source) === entry.hash && files.get(entry.source) === entry.bytes)) {
-    if (briefs.has(entry.hash) && briefs.get(entry.hash) !== entry.bytes) throw new Error(`Conflicting delivered brief bytes for ${entry.hash}`);
     briefs.set(entry.hash, entry.bytes);
   }
   return {

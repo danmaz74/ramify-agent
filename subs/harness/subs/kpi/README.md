@@ -13,7 +13,9 @@ rules, pure exact setup-line verification and delivered-change attribution.
   architect and support components. Unknown totals retain known disjoint buckets;
   incompatible revisions clear state-bound buckets. `deliveredScopeInputs` consumes
   ordered `DeliveredSupportEntry` facts, not manifests or prompt packages; source
-  identity conflicts throw, repeated briefs count once by hash. Acquisition of
+  identity conflicts throw, repeated briefs count once by hash using the last
+  supplied entry's bytes (including inconsistent byte counts), as in the baseline.
+  Acquisition of
   assignment locations and execution/package discovery stays with harness.
 - `src/setup-attribution.ts`: `verifySetupLineIdentities` accepts authenticated
   ordered Git facts, recorded setup deltas and complete direct-diff partitions.

@@ -1,6 +1,112 @@
 # Bounded KPI provider transition
 
-## Snapshot/scope provider continuation (current iteration)
+## Baseline brief-byte repair (retained partial and current conformance)
+
+The accepted child boundary `0396e5aa8758c4ad4e393902e23ebb294608a9fd`
+contained an unauthorized brief-byte policy change. rq-0005's review identified
+that baseline `subs/harness/src/kpi/capture.ts` replaces a brief hash's bytes
+with the last supplied entry, whereas the child threw on inconsistent bytes.
+Plan revision 7 requires baseline behavior. This repair removes only that added
+exception; the ordered Map replacement/deduplication and source-path hash/byte
+conflict rejection are unchanged. It does not tighten factual preconditions.
+
+Exact behavior for the retained same-hash counterexample: ordered bytes [5,6]
+previously threw `Conflicting delivered brief bytes for h` in the child, and now
+produce brief6; reversed [6,5] previously threw and now produce brief5. Identical
+[5,5] still produces brief5. Baseline source inspection shows the same last-entry
+replacement. Same-path hash conflict (h/5 versus other/5) or byte conflict
+(h/5 versus h/6) still throws `Conflicting delivered support revisions for same`
+in either order. The retained tests now assert those results and final scope
+bytes rather than the unauthorized brief error. All other cases remain.
+
+Historical ga-0003 and review evidence are not superseded or reclassified as
+passing by this repair. The continuation below records the prior unauthorized
+policy claim and its prior receipts as historical facts, not current authority.
+The original supplied assignment does not include the ga-0003 receipt details;
+no new verdict for it is inferred here.
+
+At the retained cap-001.i04 partial boundary, real baseline comparison on these
+added conflict/order facts was blocked in child-owned tests:
+the child testing received capture.ts page lists DeclaredScope, baselineScope,
+rootModuleOfSnapshot and scopeSize, not deliveredScopeInputs. The supplied view
+has 78 analysis limits (ordinary 39), so absence alone is not proof. Architect
+consultation verified that the parent declaration's selected descendant exposure
+omits deliveredScopeInputs and its DeliveredManifest input contracts. No private
+parent import, copied calculator or KPI fake was added. A harness-owned testing
+comparator with authorized exposure, or harness-owned verification, is needed
+for execution parity on these exact cases. Existing parent baseline cases can
+still be run unchanged, but do not exercise inconsistent brief bytes.
+
+No parent production/configuration, frozen scenarios or consumers are changed;
+all other provider work, consumer migrations, cap-001 and composed completion
+remain deferred. The gate owns the committed default audit.
+
+### Current harness-owned execution parity and receipts
+
+The narrow conformance table in `../../src/tests/scope-size-recipe.test.ts`
+uses the existing local baseline import and the parent-received real child
+`deliveredScopeInputs` and `scopeSize`. Harness owns manifest translation; no
+helper, new exposure, fake, copied calculator or private cross-owner import is
+needed. Plain `DeliveredManifest` entries with required metadata preserve the
+inconsistent byte facts instead of re-hashing text. The corresponding factual
+entries keep order, hash, bytes and sources unchanged.
+
+Seven real baseline/child comparisons execute: three complete successful
+`DeliveredScopeInputs` and final `ScopeSize` answers for [5,6], [6,5], [5,5]
+(expected brief/total6,5,5), and four same-source hash/byte conflicts in both
+orders. Errors remain Error with exact message
+`Conflicting delivered support revisions for same`; both implementations are
+called, and unexpected success fails. Stack locations are execution-specific,
+not compared. All existing parent15 and child21 scope cases are preserved.
+
+Harness testing access was verified against the supplied refreshed revision
+`rev/1:f4c829fe-9f73-4302-97dd-c52909514d9e:30`, page
+`subs/harness/src/tests/.ramify/children/subs/harness/subs/kpi/src/capture.ts.md`.
+It receives deliveredScopeInputs, DeliveredScopeInputs, DeclaredScope,
+DeliveredSupportEntry, DeliveredSupportSource and scopeSize. The harness testing
+view has 27 source-analysis limits, ordinary1; child testing78/ordinary39.
+These coverage limits remain explicit; absence is not proof of unavailability.
+
+Current logs are under
+`plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/invocations/inv-0046/shell/`.
+`004.log`: required command
+`npm run test:quick -- subs/harness/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/measurement.test.ts`
+passed all 51 cases in 3 files: harness scope22 (including 7 real comparisons),
+child scope21, child measurement8; 0 failed/skipped/unrun in this selection.
+`001.log` records the same 51 passing cases before the readonly-array type fix.
+`002.log` records an initial type-check failure (two TS4104 readonly-array
+assignments); check:self was unrun then because of command chaining. Explicit
+array copies corrected those assignments without changing facts.
+`003.log`: npm run type-check passed all four compiler commands, then
+npm run check:self completed/passed with partial coverage: 15 owners, 933 sources,
+92 resources, 0 errors/warnings, 456 analysis limits, 0 denied accesses.
+The intervening edit hook's deadline-exceeded check verified nothing; the
+completed check:self supplies subsequent structural evidence.
+
+The committed default audit remains gate-owned, pending this completion proposal.
+Other tests/native witnesses, scenarios and web build are unrun by this engineer;
+no whole-suite command, cap-001 completion or composed acceptance is claimed.
+Historical partial/review/ga-0003 receipts below retain their original basis.
+
+### Historical cap-001.i04 repair verification receipts and limits
+
+Commands ran from project root; logs are under
+`plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/invocations/inv-0043/shell/`.
+`001.log`: `npm run test:quick -- subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts subs/harness/subs/kpi/src/tests/measurement.test.ts subs/harness/src/tests/scope-size-recipe.test.ts`
+passed 44 cases in 3 files: child scope21, child measurement8, baseline scope15;
+zero failed/skipped, none unrun within that selection. The baseline15 do not
+include the added inconsistent brief/order case; real baseline execution of that
+case remains unrun pending authorized testing access.
+`002.log`: `npm run type-check` passed all four compiler commands;
+`npm run check:self` completed/passed with partial coverage, 15 owners,
+933 sources, 0 errors/warnings, 456 analysis limits. Supplied view coverage limits
+remain ordinary39/testing78 at revision
+`rev/1:f4c829fe-9f73-4302-97dd-c52909514d9e:25`.
+No whole-suite command was run. Other tests, native witnesses, scenarios, web
+build and committed default audit are unrun by this engineer; these receipts
+neither erase historical ga-0003/review evidence nor claim composed acceptance.
+
+## Historical snapshot/scope provider continuation
 
 Comparison basis: unchanged parent capture.ts and baseline tests at candidate
 `c2a1ad1f02669ac9d06a63b560bd831c5a79522b`; accepted attribution boundary
@@ -66,9 +172,10 @@ non-null entries count their source; null-source role-instructions/procedure/ski
 tool-declaration count synthetic delivered-inputs/kind/hash identities. Briefs
 count by hash unless the same source/hash/bytes is already support. Environment
 entries without sources are not support. Same path with incompatible hash OR
-bytes throws the baseline error. Additionally, the requested factual boundary
-rejects same brief hash with conflicting byte counts instead of silently
-replacing the earlier count (new counterexample, not baseline parity claim).
+bytes throws the baseline error. The prior iteration additionally rejected same
+brief hash with conflicting byte counts instead of silently replacing the earlier
+count (new counterexample, not baseline parity claim). That was an unauthorized
+policy difference; the current repair restores last-entry bytes as described above.
 
 Call captureSnapshot with the evidence-owned CLI, current head/view, snapshot ID,
 ordered captured supplementary facts and signal. KPI computes raw UTF-8 producer

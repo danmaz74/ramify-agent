@@ -153,10 +153,20 @@ test('overlapping subtrees and duplicate exact owners count once', () => {
   expect(measured.bytes).toBe(1355);
 });
 test.each([{ hash: 'other', bytes: 5 }, { hash: 'h', bytes: 6 }])('conflicting source hash or bytes are rejected: %j', conflict => {
-  expect(() => deliveredScopeInputs(scope({}), [entry({ source: 'same' }), entry({ source: 'same', ...conflict })])).toThrow('Conflicting delivered support revisions for same');
+  const entries = [entry({ source: 'same' }), entry({ source: 'same', ...conflict })];
+  expect(() => deliveredScopeInputs(scope({}), entries)).toThrow('Conflicting delivered support revisions for same');
+  expect(() => deliveredScopeInputs(scope({}), [...entries].reverse())).toThrow('Conflicting delivered support revisions for same');
 });
-test('repeated brief hash cannot silently replace different bytes', () => {
-  expect(() => deliveredScopeInputs(scope({}), [entry({ kind: 'brief' }), entry({ kind: 'brief', bytes: 6 })])).toThrow('Conflicting delivered brief bytes');
+test.each([
+  { bytes: [5, 6], expected: 6 },
+  { bytes: [6, 5], expected: 5 },
+  { bytes: [5, 5], expected: 5 },
+])('repeated brief hash retains last-entry bytes: $bytes -> $expected', ({ bytes, expected }) => {
+  const delivered = deliveredScopeInputs(scope({}), bytes.map(bytes => entry({ kind: 'brief', bytes })));
+  expect(delivered).toEqual({ scope: scope({ brief: expected }), supplementary: [] });
+  const measured = scopeSize(snapshot(), delivered.scope);
+  expect(component(measured.components, 'support-documents')).toMatchObject({ bytes: expected, buckets: { documents: 0, brief: expected } });
+  expect(measured.bytes).toBe(expected);
 });
 test('API-view omissions retain known disjoint subtotal', () => {
   const taken = snapshot();
