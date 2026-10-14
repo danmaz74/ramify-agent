@@ -68,6 +68,46 @@ export function deliveredScopeInputs(declared: DeclaredScope, entries: readonly 
   };
 }
 
+/** Recorded declaration facts; no acquisition or execution callback enters the provider. */
+export interface InvocationScopeDeclaration {
+  readonly snapshot: MeasurementSnapshot;
+  readonly scope: DeclaredScope;
+  readonly readScope?: DeclaredScope | undefined;
+}
+
+/** Calculate before location acquisition so a later acquisition failure retains this answer. */
+export function invocationReadSize(snapshot: MeasurementSnapshot | null, declaration: InvocationScopeDeclaration | undefined, writer: boolean): ScopeSize | null {
+  if (snapshot === null || declaration === undefined) return null;
+  if (declaration.readScope) return scopeSize(snapshot, declaration.readScope);
+  return writer ? null : scopeSize(snapshot, { ...declaration.scope, supportDocuments: [], brief: 0 });
+}
+
+/** Qualify the captured invocation facts without inventing an unavailable snapshot. */
+export function invocationScopeSize(snapshot: MeasurementSnapshot | null, actual: DeliveredScopeInputs, acquired: DeclaredScope, role: string, hasDeclaration: boolean): ScopeSize {
+  if (snapshot === null) {
+    const known = actual.supplementary.reduce((sum, entry) => sum + entry.bytes, 0) + (actual.scope.brief ?? 0);
+    return { policy: scopeSizePolicy, snapshot: 'unavailable', bytes: null, subtotal: known, coverage: 'partial', components: [
+      { component: 'owned-source', detail: role, state: 'unavailable', bytes: null, reason: 'No frozen measurement snapshot is available' },
+      { component: 'support-documents', detail: 'Actual delivered/inherited inputs', state: 'measured', bytes: known },
+    ] };
+  }
+  const paths = new Set(actual.supplementary.map(entry => entry.path));
+  const frozen = { ...snapshot, supplementary: [...snapshot.supplementary.filter(entry => !paths.has(entry.path)), ...actual.supplementary] };
+  const size = scopeSize(frozen, acquired);
+  // The unknown component replaces (rather than duplicates) the empty selection.
+  return hasDeclaration ? size : { ...size, bytes: null, coverage: 'partial', components: size.components.map(component => component.component === 'owned-source'
+    ? { component: 'owned-source', detail: role, state: 'unknown', bytes: null, reason: 'This role has no recorded owned-source size declaration; delivered support subtotal retained' } : component) };
+}
+
+/** Acquisition failed: retain the declared snapshot and disjoint non-support subtotal. */
+export function invocationScopeFailure(declaration: InvocationScopeDeclaration | undefined, role: string, reason: string): ScopeSize {
+  const known = declaration ? scopeSize(declaration.snapshot, { ...declaration.scope, supportDocuments: [], brief: 0 }) : null;
+  return { policy: scopeSizePolicy, snapshot: declaration?.snapshot.id ?? 'unavailable', bytes: null, subtotal: known?.subtotal ?? 0, coverage: 'partial', components: [
+    ...(known?.components.filter(component => component.component !== 'support-documents') ?? []),
+    { component: 'support-documents', detail: role, bytes: null, state: 'unavailable', reason },
+  ] };
+}
+
 export interface SnapshotRequest {
   readonly id: SnapshotId;
   readonly ramify: RamifyCli;

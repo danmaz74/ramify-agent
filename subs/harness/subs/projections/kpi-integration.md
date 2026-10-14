@@ -1,5 +1,23 @@
 # KPI query integration — retained partial candidate
 
+## Standalone continuation observation
+
+Projections implementation and imports are unchanged by this partial slice.
+The harness now delegates invocation scope qualification to KPI's selected
+`capture.ts` originals before recording size/readSize; projections continues
+reading those durable facts through the real KPI child contracts. The exact
+focused `kpi-metrics.test.ts` (7 cases) and `lineage-metrics.test.ts` (14 cases)
+passed alongside actual harness measurement/line collection (14 cases). The
+first combined run retained a failing old collection spy seam; replacing that
+spy with call-through observation of `invocationScopeSize` preserved all durable
+assertions and the rerun passed35. No KPI fake or query assertion change.
+
+This is not a final source/API comparison: old parent duplicates, full legacy
+case mapping/retirement and selected exposure review remain owed. Root results,
+frozen bindings and all-ten-scenario acceptance are not altered or claimed.
+The operator still owns the committed default configured audit. Earlier receipts
+and interrupted/failed/skip limitations below remain historical.
+
 The actual query owner remains projections. `src/metrics.ts` now calls the real
 sibling KPI defining sources for capture, delivered attribution, guarding,
 lineage, metrics, exploration and timing. `src/lineage.ts` names the child's

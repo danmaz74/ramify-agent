@@ -1,5 +1,48 @@
 # Collection composition
 
+## Standalone continuation: invocation qualification (partial source delivery)
+
+The current continuation moves the remaining `prepareInvocation` result rules
+into the existing KPI child's `capture.ts`. The parent still reads/parses the
+frozen snapshot, translates delivered inputs, acquires location facts via
+`invocationScope`, decides when collection happens and commits the invocation.
+It no longer constructs scope components or chooses their measurement states.
+
+Selected originals are `invocationReadSize`, `invocationScopeSize` and
+`invocationScopeFailure`, with `InvocationScopeDeclaration` and existing
+`DeclaredScope`/`DeliveredScopeInputs` companions. They consume factual snapshot,
+declaration, delivered support, acquired locations, role, writer flag and error
+text. No acquisition callback or synthetic snapshot is passed to the child.
+Read size is assigned before location acquisition; catch does not overwrite it.
+
+Independent child assertions in `scope-size-recipe.test.ts` now cover:
+
+| Baseline rule | Retained independent assertion |
+| --- | --- |
+| Snapshot absent | Exact two-component ordered answer, role detail, unavailable reason, support20 + brief5 subtotal25 |
+| Declaration absent | Single unknown owned-source replacement, exact reason, ordered four components, support20 retained |
+| Acquisition failure | Snapshot ms-0001, subtotal520 (owned510 + API10), architect0, excluded support/brief, exact EACCES reason; no-declaration failure exact one-component answer |
+| Read selection/timing contract | Explicit read takes precedence even for writer (710), implicit nonwriter source510 excludes support/brief, writer/no-declaration/null-snapshot return null; previously returned read unchanged after later failure |
+
+The shared ordinary/native measurement helper observes the new selected
+`invocationScopeSize` entry point instead of the now-internal `scopeSize` call.
+Its call-through spy and durable equality assertion remain; no expected value,
+schema, state or fixture assertion was removed. The first focused composed run
+failed only that old spy expectation (34 passed/1 failed); the corrected selection
+passed all35. Child recipe selection passed25 (four new cases). Existing native
+measurement2 and trial7 passed unchanged. Type-check and check:self passed after
+the initial source change; structure has partial analysis coverage, not full
+verification. Final checks/discovery are recorded in the handback.
+
+This is **not** final Plan46 delivery. Parent `src/kpi/` duplicates and transition
+comparators remain intact pending full case-by-case mapping and retirement.
+Pure parent tests and production/test exposure minimization remain owed; no
+final API inventory is claimed. No frozen feature bindings, root results,
+original interrupted histories, configuration or process exemptions were edited.
+Root qualification handback, all-ten-case acceptance and the operator's committed
+default configured audit remain separate obligations. Historical receipts below
+retain their original failures/skips/interruption and scope limitations.
+
 ## Boundary and facts
 
 This slice integrates collection, not query/root migration or cap-001 acceptance.

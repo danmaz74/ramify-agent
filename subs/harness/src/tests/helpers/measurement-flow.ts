@@ -68,7 +68,7 @@ export function measurementCase(environment: MeasurementEnvironment, number: num
     const root = await environment.target();
     // Observation only: spies call the actual provider, never a calculator substitute.
     const capture = vi.spyOn(provider, 'captureSnapshot');
-    const sizes = vi.spyOn(provider, 'scopeSize');
+    const sizes = vi.spyOn(provider, 'invocationScopeSize');
     environment.cleanups.push(() => { capture.mockRestore(); sizes.mockRestore(); return Promise.resolve(); });
     const { service } = await environment.open(root, { script: [{ kind: 'submit', input: emptyAnalysis() }], ramify: environment.ramify(root) });
     environment.cleanups.push(() => service.close());

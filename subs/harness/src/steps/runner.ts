@@ -18,7 +18,7 @@ import type { Role } from '../interfaces/protocol/runs.js';
 import { canonicalJson, CommandLedger } from '../jobs/commands.js';
 import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import type { Mutex, PriorityMutex } from '../jobs/mutex.js';
-import { scopeSize, type DeclaredScope } from '../../subs/kpi/src/capture.js';
+import { invocationReadSize, invocationScopeSize, invocationScopeFailure, type DeclaredScope } from '../../subs/kpi/src/capture.js';
 import { deliveredScopeInputs, invocationScope, declaredRoots } from '../measurement/inputs.js';
 import { inputsHash, sha256, type LoadedPackage } from '../prompts/packages.js';
 import type { TaskEnvironment, TaskKind, TaskPacket } from '../prompts/tasks.js';
@@ -743,29 +743,13 @@ export class InvocationRunner<R extends RunnerRun> {
           const snapshot = request.measured?.snapshot ?? (baseline === null ? null : measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(baseline.id)), 'utf8'))));
           const declared: DeclaredScope = request.measured?.scope ?? { exactOwners: [], subtrees: [], apiViews: false, architectView: false, supportDocuments: [] };
           const actual = deliveredScopeInputs(declared, packet.manifest);
-          if (snapshot === null) {
-            const known = actual.supplementary.reduce((sum, entry) => sum + entry.bytes, 0) + (actual.scope.brief ?? 0);
-            size = { policy: 'scope-size/2', snapshot: 'unavailable', bytes: null, subtotal: known, coverage: 'partial', components: [
-              { component: 'owned-source', detail: request.role, state: 'unavailable', bytes: null, reason: 'No frozen measurement snapshot is available' },
-              { component: 'support-documents', detail: 'Actual delivered/inherited inputs', state: 'measured', bytes: known },
-            ] };
-          } else {
-            if (request.measured?.readScope) readSize = scopeSize(snapshot, request.measured.readScope);
-            else if (request.writer !== true && request.measured) readSize = scopeSize(snapshot, { ...request.measured.scope, supportDocuments: [], brief: 0 });
-            const paths = new Set(actual.supplementary.map(entry => entry.path));
-            const frozen = { ...snapshot, supplementary: [...snapshot.supplementary.filter(entry => !paths.has(entry.path)), ...actual.supplementary] };
-            size = scopeSize(frozen, await invocationScope(this.projectRoot, run.planId, declared, request.loaded, packet.message, packet.manifest));
-            // One owned-source component: the unknown one stands in for the
-            // empty selection's.
-            if (!request.measured) size = { ...size, bytes: null, coverage: 'partial', components: size.components.map(component => component.component === 'owned-source'
-              ? { component: 'owned-source', detail: request.role, state: 'unknown', bytes: null, reason: 'This role has no recorded owned-source size declaration; delivered support subtotal retained' } : component) };
-          }
+          readSize = invocationReadSize(snapshot, request.measured, request.writer === true);
+          // Acquisition stays here and follows read-size calculation. No location
+          // acquisition was performed by the baseline without a frozen snapshot.
+          const acquired = snapshot === null ? actual.scope : await invocationScope(this.projectRoot, run.planId, declared, request.loaded, packet.message, packet.manifest);
+          size = invocationScopeSize(snapshot, actual, acquired, request.role, request.measured !== undefined);
         } catch (error) {
-          const known = request.measured ? scopeSize(request.measured.snapshot, { ...request.measured.scope, supportDocuments: [], brief: 0 }) : null;
-          size = { policy: 'scope-size/2', snapshot: request.measured?.snapshot.id ?? 'unavailable', bytes: null, subtotal: known?.subtotal ?? 0, coverage: 'partial', components: [
-            ...(known?.components.filter(component => component.component !== 'support-documents') ?? []),
-            { component: 'support-documents', detail: request.role, bytes: null, state: 'unavailable', reason: message(error) },
-          ] };
+          size = invocationScopeFailure(request.measured, request.role, message(error));
         }
         body = { ...body, prompt: { ...body.prompt, inputsHash: hash, manifest: { ...packet.manifest } }, scope: { ...body.scope, size, readSize } };
       }

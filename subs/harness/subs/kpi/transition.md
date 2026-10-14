@@ -1,5 +1,23 @@
 # Bounded KPI provider transition
 
+## Standalone continuation — partial, not baseline retirement
+
+The remaining invocation qualification rules formerly constructed in parent
+`steps/runner.ts` now execute in the real child's `capture.ts` through factual
+inputs. The selected entry points and companion are `invocationReadSize`,
+`invocationScopeSize`, `invocationScopeFailure`, `InvocationScopeDeclaration`.
+The parent retains delivered-input translation, snapshot/location acquisition,
+ordering and durable commits. Four new child `scope-size-recipe.test.ts` cases
+preserve independent exact absent-snapshot, missing-declaration, failure and
+read-selection assertions. See harness `measurement-integration.md` for the
+case/rule comparison and the corrected call-through collection spy seam.
+
+No old production/test file is retired in this partial delivery. Historical
+comparators remain genuinely distinct; exhaustive legacy case mapping, pure-test
+relocation, removal of parent `src/kpi/` and exposure minimization remain owed.
+Do not interpret the focused tests or source movement as Plan46 acceptance.
+Earlier failed/skipped/interrupted receipts below remain historical evidence.
+
 ## ga-0005 patch-integrity repair
 
 Original audit receipt `20261014T103040Z-9c4e05:ga-0005` assessed

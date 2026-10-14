@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { baselineScope, deliveredScopeInputs, projectOnlySize, scopeSize, type DeclaredScope, type DeliveredSupportEntry } from '../capture.js';
+import { baselineScope, deliveredScopeInputs, projectOnlySize, scopeSize, invocationReadSize, invocationScopeSize, invocationScopeFailure, type DeclaredScope, type DeliveredSupportEntry } from '../capture.js';
 import type { MeasurementSnapshot, ScopeComponent } from '../../../../src/run/records.js';
 
 const bucket = (bytes: number, tests = 0, documentation = 0, views = 0) => ({
@@ -39,6 +39,51 @@ function scope(extra: Partial<DeclaredScope>): DeclaredScope {
   return { exactOwners: [], subtrees: [], apiViews: false, architectView: false, supportDocuments: [], ...extra };
 }
 const entry = (extra: Partial<DeliveredSupportEntry>): DeliveredSupportEntry => ({ kind: 'skill', source: null, hash: 'h', bytes: 5, sources: [], ...extra });
+
+describe('invocation qualification from factual inputs', () => {
+  test('absent snapshot retains exactly two ordered components and delivered support plus brief', () => {
+    const actual = deliveredScopeInputs(scope({}), [entry({ source: 'role.md', bytes: 20 }), entry({ kind: 'brief', bytes: 5 })]);
+    expect(invocationScopeSize(null, actual, actual.scope, 'engineer', false)).toEqual({
+      policy: 'scope-size/2', snapshot: 'unavailable', bytes: null, subtotal: 25, coverage: 'partial', components: [
+        { component: 'owned-source', detail: 'engineer', state: 'unavailable', bytes: null, reason: 'No frozen measurement snapshot is available' },
+        { component: 'support-documents', detail: 'Actual delivered/inherited inputs', state: 'measured', bytes: 25 },
+      ],
+    });
+    expect(invocationReadSize(null, { snapshot: snapshot(), scope: scope({}) }, false)).toBeNull();
+  });
+  test('missing declaration replaces the single owned-source component, retaining support subtotal', () => {
+    const actual = deliveredScopeInputs(scope({}), [entry({ source: 'role.md', bytes: 20 })]);
+    const result = invocationScopeSize(snapshot(), actual, actual.scope, 'reviewer', false);
+    expect(result).toMatchObject({ policy: 'scope-size/2', snapshot: 'ms-0001', bytes: null, subtotal: 20, coverage: 'partial' });
+    expect(result.components.map(item => item.component)).toEqual(['owned-source', 'api-views', 'architect-view', 'support-documents']);
+    expect(result.components[0]).toEqual({ component: 'owned-source', detail: 'reviewer', state: 'unknown', bytes: null, reason: 'This role has no recorded owned-source size declaration; delivered support subtotal retained' });
+    expect(result.components[3]).toMatchObject({ state: 'measured', bytes: 20 });
+  });
+  test('failure retains declared non-support subtotal, snapshot identity, order and exact error', () => {
+    const declaration = { snapshot: snapshot(), scope: scope({ exactOwners: ['p/a'], apiViews: true, supportDocuments: ['skills/SKILL.md'], brief: 99 }) };
+    const result = invocationScopeFailure(declaration, 'engineer', 'EACCES: delivered location');
+    expect(result).toMatchObject({ policy: 'scope-size/2', snapshot: 'ms-0001', bytes: null, subtotal: 520, coverage: 'partial' });
+    expect(result.components.map(item => item.component)).toEqual(['owned-source', 'api-views', 'architect-view', 'support-documents']);
+    expect(result.components[0]).toMatchObject({ bytes: 510, state: 'measured' });
+    expect(result.components[1]).toMatchObject({ bytes: 10, state: 'measured' });
+    expect(result.components[2]).toMatchObject({ bytes: 0, state: 'measured' });
+    expect(result.components[3]).toEqual({ component: 'support-documents', detail: 'engineer', bytes: null, state: 'unavailable', reason: 'EACCES: delivered location' });
+    expect(invocationScopeFailure(undefined, 'reviewer', 'bad JSON')).toEqual({ policy: 'scope-size/2', snapshot: 'unavailable', bytes: null, subtotal: 0, coverage: 'partial', components: [
+      { component: 'support-documents', detail: 'reviewer', bytes: null, state: 'unavailable', reason: 'bad JSON' },
+    ] });
+  });
+  test('read scope takes precedence; nonwriters exclude support; read answers survive later failure', () => {
+    const taken = snapshot();
+    const declaration = { snapshot: taken, scope: scope({ exactOwners: ['p/a'], supportDocuments: ['skills/SKILL.md'], brief: 99 }), readScope: scope({ exactOwners: ['p/b'] }) };
+    const read = invocationReadSize(taken, declaration, true);
+    expect(read).toMatchObject({ bytes: 710, subtotal: 710, coverage: 'complete' });
+    expect(invocationScopeFailure(declaration, 'engineer', 'later failure').subtotal).toBe(510);
+    expect(read).toMatchObject({ bytes: 710, coverage: 'complete' });
+    expect(invocationReadSize(taken, { snapshot: taken, scope: declaration.scope }, false)).toMatchObject({ bytes: 510 });
+    expect(invocationReadSize(taken, { snapshot: taken, scope: declaration.scope }, true)).toBeNull();
+    expect(invocationReadSize(taken, undefined, false)).toBeNull();
+  });
+});
 
 describe('scope-size/2 counts each file once', () => {
   test('B counts every support document once, and the architect view in its own component only', () => {

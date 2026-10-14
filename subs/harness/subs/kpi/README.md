@@ -5,6 +5,24 @@ owns snapshot construction, scope-size/2 accounting, delivered-support identity
 rules, pure exact setup-line verification, delivered-change attribution and
 recorded-fact KPI, lineage, exploration, timing/charge, guarding and session rules.
 
+## Current continuation status
+
+Invocation qualification now also belongs to `capture.ts`:
+`invocationReadSize` selects recorded read facts before acquisition;
+`invocationScopeSize` qualifies absent snapshots and missing declarations and
+merges delivered support identities; `invocationScopeFailure` preserves the
+declared snapshot/non-support subtotal and acquisition reason. Their factual
+companion is `InvocationScopeDeclaration`; there is no execution callback.
+The harness acquires inputs and remains the sole durable writer. Four independent
+child recipe cases assert exact answers/order/reasons and read behavior; actual
+collection/query and native witnesses remain with their coordinating owners.
+
+This continuation is partial: the old parent duplicates/parity files and their
+case-mapped retirement/API minimization are still owed. Historical transition
+receipts below are not a final source ownership report or all-ten-scenario
+acceptance. See harness `measurement-integration.md` for the new rule map and
+observed checks; see `transition.md` for historical evidence preserved unchanged.
+
 ## Contracts and invariants
 
 - `src/lines.ts`: `takeLineSnapshot` uses the original evidence `GitService`;
