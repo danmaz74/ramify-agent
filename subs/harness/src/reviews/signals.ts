@@ -2,7 +2,7 @@ import { posix } from 'node:path';
 import type { CheckFindingLocation, CheckFindingReportCredibility } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import type { CandidateSource } from '../../subs/evidence/src/git.js';
 import type { ArchitectIndex, ModuleEntry } from '../../subs/evidence/src/views.js';
-import { ownerOf } from '../kpi/lines.js';
+import { ownerOf } from '../measurement/owners.js';
 import type { CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import { parseModuleHeader } from '../run/module-header.js';
 

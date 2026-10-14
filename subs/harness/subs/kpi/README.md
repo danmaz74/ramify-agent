@@ -7,6 +7,12 @@ recorded-fact KPI, lineage, exploration, timing/charge, guarding and session rul
 
 ## Contracts and invariants
 
+- `src/lines.ts`: `takeLineSnapshot` uses the original evidence `GitService`;
+  `lineEvents` computes per-invocation deltas, sorted paths, binary byte changes,
+  unmapped counts and explicit failure/overlap gaps. General `ownerOf` lives in
+  harness `src/measurement/owners.ts`, not in the calculator. Harness run service
+  chooses before/after timing and writes the returned original line-events/1 record.
+
 - `src/capture.ts`: `captureSnapshot` reads the evidence-owned measurement
   producer and published architect bytes. It preserves raw producer SHA-256,
   revision, document and unavailable reasons. `scopeSize` consumes `DeclaredScope`
@@ -84,6 +90,9 @@ comparison evidence, access limitations and subsequent owner-scoped migration.
 Owned calculation tests also compare full answers with the real, temporarily
 retained baseline through existing testing exposures; no KPI fake is used.
 Sessions and recorded charges retain baseline bodies and expected cases but lack
-selected baseline function exposure for a child runtime comparator. Production
-consumers are not migrated: this provider iteration does not establish consumer
-composition, old-directory retirement or cap-001 completion.
+selected baseline function exposure for a child runtime comparator. Run service
+now consumes real child line measurement; other calculator, scope adapter,
+root and projections composition remains owed. This one seam does not establish
+whole old-directory retirement or cap-001 completion.
+
+Focused line checks: `npm run test:quick -- subs/harness/subs/kpi/src/tests/lines.test.ts subs/harness/src/tests/owners.test.ts subs/harness/src/tests/line-events.test.ts`.

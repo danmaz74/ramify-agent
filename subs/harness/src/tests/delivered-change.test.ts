@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { ChangedFile, ChangeHistory, LineCommit, LineRange } from '../../subs/evidence/src/git.js';
 import { cachedChangeHistory, deliveredChange, type DeliveredChangeRequest } from '../kpi/delivered.js';
-import { lineEvents } from '../kpi/lines.js';
+import { lineEvents } from '../../subs/kpi/src/lines.js';
 import type { LineEventSummary } from '../run/records.js';
 
 /*

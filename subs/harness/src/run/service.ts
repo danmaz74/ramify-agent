@@ -143,7 +143,7 @@ import {
   type DeclaredScope,
 } from '../kpi/capture.js';
 import { cachedChangeHistory } from '../kpi/delivered.js';
-import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../kpi/lines.js';
+import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../subs/kpi/src/lines.js';
 import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
 import type { ProjectLock } from '../store/lock.js';
 import { acceptAnalysis } from '../analysis/accept.js';

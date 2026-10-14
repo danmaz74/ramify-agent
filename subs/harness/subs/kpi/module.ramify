@@ -1,6 +1,9 @@
 ramify 1
 module kpi
 
+// Per-invocation measurement; harness retains collection timing and durable writes.
+expose-src LineChange, LineSnapshot, LineEventRequest, takeLineSnapshot, lineEvents from "lines.ts" to parent
+
 // Scope accounting and factual delivered-support input closure for forthcoming collection/query consumers.
 expose-src scopeSizePolicy, DeclaredScope, baselineScope, scopeSize, componentSubtotal, projectOnlySize, revisionMismatch, rootModuleOfSnapshot, captureSnapshot, SnapshotRequest, deliveredScopeInputs, DeliveredSupportEntry, DeliveredSupportSource, DeliveredScopeInputs from "capture.ts" to parent
 

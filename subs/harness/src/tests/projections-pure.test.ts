@@ -149,6 +149,7 @@ describe('a projection never writes, and no query appends an event', () => {
 
   test('the projection source calls nothing that writes', async () => {
     await expect(readdir(new URL('../projections/', import.meta.url))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(readFile(new URL('../kpi/lines.ts', import.meta.url))).rejects.toMatchObject({ code: 'ENOENT' });
     // A tripwire beside the behavioral test above: the projections and the
     // KPI projection name no writing primitive of the file system, the
     // ledger or the run service. Zod's `z.record(` is a schema, not a write.
@@ -158,6 +159,8 @@ describe('a projection never writes, and no query appends an event', () => {
       ...(await readdir(directory)).filter(name => name.endsWith('.ts')).map(name => join(directory, name)),
       fileURLToPath(new URL('../kpi/metrics.ts', import.meta.url)),
       fileURLToPath(new URL('../kpi/guarding.ts', import.meta.url)),
+      fileURLToPath(new URL('../../subs/kpi/src/lines.ts', import.meta.url)),
+      fileURLToPath(new URL('../measurement/owners.ts', import.meta.url)),
     ];
     expect(files.length).toBeGreaterThan(5);
     // The comparison's projection and the tree load it shares with the module-tree query are among them.

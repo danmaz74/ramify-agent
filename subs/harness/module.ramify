@@ -159,6 +159,12 @@ expose-sub CheckFindingAction, CheckFindingActionKind, CheckFindingActor, CheckF
 expose-sub ReportedCheckFindingMaterialChoice, CheckFindingSummary, CheckFindingDetailView, CheckFindingListView, CheckFindingSelection, CheckFindingQueryInput, CheckFindingQuery, checkFindingQuerySchema, checkFindingQueryLimits, selectCheckFindings from check-findings to descendants
 // GitLineRange binds evidence's original tuple without displacing agent LineRange.
 expose-sub ChangeHistory, ChangedFile, GitLineRange, LineCommit, ModuleEntry, loadModuleTree from evidence to descendants
+// Per-invocation collection uses the original acquisition and ownership contracts.
+expose-sub GitService, gitService, CommitTrailer, IgnoreStatus, IgnoreRule, CandidateTreePreview, commonDirectory, isAncestor, recoveryStatus, trackedPaths, ignoreStatus, previewCandidateTree, currentHead, isCleanRepository, createRunBranch, inspectRunBranch, commitAccepted, findCommitByTrailer, findCommitByTrailers, changedPaths, changedEntries, diffNameStatus, diffNumstat, commitNameStatus, worktreeLineChanges, worktreePatch from evidence to descendants
+expose-sub ArchitectIndex, SymbolRecord, ExposureChannel from evidence to descendants
+expose-src ownerOf from "measurement/owners.ts" to descendants
+expose-test architectIndex, moduleEntry from "helpers/views.ts" to descendants
+expose-test mockGit from "helpers/mock-git.ts" to descendants
 // Snapshot acquisition reads the evidence producer; no new executor or writer.
 expose-sub readMeasurement, MeasurementRead, MeasurementDocument, ModuleMeasurement, documentSchema, moduleSchema, architectViewDirectory, RamifyCli, RamifyRun, RamifyCheckResult, CheckProvider, MaterializeResult, OwnershipQueryResult, OwnershipAnswer, OwnershipPath, RawOwnershipEvidence, ProviderFailureEvidence, RecoveryEvidence from evidence to descendants
 expose-sub JsonLines, LedgerEntry, RecordBody, Transaction, readJsonLines from ledger to descendants

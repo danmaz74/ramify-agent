@@ -36,6 +36,16 @@ public contracts of that behavior: the vocabulary of the evidence a run works
 from, the run's own commands and vocabulary, and the HTTP protocol it
 serves.
 
+## Line collection and general ownership
+
+Run service chooses before/after invocation snapshot timing and commits the original
+`line-events/1` records through its existing durable path. The real provider is
+`subs/kpi/src/lines.ts`; it receives the evidence-owned Git acquisition seam and
+retained harness `src/measurement/owners.ts` lookup. Reviews, equipment and read
+excursions use that general lookup without metric knowledge. No `src/kpi/lines.ts`
+forwarder remains. See `subs/kpi/transition.md` for case/import maps, evidence and
+remaining scope/calculator, root and projections migrations.
+
 ## Durable sessions
 
 The harness owns the shared production session ledger and original immutable

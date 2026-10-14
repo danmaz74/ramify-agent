@@ -661,14 +661,15 @@ moves are required because the baseline witnesses have not moved.
 
 ## Remaining owner-scoped migration inventory
 
-All eleven old production files still exist; none is a forwarder:
+Historical pre-line-composition inventory: all eleven old production files existed;
+the current line seam below retires lines.ts, leaving ten. None is a forwarder:
 
 | File | Remaining responsibility |
 | --- | --- |
 | setup-attribution.ts | Replace root/projections consumers with child through harness re-exposure; remove old verifier/contracts/helpers. |
 | delivered.ts | Replace harness cache and projections attribution consumers; remove old contracts/algorithms. |
 | capture.ts | Scope rules, snapshots/measurement acquisition coordination and size calculation; separate provider rules from harness execution adapters. Includes baselineScope, write/readScopeMeasurement, deliveredScopeInputs, invocationScope, captureSnapshot, scopeSize, componentSubtotal, projectOnlySize, revisionMismatch, directoryBytes, fileBytes, rootModuleOfSnapshot, inventoryPath, supportDocument, planSupportPath. |
-| lines.ts | Pure lineEvents rules versus takeLineSnapshot acquisition; ownerOf must retain a selected general ownership-query contract for non-KPI users. |
+| lines.ts (now removed) | lineEvents/takeLineSnapshot and contracts now child-owned; ownerOf/owns retained unchanged at harness measurement/owners.ts. |
 | efficiency.ts | Recorded charge estimation and invocation timing rules. |
 | exploration.ts | Search counts, identities, elapsed time, details/metrics; declaredRoots coordination inputs. |
 | guarding.ts | Guarding report/count rules. |
@@ -677,7 +678,8 @@ All eleven old production files still exist; none is a forwarder:
 | sessions.ts | Session metrics and companions. |
 | trial-report.ts | Execution/qualification destination protection, not KPI ownership; preserve outside-project/symlink protection. |
 
-Current production import inventory (no consumer migrated in this iteration):
+Historical production import inventory before the line-composition iteration
+(current line-consumer replacements are recorded below):
 
 - `scripts/trial-attribution.ts`: exact verifier/source-fact types and trialReportDestination.
 - harness `run/service.ts`: capture adapters, history cache, lineEvents/snapshots.
@@ -699,7 +701,7 @@ Tests still depending on the old directory include the two bounded baseline file
 coordination in later assignments; preserve all native claims. Root collector
 qualification remains root-owned. Projections' 25 configured files remain discovered.
 
-The parent currently still knows every old algorithm. Only after execution,
+Before line composition the parent still knew every old algorithm. Only after execution,
 projections and root composition will it no longer need their implementation
 knowledge. The new reading-input cost is exact authenticated line facts, ordered
 history and recorded line events; no writable authority or acquisition knowledge
@@ -732,3 +734,129 @@ and is not counted. No guard, native registrations or configured discovery were
 changed. No whole-suite engineer run occurred. Native witnesses (unchanged),
 Cucumber, web build, and the complete committed default audit were not run here;
 the gate owns the audit. Focused passes do not claim composed acceptance.
+
+## Line-observation composition (current candidate)
+
+Continues accepted `782fbe391da43b9bd1711b98dea472a72a90806d`.
+Historical ga-0005 failure and recorded skips remain historical; ga-0006 passed
+following its EOF-only repair. No claim here replaces those committed outcomes.
+This candidate's default committed audit is requested through the gate, not run
+by the engineer; its outcome is not yet known when this inventory is written.
+
+### Ownership and complete consumer map
+
+`LineChange`, `LineSnapshot`, `LineEventRequest`, `takeLineSnapshot` and
+`lineEvents` moved from harness `src/kpi/lines.ts` to child `src/lines.ts`.
+Arithmetic, sorting, failure reasons, binary-byte comparison and overlap policy
+are unchanged. `ownerOf` and private `owns` moved unchanged to harness
+`src/measurement/owners.ts`. The old lines.ts is deleted, not a forwarder.
+Shell 020 proves absence; the extended `projections-pure` test also requires
+ENOENT and applies the existing no-writing-primitives tripwire to both new files.
+
+Complete former lines.ts production consumers:
+
+| Consumer (harness src) | Current import / responsibility |
+| --- | --- |
+| run/service.ts | ../../subs/kpi/src/lines.js: lineEvents, takeLineSnapshot, LineSnapshot |
+| reviews/signals.ts | ../measurement/owners.js: ownerOf |
+| work/engineer-equipment.ts | ../measurement/owners.js: ownerOf |
+| run/excursions.ts | ../measurement/owners.js: ownerOf |
+
+Testing consumers `helpers/gate-git.ts` and `helpers/recovery-git.ts` now import
+child LineChange; `delivered-change.test.ts` imports child lineEvents. The retained
+`line-events.test.ts` imports child LineChange only; it invokes measurement through
+real production run service, not a substituted KPI. The source search has no old
+lines import; only the explicit removal assertion refers to that old path.
+The child imports original evidence `GitService`/`gitService` and `ArchitectIndex`,
+harness ownerOf and the original LineEventSummary/schema. No process, writer,
+ledger, assignment, policy callback or duplicate owner lookup was introduced.
+
+Harness owns timing, accepted boundary selection and `recordLineEvents`, including
+its unchanged writeFileAtomic path, formatted JSON plus LF and original schema.
+The retained integration case now additionally compares the entire persisted
+record and exact JSON formatting. It still verifies both Git calls use the accepted
+scenario boundary, exact line deltas, invocation identity and owners. No KPI fake
+is used. The parent no longer needs line-delta algorithms; it retains execution
+and general ownership knowledge. Scope adapters and all other old KPI algorithms,
+root/projections consumer migration and full directory retirement remain owed.
+
+Child declaration exposes the five owner-local contracts/entry points to parent.
+Harness descendant exposure selects ownerOf and original ArchitectIndex closure
+(ModuleEntry, SymbolRecord, ExposureChannel). GitService's typeof members require
+its full original function closure: commonDirectory, isAncestor, recoveryStatus,
+trackedPaths, ignoreStatus, previewCandidateTree, currentHead, isCleanRepository,
+createRunBranch, inspectRunBranch, commitAccepted, findCommitByTrailer,
+findCommitByTrailers, changedPaths, changedEntries, diffNameStatus, diffNumstat,
+commitNameStatus, worktreeLineChanges and worktreePatch; named companion closure
+is CommitTrailer, IgnoreStatus, IgnoreRule and CandidateTreePreview. This broad
+reading/acquisition exposure is the cost of retaining the specified original
+GitService seam, not permission to write run state. It applies to all harness
+descendants, not parent/browser. Existing testing helpers mockGit, architectIndex
+and moduleEntry are selectively exposed to descendant tests; no new fake is added.
+
+### Complete moved/retained case map
+
+All nine original harness `line-events.test.ts` cases are accounted for:
+
+| Original exact case | Current owner/file |
+| --- | --- |
+| the two snapshots around a session give its own lines, and the view gives each path its owner | child tests/lines.test.ts |
+| a session that changed nothing has an empty summary; a path with no owner is counted as unmapped | child tests/lines.test.ts |
+| a snapshot that could not be taken is a coverage gap, never a zero | child tests/lines.test.ts |
+| a path no module's contents hold is unmapped, and is never attributed to the root | child tests/lines.test.ts |
+| a binary file carries its byte count and no invented line count | child tests/lines.test.ts |
+| a change made and put back between the snapshots delivered nothing, and the count stays complete | child tests/lines.test.ts |
+| the owner of a path is the module whose own contents hold it | harness tests/owners.test.ts |
+| the summary beside the invocation names what that invocation wrote | harness tests/line-events.test.ts retained/strengthened |
+| failed, stopped, repaired, context-limited and no-change sessions are all in the session set | already ported child tests/sessions.test.ts; parent duplicate retired |
+
+New child case: binary byte changes and overlapping writers retain sorted partial
+contributions (also decreasing additions clamp at zero and unchanged binary bytes
+produce no second delta). New harness owner case: deepest matching area wins
+independent of order and native separators; includes area-prefix and exact
+README rejection. All original assertions remain represented. Existing child
+sessions test has the original session/end/change/usage assertions plus its
+separate empty-input/unknown-total case. Native cases and registrations stay
+with their original coordinating owners; no registrations or discovery change.
+
+### Current verification and access limitations
+
+Logs: `plans/kpi-extraction/.harness/jobs/20261014T103040Z-9c4e05/invocations/inv-0059/shell/`.
+
+- 013 and 023: type-check passed all configured compiler checks; check:self
+  completed/passed, partial coverage, 15 owners, 950 sources, 0 errors/warnings,
+  457 analysis limits and 0 denied accesses. Interim deadline-exceeded hook checks
+  were not passes; the completed full structural check supersedes that limitation.
+- 018: exact quick filters for child lines (7), child sessions (2), harness owners
+  (2), line-events (1), delivered-change (16), review-signals (10), read-excursions
+  (7), plan23-observation-integration (38): 8 files, 83 passed, 0 failed/skipped.
+- 022: exact projections-pure quick filter: 3 passed, 0 failed/skipped. Exact
+  registered measurement.boundary filter: 2 passed, 0 failed/skipped, retains
+  installed producer/native Git and actual run collection. Other native files
+  were unchanged and not engineer-run; full native execution belongs to the gate.
+- 023: final exact line-events filter after JSON-byte assertion: 1 passed,
+  0 failed/skipped (repeat execution, not another unique case).
+- 020: authoritative configured discovery: 449 files, new lines/owners and retained
+  line-events in node; all 25 projections files still discovered. Discovery is
+  not execution. Configurations, compiler manifests, guard and registrations unchanged.
+- 025/026: ordinary run receipts at this cwd from 14:22:43.954Z through
+  14:22:51.060Z on 2026-10-14 have zero allowed/refused launches. Purity and final
+  coordinating run receipts also have zero allowed/refused. Native measurement
+  receipt 14:24:37.210Z..14:25:12.421Z records 76 API observations and zero refused
+  attempts (API observations are not successful process counts). Guard and registry
+  hashes match the historical hashes above.
+
+019 refreshed both ordinary/testing areas for both owners; 020/021 inspected
+required received signatures. One candidate analysis revision is
+`rev/1:1d1361bf-756c-4b12-93ea-79c35045daf2:1`: harness ordinary/testing coverage
+limits 1/27, KPI ordinary/testing 39/78, each truncated 4. Required child line API,
+original GitService/gitService, ArchitectIndex closure, ownerOf, original durable
+records and testing helper pages are present. These limited views cannot establish
+absence of other capabilities. The supplied revision 67 and earlier revisions
+remain historical and are not combined with this candidate state.
+
+Unique focused cases: 88 passed across 10 files, zero failures/skips; final one-case
+rerun passed. Complete Cucumber, web build, remaining native witnesses, full tests
+and the default committed audit are unrun by this engineer and remain gate-owned.
+This evidence proves one real line-collection seam, not scope/calculator,
+root/projections or complete cap-001/scenario acceptance.
