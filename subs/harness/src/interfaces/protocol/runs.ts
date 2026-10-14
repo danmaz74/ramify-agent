@@ -1364,8 +1364,8 @@ export const gateViewSchema = z.object({
   commit: text.nullable(),
   audited: text.nullable(),
   evidence: z.object({ runRef: text, reportCommit: text, treeRef: text }).strict().nullable(),
-  /** Complete producer evidence, including diagnostic details and artifact references. Absent on an attempt without provider results. */
-  provider: z.object({ result: z.unknown(), checks: z.unknown() }).strict().optional(),
+  /** Location of the retained gate report; full provider payloads are never attached to this response. */
+  reportPath: text.optional(),
   /** A committing gate's configured audit request and answer; absent for an attempt that ended before its audit and an in-place diagnosis. */
   audit: gateAuditViewSchema.optional(),
   /** The tracked scenarios its audit's Cucumber checks ran; empty where none ran. */

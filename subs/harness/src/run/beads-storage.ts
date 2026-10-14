@@ -5,6 +5,7 @@ import { openSessionStore, type LedgerSessionStore } from './session-store.js';
 export const beadsStageInputSchema = z.object({
   runId: z.string().min(1), sourceRef: z.string().nullable(), context: z.string(), workspace: z.string().min(1),
   executable: z.string().min(1).optional(), outcome: z.string().optional(),
+  reports: z.array(z.object({ path: z.string().min(1), hash: z.string().regex(/^[a-f0-9]{64}$/u) }).strict()).optional(),
 }).strict();
 export type BeadsStageInput = z.infer<typeof beadsStageInputSchema>;
 export interface BeadsBinding {

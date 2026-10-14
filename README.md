@@ -306,6 +306,15 @@ ones relate to the plan, and marks open related issues `in_progress`. It
 preserves issues already closed. At finish, it can close only those recorded
 issues whose resolution is supported by concrete issue-specific evidence;
 unresolved or failed work leaves them unchanged.
+When start administration confirms that no issues are associated with the run,
+finish administration records that outcome without a model call. Incomplete start
+administration and prior unsettled operations remain pending for recovery.
+
+Full audit reports stay in retained evidence. Administrative tasks and gate
+inspection responses supply the verdict and report location, never the full
+provider payload. Consult report details only when they help the current task.
+For issue review, `beads_read_check` lists check IDs or retrieves a bounded
+excerpt from one selected check in a captured report, verified against its hash.
 
 Administrative sessions update existing related issues using plan evidence.
 They do not create issues, synchronize trackers, or establish plan progress or
