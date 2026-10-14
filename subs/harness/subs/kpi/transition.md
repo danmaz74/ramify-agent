@@ -860,3 +860,36 @@ rerun passed. Complete Cucumber, web build, remaining native witnesses, full tes
 and the default committed audit are unrun by this engineer and remain gate-owned.
 This evidence proves one real line-collection seam, not scope/calculator,
 root/projections or complete cap-001/scenario acceptance.
+
+### ga-0007 failure and bounded repair
+
+Preserved audit receipt `20261014T103040Z-9c4e05:ga-0007`, audited candidate
+`4839baa35960d3b8ffe582a41eb00d061f3c323c`, verdict fail/check-failed.
+Requested ramify-partial executed full due to drift-cap (39 paths versus limit 25,
+compared with full-audit base bad37865e1a3518b1a5d3a9923044d494a420025).
+agent-tests: 447 files passed, 1 failed, 1 skipped of 449; 3823 tests passed,
+1 failed, 2 skipped of 3826. These skips remain recorded; their identities are
+not supplied by the repair briefing. Exact failed case:
+`subs/harness/src/tests/composition.test.ts`:
+`the acceptance matrix, composed > every case has exactly one owning iteration, and its owning tests are present by name and belong to that iteration`.
+Diagnostic: `M5: subs/harness/src/tests/line-events.test.ts has no test named
+"M5: every session counts, whatever ended it"`.
+Other configured checks passed: patch-integrity, typecheck, structure, web-build,
+and scenarios (6 passed/0 failed/0 skipped; 61 steps passed/0 failed/0 skipped/
+0 undefined). Counts for other non-test checks are unknown as supplied.
+
+Cause is the retained frozen acceptance citation navigating to the retired parent
+session duplicate. The bounded repair adds an exact M5 navigation mapping to the
+existing child `sessions.test.ts`, following the existing exact M2 moved-file
+mapping. Frozen citations, titles, unique iteration ownership, owning results-note
+checks and all assertions remain intact; no contract artifact, test discovery,
+registration or production implementation changed. Collection stays harness-owned.
+
+Repair log `invocations/inv-0060/shell/001.log` under the same job: exact quick
+filters composition (13) and child sessions (2), 15 passed/0 failed/0 skipped;
+type-check and check:self passed (partial structural coverage, 457 analysis limits,
+0 errors/warnings/denied accesses). The current supplied requester views are
+revision `rev/1:f4c829fe-9f73-4302-97dd-c52909514d9e:89`, limits 1/27/39/78;
+no new cross-owner import is required for this repair. This focused pass neither
+erases ga-0007 nor proves a flake. The next gate selects execution/reuse and owns
+the qualifying committed audit verdict; no full audit was run by the engineer.
