@@ -61,3 +61,16 @@ ordinary witness for real consumer imports, web/private boundaries and configure
 discovery, reusing that delivery and the existing parent integration fixtures.
 No production behavior, feature, audit configuration, dependency pin, run record
 or child-owned file was edited here. No stopped-run scenario state is claimed.
+
+## Later operator assessment
+
+The signature-inference limits above did not demonstrate a missing import or
+companion: actual child and parent imports type-check, and Ramify reports no
+denied access. A later parent-owned sc008 fixture binds the six remaining
+steps using real consumer imports, current ordinary/testing API metadata,
+explicit child declarations, the frozen reading port, production source and
+configured discovery. The latest frozen feature then passed all 14 expanded
+cases, with no child declaration or production edit. The limits remain stated
+in [the architecture comparison](../subs/projections/notes/architecture-comparison.md)
+and final qualification evidence; this historical partial report remains the
+record of what that standalone session submitted.

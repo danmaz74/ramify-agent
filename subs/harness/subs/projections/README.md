@@ -83,5 +83,9 @@ Recorder restoration/deduplication/numbering/milestones and packet/role/full-run
 integration stay parent-owned; no production writer exposure is added.
 Four setup-attribution cases remain unchanged. No old consumers remain in the
 bounded source scan; all 23 old production files and their directory are removed.
-Historical failures remain in retirement-progress.md. Scenario qualification
-and final architectural comparison are separate follow-up, not claimed here.
+Historical failures remain in retirement-progress.md. The focused latest
+generated acceptance feature's 14 expanded cases pass with parent-owned
+bindings and ordinary test witnesses. Its frozen pending tags still describe
+the stopped full run; they are not a new run completion claim. See
+[the architectural comparison](notes/architecture-comparison.md) for the
+original runtime, restarted baseline, resulting ownership and contract cost.

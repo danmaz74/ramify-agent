@@ -80,7 +80,7 @@ expose-src RepairIncidentRecord, RepairIncidentStage, RepairIncidentId, RepairCa
 expose-sub commitAccepted, createRunBranch, isCleanRepository from evidence to descendants
 expose-sub runCommand, childEnvironment, outputTailBytes, CommandRequest, CommandRun, CommandOutcome, CommandOutput, CommandRunner from evidence to descendants
 
-// Selected reading dependencies for the future projections child. These named
+// Selected reading dependencies for the projections child. These named
 // declarations apply to the whole subtree; no writer, executor or persistence
 // entry point is added. Browser/public parent declarations above are unchanged.
 expose-src Incorporation, incorporationSchema from "analysis/evidence-contracts.ts" to descendants

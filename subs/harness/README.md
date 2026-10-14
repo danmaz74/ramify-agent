@@ -666,8 +666,11 @@ hiding or measured complexity justifies it.
   `src/projections/` tree is removed, with no forwarding implementations.
   Public-query integration tests use the real child, with service inputs narrowed
   by `createQuerySource`. See `subs/projections/notes/retirement-progress.md` for
-  the current assertion map and verification limitations. Scenario qualification
-  and the final architectural comparison remain follow-up.
+  the assertion map and verification limitations. The latest generated
+  acceptance feature's 14 expanded cases pass a focused run; its frozen
+  pending tags retain the stopped full run's state. See
+  `subs/projections/notes/architecture-comparison.md` for the baseline,
+  current ownership and contract cost.
   Historical session fixtures consume selected child testing layout metadata;
   lifecycle and HTTP integration remain here. Private standalone state, Plan36
   attribution, four Plan23 setup-attribution and four union event reference/summary
