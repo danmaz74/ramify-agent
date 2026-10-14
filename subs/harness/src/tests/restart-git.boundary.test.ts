@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { gitService, gitCandidateSource } from '../../subs/evidence/src/git.js';
+import { CommandRejection } from '../jobs/commands.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { byRole, submit, treeInputs } from './helpers/iterations.js';
@@ -70,6 +71,34 @@ test('restart preparation and resumed branch setup preserve native source refs i
     expect(await readFile(join(fixture.root, staged))).toEqual(before.staged);
     expect(await readFile(join(fixture.root, untracked))).toEqual(before.untracked);
     expect(await readFile(sourcePath)).toEqual(originalLog);
-    await service.execute(stopRun('review-notes', prepared.jobId, service.getRun('review-notes', prepared.jobId)!.version));
+    // Reading a snapshot does not reserve its version: startup can still
+    // append before stop's mutex-protected admission. Retry only that explicit
+    // refusal, with a newly sampled version and a fresh command identity.
+    const observed: { sampled: number; refusedAt?: number }[] = [];
+    const deadline = Date.now() + 20_000; // the existing until bound
+    let admittedCommandId: string | undefined;
+    for (let attempt = 0; attempt < 20 && Date.now() < deadline; attempt++) {
+      const observation = { sampled: service.getRun('review-notes', prepared.jobId)!.version, refusedAt: undefined as number | undefined };
+      observed.push(observation);
+      const command = stopRun('review-notes', prepared.jobId, observation.sampled);
+      try {
+        const receipt = await service.execute(command);
+        expect(receipt.commandId).toBe(command.commandId);
+        admittedCommandId = receipt.commandId;
+        break;
+      } catch (error) {
+        if (!(error instanceof CommandRejection) || error.code !== 'stale-version') throw error;
+        observation.refusedAt = error.currentVersion;
+      }
+    }
+    const diagnostic = () => JSON.stringify({ observed, events: service!.events('review-notes', prepared.jobId)!.map(event => ({ sequence: event.sequence, type: event.type })) });
+    expect(admittedCommandId, `No stop admitted within 20 attempts / 20s: ${diagnostic()}`).toBeDefined();
+    await until(() => service!.getRun('review-notes', prepared.jobId)!.state === 'stopped');
+    await service.settled('review-notes', prepared.jobId);
+    expect(service.getRun('review-notes', prepared.jobId)!.state, diagnostic()).toBe('stopped');
+    const stops = service.events('review-notes', prepared.jobId)!.filter(event => event.type === 'stop-requested');
+    expect(stops, diagnostic()).toHaveLength(1);
+    expect(stops[0]!.data.command.commandId).toBe(admittedCommandId);
+    expect(service.events('review-notes', prepared.jobId)!.find(event => event.type === 'job-stopped')?.data, diagnostic()).toEqual({ settled: true });
   } finally { await service?.close(); await fixture.remove(); }
 }, 30_000);
