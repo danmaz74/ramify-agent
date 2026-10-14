@@ -1,0 +1,6 @@
+ramify 1
+module kpi
+
+// Pure provider behavior and all owner-local signature companions.
+expose-src verifySetupLineIdentities, SetupLineIdentityInput, RecordedSetupDelta, SetupCandidatePartition, SetupLineMappingFacts, SetupSourceLine, SetupAddedLineFact, SetupDeletedLineFact from "setup-attribution.ts" to parent
+expose-src HarnessLineIdentities, deliveredChange, DeliveredChangeRequest, DeliveredChange, cachedChangeHistory from "delivered.ts" to parent
