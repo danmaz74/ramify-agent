@@ -17,7 +17,7 @@ Feature: projection-backed-harness-consumers
   bounded iterations and scoped child work rather than one broad
   implementation invocation.
 
-  @ramify-sc-001 @ramify-pending
+  @ramify-sc-001
   Scenario: Existing consumers use the extracted provider
     Given a project has recorded runs, sessions and consultations
     When HTTP answers run and session queries and the CLI inspects consultations
@@ -25,7 +25,7 @@ Feature: projection-backed-harness-consumers
     And the existing schemas, values, text, ordering and exit statuses are preserved
     And the old harness production projection directory is absent
 
-  @ramify-sc-002 @ramify-pending
+  @ramify-sc-002
   Scenario: Querying recorded evidence leaves the project unchanged
     Given a completed run with session transcripts and repair incidents
     And its project files, durable files and event sequence have been captured
