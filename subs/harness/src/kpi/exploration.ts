@@ -171,5 +171,3 @@ export function explorationDetails(input: readonly ExplorationObservation[], col
 export function explorationMetrics(input: readonly ExplorationObservation[], collectionLimits: readonly string[] = []): ExplorationMetrics {
   return explorationDetails(input, collectionLimits).metrics;
 }
-
-

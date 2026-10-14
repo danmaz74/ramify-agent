@@ -112,6 +112,23 @@ No browser/protocol exposure or descendant exposure was broadened.
   execution: broader provider/query/root suites, scenarios and web build were
   not run directly in this slice. The gate owns the committed default audit.
 
+## Committed audit failure and repair
+
+Audit `20261014T103040Z-9c4e05:ga-0009` evaluated candidate
+`2383b8601009795acb5dae55a994c85d82a02e12`: requested and executed
+ramify-partial, composed verdict **fail**. Exact failure:
+`subs/harness/src/kpi/exploration.ts:174: new blank line at EOF`
+from patch-integrity (`git diff --check HEAD^ HEAD`). The repair removes only
+that extra trailing blank line; no algorithm or test guarantee changes.
+
+The same receipt reports agent-tests pass: 415 files passed, 1 skipped,
+0 failed (416 total); 3431 tests passed, 2 skipped, 0 failed (3433 total).
+Agent-scenarios passed: 6 scenarios and 61 steps, zero failed/skipped/undefined.
+Agent-structure, agent-typecheck and agent-web-build passed (counts unspecified).
+Those results retain their actual producer scope and skips; they do not turn
+ga-0009 into a pass or establish broader requester acceptance. The next gate
+owns verification of the repair and may reuse applicable evidence.
+
 ## Remaining retirement and integration
 
 Retain old parent KPI bodies while projections/root still consume them. No
