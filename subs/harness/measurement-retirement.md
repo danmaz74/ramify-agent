@@ -1,5 +1,16 @@
 # Legacy KPI retirement: scoped source handoff
 
+## Current continuation reconciliation
+
+The final harness-local [delivery handback](kpi-delivery-handback.md) reconciles
+this retained inventory against current imports/declarations, separate requester
+access, surviving cases, native registrations and configured discovery. It records
+fresh focused quick/native/type/self evidence and all nine prepared feature cases
+passing, while preserving the failed/partial receipts below. Root canonical report
+placement/ownership, supplied versus verified identities and pending candidate
+build/default-audit/root acceptance are explicit there. This historical handoff is
+not rewritten as a current audit or whole-plan verdict.
+
 ## Scope and provenance
 
 Implemented against current supplied source (accepted boundary supplied as
