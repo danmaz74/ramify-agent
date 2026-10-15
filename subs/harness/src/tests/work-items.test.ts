@@ -261,17 +261,16 @@ describe('a run whose work items need no change', () => {
 });
 
 describe('a work-item gate that does not pass', () => {
-  test('returns to the same local architect, which revises its outline, and exhausts deterministically', async () => {
+  test('returns failed gates to the same local architect until verification passes', async () => {
     const project = await target();
     const submitted = analysis([entry('reviewer-note', reviews)]);
     let turn = 0;
+    let workItemChecks = 0;
     const { service, agent } = await openRuns(project, {
-      // Readiness passes; every work-item attempt receives the same completed
-      // test failure from the direct executor.
-      checkScript: ({ check, context }) => context.checkpoint === 'work-item' && check.kind === 'tests'
-        ? { outcome: { kind: 'completed', exitCode: 1 } }
-        : {},
-      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-001', 'wi-001', 'wi-001'],
+      // Three failed attempts lead to a fourth, successful assessment.
+      checkScript: ({ check, context }) => context.checkpoint === 'work-item' && check.kind === 'tests' && ++workItemChecks <= 3
+        ? { outcome: { kind: 'completed', exitCode: 1 } } : {},
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'wi-001', 'wi-001', 'wi-001', 'final verification of plan "review-notes"'],
       script: (spec: SessionSpec) => {
         if (spec.role === 'catalog-extractor') return [];
         if (spec.role === 'initial-architect') return [{ kind: 'submit' as const, input: submitted }];
@@ -284,19 +283,15 @@ describe('a work-item gate that does not pass', () => {
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
     const run = onlyRun(service, 'review-notes');
-    expect(run.state).toBe('failed');
-    expect(run.failure).toMatchObject({ reason: 'repair-exhausted' });
-    // The original cause is preserved with the first attempt that recorded it.
-    expect(run.failure!.message).toContain('the first cause was check-failed at gate');
+    expect(run.state).toBe('completed');
 
     const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
-    // The original attempt plus the policy's three repair rounds.
     const gates = events.filter(event => event.type === 'gate-attempted').filter(event => event.data.checkpoint === 'work-item');
     expect(gates).toHaveLength(4);
-    expect(gates.every(event => event.data.verdict === 'failed')).toBe(true);
+    expect(gates.map(event => event.data.verdict)).toEqual(['failed', 'failed', 'failed', 'passed']);
     // Every verified changed attempt is committed before its exact revision is
     // audited, including a failing attempt that will be repaired next.
-    expect(events.filter(event => event.type === 'gate-committing')).toHaveLength(4);
+    expect(events.filter(event => event.type === 'gate-committing')).toHaveLength(5);
 
     // Four outline revisions, each from its own invocation of the same session.
     const outlines = events.filter(event => event.type === 'outline-revised');
@@ -305,9 +300,8 @@ describe('a work-item gate that does not pass', () => {
     const fourth = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, workLayout.outline('wi-001', 4)), 'utf8')) as { revisionReason: string };
     expect(fourth.revisionReason).toBe('Revision 4');
 
-    // The work item is never completed, and the final gate never runs.
-    expect(events.some(event => event.type === 'work-item-completed')).toBe(false);
-    expect(events.some(event => event.type === 'job-completed')).toBe(false);
+    expect(events.some(event => event.type === 'work-item-completed')).toBe(true);
+    expect(events.some(event => event.type === 'job-completed')).toBe(true);
 
     // The module architect is one continuing session: every turn after the
     // first continues the point the last one reached.

@@ -198,7 +198,7 @@ test('CA05 CA19 CA22 CA32: service restart continues the durable active architec
   await second.service.settled('need', receipt.jobId);
 }, 60_000);
 
-test('restart preserves an explicit historical capability context failure without another dispatch', async () => {
+test('restart continues capability coordination after an architect context boundary', async () => {
   const fixture = await copyCapabilityFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = recoveryBoundaries(fixture.root);
@@ -206,6 +206,7 @@ test('restart preserves an explicit historical capability context failure withou
   const a = 'capability-coordination/a';
   const b = 'capability-coordination/b';
   let architectTurns = 0;
+  let frozen = false;
   const starts: string[] = [];
   const script: Script = spec => {
     starts.push(`${spec.role}:${spec.submission.name}:${spec.session.mode}`);
@@ -229,23 +230,27 @@ test('restart preserves an explicit historical capability context failure withou
         { kind: 'message', text: 'The capability task is unfinished at my context budget.' },
         { kind: 'legacy-context-return', tokens: 200_000 },
       ];
-      return submit({ kind: 'assign', task: ids[1], planRevision: Number(ids[2]), invocation: ids[3],
-        assignment: assign(b, { goal: 'Provide B source', approach: 'Update B owned source', completionEvidence: 'A uses B source' }).assignment });
+      return [{ kind: 'wait', ms: 60_000 }];
     }
     return [];
   };
-  const options = { ...boundaryAnswers.options, script, inputs: treeInputs() };
+  const options = { ...boundaryAnswers.options, script, inputs: treeInputs(),
+    afterWrite: async (write: string) => {
+      if (write === 'invocation-ended' && architectTurns === 1 && !frozen) { frozen = true; await freeze(); }
+    } };
   const first = await openCapabilityRuns(fixture.root, options);
   const receipt = await first.service.execute(startRun('need'));
-  await first.service.settled('need', receipt.jobId);
-  const before = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
-  expect(before.find(event => event.type === 'job-failed')?.data).toMatchObject({ reason: 'limit-exceeded', message: expect.stringContaining('unfinished task remains') });
-  expect(before.filter(event => event.type === 'capability-assigned' || event.type === 'capability-handed-back')).toEqual([]);
-  await first.service.close();
+  await until(() => frozen);
+  await staleCrashLock(fixture.root);
   const second = await openCapabilityRuns(fixture.root, options); cleanups.push(() => second.service.close());
-  expect(second.recovery.effects).toEqual([]);
-  expect(await runEventsOnDisk(fixture.root, 'need', receipt.jobId)).toEqual(before);
-  expect(starts.filter(start => start.startsWith('capability-architect:'))).toEqual(['capability-architect:submit_capability_action:fresh']);
+  await until(() => (second.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect').length === 2);
+  await second.service.execute(stopRun('need', receipt.jobId, second.service.getRun('need', receipt.jobId)!.version));
+  await second.service.settled('need', receipt.jobId);
+  const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
+  expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
+  expect(events.filter(event => event.type === 'capability-assigned' || event.type === 'capability-handed-back')).toEqual([]);
+  expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect')).toHaveLength(2);
+  expect(starts.filter(start => start.startsWith('capability-architect:'))).toContain('capability-architect:submit_capability_action:fresh');
 }, 60_000);
 
 test('CA19: accepted qualification before delegation replays one decision after restart', async () => {

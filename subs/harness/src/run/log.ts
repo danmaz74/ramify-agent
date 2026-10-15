@@ -58,7 +58,7 @@ const event = <T extends string, D extends z.ZodType>(type: T, data: D) => z.obj
 const text = z.string().min(1);
 
 /** What an invocation ended with, as its outcome record says. */
-const invocationEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']);
+const invocationEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'checkpoint-pending', 'invalid-submission']);
 
 /** The fields every `invocation-ended` carries, whether its session is kept or finished. */
 const invocationEndedFields = {
@@ -215,7 +215,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   /** The resulting tree is recorded only after all source-mutating preparation. */
   event('candidate-prepared', z.object({ candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
   /** Freezes the accepted catalog and captured round bound before the first candidate preview. */
-  event('nonfunctional-phase-started', z.object({ catalogHash: z.string().regex(/^[0-9a-f]{64}$/), maxRounds: z.int().positive().max(3) }).strict()),
+  event('nonfunctional-phase-started', z.object({ catalogHash: z.string().regex(/^[0-9a-f]{64}$/), maxRounds: z.int().positive() }).strict()),
   event('nonfunctional-final-invalidated', z.object({ occurrenceId: text, revision: z.int().positive(),
     round: z.int().positive(), candidate: text, assessment: text, tree: text }).strict()),
   event('nonfunctional-assessed', z.object({ assessment: text, candidate: text, round: z.int().positive(), phase: z.enum(['initial', 'after-repair']) }).strict()),
@@ -330,7 +330,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('work-item-started', z.object({
     workItem: text,
     module: text,
-    origin: z.enum(['entry', 'obligation', 'verification', 'integration']),
+    origin: z.enum(['entry', 'obligation', 'verification', 'integration', 'final-verification']),
     scenario: scenarioIdSchema.optional(),
     globalTarget: consultationTargetSchema.nullable().optional(),
   }).strict()),
@@ -600,6 +600,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('writer-released', z.object({ invocation: text, confirmed: z.boolean(), groupsKilled: z.int().nonnegative() }).strict()),
   /** The durable intent of a verified committing gate's commit-and-audit effect. */
   event('gate-started', z.object({ gate: text, checkpoint: text }).strict()),
+  /** A failed final attempt returns to the plan architect and ordinary correction work. */
+  event('final-correction-planned', z.object({ gate: text, invocation: text, workItem: text,
+    candidate: text, assessment: text, round: z.int().positive() }).strict()),
+  event('compaction-review-started', z.object({ invocation: text, ordinal: z.int().positive(), role: text }).strict()),
+  event('compaction-reviewed', z.object({ invocation: text, ordinal: z.int().positive(), reviewer: text,
+    action: z.enum(['continue', 'handoff']), reason: text }).strict()),
   event('gate-committing', z.object({ gate: text, checkpoint: text }).strict()),
   /**
    * One command of a running gate started, readiness's included: its kind

@@ -7,6 +7,7 @@ import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import type { scriptedCandidates } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { completionProposed, submit, write } from './helpers/iterations.js';
+import { disposition, reconcile, submission } from './helpers/check-findings-composition.js';
 import {
   attemptRecord, escape, eventsOf, gate, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store, tool,
 } from './helpers/reviews.js';
@@ -91,6 +92,9 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
           tool(snapshotToolNames.diff, { path: store }),
           { kind: 'submit', input: { inspected: [store], missing: [{ path: `${notesDirectory}/src/index.ts`, reason: 'The attempt ran out of its own time budget' }], concerns: [] } },
         ],
+      },
+      reconcilers: {
+        'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })),
       },
     });
     const { service, runId, events, agent } = run;
@@ -204,6 +208,7 @@ describe('CF04: semantic review validation and resource continuity', () => {
       // path still cannot satisfy this candidate's changed-path coverage.
       { kind: 'submit', input: { inspected: [limit], missing: [], concerns: [] } },
       { kind: 'submit', input: { verdict: 'looks fine' } },
+      { kind: 'submit', input: { verdict: 'still missing the required fields' } },
     ];
     let source!: ReturnType<typeof scriptedCandidates>;
     let time = Date.parse('2026-10-13T00:00:00Z');
@@ -254,7 +259,8 @@ describe('CF04: semantic review validation and resource continuity', () => {
     // An invalid submission creates no CheckFinding and names no submission record.
     expect(finished.every(event => event.data.checkFindings.length === 0)).toBe(true);
     expect((await attemptRecord(root, runId, 'rq-0001.a02')).result).toMatchObject({ result: 'not-verified', reason: 'invalid-output' });
-    expect(eventsOf(events, 'invocation-ended').filter(event => event.data.ended === 'invalid-submission')).toHaveLength(2);
+    expect(eventsOf(events, 'invocation-ended').filter(event => event.data.ended === 'invalid-submission')).toHaveLength(0);
+    expect(eventsOf(events, 'invocation-ended').filter(event => event.data.ended === 'ended')).toHaveLength(2);
     expect(service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' })).toMatchObject({ ok: true, view: { total: 0 } });
     run.git.assertComplete();
   }, 120_000);

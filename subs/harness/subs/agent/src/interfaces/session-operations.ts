@@ -1,4 +1,7 @@
-import type { AgentEvent, ContextPolicy, GuardedCall, GuardDecision, JsonSchema, SessionOutcome, SettledMutation, SubmissionVerdict, ToolAction, ToolDefinition, ToolResult } from './port.js';
+import type { AgentEvent, CompactionReason, ContextPolicy, GuardedCall, GuardDecision, JsonSchema, SessionOutcome, SettledMutation, SubmissionVerdict, ToolAction, ToolDefinition, ToolResult } from './port.js';
+
+export type CompactionCheckpoint = { readonly ordinal: number; readonly reason: CompactionReason };
+export type CompactionDecision = { readonly action: 'continue' | 'handoff'; readonly reason: string };
 
 export type AgentSessionId = string;
 export type SessionOperationId = string;
@@ -58,6 +61,7 @@ export interface SessionExecutionBindings {
   readonly guard?: ((call: GuardedCall) => Promise<GuardDecision>) | undefined;
   readonly afterMutation?: ((call: SettledMutation) => Promise<{ readonly text: string } | null>) | undefined;
   readonly onEvent: (event: AgentEvent) => void;
+  readonly onCompactionStarted?: ((checkpoint: CompactionCheckpoint, signal: AbortSignal) => Promise<CompactionDecision>) | undefined;
   /** Invoked after durable settlement. Receives the stable key for idempotent destination publication. */
   readonly publish: (receipt: SessionOperationReceipt) => Promise<void>;
   /** Explicit independent recovery for an uncertain external effect; never called by default. */
@@ -92,6 +96,8 @@ export interface SessionDriverRuntime {
   persistPayloads?(entries: readonly { readonly key: string; readonly bytes: Uint8Array }[]): Promise<readonly TranscriptPayloadId[]>;
   readPayload(id: TranscriptPayloadId): Promise<Uint8Array>;
   onEvent(event: AgentEvent): void;
+  /** Begins review without awaiting Pi's native summary; the adapter awaits before another task turn. */
+  onCompactionStarted?(checkpoint: CompactionCheckpoint, signal?: AbortSignal): Promise<CompactionDecision>;
 }
 export interface SessionDriverInvocation {
   readonly key: SessionOperationKey; readonly identity: SessionExecutionIdentity; readonly session: AgentSessionSnapshot; readonly task: SessionTaskInput;

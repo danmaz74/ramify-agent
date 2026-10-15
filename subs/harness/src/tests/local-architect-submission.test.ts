@@ -33,7 +33,7 @@ import { effectiveBlocks } from '../prompts/blocks.js';
  * Everything a module architect tells the harness is validated JSON: the
  * strict schema, then the rules the schema cannot hold. A failure changes
  * nothing, every error names its path, a corrected input is accepted, and
- * the bound ends the invocation as `invalid-submission`.
+ * repeated corrections stay in the same invocation.
  */
 
 vi.mock('node:child_process', async original =>
@@ -624,7 +624,7 @@ describe('a rejected submission in a run', () => {
     expect(local.verdicts[0]).toMatchObject({ accepted: false });
     const answer = JSON.parse((local.verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string }>; remainingAttempts: number };
     expect(answer.errors[0]!.path).toBe('outline');
-    expect(answer.remainingAttempts).toBe(2);
+    expect(answer).not.toHaveProperty('remainingAttempts');
     expect(local.verdicts[1]).toEqual({ accepted: true });
 
     // Nothing was written for the input that failed: one outline, at revision 1.
@@ -660,31 +660,31 @@ describe('a rejected submission in a run', () => {
     expect(agent!.sessions.some(session => session.spec.role === 'engineer')).toBe(false);
   }, 300_000);
 
-  test('a rule the schema cannot hold is answered the same way, and the bound ends the invocation', async () => {
+  test('a rule the schema cannot hold remains correctable after four rejections', async () => {
     const broken = requestCompletion({ decomposition: { kind: 'staged', rationale: 'It is big.' }, stages: [] });
-    const { root, runId, service, agent } = await run([broken, broken, broken, broken], [scenariosCommit('review-notes')]);
+    const corrected = { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] };
+    const { root, runId, service, agent } = await run([broken, broken, broken, broken, corrected],
+      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
 
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('invalid-submission');
+    expect(snapshot.state).toBe('completed');
 
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
-    expect(local.verdicts).toHaveLength(3);
+    expect(local.verdicts).toHaveLength(5);
     const answer = JSON.parse((local.verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string }> };
     expect(answer.errors[0]!.path).toBe('outline.stages');
-    expect(local.verdicts.at(-1)).toMatchObject({ accepted: false, final: true });
+    expect(local.verdicts.at(-1)).toEqual({ accepted: true });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const organizing = events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect').at(-1)!;
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome((organizing.data as { invocation: string }).invocation)), 'utf8')) as InvocationOutcome;
-    expect(outcome).toMatchObject({ ended: 'invalid-submission', rejectedSubmissions: 3, submission: null });
-    expect(events.some(event => event.type === 'outline-revised')).toBe(false);
-    expect(events.some(event => event.type === 'gate-attempted')).toBe(false);
+    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 4, submission: { hash: expect.any(String) } });
+    expect(events.some(event => event.type === 'outline-revised')).toBe(true);
   }, 300_000);
 
-  /** The structured errors and the remaining attempts of a rejected verdict. */
+  /** The structured errors of a rejected verdict. */
   const answerOf = (verdict: unknown) => JSON.parse((verdict as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as {
-    errors: Array<{ path: string; message: string; expected?: string }>; remainingAttempts: number;
+    errors: Array<{ path: string; message: string; expected?: string }>;
   };
   const forgotten = { ...requestCompletion(), reports: [] };
 
@@ -699,7 +699,7 @@ describe('a rejected submission in a run', () => {
     const answer = answerOf(local[0]!.verdicts[0]);
     expect(answer.errors).toEqual([{ path: 'reports', message: expect.stringContaining('This completion request leaves sc-001 without a done report.'),
       expected: 'a done report for each of sc-001' }]);
-    expect(answer.remainingAttempts).toBe(2);
+    expect(answer).not.toHaveProperty('remainingAttempts');
     expect(local[0]!.verdicts[1]).toEqual({ accepted: true });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
@@ -717,26 +717,24 @@ describe('a rejected submission in a run', () => {
     expect(rejections.map(line => line.data.errors)).toEqual([[{ path: 'reports', message: expect.stringContaining('leaves sc-001 without a done report') }]]);
   }, 300_000);
 
-  test('PB3-C03: repeated incomplete requests spend the per-turn bound; the run ends as rejected submissions naming the IDs, with no gate and no report', async () => {
-    const { root, runId, service, agent } = await run([forgotten, forgotten, forgotten, forgotten], [scenariosCommit('review-notes')]);
+  test('PB3-C03: repeated incomplete requests can be corrected before the gate', async () => {
+    const corrected = { ...requestCompletion(), reports: [{ id: 'sc-001', judgment: 'done', basedOnRevision: 0 }] };
+    const { root, runId, service, agent } = await run([forgotten, forgotten, forgotten, forgotten, corrected],
+      [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"']);
 
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure).toMatchObject({ reason: 'invalid-submission' });
-    expect(snapshot.failure!.message).toBe('The module architect of wi-001 ended without a result (invalid-submission); '
-      + 'its last rejected completion request left sc-001 without a done report');
+    expect(snapshot.state).toBe('completed');
     const local = agent!.sessions.find(session => session.spec.submission.name === localArchitectToolName)!;
-    expect(local.verdicts).toHaveLength(3);
-    expect(local.verdicts.at(-1)).toMatchObject({ accepted: false, final: true });
-    expect(answerOf(local.verdicts.at(-1)).errors[0]!.message).toContain('leaves sc-001 without a done report');
+    expect(local.verdicts).toHaveLength(5);
+    expect(answerOf(local.verdicts[3]).errors[0]!.message).toContain('leaves sc-001 without a done report');
+    expect(local.verdicts.at(-1)).toEqual({ accepted: true });
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const invocation = (events.filter(event => event.type === 'invocation-started' && event.data.role === 'local-architect').at(-1)!.data as { invocation: string }).invocation;
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome(invocation)), 'utf8')) as InvocationOutcome;
-    expect(outcome).toMatchObject({ ended: 'invalid-submission', rejectedSubmissions: 3, submission: null });
-    // No verdict on the code: nothing gated, reported, reset or counted beyond the rejections.
-    expect(events.some(event => ['outline-revised', 'gate-committing', 'gate-attempted', 'obligation-reported'].includes(event.type))).toBe(false);
-    expect(snapshot.counts.scenarios).toEqual({ pending: 1, bound: 0, done: 0 });
+    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 4, submission: { hash: expect.any(String) } });
+    expect(events.filter(event => event.type === 'obligation-reported')).toHaveLength(1);
+    expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 1 });
   }, 300_000);
 
   test('PB3-C02: an architect that cannot finish states the blocker in the same turn rather than manufacture a report', async () => {
@@ -802,7 +800,7 @@ describe('a rejected submission in a run', () => {
       message: `"${reviewsDirectory}/src/tests" lies inside the own contents of "${reviews}", which the base already gives the module engineer whole; remove this entry`,
       expected: `one of "${reviewsDirectory}/subs/core", "${reviewsDirectory}/subs/ui", "${reviewsDirectory}/subs/validation", or no entry`,
     }]);
-    expect(answer.remainingAttempts).toBe(2);
+    expect(answer).not.toHaveProperty('remainingAttempts');
     expect(local.verdicts[1]).toEqual({ accepted: true });
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
 
@@ -843,7 +841,7 @@ describe('a rejected submission in a run', () => {
     const answer = answerOf(local.verdicts[0]);
     expect(answer.errors).toEqual([expect.objectContaining({ path: 'assignment.scope',
       message: `The write scope cannot be captured: Ownership answer has no assigned owner ${reviews}` })]);
-    expect(answer.remainingAttempts).toBe(2);
+    expect(answer).not.toHaveProperty('remainingAttempts');
     expect(local.verdicts[1]).toEqual({ accepted: true });
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const events = await runEventsOnDisk(root, 'review-notes', runId);

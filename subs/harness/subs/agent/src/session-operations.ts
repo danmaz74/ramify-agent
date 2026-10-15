@@ -573,6 +573,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
             },
             readPayload: id => admit(async () => { const bytes = await store.getPayload(id); if (bytes === null) throw new SessionDriverUnavailableError(`Missing provider payload ${id}`); return bytes; }),
             onEvent(event) { if (!admissionClosed && !abort.signal.aborted && liveOwnerTokens.has(owner.token)) bindings.onEvent({ ...event, execution: executionIdentity(key, dispatched), replayed: recovering && 'callId' in event && dispatched.effects.some(effect => effect.callId === event.callId && effect.phase === 'completed') }); },
+            ...(bindings.onCompactionStarted === undefined ? {} : { onCompactionStarted: (checkpoint, signal) => bindings.onCompactionStarted!(checkpoint, signal ? AbortSignal.any([abort.signal, signal]) : abort.signal) }),
           }); } finally { admissionClosed = true; await drain(); }
           // A provider cannot claim acceptance it never durably obtained from the current validator.
           if (outcome.kind === 'submitted') {

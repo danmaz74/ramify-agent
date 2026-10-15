@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, expect, test } from 'vitest';
-import { nativeCall, nativeText, preservingPi, until } from './helpers/session.js';
+import { nativeCall, nativeText, preservingPi, until, memoryStore } from './helpers/session.js';
+import { createPiAgentOn } from '../pi-agent.js';
 import { decodePreservedTranscript } from '../preservation.js';
 const cleanups: Array<() => Promise<void>> = [];
 beforeAll(() => { process.env.PI_OFFLINE = '1'; });
@@ -22,12 +23,100 @@ test('installed native compaction persists its request and boundary and continue
   expect(requests[3].instructions).toBe('Exact role instructions.');
   expect(f.judged).toEqual([{ summary: 'Completed after compaction' }]); f.native.verify();
 });
+test('architect review starts with native compaction and gates the next task request', async () => {
+  const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], [nativeText('Original task.')], [nativeText('Compacted task.')], [nativeCall('submit_map', { summary: 'Done after review' })]],
+    { tools: [largeTool], nativeOptions, nativeCompaction });
+  let decide!: (value: { action: 'continue' | 'handoff'; reason: string }) => void;
+  const decision = new Promise<{ action: 'continue' | 'handoff'; reason: string }>(resolve => { decide = resolve; });
+  const started: Array<{ ordinal: number; reason: string }> = [];
+  const bindings = { ...f.bindings, onCompactionStarted: async (checkpoint: { ordinal: number; reason: 'manual' | 'threshold' | 'overflow' }) => {
+    started.push(checkpoint); return decision;
+  } };
+  const handle = await f.operations.continue(f.input(f.initial.point!, 'task', bindings));
+  await until(() => f.events.some(event => event.type === 'compaction' && event.phase === 'ended'));
+  expect(started).toEqual([{ ordinal: 1, reason: 'threshold' }]);
+  expect(f.native.dispatches()).toBe(3);
+  decide({ action: 'continue', reason: 'Investigation remains productive' });
+  expect((await handle.settled()).outcome).toEqual({ kind: 'submitted', input: { summary: 'Done after review' } });
+  expect(f.native.dispatches()).toBe(4); f.native.verify();
+});
+test('architect handoff retains the completed native summary without a further task request', async () => {
+  const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], [nativeText('Original task.')], [nativeText('Compacted task.')], [nativeCall('submit_map', { summary: 'Done after handoff' })]],
+    { tools: [largeTool], nativeOptions, nativeCompaction });
+  const bindings = { ...f.bindings, onCompactionStarted: async () => ({ action: 'handoff' as const, reason: 'Change the approach' }) };
+  const first = await (await f.operations.continue(f.input(f.initial.point!, 'task', bindings))).settled();
+  expect(first.outcome).toEqual({ kind: 'checkpoint-pending', reason: 'Change the approach' });
+  expect(f.native.dispatches()).toBe(3);
+  const snapshot = await f.operations.inspect('pi-test', first.sessionId);
+  const states = snapshot!.transcript.filter(item => item.kind === 'provider' && item.key.includes(':pi-state:')).map(item => decodePreservedTranscript(f.payloads.get(item.payloadId)!));
+  expect(states.some(state => state.nativeEntries?.some(entry => entry.type === 'compaction'))).toBe(true);
+  const next = await (await f.operations.continue(f.input(first.point!, 'after-handoff'))).settled();
+  expect(next.outcome).toEqual({ kind: 'submitted', input: { summary: 'Done after handoff' } });
+  expect(f.native.dispatches()).toBe(4); f.native.verify();
+});
+test('explicit stop releases a pending architect review without another task request', async () => {
+  const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], [nativeText('Original task.')], [nativeText('Compacted task.')]],
+    { tools: [largeTool], nativeOptions, nativeCompaction });
+  let reviewSignal: AbortSignal | undefined;
+  const bindings = { ...f.bindings, onCompactionStarted: async (_checkpoint: unknown, signal: AbortSignal) => {
+    reviewSignal = signal;
+    await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }));
+    return { action: 'handoff' as const, reason: 'Review stopped' };
+  } };
+  const handle = await f.operations.continue(f.input(f.initial.point!, 'task', bindings));
+  await until(() => f.events.some(event => event.type === 'compaction' && event.phase === 'ended'));
+  await handle.stop();
+  expect(reviewSignal?.aborted).toBe(true);
+  expect((await handle.settled()).outcome).toMatchObject({ kind: 'stopped' });
+  expect(f.native.dispatches()).toBe(3); f.native.verify();
+});
+test('retry after a crash reopens the pending review at the retained compaction boundary', async () => {
+  const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], [nativeText('Original task.')], [nativeText('Compacted task.')]],
+    { tools: [largeTool], nativeOptions, nativeCompaction });
+  let release!: (value: { action: 'continue' | 'handoff'; reason: string }) => void;
+  const waiting = new Promise<{ action: 'continue' | 'handoff'; reason: string }>(resolve => { release = resolve; });
+  const original = await f.operations.continue(f.input(f.initial.point!, 'task', { ...f.bindings, onCompactionStarted: () => waiting }));
+  await until(() => f.events.some(event => event.type === 'compaction' && event.phase === 'ended'));
+  const originalOperation = f.records.get(JSON.stringify(['pi-test', 'operation:task']))!;
+  expect((originalOperation.body['provider'] as Array<{ key: string }>).some(entry => entry.key === 'task:pi-review:1:started')).toBe(true);
+  const crashed = memoryStore();
+  for (const [key, record] of f.records) crashed.records.set(key, structuredClone(record));
+  for (const [key, bytes] of f.payloads) crashed.payloads.set(key, new Uint8Array(bytes));
+  const operationKey = JSON.stringify(['pi-test', 'operation:task']);
+  const operation = crashed.records.get(operationKey)!;
+  crashed.records.set(operationKey, { ...operation, revision: operation.revision + 1,
+    body: { ...operation.body, owner: { token: 'dead-owner', pid: process.pid } } });
+  const replayed: Array<{ ordinal: number; reason: string }> = [];
+  const recovering = createPiAgentOn(f.source).bindSessionStore!(crashed.store);
+  const bound = { ...f.bindings, onCompactionStarted: async (checkpoint: { ordinal: number; reason: 'manual' | 'threshold' | 'overflow' }) => {
+    replayed.push(checkpoint); return { action: 'handoff' as const, reason: 'Recovery review requests handoff' };
+  } };
+  const result = await (await recovering.retry({ runId: 'pi-test', operationId: 'task', bindings: bound })).settled();
+  expect(replayed).toEqual([{ ordinal: 1, reason: 'threshold' }]);
+  expect(result.outcome).toEqual({ kind: 'checkpoint-pending', reason: 'Recovery review requests handoff' });
+  expect(f.native.dispatches()).toBe(3);
+  release({ action: 'handoff', reason: 'Original abandoned' });
+  await original.stop(); f.native.verify();
+});
 test('failed native compaction leaves durable pending work and original request evidence', async () => {
   const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], { error: 'Context length exceeded' }], { tools: [largeTool], nativeOptions, nativeCompaction });
   const result = await (await f.operations.continue(f.input())).settled();
   expect(result.outcome).toMatchObject({ kind: 'resource-pending', resource: 'context' });
   expect(f.events.filter(event => event.type === 'compaction' && event.phase === 'ended')).toMatchObject([{ errorText: expect.stringContaining('Auto-compaction failed') }]);
   expect(f.judged).toEqual([]); f.native.verify();
+});
+test('failed native compaction aborts its parallel architect review', async () => {
+  const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], { error: 'Context length exceeded' }], { tools: [largeTool], nativeOptions, nativeCompaction });
+  let reviewSignal: AbortSignal | undefined;
+  const bindings = { ...f.bindings, onCompactionStarted: async (_checkpoint: unknown, signal: AbortSignal) => {
+    reviewSignal = signal;
+    await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }));
+    return { action: 'handoff' as const, reason: 'Canceled review' };
+  } };
+  const result = await (await f.operations.continue(f.input(f.initial.point!, 'task', bindings))).settled();
+  expect(result.outcome).toMatchObject({ kind: 'resource-pending', resource: 'context' });
+  expect(reviewSignal?.aborted).toBe(true);
+  f.native.verify();
 });
 test('stop fences a native compaction request and drains its abort', async () => {
   const f = await preservingPi(cleanups, [[nativeCall('evidence', {}, 'evidence')], null], { tools: [largeTool], nativeOptions, nativeCompaction });

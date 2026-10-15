@@ -999,74 +999,25 @@ This adopts the useful Implementation Studio pattern of harness-run checks,
 recorded evidence and bounded repair. The MVP does not need its broader check
 registry, finding-adjudication workflow or commit/publication machinery.
 
-### Context budgets and compaction
+### Context and compaction
 
-The harness monitors model context usage in tokens and applies a policy by session role:
+Use efficient prompts, focused iterations and forks to keep useful context
+manageable. Pi's native compaction stays enabled for every role. The current
+ceiling is 300,000 tokens of context occupancy; earlier native thresholds
+remain effective. Context pressure never ends the plan or removes tools.
 
-| Session role | Context policy |
-| --- | --- |
-| Module engineer | Return to the module architect at the context threshold; no compaction. |
-| Contract sub-session | Return to its caller at the context threshold; no compaction. |
-| Plan architect decision fork | Return partial findings and explicit gaps at the context threshold; no compaction. |
-| Module architect or initial global analysis | Allow compaction and record every occurrence. |
-| Long-lived plan architect context | Append briefs without inference; any required reorientation or compaction is deferred to the next requested fork invocation. |
+When an engineer starts compaction, its responsible architect reviews the
+current task and recorded evidence in parallel. Pi completes its summary and
+pauses before its next turn until the architect chooses continuation or handoff.
+Continuation preserves the session; handoff retains edits and compacted history
+and returns the unfinished task with the architect's reason. The review is
+recorded durably, survives interruption, and remains cancellable by explicit stop.
 
-Each module engineer or architect-decision invocation has a configurable context
-threshold, leaving room below the model's context limit for a final report.
-The measurement is current
-model context usage, including cached context, rather than cumulative tokens spent.
-The harness checks after each model/tool turn. Measurements can be estimates,
-and tool results can arrive in large chunks, so this is a threshold checked at
-execution boundaries rather than an exact token ceiling.
-
-When the threshold is reached, the harness stops further implementation and
-exploration, lets already-running tool work settle, and allows one final
-response without tools. The module engineer reports changes made, verification
-performed, unfinished work and findings useful to its successor. The invocation
-returns `context_budget_reached` with that report and the observed usage:
-
-```text
-working -> reporting -> returned(context_budget_reached)
-```
-
-The harness persists this as an incomplete outcome. If reporting fails, it
-still returns the outcome with the available execution evidence and files;
-unfinished changes are not assumed to pass verification. A capability-assigned module engineer
-that returns incomplete leaves its task unfinished; its coordinator assigns
-recovery and requires a structured result before handback.
-
-An architect decision fork that reaches its budget uses the same bounded
-reporting mechanism, returning partial findings and unresolved questions to the
-harness. This is not an accepted placement and does not trigger a parent model
-call. Apply bounded retry or return an unresolved outcome to the module architect.
-Inherited context counts toward the budget. If it leaves insufficient room,
-reorient from durable records or compact the seed as part of the next requested
-fork invocation, recording any compaction. Appending a brief never triggers this
-maintenance by itself; do not repeatedly retry an oversized context unchanged.
-
-The module architect uses a module engineer's result to plan a fresh invocation. It may
-narrow the goal, delegate an excluded child subtree, or continue the remaining work with
-the same scope. Reaching the threshold does not by itself prove the scope was
-too broad: accumulated debugging or test output can also consume the budget.
-Recovery uses files and concise handoff evidence rather than reloading the
-over-budget transcript. These returns remain subject to the run's progress
-and recovery limits.
-
-The harness records both budget returns and compaction attempts, including
-session role, invocation, work item and iteration where applicable. Compaction
-records include the trigger (automatic threshold, context overflow or explicit
-request), success or failure, and context usage before and after where available.
-Unavailable measurements remain explicit. Budget-return records include the
-configured threshold and observed usage.
-
-Measurements include compactions per session by role, the proportion of module engineer
-invocations reaching their budget, decision-fork budget returns, and
-repeated budget returns for the same work item or placement request. Compaction
-is a diagnostic signal of context pressure, not an
-automatic failure: an initial analysis and a plan architect or module architect
-serving many requests have different expectations. Repeated context exhaustion
-without meaningful progress is stronger evidence that decomposition needs revision.
-Replacing module engineer compaction with fresh invocations must not hide that signal.
+Compaction is a useful review point, not proof of ineffective work. Existing
+architect turns also reconsider repeated failed verification and the expected
+benefit of further refinements. No tool-call count interrupts productive reading,
+and no count exhausts the task. Record native compaction observations and actual
+model usage; do not infer cache savings merely from a smaller context.
 
 ## 9. Example: an email button
 

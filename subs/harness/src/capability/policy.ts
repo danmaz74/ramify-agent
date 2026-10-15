@@ -13,8 +13,8 @@ export interface CapabilityLimits {
   readonly maxInvocations: number;
 }
 
-/** Capture limits in the task record at delegation. A task never reads live
- * defaults, and owner changes, repairs and reconstruction cannot reset them. */
+/** Preserve historical task limit fields at delegation. Counts no longer
+ * decide whether assignments or work units may continue. */
 export function captureCapabilityLimits(policy: RunPolicy): CapabilityLimits {
   if (!supportedCapabilityPolicy(policy.version) || policy.limits.maxIterationsPerCapabilityTask === undefined) {
     throw new Error('Capability coordination requires a captured run-policy/7 task limit');

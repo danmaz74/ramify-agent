@@ -9,10 +9,10 @@ export type Outcome = ClosedRound['outcome'];
 /** Durable records are supplied by the harness; this owner never reads the ledger. */
 export interface RoundDecisionInput {
   nfrIds: readonly string[];
-  /** Captured policy limit, from one to three rounds. */
+  /** Legacy captured policy value, retained for replay compatibility; it does not limit continuation. */
   maxRounds: number;
   closedRounds: readonly ClosedRound[];
-  /** Operator repairs invalidate candidate applicability without renewing spent round allowance. */
+  /** Operator repairs invalidate candidate applicability after a closed round. */
   externalContinuations?: readonly number[];
   candidate: Candidate | null;
   initial: Assessment | null;
@@ -31,6 +31,11 @@ export type RoundDecision =
   | { action: 'repair-or-close'; round: number; unresolved: string[] }
   | { action: 'close'; round: number; outcome: 'satisfied' | 'continue' | 'exhausted'; unresolved: string[] }
   | { action: 'unavailable'; round: number };
+
+/** Older runs recorded count-forced exhaustion after a repaired last round. */
+const forcedLegacyExhaustion = (record: ClosedRound, legacyMaxRounds: number): boolean =>
+  record.outcome === 'exhausted' && record.repair !== null && record.reassessment !== null
+    && record.number === legacyMaxRounds;
 
 function requireAssessment(
   assessment: Assessment,
@@ -52,31 +57,30 @@ function requireAssessment(
 
 /** Decide the next permitted step from committed round facts and fixed NFR IDs. */
 export function decideNonfunctionalRound(input: RoundDecisionInput): RoundDecision {
-  const { nfrIds, maxRounds, closedRounds, candidate, initial, investigated, repairCommitted, reassessment } = input;
+  const { nfrIds, closedRounds, candidate, initial, investigated, repairCommitted, reassessment } = input;
   const external = new Set(input.externalContinuations ?? []);
   if (external.size !== (input.externalContinuations?.length ?? 0)
-    || [...external].some(round => !Number.isInteger(round) || round < 1 || round >= maxRounds || round > closedRounds.length)) {
-    throw new Error('external continuations must name distinct spent rounds with remaining allowance');
-  }
-  if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 3) {
-    throw new Error('maximum rounds must be an integer from one to three');
+    || [...external].some(round => !Number.isInteger(round) || round < 1 || round > closedRounds.length)) {
+    throw new Error('external continuations must name distinct closed rounds');
   }
   if (new Set(nfrIds).size !== nfrIds.length || nfrIds.some((id) => !/^(nfr|fix)-\d{3,}$/.test(id))) {
     throw new Error('fixed NFR IDs must be unique and valid');
   }
   closedRounds.forEach((record, index) => {
     roundSchema.parse(record);
-    if (record.number !== index + 1 || record.number > maxRounds) throw new Error('closed rounds must be consecutive and within the captured limit');
+    if (record.number !== index + 1) throw new Error('closed rounds must be consecutive');
     if (Boolean(record.repair) !== Boolean(record.reassessment)) {
       throw new Error('closed repair requires reassessment, and reassessment requires repair');
     }
-    if (index < closedRounds.length - 1 && record.outcome !== 'continue' && !external.has(record.number)) {
+    if (index < closedRounds.length - 1 && record.outcome !== 'continue'
+      && !forcedLegacyExhaustion(record, input.maxRounds) && !external.has(record.number)) {
       throw new Error('only a continuing round can have a successor');
     }
-    if (record.number === maxRounds && record.outcome === 'continue') throw new Error('the final round cannot continue');
   });
   const lastOutcome = closedRounds.at(-1)?.outcome;
-  if (closedRounds.length === maxRounds || (lastOutcome !== undefined && lastOutcome !== 'continue' && !external.has(closedRounds.length))) {
+  if (lastOutcome !== undefined && lastOutcome !== 'continue'
+    && !forcedLegacyExhaustion(closedRounds.at(-1)!, input.maxRounds)
+    && !external.has(closedRounds.length)) {
     if (candidate || initial || investigated || repairCommitted || reassessment) {
       throw new Error('a closed loop cannot have an open round');
     }
@@ -105,8 +109,7 @@ export function decideNonfunctionalRound(input: RoundDecisionInput): RoundDecisi
   const results = (reassessment ?? initial).results;
   const unresolved = results.filter((result) => result.result !== 'satisfied').map((result) => result.nfr);
   if (unresolved.length === 0) return { action: 'close', round, outcome: 'satisfied', unresolved };
-  const closeOutcome = round === maxRounds ? 'exhausted' : 'continue';
-  if (repairCommitted) return { action: 'close', round, outcome: closeOutcome, unresolved };
+  if (repairCommitted) return { action: 'close', round, outcome: 'continue', unresolved };
   const undetermined = results.filter((result) => result.result === 'undetermined').map((result) => result.nfr);
   if (undetermined.length > 0 && !investigated) return { action: 'investigate', round, undetermined };
   // Closing without a repair leaves the tree unchanged, so the close ends the phase as exhausted.

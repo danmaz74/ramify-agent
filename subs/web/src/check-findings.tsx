@@ -70,6 +70,7 @@ const unresolvedLabels: Record<UnresolvedReasonView, string> = {
   'rounds-exhausted': 'its correction rounds were spent',
   'below-floor': 'below the last round\'s floor',
   'raised-after-last-round': 'raised after the last round',
+  'left-open': 'left open by the architect',
 };
 
 /** Where a CheckFinding stands, in words. Closed always says how; it is never "resolved". */

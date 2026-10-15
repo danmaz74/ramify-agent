@@ -5,6 +5,7 @@ import { authenticatedExternalRepairs } from './recovery-gate.js';
 import { preparedCandidateSchema, nonfunctionalRepairAssignmentSchema, type NonfunctionalRepairAssignment } from './nonfunctional-records.js';
 import { assessmentCoverage, assessmentSchema, roundSchema, type Assessment, type Candidate } from '../../subs/nonfunctional/src/interfaces/contracts.js';
 import { decideNonfunctionalRound, type ClosedRound, type RoundDecisionInput } from '../../subs/nonfunctional/src/rounds.js';
+import { workItemSchema, workLayout } from '../work/records.js';
 
 export interface CommittedNonfunctionalPhase {
   /** Only committed facts enter the pure round transition rule. */
@@ -31,7 +32,7 @@ function soleRecord<T>(records: readonly RecordBody[], path: string, id: string,
 }
 
 /**
- * Rebuild one bounded phase from its ledger transactions, including valid
+ * Rebuild one phase from its ledger transactions, including valid
  * prefixes left by a crash. A missing or mismatched co-committed record is
  * unavailable rather than evidence that the step never happened.
  */
@@ -58,6 +59,7 @@ export function replayNonfunctionalPhase(
     const invocationIds = new Set<string>();
     const assignmentIds = new Set<string>();
     let markerSeen = false;
+    let legacyMaxRounds = maxRounds;
     const requireFact = (condition: unknown, reason: string): void => { if (!condition) throw new Error(reason); };
 
     for (const entry of entries) {
@@ -66,15 +68,15 @@ export function replayNonfunctionalPhase(
       switch (event.type) {
         case 'nonfunctional-phase-started': {
           requireFact(!markerSeen && candidateIds.size === 0, 'phase marker is duplicated or late');
-          requireFact(event.data.maxRounds === maxRounds, 'phase round bound differs from captured policy');
           markerSeen = true;
+          legacyMaxRounds = event.data.maxRounds;
           break;
         }
         case 'nonfunctional-final-invalidated': {
           requireFact(markerSeen && final !== null && candidate === null && initial === null,
             'external invalidation requires a closed final assessment');
-          requireFact(event.data.round === closedRounds.length && closedRounds.length < maxRounds
-            && !externalContinuations.includes(event.data.round), 'external invalidation has no remaining round allowance');
+          requireFact(event.data.round === closedRounds.length
+            && !externalContinuations.includes(event.data.round), 'external invalidation duplicates a continuation of this round');
           requireFact(event.data.candidate === final!.candidateId && event.data.assessment === final!.assessment.id,
             'external invalidation names another final assessment');
           const resumed = entries.find(prior => prior.sequence < entry.sequence
@@ -89,6 +91,36 @@ export function replayNonfunctionalPhase(
           requireFact(admitted.boundary.kind === 'gate' && admitted.boundary.checkpoint === 'final'
             && admitted.admission?.requiresReassessment && admitted.admission.after.candidate.tree === event.data.tree,
             'external invalidation does not match the repaired final candidate');
+          externalContinuations.push(event.data.round);
+          final = null;
+          break;
+        }
+        case 'final-correction-planned': {
+          requireFact(markerSeen && final !== null && candidate === null && initial === null,
+            'final correction requires a closed final assessment');
+          requireFact(event.data.round === closedRounds.length && !externalContinuations.includes(event.data.round)
+            && event.data.candidate === final!.candidateId && event.data.assessment === final!.assessment.id,
+          'final correction does not match the retained candidate and assessment');
+          requireFact(entries.some(prior => prior.sequence < entry.sequence
+            && prior.transaction.event.type === 'gate-attempted'
+            && prior.transaction.event.data.gate === event.data.gate
+            && prior.transaction.event.data.checkpoint === 'final'
+            && prior.transaction.event.data.verdict !== 'passed'),
+          'final correction has no failed final gate');
+          requireFact(entries.some(prior => prior.sequence < entry.sequence
+            && prior.transaction.event.type === 'invocation-ended'
+            && prior.transaction.event.data.invocation === event.data.invocation
+            && prior.transaction.event.data.ended === 'submitted'),
+          'final correction has no submitted architect decision');
+          requireFact(entries.some(prior => prior.sequence < entry.sequence
+            && prior.transaction.event.type === 'invocation-started'
+            && prior.transaction.event.data.invocation === event.data.invocation
+            && prior.transaction.event.data.role === 'global-fork'),
+          'final correction has no plan architect invocation');
+          const item = soleRecord(records, workLayout.item(event.data.workItem), event.data.workItem,
+            value => workItemSchema.parse(value));
+          requireFact('finalVerification' in item.origin && item.origin.finalVerification === event.data.gate,
+            'final correction work item does not cite its gate');
           externalContinuations.push(event.data.round);
           final = null;
           break;
@@ -157,7 +189,7 @@ export function replayNonfunctionalPhase(
             && candidateId === event.data.candidate && repair === null && assignment === null,
           'repair assignment does not follow the current assessment and candidate');
           requireFact(!assignmentIds.has(event.data.assignment), 'repair assignment ID was reused');
-          const next = decideNonfunctionalRound({ nfrIds, maxRounds, closedRounds, externalContinuations, candidate, initial,
+          const next = decideNonfunctionalRound({ nfrIds, maxRounds: legacyMaxRounds, closedRounds, externalContinuations, candidate, initial,
             investigated: investigationInvocations.length > 0, repairCommitted: false, reassessment });
           requireFact(next.action === 'repair-or-close', `repair assignment is not permitted while next action is ${next.action}`);
           const targets = event.data.nfrs;
@@ -189,7 +221,7 @@ export function replayNonfunctionalPhase(
         case 'nonfunctional-round-closed': {
           requireFact(event.data.round === round, 'round closure is out of order');
           if (event.data.outcome !== 'unavailable') {
-            const decision = decideNonfunctionalRound({ nfrIds, maxRounds, closedRounds, externalContinuations, candidate, initial,
+            const decision = decideNonfunctionalRound({ nfrIds, maxRounds: legacyMaxRounds, closedRounds, externalContinuations, candidate, initial,
               investigated: investigationInvocations.length > 0, repairCommitted: repair !== null, reassessment });
             requireFact(decision.action === 'close' || decision.action === 'repair-or-close',
               `round closed while next action is ${decision.action}`);
@@ -207,8 +239,10 @@ export function replayNonfunctionalPhase(
             requireFact(results !== undefined, 'round closed without an assessment');
             requireFact(!initial?.results.some(item => item.result === 'undetermined')
               || investigationInvocations.length > 0, 'undetermined evidence was closed without investigation');
+            const legacyCountClosure = record.outcome === 'exhausted' && repair !== null
+              && reassessment !== null && round === legacyMaxRounds;
             const expected = results!.every(item => item.result === 'satisfied')
-              ? 'satisfied' : round === maxRounds || repair === null ? 'exhausted' : 'continue';
+              ? 'satisfied' : repair === null || legacyCountClosure ? 'exhausted' : 'continue';
             requireFact(record.outcome === expected, `round outcome ${record.outcome} disagrees with assessed results`);
           }
           if (record.outcome !== 'unavailable') {
@@ -232,7 +266,7 @@ export function replayNonfunctionalPhase(
       }
     }
     const input: RoundDecisionInput = {
-      nfrIds, maxRounds, closedRounds, externalContinuations, candidate, initial,
+      nfrIds, maxRounds: legacyMaxRounds, closedRounds, externalContinuations, candidate, initial,
       investigated: investigationInvocations.length > 0, repairCommitted: repair !== null, reassessment,
     };
     decideNonfunctionalRound(input);

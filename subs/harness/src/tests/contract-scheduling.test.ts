@@ -5,7 +5,7 @@ import { finalCandidate } from './helpers/final-candidate.js';
 import { copyFixture } from './helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { onlyRun, openRuns, runEventsOnDisk, startRun } from './helpers/runs.js';
+import { onlyRun, openRuns, runEventsOnDisk, startRun, stopRun, until } from './helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
@@ -62,7 +62,7 @@ const tagLimit: Seam = { ...noteLimit, consumerDirectory: tagsDirectory, consume
  * revisions it reports for each commit the harness attempts, and the
  * attempts it reports as an unchanged tree.
  */
-async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[]) {
+async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly CommitResponse[], stopAtCycleCount?: number) {
   const materialization = scenariosCommitted('review-notes');
   const final = commits.findIndex(commit => commit.subject.startsWith('final verification'));
   const before = commits.slice(0, final).flatMap(commit => commit.commit ?? []).at(-1) ?? materialization.commit!;
@@ -74,6 +74,18 @@ async function run(root: string, plan: Parameters<typeof byRole>[0], commits: re
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
+  if (stopAtCycleCount !== undefined) {
+    await until(() => (opened.service.events('review-notes', receipt.jobId) ?? [])
+      .filter(event => event.type === 'dependency-cycle-detected').length >= stopAtCycleCount);
+    for (let retry = 0; retry < 20; retry += 1) {
+      try {
+        await opened.service.execute(stopRun('review-notes', receipt.jobId, opened.service.getRun('review-notes', receipt.jobId)!.version));
+        break;
+      } catch (error) {
+        if (!String(error).includes('at version') || retry === 19) throw error;
+      }
+    }
+  }
   await opened.service.settled('review-notes', receipt.jobId);
   return { ...opened, git, runId: receipt.jobId };
 }
@@ -301,7 +313,7 @@ describe('P5: a chain of changes back through a module that has yielded is not a
 });
 
 describe('P5: a capability that transitively depends on itself', () => {
-  test('the cycle returns to the local architect once, is a notice, and the same cycle again fails the run', async () => {
+  test('repeated dependency cycles remain visible for architect reconsideration', async () => {
     // The provider of the limit needs the very capability its consumer is
     // implementing. The graph closes on itself.
     const backToNotes: Seam = {
@@ -349,11 +361,11 @@ describe('P5: a capability that transitively depends on itself', () => {
       // The second attempt at the same agreement writes the same files with
       // the same content, and Git reports an unchanged tree for it.
       unchanged('wi-002.i04'),
-    ]);
+    ], 2);
 
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('dependency-cycle');
+    expect(snapshot.state).toBe('stopped');
+    expect(snapshot.failure).toBeNull();
 
     const log = await events(root, runId);
     const detections = log.filter(event => event.type === 'dependency-cycle-detected');

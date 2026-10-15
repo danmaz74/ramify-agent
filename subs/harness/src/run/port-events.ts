@@ -416,10 +416,11 @@ export class InvocationBounds {
   }
 }
 
-/** How a session ended, from the port's outcome and whether its submission bound was reached. */
+/** How a session ended, from the port's outcome and historical quota field. */
 export function endedOf(kind: string, boundReached: boolean): InvocationOutcome['ended'] {
   if (kind === 'submitted') return 'submitted';
   if (kind === 'resource-pending') return 'resource-pending';
+  if (kind === 'checkpoint-pending') return 'checkpoint-pending';
   if (kind === 'context-budget-reached') return 'context-budget-reached';
   if (kind === 'failed') return 'failed';
   if (kind === 'stopped') return 'stopped';

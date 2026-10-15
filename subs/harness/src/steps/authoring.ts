@@ -193,7 +193,6 @@ export async function authorEngineerInputs(options: {
   // Accepted as the run accepts it: the outline revision the envelope
   // carries, the authorized guarded paths, then the assignment record.
   const number = options.iteration ?? 1;
-  if (number > policy.limits.maxIterationsPerWorkItem) return refused(`${item.id} has reached ${policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
   const scope = judged.prepared.scope;
   if (submission.outline !== undefined) {
     outlines.push(workItemOutlineSchema.parse({

@@ -37,6 +37,7 @@ export function coordinatorActionPrompt(candidate: Candidate, unresolved: readon
         : 'At this step, request a sequential read-only investigation.',
     'An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.',
     'A repair of an undetermined NFR requires investigation evidence for that same NFR. One repair batch is allowed per round.',
+    'Earlier rounds are evidence for reconsideration, not a limit. If a requirement remains unmet, assess whether another correction is likely to help, change an ineffective approach or identify a missing prerequisite. Continue useful work. When requirements are satisfied, end refinements whose added benefit no longer justifies their cost.',
     'If closing with unresolved NFRs, state an alternative or explicit uncertainty for each one. Describe recorded gate results for their named candidates and distinguish pending checks.',
     'Submit the permitted action using `submit_nonfunctional_action`.',
   ].join('\n');

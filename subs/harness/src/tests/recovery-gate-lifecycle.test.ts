@@ -6,9 +6,9 @@ import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.j
 import { copyFixture } from './helpers/fixture.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
 import { scriptedCandidates } from './helpers/candidates.js';
-import { declaringScenarios } from './helpers/declarations.js';
+import { declaringScenarios, defaultTurn } from './helpers/declarations.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
-import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
+import { emptyAnalysis, openRuns, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { commandResult } from './helpers/command-result.js';
 import { gateDiagnostics } from '../checks/diagnostics.js';
 import { gateAttemptSchema, runLayout } from '../run/records.js';
@@ -31,7 +31,9 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
     [repairedTree]: { tree: repairedTree, base: 'base', files: { [path]: 'export const corrected = true;\n' }, changes: [{ status: 'A', path }] },
     'corrected-head': { tree: repairedTree, base: 'base', files: { [path]: 'export const corrected = true;\n' }, changes: [{ status: 'A', path }] } });
   const candidates = { ...sourceCandidates, treeEntries: async (root: string, commit: string) => (await sourceCandidates.treeEntries(root, commit)).map(entry => ({ ...entry, objectId: 'c'.repeat(40) })) };
-  const agent = createScriptedAgent(declaringScenarios([{ kind: 'submit', input: emptyAnalysis() }]));
+  const agent = createScriptedAgent(declaringScenarios(spec => defaultTurn(spec) ?? (spec.submission.name === 'submit_final_correction'
+    ? [{ kind: 'submit', input: { module: 'review-notes', goal: 'Investigate the failed final check after source repair', rationale: 'Retain the repair and verify its actual candidate' } }]
+    : [{ kind: 'submit', input: emptyAnalysis() }])));
   const audit = passingAudit(); let calls = 0;
   const configuredAudit: ConfiguredAuditPort = { read: (...args) => audit.read(...args), run: async input => {
     calls += 1;
@@ -54,16 +56,29 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
   await service.execute({ commandId: 'environment-correction', expectedVersion: 0, type: 'resume-recovery', payload: {
     planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
     repair: { areas: [area], explanation: area === 'environment' ? 'Restored the required check executable without changing source or configuration' : 'Corrected source obstruction before final qualification' } } });
+  if (area === 'target') {
+    await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'final-correction-planned'));
+    for (let retry = 0; retry < 20; retry += 1) {
+      try {
+        await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version));
+        break;
+      } catch (error) {
+        if (!String(error).includes('at version') || retry === 19) throw error;
+      }
+    }
+  }
   await service.settled('review-notes', receipt.jobId);
   const events = service.events('review-notes', receipt.jobId)!;
-  expect(events.at(-1)?.type).toBe('job-completed'); expect(calls).toBe(3);
+  expect(events.at(-1)?.type).toBe(area === 'environment' ? 'job-completed' : 'job-stopped');
+  expect(calls).toBe(area === 'environment' ? 3 : 2);
   if (area === 'environment') {
     expect(events.filter(event => event.type === 'nonfunctional-assessed')).toEqual(before);
     expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);
   } else {
     expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
     expect(events.filter(event => event.type === 'nonfunctional-final-invalidated')).toHaveLength(1);
-    expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(3);
+    expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);
+    expect(events.filter(event => event.type === 'final-correction-planned')).toHaveLength(1);
     const refusal = events.find(event => event.type === 'gate-attempted' && event.data.next === 'return-to-local-architect')!;
     if (refusal.type !== 'gate-attempted') throw new Error('Missing applicability boundary');
     const record = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(refusal.data.gate)), 'utf8')));
@@ -73,7 +88,7 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
   const attempted = events.filter(event => event.type === 'gate-attempted').map(event => event.data.gate);
   expect(new Set(attempted).size).toBe(attempted.length);
   expect(git.unexpected).toEqual([]);
-});
+}, 60_000);
 
 test('a settled readiness audit pause resumes its prerequisite while preserving completed setup effects', async () => {
   const copy = await copyFixture(); cleanup.push(copy.remove);

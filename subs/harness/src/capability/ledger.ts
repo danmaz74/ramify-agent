@@ -61,7 +61,6 @@ export async function commitCapabilityTransition(
         task.revises.reason !== revises.reason))) {
       throw new Error('Revision task must link its immutable accepted handback and source');
     }
-    if (committed.workItems.length + committed.capabilityTasks.size >= task.limits.maxWorkUnits) throw new Error('Combined work-unit limit exhausted');
   }
   if (event.type === 'capability-plan-revised') {
     const plan = capabilityPlanSchema.parse(records[0]!.body);

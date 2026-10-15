@@ -430,7 +430,7 @@ describe('PB3-D03: the audit result is evidence beside the state, never the stat
     expect(onlyRun(service, plan).failure).toBeNull();
     expect(onlyRun(service, plan).state).toBe('completed');
     const log = await events(root, runId);
-    expect(log.filter(event => event.type === 'iteration-closed').map(event => (event.data as { outcome: string }).outcome)).toEqual(['accepted', 'exhausted']);
+    expect(log.filter(event => event.type === 'iteration-closed').map(event => (event.data as { outcome: string }).outcome)).toEqual(['accepted', 'partial']);
     const failed = (await gates(root, runId)).filter(attempt => attempt.checkpoint === 'iteration' && attempt.verdict === 'failed');
     expect(failed).toHaveLength(3);
     // Every failure stays raw in its gate; none moved the state.
@@ -631,20 +631,20 @@ describe('§9: work-item completion', () => {
     git.assertAnswered();
   }, 120_000);
 
-  test('PB3-C03 rejected to the per-turn bound, the run fails as rejected submissions naming the scenario, with no gate and its state kept', async () => {
+  test('PB3-C03 four incomplete requests can be corrected and report the scenario in the same turn', async () => {
     const root = await fixtureWith('notes');
     const { service, runId, agent } = await run(root, {
       'initial-architect': [submit(analysis([entry('review-note', notes)]))],
-      'local-architect': [[...submit(forgotten), ...submit(forgotten), ...submit(forgotten)]],
-    }, []);
+      'local-architect': [[...submit(forgotten), ...submit(forgotten), ...submit(forgotten), ...submit(forgotten),
+        ...submit({ ...requestCompletion(), reports: [done('sc-001', 0)] })]],
+    }, [unchanged('wi-001'), unchanged(finalSubject)]);
     const snapshot = onlyRun(service, plan);
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure).toMatchObject({ reason: 'invalid-submission' });
-    expect(snapshot.failure!.message).toContain('its last rejected completion request left sc-001 without a done report');
-    expect(architectVerdicts(agent)[0]!.map(verdict => rejection(verdict))).toEqual([[owing('sc-001')], [owing('sc-001')], [owing('sc-001')]]);
+    expect(snapshot.state).toBe('completed');
+    expect(architectVerdicts(agent)[0]!.slice(0, 4).map(verdict => rejection(verdict))).toEqual(Array.from({ length: 4 }, () => [owing('sc-001')]));
+    expect(architectVerdicts(agent)[0]!.at(-1)).toEqual({ accepted: true });
     const log = await events(root, runId);
-    expect(log.some(event => event.type === 'gate-attempted' || event.type === 'obligation-reported')).toBe(false);
-    expect(snapshot.counts.scenarios).toEqual({ pending: 1, bound: 0, done: 0 });
+    expect(log.filter(event => event.type === 'obligation-reported')).toHaveLength(1);
+    expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 1 });
   }, 120_000);
 
   test('a done scenario that fails a later gate fails that gate, and stays done', async () => {

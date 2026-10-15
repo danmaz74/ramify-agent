@@ -2,6 +2,12 @@
 
 Design documents for the separate agent harness:
 
+- [Removing Pi restrictions that violate harness principles](analysis/2026-10-15-removing-restrictions-that-violate-principles.md),
+  implemented Batch 1 continuation and correction, with proposed follow-up
+  batches, clarified principles and observable acceptance examples
+- [Pi restriction inventory](analysis/2026-10-15-pi-restrictions-audit.md),
+  41 restriction families across execution, Pi integration, submissions and
+  administration, with source references and active-versus-historical distinctions
 - [Plan 44: execution continuity](plans/44-execution-continuity/main-plan.md),
   native Pi compaction, progress-sensitive stall recovery and retained pending
   work; [qualification evidence](plans/44-execution-continuity/implementation-results.md)

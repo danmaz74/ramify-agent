@@ -72,6 +72,8 @@ export type ScriptStep =
       readonly tokensBefore?: number | undefined; readonly tokensAfter?: number | undefined;
       readonly aborted?: boolean | undefined; readonly errorText?: string | undefined;
     }
+  /** Explicit native-like compaction checkpoint, including architect review before the next step. */
+  | { readonly kind: 'compaction-checkpoint'; readonly reason: 'manual' | 'threshold' | 'overflow' }
   /** Waits, ending early on Stop. */
   | { readonly kind: 'wait'; readonly ms: number }
   /** Waits until `until` settles, ending early on Stop: a script its test paces, one step at a time. */
@@ -230,6 +232,7 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
       const controller = new AbortController();
       let deaf = false;
       let callCount = 0;
+      let compactionOrdinal = 0;
       const nextCallId = () => `call-${++callCount}`;
       /** Set once an observation reaches the budget: the tools are disabled from then on. */
 
@@ -283,6 +286,16 @@ function createScriptActor(script: Script, options: ScriptedAgentOptions) {
                 aborted: step.aborted === true, errorText: step.errorText ?? null,
               });
               break;
+            case 'compaction-checkpoint': {
+              const checkpoint = { ordinal: ++compactionOrdinal, reason: step.reason };
+              const review = spec.onCompactionStarted?.(checkpoint, controller.signal);
+              spec.onEvent({ type: 'compaction', phase: 'started', reason: step.reason });
+              spec.onEvent({ type: 'compaction', phase: 'ended', reason: step.reason, tokensBefore: null, tokensAfter: null, aborted: false, errorText: null });
+              const decision = await valueOrAborted(review ?? Promise.resolve({ action: 'continue' as const, reason: '' }), controller.signal);
+              if (controller.signal.aborted) return { kind: 'stopped' };
+              if (decision?.action === 'handoff') return { kind: 'checkpoint-pending', reason: decision.reason };
+              break;
+            }
             case 'wait':
               await delay(step.ms, controller.signal);
               break;
@@ -503,6 +516,15 @@ function settledOrAborted(pending: Promise<unknown>, signal: AbortSignal): Promi
   });
 }
 
+function valueOrAborted<T>(pending: Promise<T>, signal: AbortSignal): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return resolve(null);
+    const aborted = () => resolve(null);
+    signal.addEventListener('abort', aborted, { once: true });
+    pending.then(value => { signal.removeEventListener('abort', aborted); resolve(value); }, error => { signal.removeEventListener('abort', aborted); reject(error); });
+  });
+}
+
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise(resolve => {
     if (signal?.aborted) return resolve();
@@ -522,6 +544,8 @@ export type SessionScriptStep =
   | { readonly kind: 'tool'; readonly tool: string; readonly input: unknown; readonly callId?: string }
   | { readonly kind: 'submit'; readonly input: unknown; readonly callId?: string }
   | { readonly kind: 'message'; readonly payload: Readonly<Record<string, unknown>> }
+  /** Native compaction analogue: start review, retain the boundary, then await before another task step. */
+  | { readonly kind: 'compaction-checkpoint'; readonly ordinal: number; readonly reason: 'manual' | 'threshold' | 'overflow' }
   | { readonly kind: 'await'; readonly until: () => Promise<unknown> }
   | { readonly kind: 'resource'; readonly resource: 'context' | 'stall'; readonly reason: string; readonly tokens?: number | null }
   | { readonly kind: 'fail'; readonly error: string; readonly evidence?: import('./interfaces/port.js').InterruptionEvidence }
@@ -541,6 +565,16 @@ export function createScriptedSessionDriver(script: SessionScript): SessionOpera
         if (step.kind === 'legacy-context-return') return { kind: 'context-budget-reached', tokens: step.tokens, ...(step.report === undefined ? {} : { report: step.report }) };
         if (step.kind === 'fail') return { kind: 'failed', error: step.error, ...(step.evidence === undefined ? {} : { evidence: step.evidence }) };
         if (step.kind === 'end') return step.message === undefined ? { kind: 'ended' } : { kind: 'ended', message: step.message };
+        if (step.kind === 'compaction-checkpoint') {
+          const review = runtime.onCompactionStarted?.({ ordinal: step.ordinal, reason: step.reason });
+          runtime.onEvent({ type: 'compaction', phase: 'started', reason: step.reason });
+          await runtime.persistPayload(`${key}:compacted`, new TextEncoder().encode(JSON.stringify(step)));
+          runtime.onEvent({ type: 'compaction', phase: 'ended', reason: step.reason, tokensBefore: null, tokensAfter: null, aborted: false, errorText: null });
+          const decision = await review;
+          if (runtime.signal.aborted) return { kind: 'stopped' };
+          if (decision?.action === 'handoff') return { kind: 'checkpoint-pending', reason: decision.reason };
+          continue;
+        }
         await runtime.persistPayload(key, new TextEncoder().encode(JSON.stringify(step)));
         if (step.kind === 'message') {
           const text = typeof step.payload['text'] === 'string' ? step.payload['text'] : '';
@@ -648,6 +682,7 @@ function createScriptDeclarationDriver(script: Script, options: ScriptedAgentOpt
           async execute(value) { const callId = activeCallId; await flush(); if (callId === null) throw new Error('Scripted tool has no observed call identity'); return runtime.callTool(callId, declaration.name, value); },
         })),
         submission: { ...submission, async accept(value) { const callId = activeCallId; await flush(); if (callId === null) throw new Error('Scripted submission has no observed call identity'); return runtime.submit(callId, value); } },
+        ...(runtime.onCompactionStarted === undefined ? {} : { onCompactionStarted: (checkpoint, signal) => runtime.onCompactionStarted!(checkpoint, signal) }),
         onEvent(event) {
           if (eventFailed) return;
           if (event.type === 'tool-started') activeCallId = scopedCall(event.callId);

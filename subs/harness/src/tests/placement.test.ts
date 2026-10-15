@@ -591,41 +591,46 @@ describe('a fork whose submissions are invalid', () => {
     expect(observations).toContain('decision.proposed');
   }, 120_000);
 
-  test('the bound ends the fork as an invalid submission, and the run fails with it', async () => {
+  test('four invalid fork submissions leave the same fork able to correct its decision', async () => {
     const project = await target();
     const broken = { kind: 'decision', decision: { question: 'where?' } };
     const agent = createScriptedAgent(declaringScenarios(byRole({
       'initial-architect': [submit(analysed())],
-      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion())],
+      'local-architect': [submit(requestPlacement({ forCapability: 'compare-revisions' })), submit(requestCompletion()), submit(requestCompletion())],
       'global-fork': [[
         { kind: 'submit', input: broken },
         { kind: 'submit', input: broken },
         { kind: 'submit', input: broken },
         { kind: 'submit', input: broken },
+        { kind: 'submit', input: firstDecision('field-diff belongs to the catalog core.') },
       ]],
     })));
-    const opened = await openRuns(project, { agent, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit('revision-diff')] });
+    const opened = await openRuns(project, { agent, inputs: treeInputs(), unchangedCheckpoints: unchangedPlacementCheckpoints });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun('revision-diff'));
     await opened.service.settled('revision-diff', receipt.jobId);
     const runId = receipt.jobId;
 
     const snapshot = onlyRun(opened.service, 'revision-diff');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('invalid-submission');
+    expect(snapshot.state).toBe('completed');
 
     const events = await runEventsOnDisk(project, 'revision-diff', runId);
     const types = events.map(event => event.type);
-    // Nothing was committed by the fork: no decision, no brief, no delivery.
-    expect(types).not.toContain('decision-accepted');
-    expect(types).not.toContain('brief-appended');
-    expect(types).not.toContain('decision-delivered');
+    expect(types).toContain('decision-accepted');
+    expect(types).toContain('brief-appended');
+    expect(types).toContain('decision-delivered');
     // The request itself stands, and one fork ran.
     expect(types.filter(type => type === 'placement-requested')).toHaveLength(1);
     expect(agent.sessions.filter(session => session.spec.role === 'global-fork')).toHaveLength(1);
 
-    const ended = events.filter(event => event.type === 'invocation-ended').at(-1)!;
-    expect(ended.data).toMatchObject({ ended: 'invalid-submission', submission: null });
+    const forkStart = events.find(event => event.type === 'invocation-started' && event.data.role === 'global-fork')!;
+    const forkId = (forkStart.data as { invocation: string }).invocation;
+    const ended = events.find(event => event.type === 'invocation-ended' && event.data.invocation === forkId)!;
+    expect(ended.data).toMatchObject({ ended: 'submitted' });
+    const fork = agent.sessions.find(session => session.spec.role === 'global-fork')!;
+    expect(fork.verdicts).toHaveLength(5);
+    expect(fork.verdicts.slice(0, 4).every(verdict => (verdict as { accepted: boolean }).accepted === false)).toBe(true);
+    expect(fork.verdicts[4]).toMatchObject({ accepted: true });
   }, 120_000);
 });
 

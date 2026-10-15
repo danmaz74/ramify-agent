@@ -137,7 +137,7 @@ export interface EngineerEquipment {
   readonly equip: (session: EquipContext) => Equipment;
   /** Same declarations as equip, without allocating tool or mutation state. */
   readonly preview: { readonly builtinTools: typeof engineerBuiltinTools; readonly tools: readonly ReturnType<typeof shellToolDeclaration>[] };
-  /** Whether a tool's bound on invalid inputs was reached. */
+  /** Historical compatibility; invalid tool inputs never exhaust a task. */
   readonly exhausted: () => boolean;
   /** The Ramify findings this session's edits introduced that no later check has cleared. */
   readonly openFindings: () => readonly HookFinding[];
@@ -252,7 +252,6 @@ export function engineerEquipment(inputs: EngineerEquipmentInputs): EngineerEqui
 
     shellJudge = new ToolInputJudge({
       tool: shellToolName,
-      bound: inputs.bounds.rejectedToolInputsPerTurn,
       validate: input => validateAgainst(shellSchema, input),
       observations: session.observations,
     });

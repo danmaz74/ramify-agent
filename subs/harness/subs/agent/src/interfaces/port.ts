@@ -245,6 +245,8 @@ export interface SessionSpec {
   readonly builtinTools: ReadonlyArray<BuiltinTool | WriteTool>;
   readonly tools: readonly ToolDefinition[];
   readonly submission: SubmissionTool;
+  /** Start architect review at native compaction; Pi waits for its decision after retaining the summary. */
+  readonly onCompactionStarted?: ((checkpoint: { readonly ordinal: number; readonly reason: CompactionReason }, signal: AbortSignal) => Promise<{ readonly action: 'continue' | 'handoff'; readonly reason: string }>) | undefined;
 
   /**
    * Called before a mutating call executes: a mutating built-in, or a harness
@@ -500,6 +502,8 @@ export type SessionOutcome =
   | { readonly kind: 'stopped' }
   /** Resource recovery leaves the assignment pending; it supplies no semantic verdict. */
   | { readonly kind: 'resource-pending'; readonly resource: 'context' | 'stall'; readonly reason: string; readonly tokens?: number | null; readonly evidence?: InterruptionEvidence }
+  /** Native compaction completed; architect review handed the unfinished task back. */
+  | { readonly kind: 'checkpoint-pending'; readonly reason: string }
   /**
    * The context budget was reached: the implementation disabled the tools,
    * allowed one final response and ended the session. `tokens` is the

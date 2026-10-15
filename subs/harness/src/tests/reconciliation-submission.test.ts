@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import type { CheckFindingCommand } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import {
-  basisChange, needsLaterRound, nextOf, roundFloor, validateReconciliation, withinFloor, withinModule,
+  basisChange, needsLaterRound, nextOf, validateReconciliation, withinModule,
   type AttentionEntry, type ReconciliationContext,
 } from '../reviews/reconciliation.js';
 
 /*
  * The rules a reconciliation submission is judged by before the child
  * decides anything (Plan 12 appendix §6): one disposition per CheckFinding
- * that needs one, the round's correction floor, the module architect's waive
+ * that needs one, the module architect's waive
  * authority over its own module, a next action that follows from the
  * dispositions, and a user decision's exact citation. Pure: the context is
  * literal, and the child is stood in for by a decision that accepts.
@@ -25,8 +25,6 @@ function context(extra: Partial<ReconciliationContext> = {}): ReconciliationCont
     id: 'wi-001.rc02',
     workItem: 'wi-001',
     module: 'app/notes',
-    floor: 'non-low',
-    laterRoundMinimumRisk: 'medium',
     attention: new Map([['cf-0001', entry('high')], ['cf-0002', entry('low')]]),
     held: new Map([['cf-0001', 1], ['cf-0002', 1], ['cf-0003', 2]]),
     actor: { kind: 'agent', role: 'local-architect', invocation: 'inv-0009' },
@@ -47,23 +45,13 @@ const submission = (dispositions: unknown[], next: Record<string, unknown>, rela
 
 const messages = (result: Awaited<ReturnType<typeof validateReconciliation>>): string[] => (result.ok ? [] : result.errors.map(error => `${error.path}: ${error.message}`));
 
-describe('floors and rounds', () => {
-  test('the first round corrects anything, a later one only what clears the minimum, and the last nothing', () => {
-    expect([1, 2, 3].map(round => roundFloor(round, 3))).toEqual(['any', 'non-low', 'none']);
-    expect(roundFloor(1, 1)).toBe('none');
-    expect(withinFloor('any', 'low', 'medium')).toBe(true);
-    expect(withinFloor('non-low', 'low', 'medium')).toBe(false);
-    expect(withinFloor('non-low', 'medium', 'medium')).toBe(true);
-    expect(withinFloor('non-low', 'medium', 'high')).toBe(false);
-    expect(withinFloor('none', 'high', 'medium')).toBe(false);
-  });
-
-  test('a later round is warranted by a signal that clears the minimum, a claimed repair or a user\'s answer, and never by one waiting for a user', () => {
-    expect(needsLaterRound([entry('low')], 'medium')).toBe(false);
-    expect(needsLaterRound([entry('medium')], 'medium')).toBe(true);
-    expect(needsLaterRound([entry('low', { reason: 'repair-claimed' })], 'medium')).toBe(true);
-    expect(needsLaterRound([entry('low', { reason: 'user-decision-answered' })], 'medium')).toBe(true);
-    expect(needsLaterRound([entry('high', { awaiting: 'user-decision' })], 'medium')).toBe(false);
+describe('rounds', () => {
+  test('any signal needing disposition warrants another round, including a low risk signal', () => {
+    expect(needsLaterRound([entry('low')])).toBe(true);
+    expect(needsLaterRound([entry('medium')])).toBe(true);
+    expect(needsLaterRound([entry('low', { reason: 'repair-claimed' })])).toBe(true);
+    expect(needsLaterRound([entry('low', { reason: 'user-decision-answered' })])).toBe(true);
+    expect(needsLaterRound([entry('high', { awaiting: 'user-decision' })])).toBe(false);
   });
 
   test('the next action follows the dispositions', () => {
@@ -104,7 +92,7 @@ describe('validating a submission', () => {
     expect(ctx.decided).toEqual([{ type: 'assess', commands: result.value.commands }]);
   });
 
-  test('a correction below the floor, a signal left open above it and a waiver outside the module are refused before the child decides', async () => {
+  test('a correction at low risk and an explicit leave are allowed; a waiver outside the module is refused', async () => {
     const ctx = context({ attention: new Map([['cf-0001', entry('high', { modules: ['app/cart'] })], ['cf-0002', entry('low')], ['cf-0004', entry('medium')]]) });
     const result = await validateReconciliation(submission([
       disposition('cf-0001', { action: 'waive', uncertainty: 'none' }),
@@ -113,18 +101,16 @@ describe('validating a submission', () => {
     ], { kind: 'correct', goal: 'x' }), ctx);
     expect(messages(result)).toEqual([
       'dispositions.0.action: insufficient-authority: cf-0001 concerns app/cart, and this architect may waive only within app/notes',
-      'dispositions.1.action: correction-floor: cf-0002 is of low risk, and this round may plan a correction for a signal of at least medium risk',
-      'dispositions.2.action: cf-0004 can be corrected in this round (medium risk, floor non-low); only a signal below the floor is left open',
     ]);
     expect(ctx.decided).toEqual([]);
   });
 
-  test('a risk correction below the floor keeps a repair out of a later round', async () => {
+  test('a corrected low risk still allows repair in a later round', async () => {
     const result = await validateReconciliation(submission([
       disposition('cf-0001', { action: 'repair' }, { risk: 'low' }),
       disposition('cf-0002', { action: 'leave' }),
     ], { kind: 'correct', goal: 'x' }), context());
-    expect(messages(result)).toEqual(['dispositions.0.action: correction-floor: cf-0001 is of low risk, and this round may plan a correction for a signal of at least medium risk']);
+    expect(messages(result)).toEqual([]);
   });
 
   test('every signal needs one disposition, one waiting for someone else none, and the next action must follow', async () => {

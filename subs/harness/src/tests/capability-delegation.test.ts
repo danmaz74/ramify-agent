@@ -263,20 +263,27 @@ test('an unsafe scratch override refuses capability source capture until the sam
   await opened.service.settled('need', receipt.jobId);
 }, 60_000);
 
-test('a raw capability architect limit fails with its task unfinished and no synthetic report or replacement dispatch', async () => {
+test('a raw capability architect context boundary retains its unfinished task for another turn', async () => {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'delegation', 'a+b'); answers.push(boundaryAnswers);
   const starts: string[] = [];
+  const ordinary = script(starts, [], 'placement', 1, true);
+  let architectTurns = 0;
   const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, {
-    ...boundaryAnswers.options, script: script(starts, [], 'placement', 1, true), inputs: treeInputs(),
+    ...boundaryAnswers.options, script: spec => {
+      if (spec.role === 'capability-architect' && ++architectTurns === 2) return [{ kind: 'wait', ms: 60_000 }];
+      return typeof ordinary === 'function' ? ordinary(spec) : ordinary;
+    }, inputs: treeInputs(),
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('need'));
+  await until(() => (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect').length === 2);
+  await opened.service.execute(stopRun('need', receipt.jobId, opened.service.getRun('need', receipt.jobId)!.version));
   await opened.service.settled('need', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
-  expect(events.find(event => event.type === 'job-failed')?.data).toMatchObject({ reason: 'limit-exceeded', message: expect.stringContaining('unfinished task remains') });
+  expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
   const taskStarts = events.filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect');
-  expect(taskStarts).toHaveLength(1);
+  expect(taskStarts).toHaveLength(2);
   expect(starts.filter(start => start.startsWith('capability-architect:'))).toEqual(['capability-architect:submit_capability_action:fresh']);
   const first = taskStarts[0]!; if (first.type !== 'invocation-started') throw new Error('Missing architect');
   const outcome = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.outcome(first.data.invocation)), 'utf8'));
@@ -284,37 +291,42 @@ test('a raw capability architect limit fails with its task unfinished and no syn
   expect(events.filter(event => event.type === 'capability-assigned' || event.type === 'capability-handed-back' || event.type === 'work-item-completed')).toEqual([]);
 }, 30_000);
 
-test('a captured budget-return allowance does not authorize fresh fallback after a raw capability limit', async () => {
+test('a captured budget-return allowance does not stop capability architect continuation', async () => {
   const fixture = await copyCapabilityFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'delegation', 'a+b'); answers.push(boundaryAnswers);
 
 
   const starts: string[] = [];
+  const ordinary = script(starts, [], 'placement', 6);
+  let architectTurns = 0;
   const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, {
-    ...boundaryAnswers.options, script: script(starts, [], 'placement', 6), inputs: treeInputs(),
+    ...boundaryAnswers.options, script: spec => {
+      if (spec.role === 'capability-architect' && ++architectTurns === 2) return [{ kind: 'wait', ms: 60_000 }];
+      return typeof ordinary === 'function' ? ordinary(spec) : ordinary;
+    }, inputs: treeInputs(),
 
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('need'));
-  await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'));
+  await until(() => (opened.service.events('need', receipt.jobId) ?? []).filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect').length === 2);
+  await opened.service.execute(stopRun('need', receipt.jobId, opened.service.getRun('need', receipt.jobId)!.version));
   await opened.service.settled('need', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'job.json'), 'utf8')) as
     { policy: { limits: { budgetReturnsPerIteration: number } } };
   const capturedBound = job.policy.limits.budgetReturnsPerIteration;
   expect(capturedBound).toBe(6);
-  const terminal = events.find(event => event.type === 'job-failed');
-  expect(terminal?.type === 'job-failed' ? terminal.data.reason : null).toBe('limit-exceeded');
+  expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
   expect(events.filter(event => event.type === 'invocation-ended' && event.data.ended === 'context-budget-reached')).toHaveLength(1);
   expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(0);
   expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
   expect(events.filter(event => event.type === 'work-item-completed')).toHaveLength(0);
-  expect(starts.filter(start => start.startsWith('capability-architect:'))).toEqual(['capability-architect:submit_capability_action:fresh']);
+  expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'capability-architect')).toHaveLength(2);
 }, 30_000);
 
 for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port-inputs'] as const) {
-  test(`CA16 CA26: ${mode} respects the captured capability action rejection bound`, async () => {
+  test(`CA16 CA26: ${mode} can correct an action beyond the captured rejection count`, async () => {
     const fixture = await copyCapabilityFixture();
     cleanups.push(fixture.remove);
   const boundaryAnswers = capabilityFlowBoundaries(fixture.root, 'delegation', 'a+b'); answers.push(boundaryAnswers);
@@ -329,15 +341,17 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
       const [, task, revision, invocation] = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
       const basis = { task, planRevision: Number(revision), invocation };
       const incomplete = { ...basis, kind: 'assign', owner: b };
+      const corrected = { ...basis, kind: 'partial', progress: 'Inspected the request', unfinished: ['Assign B'] };
       if (mode === 'preview-then-correct') return [
         ...Array.from({ length: 5 }, () => ({ kind: 'tool' as const, tool: 'validate_capability_action', input: incomplete })),
-        { kind: 'submit', input: incomplete },
-        { kind: 'submit', input: { ...basis, kind: 'partial', progress: 'Inspected the request', unfinished: ['Assign B'] } },
+        ...Array.from({ length: 3 }, () => ({ kind: 'submit' as const, input: incomplete })),
+        { kind: 'submit', input: corrected },
       ];
-      if (mode === 'invalid-port-inputs') return Array.from({ length: 2 }, () => ({
+      if (mode === 'invalid-port-inputs') return [...Array.from({ length: 3 }, () => ({
         kind: 'tool' as const, tool: 'submit_capability_action', input: incomplete, reachedTool: false,
-      }));
-      return Array.from({ length: 2 }, () => ({ kind: 'submit' as const, input: incomplete }));
+      })), { kind: 'submit', input: corrected }];
+      return [...Array.from({ length: 3 }, () => ({ kind: 'submit' as const, input: incomplete })),
+        { kind: 'submit', input: corrected }];
     };
     const opened = await openGuardedCapabilityRuns(fixture.root, boundaryAnswers, {
       ...boundaryAnswers.options, script: scripted, inputs: treeInputs(),
@@ -346,9 +360,7 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun('need'));
     await until(() => (opened.service.events('need', receipt.jobId) ?? []).some(event =>
-      mode === 'preview-then-correct'
-        ? event.type === 'capability-coordinator-resumed' && event.data.task === 'cap-001'
-        : event.type === 'job-failed'), 30_000);
+      event.type === 'capability-coordinator-resumed' && event.data.task === 'cap-001'), 30_000);
     const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
     const start = events.find(event => event.type === 'invocation-started' && event.data.role === 'capability-architect');
     if (start?.type !== 'invocation-started') throw new Error('Capability architect invocation did not start');
@@ -357,9 +369,9 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
     const observations = (await readFile(runPath(fixture.root, 'need', receipt.jobId,
       runLayout.observations(start.data.invocation)), 'utf8')).split('\n').filter(Boolean)
       .map(line => JSON.parse(line) as { type: string; data: { target?: string } });
+    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 3 });
+    expect(observations.filter(entry => entry.type === 'rejection' && entry.data.target === 'submit_capability_action')).toHaveLength(3);
     if (mode === 'preview-then-correct') {
-      expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 1 });
-      expect(observations.filter(entry => entry.type === 'rejection')).toHaveLength(1);
       const preview = opened.agent?.sessions.find(session => session.spec.role === 'capability-architect')?.results
         .filter(result => result.tool === 'validate_capability_action') ?? [];
       expect(preview).toHaveLength(5);
@@ -374,23 +386,16 @@ for (const mode of ['preview-then-correct', 'invalid-submissions', 'invalid-port
       expect(declared.find(tool => tool.name === 'submit_capability_action')!.description).toContain(schema);
       expect(architect.spec.tools.find(tool => tool.name === 'validate_capability_action')!.inputSchema).toEqual({
         type: 'object', description: 'A candidate submit_capability_action input; that declaration carries the complete schema.', additionalProperties: true });
-      let stopped = false;
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        const version = opened.service.getRun('need', receipt.jobId)!.version;
-        try { await opened.service.execute(stopRun('need', receipt.jobId, version)); stopped = true; break; }
-        catch (error) { if (!String(error).includes('at version')) throw error; }
-      }
-      expect(stopped).toBe(true);
-      await opened.service.settled('need', receipt.jobId);
-    } else {
-      expect(outcome).toMatchObject({
-        ended: mode === 'invalid-port-inputs' ? 'ended' : 'invalid-submission',
-        rejectedSubmissions: 2, submission: null,
-      });
-      expect(observations.filter(entry => entry.type === 'rejection' && entry.data.target === 'submit_capability_action')).toHaveLength(2);
-      expect(events.find(event => event.type === 'job-failed')?.data.reason).toBe('invalid-submission');
-      await opened.service.settled('need', receipt.jobId);
     }
+    let stopped = false;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const version = opened.service.getRun('need', receipt.jobId)!.version;
+      try { await opened.service.execute(stopRun('need', receipt.jobId, version)); stopped = true; break; }
+      catch (error) { if (!String(error).includes('at version')) throw error; }
+    }
+    expect(stopped).toBe(true);
+    await opened.service.settled('need', receipt.jobId);
+    expect(events.filter(event => event.type === 'job-failed')).toEqual([]);
     expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(0);
     expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
     expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);

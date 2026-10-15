@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -403,6 +404,55 @@ describe('P1: one consumer delegates, resumes after provider conformance and ver
 });
 
 describe('a contract sub-session that fails registers nothing, and its caller goes on', () => {
+  test('a compaction handoff returns the unfinished contract once without another engineer tool', async () => {
+    const root = await target();
+    const plan = {
+      'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+      'local-architect': [
+        submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] }),
+        submit(assign(consumer, { goal: 'Carry the limit in this module after the unfinished agreement.' })),
+        submit(requestCompletion()),
+      ],
+      engineer: [
+        submit(contractNeeded),
+        submit(completionProposed('The limit is carried here after the unfinished agreement.'),
+          write(join(root, consumerDirectory, 'src/notes.ts'), [
+            'export function addNote(note) {',
+            "  return note.length <= 500 ? note : '';",
+            '}',
+            '',
+          ].join('\n'))),
+      ],
+      'contract-engineer': [[
+        write(`${providerDirectory}/src/interfaces/note-limit.ts`, contractFile),
+        { kind: 'compaction-checkpoint' as const, reason: 'threshold' as const },
+        write(`${providerDirectory}/src/after-handoff.ts`, 'Must not run.\n'),
+        { kind: 'submit' as const, input: establishedContract },
+      ]],
+    };
+    const ordinary = byRole(plan);
+    const { service, agent, runId, git } = await run(root, plan, [
+      accepted('wi-001', 'revision-01', [...added(seam.interface), ...modified(seam.consumer)]),
+      unchanged('final verification of plan "review-notes"'),
+    ], { script: spec => spec.submission.name === 'submit_compaction_review'
+      ? submit({ action: 'handoff', reason: 'The agreement needs a new approach.' })
+      : typeof ordinary === 'function' ? ordinary(spec) : ordinary });
+
+    expect(onlyRun(service, 'review-notes').state).toBe('completed');
+    const log = await events(root, runId);
+    expect(log.filter(event => event.type === 'compaction-reviewed').map(event => event.data.action)).toEqual(['handoff']);
+    expect(log.filter(event => event.type === 'contract-registered')).toHaveLength(0);
+    expect(agent!.sessions.filter(session => session.spec.role === 'contract-engineer')).toHaveLength(1);
+    expect(existsSync(join(root, providerDirectory, 'src/after-handoff.ts'))).toBe(false);
+    expect(log.filter(event => event.type === 'invocation-ended' && event.data.ended === 'checkpoint-pending')).toHaveLength(1);
+    const result = await readJson<IterationResult>(root, runId, iterationLayout.result('wi-001', 2));
+    expect(result.outcome).toBe('partial');
+    expect(result.findings.some(finding => finding.includes('The agreement needs a new approach.'))).toBe(true);
+    expect(typesOf(log)).not.toContain('contract-registered');
+    expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01']);
+    git.assertAnswered();
+  }, 60_000);
+
   test('the contract iteration closes partial with the failure, and the run continues', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {

@@ -40,6 +40,7 @@ import {
 } from '../run/session-operations.js';
 import { reduceSessions, type RunSessions } from '../run/sessions.js';
 import { SubmissionJudge, type SubmissionValidation } from '../run/submissions.js';
+import type { CompactionReason } from '../../subs/agent/src/interfaces/port.js';
 import type { WriterOwnership } from '../run/writer.js';
 import { InvocationTranscript, verdictNote } from '../transcripts/recorder.js';
 import type { ContentStore } from '../transcripts/store.js';
@@ -195,6 +196,8 @@ export interface InvocationRequest<T> {
    * recorded against the invocation that did it.
    */
   readonly equip?: ((session: EquipContext) => Equipment) | undefined;
+  /** Architect review started by native compaction in an engineer invocation. */
+  readonly onCompactionStarted?: ((checkpoint: { readonly invocation: string; readonly ordinal: number; readonly reason: CompactionReason }, signal: AbortSignal) => Promise<{ readonly action: 'continue' | 'handoff'; readonly reason: string }>) | undefined;
   /** A session that ended for a reason only the caller can name, such as a tool's exhausted bound. */
   readonly endedAs?: (() => InvocationOutcome['ended'] | undefined) | undefined;
   /**
@@ -284,6 +287,7 @@ export interface InvocationResult<T> {
   readonly pending?: boolean;
   readonly resource?: 'context' | 'stall';
   readonly resourceReason?: string;
+  readonly checkpointReason?: string;
   readonly settlementConfirmed?: boolean;
   readonly verdicts?: readonly { readonly accepted: boolean; readonly answer: string }[];
 }
@@ -883,7 +887,6 @@ export class InvocationRunner<R extends RunnerRun> {
     let recoveryRequested = false;
     const judge = new SubmissionJudge<T>({
       target: request.toolName,
-      bound: run.policy.limits.rejectedSubmissionsPerTurn,
       validate: input => request.validate(input),
       accept: async accepted => {
         const content = `${JSON.stringify({ schema: request.submissionSchema, ...(accepted as object) }, null, 2)}\n`;
@@ -982,6 +985,7 @@ export class InvocationRunner<R extends RunnerRun> {
           return verdict;
         },
       },
+      ...(request.onCompactionStarted === undefined ? {} : { onCompactionStarted: (checkpoint, signal) => request.onCompactionStarted!({ invocation: id, ...checkpoint }, signal) }),
 
       onEvent: event => {
         bounds.observe(event);
@@ -1006,6 +1010,8 @@ export class InvocationRunner<R extends RunnerRun> {
         brief: request.brief ?? await this.host.taskBrief(run, request, spec, limits), spec, restore: request.restore,
         ...(request.callerText === undefined ? {} : { callerText: request.callerText }),
         authority: { scope: request.guarded === undefined ? null : { revision: request.guarded.revision, projectRoot: request.guarded.projectRoot, roots: request.guarded.roots, files: request.guarded.files, excluded: request.guarded.excluded ?? [], denied: request.guarded.denied ?? [], guarded: request.guarded.guarded ?? [] }, writer: request.writer === true, work: request.work },
+        // Preserve the historical identity of retained sessions. This field
+        // no longer limits validation corrections.
         validator: { name: request.toolName, schema: request.inputSchema, submissionSchema: request.submissionSchema, bound: limits.rejectedSubmissionsPerTurn },
         destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) },
         accepted: () => { if (value === undefined || submissionHash === null) throw new Error('Accepted destination was not retained'); return { value, schema: request.submissionSchema, submissionHash }; }, currentAuthority: async () => !this.host.ignoring(run) && !recoveryRequested && request.fenced?.() !== true && request.signal?.aborted !== true,
@@ -1094,8 +1100,8 @@ export class InvocationRunner<R extends RunnerRun> {
     }
     // Acceptance is durable before the acknowledgement. A failed stream after
     // that acceptance completes this transition without asking for another submission.
-    if (value !== undefined && submissionHash !== null && (outcome.kind === 'failed' || outcome.kind === 'resource-pending')) outcome = { kind: 'submitted', input: value };
-    if (outcome.kind === 'resource-pending' || outcome.kind === 'context-budget-reached') recoveryRequested = true;
+    if (value !== undefined && submissionHash !== null && (outcome.kind === 'failed' || outcome.kind === 'resource-pending' || outcome.kind === 'checkpoint-pending')) outcome = { kind: 'submitted', input: value };
+    if (outcome.kind === 'resource-pending' || outcome.kind === 'context-budget-reached' || outcome.kind === 'checkpoint-pending') recoveryRequested = true;
     if (outcome.kind === 'submitted' && value === undefined) {
       const accepted = await (await this.host.operations(agent)).acceptance(run.jobId, id);
       const bytes = await readIfExists(run.path(runLayout.submission(id)));
@@ -1164,8 +1170,8 @@ export class InvocationRunner<R extends RunnerRun> {
     }
 
     const ended = outcome.kind === 'submitted' ? 'submitted' : stoppedByCaller ? 'stopped' : resource !== undefined ? endedOf(outcome.kind, false)
-      : interruption !== undefined ? 'failed' : request.endedAs?.() ?? endedOf(outcome.kind, judge.boundReached);
-    const pending = !stoppedByCaller && request.fenced?.() !== true && !this.host.ignoring(run) && (resource !== undefined || request.pendingPlainReturn === true && outcome.kind === 'ended' && ended === 'ended' && settled.confirmed && ref !== '');
+      : interruption !== undefined ? 'failed' : request.endedAs?.() ?? endedOf(outcome.kind, false);
+    const pending = !stoppedByCaller && request.fenced?.() !== true && !this.host.ignoring(run) && (resource !== undefined || outcome.kind === 'checkpoint-pending' || request.pendingPlainReturn === true && outcome.kind === 'ended' && ended === 'ended' && settled.confirmed && ref !== '');
     const keptAs = pending ? kept : keeping(ended, ended === 'submitted' ? value : undefined);
     const scratchAtSettlement = request.candidateBefore === undefined ? null
       : await scratchSafetyRule(this.projectRoot, await declaredModuleDirectories(this.projectRoot), this.host.git);
@@ -1179,6 +1185,7 @@ export class InvocationRunner<R extends RunnerRun> {
       ...(interruption === undefined ? {} : { interruption, error }),
       ...(structured === undefined ? {} : { interruptionEvidence: structured }),
       ...(resource === undefined ? {} : { resource, resourceReason }),
+      ...(outcome.kind === 'checkpoint-pending' ? { checkpointReason: outcome.reason } : {}),
       // What the implementation answered, not what was asked for: a fork it
       // could not take is a fresh session, and the comparison of fork cost
       // must not be corrupted by one that silently became fresh.
@@ -1209,6 +1216,7 @@ export class InvocationRunner<R extends RunnerRun> {
       value: ended === 'submitted' ? value : undefined,
       ref,
       outcomeKind: resource !== undefined || ended === 'submitted' ? outcome.kind : interruption === undefined ? outcome.kind : 'failed',
+      ...(outcome.kind === 'checkpoint-pending' ? { checkpointReason: outcome.reason } : {}),
       session,
       kept: keptAs.kept,
       ...(interruption === undefined ? {} : { interruption }),

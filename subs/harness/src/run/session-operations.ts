@@ -408,7 +408,8 @@ export class HarnessSessionOperations {
         if (verdict.accepted && input.accepted) await this.retain(this.path('acceptances', [runId, operationId]), { runId, operationId, input: value, destination: intent.policy.destination, validator: intent.policy.validator, ...input.accepted() });
         return verdict;
       } },
-      currentAuthority: async () => input.currentAuthority(), guard: spec.guard, afterMutation: spec.afterMutation, onEvent: spec.onEvent, publish: async () => undefined };
+      currentAuthority: async () => input.currentAuthority(), guard: spec.guard, afterMutation: spec.afterMutation, onEvent: spec.onEvent,
+      onCompactionStarted: spec.onCompactionStarted, publish: async () => undefined };
     let handle;
     let initialPoint: AgentSessionPoint | null = sourceRef?.point ?? null;
     const engineIntent = previous ? await this.operations.operationIdentity(runId, operationId) : null;

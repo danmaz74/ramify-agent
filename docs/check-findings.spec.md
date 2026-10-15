@@ -108,13 +108,14 @@ revocation reopens a waiver: the user can revoke any, an agent only its own or
 a lower authority's. A required test or scenario cannot be waived here; that
 belongs to its gate.
 
-### Bound the correction loop
+### Reconsider repeated corrections
 
-The first round may correct any signal the architect chooses; a later round may be
-started only for a signal of non-low risk, or to assess a claimed repair or a
-person's answer that an earlier round is owed, and its review covers the
-correction's own change. Such a round may plan a correction only within its
-own floor.
+Every round may plan a correction for any signal that needs one. A later round
+assesses a claimed repair, a person's answer or a newly opened signal against
+the current source, including the correction's own review. Repetition prompts
+the architect to reconsider whether the approach can satisfy the requirement
+or whether further refinement offers enough benefit for its cost. The count
+does not prevent useful correction or settle an unmet requirement.
 
 ### Keep only distinctions that change a decision
 

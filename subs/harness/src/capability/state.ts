@@ -203,14 +203,9 @@ export function capabilityHandbackReadiness(task: CapabilityTask, request: Capab
   return failures;
 }
 
-/** The policy's combined work-unit bound counts both record families. */
-export function canCreateCapabilityTask(workItems: number, tasks: number, maxWorkUnits: number): boolean {
-  return workItems + tasks < maxWorkUnits;
-}
-
 /** A repair or reconstruction within an assignment does not consume its next number. */
-export function canAssignCapabilityTask(state: CapabilityTaskState, maxAssignments: number): boolean {
-  return state.status === 'coordinating' && state.nextAssignmentSequence <= maxAssignments;
+export function canAssignCapabilityTask(state: CapabilityTaskState): boolean {
+  return state.status === 'coordinating';
 }
 
 /** Exact task identities establish a dependency cycle. Shared provider or

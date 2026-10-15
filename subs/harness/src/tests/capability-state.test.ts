@@ -2,7 +2,7 @@ import { defaultRunPolicy } from '../run/policy.js';
 import { describe, expect, it } from 'vitest';
 import { runEvent, type RunEventInput } from '../run/log.js';
 import {
-  canAssignCapabilityTask, canCreateCapabilityTask, capabilityHandbackReadiness, isCapabilityEvent, replayCapabilityState,
+  canAssignCapabilityTask, capabilityHandbackReadiness, isCapabilityEvent, replayCapabilityState,
   transitionCapabilityState, type CapabilityEvent,
 } from '../capability/state.js';
 import { fixturePlan, fixtureRequest, fixtureTask } from './helpers/capability.js';
@@ -33,9 +33,7 @@ describe('capability state and authority', () => {
     const task = state.tasks.get('cap-001')!;
     expect([...task.assignments.keys()]).toEqual(['cap-001.i01', 'cap-001.i02', 'cap-001.i03']);
     expect(task.nextAssignmentSequence).toBe(4);
-    expect(canAssignCapabilityTask(task, 3)).toBe(false);
-    expect(canCreateCapabilityTask(63, 0, 64)).toBe(true);
-    expect(canCreateCapabilityTask(63, 1, 64)).toBe(false);
+    expect(canAssignCapabilityTask(task)).toBe(true);
     expect(() => transitionCapabilityState(state, event(9, { type: 'capability-assigned', data: {
       task: 'cap-001', assignment: 'cap-001.i01', sequence: 1, invocation: 'inv-0002',
     } }))).toThrow('assignment sequence');

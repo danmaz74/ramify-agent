@@ -31,7 +31,7 @@ describe('capability records', () => {
     } }).success).toBe(false);
   });
 
-  it('CA01 keeps actual usage, provisional pseudocode and none-known intact through the real ledger', async () => {
+  it('CA01 keeps request evidence and admits delegation beyond a captured work-unit count', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'capability-records-'));
     directories.push(directory);
     const path = join(directory, 'events.jsonl');
@@ -40,7 +40,7 @@ describe('capability records', () => {
     await commitCapabilityTransition(log, { type: 'capability-requested', data: {
       request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: request.invocation,
     } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]);
-    const task = fixtureTask();
+    const task = { ...fixtureTask(), limits: { ...fixtureTask().limits, maxWorkUnits: 1 } };
     const plan = fixturePlan();
     await commitCapabilityTransition(log, { type: 'capability-delegated', data: {
       task: task.id, request: request.id, parent: request.parent.id, invocation: 'inv-0002', planRevision: 1,

@@ -396,14 +396,15 @@ hiding or measured complexity justifies it.
     only named source-backed reconstruction may establish a new session. Each invocation writes its session's
     transcript beside its observations: its start before the session
     starts, and its end and point after the log's. A module engineer or contract
-    session that ends without a result, by a bound, a provider error, an
-    adapter fault, stopping on its own or rejected submissions at their
-    bound, ends its iteration and not the run: the iteration closes
+    session that ends without a result returns its unfinished task to the
+    responsible architect: the iteration closes
     `partial` with the failure, its interruption and its invocation as a
     finding, what the session wrote stays uncommitted in the tree, and the
     module architect's next turn reads it pre-analyzed (see `work/failure.ts`
-    below). The work item's `maxIterationsPerWorkItem` bounds a module engineer
-    that keeps failing. A writer release that could not be confirmed still
+    below). Repeated failure prompts reconsideration; the historical
+    `maxIterationsPerWorkItem` does not prevent another assignment.
+    Invalid tool inputs return their validation errors without exhausting the
+    session. A writer release that could not be confirmed still
     ends the run `agent-failed`, since no writer and no gate may follow it.
     Every other role's failed invocation still ends the run, except a
     reviewer's, which its review retries, a reconciliation fork's, which
@@ -1027,8 +1028,8 @@ correction is assigned by that session as an ordinary iteration, which
 resolves the intent and, when it closes accepted, claims the repair on its
 `iteration-closed`. A user decision waits for its answer before the next
 round. Before `work-item-completed` the basis is validated once more; a
-changed source or request set, or a new or changed signal that warrants a
-round that remains, refuses the completion and reconciles again, and
+changed source or request set, or a new or changed signal that warrants
+reconsideration, refuses the completion and reconciles again, and
 otherwise the work item completes naming each signal it leaves unresolved.
 
 A gate's scenario results produce no CheckFinding. They are read from the
@@ -1185,30 +1186,26 @@ that has ended accepts none.
   there. Physical containment alone does not make a capability local.
 - **The module architect.** One continuing session per work item: each turn
   after the first continues its durable recorded point with the current task
-  and revision-bound updates. The policy permits compaction; the preserving Pi
-  implementation conservatively disables actual compaction. `request-completion` commits an outline and runs the
+  and revision-bound updates. Pi's native compaction remains enabled. `request-completion` commits an outline and runs the
   `work-item` gate; requesting completion with no iteration is a legitimate
   outcome, because a goal existing behavior already satisfies is verified
   reuse and the gate is what verifies it. `unresolved` states the conflict
   and its evidence rather than weakening the request, and a fork of the
   plan architect answers it. A failing gate
-  returns to the same architect, which may revise its outline; exhaustion of
-  `repairRoundsPerWorkItemGate` fails the run with `repair-exhausted` and the
-  original cause preserved.
-- **A module engineer that ends without a result.** A bound, a provider error, an
-  adapter fault, a session that stops on its own and rejected submissions at
-  their bound all end the iteration `partial` and return to the module
-  architect; only an unconfirmed writer release, and the run's own limits,
-  end the run. Before the architect is briefed the harness records the
-  failure digest and runs one `failure-analyst` invocation, a reader with
-  `read`, `grep` and `ls` over the iteration's `failure-evidence/`, bounded
-  at ten minutes; both go into the iteration's result. The architect may
-  raise the next iteration's bounds in `assignment.bounds`, up to the
-  policy's ceilings: 30 minutes for a command, 30 for the idle bound and 3
-  hours for an invocation. They apply to every module engineer invocation of that
-  iteration, budget returns included, and the shell's schema and the
-  module engineer's prompt state the command maximum. `runAbsoluteMs` is
-  unchanged.
+  returns to the same architect, which assesses the latest diagnostic and may
+  revise its approach or assign further correction without a lifetime limit.
+- **An engineer that ends without a result.** Retained work and diagnostics
+  return to its architect, which chooses what follows. Repeated invalid input
+  receives actionable feedback without exhausting an allowance. Unknown writer
+  settlement must be resolved before another writer starts.
+- **Compaction reconsideration.** Native compaction starts a parallel architect
+  review for ordinary, contract and nonfunctional repair engineers. Pi preserves
+  the summary and waits before its next turn for continuation or handoff. The
+  decision and reason survive interruption. Handoff preserves edits and context;
+  it needs no fabricated engineer submission or failure analysis.
+- **Failed final verification.** The plan architect chooses the module and goal
+  for an ordinary correction work item. The same run retains the failed evidence,
+  performs the correction, reassesses the candidate and verifies again.
 - **Readiness.** The project root, stale scratch removed, a clean git
   repository, the compiler configuration, the project's configuration, the
   Ramify command line, the committed audit definition, its declared package

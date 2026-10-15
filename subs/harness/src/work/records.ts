@@ -40,6 +40,7 @@ export const workItemSchema = z.object({
     z.object({ obligation: recordRefSchema }).strict(),
     z.object({ verification: recordRefSchema }).strict(),
     z.object({ integration: scenarioIdSchema }).strict(),
+    z.object({ finalVerification: text }).strict(),
   ]),
   /** A completed item's follow-up preserves that item's historical completion. */
   follows: text.optional(),
@@ -56,13 +57,14 @@ export const workItemSchema = z.object({
 export type WorkItem = z.infer<typeof workItemSchema>;
 
 /** The kind of a work item's origin, as `work-item-started` and the projections name it. */
-export type WorkItemOriginKind = 'entry' | 'obligation' | 'verification' | 'integration';
+export type WorkItemOriginKind = 'entry' | 'obligation' | 'verification' | 'integration' | 'final-verification';
 
 /** Which of the four origins a work item has. */
 export function originKindOf(item: WorkItem): WorkItemOriginKind {
   if ('entry' in item.origin) return 'entry';
   if ('obligation' in item.origin) return 'obligation';
   if ('verification' in item.origin) return 'verification';
+  if ('finalVerification' in item.origin) return 'final-verification';
   return 'integration';
 }
 

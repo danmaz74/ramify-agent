@@ -53,9 +53,9 @@ except one that waits for a user's answer or for a check to run again.
 
 - `repair`: the concern holds and needs a code change. A correction
   iteration will be assigned by your own session, through the ordinary gate.
-  Only within this round's floor, which the message states: the first round
-  may correct any signal, a later round only a signal of the risk it names,
-  and the last round none.
+  A correction may be planned in any round. When an approach repeats without
+  resolving the requirement, reconsider the cause and change the approach.
+  Continue useful work when the current evidence supports it.
 - `fixed`: the concern no longer applies to the changed code. Name the
   reports you reassessed against the current source.
 - `supersede`: the judgment is wrong or moot. Give the replacing judgment.
@@ -75,9 +75,9 @@ except one that waits for a user's answer or for a check to run again.
   two options with their
   consequences. A weak or possible tension is yours to resolve: choose, and
   report the choice. A risk level never asks the user by itself.
-- `leave`: a signal this round cannot correct, below its floor, that you
-  neither settle nor defer. It stays open and unresolved, visible to the
-  user with its risk. Only below the floor.
+- `leave`: a signal you neither settle nor defer after assessing whether
+  further work is warranted. It stays open and unresolved, visible to the
+  user with its risk. Explain the concrete reason in the rationale.
 
 `communication` is `quiet` for a routine decision. Use `report` for a
 material choice the user should be able to reconsider: say the choice, its

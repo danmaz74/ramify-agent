@@ -100,6 +100,19 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     try { state = decodePreservedTranscript(bytes); }
     catch (error) { throw new SessionDriverUnavailableError(String(error)); }
   }
+  const reviewPrefix = `${input.key.operationId}:pi-review:`;
+  const retainedReviews = new Map<number, { reason: 'manual' | 'threshold' | 'overflow'; started: boolean; decided: { action: 'continue' | 'handoff'; reason: string } | null }>();
+  for (const entry of input.session.transcript) {
+    if (entry.kind !== 'provider' || !entry.key.startsWith(reviewPrefix)) continue;
+    const [ordinalText, stage] = entry.key.slice(reviewPrefix.length).split(':');
+    const ordinal = Number(ordinalText);
+    if (!Number.isInteger(ordinal) || ordinal < 1 || !['started', 'decided'].includes(stage ?? '')) continue;
+    const body = JSON.parse(new TextDecoder().decode(await runtime.readPayload(entry.payloadId))) as { reason?: 'manual' | 'threshold' | 'overflow'; action?: 'continue' | 'handoff'; decisionReason?: string };
+    const previous = retainedReviews.get(ordinal) ?? { reason: body.reason ?? 'threshold', started: false, decided: null };
+    retainedReviews.set(ordinal, stage === 'started'
+      ? { ...previous, reason: body.reason ?? previous.reason, started: true }
+      : { ...previous, decided: { action: body.action ?? 'handoff', reason: body.decisionReason ?? 'Architect review interrupted' } });
+  }
   const restoredNativeEntries = state?.nativeEntries;
   const restoredMessageCount = state?.messages.length ?? 0;
   const modelIdentity = `${chosen.model.provider}/${chosen.model.id}`;
@@ -230,6 +243,50 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
   let contextRejection: string | null = null;
   let compactionActive = false; let compactionFailure: string | null = null;
   let boundaryPersistence: Promise<void> = Promise.resolve();
+  let compactionOrdinal = Math.max(0, ...retainedReviews.keys());
+  let activeReviewOrdinal: number | null = null;
+  let compactionReview: Promise<{ readonly action: 'continue' | 'handoff'; readonly reason: string }> | null = null;
+  let reviewAbort: AbortController | null = null;
+  let checkpointHandoff: string | null = null;
+  const cancelReview = () => { reviewAbort?.abort(); reviewAbort = null; };
+  const beginReview = (ordinal: number, reason: 'manual' | 'threshold' | 'overflow', retained: boolean): Promise<void> => {
+    if (!runtime.onCompactionStarted) return Promise.resolve();
+    activeReviewOrdinal = ordinal;
+    reviewAbort = new AbortController();
+    const current = reviewAbort;
+    const saved = retained ? Promise.resolve() : runtime.persistPayload(`${reviewPrefix}${ordinal}:started`, new TextEncoder().encode(JSON.stringify({ reason }))).then(() => undefined);
+    compactionReview = saved.then(() => {
+      if (current.signal.aborted) return { action: 'continue' as const, reason: 'Review canceled with compaction' };
+      return runtime.onCompactionStarted!({ ordinal, reason }, current.signal);
+    })
+      .catch(error => ({ action: 'handoff' as const, reason: `Architect review could not complete: ${error instanceof Error ? error.message : String(error)}` }))
+      .then(decision => current.signal.aborted ? { action: 'continue' as const, reason: 'Review canceled with compaction' } : decision);
+    return saved;
+  };
+  const awaitReview = async () => {
+    const review = compactionReview;
+    if (review === null) return;
+    if (runtime.signal.aborted) return;
+    let onAbort: (() => void) | undefined;
+    const stopped = new Promise<null>(resolve => {
+      onAbort = () => resolve(null);
+      runtime.signal.addEventListener('abort', onAbort, { once: true });
+    });
+    const decision = await Promise.race([review, stopped]);
+    if (onAbort) runtime.signal.removeEventListener('abort', onAbort);
+    compactionReview = null;
+    if (decision !== null && !runtime.signal.aborted && activeReviewOrdinal !== null) {
+      await runtime.persistPayload(`${reviewPrefix}${activeReviewOrdinal}:decided`, new TextEncoder().encode(JSON.stringify({ action: decision.action, decisionReason: decision.reason })));
+    }
+    if (decision?.action === 'handoff' && !runtime.signal.aborted) checkpointHandoff = decision.reason;
+  };
+  const retainedPendingReview = state?.historyBoundary?.operationId === input.key.operationId
+    ? [...retainedReviews].filter(([, review]) => review.started).at(-1) : undefined;
+  if (retainedPendingReview) {
+    const [ordinal, review] = retainedPendingReview;
+    if (review.decided?.action === 'handoff') checkpointHandoff = review.decided.reason;
+    else if (review.decided === null) void beginReview(ordinal, review.reason, true);
+  }
   await session.bindExtensions({ onError: error => { fatal ??= `Extension ${error.event} failed: ${error.error}`; } });
   // Keep Pi's native projection and compaction preparation. The adapter owns
   // executable tools and exact instructions, so discard only SDK prompt/loadout
@@ -240,6 +297,8 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     const next = await nativePrepareNextTurn?.(turn, signal);
     session.agent.state.tools = boundTools;
     await boundaryPersistence;
+    if (!compactionFailure) await awaitReview();
+    if (checkpointHandoff !== null) throw new Error('Architect requested handoff after native compaction');
     if (compactionFailure) return { ...next, context: next?.context ?? turn.context, messages: [] };
     return { ...next, context: { ...(next?.context ?? turn.context), tools: boundTools }, messages: [] };
   };
@@ -329,11 +388,15 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     boundaryPersistence = boundaryPersistence.then(async () => {
     if (event.type === 'compaction_start') {
       compactionActive = true;
+      if (runtime.onCompactionStarted) await beginReview(++compactionOrdinal, event.reason, false);
       runtime.onEvent({ type: 'compaction', phase: 'started', reason: event.reason, native: nativeObservation });
     }
     if (event.type === 'compaction_end') {
       compactionActive = false;
-      if (!event.result) compactionFailure = event.errorMessage ?? (event.aborted ? 'Native compaction aborted' : 'Native compaction unavailable');
+      if (!event.result) {
+        cancelReview(); compactionReview = null;
+        compactionFailure = event.errorMessage ?? (event.aborted ? 'Native compaction aborted' : 'Native compaction unavailable');
+      }
       if (event.result) {
         historyBoundary = { kind: 'native-compaction', reason: event.reason, predecessorSequence: sequence, operationId: input.key.operationId, reuse: 'rewritten-history' };
         inherited = null; completeNative = null;
@@ -385,9 +448,14 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     }
     if (captured) reportMessage(captured as AgentSessionEvent, runtime, messageSourceId, chosen, modelElapsedMs, new Date(admissionAt).toISOString());
   });
-  const stop = () => { void session.abort(); }; runtime.signal.addEventListener('abort', stop, { once: true });
+  const stop = () => { cancelReview(); void session.abort(); }; runtime.signal.addEventListener('abort', stop, { once: true });
   try {
     await runtime.assertLive();
+    if (checkpointHandoff !== null) return { kind: 'checkpoint-pending', reason: checkpointHandoff };
+    if (compactionReview !== null) {
+      await awaitReview();
+      if (checkpointHandoff !== null) return { kind: 'checkpoint-pending', reason: checkpointHandoff };
+    }
     if (!input.recovering) runtime.onEvent({ type: 'message', role: 'user', observation: { sourceId: `pi-message:${messages.length - 1}` }, blocks: [{ type: 'text', text: input.task.message }] });
     const last = messages.at(-1);
     if (input.recovering && last?.role === 'assistant') {
@@ -418,6 +486,12 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     }
     await session.sendCustomMessage({ customType: 'execution-continuation', content: [], display: false }, { triggerTurn: true });
     await boundaryPersistence;
+    if (checkpointHandoff !== null && !runtime.signal.aborted) {
+      // The native summary was persisted at compaction_end. Pi's synthetic
+      // adapter error is deliberately excluded from the retained source point.
+      await persistence;
+      return { kind: 'checkpoint-pending', reason: checkpointHandoff };
+    }
     if (!runtime.signal.aborted) { messages = copy(manager.buildSessionProjection().messages); await persist(messages); }
     await persistence;
     if (runtime.signal.aborted) return { kind: 'stopped' };
@@ -431,7 +505,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     }
     if (lastMessage?.role === 'assistant' && (lastMessage.stopReason === 'error' || lastMessage.stopReason === 'aborted')) return { kind: 'failed', error: lastMessage.errorMessage ?? lastMessage.stopReason };
     return { kind: 'ended' };
-  } finally { runtime.signal.removeEventListener('abort', stop); unsubscribe(); unsubscribeCompaction(); session.dispose(); }
+  } finally { cancelReview(); runtime.signal.removeEventListener('abort', stop); unsubscribe(); unsubscribeCompaction(); session.dispose(); }
 }
 function reportMessage(event: AgentSessionEvent, runtime: SessionDriverRuntime, sourceId: string | null,
   chosen: Awaited<ReturnType<typeof chooseModel>>, elapsedMs: number | null, at: string): void {

@@ -10,9 +10,8 @@ import type { ObservationLog } from './observations.js';
  * A failure changes nothing. Every error, each naming its path and what was
  * expected, goes back to the same session as the tool's error result, as
  * JSON, with a closing request to correct them and call the tool again.
- * Retries are bounded per turn, each rejection is an observation with its
- * errors, and exhaustion ends the invocation as `invalid-submission`, which
- * is distinct from a failure of the agent.
+ * Each rejection is an observation with its errors. The same session may
+ * correct its input as often as needed while its task remains open.
  *
  * Free text from an agent is never parsed for meaning, and no schema has a
  * field for an ID the harness already knows.
@@ -29,9 +28,6 @@ export interface SubmissionError {
 export type SubmissionValidation<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly errors: readonly SubmissionError[] };
-
-/** How many errors one answer names before it states the total instead. */
-export const maximumReportedErrors = 20;
 
 /** Every schema error of one input, each with its path and what was expected. */
 export function schemaErrors(error: z.ZodError): SubmissionError[] {
@@ -50,21 +46,15 @@ export function validateAgainst<T>(schema: z.ZodType<T>, input: unknown): Submis
 
 /**
  * The answer one rejected input receives: JSON, every error with its path,
- * capped with the total stated, and a closing request to correct and retry.
+ * and a closing request to correct and retry.
  * It is the tool's error result, so the same session corrects itself.
  */
-export function rejectionAnswer(errors: readonly SubmissionError[], remainingAttempts: number): string {
-  const reported = errors.slice(0, maximumReportedErrors);
+export function rejectionAnswer(errors: readonly SubmissionError[]): string {
   const answer = {
     accepted: false,
-    errors: reported.map(error => ({ path: error.path, message: error.message, ...(error.expected === undefined ? {} : { expected: error.expected }) })),
-    ...(errors.length > reported.length ? { totalErrors: errors.length } : {}),
-    remainingAttempts,
+    errors: errors.map(error => ({ path: error.path, message: error.message, ...(error.expected === undefined ? {} : { expected: error.expected }) })),
   };
-  const closing = remainingAttempts > 0
-    ? 'Correct every error above and call the tool again.'
-    : 'No further attempts are accepted; this invocation has ended as invalid-submission.';
-  return `${JSON.stringify(answer, null, 2)}\n\n${closing}`;
+  return `${JSON.stringify(answer, null, 2)}\n\nCorrect every error above and call the tool again.`;
 }
 
 /** What a judge does with an input it accepted. */
@@ -73,8 +63,8 @@ export type AcceptInput<T> = (value: T) => Promise<void>;
 export interface SubmissionJudgeOptions<T> {
   /** The tool the input came through: the submission tool's name, or a harness tool's. */
   readonly target: string;
-  /** How many rejected inputs are answered with their errors before the bound is reached. */
-  readonly bound: number;
+  /** Historical option accepted by older callers; it does not limit corrections. */
+  readonly bound?: number;
   readonly validate: (input: unknown) => Promise<SubmissionValidation<T>> | SubmissionValidation<T>;
   /** Applied only to an accepted input, and only once. */
   readonly accept: AcceptInput<T>;
@@ -86,14 +76,12 @@ export interface SubmissionJudgeOptions<T> {
 }
 
 /**
- * One turn's judge. It counts every rejection, including the ones the agent
- * implementation made itself before the input reached the harness, so no
- * rejection escapes the bound.
+ * One turn's judge. It records every rejection, including the ones the agent
+ * implementation made before the input reached the harness.
  */
 export class SubmissionJudge<T> {
   private attemptCount = 0;
   private rejectionCount = 0;
-  private reached = false;
   private accepted = false;
 
   constructor(private readonly options: SubmissionJudgeOptions<T>) {}
@@ -106,25 +94,19 @@ export class SubmissionJudge<T> {
     return this.rejectionCount;
   }
 
-  /** Whether the bound was reached, which ends the invocation as `invalid-submission`. */
-  get boundReached(): boolean {
-    return this.reached;
-  }
-
   get wasAccepted(): boolean {
     return this.accepted;
   }
 
   /**
    * One input the implementation rejected before the tool ran. It counts
-   * toward the same bound and is recorded as a rejection with the reason,
+   * as an observation with the reason,
    * which is the implementation's, not a reading of its message text.
    */
   countImplementationRejection(callId: string, tool: string, reason: string): () => Promise<void> {
     this.attemptCount += 1;
     this.rejectionCount += 1;
     const attempt = this.attemptCount;
-    if (this.attemptCount > this.options.bound) this.reached = true;
     // The port callback cannot await this append. The count is immediate so a
     // following submission sees it; the recorder invokes the returned write
     // in the same ordered queue as the implementation's other observations.
@@ -164,32 +146,25 @@ export class SubmissionJudge<T> {
         callId,
         target: this.options.target,
         attempt,
-        errors: result.errors.slice(0, maximumReportedErrors).map(error => ({ path: error.path, message: error.message })),
+        errors: result.errors.map(error => ({ path: error.path, message: error.message })),
       },
     });
-    const remaining = Math.max(0, this.options.bound - attempt);
-    if (remaining === 0) {
-      this.reached = true;
-      return { accepted: false, final: true, errors: [rejectionAnswer(result.errors, 0)] };
-    }
-    return { accepted: false, errors: [rejectionAnswer(result.errors, remaining)] };
+    return { accepted: false, errors: [rejectionAnswer(result.errors)] };
   }
 }
 
 /**
  * The same rule for a harness tool's input. A tool is not a submission: a
  * rejected input is answered with every error and its path, the tool changes
- * nothing, and the session goes on. The bound is its own, and reaching it
- * ends the invocation as `invalid-submission`, exactly as a submission's
- * does.
+ * nothing, and the session goes on.
  */
 export class ToolInputJudge<T> {
   private attemptCount = 0;
-  private reached = false;
 
   constructor(private readonly options: {
     readonly tool: string;
-    readonly bound: number;
+    /** Historical option accepted by older callers; it does not limit corrections. */
+    readonly bound?: number;
     readonly validate: (input: unknown) => SubmissionValidation<T>;
     readonly observations: ObservationLog;
   }) {}
@@ -198,9 +173,9 @@ export class ToolInputJudge<T> {
     return this.attemptCount;
   }
 
-  /** Whether the bound was reached, which ends the invocation as `invalid-submission`. */
+  /** Historical compatibility for callers that used to map errors to exhaustion. */
   get exhausted(): boolean {
-    return this.reached;
+    return false;
   }
 
   async judge(input: unknown, callId = ''): Promise<{ readonly ok: true; readonly value: T } | { readonly ok: false; readonly text: string }> {
@@ -213,11 +188,9 @@ export class ToolInputJudge<T> {
         callId,
         target: this.options.tool,
         attempt: this.attemptCount,
-        errors: result.errors.slice(0, maximumReportedErrors).map(error => ({ path: error.path, message: error.message })),
+        errors: result.errors.map(error => ({ path: error.path, message: error.message })),
       },
     });
-    const remaining = Math.max(0, this.options.bound - this.attemptCount);
-    if (remaining === 0) this.reached = true;
-    return { ok: false, text: rejectionAnswer(result.errors, remaining) };
+    return { ok: false, text: rejectionAnswer(result.errors) };
   }
 }

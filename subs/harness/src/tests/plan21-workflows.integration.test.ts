@@ -21,7 +21,7 @@ import { auditDefinition, commandCheck } from './helpers/configured-repository.j
 import {
   addModule, assign, completionProposed, edit, failureAnalystFake, installMiniRunner, outline, partialReport, submit, viewedInputs, write,
 } from './helpers/iterations.js';
-import { git, initRepository, openRuns, realRamify, runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
+import { git, initRepository, openRuns, realRamify, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { recordsOf } from './helpers/session-records.js';
 
 /*
@@ -202,7 +202,13 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
     // but not what the report expects.
     let firstEngineer = 0;
     let firstArchitect = 0;
+    let reachedCorrection!: () => void;
+    const correctionStarted = new Promise<void>(resolve => { reachedCorrection = resolve; });
     const first = production(spec => {
+      if (spec.submission.name === 'submit_final_correction') {
+        reachedCorrection();
+        return [{ kind: 'wait', ms: 60_000 }];
+      }
       if (spec.role === 'initial-architect') return submit(analysis([entry('review-note', notes)]));
       if (spec.submission.name === 'submit_work_item_result') {
         firstArchitect += 1;
@@ -240,6 +246,12 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
     const opened = await openRuns(root, { production: true, ...external, script: first });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun(plan));
+    // Explicitly stop at the correction decision so this native two-run witness
+    // retains the failing nested report while the next run tests its repair.
+    await Promise.race([correctionStarted, opened.service.settled(plan, receipt.jobId).then(() => {
+      throw new Error(`Run ended before its correction decision: ${JSON.stringify(opened.service.getRun(plan, receipt.jobId))}`);
+    })]);
+    await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
     await opened.service.settled(plan, receipt.jobId);
     const failedRun = receipt.jobId;
     const failedEvents = await runEventsOnDisk(root, plan, failedRun);
@@ -276,15 +288,15 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
     const iterationGates = failedGates.filter(gate => gate.checkpoint === 'iteration');
     expect(iterationGates.map(gate => gate.verdict)).toEqual(['failed', 'passed']);
     expect(iterationGates.every(gate => gate.audit?.nested !== true)).toBe(true);
-    // PB3-R03: the failing nested project fails the final gate and the run;
+    // PB3-R03: the failing nested project leaves final correction pending;
     // the root passed beside it, and the declarations stand.
     expect(failedFinal).toBeDefined();
     expect(failedFinal!.verdict).toBe('failed');
     expect(failedFinal!.audit).toMatchObject({ mode: 'full', nested: true, verdict: 'fail' });
     const projects = failedFinal!.audit!.projects!;
     expect(projects.map(project => [project.projectRoot, project.verdict, project.execution])).toEqual([['.', 'pass', expect.stringMatching(/^(ran|reused)$/u)], [report, 'fail', 'ran']]);
-    const failure = failedEvents.find(event => event.type === 'job-failed');
-    expect(failure?.type === 'job-failed' ? failure.data.reason : null).toBe('repair-exhausted');
+    expect(failedEvents.some(event => event.type === 'job-failed')).toBe(false);
+    expect(failedEvents.at(-1)?.type).toBe('job-stopped');
     expect(failedEvents.filter(event => event.type === 'obligation-reported' && event.data.judgment === 'bound')).toEqual([]);
     // PB3-S08: the scratch draft lived through the repair and went with the
     // run's last iteration; the included project tree was committed, never cleaned.

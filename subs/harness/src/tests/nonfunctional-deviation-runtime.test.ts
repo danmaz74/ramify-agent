@@ -5,9 +5,10 @@ import { coordinatorActionToolName, coordinatorAssessmentToolName } from '../non
 import { intakeToolName } from '../analysis/extraction.js';
 import type { CheckFindingUserCommand } from '../interfaces/protocol/check-findings.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
+import { CommandRejection } from '../jobs/commands.js';
 import { createQuerySource } from '../http/query-source.js';
 import { copyFixture } from './helpers/fixture.js';
-import { onlyRun, openRuns, runEventsOnDisk, startRun, testPolicy } from './helpers/runs.js';
+import { onlyRun, openRuns, runEventsOnDisk, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
@@ -73,12 +74,26 @@ async function startExhaustedRun(options: { finalGateFails?: boolean } = {}) {
       if (spec.submission.name === coordinatorActionToolName) return [{ kind: 'submit', input: {
         kind: 'close', deviations: [{ nfr: 'nfr-001', proposedAlternative: 'Use a cached read', uncertainty: 'Load varies' }],
       } }];
+      if (options.finalGateFails && spec.role === 'global-fork') return [{ kind: 'end', message: 'No correction decision was submitted.' }];
       return [];
     },
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun(plan));
-  await opened.service.settled(plan, receipt.jobId);
+  if (options.finalGateFails) {
+    await until(() => opened.service.events(plan, receipt.jobId)?.some(event =>
+      event.type === 'gate-attempted' && event.data.checkpoint === 'final') === true);
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      try {
+        await opened.service.execute(stopRun(plan, receipt.jobId, opened.service.getRun(plan, receipt.jobId)!.version));
+        break;
+      } catch (error) {
+        if (!(error instanceof CommandRejection) || error.code !== 'stale-version' || attempt === 19) throw error;
+      }
+    }
+    await opened.service.settled(plan, receipt.jobId);
+  }
+  else await opened.service.settled(plan, receipt.jobId);
   return { fixture, opened, receipt, boundaryAnswers, queries: new RunQueries(createQuerySource(opened.service)) };
 }
 
@@ -93,7 +108,7 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
   if (acceptedCatalog?.type !== 'analysis-accepted' || !acceptedCatalog.data.evidence
     || boundCandidate?.type !== 'candidate-bound-to-gate') throw new Error('Missing accepted catalog or bound candidate');
   Object.assign(trial, { runId: receipt.jobId, catalogHash: acceptedCatalog.data.evidence.catalog.hash,
-    roundsClosed: 3, assessments: 3, candidate: boundCandidate.data.candidate, tree: boundCandidate.data.tree,
+    roundsClosed: 1, assessments: 1, candidate: boundCandidate.data.candidate, tree: boundCandidate.data.tree,
     finalGate: boundCandidate.data.gate, gateCommit: boundCandidate.data.commit,
     deviations: events.filter(event => event.type === 'nonfunctional-deviation-recorded').length });
   expect(events.filter(event => event.type === 'nonfunctional-deviation-recorded')).toHaveLength(1);
@@ -140,7 +155,6 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
 
 test('accepting an exhausted NFR cannot waive a failed final test gate', async () => {
   const { fixture, opened, receipt, queries } = await startExhaustedRun({ finalGateFails: true });
-  expect(onlyRun(opened.service, plan).state).toBe('failed');
   const events = await runEventsOnDisk(fixture.root, plan, receipt.jobId);
   const failedGate = events.find(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final');
   if (failedGate?.type !== 'gate-attempted') throw new Error('Missing failed final gate attempt');

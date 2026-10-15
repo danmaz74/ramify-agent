@@ -122,16 +122,16 @@ async function gates(root: string, runId: string): Promise<GateAttempt[]> {
 }
 
 describe('K1: a module gate fails, is repaired and reruns the complete gate', () => {
-  test('a gate that fails three times exhausts and returns the original cause to the local architect', async () => {
+  test('repeated failed corrections return to the architect and further repair remains available', async () => {
     const root = await target();
     const iterationAttempts = new Set<string>();
     const { service, runId, scripted } = await run(root, {
       'initial-architect': [submit(analysis([entry('review-note', notes)]))],
       'local-architect': [
         submit(assign(notes, {}, outline())),
-        // The exhausted iteration returns here, and the architect assigns a
+        // The returned iteration returns here, and the architect assigns a
         // repair rather than asking for completion over a defect.
-        submit(assign(notes, { kind: 'repair', goal: 'Repair what the exhausted iteration left.' })),
+        submit(assign(notes, { kind: 'repair', goal: 'Repair what the returned iteration left.' })),
         submit(requestCompletion()),
       ],
       // The first three attempts propose completion without repairing
@@ -163,23 +163,23 @@ describe('K1: a module gate fails, is repaired and reruns the complete gate', ()
 
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const iterationGates = (await gates(root, runId)).filter(gate => gate.checkpoint === 'iteration');
-    const exhausted = iterationGates.filter(gate => gate.subject.iteration === 'wi-001.i01');
-    expect(exhausted.map(gate => gate.repairRound)).toEqual([0, 1, 2]);
-    expect(exhausted.map(gate => gate.next)).toEqual(['repair', 'repair', 'exhausted']);
-    expect(exhausted.every(gate => gate.cause === 'check-failed')).toBe(true);
+    const returned = iterationGates.filter(gate => gate.subject.iteration === 'wi-001.i01');
+    expect(returned.map(gate => gate.repairRound)).toEqual([0, 1, 2]);
+    expect(returned.map(gate => gate.next)).toEqual(['repair', 'repair', 'return-to-local-architect']);
+    expect(returned.every(gate => gate.cause === 'check-failed')).toBe(true);
     // Each failing attempt was audited over the revision it stood on, which
     // is the run's own boundary: none of them committed one of its own.
-    expect(exhausted.map(gate => gate.commit)).toEqual([null, null, null]);
-    expect(exhausted.map(gate => gate.audited)).toEqual([materialized, materialized, materialized]);
+    expect(returned.map(gate => gate.commit)).toEqual([null, null, null]);
+    expect(returned.map(gate => gate.audited)).toEqual([materialized, materialized, materialized]);
 
     const result = await readResult(root, runId, 'wi-001', 1);
-    expect(result.outcome).toBe('exhausted');
+    expect(result.outcome).toBe('partial');
     expect(result.gate).toBeNull();
     expect(result.commit).toBeNull();
     expect(result.invocations).toHaveLength(3);
     await expect(readFile(join(root, notesDirectory, 'src/tmp/working.txt'))).rejects.toMatchObject({ code: 'ENOENT' });
-    // The cause the architect receives is the first attempt's, not the last.
-    expect(result.findings.some(finding => finding.includes(`check-failed at gate ${exhausted[0]!.id}`))).toBe(true);
+    // The architect receives the latest diagnostic when reconsideration is due.
+    expect(result.findings.some(finding => finding.includes(`check-failed at gate ${returned.at(-1)!.id}`))).toBe(true);
     // The repair iteration the architect then assigned is the one accepted,
     // and it is the only one whose commit boundary answered a revision.
     const repaired = await readResult(root, runId, 'wi-001', 2);
@@ -374,18 +374,17 @@ describe('K5b: an invalid session, a timeout and an exhausted limit keep distinc
       // Every attempt commits before it runs its checks, and every one of
       // them stands on the tree the run started from: the iteration's two
       // attempts, the work item's two and the run's own two.
-      commits: [scenarios, unchanged, unchanged, unchanged, unchanged, unchanged, unchanged],
-      previews: [],
+      commits: [scenarios, unchanged, unchanged, unchanged, unchanged],
     }, {
-      checkScript: ({ check }) => check.kind === 'tests'
+      checkScript: ({ check, context }) => context.checkpoint === 'iteration' && check.kind === 'tests'
         ? { outcome: { kind: 'timed-out', timeoutMs: 600_000 } }
         : {},
     });
 
-    // The configured tests check times out at every checkpoint, so the work
-    // item's own gate cannot answer either and the run ends with evidence.
+    // The local infrastructure exchange returns unfinished. Its architect
+    // reconsiders and obtains passing work-item and final verification.
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
+    expect(snapshot.state).toBe('completed');
     const iterationGates = (await gates(root, runId)).filter(gate => gate.checkpoint === 'iteration');
     expect(iterationGates).toHaveLength(2);
     expect(iterationGates.map(gate => gate.verdict)).toEqual(['not-verified', 'not-verified']);

@@ -140,5 +140,5 @@ export type SessionOutcomeRecord = z.infer<typeof sessionOutcomeSchema>;
 export type StandaloneSessionState = 'finished' | 'interrupted' | 'suspended';
 
 export function standaloneSessionState(outcome: SessionOutcomeRecord | null): StandaloneSessionState {
-  return outcome === null ? 'interrupted' : outcome.ended === 'resource-pending' ? 'suspended' : 'finished';
+  return outcome === null ? 'interrupted' : outcome.ended === 'resource-pending' || outcome.ended === 'checkpoint-pending' ? 'suspended' : 'finished';
 }

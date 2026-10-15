@@ -6,6 +6,7 @@ import { runLayout } from '../run/records.js';
 import { replayNonfunctionalPhase } from '../run/nonfunctional-phase.js';
 import { decideNonfunctionalRound } from '../../subs/nonfunctional/src/rounds.js';
 import { recoveryHash, validateExternalRepair, type RecoveryIdentity } from '../run/recovery-admission.js';
+import { workLayout } from '../work/records.js';
 
 const oid = (character: string) => character.repeat(40);
 const hash = 'e'.repeat(64);
@@ -81,6 +82,25 @@ function externallyRepairedFinal() {
 }
 
 describe('committed non-functional phase replay', () => {
+  it('reopens assessment after an authenticated final correction, despite a legacy one-round marker', () => {
+    const oldMarker = entry('nonfunctional-phase-started', { catalogHash: hash, maxRounds: 1 });
+    const gate = entry('gate-attempted', { gate: 'gate-final', checkpoint: 'final', verdict: 'failed', next: 'correct' }, [], 10);
+    const started = entry('invocation-started', { invocation: 'inv-final', role: 'global-fork', session: 'ses-0001',
+      work: { request: 'final-correction-gate-final' }, start: 'opened' }, [], 11);
+    const ended = entry('invocation-ended', { invocation: 'inv-final', ended: 'submitted', submission: hash,
+      session: 'ses-0001', kept: false, finished: 'work-closed' }, [], 12);
+    const item = { schema: 'ramify-agent.work-item/1', id: 'wi-099', module: 'app',
+      origin: { finalVerification: 'gate-final' }, goal: 'Correct the failed check',
+      requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null };
+    const planned = entry('final-correction-planned', { gate: 'gate-final', invocation: 'inv-final',
+      workItem: item.id, candidate: 'cand-002', assessment: 'nfa-002', round: 1 },
+    [record(workLayout.item(item.id), item.id, item)], 13);
+    const replay = replayNonfunctionalPhase([oldMarker, ...stream.slice(1), gate, started, ended, planned], nfrIds, 1);
+    expect(replay).toMatchObject({ ok: true, value: { final: null, input: { externalContinuations: [1] } } });
+    if (replay.ok) expect(decideNonfunctionalRound(replay.value.input)).toMatchObject({ action: 'prepare-candidate', round: 2 });
+    expect(replayNonfunctionalPhase([oldMarker, ...stream.slice(1), gate, started, ended,
+      { ...planned, transaction: { ...planned.transaction, records: [] } }], nfrIds, 1)).toMatchObject({ ok: false, reason: expect.stringContaining('co-committed') });
+  });
   it('authenticates external final invalidation and retains spent rounds and earlier assessment evidence', () => {
     const external = externallyRepairedFinal();
     const repaired = replayNonfunctionalPhase([...stream, external.resumed, external.invalidated], nfrIds, 3);
@@ -93,7 +113,7 @@ describe('committed non-functional phase replay', () => {
       candidate: 'cand-002', assessment: 'nfa-002', tree: oid('9') }, [], 11);
     expect(replayNonfunctionalPhase([...stream, external.resumed, wrong], nfrIds, 3)).toMatchObject({ ok: false, reason: expect.stringContaining('repaired final candidate') });
     const exhaustedMarker = entry('nonfunctional-phase-started', { catalogHash: hash, maxRounds: 1 });
-    expect(replayNonfunctionalPhase([exhaustedMarker, ...stream.slice(1), external.resumed, external.invalidated], nfrIds, 1)).toMatchObject({ ok: false, reason: expect.stringContaining('remaining round allowance') });
+    expect(replayNonfunctionalPhase([exhaustedMarker, ...stream.slice(1), external.resumed, external.invalidated], nfrIds, 1)).toMatchObject({ ok: true, value: { final: null } });
   });
   it('reconstructs valid crash prefixes and the next permitted step', () => {
     const expected = ['prepare-candidate', 'prepare-candidate', 'assess', 'investigate', 'repair-or-close', 'repair-or-close', 'prepare-candidate', 'assess', 'close', 'stop'];
@@ -122,6 +142,30 @@ describe('committed non-functional phase replay', () => {
     const replay = replayNonfunctionalPhase([...stream.slice(0, 7), assessed(unresolved, 'cand-002', 8), continuation], nfrIds, 3);
     expect(replay).toMatchObject({ ok: true, value: { input: { closedRounds: [{ number: 1, outcome: 'continue' }] } } });
     if (replay.ok) expect(decideNonfunctionalRound(replay.value.input)).toMatchObject({ action: 'prepare-candidate', round: 2 });
+  });
+
+  it('resumes a count-exhausted repaired round under its captured marker and retains explicit closure', () => {
+    const oldMarker = entry('nonfunctional-phase-started', { catalogHash: hash, maxRounds: 1 });
+    const unresolved = assessment('nfa-002', second, 'after-repair', 'not-satisfied');
+    const legacyClosed = entry('nonfunctional-round-closed', { round: 1, record: 'nfr-round-001', outcome: 'exhausted' }, [
+      record(runLayout.nonfunctionalRound(1), 'nfr-round-001', {
+        schema: 'ramify-agent.nonfunctional-round/1', number: 1, initial: initial.id,
+        investigation: 'inv-investigate', repair: 'nfr-repair-001', reassessment: unresolved.id, outcome: 'exhausted',
+      }),
+    ], 9);
+    // The caller's current policy may have changed; the marker identifies the old forced closure.
+    const resumed = replayNonfunctionalPhase([oldMarker, ...stream.slice(1, 7), assessed(unresolved, 'cand-002', 8), legacyClosed], nfrIds, 3);
+    expect(resumed).toMatchObject({ ok: true, value: { input: { maxRounds: 1, closedRounds: [{ outcome: 'exhausted', repair: 'nfr-repair-001' }] } } });
+    if (resumed.ok) expect(decideNonfunctionalRound(resumed.value.input)).toEqual({ action: 'prepare-candidate', round: 2, phase: 'initial' });
+    const explicit = entry('nonfunctional-round-closed', { round: 1, record: 'nfr-round-001', outcome: 'exhausted' }, [
+      record(runLayout.nonfunctionalRound(1), 'nfr-round-001', {
+        schema: 'ramify-agent.nonfunctional-round/1', number: 1, initial: initial.id,
+        investigation: 'inv-investigate', repair: null, reassessment: null, outcome: 'exhausted',
+      }),
+    ], 5);
+    const closedByCoordinator = replayNonfunctionalPhase([oldMarker, prepared('cand-001', first, 2), assessed(initial, 'cand-001', 3), investigated, explicit], nfrIds, 3);
+    expect(closedByCoordinator).toMatchObject({ ok: true });
+    if (closedByCoordinator.ok) expect(decideNonfunctionalRound(closedByCoordinator.value.input)).toEqual({ action: 'stop', closedRounds: 1, outcome: 'exhausted' });
   });
 
   it('ends the phase when a round closes without a repair', () => {

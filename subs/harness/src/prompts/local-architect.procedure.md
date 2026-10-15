@@ -91,8 +91,9 @@ harness derives them from the kind, the scope and the evidence required, and
 freezes them on the assignment. Each attempt resolves the current test files
 again, so a test the iteration writes runs before it is accepted.
 
-The harness then runs the module engineer, the gate, and the repair rounds the
-policy allows, and returns the result to you.
+The harness then runs the module engineer and gate. Failed verification returns
+its diagnostics for correction; the number of repair attempts does not decide
+whether the work is complete or may continue.
 
 ## A module engineer that ended without a result
 

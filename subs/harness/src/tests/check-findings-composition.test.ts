@@ -77,7 +77,7 @@ describe('the composed run: a clean work item and a corrected one', () => {
     expect(started.map(event => event.data.reconciliation)).toEqual(['wi-002.rc01', 'wi-002.rc02']);
     expect(eventsOf(events, 'work-item-completed').map(event => [event.data.workItem, event.data.unresolved])).toEqual([
       ['wi-001', undefined],
-      ['wi-002', [{ checkFinding: 'cf-0005', reason: 'below-floor' }]],
+      ['wi-002', [{ checkFinding: 'cf-0005', reason: 'left-open' }]],
     ]);
 
     // The three readers of wi-002's second candidate overlapped.
@@ -109,11 +109,11 @@ describe('the composed run: a clean work item and a corrected one', () => {
     expect(summaries.get('cf-0002')).toMatchObject({ group: null, materialChoice: { choice: 'The limit takes the text as given.' } });
 
     // Round 1 planned the correction; its acceptance claimed the repair on
-    // the later candidate; round 2 fixed it within the non-low floor.
+    // the later candidate; round 2 fixed it while leaving a new signal open.
     const basis = (id: string) => readFile(runPath(root, plan, runId, reconciliationLayout.basis(id)), 'utf8').then(text => JSON.parse(text) as ReconciliationBasis);
     expect(await basis('wi-002.rc01')).toMatchObject({ round: 1, floor: 'any', source: { commit: 'revision-03', tree: '3'.repeat(40) } });
     expect((await basis('wi-002.rc01')).checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0004', 'cf-0001', 'cf-0003', 'cf-0002']);
-    expect(await basis('wi-002.rc02')).toMatchObject({ round: 2, floor: 'non-low', source: { commit: 'revision-04', tree: '4'.repeat(40) } });
+    expect(await basis('wi-002.rc02')).toMatchObject({ round: 2, floor: 'any', source: { commit: 'revision-04', tree: '4'.repeat(40) } });
     const closed = eventsOf(events, 'iteration-closed').find(event => event.data.iteration === 'wi-002.i03')!;
     expect(closed.data.checkFindings!.map(event => [event.type, event.type === 'check-finding-decided' ? event.data.checkFinding : null])).toEqual([
       ['check-finding-decided', 'cf-0001'], ['check-finding-decided', 'cf-0004'],
@@ -155,7 +155,7 @@ describe('the composed run: a clean work item and a corrected one', () => {
     expect(measured.rounds).toEqual({ 'wi-001': { rounds: 0, corrections: 0 }, 'wi-002': { rounds: 2, corrections: 1 } });
     expect(measured.humanDecisions).toEqual({ requested: 0, answered: 0, userWaivers: 0, userRevocations: 0 });
     expect(measured.waivers).toEqual({ 'agent:local-architect': 1 });
-    expect(measured.unresolved).toEqual([{ workItem: 'wi-002', checkFinding: 'cf-0005', reason: 'below-floor', risk: 'low' }]);
+    expect(measured.unresolved).toEqual([{ workItem: 'wi-002', checkFinding: 'cf-0005', reason: 'left-open', risk: 'low' }]);
     const exported = process.env['PLAN12_MEASUREMENTS_EXPORT'];
     if (exported !== undefined && exported !== '') await writeFile(exported, `${JSON.stringify({ fixture: 'composed', measured }, null, 2)}\n`);
   }, 120_000);
@@ -363,8 +363,8 @@ describe('CF07: a shutdown owns the live readers of the composed run, and a late
   }, 120_000);
 });
 
-describe('CF15: the composed run under the tightest policy', () => {
-  test('one reader, a queue of one, one retry and one reconciliation round: overflow, a retried invalid review and exhausted rounds are explicit gaps and unresolved signals, and every gate keeps its verdict', async () => {
+describe('CF15: the composed run under tight review bounds', () => {
+  test('one reader, a queue of one and one retry: overflow, a retried invalid review and architect-left-open signals are explicit, and every gate keeps its verdict', async () => {
     const root = await compositionTarget(cleanups);
     const scenario = compositionScenario(root, { concurrency: 1, queue: 1, retries: 1 });
     const run = await reviewRun(root, cleanups, {
@@ -378,9 +378,8 @@ describe('CF15: the composed run under the tightest policy', () => {
         'rq-0004#1': [{ kind: 'submit', input: { inspected: [tagLimit], missing: [], concerns: [] } }, { kind: 'end', message: 'gave up' }],
       },
       reconcilers: {
-        // The only round is the last: its floor admits no correction, and the refused plan is returned to the fork.
+        // The architect considers all signals and explicitly leaves them open.
         'wi-002.rc01': reconcile(
-          submission([disposition('cf-0001', { action: 'repair' }), disposition('cf-0002', { action: 'leave' })], { kind: 'correct', goal: 'Correct the limit.' }),
           submission([disposition('cf-0001', { action: 'leave' }), disposition('cf-0003', { action: 'leave' }), disposition('cf-0002', { action: 'leave' })], { kind: 'unresolved' }),
         ),
       },
@@ -397,13 +396,13 @@ describe('CF15: the composed run under the tightest policy', () => {
       ['rq-0005.a01', 'complete', null], ['rq-0009.a01', 'not-verified', 'queue-overflow'], ['rq-0007.a01', 'complete', null], ['rq-0008.a01', 'complete', null],
     ]);
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 9, complete: 6, partial: 0, notVerified: 3, pending: 0 });
-    // The only round was the last: its floor refused the correction, and the fork left every signal unresolved.
+    // The architect left every signal unresolved after considering the full attention set.
     const [fork] = reconcilerSessions(run.agent!);
-    expect(JSON.stringify(fork!.verdicts[0])).toContain('correction-floor');
+    expect(fork!.verdicts[0]).toMatchObject({ accepted: true });
     expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['unresolved']);
     expect(eventsOf(events, 'work-item-completed').map(event => [event.data.workItem, event.data.unresolved])).toEqual([
       ['wi-001', undefined],
-      ['wi-002', [{ checkFinding: 'cf-0001', reason: 'rounds-exhausted' }, { checkFinding: 'cf-0003', reason: 'rounds-exhausted' }, { checkFinding: 'cf-0002', reason: 'rounds-exhausted' }]],
+      ['wi-002', [{ checkFinding: 'cf-0001', reason: 'left-open' }, { checkFinding: 'cf-0003', reason: 'left-open' }, { checkFinding: 'cf-0002', reason: 'left-open' }]],
     ]);
     // Nothing manufactured a pass: the signals stay open, and every gate kept the verdict its checks gave.
     expect(summariesOf(service, runId).map(summary => [summary.id, summary.standing, summary.risk])).toEqual([

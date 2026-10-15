@@ -798,7 +798,8 @@ const revision: Scenario = {
   inputs: treeInputs,
 };
 
-/** A capability that comes to depend on itself, twice: a notice, then a failed run. */
+/** A capability that comes to depend on itself twice before an operator stop. */
+const cycleDetections = new Map<string, number>();
 const cycle: Scenario = {
   name: 'cycle',
   git: {
@@ -813,7 +814,7 @@ const cycle: Scenario = {
     ],
   },
   exercises: 'a capability cycle, the return to its architect, and the same cycle again',
-  ends: 'failed',
+  ends: 'stopped',
   target: () => fixtureWith([
     notesModule,
     { directory: limitsDirectory, name: 'limits', files: { 'src/limit-work.ts': consumerStub, 'src/tests/limit-work.test.ts': consumerTest('limit-work.ts') } },
@@ -838,18 +839,25 @@ const cycle: Scenario = {
     ],
   }),
   inputs: treeInputs,
+  during(write, context) {
+    if (write !== 'dependency-cycle-detected') return;
+    const count = (cycleDetections.get(context.runId) ?? 0) + 1;
+    cycleDetections.set(context.runId, count);
+    if (count === 2) context.stop();
+  },
 };
 
-/** A raw hard limit has no accepted partial return, successor or passing gate. */
+/** A context return leaves the engineer's partial work for architect assessment. */
 const engineerBudget: Scenario = {
   name: 'engineer-budget',
-  git: { head: base, after: materialized, commits: [materialize(featureOf(notesDirectory, 'review-notes'))] },
-  exercises: 'a module engineer reaches the hard context limit without an accepted submission; its assignment stays unfinished',
-  ends: 'failed',
+  git: { head: base, after: materialized, commits: [materialize(featureOf(notesDirectory, 'review-notes')), unchanged(materialized), unchanged(materialized)] },
+  exercises: 'a module engineer reaches a context limit; its partial result returns to the architect for a completion decision',
+  ends: 'completed',
+  finalCandidate: { head: materialized, tree: '8'.repeat(40) },
   target: () => fixtureWith([notesModule]),
   script: () => byRole({
     'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
-    'local-architect': [submit(assign(notes, {}, outline()))],
+    'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
     engineer: [budgetTurn],
   }),
   inputs: treeInputs,
@@ -895,13 +903,14 @@ const noSubmission = failingAnalysis('no-submission', 'an plan architect that en
 const invalidAnalysis = failingAnalysis('invalid-analysis', 'an plan architect whose every submission is invalid: invalid-submission at the bound',
   [1, 2, 3, 4].map(() => ({ kind: 'submit' as const, input: { entries: 'none' } })));
 const overLimit: Scenario = {
-  ...failingAnalysis('over-limit', 'a run whose policy allows fewer work items than its analysis assigns: limit-exceeded',
+  ...failingAnalysis('over-limit', 'work items continue beyond a captured historical count',
     submit(analysis([entry('review-notes', notes), entry('review-note-limit', notes)]))),
-  // The work items are counted after readiness, once the feature files
-  // are committed.
+  ends: 'completed',
+  finalCandidate: { head: materialized, tree: '9'.repeat(40) },
   git: {
     head: base, after: materialized,
-    commits: [materialize(featureOf(notesDirectory, 'review-note-limit'), featureOf(notesDirectory, 'review-notes'))],
+    commits: [materialize(featureOf(notesDirectory, 'review-note-limit'), featureOf(notesDirectory, 'review-notes')),
+      unchanged(materialized), unchanged(materialized), unchanged(materialized)],
   },
   policy: projectRoot => {
     const policy = testPolicy(projectRoot);

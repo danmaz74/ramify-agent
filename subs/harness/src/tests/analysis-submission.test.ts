@@ -22,7 +22,7 @@ import { join } from 'node:path';
  * Everything the plan architect tells the harness is validated JSON: the
  * strict schema, then the rules the schema cannot hold. A failure changes
  * nothing, every error names its path, a corrected input is accepted, and
- * the bound ends the invocation as `invalid-submission`.
+ * repeated corrections stay in the same invocation.
  */
 
 vi.mock('node:child_process', async original =>
@@ -409,10 +409,10 @@ describe('a rejected submission in a run', () => {
     expect(onlyRun(service, 'review-notes').state).toBe('completed');
     const verdicts = agent!.sessions[1]!.verdicts;
     expect(verdicts[0]).toMatchObject({ accepted: false });
-    const answer = JSON.parse((verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { accepted: boolean; errors: Array<{ path: string }>; remainingAttempts: number };
+    const answer = JSON.parse((verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { accepted: boolean; errors: Array<{ path: string }> };
     expect(answer.accepted).toBe(false);
     expect(answer.errors[0]!.path).toBe('entries');
-    expect(answer.remainingAttempts).toBe(2);
+    expect(answer).not.toHaveProperty('remainingAttempts');
     expect((verdicts[0] as { errors: string[] }).errors[0]).toContain('Correct every error above and call the tool again.');
     expect(verdicts[1]).toEqual({ accepted: true });
 
@@ -430,38 +430,31 @@ describe('a rejected submission in a run', () => {
     expect(outcome.ended).toBe('submitted');
   }, 180_000);
 
-  test('the bound ends the invocation as invalid-submission, and the run with it', async () => {
+  test('four rejected inputs can be corrected in the same invocation', async () => {
     const broken = { elements: [], entries: 'none', hypotheses: [], coverageLimits: [], scenarios: [], integrationScenarios: [] };
-    const { root, runId, service, agent } = await run([broken, broken, broken, broken]);
+    const { root, runId, service, agent } = await run([broken, broken, broken, broken, emptyAnalysis()],
+      ['final verification of plan "review-notes"']);
 
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('invalid-submission');
+    expect(snapshot.state).toBe('completed');
 
     const verdicts = agent!.sessions[1]!.verdicts;
-    expect(verdicts).toHaveLength(3);
-    expect(verdicts.at(-1)).toMatchObject({ accepted: false, final: true });
-    expect((verdicts.at(-1) as { errors: string[] }).errors[0]).toContain('No further attempts are accepted');
+    expect(verdicts).toHaveLength(5);
+    expect(verdicts.slice(0, 4)).toEqual(Array.from({ length: 4 }, () => expect.objectContaining({ accepted: false })));
+    expect(verdicts.at(-1)).toEqual({ accepted: true });
 
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome('inv-0002')), 'utf8')) as InvocationOutcome;
-    expect(outcome).toMatchObject({ ended: 'invalid-submission', rejectedSubmissions: 3, submission: null });
+    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 4, submission: { hash: expect.any(String) } });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    // The intake's session, then the architect's, and nothing of the catalog is durable.
-    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed',
-      'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended',
-      'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'job-failed']);
-    expect(events.filter(event => event.type === 'invocation-prepared').map(event => event.data.invocation))
-      .toEqual(['inv-0001', 'inv-0001', 'inv-0002', 'inv-0002']);
     for (const id of ['inv-0001', 'inv-0002']) {
       const invocation = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.invocation(id)), 'utf8')) as Invocation;
       expect(invocation.sessionOperation).toMatchObject({ runId, operationId: id, turn: 1, sourcePoint: { kind: 'checkpoint', turn: 0 } });
       expect(invocation.prompt.inputsHash).toMatch(/^[0-9a-f]{64}$/u);
     }
-    expect(events.filter(event => event.type === 'invocation-started').map(event => event.type === 'invocation-started' && event.data.role))
-      .toEqual(['catalog-extractor', 'initial-architect']);
+    expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'initial-architect')).toHaveLength(1);
   }, 180_000);
 
-  test('a duplicate capability slug is rejected, and three of them end the invocation', async () => {
+  test('a duplicate capability slug stays correctable after four rejections', async () => {
     const duplicate = {
       elements: [],
       entries: [
@@ -473,21 +466,20 @@ describe('a rejected submission in a run', () => {
       scenarios: [],
       integrationScenarios: [],
     };
-    const { root, runId, service, agent } = await run([duplicate, duplicate, duplicate]);
+    const { root, runId, service, agent } = await run([duplicate, duplicate, duplicate, duplicate, emptyAnalysis()],
+      ['final verification of plan "review-notes"']);
 
     const verdicts = agent!.sessions[1]!.verdicts;
-    expect(verdicts).toHaveLength(3);
+    expect(verdicts).toHaveLength(5);
     const first = JSON.parse((verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string; message: string }> };
     expect(first.errors[0]!.path).toBe('entries.1.capability');
     expect(first.errors[0]!.message).toContain('unique in the run');
-    expect(verdicts.at(-1)).toMatchObject({ accepted: false, final: true });
+    expect(verdicts.at(-1)).toEqual({ accepted: true });
 
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('invalid-submission');
-    // Nothing was derived from an analysis that was never accepted.
+    expect(snapshot.state).toBe('completed');
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.some(event => event.type === 'analysis-accepted')).toBe(false);
+    expect(events.some(event => event.type === 'analysis-accepted')).toBe(true);
     expect(events.some(event => event.type === 'work-item-started')).toBe(false);
   }, 180_000);
 

@@ -184,16 +184,18 @@ test.each(['completion-proposed', 'partial'] as const)('B09 B11: accepted %s is 
   await stop(opened);
 });
 
-test('B10: final submission rejection remains terminal, keeps actual verdict and refuses further chat', async () => {
-  const opened = await ordinary([[...submit({ wrong: true }), ...submit({ wrong: true }), ...submit({ wrong: true })]]);
+test('B10: repeated submission rejection keeps actual verdict and permits a corrected follow-up', async () => {
+  const opened = await ordinary([[...submit({ wrong: true }), ...submit({ wrong: true }), ...submit({ wrong: true }), ...submit({ wrong: true })], submit(completionProposed())]);
   await opened.service.execute(message(opened, 'Try invalid submission.'));
   const result = await settled(opened);
-  expect(result).toMatchObject({ taskState: 'terminal', outcome: 'invalid-submission' });
+  expect(result).toMatchObject({ taskState: 'pending', outcome: 'ended' });
   expect(result.verdicts.length).toBeGreaterThan(0);
   expect(result.verdicts.every(verdict => !verdict.accepted)).toBe(true);
   expect(result.verdicts[0]!.answer).toContain('kind');
   expect(opened.service.getRun(plan, opened.runId)?.state).toBe('running');
-  await expect(opened.service.execute(message(opened, 'Try again', 'again', 2))).rejects.toMatchObject({ code: 'conflict' });
+  await opened.service.execute(message(opened, 'Try corrected submission', 'again', 2));
+  const corrected = await settled(opened, 'again');
+  expect(corrected).toMatchObject({ taskState: 'accepted', outcome: 'submitted' });
   await stop(opened);
 });
 

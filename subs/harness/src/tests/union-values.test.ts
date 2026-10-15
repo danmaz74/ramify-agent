@@ -119,7 +119,7 @@ describe('the run log', () => {
       'evidence-reopened', 'revision-needed', 'dependency-cycle-detected',
       'work-item-completed',
       'writer-acquired', 'writer-process-registered', 'writer-released',
-      'gate-started', 'gate-committing', 'gate-command-started', 'gate-command-waiting', 'gate-attempted', 'check-findings-recorded',
+      'gate-started', 'final-correction-planned', 'compaction-review-started', 'compaction-reviewed', 'gate-committing', 'gate-command-started', 'gate-command-waiting', 'gate-attempted', 'check-findings-recorded',
       'review-request-recorded', 'review-attempt-started', 'review-orientation-recorded', 'review-attempt-finished',
       'reconciliation-started', 'reconciliation-assessed', 'reconciliation-brief-appended', 'reconciliation-refused',
       'unresolved-requested', 'plan-deviation-recorded', 'environment-reported', 'scenarios-rewording', 'scenarios-reworded', 'stop-requested',
@@ -218,7 +218,7 @@ describe('the record unions', () => {
   test('every way an invocation can end, with every disposition and interruption', async () => {
     const store = await ledger();
     const ends = invocationOutcomeSchema.shape.ended.options;
-    expect(ends).toEqual(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']);
+    expect(ends).toEqual(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'checkpoint-pending', 'invalid-submission']);
     const dispositions = invocationOutcomeSchema.shape.disposition.options;
     expect(dispositions).toEqual(['applied', 'superseded', 'incomplete']);
     const interruptions = ['idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault'] as const;

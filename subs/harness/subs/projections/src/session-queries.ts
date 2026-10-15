@@ -274,7 +274,7 @@ export class SessionQueries {
     if (record.id !== id) throw new ProjectionError('unreadable', `${shown(sessionLayout.session)} names another session, ${record.id}`, [shown(sessionLayout.session)]);
     const outcome = await readRecord(join(directory, sessionLayout.outcome), shown(sessionLayout.outcome), sessionOutcomeSchema, 'ramify-agent.session-outcome/1');
     const read = { directory, record, outcome };
-    if (outcome !== null && outcome.ended !== 'resource-pending') this.finishedStandalone.set(id, read);
+    if (outcome !== null && outcome.ended !== 'resource-pending' && outcome.ended !== 'checkpoint-pending') this.finishedStandalone.set(id, read);
     return read;
   }
 }

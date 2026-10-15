@@ -129,7 +129,7 @@ describe('a gate that cannot run what its checkpoint requires', () => {
     await expect(stat(marker('ran-conformance'))).rejects.toThrow();
   });
 
-  it('is a failure, and its next is repair until the rounds are spent', async () => {
+  it('returns repeated failed correction to the architect without exhausting the task', async () => {
     const failing: PlannedCheck[] = [
       { kind: 'type-check', command: command('echo "src/one.ts(3,5): error TS2322" >&2; exit 2') },
     ];
@@ -141,7 +141,7 @@ describe('a gate that cannot run what its checkpoint requires', () => {
     expect(first.verdict).toBe('failed');
     expect(first.cause).toBe('check-failed');
     expect(first.next).toBe('repair');
-    expect(last.next).toBe('exhausted');
+    expect(last.next).toBe('return-to-local-architect');
     expect(first.commands[0]?.exitCode).toBe(2);
     expect(first.commands[0]?.runnerError).toBeNull();
   });

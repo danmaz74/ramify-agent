@@ -11,6 +11,10 @@ import {
   emptyAnalysis, installTestRunner, onlyRun, openRuns as openRunsWithGit,
   runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { runLayout } from '../run/records.js';
+import { assign, byRole, outline, partialReport, submit, treeInputs } from './helpers/iterations.js';
+import { requestCompletion } from './helpers/analysis.js';
+import { RunQueries } from '../../subs/projections/src/queries.js';
+import { createQuerySource } from '../http/query-source.js';
 
 /*
  * The smallest coherent run: one with no entry capabilities. It starts,
@@ -199,40 +203,41 @@ describe('an implementation run with no entry capabilities', () => {
     expect(scripted.operations()['commitAccepted']).toBeUndefined();
   }, 120_000);
 
-  test('a final gate that does not pass fails the run, with the attempt as evidence', async () => {
+  test('failed final verification returns to an architect, preserves correction work and verifies again in the same run', async () => {
     const { root } = await target();
-    const { service } = await openRuns(root, {
-      script: [{ kind: 'submit', input: emptyAnalysis() }],
-      // Readiness passes; the direct executor then reports the final test
-      // command's completed failure to the production gate classifier.
-      checkScript: ({ check, context }) => context.checkpoint === 'final' && check.kind === 'tests'
-        ? { outcome: { kind: 'completed', exitCode: 1 } }
-        : {},
-      unchangedCheckpoints: ['final verification of plan "review-notes"'],
-      previewCount: 3,
+    const module = 'collection-review/workspace/reviews';
+    let finalChecks = 0;
+    const { service, agent } = await openRuns(root, {
+      inputs: treeInputs(),
+      script: byRole({
+        'initial-architect': [submit(emptyAnalysis())],
+        'global-fork': [submit({ module, goal: 'Correct the failing final verification.', rationale: 'Investigate its diagnostic and retain the existing implementation.' })],
+        'local-architect': [submit(assign(module, {}, outline())), submit(requestCompletion())],
+        engineer: [submit(partialReport(['Corrected the verification problem.'], ['Obtain final verification.']))],
+      }),
+      checkScript: ({ check, context }) => context.checkpoint === 'final' && check.kind === 'tests' && finalChecks++ === 0
+        ? { outcome: { kind: 'completed', exitCode: 1 } } : {},
+      unchangedCheckpoints: ['final verification of plan "review-notes"', 'wi-001', 'final verification of plan "review-notes"'],
+      previewCount: 7,
     });
     cleanups.push(() => service.close());
-
     const receipt = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', receipt.jobId);
-
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('repair-exhausted');
-    expect(snapshot.failure?.evidence).toEqual([runLayout.gate('ga-0002')]);
-
+    expect(snapshot.failure).toBeNull();
+    expect(snapshot.state).toBe('completed');
     const events = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
-    expect(events.map(event => event.type)).toEqual([
-      'job-started', 'document-manifest-committed', 'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended',
-      'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'session-opened', 'invocation-started', 'invocation-prepared', 'invocation-prepared', 'invocation-ended', 'analysis-accepted',
-      'gate-started', 'readiness-passed', 'scratch-setting-up', 'scratch-setup-complete',
-      'nonfunctional-phase-started', 'candidate-prepared', 'nonfunctional-assessed', 'nonfunctional-round-closed',
-      'gate-committing', 'gate-attempted', 'candidate-bound-to-gate', 'session-finished', 'job-failed',
-    ]);
-    // The unchanged tree needs no new commit, but its current revision was
-    // audited and the failing attempt records that identity and evidence.
-    const attempt = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0002')), 'utf8')) as { verdict: string; cause: string; commit: string | null; audited: string | null; evidence: unknown };
-    expect(attempt).toMatchObject({ verdict: 'failed', cause: 'check-failed', commit: null, audited: expect.any(String), evidence: expect.any(Object) });
+    expect(events.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
+    expect(events.filter(event => event.type === 'final-correction-planned')).toHaveLength(1);
+    expect(events.find(event => event.type === 'work-item-started')).toMatchObject({ data: { origin: 'final-verification' } });
+    const workItems = await new RunQueries(createQuerySource(service)).workItems('review-notes', receipt.jobId);
+    expect(workItems.workItems).toEqual([expect.objectContaining({ origin: 'final-verification' })]);
+    expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
+    expect(events.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final')).toHaveLength(2);
+    expect(events.some(event => event.type === 'job-failed')).toBe(false);
+    expect(agent!.sessions.find(session => session.spec.role === 'global-fork')!.spec.prompt).toContain('ga-0002');
+    const attempt = JSON.parse(await readFile(runPath(root, 'review-notes', receipt.jobId, runLayout.gate('ga-0002')), 'utf8'));
+    expect(attempt).toMatchObject({ verdict: 'failed', cause: 'check-failed', audited: expect.any(String), evidence: expect.any(Object) });
   }, 120_000);
 
   test('a run stopped mid-invocation ends stopped, and the late submission is rejected', async () => {

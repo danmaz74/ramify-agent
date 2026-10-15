@@ -160,9 +160,9 @@ export const runPolicySchema = z.object({
     maxInvocationsPerRun: z.int().positive(),
     unlimitedRunDuration: z.boolean().optional(),
     runAbsoluteMs: z.int().positive(),
-    /** Assessment and correction rounds of one work item's reconciliation. */
+    /** Legacy reconciliation count, retained to read captured run policy. */
     reconciliationRoundsPerWorkItem: z.int().positive().optional(),
-    /** The least risk a correction after the first reconciliation round may be planned for. */
+    /** Legacy later-round risk floor, retained to read captured run policy. */
     laterRoundMinimumRisk: z.enum(['medium', 'high']).optional(),
     /** The plan deviations recorded before the next one waits for the person. */
     maxPlanDeviations: z.int().nonnegative().optional(),
@@ -179,7 +179,7 @@ export const runPolicySchema = z.object({
     maxCommandTimeoutMs: z.int().positive().optional(),
     maxInvocationIdleMs: z.int().positive().optional(),
     maxInvocationAbsoluteMs: z.int().positive().optional(),
-    /** The bounded non-functional phase configured by the current policy. */
+    /** Legacy non-functional round count, retained to read captured run policy. */
     nonfunctionalRoundsPerPlan: z.int().positive().max(3).optional(),
   }).strict(),
   /**
@@ -805,13 +805,15 @@ export const invocationOutcomeSchema = z.object({
   schema: z.literal('ramify-agent.invocation-outcome/1'),
   sessionOperation: sessionOperationLinkSchema.optional(),
   invocation: text,
-  ended: z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']),
+  ended: z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'checkpoint-pending', 'invalid-submission']),
   /** Each one is a `rejection` observation with its errors. */
   rejectedSubmissions: z.int().nonnegative(),
   interruption: z.enum(['idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault']).optional(),
   interruptionEvidence: interruptionEvidenceSchema.optional(),
   resource: z.enum(['context', 'stall']).optional(),
   resourceReason: z.string().optional(),
+  /** Architect requested handoff after Pi retained a native compaction summary. */
+  checkpointReason: z.string().optional(),
   /** A superseded invocation's result is kept and never applied. */
   disposition: z.enum(['applied', 'superseded', 'incomplete']),
   /**

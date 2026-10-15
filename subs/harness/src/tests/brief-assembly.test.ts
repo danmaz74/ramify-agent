@@ -28,12 +28,12 @@ describe('the environment an invocation is told of', () => {
   test('a reader without a shell receives its own bounds, project paths and no support paths', () => {
     const selected = selectedEnvironment(environment());
     expect(Object.keys(selected)).toEqual(['projectRoot', 'workingDirectory', 'candidate', 'limits', 'availableTools']);
-    expect(selected.limits).toEqual({ invocationIdleMs: 2, rejectedSubmissionsPerTurn: 3 });
+    expect(selected.limits).toEqual({ invocationIdleMs: 2 });
   });
 
   test('a shell adds its quiet-output interval without lifetime or context-return ceilings', () => {
     expect(selectedEnvironment(environment({ availableTools: ['shell'] })).limits)
-      .toEqual({ invocationIdleMs: 2, rejectedSubmissionsPerTurn: 3, commandTimeoutMs: 4 });
+      .toEqual({ invocationIdleMs: 2, commandTimeoutMs: 4 });
   });
 
   test('a role that reads no file receives no paths or views, and null fields say nothing', () => {

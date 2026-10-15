@@ -21,6 +21,8 @@ import { sourceRestartRuntime, restartRuntimeCompatibility, validateRestartRepai
 import { planRestartImport, restartWorkflowEntries, stageRestartImport, readRestartImport, inspectRestartArtifacts, type RestartImport, type RestartRecognizedEffect } from './restart-import.js';
 import { runCommand, type CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { z } from 'zod';
+import { finalCorrectionSchema, type FinalCorrection } from './final-correction.js';
+import { compactionReviewSchema } from './compaction-review.js';
 import { lstat, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, posix, relative, resolve, sep } from 'node:path';
 import type { AgentPort, AgentSession, JsonSchema, SessionSpec, SessionStart, ToolDefinition } from '../../subs/agent/src/interfaces/port.js';
@@ -48,7 +50,7 @@ import {
 } from '../check-findings/transition.js';
 import {
   attentionAt, basisChange, briefText as reconciliationBrief, needsLaterRound, reconciliationAssessmentSchema, reconciliationBasisSchema,
-  reconciliationId, reconciliationJsonSchema, reconciliationLayout, reconciliationSubmissionDescription, reconciliationToolName, roundFloor,
+  reconciliationId, reconciliationJsonSchema, reconciliationLayout, reconciliationSubmissionDescription, reconciliationToolName,
   validateReconciliation,
   type AttentionEntry, type BasisRequest, type BoundReconciliation, type BriefAppendOutcome, type ReconciliationAssessment,
   type ReconciliationBasis, type ReconciliationSubmission, type UnresolvedReason,
@@ -224,7 +226,7 @@ import {
   obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection,
 } from '../work/obligations.js';
 import { capabilityOf, frontierOrder, hypothesesFor } from '../work/frontier.js';
-import { integrationScenarioOf, originKindOf, workLayout, workItemId, type WorkItem } from '../work/records.js';
+import { integrationScenarioOf, originKindOf, workLayout, workItemId, workItemSchema, type WorkItem } from '../work/records.js';
 import { apiCoverageStatement, apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
 import { localArchitectToolName, type LocalArchitectSubmission } from '../work/submission.js';
 import { gateDiagnostics, type GateAudience } from '../checks/diagnostics.js';
@@ -433,7 +435,6 @@ export interface RunRecoveryReport {
 const key = (planId: string, runId: string) => `${planId}/${runId}`;
 
 /** The reconciliation rounds of a run whose policy predates them. */
-const defaultReconciliationRounds = 3;
 
 /**
  * The module architect's own session while its work item reconciles: the
@@ -1852,20 +1853,21 @@ export class RunService {
    * reviews settle, any user decision it waits for is answered, and its
    * attention set is captured. An empty set goes to the work item's gate
    * with no agent call. Otherwise one round forks the module architect at
-   * its completion request, within the round's floor, and the assessment it
+   * its completion request, and the assessment it
    * commits leads to the gate, to a correction, or to a user decision and
    * another round. A refused basis or a fork that returns nothing is another
-   * round. A round after the first starts only for a signal that warrants
-   * one, and none starts once the rounds are spent: what is open then stays
-   * unresolved, and the gate alone decides. Null once the run has ended.
+   * round. Null once the run has ended.
    */
   private async reconcileWorkItem(run: Run, agent: AgentPort, loaded: LoadedPackage, item: WorkItem, parent: ParentSession,
     owner: ReconciliationOwner = { id: item.id, role: 'local-architect' }): Promise<Reconciled | null> {
-    const limit = run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
-    const minimum = run.policy.limits.laterRoundMinimumRisk ?? 'medium';
     for (;;) {
       if (!await this.settleWorkItemReviews(run, owner.id)) return null;
       if (!await this.awaitUserDecisions(run, owner.id)) return null;
+      // A committed correction remains the next action across interruption.
+      // Its repair intent can remove findings from the attention set, but that
+      // does not make the original completion request ready for its gate.
+      const correction = this.pendingCorrection(run, owner.id);
+      if (correction !== undefined) return { kind: 'correct', reconciliation: correction };
       const commit = this.accepted(run);
       const captured = this.basisState(run, owner.id);
       const rounds = run.log.all('reconciliation-started').filter(event => event.data.workItem === owner.id).length;
@@ -1873,11 +1875,9 @@ export class RunService {
         kind: 'gate',
         basis: { commit, requests: captured.requests, checkFindings: attentionAt(captured.attention), decided },
       });
-      // Nothing needs attention, the rounds are spent, or what is left does
-      // not warrant a later round: the gate follows, and what is open stays
-      // unresolved.
+      // Nothing needs the architect's disposition; the gate follows.
       if (captured.attention.size === 0) return gate(false);
-      if (rounds >= limit || (rounds > 0 && !needsLaterRound(captured.attention.values(), minimum))) return gate(rounds > 0);
+      if (rounds > 0 && !needsLaterRound(captured.attention.values())) return gate(true);
 
       let tree: string;
       try {
@@ -1886,10 +1886,10 @@ export class RunService {
         await this.fail(run, 'internal', `The audited source ${commit} of ${owner.id}'s reconciliation could not be read: ${message(error)}`);
         return null;
       }
-      const basis = await this.startReconciliation(run, owner.id, rounds + 1, limit, { commit, tree }, captured, owner.completion);
+      const basis = await this.startReconciliation(run, owner.id, rounds + 1, { commit, tree }, captured, owner.completion);
       if (basis === 'ended') return null;
       if (basis === 'stale') continue;
-      const assessed = await this.assessReconciliation(run, agent, loaded, item, owner, basis, captured.attention, parent, { limit, minimum });
+      const assessed = await this.assessReconciliation(run, agent, loaded, item, owner, basis, captured.attention, parent);
       if (assessed === null) return null;
       if (assessed.kind === 'refused') {
         await this.write(run, { type: 'reconciliation-refused', data: { workItem: owner.id, reconciliation: basis.id, stage: 'assessment', reason: assessed.reason } });
@@ -1912,7 +1912,6 @@ export class RunService {
     run: Run,
     workItem: string,
     round: number,
-    limit: number,
     source: { readonly commit: string; readonly tree: string },
     captured: ReturnType<RunService['basisState']>,
     completion?: ReconciliationOwner['completion'],
@@ -1933,7 +1932,7 @@ export class RunService {
       due: captured.due,
       applied: captured.state.applied,
       forkPoint,
-      floor: roundFloor(round, limit),
+      floor: 'any',
     } satisfies ReconciliationBasis);
     return await run.mutex.run(async () => {
       if (run.log.terminal !== undefined) return 'ended' as const;
@@ -1997,7 +1996,7 @@ export class RunService {
   }
 
   /** The one bounded packet of a round, from the log and the CheckFinding state. */
-  private reconciliationPacket(run: Run, item: WorkItem, owner: ReconciliationOwner, basis: ReconciliationBasis, state: CheckFindingState, bounds: { readonly limit: number; readonly minimum: string }): ReconciliationPacket {
+  private reconciliationPacket(run: Run, item: WorkItem, owner: ReconciliationOwner, basis: ReconciliationBasis, state: CheckFindingState): ReconciliationPacket {
     const reviews = reviewStateOf(run.log.events);
     const requests: PacketRequest[] = basis.requests.map(entry => {
       const request = reviews.get(entry.request);
@@ -2034,8 +2033,6 @@ export class RunService {
     });
     return {
       basis,
-      limit: bounds.limit,
-      laterRoundMinimumRisk: bounds.minimum,
       module: item.module,
       owner: owner.role === 'capability-architect' ? 'capability task' : 'work item',
       ...(owner.role === 'capability-architect' ? { capabilityContext: { consumer: item.module, provider: owner.provider ?? 'unknown' } } : {}),
@@ -2064,7 +2061,6 @@ export class RunService {
     basis: ReconciliationBasis,
     attention: ReadonlyMap<CheckFindingId, AttentionEntry>,
     parent: ParentSession,
-    bounds: { readonly limit: number; readonly minimum: CheckFindingRisk },
   ): Promise<{ readonly kind: 'refused'; readonly reason: string } | { readonly kind: 'assessed'; readonly next: ReconciliationAssessment['next'] } | null> {
     const ordinaryCompletion = owner.completion === undefined ? this.latestCompletion(run, owner.id) : undefined;
     const completion = owner.completion ?? (ordinaryCompletion?.data.architectRef == null ? undefined
@@ -2084,7 +2080,7 @@ export class RunService {
       attempt: basis.round,
       loaded,
       systemPrompt: renderReconciliationPrompt(loaded, this.projectRoot, parent.workingDirectory),
-      prompt: reconciliationMessage(this.reconciliationPacket(run, item, owner, basis, state, bounds)),
+      prompt: reconciliationMessage(this.reconciliationPacket(run, item, owner, basis, state)),
       // The fork keeps the parent's working directory: its tools read where the architect read.
       workingDirectory: parent.workingDirectory,
       start: start.start,
@@ -2099,8 +2095,6 @@ export class RunService {
           id: basis.id,
           workItem: owner.id,
           module: item.module,
-          floor: basis.floor,
-          laterRoundMinimumRisk: bounds.minimum,
           attention,
           held,
           actor: { kind: 'agent', role: owner.role, invocation: invocation ?? 'none' },
@@ -2321,9 +2315,9 @@ export class RunService {
    * (appendix §6): the gate audited the reconciled source or its scenario
    * rendering, every request of the work item is settled as the basis names
    * it, every basis CheckFinding is at its captured revision, and nothing
-   * that warrants another round has become open. Where one of those fails
-   * and a round remains, the completion is refused and recorded, and the
-   * caller reconciles again; otherwise the work item completes, naming each
+   * needing a disposition has become open. Where one of those fails,
+   * completion is refused and recorded, and the caller reconciles again;
+   * otherwise the work item completes, naming each
    * CheckFinding left open and why.
    */
   private capabilityBlockers(run: Run, workItem: string): string[] {
@@ -2332,8 +2326,6 @@ export class RunService {
 
   /** Shared completion check for a work item or bounded capability task. */
   private async completionBasisRefusal(run: Run, owner: string, gate: GateAttempt, basis: CompletionBasis): Promise<string | null> {
-    const limit = run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
-    const minimum = run.policy.limits.laterRoundMinimumRisk ?? 'medium';
     const lineage = basis.decided ? await this.sourceLineage(run, basis.commit, gate.audited) : null;
     const now = this.basisState(run, owner);
     const rounds = run.log.all('reconciliation-started').filter(event => event.data.workItem === owner).length;
@@ -2346,12 +2338,11 @@ export class RunService {
     const soft = moved !== undefined
       ? `${moved.checkFinding} is at revision ${now.revisions.get(moved.checkFinding) ?? 'none'}, not ${moved.revision}`
       : raised.length > 0 ? `${raised.length === 1 ? 'a CheckFinding' : `${raised.length} CheckFindings`} became open after the basis` : null;
-    const warranted = (entries: readonly AttentionEntry[]) => (rounds === 0 ? entries.length > 0 : needsLaterRound(entries, minimum));
-    return soft !== null && rounds < limit && warranted([...now.attention.values()]) ? soft : null;
+    const warranted = (entries: readonly AttentionEntry[]) => (rounds === 0 ? entries.length > 0 : needsLaterRound(entries));
+    return soft !== null && warranted([...now.attention.values()]) ? soft : null;
   }
 
   private async completeWorkItem(run: Run, item: WorkItem, gate: GateAttempt, basis: CompletionBasis): Promise<'completed' | 'ended' | { readonly refused: string }> {
-    const limit = run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds;
     const outcome = await run.mutex.run(async () => {
       if (run.log.terminal !== undefined) return 'ended' as const;
       if (this.workflow !== null) {
@@ -2361,7 +2352,7 @@ export class RunService {
       const refusal = await this.completionBasisRefusal(run, item.id, gate, basis);
       if (refusal !== null) return { refused: refusal };
       const now = this.basisState(run, item.id);
-      const unresolved = this.unresolvedOf(run, item.id, now.state, limit);
+      const unresolved = this.unresolvedOf(run, item.id, now.state);
       await run.log.append({
         type: 'work-item-completed',
         data: { workItem: item.id, gate: gate.id, ...(unresolved.length === 0 ? {} : { unresolved }) },
@@ -2376,15 +2367,15 @@ export class RunService {
 
   /**
    * Each open CheckFinding of a completing work item, and why it is left
-   * open: open at the last round's assessment, open below its round's floor,
-   * or opened after the last basis. Read under the mutex.
+   * open: left open by the architect or opened after the latest basis.
+   * Read under the mutex.
    */
-  private unresolvedOf(run: Run, workItem: string, state: CheckFindingState, limit: number): Array<{ readonly checkFinding: CheckFindingId; readonly reason: UnresolvedReason }> {
+  private unresolvedOf(run: Run, workItem: string, state: CheckFindingState): Array<{ readonly checkFinding: CheckFindingId; readonly reason: UnresolvedReason }> {
     const last = this.latestBasis(run, workItem);
     const inLast = new Set(last?.checkFindings.map(entry => entry.checkFinding) ?? []);
     return this.ownerCheckFindings(state, workItem, 'all').filter(summary => summary.standing === 'open').map(summary => ({
       checkFinding: summary.id,
-      reason: !inLast.has(summary.id) ? 'raised-after-last-round' as const : last!.round >= limit ? 'rounds-exhausted' as const : 'below-floor' as const,
+      reason: !inLast.has(summary.id) ? 'raised-after-last-round' as const : 'left-open' as const,
     }));
   }
 
@@ -2845,9 +2836,6 @@ export class RunService {
     const sourceChanges = await documentChanges(this.projectRoot, run.record.planId, run.directory, run.record.manifest);
     if (sourceChanges.length > 0) return `captured documents changed: ${sourceChanges.join('; ')}`;
     const marker = run.log.find('nonfunctional-phase-started')!;
-    if (marker.data.maxRounds !== (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) {
-      return 'phase marker round bound differs from captured policy';
-    }
     const source = run.log.find('analysis-accepted')?.data.evidence.catalog.hash;
     if (source !== marker.data.catalogHash) return 'phase marker names another catalog';
     const nfrIds = assessedElements(accepted.catalog);
@@ -3991,7 +3979,7 @@ export class RunService {
     await this.qualifyFinal(run, agent, packages);
   }
 
-  /** A repaired candidate receives new semantic evidence within the remaining captured round allowance. */
+  /** A repaired candidate receives new semantic evidence in the same run. */
   private async qualifyFinal(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): Promise<void> {
     const restartRecovery = this.latestOperationRecovery(run);
     if (run.restartImport?.pending.kind === 'final-gate' && restartRecovery?.state === 'resumed' && restartRecovery.admission?.invalidatesQualification
@@ -4000,7 +3988,6 @@ export class RunService {
       if (!replay.ok) throw new Error(`Imported final assessment cannot be reconstructed: ${replay.reason}`);
       if (replay.value.final) {
         const spent = replay.value.input.closedRounds.length;
-        if (spent >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) throw new Error('Imported qualification requires reassessment, but its captured semantic round allowance is spent');
         await this.write(run, { type: 'nonfunctional-final-invalidated', data: { occurrenceId: restartRecovery.id, revision: restartRecovery.revision,
           round: spent, candidate: replay.value.final.candidateId, assessment: replay.value.final.assessment.id, tree: (await this.previewCandidateTree()).tree } });
       }
@@ -4009,7 +3996,15 @@ export class RunService {
       const binding = await this.assessNonfunctional(run, agent, packages);
       if (binding === null || this.ignoring(run)) return;
       if (!await this.recordNonfunctionalDeviations(run, binding) || this.ignoring(run)) return;
-      try { await this.finalGate(run, binding); return; }
+      try {
+        const failed = await this.finalGate(run, binding);
+        if (failed === undefined || this.ignoring(run)) return;
+        if (!await this.planFinalCorrection(run, agent, packages, binding, failed)) return;
+        const baseline = await this.baselineSnapshot(run);
+        if (baseline === null) throw new Error('Final correction requires the retained run baseline');
+        if (!await this.takeWorkItems(run, agent, packages, baseline) || this.ignoring(run)) return;
+        await this.settleReviews(run);
+      }
       catch (error) {
         if (!(error instanceof CandidateReassessmentRequired)) throw error;
         const recovery = this.latestOperationRecovery(run);
@@ -4023,15 +4018,77 @@ export class RunService {
           await this.fail(run, 'inputs-changed', 'Final reassessment has no applicable admitted repair and retained assessment'); return;
         }
         const spent = replay.value.input.closedRounds.length;
-        if (spent >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) {
-          await this.fail(run, 'repair-exhausted', 'External repair requires final reassessment, but the captured semantic round allowance is spent'); return;
-        }
         await this.write(run, { type: 'nonfunctional-final-invalidated', data: {
           occurrenceId: recovery.id, revision: recovery.revision, round: spent,
           candidate: binding.candidateId, assessment: binding.assessment.id, tree: observed.tree,
         } });
       }
     }
+  }
+
+  /** Retain the failed attempt and let the plan architect choose ordinary correction work. */
+  private async planFinalCorrection(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>,
+    binding: { candidateId: string; assessment: Assessment }, gate: GateAttempt): Promise<boolean> {
+    if (run.log.all('final-correction-planned').some(event => event.data.gate === gate.id)) return true;
+    const loaded = packages.get('global-fork');
+    if (loaded === undefined) throw new Error('Final correction requires the plan architect package');
+    const request = `final-correction-${gate.id}`;
+    const diagnostics = await this.diagnosticsOf(run, gate, 'local-architect');
+    const earlier = run.log.all('invocation-started').filter(event => event.data.work.request === request);
+    let accepted: { id: string; value: FinalCorrection } | undefined;
+    // Accepted decisions survive an interruption before their work item is recorded.
+    for (const start of earlier) {
+      const end = run.log.all('invocation-ended').find(event => event.data.invocation === start.data.invocation);
+      if (end?.data.ended !== 'submitted' || end.data.submission === null) continue;
+      const bytes = await readIfExists(run.path(runLayout.submission(start.data.invocation)));
+      if (bytes === undefined || sha256(bytes) !== end.data.submission) throw new Error('Final correction submission is unavailable');
+      const { schema: _schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      accepted = { id: start.data.invocation, value: finalCorrectionSchema.parse(body) };
+    }
+    let priorUnfinished: string | undefined;
+    while (accepted === undefined) {
+      if (this.ignoring(run)) return false;
+      const result = await this.runInvocation<FinalCorrection>(run, agent, {
+        role: 'global-fork', work: { request }, task: { kind: 'final-correction', goal: `Resolve failed final verification ${gate.id}`,
+          requirements: [`Inspect the retained failure evidence at ${run.path(runLayout.gate(gate.id))} and select the responsible module and next correction goal. Preserve accepted work and verify the corrected candidate.`] },
+        attempt: run.log.all('invocation-started').filter(event => event.data.work.request === request).length + 1, loaded,
+        systemPrompt: renderGlobalForkPrompt(loaded, this.projectRoot),
+        prompt: [
+          `Final verification ${gate.id} is ${gate.verdict}. The plan remains unfinished; accepted work is retained.`,
+          `For this turn, use submit_final_correction to choose the module architect and goal for the next correction; its supplied schema defines this task's answer.`,
+          'Investigate the actual diagnostics. Explain why the next approach should help; repeated failure requires reconsideration, not abandonment.',
+          'An environment or verification issue may need investigation before source changes. Delegate that investigation as the goal where appropriate.',
+          `Gate evidence: ${run.path(runLayout.gate(gate.id))}`,
+          ...diagnostics.summary,
+          ...(priorUnfinished === undefined ? [] : [priorUnfinished]),
+          this.planPackage(run, await this.frozenCatalog(run)),
+        ].join('\n\n'),
+        start: { mode: 'fresh' }, keep: () => finished('work-closed'),
+        toolName: 'submit_final_correction', description: 'Choose the responsible module architect and correction goal after failed final verification.',
+        inputSchema: z.toJSONSchema(finalCorrectionSchema) as JsonSchema,
+        submissionSchema: 'ramify-agent.final-correction/1', validate: input => validateAgainst(finalCorrectionSchema, input),
+        scope: { write: null, measurement: null, size: null }, writer: true,
+        equip: session => ({ ...this.nonfunctionalTools(run, session, [], { declarations: undefined }),
+          builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
+      });
+      if (this.ignoring(run)) return false;
+      if (result.ended !== 'submitted' || result.value === undefined) {
+        priorUnfinished = `The previous decision turn ended ${result.ended} without an accepted answer. Review ${run.path(runLayout.outcome(result.id))}, retain the existing work, and supply the next correction decision through submit_final_correction.`;
+        continue;
+      }
+      accepted = { id: result.id, value: result.value };
+    }
+    if (this.ignoring(run)) return false;
+    const records = committedRecords(run.log.ledger.replay());
+    const item = workItemSchema.parse({ schema: 'ramify-agent.work-item/1', id: workItemId(records.workItems.length + 1),
+      module: accepted.value.module, origin: { finalVerification: gate.id },
+      goal: [accepted.value.goal, accepted.value.rationale, `Failed verification: ${run.path(runLayout.gate(gate.id))}`, ...diagnostics.summary].join('\n\n'),
+      requirementRefs: [], acceptanceRefs: [], contextRefs: [], startedFor: null,
+    });
+    await this.write(run, { type: 'final-correction-planned', data: { gate: gate.id, invocation: accepted.id,
+      workItem: item.id, candidate: binding.candidateId, assessment: binding.assessment.id, round: binding.assessment.round } },
+    [{ path: workLayout.item(item.id), id: item.id, revision: 1, body: item }]);
+    return !this.ignoring(run);
   }
 
   /** Prepare the actual eventual commit tree after all source-mutating rendering. */
@@ -4072,15 +4129,15 @@ export class RunService {
       await this.fail(run, 'analysis-invalid', 'The fixed non-functional catalog has no accepted hash');
       return null;
     }
-    const maxRounds = run.policy.limits.nonfunctionalRoundsPerPlan ?? 3;
-    if (!run.log.find('nonfunctional-phase-started')) {
-      await this.write(run, { type: 'nonfunctional-phase-started', data: { catalogHash, maxRounds } });
+    const marker = run.log.find('nonfunctional-phase-started');
+    if (!marker) {
+      await this.write(run, { type: 'nonfunctional-phase-started', data: { catalogHash, maxRounds: 3 } });
       await this.afterWrite('nonfunctional-phase-started', run.record.jobId);
     }
     const nfrIds = assessedElements(evidence.catalog);
     for (;;) {
       if (this.ignoring(run)) return null;
-      const replay = replayNonfunctionalPhase(run.log.ledger.replay(), nfrIds, maxRounds);
+      const replay = replayNonfunctionalPhase(run.log.ledger.replay(), nfrIds, marker?.data.maxRounds ?? 3);
       if (!replay.ok) {
         await this.fail(run, 'recovery-exhausted', `Committed non-functional phase is unavailable: ${replay.reason}`);
         return null;
@@ -4216,9 +4273,12 @@ export class RunService {
       const item = evidence.catalog.elements.find(candidate => candidate.id === result.nfr);
       const choice = choices.get(result.nfr);
       if (!item || !choice) return unavailable(`Fixed NFR ${result.nfr} has no accepted source or close choice`);
-      // Authenticated external continuations keep earlier assessment decisions
-      // as history. A new candidate receives its own deviation evidence.
-      const invalidated = new Set(run.log.all('nonfunctional-final-invalidated').map(event => event.data.assessment));
+      // Continuations after external repairs or architect corrections keep
+      // earlier decisions as history. A new candidate receives its own evidence.
+      const invalidated = new Set([
+        ...run.log.all('nonfunctional-final-invalidated').map(event => event.data.assessment),
+        ...run.log.all('final-correction-planned').map(event => event.data.assessment),
+      ]);
       const history = run.log.all('nonfunctional-deviation-recorded').filter(event => event.data.nfr === result.nfr);
       const previous = history.filter(event => event.data.assessment === binding.assessment.id);
       if (previous.length > 1 || history.some(event => event.data.assessment !== binding.assessment.id
@@ -4537,10 +4597,9 @@ export class RunService {
       writer: true, guarded, readModules: assignment.scope.read, workingDirectory, equip: tools.equip, previewEquipment: tools.preview,
     });
     await this.recordLineEvents(run, result.id, before, await takeLineSnapshot(this.projectRoot, this.accepted(run), this.git));
-    if (result.ended !== 'submitted' || result.value === undefined) {
-      await this.fail(run, 'agent-failed', `Non-functional repair ended ${result.ended}`);
-      return false;
-    }
+    // A settled child can return without a result. Preserve its edits and
+    // let the coordinator assess the candidate before choosing another step.
+    if (this.ignoring(run)) return false;
     run.writer.requireSettled('Non-functional repair cannot be committed');
     const changed = await documentChanges(this.projectRoot, run.record.planId, run.directory, run.record.manifest);
     if (changed.length > 0) {
@@ -4600,24 +4659,27 @@ export class RunService {
     const invocation = started[0]!.data.invocation;
     const ended = run.log.all('invocation-ended').find(event => event.data.invocation === invocation);
     const release = run.log.all('writer-released').find(event => event.data.invocation === invocation);
-    if (ended?.data.ended !== 'submitted' || ended.data.submission === null || release?.data.confirmed !== true) {
-      await this.fail(run, 'recovery-exhausted', `Repair ${assignment.id} has no confirmed, accepted child result`);
+    if (ended === undefined || release?.data.confirmed !== true) {
+      await this.fail(run, 'recovery-exhausted', `Repair ${assignment.id} has no confirmed child outcome`);
       return false;
     }
     try {
       const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(invocation)));
       if (!outcome.success || outcome.data.invocation !== invocation
-        || outcome.data.ended !== 'submitted' || outcome.data.disposition !== 'applied'
-        || outcome.data.submission?.hash !== ended.data.submission
+        || outcome.data.ended !== ended.data.ended
+        || (ended.data.ended === 'submitted' ? outcome.data.disposition !== 'applied' : outcome.data.disposition !== 'incomplete')
+        || (outcome.data.submission?.hash ?? null) !== ended.data.submission
         || outcome.data.settled.confirmed !== true) {
-        throw new Error('committed child outcome is not applied, submitted and settled');
+        throw new Error('committed child outcome does not match its settled invocation');
       }
-      const raw = await readFile(run.path(runLayout.submission(invocation)));
-      if (sha256(raw) !== ended.data.submission) throw new Error('submission hash differs from committed invocation outcome');
-      const value = JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
-      if (value.schema !== 'ramify-agent.nonfunctional-repair/1') throw new Error('repair submission schema differs');
-      const { schema: _schema, ...submission } = value;
-      nonfunctionalRepairSubmissionSchema.parse(submission);
+      if (ended.data.submission !== null) {
+        const raw = await readFile(run.path(runLayout.submission(invocation)));
+        if (sha256(raw) !== ended.data.submission) throw new Error('submission hash differs from committed invocation outcome');
+        const value = JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
+        if (value.schema !== 'ramify-agent.nonfunctional-repair/1') throw new Error('repair submission schema differs');
+        const { schema: _schema, ...submission } = value;
+        nonfunctionalRepairSubmissionSchema.parse(submission);
+      }
     } catch (error) {
       await this.fail(run, 'recovery-exhausted', `Repair ${assignment.id} result cannot be authenticated: ${message(error)}`);
       return false;
@@ -5019,7 +5081,6 @@ export class RunService {
       let admission;
       try { admission = recovery.identity && identity ? await this.compareRecoveryIdentity(run, recovery.identity, identity, repair) : undefined; } catch (error) { blockers.push(message(error)); }
       blockers.push(...admission?.blockers ?? []);
-      if (admission && (admission.requiresReassessment || admission.before.candidate.tree !== admission.after.candidate.tree) && recovery.boundary.checkpoint === 'final' && run.log.count('nonfunctional-round-closed') >= (run.policy.limits.nonfunctionalRoundsPerPlan ?? 3)) blockers.push('The retained final candidate needs responsible reassessment, but its captured non-functional round allowance is exhausted');
       if (blockers.length > 0) throw new CommandRejection('conflict', blockers.join('; '), recovery.revision);
       const at = this.now();
       await this.adoptContinuityPolicy(run, occurrenceId);
@@ -5291,6 +5352,10 @@ export class RunService {
 
   /** One invocation, through the invocation runner every role shares. */
   private async runInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+    if (['engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role) && request.onCompactionStarted === undefined) {
+      const task = request;
+      request = { ...request, onCompactionStarted: (checkpoint, signal) => this.reviewCompaction(run, agent, task, checkpoint, signal) };
+    }
     if (run.record.breakpoint !== undefined && ['engineer', 'contract-engineer', 'nonfunctional-repair-engineer'].includes(request.role)) {
       let current = request.stepInputs && request.fallback === undefined
         ? { ...request, fallback: this.stepFallback(request.stepInputs, request.consultationPackages ?? new Map([[request.role, request.loaded]])) }
@@ -5317,6 +5382,78 @@ export class RunService {
       return this.recoverableInvocation(run, agent, current);
     }
     return this.recoverableInvocation(run, agent, request);
+  }
+
+  /** Review while native compaction runs; its next-turn barrier awaits this durable decision. */
+  private async reviewCompaction<T>(run: Run, agent: AgentPort, engineer: InvocationRequest<T>,
+    checkpoint: { invocation: string; ordinal: number; reason: string }, signal: AbortSignal): Promise<z.infer<typeof compactionReviewSchema>> {
+    const matches = (data: { invocation: string; ordinal: number }) => data.invocation === checkpoint.invocation && data.ordinal === checkpoint.ordinal;
+    const recorded = run.log.all('compaction-reviewed').find(event => matches(event.data));
+    if (recorded) return { action: recorded.data.action, reason: recorded.data.reason };
+    const records = committedRecords(run.log.ledger.replay());
+    const assignment = engineer.work.iteration === undefined ? undefined : records.assignments.get(engineer.work.iteration);
+    const role = engineer.role === 'nonfunctional-repair-engineer' ? 'nonfunctional-coordinator'
+      : assignment?.coordination?.kind === 'capability-task' || engineer.work.capabilityTask !== undefined ? 'capability-architect' : 'local-architect';
+    if (!run.log.all('compaction-review-started').some(event => matches(event.data))) {
+      await this.write(run, { type: 'compaction-review-started', data: { invocation: checkpoint.invocation, ordinal: checkpoint.ordinal, role } });
+    }
+    if (signal.aborted || this.ignoring(run)) throw new Error('Compaction review stopped');
+    const packages = engineer.consultationPackages ?? (await loadPromptPackages({
+      ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null,
+    })).packages;
+    const loaded = packages.get(role);
+    if (!loaded) throw new Error(`Compaction review requires ${role}`);
+    const key = `compaction:${checkpoint.invocation}:${checkpoint.ordinal}`;
+    const prior = run.log.all('invocation-started').filter(event => event.data.work.request === key);
+    let accepted: { id: string; value: z.infer<typeof compactionReviewSchema> } | undefined;
+    for (const start of prior) {
+      const end = run.log.all('invocation-ended').find(event => event.data.invocation === start.data.invocation);
+      if (end?.data.ended !== 'submitted' || end.data.submission === null) continue;
+      const bytes = await readIfExists(run.path(runLayout.submission(start.data.invocation)));
+      if (!bytes || sha256(bytes) !== end.data.submission) throw new Error('Compaction assessment submission is unavailable');
+      const { schema: _schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      accepted = { id: start.data.invocation, value: compactionReviewSchema.parse(body) };
+    }
+    if (!accepted) {
+      const original = run.log.all('invocation-started').find(event => event.data.invocation === checkpoint.invocation);
+      if (original === undefined) throw new Error('Compaction review has no originating invocation');
+      const toolName = 'submit_compaction_review';
+      // This review is already beside an active engineer. A failed review hands the
+      // task back; it must not enter a recovery wait that waits on that engineer.
+      const result = await this.runner.runInvocation(run, agent, {
+        role, work: { ...engineer.work, request: key }, task: { kind: 'compaction-review', goal: engineer.task?.goal ?? assignment?.goal ?? engineer.description,
+          requirements: [`Review the engineer's assignment and recorded work at ${run.path(runLayout.invocation(checkpoint.invocation))}. Continue useful work; request handoff when the evidence calls for reconsideration or further refinement has diminishing returns. Compaction alone is not evidence of failure.`] },
+        attempt: prior.length + 1, loaded,
+        systemPrompt: `You are the responsible ${roleDisplayName(role)} reviewing an engineer during native compaction. Inspect evidence and decide whether the engineer should continue or hand the unfinished task back for reconsideration. Use ${toolName} with its supplied schema. This review assesses work; leave implementation changes to the engineer.`,
+        prompt: [
+          `Engineer ${checkpoint.invocation} is compacting (${checkpoint.reason}). Compaction alone establishes neither failure nor diminishing returns.`,
+          'Continue when the approach is useful. Request handoff when the evidence calls for a different approach, a missing decision, or ending unnecessary refinement after requirements are satisfied.',
+          'Consider unresolved correctness, expected benefit and cost of more refinement, and whether better context or guidance is needed. Explain the next useful contribution or the reason for reconsideration.',
+          `Task: ${engineer.task?.goal ?? assignment?.goal ?? engineer.description}`,
+          `Assignment: ${assignment === undefined ? 'See the invocation records.' : JSON.stringify(assignment)}`,
+          `Invocation: ${run.path(runLayout.invocation(checkpoint.invocation))}`,
+          `Transcript: ${run.path(runLayout.transcript(original.data.session))}`,
+          `Tool and validation observations: ${run.path(runLayout.observations(checkpoint.invocation))}`,
+        ].join('\n\n'),
+        start: { mode: 'fresh' }, keep: () => finished('work-closed'), reader: true, signal,
+        toolName, description: 'Decide whether useful work should continue after compaction or the unfinished task should return to its architect.',
+        inputSchema: z.toJSONSchema(compactionReviewSchema) as JsonSchema, submissionSchema: 'ramify-agent.compaction-review/1',
+        validate: input => validateAgainst(compactionReviewSchema, input), scope: { write: null, measurement: null, size: null },
+        equip: session => ({ ...nonfunctionalEquipment({ projectRoot: this.projectRoot, snapshotTools: [],
+          commandExecution: this.options.commandExecution, rejectedToolInputsPerTurn: run.policy.limits.rejectedToolInputsPerTurn,
+          outputFile: call => run.path(runLayout.shellOutput(session.invocation, call)) }, session),
+          builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
+      });
+      if (signal.aborted || this.ignoring(run)) throw new Error('Compaction review stopped');
+      if (result.ended !== 'submitted' || result.value === undefined) {
+        return { action: 'handoff', reason: `Architect review ended ${result.ended}; reconsider the unfinished task with retained work and context.` };
+      }
+      accepted = { id: result.id, value: result.value };
+    }
+    if (signal.aborted || this.ignoring(run)) throw new Error('Compaction review stopped');
+    await this.write(run, { type: 'compaction-reviewed', data: { invocation: checkpoint.invocation,
+      ordinal: checkpoint.ordinal, reviewer: accepted.id, ...accepted.value } });
+    return accepted.value;
   }
 
   /** Park before invocation admission, outside all mutexes and invocation cleanup. */
@@ -6003,10 +6140,6 @@ export class RunService {
         continue;
       }
       if (records.workItems.length === 0) return true;
-      if (records.workItems.length > run.policy.limits.maxWorkItems) {
-        await this.fail(run, 'limit-exceeded', `The run has ${records.workItems.length} work items; the policy allows ${run.policy.limits.maxWorkItems}`);
-        return false;
-      }
       const state = this.scheduleStateOf(run, records);
       const activeId = restoredActiveItem?.type === 'work-item-started' || restoredActiveItem?.type === 'work-item-resumed' ? restoredActiveItem.data.workItem : undefined;
       restoredActiveItem = undefined;
@@ -6021,13 +6154,6 @@ export class RunService {
         await this.fail(run, 'unresolvable-requirement',
           `No work item can run: ${waiting.join('; ') || open.map(item => item.id).join(', ')}`,
           open.map(item => workLayout.item(item.id)));
-        return false;
-      }
-      const turns = run.log.all('work-item-started').filter(event => event.data.workItem === next.item.id).length
-        + run.log.all('work-item-resumed').filter(event => event.data.workItem === next.item.id).length;
-      if (turns > run.policy.limits.maxIterationsPerWorkItem) {
-        await this.fail(run, 'limit-exceeded',
-          `${next.item.id} has been taken up ${turns} times, and the policy allows ${run.policy.limits.maxIterationsPerWorkItem}`);
         return false;
       }
       if (await this.takeWorkItem(run, agent, packages, baseline, next.item, next.resumes) === null) return false;
@@ -6111,10 +6237,6 @@ export class RunService {
     const latest = [...run.log.all('invocation-started')].reverse().find(event => event.data.role === 'capability-architect' &&
       event.data.work.capabilityTask === activeId && event.data.work.request === request.id &&
       !reconciliationSessions.has(event.data.session));
-    if (!run.policy.continuity && (this.capabilityBudgetReturns(run, activeId) >= run.policy.limits.budgetReturnsPerIteration)) {
-      await this.fail(run, 'limit-exceeded', `Capability architect of ${activeId} exhausted its captured context-budget return bound; unfinished task remains`);
-      return false;
-    }
     let point: string | undefined;
     let session: SessionId | undefined;
     let reconstructedFrom: SessionId | undefined;
@@ -6628,7 +6750,7 @@ export class RunService {
   private capabilityOfItem(item: WorkItem, records: ReturnType<typeof committedRecords>): string | null {
     if ('entry' in item.origin) return item.origin.entry;
     if ('obligation' in item.origin) return records.obligations.get(item.origin.obligation.id)?.capability ?? null;
-    if ('integration' in item.origin) return null;
+    if ('integration' in item.origin || 'finalVerification' in item.origin) return null;
     const requirement = records.requirements.get(item.origin.verification.id);
     return requirement?.forCapability ?? null;
   }
@@ -6700,7 +6822,6 @@ export class RunService {
     let gateRound = 0;
     let failedGate: { id: string; cause: string | null; summary: string[] } | undefined;
     /** The cause of the first gate that failed; exhaustion preserves it. */
-    let firstCause: { gate: string; cause: string | null } | undefined;
     /** The last assignment of this work item, whose own tests probe a failing project gate. */
     let lastAssignment: IterationAssignment | undefined;
     /** What the last iteration of this work item ended with, for the architect that receives it. */
@@ -6719,10 +6840,7 @@ export class RunService {
     let revisionReports: DelegationBriefing['revisionsNeeded'];
     /** Why completion was refused, where it was. */
     let blocked: string[] | undefined;
-    /** How many times completion was refused for an open requirement. */
-    let refusals = 0;
     let released = resumes;
-    const bound = run.policy.limits.repairRoundsPerWorkItemGate;
     /** The reconciliation that returns this work item to its architect: a correction, or a brief that did not land. */
     let returned: string | undefined;
     /** The rounds whose brief the architect's own session lacks, which its next input carries from the log. */
@@ -6999,6 +7117,12 @@ export class RunService {
       }
       const recovery = await this.continuationEvidence(run, { workItem: item.id }, index);
       if (recovery !== undefined) intervening = [intervening, recovery].filter(value => value !== undefined).join('\n\n');
+      const assignmentCount = this.assignedCount(run, item.id);
+      if (assignmentCount >= 3) {
+        intervening = [intervening,
+          `# Progress reconsideration\n${item.id} has had ${assignmentCount} assignments. Review the retained results and unmet requirements before the next action. Decide whether another attempt is likely to resolve a requirement, whether the approach or a prerequisite must change, or whether satisfied requirements need no further refinement. If you repeat an unsuccessful approach, explain the new evidence or reason to expect progress. The count is a prompt for your judgment, not a verdict.`]
+          .filter(value => value !== undefined).join('\n\n');
+      }
       // The turn is built from its inputs by the module architect's own
       // constructor, which `step render` uses too.
       const requirements = contextPackage === undefined
@@ -7157,7 +7281,7 @@ export class RunService {
 
       // A completion request that leaves an obligation of this architect
       // without a done report is rejected in this same turn, under the
-      // per-turn bound, before any outline, commit or gate.
+      // submission validator, before any outline, commit or gate.
       let unreported: string[] = [];
       const result = await this.runInvocation<LocalArchitectSubmission>(run, agent, {
         role: step.role,
@@ -7370,12 +7494,7 @@ export class RunService {
       // reports never reach here: validation rejected such a request.
       const blockers = completionBlockers(run.log, item, this.workflow !== null);
       if (blockers.blocked.length > 0) {
-        refusals += 1;
         blocked = blockers.blocked;
-        if (refusals > bound) {
-          await this.refuseCompletion(run, item, refusals, blocked, { open: blockers.open, owed: blockers.owed !== null });
-          return null;
-        }
         continuing = 'completion-refused';
         continue;
       }
@@ -7390,10 +7509,9 @@ export class RunService {
 
       // Before the gate, the work item's reviews settle and what they
       // raised is reconciled; a completion whose basis no longer holds is
-      // reconciled again, as often as rounds remain.
+      // reconciled again when its current evidence calls for it.
       const parent: ParentSession = { session, ref: sessionRef, undelivered, workingDirectory };
       let gate: GateAttempt | null = null;
-      let refusedCompletions = 0;
       for (;;) {
         const reconciled = await this.reconcileWorkItem(run, agent, loaded, item, parent);
         session = parent.session;
@@ -7418,24 +7536,14 @@ export class RunService {
           await this.finishSession(run, session, 'work-closed');
           return 'completed';
         }
-        // Each refusal found another round warranted; the rounds bound them.
-        refusedCompletions += 1;
-        if (refusedCompletions > (run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds)) {
-          await this.fail(run, 'repair-exhausted', `${item.id}'s completion was refused ${refusedCompletions} times: ${completed.refused}`);
-          return null;
-        }
+        blocked = [completed.refused];
+        continuing = 'completion-refused';
+        continue turns;
       }
       if (gate === null) return null;
 
       failedGate = await this.diagnosticsOf(run, gate, 'local-architect');
-      firstCause ??= { gate: gate.id, cause: gate.cause };
       continuing = 'repair';
-      if (gateRound > bound) {
-        await this.fail(run, 'repair-exhausted',
-          `The ${item.id} gate did not pass after ${bound} repair round${bound === 1 ? '' : 's'}; the first cause was ${firstCause.cause ?? 'unknown'} at gate ${firstCause.gate}`,
-          [runLayout.gate(firstCause.gate), runLayout.gate(gate.id)]);
-        return null;
-      }
     }
   }
 
@@ -7577,11 +7685,6 @@ export class RunService {
     }
 
     const count = run.log.count('placement-requested') + 1;
-    if (existingId === undefined && count > run.policy.limits.maxPlacementRequests) {
-      await this.fail(run, 'limit-exceeded',
-        `The run has made ${count - 1} placement requests; the policy allows ${run.policy.limits.maxPlacementRequests}`);
-      return null;
-    }
 
     const id = existingId ?? requestId(count);
     const committed = committedRecords(run.log.ledger.replay());
@@ -7830,14 +7933,7 @@ export class RunService {
       await this.fail(run, 'internal', 'No prompt package is loaded for the plan architect');
       return null;
     }
-    // Unresolved requests fork the architect context as placement requests
-    // do, and count against the same bound.
-    const forks = run.log.count('placement-requested') + run.log.count('unresolved-requested') + 1;
-    if (existingId === undefined && forks > run.policy.limits.maxPlacementRequests) {
-      await this.fail(run, 'limit-exceeded',
-        `The run has made ${forks - 1} placement and unresolved requests; the policy allows ${run.policy.limits.maxPlacementRequests}`);
-      return null;
-    }
+    // Unresolved requests retain their own stable identities across recovery.
 
     const id = existingId ?? unresolvedRequestId(run.log.count('unresolved-requested') + 1);
     const request = existingId === undefined ? unresolvedRequestSchema.parse({
@@ -8527,11 +8623,6 @@ export class RunService {
     // Contract sub-sessions are iterations of this work item too, so they
     // count: two assignments must never derive the same identifier.
     const number = this.assignedCount(run, item.id) + 1;
-    if (number > run.policy.limits.maxIterationsPerWorkItem) {
-      await this.fail(run, 'limit-exceeded',
-        `${item.id} has reached ${run.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
-      return null;
-    }
 
     // The placement this architect decided within its own authority, committed
     // with the assignment: `authority: 'local'`, no request and no brief
@@ -8852,10 +8943,7 @@ export class RunService {
     const recovered = existingRequest === undefined ? undefined : await this.replayAcceptedCapabilityQualification(run, request, 'local-architect');
     if (recovered === null) return null;
     let qualification: InvocationResult<QualificationAction> | undefined = recovered;
-    const priorTurns = run.log.all('invocation-started').filter(event => !['resource-pending', 'context-budget-reached'].includes(committedRecords(run.log.ledger.replay()).outcomes.get(event.data.invocation)?.ended ?? '') && event.data.role === 'local-architect' &&
-      event.data.work.request === request.id).length;
-    for (let count = priorTurns - (recovered === undefined ? 0 : 1);
-      count < run.policy.limits.maxIterationsPerWorkItem; count += 1) {
+    while (true) {
       qualification ??= await this.runInvocation<QualificationAction>(run, agent, {
       role: 'local-architect', task: { kind: 'capability-qualification', goal: request.original.need,
         requirements: [`Qualify capability request ${request.id} under its complete original constraints, usage and example identities and the current work-item package.`], modules: [item.module],
@@ -8876,6 +8964,8 @@ export class RunService {
         'Submit satisfy-with-existing with concrete API evidence, delegate-capability with placement reasoning, request-placement, or unresolved.',
         `Use request ${request.id} and invocation ${request.invocation} in the action.`,
         ...(returned === '' ? [] : [`# Boundary decision\n\n${returned}`]),
+        ...(run.log.all('invocation-started').filter(event => event.data.work.request === request.id && event.data.role === 'local-architect').length >= 3
+          ? ['# Progress reconsideration\nThe qualification has returned to you repeatedly. Assess the decisions and current evidence, explain what another exchange would add, and change approach or seek a concrete missing prerequisite if needed. Repetition alone establishes no outcome.'] : []),
       ].join('\n\n'),
       workingDirectory: parent.workingDirectory,
       start: point === undefined ? { mode: 'fresh' } : { mode: 'continue', ref: point },
@@ -8937,7 +9027,7 @@ export class RunService {
     }
     if (qualification?.value === undefined ||
       (qualification.value.kind !== 'satisfy-with-existing' && qualification.value.kind !== 'delegate-capability')) {
-      await this.fail(run, 'limit-exceeded', `Qualification of ${request.id} did not settle within the captured work-item bound`);
+      await this.fail(run, 'internal', `Qualification of ${request.id} produced no final decision`);
       return null;
     }
     const decision = qualification.value;
@@ -9175,6 +9265,8 @@ export class RunService {
         ],
         ...[this.obligationBriefing(run, { kind: 'capability-task', id: task.id }).join('\n')].filter(section => section !== ''),
         `Inspect current source and Git directly. The latest task assignment results are ${[...records.results.values()].filter(result => result.coordination?.kind === 'capability-task' && result.coordination.id === task.id).map(result => `${result.iteration}: ${result.outcome}, gate ${result.gate ?? '(none)'}, commit ${result.commit ?? '(none)'}, findings ${result.findings.join('; ')}`).join(' | ') || '(none)'}. Use the supplied absolute run-record pointers for named gate and review evidence. Request handback when, in your judgment, the real provider and requesting consumer meet the original need: report ${task.id} and every obligation you registered done in the same or an earlier action; a request that leaves one unreported is rejected naming it. The original examples are the request's context; say what you concluded about one in your summary.`,
+        ...(run.log.all('capability-assigned').filter(event => event.data.task === task.id).length >= 3
+          ? [`# Progress reconsideration\n${task.id} has had ${run.log.all('capability-assigned').filter(event => event.data.task === task.id).length} assignments. Assess the retained results and outstanding obligations. Continue useful work, change the approach, seek a prerequisite, or end refinement if requirements are satisfied and its additional value is too small for the cost. Explain why another attempt is worthwhile, especially if it repeats an unsuccessful approach. The count itself establishes no outcome.`] : []),
       ].join('\n\n'),
       start: coordinatorPoint === undefined ? { mode: 'fresh' } : { mode: 'continue', ref: coordinatorPoint },
       ...(coordinatorPoint === undefined || coordinatorSession === undefined
@@ -9203,8 +9295,12 @@ export class RunService {
     pendingAction = undefined;
     if (this.ignoring(run)) return null;
     if (action.ended === 'context-budget-reached') {
-      await this.fail(run, 'limit-exceeded', `Capability architect ${task.id} reached its hard context limit without an accepted action; its unfinished task remains`, [runLayout.outcome(action.id)]);
-      return null;
+      progress = `The prior architect turn reached its context boundary without an accepted action. The capability task remains unfinished. Reassess the current plan, retained evidence and obligations, then submit the next useful action.`;
+      coordinatorPoint = undefined;
+      coordinatorSession = undefined;
+      reconstructedFrom = action.session;
+      coordinatorBasis = action.id;
+      continue;
     }
     if (action.ended !== 'submitted') {
       // An exhausted rejection bound names what the last rejected handback
@@ -9305,7 +9401,6 @@ export class RunService {
       task: task.id, invocation: coordinatorBasis, session: coordinatorSession ?? action.session,
     } });
     }
-    await this.fail(run, 'limit-exceeded', `The capability architect of ${task.id} exhausted its invocation bound`);
     return null;
   }
 
@@ -9482,23 +9577,10 @@ export class RunService {
         parsed.data.proposedBy !== null && records.invocations.get(parsed.data.proposedBy)?.work.capabilityTask === task.id
         ? [parsed.data] : [];
     });
-    const gateLimit = run.policy.limits.repairRoundsPerWorkItemGate;
-    if (failedTaskGates.length > gateLimit) {
-      await this.fail(run, 'repair-exhausted',
-        `The ${task.id} gate did not pass after ${gateLimit} repair round${gateLimit === 1 ? '' : 's'}; the first cause was ${failedTaskGates[0]?.cause ?? 'unknown'} at gate ${failedTaskGates[0]?.id ?? 'unknown'}`,
-        failedTaskGates.map(attempt => runLayout.gate(attempt.id)));
-      return null;
-    }
     const gate = await this.gates.workItemGate(run, item, invocation, failedTaskGates.length,
       `Capability ${task.id}: ${action.summary}`, task.id, replayed);
     if (gate === null) return null;
     if (gate.verdict !== 'passed' || gate.audited === null) {
-      if (failedTaskGates.length + 1 > gateLimit) {
-        await this.fail(run, 'repair-exhausted',
-          `The ${task.id} gate did not pass after ${gateLimit} repair round${gateLimit === 1 ? '' : 's'}; the first cause was ${failedTaskGates[0]?.cause ?? gate.cause ?? 'unknown'} at gate ${failedTaskGates[0]?.id ?? gate.id}`,
-          [runLayout.gate(failedTaskGates[0]?.id ?? gate.id), runLayout.gate(gate.id)]);
-        return null;
-      }
       return { handedBack: false, guidance: `Task completion gate ${gate.id} ${gate.verdict}: ${gate.cause ?? 'incomplete evidence'}; report ${runLayout.gate(gate.id)}`, coordinator };
     }
     const currentTree = (await this.previewCandidateTree()).tree;
@@ -9537,8 +9619,7 @@ export class RunService {
       interfaces: action.interfaces, compatibility: [...plan.compatibility],
       checks: [refOf(gate.id, 1, this.committedBody(run, runLayout.gate(gate.id)))],
       reviews: reviewRefs, limitations: [...action.limitations,
-        ...this.unresolvedOf(run, task.id, checkFindingStateOf(run.log.ledger),
-          run.policy.limits.reconciliationRoundsPerWorkItem ?? defaultReconciliationRounds)
+        ...this.unresolvedOf(run, task.id, checkFindingStateOf(run.log.ledger))
           .map(entry => `Unresolved CheckFinding ${entry.checkFinding}: ${entry.reason}`)],
     };
     await run.mutex.run(() => commitCapabilityTransition(run.log, { type: 'capability-handed-back', data: {
@@ -9637,10 +9718,10 @@ export class RunService {
     let point = coordinator.point;
     let session = coordinator.session;
     let returned = '';
-    const priorTurns = run.log.all('invocation-started').filter(event => !['resource-pending', 'context-budget-reached'].includes(committedRecords(run.log.ledger.replay()).outcomes.get(event.data.invocation)?.ended ?? '') && event.data.role === 'capability-architect' &&
+    let qualificationTurn = run.log.all('invocation-started').filter(event => event.data.role === 'capability-architect' &&
       event.data.work.request === request.id).length;
-    for (let count = priorTurns - (recovered === undefined ? 0 : 1);
-      count < run.policy.limits.maxIterationsPerWorkItem; count += 1) {
+    while (true) {
+    const count = qualificationTurn++;
     const appended = qualification !== undefined || point === undefined ? { outcome: 'session-lost' as const }
       : await (await this.operations(agent)).append(point, `nested:${request.id}:${count}`, `Qualify nested request ${request.id} from ${assignment.id}`);
     if (appended.outcome === 'conflict') throw new Error(`The capability architect did not take its note: ${appended.reason}`);
@@ -9659,7 +9740,9 @@ export class RunService {
         `Complete request ${request.id} is in support:capability-request; current parent plan is in support:capability-plan.`,
         `Use request ${request.id} and invocation ${suspended.id} in the action.`,
         'Inspect the actual API and use. Satisfy with existing behavior or delegate a fresh child; matching module names do not establish reuse.',
-        ...(returned === '' ? [] : [`# Boundary decision\n\n${returned}`])].join('\n\n'),
+        ...(returned === '' ? [] : [`# Boundary decision\n\n${returned}`]),
+        ...(run.log.all('invocation-started').filter(event => event.data.work.request === request.id && event.data.role === 'capability-architect').length >= 3
+          ? ['# Progress reconsideration\nThe nested qualification has returned repeatedly. Assess the decisions and current evidence, explain what another exchange would add, and change approach or seek a concrete missing prerequisite if needed. Repetition alone establishes no outcome.'] : [])].join('\n\n'),
       start: lost ? { mode: 'fresh' } : { mode: 'continue', ref: appended.ref },
       ...(lost ? { ...(session === undefined ? {} : { replaces: { session, reason: 'reconstructed' as const } }),
         degraded: { requested: 'continued' as const, reason: 'The parent capability architect session was lost; its request and current plan were reconstructed.' } }
@@ -9701,7 +9784,7 @@ export class RunService {
     }
     if (qualification?.value === undefined ||
       (qualification.value.kind !== 'satisfy-with-existing' && qualification.value.kind !== 'delegate-capability')) {
-      await this.fail(run, 'limit-exceeded', `Nested qualification of ${request.id} did not settle within the captured bound`);
+      await this.fail(run, 'internal', `Nested qualification of ${request.id} produced no final decision`);
       return null;
     }
     const decision = qualification.value;
@@ -9765,10 +9848,6 @@ export class RunService {
     if (state === undefined) { await this.fail(run, 'recovery-exhausted', `Capability task ${task.id} has no state`); return null; }
     const sequence = existingAssignment?.coordination?.kind === 'capability-task'
       ? existingAssignment.coordination.sequence : state.nextAssignmentSequence;
-    if (sequence > task.limits.maxAssignments || sequence > (run.policy.limits.maxIterationsPerCapabilityTask ?? task.limits.maxAssignments)) {
-      await this.fail(run, 'limit-exceeded', `Capability task ${task.id} exhausted its assignment bound`);
-      return null;
-    }
     const id = existingAssignment?.id ?? capabilityAssignmentId(task.id, sequence);
     const records = committedRecords(run.log.ledger.replay());
     let assignment = existingAssignment;
@@ -10011,6 +10090,7 @@ export class RunService {
           ref: recorded.session?.ref ?? '', session: latestStart.data.session, kept: ended.data.kept,
           outcomeKind: recorded.ended, ...(recorded.interruption === undefined ? {} : { interruption: recorded.interruption }),
           ...(recorded.error === undefined ? {} : { error: recorded.error }), elapsedMs: recorded.elapsedMs,
+          ...(recorded.checkpointReason === undefined ? {} : { checkpointReason: recorded.checkpointReason }),
           actual: recorded.session?.mode === 'continued' ? 'continue' : recorded.session?.mode,
           inFlight: [], lastText: null };
       }
@@ -10208,7 +10288,6 @@ export class RunService {
         readModules: assignment.scope.read,
         equip: tools.equip, previewEquipment: tools.preview,
         bounds: step.bounds,
-        endedAs: () => (tools.exhausted() ? 'invalid-submission' : undefined),
       });
       const replayed = replay !== undefined;
       replay = undefined;
@@ -10229,20 +10308,14 @@ export class RunService {
         : await this.recordLineEvents(run, result.id, before, after);
       if (this.ignoring(run)) return null;
 
-      if (result.ended === 'context-budget-reached') {
-        await this.fail(run, 'limit-exceeded', `Engineer ${result.id} reached its hard context limit without an accepted return; ${assignment.id} remains unfinished`, [runLayout.outcome(result.id)]);
-        return null;
+      if (result.ended === 'checkpoint-pending' && !run.writer.isUnsettled) {
+        findings.push(`Architect handoff after compaction: ${result.checkpointReason ?? 'Reconsider the unfinished assignment.'}`,
+          `No engineer submission was accepted. Retained context: ${run.path(runLayout.transcript(result.session))}`);
+        return close('partial');
       }
 
-      // A module engineer that ended without a result, whether a bound, the
-      // provider or the adapter ended it, it stopped on its own or its
-      // submissions were rejected to the bound, leaves its iteration and not
-      // the run: the iteration closes partial, what the session wrote stays
-      // uncommitted in the tree as a partial report's does, and the local
-      // architect decides what comes next, from the digest and the analysis
-      // the harness prepares first. The work item's iteration bound counts
-      // it like any other. A writer not confirmed settled blocks every later
-      // writer and gate, so that failure still ends the run here.
+      // An unfinished engineer returns its retained work to its architect.
+      // Unknown writer settlement must still be resolved before another writer starts.
       if (result.ended !== 'submitted' || result.value === undefined) {
         if (run.writer.isUnsettled) {
           await this.fail(
@@ -10364,7 +10437,7 @@ export class RunService {
           // cause alone was read as a write outside the assignment, the
           // architect narrowed the file list, and the same failure returned.
           const returnedGate = await this.diagnosticsOf(run, gate, 'local-architect');
-          return { ...await close('unsuitable'), returnedGate };
+          return { ...await close(gate.cause === 'check-failed' ? 'partial' : 'unsuitable'), returnedGate };
         }
         // One repair round: the rerun runs the gate's complete required set.
         repairRound += 1;
@@ -10569,11 +10642,6 @@ export class RunService {
       return null;
     }
     const number = this.assignedCount(run, item.id) + 1;
-    if (number > run.policy.limits.maxIterationsPerWorkItem) {
-      await this.fail(run, 'limit-exceeded',
-        `${item.id} has reached ${run.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
-      return null;
-    }
 
     const base = { module: item.module, included: [] as { directory: string; reason: string; instructions: string }[] };
     const scope = await this.contractScope(run, index, {
@@ -10735,6 +10803,15 @@ export class RunService {
       const outcome = this.effectiveInvocationOutcome(run, latestStart.data.invocation);
       const ended = run.log.all('invocation-ended').find(event => event.data.invocation === latestStart.data.invocation);
       if (ended?.data.kept && outcome?.settled.confirmed && outcome.session?.ref) { session = latestStart.data.session; sessionRef = outcome.session.ref; }
+      if (ended && outcome?.settled.confirmed && outcome.ended === 'checkpoint-pending') {
+        findings.push(`Architect handoff after compaction: ${outcome.checkpointReason ?? 'Reconsider the unfinished contract.'}`,
+          `No agreement was registered. Retained context: ${run.path(runLayout.transcript(latestStart.data.session))}`);
+        const closed = await this.handling.closeIteration(run, item, subject.number, assignment, {
+          outcome: 'partial', invocations, findings, gate: null, commit: null,
+        });
+        await this.finishSession(run, session, 'work-closed');
+        return this.ignoring(run) ? null : { findings, result: closed };
+      }
     }
 
     for (;;) {
@@ -10810,7 +10887,6 @@ export class RunService {
         readModules: assignment.scope.read,
         equip: tools.equip, previewEquipment: tools.preview,
         bounds: { idleMs: bounds.idleMs, absoluteMs: bounds.absoluteMs, commandTimeoutMs: bounds.commandTimeoutMs },
-        endedAs: () => (tools.exhausted() ? 'invalid-submission' : undefined),
       });
       if (!invocations.includes(result.id)) invocations.push(result.id);
       originalContractInvocation = undefined;
@@ -10821,10 +10897,14 @@ export class RunService {
       const lines = await this.recordLineEvents(run, result.id, before, after);
       if (this.ignoring(run)) return null;
 
-      // A hard limit is no accepted incomplete return and establishes no agreement.
-      if (result.ended === 'context-budget-reached') {
-        await this.fail(run, 'limit-exceeded', `Contract engineer ${result.id} reached its hard context limit without an accepted return; ${assignment.id} remains unfinished`, [runLayout.outcome(result.id)]);
-        return null;
+      if (result.ended === 'checkpoint-pending' && !run.writer.isUnsettled) {
+        findings.push(`Architect handoff after compaction: ${result.checkpointReason ?? 'Reconsider the unfinished contract.'}`,
+          `No agreement was registered. Retained context: ${run.path(runLayout.transcript(result.session))}`);
+        const closed = await this.handling.closeIteration(run, item, subject.number, assignment, {
+          outcome: 'partial', invocations, findings, gate: null, commit: null,
+        });
+        await this.finishSession(run, session, 'work-closed');
+        return this.ignoring(run) ? null : { findings, result: closed };
       }
 
       // A contract session that ended without a result is closed as a
@@ -10882,14 +10962,14 @@ export class RunService {
         return { findings, result: closed, ...(registration.cycle === undefined ? {} : { cycle: registration.cycle }) };
       }
 
-      if (gate.next === 'repair' && repairRound + 1 < run.policy.limits.repairRoundsPerIteration) {
+      if (gate.next === 'repair') {
         repairRound += 1;
         failedGate = await this.diagnosticsOf(run, gate);
         continue;
       }
       findings.push(`the contract gate did not pass: ${gate.cause ?? 'unknown'} at gate ${gate.id}; nothing was registered`);
       const closed = await this.handling.closeIteration(run, item, subject.number, assignment, {
-        outcome: gate.next === 'return-to-local-architect' ? 'unsuitable' : 'exhausted',
+        outcome: gate.cause === 'check-failed' ? 'partial' : gate.next === 'return-to-local-architect' ? 'unsuitable' : 'exhausted',
         invocations, findings, gate: null, commit: null,
       });
       await this.finishSession(run, session, 'work-closed');
@@ -11336,13 +11416,6 @@ export class RunService {
     await this.afterWrite('dependency-cycle-detected', run.record.jobId);
     if (this.ignoring(run)) return undefined;
 
-    const replans = run.policy.limits.cycleReplansPerWorkItem;
-    if (detection > replans) {
-      await this.fail(run, 'dependency-cycle',
-        `The capability cycle ${identity} was detected ${detection} times, and the policy allows ${replans} re-plan${replans === 1 ? '' : 's'} of it`,
-        cycle.requirements.map(requirement => contractsLayout.requirement(requirement, 1)));
-      return undefined;
-    }
     return cycle;
   }
 
@@ -11996,7 +12069,7 @@ export class RunService {
    * check, on the current tree. `job-completed` requires a passing attempt;
    * an empty work queue alone never satisfies it.
    */
-  private async finalGate(run: Run, binding: { candidateId: string; assessment: Assessment }): Promise<void> {
+  private async finalGate(run: Run, binding: { candidateId: string; assessment: Assessment }): Promise<GateAttempt | undefined> {
     run.writer.requireSettled('The final gate cannot run');
     const sourceChanges = await documentChanges(this.projectRoot, run.record.planId, run.directory, run.record.manifest);
     if (sourceChanges.length > 0) {
@@ -12039,7 +12112,8 @@ export class RunService {
       await this.fail(run, 'inputs-changed', 'The source tree changed after non-functional assessment', [runLayout.assessment(binding.assessment.id)]);
       return;
     }
-    const previousFinal = run.log.all('gate-attempted').filter(event => event.data.checkpoint === 'final' && (event.sequence >= 0 || !run.restartImport || !this.latestOperationRecovery(run)?.admission?.invalidatesQualification)).at(-1);
+    const latestCorrection = run.log.all('final-correction-planned').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY;
+    const previousFinal = run.log.all('gate-attempted').filter(event => event.sequence > latestCorrection && event.data.checkpoint === 'final' && (event.sequence >= 0 || !run.restartImport || !this.latestOperationRecovery(run)?.admission?.invalidatesQualification)).at(-1);
     let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount(run) + 1);
     let attempt!: GateAttempt;
     if (previousFinal !== undefined) {
@@ -12050,7 +12124,12 @@ export class RunService {
       }
       attempt = recorded.value;
     }
-    if (previousFinal === undefined || (attempt!.verdict !== 'passed' && run.policy.recovery)) {
+    const recovery = this.latestOperationRecovery(run);
+    const repairedFinalGate = previousFinal !== undefined && attempt!.verdict !== 'passed'
+      && recovery?.state === 'resumed' && recovery.boundary.kind === 'gate' && recovery.boundary.checkpoint === 'final'
+      && recovery.admission?.admitted === true
+      && run.log.all('operation-recovery-resumed').some(event => event.data.occurrenceId === recovery.id && event.sequence > previousFinal.sequence);
+    if (previousFinal === undefined || repairedFinalGate) {
       if (previousFinal !== undefined) gateId = gateAttemptId(this.gates.gateCount(run) + 1);
       const head = await this.git.currentHead(this.projectRoot);
       try {
@@ -12098,9 +12177,7 @@ export class RunService {
     }
 
     if (attempt.verdict !== 'passed') {
-      await this.fail(run, attempt.verdict === 'not-verified' ? 'recovery-exhausted' : 'repair-exhausted',
-        `The final gate did not pass: ${attempt.verdict}${attempt.cause === null ? '' : ` (${attempt.cause})`}`, [runLayout.gate(gateId)]);
-      return;
+      return attempt;
     }
 
     if (previousFinal === undefined) await this.afterWrite('gate-committed', run.record.jobId);
@@ -13315,6 +13392,8 @@ function resultText(result: ReviewResult): string {
 
 /** Known project facts as step inputs: captured JSON, with every path a project-relative field. */
 function taskKindFor(role: Role, tool: string, continuing?: ContinueReason): TaskKind {
+  if (tool === 'submit_compaction_review') return 'compaction-review';
+  if (tool === 'submit_final_correction') return 'final-correction';
   if (tool === 'submit_capability_qualification') return 'capability-qualification';
   if (tool === 'answer_capability_consultation') return 'consultation';
   if (tool === workOrientationToolName) return 'orientation';

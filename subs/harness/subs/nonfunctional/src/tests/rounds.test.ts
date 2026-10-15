@@ -23,9 +23,9 @@ describe('nonfunctional round decision', () => {
     expect(decideNonfunctionalRound(ended)).toEqual({ action: 'stop', closedRounds: 1, outcome: 'satisfied' });
     expect(decideNonfunctionalRound({ ...ended, externalContinuations: [1] })).toEqual({ action: 'prepare-candidate', round: 2, phase: 'initial' });
     expect(original.outcome).toBe('satisfied');
-    expect(() => decideNonfunctionalRound({ ...ended, maxRounds: 1, externalContinuations: [1] })).toThrow('remaining allowance');
-    expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [1, 1] })).toThrow('distinct spent rounds');
-    expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [2] })).toThrow('distinct spent rounds');
+    expect(decideNonfunctionalRound({ ...ended, maxRounds: 1, externalContinuations: [1] })).toMatchObject({ action: 'prepare-candidate', round: 2 });
+    expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [1, 1] })).toThrow('distinct closed rounds');
+    expect(() => decideNonfunctionalRound({ ...ended, externalContinuations: [2] })).toThrow('distinct closed rounds');
     const exhausted = { ...ended, maxRounds: 2, closedRounds: [original, closed(2, 'satisfied')], externalContinuations: [1] };
     expect(decideNonfunctionalRound(exhausted)).toEqual({ action: 'stop', closedRounds: 2, outcome: 'satisfied' });
     expect(() => decideNonfunctionalRound({ ...exhausted, externalContinuations: [] })).toThrow('only a continuing round');
@@ -71,7 +71,7 @@ describe('nonfunctional round decision', () => {
     });
   });
 
-  it('derives the next round from closures and stops at the captured limit', () => {
+  it('continues useful rounds beyond the captured legacy limit and stops on a coordinator closure', () => {
     const unresolved = [result('nfr-001', 'not-satisfied'), result('nfr-002', 'satisfied')];
     expect(decideNonfunctionalRound({ ...base, initial: assessment(1, 'initial', unresolved) })).toEqual({
       action: 'repair-or-close', round: 1, unresolved: ['nfr-001'],
@@ -94,11 +94,15 @@ describe('nonfunctional round decision', () => {
     expect(decideNonfunctionalRound({ ...base, maxRounds: 2, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'exhausted')] })).toEqual({
       action: 'stop', closedRounds: 2, outcome: 'exhausted',
     });
+    const oldCountClosure = { ...closed(3, 'exhausted'), repair: 'repair-003', reassessment: 'nfa-006' };
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), oldCountClosure] })).toEqual({
+      action: 'prepare-candidate', round: 4, phase: 'initial',
+    });
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), oldCountClosure,
+      closed(4, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 5, phase: 'initial' });
     expect(() => decideNonfunctionalRound({ ...base, closedRounds: [closed(2, 'continue')] })).toThrow('consecutive');
-    expect(() => decideNonfunctionalRound({ ...base, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), closed(3, 'continue')] })).toThrow('final round');
-    expect(() => decideNonfunctionalRound({ ...base, maxRounds: 2, closedRounds: [closed(1, 'continue'), closed(2, 'continue')] })).toThrow('final round');
-    expect(() => decideNonfunctionalRound({ ...base, maxRounds: 0 })).toThrow('maximum rounds');
-    expect(() => decideNonfunctionalRound({ ...base, maxRounds: 4 })).toThrow('maximum rounds');
+    expect(decideNonfunctionalRound({ ...base, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue'), closed(3, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 4, phase: 'initial' });
+    expect(decideNonfunctionalRound({ ...base, maxRounds: 1, candidate: null, closedRounds: [closed(1, 'continue'), closed(2, 'continue')] })).toEqual({ action: 'prepare-candidate', round: 3, phase: 'initial' });
     expect(() => decideNonfunctionalRound({ ...base, closedRounds: [{ ...closed(1, 'continue'), repair: 'repair-001' }] })).toThrow('requires reassessment');
     expect(() => decideNonfunctionalRound({ ...base, closedRounds: [{ ...closed(1, 'continue'), reassessment: 'nfa-002' }] })).toThrow('requires repair');
   });

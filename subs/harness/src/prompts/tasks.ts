@@ -3,6 +3,8 @@ import type { LoadedPackage, ExtractionTurn, PackageFile } from './packages.js';
 import type { ReviewKind } from '../run/records.js';
 import { z } from 'zod';
 import { repairResultSchema } from '../run/repair-records.js';
+import { compactionReviewSchema } from '../run/compaction-review.js';
+import { finalCorrectionSchema } from '../run/final-correction.js';
 import { qualificationActionSchema } from '../capability/submission.js';
 import { initialAnalysisToolName } from '../analysis/submission.js';
 import { intakeToolName, principleToolName, checkToolName } from '../analysis/extraction.js';
@@ -22,7 +24,8 @@ import { taskBriefingRevision, type BriefingDelivery } from './briefings.js';
 
 export type TaskKind = 'initial-analysis' | ExtractionTurn | 'placement' | 'orientation' | 'assignment' | 'completion' | 'repair' | 'automatic-repair'
   | 'selection' | 'reselection' | 'capability' | 'engineering' | 'contract' | 'reconciliation' | ReviewKind | 'design-orientation'
-  | 'failure-analysis' | 'assessment' | 'action' | 'investigation' | 'standalone-command' | 'capability-qualification' | 'consultation' | 'architect-consultation';
+  | 'failure-analysis' | 'assessment' | 'action' | 'investigation' | 'standalone-command' | 'capability-qualification' | 'consultation' | 'architect-consultation'
+  | 'compaction-review' | 'final-correction';
 
 export interface TaskEnvironment {
   readonly projectRoot: string;
@@ -41,7 +44,7 @@ export interface TaskEnvironment {
 const procedureFamilies: Readonly<Partial<Record<LoadedPackage['role'], Partial<Record<TaskKind, string>>>>> = {
   'initial-architect': { 'initial-analysis': 'main' },
   'catalog-extractor': { intake: 'intake', principles: 'principles', check: 'check' },
-  'global-fork': { placement: 'main', 'architect-consultation': 'architect-consultation' },
+  'global-fork': { placement: 'main', 'architect-consultation': 'architect-consultation', 'final-correction': 'final-correction' },
   'local-architect': { 'architect-consultation': 'architect-consultation', orientation: 'orientation', assignment: 'main', completion: 'main', repair: 'main', reconciliation: 'reconciliation', 'capability-qualification': 'qualification' },
   'context-selector': { selection: 'main', reselection: 'main' },
   engineer: { engineering: 'main', repair: 'main', 'automatic-repair': 'automatic-repair', 'standalone-command': 'main', consultation: 'consultation' },
@@ -97,7 +100,7 @@ export function selectedEnvironment(environment: TaskEnvironment, task?: { reado
   }
   if (environment.snapshot !== null && environment.snapshot !== environment.candidate) selected.snapshot = environment.snapshot;
   const limits = environment.limits;
-  const own = ['invocationIdleMs', 'rejectedSubmissionsPerTurn', ...(shell ? ['commandTimeoutMs'] : [])];
+  const own = ['invocationIdleMs', ...(shell ? ['commandTimeoutMs'] : [])];
   const assignmentAuthor = task !== undefined && (
     task.role === 'local-architect' && ['assignment', 'completion', 'repair'].includes(task.kind)
     || task.role === 'capability-architect' && task.kind === 'capability');
@@ -316,6 +319,16 @@ function taskDefinition(loaded: LoadedPackage, kind: TaskKind, consultationSubmi
   let procedure = loaded.procedure;
   let source = loaded.files.find(file => file.kind === 'procedure')?.path ?? null;
   const role = loaded.role;
+  if (kind === 'compaction-review' && ['local-architect', 'capability-architect', 'nonfunctional-coordinator'].includes(role)) {
+    return { tool: 'submit_compaction_review', schema: JSON.stringify(z.toJSONSchema(compactionReviewSchema)),
+      procedure: 'Review the unfinished engineer task and current evidence while native compaction runs. Compaction alone establishes neither failure nor diminishing returns. Decide continue when the next work is useful, or handoff when the approach needs reconsideration, a prerequisite is missing, or further refinement is not worth its cost. Explain why. Improve context and guidance rather than removing tools. Leave implementation to the engineer. Submit the decision through {{submissionTool}}.',
+      source: null, embedded: [], family: 'compaction-review' };
+  }
+  if (kind === 'final-correction' && role === 'global-fork') {
+    return { tool: 'submit_final_correction', schema: JSON.stringify(z.toJSONSchema(finalCorrectionSchema)),
+      procedure: 'Read the failed final-verification diagnostics and relevant source and evidence. Choose the responsible module architect and next correction goal, explaining why that approach should help. Retain accepted work and unmet requirements. An execution problem may need investigation before source edits. Submit the module, goal and rationale through {{submissionTool}}.',
+      source: null, embedded: [], family: 'final-correction' };
+  }
   if (role === 'initial-architect' && kind === 'initial-analysis') tool = initialAnalysisToolName;
   if (role === 'catalog-extractor' && ['intake', 'principles', 'check'].includes(kind)) {
     const turn = kind as ExtractionTurn;

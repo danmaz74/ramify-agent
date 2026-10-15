@@ -96,8 +96,9 @@ function intake(obligation: string) {
   ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } };
 }
 
-function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnType<typeof nfrBoundaries>) {
+function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnType<typeof nfrBoundaries>, noResult: false | 'end' | 'checkpoint' = false) {
   return createScriptedAgent(withDefaultTurns(spec => {
+    if (spec.submission.name === 'submit_compaction_review') return submit({ action: 'handoff', reason: 'Return the retained repair to the coordinator.' });
     if (spec.submission.name === intakeToolName) return submit(intake(obligation));
     if (spec.role === 'initial-architect') return submit(analysis([]));
     if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: [{
@@ -106,9 +107,14 @@ function repairAgent(root: string, obligation: string, boundaryAnswers: ReturnTy
     }] });
     if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'],
       startingModule: 'collection-review/workspace/reviews/core', task: 'Add audit record source', evidence: [], uncertainty: '' });
-    if (spec.submission.name === nonfunctionalRepairToolName) { boundaryAnswers.repair(); return submit({ kind: 'completed',
-      summary: 'Audit record added', evidence: ['new source'], remaining: [],
-    }, write(join(root, 'subs/workspace/subs/reviews/subs/core/src/repair-recovery.ts'), 'export const auditRecord = true;\n')); }
+    if (spec.submission.name === nonfunctionalRepairToolName) {
+      boundaryAnswers.repair();
+      const edit = write(join(root, 'subs/workspace/subs/reviews/subs/core/src/repair-recovery.ts'), 'export const auditRecord = true;\n');
+      return noResult ? [edit, noResult === 'checkpoint'
+        ? { kind: 'compaction-checkpoint' as const, reason: 'threshold' as const }
+        : { kind: 'end' as const, message: 'Retain my source edit for the coordinator.' }]
+        : submit({ kind: 'completed', summary: 'Audit record added', evidence: ['new source'], remaining: [] }, edit);
+    }
     return [];
   }));
 }
@@ -117,13 +123,16 @@ const repairCrashes = [
   { boundary: 'nonfunctional-repair-assigned' },
   { boundary: 'nonfunctional-repair-assigned', mutateBeforeResume: true },
   { boundary: 'invocation-ended' },
+  { boundary: 'invocation-ended', noResult: 'end' },
+  { boundary: 'invocation-ended', noResult: 'checkpoint' },
   { boundary: 'nonfunctional-repair-committed' },
   { boundary: 'nonfunctional-assessed' },
   { boundary: 'writer-acquired' },
-] as const satisfies readonly { readonly boundary: RunWrite; readonly mutateBeforeResume?: boolean }[];
+] as const satisfies readonly { readonly boundary: RunWrite; readonly mutateBeforeResume?: boolean; readonly noResult?: 'end' | 'checkpoint' }[];
 for (const { boundary, ...variant } of repairCrashes) {
   const mutateBeforeResume = 'mutateBeforeResume' in variant && variant.mutateBeforeResume;
-  test(`a repair phase ${boundary} crash ${boundary === 'writer-acquired' ? 'fails closed' : mutateBeforeResume ? 'refuses downtime drift' : 'resumes exactly once'}`, async () => {
+  const noResult = 'noResult' in variant ? variant.noResult : false;
+  test(`a repair phase ${boundary} crash ${boundary === 'writer-acquired' ? 'fails closed' : mutateBeforeResume ? 'refuses downtime drift' : noResult ? `retains ${noResult} result without re-execution` : 'resumes exactly once'}`, async () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
     const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'one-module', final: !(boundary === 'writer-acquired' || mutateBeforeResume), repaired: !(boundary === 'writer-acquired' || mutateBeforeResume) });
@@ -131,13 +140,17 @@ for (const { boundary, ...variant } of repairCrashes) {
     const obligation = 'The review must retain an audit record.';
     const plan = join(fixture.root, 'plans/review-notes/plan.md');
     await writeFile(plan, `${await readFile(plan, 'utf8')}\n${obligation}\n`);
-    const firstAgent = repairAgent(fixture.root, obligation, boundaryAnswers);
+    const firstAgent = repairAgent(fixture.root, obligation, boundaryAnswers, noResult);
     let frozen = false;
     let runId = '';
     const first = await openRuns(fixture.root, { ...boundaryAnswers.options, agent: firstAgent,
       afterWrite: async (write, id) => {
         if (write !== boundary) return;
-        const repairStarted = firstAgent.sessions.some(session => session.spec.role === 'nonfunctional-repair-engineer');
+        const currentEvents = write === 'invocation-ended' ? await runEventsOnDisk(fixture.root, 'review-notes', id) : [];
+        const recent = currentEvents.at(-1);
+        const repairStarted = recent?.type === 'invocation-ended' && currentEvents.some(event =>
+          event.type === 'invocation-started' && event.data.invocation === recent.data.invocation
+          && event.data.role === 'nonfunctional-repair-engineer');
         const assessed = write === 'nonfunctional-assessed' &&
           (await runEventsOnDisk(fixture.root, 'review-notes', id)).filter(event => event.type === 'nonfunctional-assessed').length === 2;
         if (boundary === 'writer-acquired' && !(await runEventsOnDisk(fixture.root, 'review-notes', id)).some(event => event.type === 'nonfunctional-repair-assigned')) return;
@@ -163,7 +176,7 @@ for (const { boundary, ...variant } of repairCrashes) {
       expect(resumedAgent.sessions.filter(session => session.spec.role === 'nonfunctional-repair-engineer')).toHaveLength(0);
       if (mutateBeforeResume) expect(await readFile(join(fixture.root, 'downtime-mutation.ts'), 'utf8')).toBe('export const changed = true;\n');
     } else {
-      expect(onlyRun(reopened.service, 'review-notes').state).toBe('completed');
+      expect(onlyRun(reopened.service, 'review-notes').state, JSON.stringify(onlyRun(reopened.service, 'review-notes').failure)).toBe('completed');
       expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
       expect(events.filter(event => event.type === 'nonfunctional-repair-committed')).toHaveLength(1);
       expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);

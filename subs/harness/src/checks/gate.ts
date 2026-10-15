@@ -493,7 +493,9 @@ function nextOf(
   }
   if (cause === 'check-failed') {
     const bound = request.limits?.repairRounds;
-    return bound !== undefined && (request.repairRound ?? 0) + 1 >= bound ? 'exhausted' : 'repair';
+    // Repeated failed corrections return to the architect for reconsideration.
+    // The local exchange ends; further assignments and repairs remain available.
+    return bound !== undefined && (request.repairRound ?? 0) + 1 >= bound ? 'return-to-local-architect' : 'repair';
   }
   return 'return-to-local-architect';
 }

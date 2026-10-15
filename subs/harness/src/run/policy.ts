@@ -17,7 +17,8 @@ import { reviewPolicyVersion, roles, runPolicySchema, type CapturedProjectConfig
 /** New runs capture execution continuity; compatible legacy recovery records its policy transition. */
 export const runPolicyVersion = 'run-policy/8';
 
-/** The bounds of the main plan's policy table. */
+/** The policy table. Legacy count fields remain for replay of captured runs;
+ * their values do not decide whether semantic work may continue. */
 export const defaultLimits: RunPolicy['limits'] = {
   repairRoundsPerIteration: 3,
   repairRoundsPerWorkItemGate: 3,

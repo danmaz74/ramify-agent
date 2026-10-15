@@ -2,7 +2,7 @@ import type { Observation } from '../run/observations.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
+import { createScriptedAgent, type ScriptStep } from '../../subs/agent/src/scripted.js';
 import { coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
 import { intakeToolName, principleToolName } from '../analysis/extraction.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -30,7 +30,8 @@ afterEach(async () => {
   if (errors.length) throw new AggregateError(errors, 'NFR fixture teardown failed');
 });
 
-test.each([false, true])('one authorized repair edits two modules from the chosen src, then reassesses every NFR (breakpoint: %s)', async debug => {
+test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, { debug: false, noResult: true }])
+('one authorized repair edits two modules from the chosen src, then reassesses every NFR (%j)', async ({ debug, noResult }) => {
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'two-modules' });
@@ -90,11 +91,14 @@ test.each([false, true])('one authorized repair edits two modules from the chose
     if (spec.submission.name === coordinatorInvestigationToolName) return submit({ kind: 'investigation-result',
       summary: 'Intermediate trace is absent', findings: [{ nfr: 'nfr-001', inspectedScope: ['src/'],
         evidence: ['No trace writer found'], uncertainty: 'The trace was not observed' }] });
-    if (spec.submission.name === nonfunctionalRepairToolName) { boundaryAnswers.repair(); return submit({ kind: 'completed', summary: 'Added audit record source',
-      evidence: ['Two source files written'], remaining: [] },
-      write('nonfunctional-repair.ts', 'export const auditRecord = true;\n'),
-      write(otherFile, 'export const catalogAuditRecord = true;\n'),
-      write(plan, 'forbidden plan change\n')); }
+    if (spec.submission.name === nonfunctionalRepairToolName) {
+      boundaryAnswers.repair();
+      const edits: ScriptStep[] = [write('nonfunctional-repair.ts', 'export const auditRecord = true;\n'),
+        write(otherFile, 'export const catalogAuditRecord = true;\n'),
+        write(plan, 'forbidden plan change\n')];
+      return noResult ? [...edits, { kind: 'end' as const, message: 'I ran out of time before reporting the repair.' }]
+        : submit({ kind: 'completed', summary: 'Added audit record source', evidence: ['Two source files written'], remaining: [] }, ...edits);
+    }
     return [];
     })();
     if (spec.role !== 'nonfunctional-coordinator') return steps;
@@ -204,6 +208,12 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   for (const text of [otherObligation, fixed, advice]) expect(repair?.spec.prompt).not.toContain(text);
   const repairStart = events.find(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-repair-engineer');
   if (repairStart?.type !== 'invocation-started') throw new Error('Missing actual repair invocation');
+  if (noResult) {
+    const repairEnd = events.find(event => event.type === 'invocation-ended'
+      && event.data.invocation === repairStart.data.invocation);
+    if (repairEnd?.type !== 'invocation-ended') throw new Error('Missing repair end');
+    expect(repairEnd.data.ended).toBe('ended');
+  }
   const deniedCall = `${repairStart.data.invocation}:call-3`;
   const observations = (await readFile(runPath(fixture.root, 'review-notes', receipt.jobId, runLayout.observations(repairStart.data.invocation)), 'utf8')).split('\n').filter(Boolean).map(line => JSON.parse(line) as Observation);
   expect(observations.flatMap(item => item.type === 'guard' && item.data.callId === deniedCall ? [item.data] : [])).toEqual([{

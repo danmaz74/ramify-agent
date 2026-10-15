@@ -285,13 +285,25 @@ complete failure and mutation evidence available through recorded pointers.
 Stage-one recovery uses current files and named mutation/Git comparisons. It
 does not claim a retained last-analyzable filesystem checkpoint.
 
+### Failed Final Verification Returns To Correction
+
+A nonpassing final verification remains evidence in the same run. The plan
+architect receives the diagnostics and report locations and chooses the module
+architect and next correction goal. The harness records an ordinary work item
+with that final gate as its origin, preserving earlier accepted work. After
+correction, it obtains fresh candidate assessment and final verification.
+Neither the failure count nor a former repair allowance ends the run. Accepted
+correction decisions and created work items are reused after interruption.
+
 ### Native Context Compaction Preserves The Task
 
 Every model role uses Pi's native automatic compaction for fresh, continued,
 forked and reconstructed work. Pi supplies context estimation, model window,
 effective reserve/recent-history settings, summaries and overflow recovery.
-Harness role fractions, fixed token ceilings and extra report reserves do not
-reduce the usable model window. Missing observations remain unknown.
+The current context ceiling is 300,000 tokens. Preserve earlier native
+compaction thresholds; configure an earlier native threshold only when needed
+to respect that ceiling. Do not add a competing context controller or extra
+report reserve. Missing observations remain unknown.
 
 Compaction runs through the preserving Pi lifecycle with immutable model request
 artifacts, cancellation, dispatch fences and actual summary request usage. The
@@ -300,7 +312,20 @@ exact prefix reuse across rewritten history. An older fork uses its own retained
 point rather than a later compacted history. Cache savings require actual cache
 observations; fewer context tokens alone establish none.
 
-Successful native compaction continues the same task and submission authority.
+Successful native compaction preserves the task and submission authority. For
+module, contract and nonfunctional repair engineers, compaction starts a review
+by the responsible architect in parallel. Pi finishes and persists its summary,
+then waits before its next model request or tool dispatch for that decision.
+The architect assesses current correctness, expected benefit of further work
+and guidance/context needs; compaction itself establishes no failure.
+
+A continue decision resumes the same session. A handoff retains edits and the
+compacted history and returns the unfinished task to its architect with the
+reason, without inventing an engineer submission or running failure analysis.
+The review start and decision are durable and keyed by invocation and compaction
+ordinal; interruption retains a pending review and accepted decisions replay
+without another assessment. Explicit stop cancels both activities.
+
 If compaction fails, is unavailable or cannot recover provider overflow, the
 harness reconciles durable effects before a source-backed successor. Recovery
 needs no final agent report. It retains the original need, accepted decisions,
@@ -508,9 +533,9 @@ and changed candidates require fresh qualification. External repair neither uses
 nor replenishes automatic repair authority or verified-delta consumption.
 
 A changed final candidate invalidates its previous assessment through a recorded
-operator-repair occurrence. Reassessment uses the next remaining captured
-non-functional round; prior closures and their spent allowance remain intact.
-Admission refuses a required final reassessment when no round remains.
+operator-repair occurrence. Reassessment uses a new non-functional round while
+retaining prior assessments and closures. Round counts do not prevent required
+reassessment.
 
 The CLI attaches to the service that owns the project lock:
 

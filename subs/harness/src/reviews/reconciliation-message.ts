@@ -29,9 +29,6 @@ export interface PacketRequest {
 
 export interface ReconciliationPacket {
   readonly basis: ReconciliationBasis;
-  readonly limit: number;
-  /** The least risk a later round's correction is for. */
-  readonly laterRoundMinimumRisk: string;
   /** The work item's module, within which this architect may waive. */
   readonly module: string;
   readonly owner?: 'work item' | 'capability task';
@@ -50,7 +47,7 @@ export interface ReconciliationPacket {
 export function reconciliationMessage(packet: ReconciliationPacket): string {
   const { basis } = packet;
   const lines: string[] = [
-    `# Reconciliation ${basis.id} of ${basis.workItem} — round ${basis.round} of at most ${packet.limit}`,
+    `# Reconciliation ${basis.id} of ${basis.workItem} — round ${basis.round}`,
     '',
     `The ${packet.owner ?? 'work item'} requested completion. Assess the CheckFindings below together, in one submission.`,
     ...(packet.capabilityContext === undefined ? [] : ['', `This task coordinates consumer module \`${packet.capabilityContext.consumer}\` and provider module \`${packet.capabilityContext.provider}\`. Read both owners' source and tests before deciding a correction. The module below is the requesting work item's waiver authority, not a limit on task design or assignments.`]),
@@ -61,11 +58,7 @@ export function reconciliationMessage(packet: ReconciliationPacket): string {
     '',
     '## This round',
     '',
-    basis.floor === 'any'
-      ? 'This is the first round: a correction may be planned for any signal.'
-      : basis.floor === 'none'
-        ? 'This is the last round: no correction may be planned. A signal you neither settle nor defer is left open, unresolved, for the user.'
-        : `A correction may be planned only for a signal of at least ${packet.laterRoundMinimumRisk} risk; one below it is settled, deferred or left open.`,
+    'A correction may be planned for any signal. Reconsider repeated attempts against the latest evidence: change an ineffective approach, continue useful work, or end refinement when the requirements are satisfied and further benefit is too small.',
     `You may waive a signal whose modules are \`${packet.module}\` or beneath it.`,
     '',
     '## Review coverage',

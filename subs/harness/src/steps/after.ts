@@ -280,9 +280,6 @@ async function afterAssign(handling: Handling, item: WorkItem, inputs: WorkTurnS
     handling.applied(`nothing more: ${existing.data.iteration} was already assigned by ${invocation}`);
   } else {
     const number = assignedCount(run.log, item.id) + 1;
-    if (number > run.record.policy.limits.maxIterationsPerWorkItem) {
-      throw new Error(`${item.id} has reached ${run.record.policy.limits.maxIterationsPerWorkItem} iterations, which the policy allows`);
-    }
     // The submission is judged again against the turn's inputs and the project as it stands, which captures its scope.
     const index = await refreshedIndex(handling);
     const judged = await judgeWorkTurn({ inputs }, submission, { index, ramify: context.ramify, projectRoot });

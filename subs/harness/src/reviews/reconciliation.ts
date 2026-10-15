@@ -75,7 +75,7 @@ export const reconciliationBasisSchema = z.object({
   due: z.array(checkFindingIdSchema),
   applied: z.int().nonnegative(),
   forkPoint: forkPointSchema,
-  /** What a correction may be planned for this round: any signal, one of at least the later rounds' risk, or none. */
+  /** Legacy field retained for old basis records; every round now permits correction. */
   floor: z.enum(['any', 'non-low', 'none']),
 }).strict();
 export type ReconciliationBasis = z.infer<typeof reconciliationBasisSchema>;
@@ -91,7 +91,7 @@ const citedConflictSchema = z.object({
 
 /** What becomes of one CheckFinding, as the fork chooses it. */
 export const reconciliationActionSchema = z.discriminatedUnion('action', [
-  /** A correction iteration is needed; the CheckFinding stays open with this reconciliation's repair intent. Only within the round's floor. */
+  /** A correction iteration is needed; the CheckFinding stays open with this reconciliation's repair intent. */
   z.object({ action: z.literal('repair') }).strict(),
   /** The concern no longer applies to the changed code: a fresh assessment of the named reports on the current source. */
   z.object({ action: z.literal('fixed'), reassessed: z.array(checkFindingReportIdSchema).min(1).max(100) }).strict(),
@@ -107,7 +107,7 @@ export const reconciliationActionSchema = z.discriminatedUnion('action', [
     conflicts: z.array(citedConflictSchema).min(1).max(20),
     options: z.array(checkFindingOptionSchema).min(2).max(10),
   }).strict(),
-  /** Left open: a signal this round cannot correct, below its floor, which stays unresolved. It records no decision. */
+  /** Left open by the architect's judgment. It records no decision. */
   z.object({ action: z.literal('leave') }).strict(),
 ]);
 export type ReconciliationAction = z.infer<typeof reconciliationActionSchema>;
@@ -222,28 +222,13 @@ export const reconciliationRefusedDataSchema = z.object({
 }).strict();
 
 /** Why a CheckFinding of a completed work item was left open (appendix §6). */
-export const unresolvedReasonSchema = z.enum(['rounds-exhausted', 'below-floor', 'raised-after-last-round']);
+export const unresolvedReasonSchema = z.enum(['rounds-exhausted', 'below-floor', 'raised-after-last-round', 'left-open']);
 export type UnresolvedReason = z.infer<typeof unresolvedReasonSchema>;
 
 /** Each CheckFinding a work item completed with open, and why; `work-item-completed` carries them. */
 export const unresolvedField = z.array(z.object({ checkFinding: checkFindingIdSchema, reason: unresolvedReasonSchema }).strict()).max(500);
 
-// Floors and authority.
-
-/** The risk levels in increasing order. */
-const riskOrder: readonly CheckFindingRisk[] = ['low', 'medium', 'high'];
-export const riskAtLeast = (risk: CheckFindingRisk, minimum: CheckFindingRisk): boolean => riskOrder.indexOf(risk) >= riskOrder.indexOf(minimum);
-
-/** A round's floor: any signal in the first, none in the last, one of at least `minimum` risk between. The last round wins. */
-export function roundFloor(round: number, rounds: number): ReconciliationBasis['floor'] {
-  if (round >= rounds) return 'none';
-  return round === 1 ? 'any' : 'non-low';
-}
-
-/** Whether a correction may be planned for a signal of `risk` under `floor`. */
-export function withinFloor(floor: ReconciliationBasis['floor'], risk: CheckFindingRisk, minimum: CheckFindingRisk): boolean {
-  return floor === 'any' || (floor === 'non-low' && riskAtLeast(risk, minimum));
-}
+// Authority.
 
 /**
  * Whether a module architect has waive authority over these modules: each is
@@ -270,9 +255,6 @@ export interface ReconciliationContext {
   readonly workItem: string;
   /** The work item's module, the bound of the module architect's waive authority. */
   readonly module: string;
-  readonly floor: ReconciliationBasis['floor'];
-  /** The least risk a correction after the first round may be planned for. */
-  readonly laterRoundMinimumRisk: CheckFindingRisk;
   /** The attention set of the basis. */
   readonly attention: ReadonlyMap<CheckFindingId, AttentionEntry>;
   /** Every CheckFinding of the work item at its current revision, which a relation may name. */
@@ -303,14 +285,11 @@ export interface BoundReconciliation {
 export const needsDisposition = (entry: Pick<AttentionEntry, 'awaiting'>): boolean => entry.awaiting !== 'user-decision' && entry.awaiting !== 'witness';
 
 /**
- * Whether a round after the first is warranted (principles, Bound the
- * correction loop): a signal of at least the minimum risk needs one, and so
- * does a repair claimed by a correction or a user's answer, which an earlier
- * round is waiting to assess.
+ * Whether a round after the first is warranted: any signal needing a
+ * disposition receives the architect's assessment, regardless of risk.
  */
-export function needsLaterRound(attention: Iterable<AttentionEntry>, minimum: CheckFindingRisk): boolean {
-  return [...attention].some(entry => needsDisposition(entry)
-    && (riskAtLeast(entry.risk, minimum) || entry.reason === 'repair-claimed' || entry.reason === 'user-decision-answered'));
+export function needsLaterRound(attention: Iterable<AttentionEntry>): boolean {
+  return [...attention].some(entry => needsDisposition(entry));
 }
 
 /** The next action a set of dispositions leads to. */
@@ -324,8 +303,7 @@ export function nextOf(actions: readonly ReconciliationAction['action'][]): Reco
  * Validates one reconciliation submission: the strict schema, then every
  * rule the schema cannot hold. Each named CheckFinding belongs to the work
  * item; every one of the attention set that needs a disposition has
- * exactly one; a correction is planned only within the round's floor, a
- * signal is left open only below it, and a waiver only over the work item's
+ * exactly one; a waiver only over the work item's
  * own module; the next action agrees with the dispositions; each cited
  * conflict's text is in the document it names; and the child accepts the
  * whole assessment against the state as it stands.
@@ -344,7 +322,6 @@ export async function validateReconciliation(input: unknown, context: Reconcilia
     }
   });
 
-  const floorText = context.floor === 'any' ? 'any signal' : context.floor === 'none' ? 'no signal: this is the last round' : `a signal of at least ${context.laterRoundMinimumRisk} risk`;
   const disposed = new Map<CheckFindingId, number>();
   submission.dispositions.forEach((disposition, index) => {
     const where = `dispositions.${index}`;
@@ -354,14 +331,6 @@ export async function validateReconciliation(input: unknown, context: Reconcilia
     } else if (!needsDisposition(entry)) {
       errors.push({ path: `${where}.checkFinding`, message: `${disposition.checkFinding} waits for ${entry.awaiting === 'user-decision' ? 'a user\'s answer' : 'a check to run again'}; it is not this assessment's to decide`, expected: 'no disposition for it' });
     } else {
-      const risk = disposition.risk ?? entry.risk;
-      const correctable = withinFloor(context.floor, risk, context.laterRoundMinimumRisk);
-      if (disposition.action.action === 'repair' && !correctable) {
-        errors.push({ path: `${where}.action`, message: `correction-floor: ${disposition.checkFinding} is of ${risk} risk, and this round may plan a correction for ${floorText}`, expected: 'another disposition, or leave it open' });
-      }
-      if (disposition.action.action === 'leave' && correctable) {
-        errors.push({ path: `${where}.action`, message: `${disposition.checkFinding} can be corrected in this round (${risk} risk, floor ${context.floor}); only a signal below the floor is left open`, expected: 'repair, fixed, supersede, waive, defer or request-user-decision' });
-      }
       if (disposition.action.action === 'waive' && !withinModule(context.module, entry.modules)) {
         errors.push({ path: `${where}.action`, message: `insufficient-authority: ${disposition.checkFinding} concerns ${entry.modules.join(', ')}, and this architect may waive only within ${context.module}`, expected: 'another disposition for a signal outside your module' });
       }
@@ -514,7 +483,7 @@ export function briefText(parts: {
     }
   }
   const left = parts.submission.dispositions.filter(disposition => disposition.action.action === 'leave').map(disposition => disposition.checkFinding);
-  if (left.length > 0) lines.push(`- left open, below this round's floor: ${left.join(', ')}`);
+  if (left.length > 0) lines.push(`- left open: ${left.join(', ')}`);
   const next = parts.submission.next;
   lines.push(next.kind === 'correct'
     ? `Next: a correction iteration. ${next.goal}`

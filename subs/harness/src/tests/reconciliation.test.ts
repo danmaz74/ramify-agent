@@ -13,7 +13,7 @@ import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { requestCompletion } from './helpers/analysis.js';
 import { scriptedCandidates, testReviewPolicy, type ScriptedCommit } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';
+import { assign, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { concern as boundConcern, decision, dispose, report } from './helpers/check-findings.js';
 import { gateGit } from './helpers/gate-git.js';
 import {
@@ -30,7 +30,7 @@ vi.mock('node:child_process', async original =>
  * assessed by one fork of the module architect, at the point after that
  * request, in one submission. The assessment is committed before its brief
  * is appended to the architect's own session; a correction goes through the
- * ordinary iteration, gate and review; later rounds keep to the floor; and
+ * ordinary iteration, gate and review; later rounds retain correction access; and
  * a completion is validated against the basis once more before it commits.
  *
  * The agent is the scripted fake, Git's answers for the gates and the
@@ -208,7 +208,7 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
     expect(fork!.spec.session).toEqual({ mode: 'fork', from: JSON.stringify(JSON.parse(completion.data.architectRef!.ref).point) });
     expect(fork!.start).toEqual({ mode: 'fork' });
     expect(fork!.spec.submission.name).toBe('submit_reconciliation');
-    expect(fork!.spec.prompt).toContain('This is the first round: a correction may be planned for any signal.');
+    expect(fork!.spec.prompt).toContain('A correction may be planned for any signal.');
     expect(fork!.spec.prompt).toContain('Risk: high; credibility: ungrounded');
     // The fork keeps the architect's working directory, the module's `src/`: its task environment names it.
     const parentTurn = agent!.sessions.find(session => session.spec.role === 'local-architect' && session.spec.submission.name !== 'submit_reconciliation')!;
@@ -262,8 +262,8 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
   }, 60_000);
 });
 
-describe('CF11 and CF15: a correction round, and the floor of the next', () => {
-  test('a repair is planned with its intent, the architect assigns the correction, its acceptance claims the repair, and the next round fixes it within its floor', async () => {
+describe('CF11 and CF15: correction rounds', () => {
+  test('a repair is planned with its intent, the architect assigns the correction, and the next round assesses every signal', async () => {
     const root = await reviewTarget(cleanups);
     const run = await reviewRun(root, cleanups, {
       policy: { concurrency: 1 },
@@ -286,11 +286,6 @@ describe('CF11 and CF15: a correction round, and the floor of the next', () => {
           disposition('cf-0002', { action: 'waive', uncertainty: 'Either shape serves.' }),
         ], { kind: 'correct', goal: 'Make the note limit 500 characters, as the plan asks.' })),
         'wi-001.rc02': reconcile(
-          // A correction of a low-risk signal in a later round is refused, and returned to the fork.
-          submission([
-            disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-            disposition('cf-0003', { action: 'repair' }),
-          ], { kind: 'correct', goal: 'Name the constant.' }),
           submission([
             disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
             disposition('cf-0003', { action: 'leave' }),
@@ -299,7 +294,7 @@ describe('CF11 and CF15: a correction round, and the floor of the next', () => {
       },
     });
     const { service, runId, events, agent } = run;
-    expect(onlyRun(service, plan).state).toBe('completed');
+    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
 
     // Round 1 planned the repair with this reconciliation's intent.
     const [first, second] = eventsOf(events, 'reconciliation-assessed');
@@ -331,16 +326,14 @@ describe('CF11 and CF15: a correction round, and the floor of the next', () => {
     })]);
     expect(eventsOf(events, 'review-request-recorded').map(event => event.data.iteration)).toEqual(['wi-001.i01', 'wi-001.i02', 'wi-001.i03', 'wi-001.i04']);
 
-    // Round 2 has the later floor; its first submission was refused for a
-    // correction below it, and the second left that signal open.
+    // Round 2 can correct any risk; the architect explicitly leaves one open.
     const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc02'));
-    expect(basis).toMatchObject({ round: 2, floor: 'non-low', source: { commit: 'revision-04', tree: correctedTree } });
+    expect(basis).toMatchObject({ round: 2, floor: 'any', source: { commit: 'revision-04', tree: correctedTree } });
     expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0001', 'cf-0003']);
     const [, refork] = reconcilerSessions(agent!);
     expect(refork!.spec.session).toEqual({ mode: 'fork', from: JSON.stringify(JSON.parse(eventsOf(events, 'outline-revised').filter(event => event.data.architectRef !== undefined)[1]!.data.architectRef!.ref).point) });
-    expect(refork!.spec.prompt).toContain('A correction may be planned only for a signal of at least medium risk');
-    expect(refork!.verdicts[0]).toMatchObject({ accepted: false });
-    expect(JSON.stringify(refork!.verdicts[0])).toContain('correction-floor: cf-0003 is of low risk');
+    expect(refork!.spec.prompt).toContain('A correction may be planned for any signal');
+    expect(refork!.verdicts[0]).toMatchObject({ accepted: true });
     expect(second!.data).toMatchObject({ reconciliation: 'wi-001.rc02', next: 'unresolved' });
 
     const summaries = new Map(listOf(service, runId).map(summary => [summary.id, summary]));
@@ -348,18 +341,20 @@ describe('CF11 and CF15: a correction round, and the floor of the next', () => {
     expect(summaries.get('cf-0002')).toMatchObject({ standing: 'closed', reason: 'waived' });
     expect(summaries.get('cf-0003')).toMatchObject({ standing: 'open', reason: 'new', risk: 'low' });
     // The work item completed through its gate, naming what it left open.
-    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'cf-0003', reason: 'below-floor' }]);
+    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'cf-0003', reason: 'left-open' }]);
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
     run.git.assertComplete();
   }, 60_000);
 
-  test('at the last round no correction is planned, what is open stays unresolved, and a signal raised after it does not block completion', async () => {
+  test('a legacy one-round policy cannot prevent assessment of a signal raised during completion', async () => {
     const root = await reviewTarget(cleanups);
     let raised = false;
     let service!: Awaited<ReturnType<typeof reviewRun>>['service'];
     const run = await reviewRun(root, cleanups, {
       detached: true,
       limits: { reconciliationRoundsPerWorkItem: 1 },
+      gates: [...revisionGates, unchanged, unchanged, unchanged],
+      previewCount: 5,
       engineer: engineers.slice(0, 3),
       reviewers: {
         'rq-0001': review(changed[1]),
@@ -367,10 +362,11 @@ describe('CF11 and CF15: a correction round, and the floor of the next', () => {
         'rq-0003': review(changed[3]),
       },
       reconcilers: {
-        'wi-001.rc01': reconcile(
-          submission([disposition('cf-0001', { action: 'repair' })], { kind: 'correct', goal: 'Correct the limit.' }),
-          submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' }),
-        ),
+        'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })),
+        'wi-001.rc02': reconcile(submission([
+          disposition('cf-0001', { action: 'leave' }),
+          disposition('cf-0002', { action: 'leave' }),
+        ], { kind: 'unresolved' })),
       },
       afterWrite: async (write, runId) => {
         // A signal raised while the work item's gate runs, after the last basis.
@@ -386,14 +382,14 @@ describe('CF11 and CF15: a correction round, and the floor of the next', () => {
     const events = await runEventsOnDisk(root, plan, run.runId);
     const { runId, agent } = run;
     expect(raised).toBe(true);
-    expect(onlyRun(service, plan).state).toBe('completed');
-    expect(await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'))).toMatchObject({ floor: 'none' });
-    expect(JSON.stringify(reconcilerSessions(agent!)[0]!.verdicts[0])).toContain('correction-floor');
-    expect(eventsOf(events, 'reconciliation-started')).toHaveLength(1);
-    expect(eventsOf(events, 'reconciliation-refused')).toEqual([]);
+    expect(onlyRun(service, plan).state, JSON.stringify(onlyRun(service, plan).failure)).toBe('completed');
+    expect(await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'))).toMatchObject({ floor: 'any' });
+    expect(reconcilerSessions(agent!)[0]!.verdicts[0]).toMatchObject({ accepted: true });
+    expect(eventsOf(events, 'reconciliation-started')).toHaveLength(2);
+    expect(eventsOf(events, 'reconciliation-refused')).toHaveLength(1);
     expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([
-      { checkFinding: 'cf-0001', reason: 'rounds-exhausted' },
-      { checkFinding: 'cf-0002', reason: 'raised-after-last-round' },
+      { checkFinding: 'cf-0001', reason: 'left-open' },
+      { checkFinding: 'cf-0002', reason: 'left-open' },
     ]);
     // The gates keep their verdicts, and the run completes.
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
@@ -554,7 +550,7 @@ describe('CF09 and CF16: a basis that no longer holds', () => {
     expect(summaries.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'waived' });
     expect(summaries.get('cf-0002')).toMatchObject({ standing: 'deferred', reason: 'deferred' });
     expect(summaries.get('cf-0003')).toMatchObject({ standing: 'open', modules: ['project/cart'] });
-    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'cf-0003', reason: 'rounds-exhausted' }]);
+    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'cf-0003', reason: 'left-open' }]);
     // Three work-item gates ran, each with its own verdict.
     expect(eventsOf(events, 'gate-attempted').filter(event => event.data.checkpoint === 'work-item').map(event => event.data.verdict)).toEqual(['passed', 'passed', 'passed']);
   }, 60_000);
@@ -719,9 +715,10 @@ describe('CF10: the brief append outcomes that land nothing', () => {
 
 /** A service opened over the crashed project, with the agent that held the architect's session. */
 async function restart(root: string, agent: ScriptedAgent, continuing = true) {
-  const git = gateGit(root, { head: continuing ? 'revision-03' : 'revision-04', commits: continuing ? correctionGates.slice(3, 5) : [], previews: continuing ? Array.from({ length: 5 }, () => ({ repositoryRoot: root, head: 'revision-04', tree: correctedTree })) : [] });
+  const git = gateGit(root, { head: continuing ? 'revision-03' : 'revision-04', commits: continuing ? correctionGates.slice(3) : [], previews: continuing ? Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-04', tree: correctedTree })) : [] });
   const restarted = await openRuns(root, {
     agent,
+    inputs: treeInputs(),
     git: git.git,
     candidates: scriptedCandidates(root, correctedCandidates()),
     policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy() }),
@@ -763,7 +760,7 @@ async function crashAroundAppend(when: 'before' | 'after'): Promise<void> {
   const after = await runEventsOnDisk(root, plan, run.runId);
   const recovered = after.slice(before.length);
   expect(recovered[0]).toMatchObject({ type: 'reconciliation-brief-appended', data: { reconciliation: 'wi-001.rc01', outcome: when === 'before' ? 'appended' : 'already-present' } });
-  expect(onlyRun(restarted.service, plan).state).toBe('completed');
+  expect(onlyRun(restarted.service, plan).state, JSON.stringify(onlyRun(restarted.service, plan).failure)).toBe('completed');
   // No second assessment, and the brief is in the architect's session once.
   expect(eventsOf(after, 'reconciliation-assessed').filter(event => event.data.reconciliation === 'wi-001.rc01')).toHaveLength(1);
   const parent = eventsOf(after, 'outline-revised').find(event => event.data.architectRef !== undefined)!.data.architectRef!;

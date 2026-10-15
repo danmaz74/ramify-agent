@@ -2,12 +2,16 @@
 
 **Status:** Proposed
 
+The agent-efficiency, guidance and bounded-context principles clarified on
+2026-10-15 are normative; runtime alignment remains pending.
 The whole-tree scope and verification rules adopted on 2026-10-01 are
 normative design decisions; their implementation remains pending.
 The execution-continuity principles adopted on 2026-10-13 are normative;
 their runtime migration is implemented.
 The architect tracking-authority and external-tracker independence principles
 adopted on 2026-10-13 are normative; their runtime migration remains pending.
+The architect progress-checkpoint principle adopted on 2026-10-14 is
+normative; its implementation remains pending.
 The audit-report delivery rule adopted on 2026-10-14 is normative;
 its runtime delivery change is implemented.
 
@@ -44,6 +48,24 @@ and agent time and tokens second.
 
 ## Principles
 
+### The Harness Makes Agents More Efficient Through Context and Guidance
+
+ramify-agent makes Pi and other sub-agents more efficient by optimizing their
+context and working environment. Before and during action, it supplies relevant
+knowledge, clear goals and useful tools. During action, it guides, nudges and
+warns. After action, it assesses results and supports correction when needed.
+
+Agents receive all standard tools by default. Only specialized tools are
+selected for a particular task. Denying a standard tool requires a specific
+reason; making it available requires no justification of anticipated need.
+
+The harness trusts agents to judge what their task needs. It does not prevent
+actions or withhold tools because it distrusts their judgment. When insufficient
+guidance or drift from excessive context causes systematic problems, improve
+the guidance and context: reduce or restructure excessive context and restore
+relevant knowledge. Removing tools agents may need is not a remedy for those
+failures.
+
 ### Resource Observations Preserve Run Continuity
 
 A run never terminates because a context-size or time threshold is reached.
@@ -51,6 +73,24 @@ Context-size checks serve only to optimize work through compaction or handoff
 to a new session. Time-limit checks serve only to recover a session that may
 be stuck. Compaction, handoff and recovery preserve the run's task, accepted
 work, authority and pending obligations.
+
+### Repetition Triggers Architect Reconsideration
+
+Count-based checkpoints prevent indefinite correctness loops and improvement
+loops with diminishing returns. Repetition thresholds trigger reconsideration
+within an engineer's work and across assignments. The responsible architect
+assesses whether further work is likely to resolve an unmet requirement or
+provide sufficient additional value for its cost. It decides whether to continue,
+change the approach, seek a missing decision or prerequisite, or end further
+refinement when requirements are satisfied and additional improvement is not
+worthwhile. Continuation explains the expected contribution of further work;
+repeating an unsuccessful approach requires a reason.
+
+Counts trigger reconsideration, never establish progress, failure or completion.
+There is no fixed limit on implementation iterations or checkpoints. Checkpoints
+preserve work and history; an interrupted assessment remains pending. Existing
+architect turns serve checkpoints where possible. Acceptance requirements and
+explicit operator stop remain effective.
 
 ### An Executable Specification Is a Translation
 
@@ -98,6 +138,20 @@ repair responsibility from test locations, failure counts or comparison with
 a second test run. It records audit results and enforces execution and write boundaries. The module architect reads those results and the implementation and tests, assesses whether the requirement is satisfied, and reports its judgment to the harness, which trusts and records it.
 
 ### Bounded Context Is What Makes Agents Efficient
+
+The harness trusts an agent's judgment when its context is clear and manageable.
+Excessive context undermines that judgment even with good instructions and
+tools. Limit context growth while preserving the agent's ability to act.
+The current context ceiling is 300,000 tokens; earlier native compaction
+thresholds remain effective. This ceiling concerns current context occupancy,
+never cumulative run tokens or permission to continue work.
+
+Use simple context management: efficient prompts, focused iterations for
+complex tasks, and forks when separate exploration would otherwise burden the
+continuing context. Keep Pi's native compaction enabled throughout, allowing it
+to compact whenever its threshold requires it. Configure an earlier native
+threshold only when needed to respect the ceiling; do not add a competing
+context controller. Context reduction preserves the task and useful knowledge.
 
 Here, search space means the information available for an invocation to
 investigate, including selected source and generated views. Its declared byte

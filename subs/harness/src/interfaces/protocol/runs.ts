@@ -885,7 +885,7 @@ export const workItemSummarySchema = z.object({
   id: text,
   module: text,
   capability: text.nullable(),
-  origin: z.enum(['entry', 'obligation', 'verification', 'integration']),
+  origin: z.enum(['entry', 'obligation', 'verification', 'integration', 'final-verification']),
   goal: text,
   state: workItemStateSchema,
   /** A completed item this one follows up after its evidence was reopened. */

@@ -22,12 +22,11 @@ import { openRuns as openRunsWithGit, onlyRun, runEventsOnDisk, runPath, startRu
 /*
  * Everything a module engineer tells the harness is validated JSON: the strict
  * schema, then the rules the schema cannot hold. A failure changes nothing,
- * every error names its path, a corrected input is accepted, and the bound
- * ends the invocation as `invalid-submission`.
+ * every error names its path, and a corrected input is accepted even after
+ * repeated invalid attempts.
  *
  * Its shell tool's input is judged the same way. A tool is not a submission —
- * a rejected input leaves the session running — but its bound is its own and
- * reaching it ends the invocation just the same.
+ * a rejected input leaves the session running for a corrected call.
  */
 
 vi.mock('node:child_process', async original =>
@@ -229,10 +228,10 @@ describe('a rejected submission in a run', () => {
     const engineer = agent!.sessions.find(session => session.spec.role === 'engineer')!;
     expect(engineer.verdicts[0]).toMatchObject({ accepted: false });
     const answer = JSON.parse((engineer.verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as {
-      errors: Array<{ path: string }>; remainingAttempts: number;
+      errors: Array<{ path: string }>;
     };
     expect(answer.errors[0]!.path).toBe('findings');
-    expect(answer.remainingAttempts).toBe(2);
+    expect(answer).not.toHaveProperty('remainingAttempts');
     // The accepted submission is answered by its kind: what follows a
     // proposal of completion is the gate, and not completed work. The fresh
     // check over the write scope could not run against the stub, which the
@@ -253,40 +252,32 @@ describe('a rejected submission in a run', () => {
     expect(rejections[0]!.data.target).toBe(engineerToolName);
   }, 300_000);
 
-  // The bound ends the invocation and not the run: the iteration closes
-  // partial, and its module architect decides on the digest and the analysis.
-  const returnedCheckpoints = [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'] as const;
-
-  test('a rule the schema cannot hold is answered the same way, and the bound ends the invocation', async () => {
+  test('a rule the schema cannot hold is answered repeatedly until corrected', async () => {
     const forged = { kind: 'completion-proposed', summary: 'Done.\nRamify-Gate: ga-0001', findings: [] };
-    const { root, runId, service, agent } = await run([forged, forged, forged, forged], [], returnedCheckpoints);
+    const { root, runId, service, agent } = await run([forged, forged, forged, forged, completionProposed('Corrected work.')], [], completedCheckpoints);
 
     const snapshot = onlyRun(service, 'review-notes');
     expect(snapshot.state).toBe('completed');
 
     const engineer = agent!.sessions.find(session => session.spec.role === 'engineer')!;
-    expect(engineer.verdicts).toHaveLength(3);
-    expect(engineer.verdicts.at(-1)).toMatchObject({ accepted: false, final: true });
+    expect(engineer.verdicts).toHaveLength(5);
+    expect(engineer.verdicts.slice(0, 4).every(verdict => (verdict as { accepted: boolean }).accepted === false)).toBe(true);
+    expect(engineer.verdicts.at(-1)).toMatchObject({ accepted: true });
 
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome('inv-0007')), 'utf8')) as InvocationOutcome;
-    expect(outcome).toMatchObject({ ended: 'invalid-submission', rejectedSubmissions: 3, submission: null });
-    // Nothing the iteration would have done happened: no gate, no commit.
+    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 4 });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.some(event => event.type === 'gate-attempted' && (event.data as { checkpoint: string }).checkpoint === 'iteration')).toBe(false);
+    expect(events.some(event => event.type === 'gate-attempted' && (event.data as { checkpoint: string }).checkpoint === 'iteration')).toBe(true);
     const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
-    expect(result).toMatchObject({ outcome: 'partial', commit: null });
-    // The digest names the rejections and the last one's reason.
-    expect(result.failure?.digest).toMatchObject({ invocation: 'inv-0007', ended: 'invalid-submission', rejected: { count: 3, target: engineerToolName } });
-    expect(result.failure?.digest.cause).toBe(`3 of its inputs were rejected, the last to \`${engineerToolName}\`, and the bound on rejected inputs ended it.`);
-    expect(result.failure?.digest.rejected?.reasons.join(' ')).toContain('summary');
+    expect(result.outcome).toBe('accepted');
   }, 300_000);
 
-  test('a harness tool\'s input is judged too: the call is answered with its errors and the bound ends the invocation', async () => {
+  test('a harness tool\'s invalid input returns errors without ending the invocation', async () => {
     const malformed = { kind: 'tool' as const, tool: shellToolName, input: { suite: 'everything' } };
     const { root, runId, service, agent, commands } = await run(
       [completionProposed('Left the limit as the plan asks.')],
-      [malformed, malformed, malformed],
-      returnedCheckpoints,
+      [malformed, malformed, malformed, malformed],
+      completedCheckpoints,
     );
 
     const snapshot = onlyRun(service, 'review-notes');
@@ -296,7 +287,7 @@ describe('a rejected submission in a run', () => {
     // error result, and nothing ran for it.
     const engineer = agent!.sessions.find(session => session.spec.role === 'engineer')!;
     const answers = engineer.results.filter(result => result.tool === shellToolName);
-    expect(answers).toHaveLength(3);
+    expect(answers).toHaveLength(4);
     for (const answer of answers) {
       expect(answer.isError).toBe(true);
       const body = JSON.parse(answer.text.split('\n\n')[0]!) as { accepted: boolean; errors: Array<{ path: string; message: string }> };
@@ -310,12 +301,11 @@ describe('a rejected submission in a run', () => {
 
     const observations = (await readFile(runPath(root, 'review-notes', runId, runLayout.observations('inv-0007')), 'utf8'))
       .split('\n').filter(Boolean).map(line => JSON.parse(line) as { type: string; data: { target?: string } });
-    expect(observations.filter(line => line.type === 'rejection' && line.data.target === shellToolName)).toHaveLength(3);
+    expect(observations.filter(line => line.type === 'rejection' && line.data.target === shellToolName)).toHaveLength(4);
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome('inv-0007')), 'utf8')) as InvocationOutcome;
-    expect(outcome.ended).toBe('invalid-submission');
+    expect(outcome.ended).toBe('submitted');
     const result = JSON.parse(await readFile(runPath(root, 'review-notes', runId, iterationLayout.result('wi-001', 1)), 'utf8')) as IterationResult;
-    expect(result.outcome).toBe('partial');
-    expect(result.failure?.digest.rejected).toMatchObject({ count: 3, target: shellToolName });
+    expect(result.outcome).toBe('accepted');
   }, 300_000);
 
   test('the engineer runs its named test through the shell and is answered with that command\'s result; a whole-suite run is refused and runs nothing', async () => {

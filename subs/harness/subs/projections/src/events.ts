@@ -418,6 +418,14 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`Automatic repair ${event.data.incidentId}: Beads export ${event.data.state}`, ref('repair-incident', event.data.incidentId)];
     case 'job-failed':
       return [`The run failed (${event.data.reason}): ${event.data.message || 'no message'}`, []];
+    case 'final-correction-planned':
+      return [`Final verification ${event.data.gate} returned to architect-planned correction ${event.data.workItem}`,
+        [...ref('gate', event.data.gate), ...ref('work-item', event.data.workItem), ...ref('invocation', event.data.invocation)]];
+    case 'compaction-review-started':
+      return [`Architect reconsideration during compaction ${event.data.ordinal} of ${event.data.invocation}`, ref('invocation', event.data.invocation)];
+    case 'compaction-reviewed':
+      return [`Compaction review: ${event.data.action}. ${event.data.reason}`,
+        [...ref('invocation', event.data.invocation), ...ref('invocation', event.data.reviewer)]];
     case 'job-stopped':
       return [event.data.settled ? 'The run stopped' : 'The run stopped; its session did not become idle in time, and anything it produces is discarded', []];
     case 'job-interrupted':

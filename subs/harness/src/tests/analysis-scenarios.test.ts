@@ -25,7 +25,7 @@ import { architectIndex, moduleEntry } from './helpers/views.js';
  * The acceptance scenarios of the initial analysis, `initial-architect/2`:
  * the plan's own scenarios captured with the plan and shown to the plan
  * architect, the form rules applied after every other rule under the same
- * per-turn bound, and one frozen `ScenarioRecord` per scenario committed by
+ * repeated correction, and one frozen `ScenarioRecord` per scenario committed by
  * `analysis-accepted` beside the entries, every one `pending`.
  */
 
@@ -407,11 +407,14 @@ describe('the form rules, through the real validation path', () => {
 });
 
 describe('a form rule broken in a run', () => {
-  test('counts against the per-turn bound: a correction is accepted, and three rejections end the invocation', async () => {
+  test('a form-rule correction is accepted after four rejections in the same invocation', async () => {
     const project = await target();
     const noScenario = analysis([entry('reviewer-note', reviews)], [], [], []);
     const { service, agent } = await openRuns(project, {
-      script: [{ kind: 'submit', input: noScenario }, { kind: 'submit', input: noScenario }, { kind: 'submit', input: noScenario }],
+      script: (spec: SessionSpec) => spec.role === 'catalog-extractor' ? [] : spec.role === 'initial-architect'
+        ? [...Array.from({ length: 4 }, () => ({ kind: 'submit' as const, input: noScenario })), { kind: 'submit' as const, input: analysis([entry('reviewer-note', reviews)]) }]
+        : [{ kind: 'submit' as const, input: requestCompletion() }],
+      unchangedCheckpoints: [scenariosCommit('review-notes'), 'wi-001', 'final verification of plan "review-notes"'],
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
@@ -419,19 +422,18 @@ describe('a form rule broken in a run', () => {
 
     // The intake's session is the first; the architect's the second.
     const verdicts = agent!.sessions[1]!.verdicts;
-    expect(verdicts).toHaveLength(3);
-    const first = JSON.parse((verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string; message: string }>; remainingAttempts: number };
+    expect(verdicts).toHaveLength(5);
+    const first = JSON.parse((verdicts[0] as { errors: string[] }).errors[0]!.split('\n\n')[0]!) as { errors: Array<{ path: string; message: string }> };
     expect(first.errors).toEqual([expect.objectContaining({ path: 'entries.0', message: expect.stringMatching(/^Scenario form rule 4 /) })]);
-    expect(first.remainingAttempts).toBe(2);
-    expect(verdicts.at(-1)).toMatchObject({ accepted: false, final: true });
+    expect(first).not.toHaveProperty('remainingAttempts');
+    expect(verdicts.at(-1)).toEqual({ accepted: true });
 
     const snapshot = onlyRun(service, 'review-notes');
-    expect([snapshot.state, snapshot.failure?.reason]).toEqual(['failed', 'invalid-submission']);
-    expect(snapshot.counts.scenarios).toEqual({ pending: 0, bound: 0, done: 0 });
+    expect(snapshot.state).toBe('completed');
     const outcome = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.outcome('inv-0002')), 'utf8')) as InvocationOutcome;
-    expect(outcome).toMatchObject({ ended: 'invalid-submission', rejectedSubmissions: 3 });
+    expect(outcome).toMatchObject({ ended: 'submitted', rejectedSubmissions: 4 });
     const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
-    expect(events.some(event => event.type === 'analysis-accepted')).toBe(false);
+    expect(events.some(event => event.type === 'analysis-accepted')).toBe(true);
   }, 180_000);
 });
 

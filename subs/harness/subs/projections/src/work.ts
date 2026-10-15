@@ -30,7 +30,7 @@ import { runLayout } from '../../../src/run/records.js';
 export function capabilityOfItem(view: RunView, item: WorkItem): string | null {
   if ('entry' in item.origin) return item.origin.entry;
   if ('obligation' in item.origin) return view.records.obligations.get(item.origin.obligation.id)?.capability ?? null;
-  if ('integration' in item.origin) return null;
+  if ('integration' in item.origin || 'finalVerification' in item.origin) return null;
   return view.records.requirements.get(item.origin.verification.id)?.forCapability ?? null;
 }
 

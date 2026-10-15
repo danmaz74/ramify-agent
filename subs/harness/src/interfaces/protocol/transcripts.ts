@@ -129,7 +129,7 @@ export const transcriptWorkSchema = z.object({ workItem: text.optional(), iterat
 export const transcriptStartModeSchema = z.enum(['fresh', 'continue', 'fork']);
 
 /** How an invocation ended, as its outcome records it. */
-export const transcriptEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'invalid-submission']);
+export const transcriptEndedSchema = z.enum(['submitted', 'ended', 'failed', 'stopped', 'context-budget-reached', 'resource-pending', 'checkpoint-pending', 'invalid-submission']);
 /** What interrupted it, where something did. */
 export const transcriptInterruptionSchema = z.enum([
   'idle-timeout', 'absolute-timeout', 'provider-error', 'session-lost', 'adapter-fault', 'stopped-by-caller',

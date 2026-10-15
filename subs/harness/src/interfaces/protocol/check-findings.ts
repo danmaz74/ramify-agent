@@ -76,10 +76,10 @@ export const checkFindingAwaitingViewSchema = z.enum(['assessment', 'repair', 'w
 
 /**
  * Why a signal of a completed work item was left open: its correction rounds
- * were spent, it was below the last round's floor, or it was raised after
- * the last round's basis.
+ * were spent under an older run, it fell below an older risk floor,
+ * it was raised after the latest basis, or the architect left it open.
  */
-export const unresolvedReasonViewSchema = z.enum(['rounds-exhausted', 'below-floor', 'raised-after-last-round']);
+export const unresolvedReasonViewSchema = z.enum(['rounds-exhausted', 'below-floor', 'raised-after-last-round', 'left-open']);
 export type UnresolvedReasonView = z.infer<typeof unresolvedReasonViewSchema>;
 
 /** Who made a judgment or a decision, as the harness bound it. */

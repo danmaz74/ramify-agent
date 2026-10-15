@@ -70,6 +70,8 @@ export function reviewOutcome(
       return notVerified('invalid-output', 'Every submission the reviewer made was invalid, up to the bound', true);
     case 'ended':
       return notVerified('invalid-output', 'The reviewer ended without a submission', true);
+    case 'checkpoint-pending':
+      return notVerified('unavailable', result.checkpointReason ?? 'The unfinished task returned for architect reconsideration', true);
     case 'resource-pending':
     case 'context-budget-reached':
       return notVerified('execution-failed', 'The reviewer reached its context budget before it submitted', true);

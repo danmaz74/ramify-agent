@@ -304,19 +304,24 @@ describe('an engineer that ends without a result', () => {
     );
   }, 120_000);
 
-  test('that keeps failing ends the run through the work item\'s iteration bound', async () => {
-    const { root, runId, service } = await run(byRole({
+  test('another assignment remains available after the captured iteration count', async () => {
+    const architectPrompts: string[] = [];
+    const scripted = byRole({
       'initial-architect': [submit(analysis([entry('reviewer-note', reviews)]))],
-      'local-architect': [submit(assign(reviews, {}, outline()))],
-      engineer: [[{ kind: 'fail', error: 'the provider refused the request' }]],
-    }), { maxIterationsPerWorkItem: 2 }, [scenariosCommit(plan)]);
+      'local-architect': [submit(assign(reviews, {}, outline())), submit(assign(reviews)), submit(assign(reviews)), submit(requestCompletion())],
+      engineer: [[{ kind: 'fail', error: 'the provider refused the request' }], [{ kind: 'fail', error: 'the provider refused the request' }], [{ kind: 'fail', error: 'the provider refused the request' }]],
+    });
+    const { root, runId, service } = await run(spec => {
+      if (spec.role === 'local-architect') architectPrompts.push(spec.prompt);
+      return typeof scripted === 'function' ? scripted(spec) : scripted;
+    }, { maxIterationsPerWorkItem: 2 }, [scenariosCommit(plan), 'wi-001', `final verification of plan "${plan}"`]);
 
     const snapshot = onlyRun(service, plan);
-    expect(snapshot.state).toBe('failed');
-    expect(snapshot.failure?.reason).toBe('limit-exceeded');
-    expect(snapshot.failure?.message).toBe('wi-001 has reached 2 iterations, which the policy allows');
+    expect(snapshot.state).toBe('completed');
     const events = await runEventsOnDisk(root, plan, runId);
+    expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(3);
+    expect(architectPrompts[3]).toContain('Progress reconsideration');
     expect(events.filter(event => event.type === 'iteration-closed').map(event => (event.data as { outcome: string }).outcome))
-      .toEqual(['partial', 'partial']);
+      .toEqual(['partial', 'partial', 'partial']);
   }, 120_000);
 });
