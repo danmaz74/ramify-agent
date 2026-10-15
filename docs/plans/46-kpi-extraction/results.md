@@ -1,5 +1,101 @@
 # KPI extraction results
 
+## Final run outcome — operator receipt, 2026-10-15
+
+Continuation run `20261014T222715Z-84f064` completed at event 1119 after both
+work items and all ten acceptance examples were architect-accepted. The final
+implementation commit is `9ddef5c0271bab3dc2a108bd99f3faafcd3ba077`, tree
+`1f9b6b4724179fa86f850aed854f98a873e117af`, on
+`ramify-agent-run/20261014T222715Z-84f064`. The operator independently observed
+its clean checkout, unchanged captured-plan and restored-native hashes, and
+incorporation ancestry. The original interrupted run remains historical.
+
+Final gate `ga-0014` freshly passed all six configured checks with requested and
+executed mode `full`, nested discovery complete, and one configured project
+(the root). Report `eb6d44eb88633cdfbceecfc35e0809471bb6e66b`, ref
+`refs/audited/runs/2026-10-15T05-50-16Z-9ddef5c02`, binds that exact commit/tree.
+It has no reused baseline. Its results are:
+
+- Regression: 3766 passed, two inherited opt-in skips, zero failures; all 455
+  configured files accounted for (454 passed, one skipped).
+- Cucumber: 16 scenarios and 252 steps passed, including all ten KPI examples
+  and six prior projections scenarios; zero failed, skipped or undefined cases.
+  The step count includes hooks.
+- Type checks, patch integrity, structural verification and web build passed.
+  Structural coverage is partial: 457 analysis limits, zero errors, warnings or
+  denied accesses; this remains an explicit verification limit.
+- Audit duration: 729.057 seconds; regression duration: 665.338 seconds.
+
+The operator then ran `node_modules/.bin/ramify-audit audit --cwd . --json` on
+the clean implementation commit. Exit 0 reused this exact fresh full report,
+with no ignored changed paths, chain depth zero and zero outstanding failures.
+That default invocation supplied applicable evidence without a second execution.
+
+### Merge standing and current-main qualification
+
+The completed run's public merge-readiness response at version 1119 is
+`pending-review`: assessment `nfa-003` on the same candidate tree leaves 32
+evidence judgments undetermined, recorded as `cf-0002` through `cf-0033`.
+No user acceptance, rejection or waiver has been submitted. These cover
+historical/process evidence excluded from the source-only assessment and final
+candidate/audit facts that became available after it ran. The passing final
+gate preserves that assessment rather than rewriting unknowns as satisfied.
+
+Main independently advanced to `8374e17e036211dce2653079b17e93dc10be5147`,
+adopting ramify-audit 0.9.3. A conflict-free detached merge preview was prepared
+at `46fd84c7027cb4b5cf92ddefaf0be298a0bd7cbf`, tree
+`4ae657ae91c14d3dab013c5276acd8e09b7e6339`, with its own `npm ci` installation.
+Its default audit selected full execution because 104 changed paths exceeded
+the drift limit of 25. That full integration audit failed one regression case:
+`review-questions.test.ts` expected six review dispatches and observed five.
+Report `990ca205298f657a4bde2a8e102cefd8b73fcee5`, ref
+`refs/audited/runs/2026-10-15T06-05-50Z-46fd84c70`, retains the failure: 3765
+tests passed, one failed, two inherited skips; all 16 scenarios/252 steps and
+the other five checks passed. The earlier extraction gate remains separately
+passed.
+
+The unchanged four-case file passed a focused rerun. The fixture's attempt
+and settlement bounds are both 60000 ms; wall-clock advancement after the
+completion request can legitimately expire its final queued review. This case
+witnesses fork fallback, so the operator supplied a scheduler clock fixed at
+the case's captured start time. All six exact dispatch, degradation, failure
+and invocation-uniqueness assertions remain. A first trial using a hard-coded
+past date passed with timer-overflow warnings; the captured-start correction
+passed all four cases without those warnings. Production deadlines are unchanged.
+
+The four-line test-only fix is `b2b6cd4eae1ac4d37f9de379096bfe244c018393`
+in the review checkout and `c79dc70d407652c1fff6405837bb58ca2a92864d`
+on the extraction branch. Its default integration audit retry passed, report
+`0eb97f09a8abf7b33aeef09d138ec20e717d7cdf`, ref
+`refs/audited/runs/2026-10-15T06-12-33Z-b2b6cd4ea`, tree
+`86eaa58ce579b4f24ad5294fa542a685085caa34`. The auditor selected partial scope:
+all five selected checks passed, including the exact carried failure's four-case
+file (four passed, zero failures/skips); scenarios reuse the full integration
+report. Composition is pass, chain depth one, zero outstanding failures;
+duration 87.01 seconds. The earlier failed full report remains unchanged.
+Neither source branch nor main has been merged or pushed.
+
+### Remaining limits and contribution attribution
+
+Fetching the completed run's session list from frozen runtime `f24924a7…`
+exposed an existing protocol error: HTTP 500 rejects
+`sessions[60].work.nonfunctionalRepair`. The durable work schema includes that
+field, while the strict transcript work schema omits it. Those schemas and
+the session projection are unchanged from baseline `0c74a7d2` through the
+implementation commit. Deferred harness issue `ramify-agent-ewk` records the
+exact response and affected surfaces; no schema or implementation repair is
+claimed. Metrics and merge-readiness queries succeeded. The supported historical
+reader qualification below retains its stated limits.
+
+This final receipt is an operator report-only follow-up after the completed
+run's idle server was stopped and settled. Implementation, tests, declarations,
+configuration, frozen plans and authoritative execution records are unchanged.
+The implementation's gate identity above remains separate from this document's
+later commit. The remaining sections preserve the earlier contributions and
+their evidence at the time they were written, including their pending checks,
+failures, repair incidents, supplied provenance and interrupted-run limits.
+No performance or provider cache benefit is claimed.
+
 ## Consolidated delivery report — nfr-repair-001
 
 This is the current root-owned reconciliation for supplied source tree
