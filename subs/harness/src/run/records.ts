@@ -486,9 +486,9 @@ export type EntryAssignments = z.infer<typeof entryAssignmentsSchema>;
 // Readiness and its recoveries.
 
 /**
- * The steps readiness verifies, in order, ending with the configured full
- * audit and `run-branch`, the run branch created and checked out, last of
- * all.
+ * The steps readiness verifies, ending with the default configured audit
+ * and `run-branch`. The historical `configured-full-audit` step identifier
+ * remains readable in durable records; it does not override audit mode.
  */
 export const readinessSteps = [
   'project-root', 'scratch-cleanup', 'git-clean', 'compiler-config', 'project-config', 'ramify-daemon',
@@ -518,7 +518,7 @@ export const readinessAttemptSchema = z.object({
     installed: z.boolean(),
     testScript: z.string().nullable(),
   }).strict()),
-  /** Present on a configured full request; the requested and audited sources may differ on reuse. */
+  /** Present on a configured audit request; the requested and audited sources may differ on reuse. */
   audit: z.object({
     requestedSourceCommit: text, auditedSourceCommit: text.nullable(), reused: z.boolean(),
     reportCommit: text.nullable(), runRef: text.nullable(),

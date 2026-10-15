@@ -316,7 +316,7 @@ export interface ConfiguredAuditInput {
   /** The configuration the run captured; the commit's own must equal it. */
   readonly configuration: CommittedAuditConfiguration;
   readonly mode: ConfiguredAuditMode;
-  /** Audit the tracked nested definitions too, as readiness's baseline and the final gate do. */
+  /** Audit the tracked nested definitions too, as the final gate does. */
   readonly nested?: boolean;
   readonly runId: string;
   readonly attemptId: string;
@@ -729,7 +729,7 @@ export function configuredResultRefusal(
   return null;
 }
 
-/** Internal recovery predicate: only compatible executed-full evidence may complete readiness. */
+/** Compatibility predicate for evidence answering an explicit full request. */
 export function configuredFullResultMatches(result: Extract<AuditResult, { status: 'completed' }>, configuration: CommittedAuditConfiguration): boolean {
   return configuredResultRefusal(result, configuration, 'full', result.reused?.sourceCommit ?? result.summary.sourceCommit) === null;
 }

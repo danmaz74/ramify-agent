@@ -25,7 +25,7 @@ async function project(prepare?: (root: string) => Promise<void>) {
   const head = await initRepository(copy.root); return { root: copy.root, head };
 }
 
-describe('declared preparation and configured full readiness', () => {
+describe('declared preparation and default configured readiness', () => {
   test('the installed provider runs full after local setup, then reuses full while local setup recreates deleted output', async () => {
     const deep = 'subs/a/subs/b/subs/c/subs/d/tools';
     const fixture = await project(async root => {
@@ -64,6 +64,7 @@ describe('declared preparation and configured full readiness', () => {
     expect(first.attempt.verdict).toBe('passed');
     expect(first.attempt.audit).toMatchObject({ requestedSourceCommit: fixture.head, auditedSourceCommit: fixture.head, reused: false });
     expect(first.gate?.commands).toEqual([]);
+    expect(first.gate?.audit).toMatchObject({ mode: 'project-default', nested: false, verdict: 'pass' });
     expect((first.gate?.provider?.result as { summary: { coverage: { selection: { kind: string } } } }).summary.coverage.selection.kind).toBe('full');
     expect(await readFile(output, 'utf8')).toBe('ready');
     await rm(output);

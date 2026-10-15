@@ -10,9 +10,10 @@ import type { ConfiguredAuditMode } from '../../subs/audit/src/check-execution.j
  *
  * A committing checkpoint asks the project's committed audit about its
  * commit: ordinary gates in the provider's default mode, which audits a
- * Ramify project `ramify-partial` from its baseline. Readiness's baseline
- * and the final gate make the same request: full over every tracked nested
- * definition the provider discovers. The audit definition names every check, its scenarios among them;
+ * Ramify project `ramify-partial` from its baseline. Readiness uses that
+ * default too, without requesting nested projects. Only the final gate asks
+ * full over every tracked nested definition the provider discovers. The
+ * audit definition names every check, its scenarios among them;
  * the harness adds none. A standalone session's in-place diagnosis runs the
  * project's setup, its type check and a complete Ramify check.
  */
@@ -23,12 +24,12 @@ export interface CheckpointPolicy {
   readonly committing: boolean;
   /** The mode a committing checkpoint requests of the committed audit. */
   readonly audit: ConfiguredAuditMode;
-  /** Whether it audits the tracked nested definitions too: readiness's baseline and the final gate's full verification do. */
+  /** Whether it audits the tracked nested definitions too: the final gate's full verification does. */
   readonly nested: boolean;
 }
 
 export const checkpointPolicies: Record<Checkpoint, CheckpointPolicy> = {
-  readiness: { committing: false, audit: 'full', nested: true },
+  readiness: { committing: false, audit: 'project-default', nested: false },
   iteration: { committing: true, audit: 'project-default', nested: false },
   contract: { committing: true, audit: 'project-default', nested: false },
   'breaking-iteration': { committing: true, audit: 'project-default', nested: false },

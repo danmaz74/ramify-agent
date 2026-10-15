@@ -280,8 +280,8 @@ describe('F5/F6 ordinary workflow: failure, repair and full nested acceptance', 
       'reported sc-001 done with where', 'reported test-001 done',
     ]);
 
-    // Readiness and the final gate asked the full nested audit; the
-    // iteration gates asked the root's default. The repair's gate passed.
+    // Readiness and iteration gates asked the root's default; the
+    // final gate asked the full nested audit. The repair's gate passed.
     const readiness = JSON.parse(await readFile(runPath(root, plan, failedRun, runLayout.readiness(1)), 'utf8')) as { verdict: string; audit?: unknown };
     expect(readiness.verdict).toBe('passed');
     expect(readiness.audit).toMatchObject({ requestedSourceCommit: main, reused: false });

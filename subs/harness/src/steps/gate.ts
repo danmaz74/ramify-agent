@@ -38,7 +38,7 @@ import { acceptedSubmission, lastTransition, manualGates, manualHandling, manual
  * and work-item checkpoints commit the candidate on the run branch and ask
  * the project's committed audit in its default mode; the final checkpoint
  * commits and asks the full nested audit; readiness audits the baseline in
- * full nested mode without a commit. The attempt names its subject, the
+ * default mode without a commit or a nested-project request. The attempt names its subject, the
  * invocation that proposed it and the commit it audited.
  *
  * The subject is never guessed: an ambiguous one is refused, and so is one

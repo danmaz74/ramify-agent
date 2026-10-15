@@ -96,9 +96,9 @@ describe('new-run policy does not infer packages', () => {
 });
 
 describe('the checkpoint policy', () => {
-  test('readiness and the final gate make the same full nested request; ordinary gates leave the mode to the provider; readiness alone commits nothing', () => {
+  test('readiness and ordinary gates use provider defaults; only the final gate requests full nested verification; readiness alone commits nothing', () => {
     expect(checkpointPolicies).toEqual({
-      readiness: { committing: false, audit: 'full', nested: true },
+      readiness: { committing: false, audit: 'project-default', nested: false },
       iteration: { committing: true, audit: 'project-default', nested: false },
       contract: { committing: true, audit: 'project-default', nested: false },
       'breaking-iteration': { committing: true, audit: 'project-default', nested: false },

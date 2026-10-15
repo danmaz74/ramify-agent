@@ -74,7 +74,7 @@ function cancelledResult(input: ConfiguredAuditInput): ConfiguredFullAuditResult
     detail: 'provider command cancelled and settled', provider: { status: 'cancelled', reason: 'signal' } });
 }
 
-function port(config: CommittedAuditConfiguration, answer?: Partial<ConfiguredFullAuditResult>, runs = 1, gates: readonly string[] = Array<string>(runs).fill('ga-0001')) {
+function port(config: CommittedAuditConfiguration, answer?: Partial<ConfiguredFullAuditResult>, runs = 1, gates: readonly string[] = Array<string>(runs).fill('ga-0001'), finalGate?: string) {
   const calls: string[] = [];
   const adapter: ConfiguredAuditPort = {
     async read(_root, head) { calls.push(`read:${head}`); return config; },
@@ -83,7 +83,7 @@ function port(config: CommittedAuditConfiguration, answer?: Partial<ConfiguredFu
       return resultOf(request, answer);
     },
   };
-  const strict = strictReadinessAudit(adapter, configRoots.get(config)!, config, gates);
+  const strict = strictReadinessAudit(adapter, configRoots.get(config)!, config, gates, finalGate);
   checks.push(strict.assertComplete);
   return { adapter: strict.adapter, calls };
 }
@@ -134,7 +134,7 @@ function step(result: Awaited<ReturnType<typeof attempt>>, name: string) {
   return result.attempt.steps.find(entry => entry.step === name);
 }
 
-describe('declared preparation and configured full readiness', () => {
+describe('declared preparation and default configured readiness', () => {
   test('readiness resumes its audit prerequisite without repeating a committed setup effect', async () => {
     const fixture = await project();
     const command = { argv: ['build-tool', 'prepare'], cwd: '.', env: {}, timeoutMs: 30_000 };
@@ -167,7 +167,7 @@ describe('declared preparation and configured full readiness', () => {
     const config = configuration(fixture, { packageDirectoriesDeclared: true, packageDirectories: [deep] });
     const result = await attempt(fixture, config, port(config, undefined, 0));
     expect(step(result, 'declared-packages')).toMatchObject({ outcome: 'failed' });
-    expect(result.calls).not.toContain(`full:${fixture.head}`);
+    expect(result.calls).not.toContain(`project-default:${fixture.head}`);
     expect(recoveryFor(result.attempt, result.gate, defaultRunPolicy({ projectRoot: fixture.root })))
       .toEqual({ cause: 'infrastructure', action: 'reinstall-nested', directories: [deep] });
     await mkdir(join(fixture.root, deep, 'node_modules'), { recursive: true });
@@ -207,7 +207,7 @@ describe('declared preparation and configured full readiness', () => {
     boundaries.get(fixture.root)!.command(execution.run); checks.push(execution.assertComplete);
     const result = await attempt(fixture, config, port(config, undefined, 0));
     expect(failingStep(result.attempt)?.step).toBe('declared-preparation');
-    expect(result.calls).not.toContain(`full:${fixture.head}`);
+    expect(result.calls).not.toContain(`project-default:${fixture.head}`);
     expect(step(result, 'run-branch')?.outcome).toBe('not-verified');
   });
 
@@ -222,7 +222,7 @@ describe('declared preparation and configured full readiness', () => {
     const result = await attempt(fixture, config, port(config, undefined, 0));
     expect(step(result, 'declared-preparation')?.detail).toContain('resolves outside');
     await expect(readFile(marker)).rejects.toThrow();
-    expect(result.calls).not.toContain(`full:${fixture.head}`);
+    expect(result.calls).not.toContain(`project-default:${fixture.head}`);
   });
 
   test('provider failure and captured-policy conflict stop before branch creation', async () => {
@@ -240,53 +240,42 @@ describe('declared preparation and configured full readiness', () => {
     const mismatched = port(conflictingConfig, undefined, 0);
     const conflict = await attempt(fixture, config, mismatched);
     expect(step(conflict, 'audit-config')?.detail).toContain('conflicts');
-    expect(mismatched.calls).not.toContain(`full:${fixture.head}`);
+    expect(mismatched.calls).not.toContain(`project-default:${fixture.head}`);
   });
 
-  test('readiness asks the final gate\'s nested full request; a nested failure or an undecided answer refuses it before branch creation, and applicable reuse passes', async () => {
+  test('readiness leaves scope to the provider, accepts partial and reused passes, and refuses failed or undecided answers before branch creation', async () => {
     const fixture = await project();
     const config = configuration(fixture);
     const requests: ConfiguredAuditInput[] = [];
-    const scripted = (answer: (input: ConfiguredAuditInput) => Partial<ConfiguredFullAuditResult>) => { const strict = strictReadinessAudit({
+    const scripted = (answer: Partial<ConfiguredFullAuditResult>) => { const strict = strictReadinessAudit({
       async read() { return config; },
-      async run(input: ConfiguredAuditInput) { requests.push(input); return resultOf(input, answer(input)); },
+      async run(input: ConfiguredAuditInput) { requests.push(input); return resultOf(input, answer); },
     } satisfies ConfiguredAuditPort, fixture.root, config, ['ga-0001']); checks.push(strict.assertComplete); return { calls: [] as string[], adapter: strict.adapter }; };
-    const project_ = (projectRoot: string, verdict: 'pass' | 'fail' | 'indeterminate', execution: 'ran' | 'reused' | 'not-run' = 'ran') => ({
-      projectRoot, verdict, execution, status: execution === 'not-run' ? 'cancelled' as const : 'completed' as const,
-      failures: verdict === 'fail' ? ['tools-check: FAIL'] : [], requestId: `request-${projectRoot}`,
-      auditedSourceCommit: execution === 'not-run' ? null : fixture.head, requestedMode: 'full' as const, executedMode: execution === 'not-run' ? null : 'full' as const,
-      fallbackReason: null, reuse: null, reportCommit: execution === 'not-run' ? null : `report-${projectRoot}`,
-      runRef: execution === 'not-run' ? null : `run-${projectRoot}`, treeRef: execution === 'not-run' ? null : `tree-${projectRoot}`,
-      retrievalCommands: [], durationSeconds: 1, counts: null, detail: verdict,
-    });
-    const complete = { status: 'complete' as const, skipped: [], unavailable: [] };
 
-    const failing = await attempt(fixture, config, scripted(input => ({ nested: input.nested === true, verdict: 'fail',
-      detail: 'invocation fail over 2 projects; failed: engine/tools', discovery: complete,
-      projects: [project_('.', 'pass'), project_('engine/tools', 'fail')] })));
-    expect(requests.map(input => [input.mode, input.nested])).toEqual([['full', true]]);
+    const failing = await attempt(fixture, config, scripted({ requestedMode: 'ramify-partial', executedMode: 'ramify-partial', verdict: 'fail' }));
+    expect(requests.map(input => [input.mode, input.nested])).toEqual([['project-default', false]]);
     expect(step(failing, 'configured-full-audit')).toMatchObject({ outcome: 'failed', gate: 'ga-0001' });
     expect(step(failing, 'run-branch')?.outcome).toBe('not-verified');
     expect([failing.gate?.verdict, failing.gate?.cause]).toEqual(['failed', 'check-failed']);
-    expect(failing.gate?.audit?.projects?.map(entry => [entry.projectRoot, entry.verdict])).toEqual([['.', 'pass'], ['engine/tools', 'fail']]);
     expect(recoveryFor(failing.attempt, failing.gate, defaultRunPolicy({ projectRoot: fixture.root }))).toBeNull();
-    expect(boundaries.get(fixture.root)!.branches().join('\n')).toBe('');
+    expect(boundaries.get(fixture.root)!.branches()).toEqual([]);
 
-    const undecided = await attempt(fixture, config, scripted(input => ({ nested: input.nested === true, verdict: 'indeterminate',
-      detail: 'invocation indeterminate over 1 project; discovery indeterminate beneath .', projects: [project_('.', 'pass')],
-      discovery: { status: 'indeterminate', skipped: [], unavailable: [{ enclosingProject: '.', reason: 'ownership query failed', definitions: ['engine/ramify-audit.json'] }] } })));
+    const undecided = await attempt(fixture, config, scripted({ verdict: 'indeterminate' }));
     expect(step(undecided, 'configured-full-audit')?.outcome).toBe('not-verified');
     expect([undecided.gate?.verdict, undecided.gate?.cause]).toEqual(['not-verified', 'infrastructure']);
-    expect(boundaries.get(fixture.root)!.branches().join('\n')).toBe('');
+    expect(boundaries.get(fixture.root)!.branches()).toEqual([]);
 
-    const reuse = { auditedCommit: 'earlier', ignoredChangedPaths: ['docs/a.md'], requestedMode: 'full' as const, resolution: 'requested' as const };
-    const reused = await attempt(fixture, config, scripted(input => ({ nested: input.nested === true, reused: true, reuse, auditedSourceCommit: 'earlier',
-      detail: 'invocation pass over 2 projects', discovery: complete,
-      projects: [{ ...project_('.', 'pass', 'reused'), reuse }, { ...project_('engine/tools', 'pass', 'reused'), reuse }] })));
+    boundaries.get(fixture.root)!.expectBranches(2);
+    const partial = await attempt(fixture, config, scripted({ requestedMode: 'ramify-partial', executedMode: 'ramify-partial' }));
+    expect(partial.attempt.verdict).toBe('passed');
+    expect(partial.gate?.audit).toMatchObject({ mode: 'project-default', nested: false, executedMode: 'ramify-partial', verdict: 'pass' });
+
+    const reuse = { auditedCommit: 'earlier', ignoredChangedPaths: ['docs/a.md'], requestedMode: 'ramify-partial' as const, resolution: 'defaulted' as const };
+    const reused = await attempt(fixture, config, scripted({ reused: true, reuse, auditedSourceCommit: 'earlier', requestedMode: 'ramify-partial', executedMode: 'full' }));
     expect(reused.attempt.verdict).toBe('passed');
     expect(reused.attempt.audit).toMatchObject({ requestedSourceCommit: fixture.head, auditedSourceCommit: 'earlier', reused: true });
-    expect(reused.gate?.audit).toMatchObject({ nested: true, verdict: 'pass', reuse });
-    expect(reused.gate?.audit?.projects?.map(entry => entry.execution)).toEqual(['reused', 'reused']);
+    expect(reused.gate?.audit).toMatchObject({ mode: 'project-default', nested: false, verdict: 'pass', reuse });
+    expect(reused.gate?.audit?.projects).toBeNull();
     expect(boundaries.get(fixture.root)!.branch()).toBe('ramify-agent-run/readiness-fixture');
   });
 
@@ -337,7 +326,7 @@ describe('declared preparation and configured full readiness', () => {
     boundaries.get(fixture.root)!.repository('dirty');
     const dirty = await attempt(fixture, config, port(config, undefined, 0));
     expect(failingStep(dirty.attempt)?.step).toBe('git-clean');
-    expect(dirty.calls).not.toContain(`full:${fixture.head}`);
+    expect(dirty.calls).not.toContain(`project-default:${fixture.head}`);
     const plain = await project();
     boundaries.get(plain.root)!.expectBranches(0);
     boundaries.get(plain.root)!.repository('unavailable');
@@ -346,7 +335,7 @@ describe('declared preparation and configured full readiness', () => {
     const nongit = await attempt(plain, plainConfig, port(plainConfig, undefined, 0));
     expect(step(nongit, 'project-root')?.outcome).toBe('passed');
     expect(step(nongit, 'git-clean')?.outcome).toBe('failed');
-    expect(nongit.calls).not.toContain(`full:${fixture.head}`);
+    expect(nongit.calls).not.toContain(`project-default:${fixture.head}`);
   });
 
   test('an install command into linked dependencies is refused before any setup process', async () => {
@@ -355,7 +344,7 @@ describe('declared preparation and configured full readiness', () => {
     const config = configuration(fixture, { setupCommands: [{ argv: ['npm', 'ci'], cwd: '.', env: {}, timeoutMs: 30_000 }] });
     const result = await attempt(fixture, config, port(config, undefined, 0));
     expect(step(result, 'declared-preparation')?.detail).toContain('would follow the link');
-    expect(result.calls).not.toContain(`full:${fixture.head}`);
+    expect(result.calls).not.toContain(`project-default:${fixture.head}`);
     expect(recoveryFor(result.attempt, result.gate, defaultRunPolicy({ projectRoot: fixture.root }))).toBeNull();
   });
 
@@ -369,7 +358,7 @@ describe('declared preparation and configured full readiness', () => {
     boundaries.get(fixture.root)!.lifecycle(true);
     const repair = strictReadinessCommand(fixture.root, { argv: ['npm', 'ci'], cwd: directory, env: {}, timeoutMs: 900_000 }, 1, () => mkdir(join(fixture.root, directory, 'node_modules'), { recursive: true }).then(() => undefined));
     checks.push(repair.assertComplete);
-    const result = await readinessLifecycle(fixture.root, port(config, undefined, 2, ['ga-0002', 'ga-0003']).adapter, { commandExecution: repair.run });
+    const result = await readinessLifecycle(fixture.root, port(config, undefined, 2, ['ga-0002', 'ga-0003'], 'ga-0003').adapter, { commandExecution: repair.run });
     expect(result.snapshot.state).toBe('completed');
     expect(result.failures).toHaveLength(1);
     expect(result.failures[0]).toMatchObject({ step: 'declared-packages', recovery: 'rec-0001', final: false });
@@ -418,7 +407,7 @@ describe('declared preparation and configured full readiness', () => {
     const fixture = await project();
     const config = configuration(fixture);
     boundaries.get(fixture.root)!.lifecycle(true);
-    const base = port(config, undefined, 3, ['ga-0001', 'ga-0002', 'ga-0003']).adapter;
+    const base = port(config, undefined, 3, ['ga-0001', 'ga-0002', 'ga-0003'], 'ga-0003').adapter;
     let calls = 0;
     const configured: ConfiguredAuditPort = { read: base.read, async run(input) {
       const result = await base.run(input);
@@ -450,7 +439,7 @@ describe('declared preparation and configured full readiness', () => {
     expect(result.snapshot.state).toBe('failed');
     expect(result.failures).toMatchObject([{ step: 'ramify-daemon', recovery: 'rec-0001', final: true }]);
     expect(result.recoveries).toMatchObject([{ cause: 'daemon-unavailable', action: 'restart-daemon', outcome: 'failed', attempt: 1 }]);
-    expect(configured.calls).not.toContain(`full:${fixture.head}`);
+    expect(configured.calls).not.toContain(`project-default:${fixture.head}`);
   }, 120_000);
 
   test('RunService stop aborts active readiness, records the cancelled attempt, and waits for provider settlement before job-stopped', async () => {

@@ -156,7 +156,7 @@ start -> capture the plan, its scenarios included
       -> initial analysis: entries, hypotheses, scenarios per entry
       -> analysis accepted: scenario text frozen
       -> awaiting review, when asked for; approve or stop
-      -> readiness: a configured full audit of HEAD, scenarios included
+      -> readiness: the default configured audit of HEAD, without a nested-project request
       -> run branch; feature files materialized and committed
       -> work items: iterations bind and declare; gates verify
       -> final gate: a full audit, every scenario reported done
@@ -428,7 +428,7 @@ line. Then:
 | `audit-config` | The committed `ramify-audit.json` at HEAD has the policy `start-run` captured. | `readiness-failed`; reconcile the configuration and start a new run. |
 | `declared-packages` | Every package directory the definition declares is installed. | One bounded reinstall, then `readiness-failed`. |
 | `declared-preparation` | The definition's workspace setup commands pass in the run working tree, and `ramify-agent.json`'s `setup`, where present, names the same commands. | `readiness-failed` with the end of the command's output. |
-| `configured-full-audit` | The provider's full audit of HEAD completes with the composed verdict `pass`. Its configured scenario check runs the project's own scenarios and any tracked one already bound. | `readiness-failed`; an audit that does not complete takes the bounded recovery. |
+| `configured-full-audit` | The provider's default audit of HEAD completes with the composed verdict `pass`, without a nested-project request. The provider determines selection, reuse and any full fallback. The step retains its historical identifier. | `readiness-failed`; an audit that does not complete takes the bounded recovery. |
 
 The plan's feature files are not written yet, so the full audit is the
 project's own regression acceptance, and its gate attempt is the baseline. A
@@ -655,7 +655,7 @@ decides what it collects and loads; the profile excludes `@ramify-pending`.
 
 | Checkpoint | Audit asked for | What runs |
 | --- | --- | --- |
-| `readiness` | full, of HEAD, not committing | every configured check |
+| `readiness` | default, of HEAD, not committing, no nested request | provider-selected checks or applicable reuse |
 | `iteration`, `contract`, `breaking-iteration`, `work-item` | the project's default, of the candidate commit | the checks and owners the provider selects |
 | `final` | full, of the candidate commit | every configured check |
 

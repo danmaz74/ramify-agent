@@ -209,7 +209,7 @@ export function hookRunBoundaries(root: string) {
     async run(input: Parameters<typeof auditAnswers.run>[0]) {
       expect(input.projectRoot).toBe(root);
       // Validate the committed gate checkpoint itself rather than interpreting its numeric identity.
-      if (input.attemptId === 'ga-0001') { expect(input.mode).toBe('full'); expect(input.nested).toBe(true); expect(input.sourceCommit).toBe(initial); expect(runId ?? input.runId).toBe(input.runId); runId = input.runId; once('readiness-audit'); }
+      if (input.attemptId === 'ga-0001') { expect(input.mode).toBe('project-default'); expect(input.nested).toBe(false); expect(input.sourceCommit).toBe(initial); expect(runId ?? input.runId).toBe(input.runId); runId = input.runId; once('readiness-audit'); }
       else { expect(['ga-0002', 'ga-0003', 'ga-0004']).toContain(input.attemptId); expect(input.runId).toBe(runId); expect(input.sourceCommit).toBe(finalHead); expect(input.mode, `audit ${input.attemptId}`).toBe(input.attemptId === 'ga-0004' ? 'full' : 'project-default'); expect(input.nested ?? false).toBe(input.attemptId === 'ga-0004'); once(({ 'ga-0002': 'iteration-audit', 'ga-0003': 'work-item-audit', 'ga-0004': 'final-audit' })[input.attemptId as 'ga-0002' | 'ga-0003' | 'ga-0004']); }
       const result = await auditAnswers.run(input);
       return result;

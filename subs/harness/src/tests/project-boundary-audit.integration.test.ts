@@ -238,54 +238,41 @@ describe('a full nested final audit over F4 (PB3-E05)', () => {
   });
 });
 
-describe('the readiness baseline over F4: the final gate\'s own nested full request', () => {
-  it('refuses readiness on a nested project\'s failure before the run branch exists, then passes, and the final gate\'s identical request reuses its records', { timeout: 300_000 }, async () => {
+describe('the readiness baseline over F4: provider defaults before full nested final verification', () => {
+  it('readiness uses the root default and reuses its result; final verification discovers a failing nested project', { timeout: 300_000 }, async () => {
     const fixture = await f4('fail');
     const { repository } = fixture;
     const { audit: port } = await audit();
     const captured = committedAuditConfigurationSchema.parse(await port.read(repository.root, repository.head));
     const output = await scratch('ramify-agent-f4-readiness-');
-    const readiness = async (runId: string, head: string) => runReadiness(port, {
+    const readiness = async (runId: string) => runReadiness(port, {
       runId, attempt: 1, projectRoot: repository.root, gateDirectory: join(output, runId), gateId: 'ga-0001',
       policy: defaultRunPolicy({ projectRoot: repository.root }), projectConfig: await captureProjectConfig(repository.root),
-      auditConfiguration: { config: captured }, index: null, ramify: new FakeRamifyCli(), git: gitService, head,
+      auditConfiguration: { config: captured }, index: null, ramify: new FakeRamifyCli(), git: gitService, head: repository.head,
     });
-    const branches = async () => (await repository.git('branch', '--list', 'ramify-agent-run/*')).trim();
 
-    const refused = await readiness('run-f4-refused', repository.head);
-    expect(refused.attempt.verdict).toBe('failed');
-    expect(refused.attempt.steps.find(step => step.step === 'configured-full-audit')).toMatchObject({ outcome: 'failed', gate: 'ga-0001' });
-    expect(refused.attempt.steps.find(step => step.step === 'run-branch')).toMatchObject({ outcome: 'not-verified', detail: 'not reached: configured-full-audit did not pass' });
-    expect([refused.gate?.verdict, refused.gate?.cause, refused.gate?.checkpoint]).toEqual(['failed', 'check-failed', 'readiness']);
-    expect(refused.gate?.audit).toMatchObject({ mode: 'full', nested: true, status: 'completed', executedMode: 'full', verdict: 'fail' });
-    expect((refused.gate?.provider?.result as { composition: { verdict: string } }).composition.verdict).toBe('pass');
-    expect(projectsOf(refused.gate!)).toEqual([['.', 'pass', 'ran'], ['engine', 'pass', 'ran'], ['engine/tools', 'fail', 'ran']]);
-    expect(refused.gate?.audit?.discovery?.skipped.map(skip => [skip.projectRoot, skip.reason])).toEqual([['vendor/lib', 'external']]);
-    expect(await branches()).toBe('');
-    expect(await repository.git('branch', '--show-current')).toBe('main');
-    expect(await fixture.runs()).toEqual({ root: 1, engine: 1, 'engine/tools': 1, 'vendor/lib': 0 });
-
-    const repaired = await repository.commit('repair the grandchild', { 'engine/tools/state.txt': 'pass\n' });
-    const ready = await readiness('run-f4-ready', repaired);
+    const ready = await readiness('run-f4-ready');
     expect(ready.attempt.verdict).toBe('passed');
-    expect([ready.gate?.verdict, ready.gate?.audit?.verdict, ready.gate?.audit?.nested]).toEqual(['passed', 'pass', true]);
-    // The repair is inside every enclosing project's tree, so each audits it afresh.
-    expect(projectsOf(ready.gate!)).toEqual([['.', 'pass', 'ran'], ['engine', 'pass', 'ran'], ['engine/tools', 'pass', 'ran']]);
+    expect(ready.gate?.audit).toMatchObject({ mode: 'project-default', nested: false, status: 'completed', requestedMode: 'ramify-partial', verdict: 'pass', projects: null, discovery: null });
     expect(await repository.git('branch', '--show-current')).toBe('ramify-agent-run/run-f4-ready');
-    const executions = await fixture.runs();
-    expect(executions).toEqual({ root: 2, engine: 2, 'engine/tools': 2, 'vendor/lib': 0 });
+    expect(await fixture.runs()).toEqual({ root: 1, engine: 0, 'engine/tools': 0, 'vendor/lib': 0 });
 
-    // The final gate's identical request over the same commit is answered by
-    // the readiness baseline's records: nothing executes again.
+    const reused = await readiness('run-f4-reused');
+    expect(reused.attempt.verdict).toBe('passed');
+    expect(reused.attempt.audit).toMatchObject({ reused: true, reportCommit: ready.attempt.audit?.reportCommit });
+    expect(await fixture.runs()).toEqual({ root: 1, engine: 0, 'engine/tools': 0, 'vendor/lib': 0 });
+
     const final = await configuredGate(port, repository, {
-      captured: repaired, sourceCommit: repaired, attemptId: 'ga-0002', checkpoint: 'final', mode: 'full', nested: true,
+      captured: repository.head, sourceCommit: repository.head, attemptId: 'ga-0002', checkpoint: 'final', mode: 'full', nested: true,
     });
-    expect(final.verdict).toBe('passed');
-    expect(projectsOf(final)).toEqual([['.', 'pass', 'reused'], ['engine', 'pass', 'reused'], ['engine/tools', 'pass', 'reused']]);
-    expect(await fixture.runs()).toEqual(executions);
+    expect(final.verdict).toBe('failed');
+    expect(final.audit).toMatchObject({ mode: 'full', nested: true, verdict: 'fail' });
+    expect(projectsOf(final)).toEqual([['.', 'pass', 'reused'], ['engine', 'pass', 'ran'], ['engine/tools', 'fail', 'ran']]);
+    expect(final.audit?.discovery?.skipped.map(skip => [skip.projectRoot, skip.reason])).toEqual([['vendor/lib', 'external']]);
+    expect(await fixture.runs()).toEqual({ root: 1, engine: 1, 'engine/tools': 1, 'vendor/lib': 0 });
     await evidence('iteration10-f4-readiness', {
-      schema: 'plan21.iteration10.f4-readiness/1', commits: { failing: repository.head, repaired },
-      refused: { attempt: refused.attempt, gate: digest(refused.gate!) }, ready: { attempt: ready.attempt, gate: digest(ready.gate!) },
+      schema: 'plan21.iteration10.f4-readiness/1', sourceCommit: repository.head,
+      ready: { attempt: ready.attempt, gate: digest(ready.gate!) }, reused: { attempt: reused.attempt, gate: digest(reused.gate!) },
       final: digest(final), executions: await fixture.runs(),
     });
   });

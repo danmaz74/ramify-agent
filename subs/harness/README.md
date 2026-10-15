@@ -212,7 +212,8 @@ hiding or measured complexity justifies it.
     `ramify-audit.json`, about the candidate commit: the ordinary gates in
     the provider's default mode, which audits a Ramify project
     `ramify-partial` from its baseline and any other project in full, and
-    `final` in full and nested, the same request as readiness's baseline. The definition names every check, the
+    `final` in full and nested. Readiness uses the provider's default without
+    requesting nested projects. The definition names every check, the
     project's tests and scenarios among them; the harness adds none, selects
     no test and runs no scenario. A standalone session's in-place diagnosis
     runs the project's setup commands, which `ramify-agent.json` declares in
@@ -377,7 +378,8 @@ hiding or measured complexity justifies it.
     does one that installs dependencies where an audited gate links the
     project's `node_modules`, before any command runs, since ramify-audit
     would refuse it at every audited gate. `configured-full-audit` asks the
-    provider for a full audit of HEAD, whose gate attempt is the baseline.
+    provider for its default audit of HEAD without requesting nested projects;
+    its gate attempt is the baseline. The step keeps its historical identifier.
   - `gates.ts`: a checkpoint of a run and the candidate commit audited before acceptance,
     with the message the harness writes mechanically from records.
   - `inputs.ts`: the evidence seam. A run's lifecycle, its log and its
@@ -1210,8 +1212,8 @@ that has ended accepts none.
   repository, the compiler configuration, the project's configuration, the
   Ramify command line, the committed audit definition, its declared package
   directories installed and its declared preparation, then one configured
-  full nested audit of HEAD through the installed provider, the final
-  gate's own request and answered by an applicable earlier record where the
+  default audit of HEAD through the installed provider, without requesting
+  nested projects and answered by an applicable earlier record where the
   provider finds one, and last the run branch (`run/readiness.ts`). `start-run`
   reads the definition, `ramify-audit.json` at HEAD, before it writes
   anything of the run or starts any agent, and refuses a project whose
@@ -1221,10 +1223,10 @@ that has ended accepts none.
   `declared-preparation` runs the committed workspace setup commands in the
   run working tree, and fails where `ramify-agent.json`'s `setup` differs
   from them. `configured-full-audit` passes on a completed audit whose
-  invocation verdict is `pass`: a nested project's failure fails it and an
-  indeterminate answer leaves it not verified, either before the run branch
-  exists. Its gate attempt is the baseline, which records every project and
-  the discovery outcome, and its audit outcome beside it. The
+  composed verdict is `pass`; an indeterminate answer leaves it not verified
+  before the run branch exists. The historical step name does not set the
+  audit mode. Its gate attempt records the provider's baseline answer, with
+  its audit outcome beside it. The
   last step, `run-branch`, creates and checks out the run branch,
   `ramify-agent-run/<run-id>`, once the repository is clean and the baseline
   passed; a branch git refuses, such as one beneath an existing branch's
@@ -1492,7 +1494,7 @@ The run's own tests are beside them.
   `helpers/integration-scenario.ts`.
 - `acceptance-trial.test.ts` is the scripted acceptance trial: one run on
   the fixture through every stage, the review stop and its approval, the
-  configured full audit at readiness, materialization, a binding over a
+  configured default audit at readiness, materialization, a binding over a
   contract's fake that stays `bound` through a failing gate and a yield, a
   rebinding without fakes and the architect's done report, an exhausted
   iteration that leaves its binding, an integration work item and the final

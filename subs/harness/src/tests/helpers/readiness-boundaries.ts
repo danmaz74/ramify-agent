@@ -199,15 +199,15 @@ export function readinessBoundaries(root: string) {
   };
 }
 
-/** Required executions exhaust; declared configuration reads are repeatable. */
-export function strictReadinessAudit(port: ConfiguredAuditPort, root: string, config: CommittedAuditConfiguration, gates: readonly string[]) {
+/** Required executions exhaust; configuration reads repeat. A declared final gate alone asks full and nested. */
+export function strictReadinessAudit(port: ConfiguredAuditPort, root: string, config: CommittedAuditConfiguration, gates: readonly string[], finalGate?: string) {
   const failures: string[] = []; let count = 0, reads = 0; let runId: string | undefined;
   function retain<T>(work: () => Promise<T>): Promise<T> { return work().catch(error => { failures.push(String(error)); throw error; }); }
   return { adapter: {
     read: (project: string, head: string, signal?: AbortSignal) => retain(async () => { expect(project).toBe(root); expect(head).toBe(readinessHead); reads++; return port.read(project, head, signal); }),
     run: (input: Parameters<ConfiguredAuditPort['run']>[0]) => retain(async () => {
       expect(input.projectRoot).toBe(root); expect(input.sourceCommit).toBe(readinessHead); expect(input.configuration).toEqual(config);
-      expect(input.mode).toBe('full'); expect(input.nested).toBe(true); expect(count, 'exhausted audit response').toBeLessThan(gates.length); expect(input.attemptId).toBe(gates[count]);
+      expect(input.mode).toBe(input.attemptId === finalGate ? 'full' : 'project-default'); expect(input.nested).toBe(input.attemptId === finalGate); expect(count, 'exhausted audit response').toBeLessThan(gates.length); expect(input.attemptId).toBe(gates[count]);
       expect(input.runId).toMatch(/^(readiness-fixture|[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6})$/u); expect(input.runId).toBe(runId ?? input.runId); runId = input.runId;
       count++; return port.run(input);
     }),

@@ -24,13 +24,13 @@ const config: CommittedAuditConfiguration = {
     packageDirectories: [''], setupCommands: [] },
 };
 const port: ConfiguredAuditPort = { async read() { return config; }, async run(input) {
-  return { status: 'completed', requestId: 'control', mode: 'full', nested: true, projects: null, discovery: null,
+  return { status: 'completed', requestId: 'control', mode: 'project-default', nested: false, projects: null, discovery: null,
     requestedSourceCommit: readinessHead, auditedSourceCommit: readinessHead, reused: false, reuse: null,
     requestedMode: 'full', executedMode: 'full', fallbackReason: null, verdict: 'pass', reportCommit: 'report', runRef: 'ref', treeRef: 'tree',
     definition: { path: config.path, blob: config.blob }, detail: 'synthetic control', provider: {}, checks: {} };
 } };
 const input: ConfiguredAuditInput = { projectRoot: root, sourceCommit: readinessHead, configuration: config,
-  runId: 'readiness-fixture', attemptId: 'ga-0001', mode: 'full', nested: true };
+  runId: 'readiness-fixture', attemptId: 'ga-0001', mode: 'project-default', nested: false };
 
 test('readiness scripts retain an unknown Git call after its error is caught', async () => {
   const answer = readinessBoundaries(root);
@@ -55,10 +55,10 @@ test('readiness scripts fail for an unused required branch response', () => {
   expect(() => answer.assertComplete()).toThrow('required branch answers');
 });
 
-test('readiness audit refuses a non-nested request and retains the caught mismatch', async () => {
+test('readiness audit refuses a nested override and retains the caught mismatch', async () => {
   const answer = strictReadinessAudit(port, root, config, ['ga-0001']);
   await answer.adapter.read(root, readinessHead);
-  await expect(answer.adapter.run({ ...input, nested: false })).rejects.toThrow();
+  await expect(answer.adapter.run({ ...input, nested: true })).rejects.toThrow();
   expect(() => answer.assertComplete()).toThrow('caught audit failures');
 });
 

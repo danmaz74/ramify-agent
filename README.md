@@ -441,7 +441,7 @@ list. An interrupt stops the invocation; a second one exits at once.
 policy a run applies. `iteration` and `work-item` commit the candidate on the
 run branch and request the committed audit in its default mode; `final`
 commits and requests the full nested audit; `readiness` audits the baseline
-in full nested mode without a commit. The subject is the accepted submission
+in default mode without a commit or a nested-project request. The subject is the accepted submission
 `--invocation` names, or the only one open; an ambiguous subject or a missing
 prerequisite record is refused. Before an iteration audit, the accepted
 proposal's scenario bindings are recorded as a run records them. The attempt

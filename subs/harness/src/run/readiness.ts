@@ -27,10 +27,10 @@ import {
  * repository, that the compiler and project configuration are available,
  * and that Ramify answers. It then prepares the
  * committed audit workspace declarations in the run working tree and asks
- * the installed provider for one configured full nested audit of HEAD: the
- * same request as the final gate, answered by an applicable earlier record
- * where the provider finds one. A nested project's failure, or discovery it
- * cannot decide, fails the baseline before the run branch exists.
+ * the installed provider for the default audit of HEAD, without requesting
+ * nested projects. The provider determines selection, reuse and any need
+ * for full execution. A failing or indeterminate answer prevents readiness
+ * before the run branch exists.
  *
  * Missing dependencies or a nonexistent command are readiness failures, not
  * code-repair assignments. A failure that a bounded preparation can repair
@@ -157,7 +157,7 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
       waiting: request.waiting,
     });
   } catch (error) {
-    audit = { status: 'failed', requestId: `${request.runId}:${request.gateId}`, mode: 'full', nested: checkpointPolicies.readiness.nested, projects: null, discovery: null,
+    audit = { status: 'failed', requestId: `${request.runId}:${request.gateId}`, mode: checkpointPolicies.readiness.audit, nested: checkpointPolicies.readiness.nested, projects: null, discovery: null,
       requestedSourceCommit: request.head, auditedSourceCommit: null, reused: false, reuse: null,
       requestedMode: null, executedMode: null, fallbackReason: null,
       verdict: null, reportCommit: null, runRef: null, treeRef: null, definition: { path: config!.path, blob: config!.blob },

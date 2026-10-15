@@ -198,9 +198,9 @@
       "boundary": "Actual output reuse, owned workspace cancellation and Git scratch lifecycle",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
-        "declared preparation and configured full readiness > the installed provider runs full after local setup, then reuses full while local setup recreates deleted output",
-        "declared preparation and configured full readiness > cancelling a native configured command settles its process and owned audit workspace before readiness returns",
-        "declared preparation and configured full readiness > a scratch-only successor keeps captured audit policy while a committed policy change refuses native readiness"
+        "declared preparation and default configured readiness > the installed provider runs full after local setup, then reuses full while local setup recreates deleted output",
+        "declared preparation and default configured readiness > cancelling a native configured command settles its process and owned audit workspace before readiness returns",
+        "declared preparation and default configured readiness > a scratch-only successor keeps captured audit policy while a committed policy change refuses native readiness"
       ]
     },
     {
@@ -328,7 +328,7 @@
       "owningCases": [
         "a full nested final audit over F4 (PB3-E05) > audits every eligible project, skips the external tree with its reason, and fails on a nested failure under a passing root",
         "a full nested final audit over F4 (PB3-E05) > indeterminate nested discovery leaves the final gate unverified, whatever the root answered",
-        "the readiness baseline over F4: the final gate's own nested full request > refuses readiness on a nested project's failure before the run branch exists, then passes, and the final gate's identical request reuses its records",
+        "the readiness baseline over F4: provider defaults before full nested final verification > readiness uses the root default and reuses its result; final verification discovers a failing nested project",
         "recovering and cancelling a nested final audit over F4 (PB3-E06) > retrieves a completed invocation's exact root and nested records by their identities, running nothing again",
         "recovering and cancelling a nested final audit over F4 (PB3-E06) > cancellation during a nested project settles its process and workspace before a replacement attempt"
       ]
