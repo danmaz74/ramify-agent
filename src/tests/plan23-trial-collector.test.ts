@@ -1,54 +1,10 @@
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createHash } from 'node:crypto';
+import { B, S, F, bytes, old, setup, agent, record, row, tree, scriptedTrialGitFake as scripted, plan, run } from './helpers/trial-qualification.js';
 import { describe, expect, it } from 'vitest';
-import { collectTrialScratchSetup, recordedTrialScratch, trialReportDestination, runTrialAttributionCommand, trialAttributionExitCode, type TrialGitCommand, type TrialScratchSetupRecord } from '../../scripts/trial-attribution.js';
+import { collectTrialScratchSetup, recordedTrialScratch, trialReportDestination, runTrialAttributionCommand, trialAttributionExitCode, type TrialGitCommand } from '../../scripts/trial-attribution.js';
 
-const B = 'b'.repeat(40); const S = 'c'.repeat(40); const F = 'f'.repeat(40);
-const bytes = (text: string) => Buffer.from(text);
-const old = bytes('dist/\n'); const setup = bytes('dist/\n**/src/tmp/\n'); const agent = bytes('dist/\n**/src/tmp/\nsecret-source.ts\n');
-const record: TrialScratchSetupRecord = { id: 'scratch-setup:2', runId: 'run-1', originalIgnoreBase64: old.toString('base64'), commit: S, appended: true };
-const delta = '@@ -1,0 +2 @@\n+**/src/tmp/\n';
-const row = (commit: string, source: number, final: number, text: string) => `${commit} ${source} ${final} 1\nfilename .gitignore\n\t${text}\n`;
-function tree(content: Uint8Array | null, objectPath = '.gitignore', mode = '100644') {
-  if (content === null) return Buffer.alloc(0);
-  const sha = createHash('sha1').update(Buffer.from(`blob ${content.length}\0`)).update(content).digest('hex');
-  return bytes(`${mode} blob ${sha}\t${objectPath}\0`);
-}
-function scripted(answers: readonly (readonly [readonly string[], Uint8Array])[]) {
-  const pending = [...answers]; const failures: string[] = [];
-  const command: TrialGitCommand = async (project, args) => {
-    const answer = pending.shift();
-    if (project !== '/fixture' || !answer || JSON.stringify(args) !== JSON.stringify(answer[0])) { failures.push(`Unexpected command ${JSON.stringify(args)}; expected ${JSON.stringify(answer?.[0])}`); throw new Error(failures.at(-1)); }
-    return answer[1];
-  };
-  return { command, verify() { expect(failures).toEqual([]); expect(pending).toEqual([]); } };
-}
-function plan(options: { original?: Uint8Array | null; after?: Uint8Array; final?: Uint8Array; current?: Uint8Array | null; patch?: string; origins?: string; setupPatch?: string; prefix?: string; finalMode?: string } = {}) {
-  const original = options.original === undefined ? old : options.original;
-  const after = options.after ?? setup; const final = options.final ?? after; const prefix = options.prefix ?? '';
-  const objectPath = `${prefix}.gitignore`;
-  const answers: Array<readonly [readonly string[], Uint8Array]> = [
-    [['rev-parse', '--show-prefix'], bytes(`${prefix}\n`)], [['rev-list', '--first-parent', '--reverse', F], bytes(`${B}\n${S}\n${F}\n`)],
-  ];
-  for (const [revision, content] of [[B, original], [S, after], [B, original], [F, final]] as const) {
-    answers.push([['ls-tree', '-rz', '--full-tree', revision], tree(content, objectPath, revision === F ? options.finalMode ?? '100644' : '100644')]);
-    if (content !== null) answers.push([['cat-file', 'blob', `${revision}:${objectPath}`], content]);
-  }
-  const diff = (from: string, to: string) => ['diff', '--no-ext-diff', '--no-textconv', '--unified=0', '--no-renames', from, to, '--', '.gitignore'];
-  answers.push([diff(B, S), bytes(options.setupPatch ?? delta)], [diff(B, F), bytes(options.patch ?? delta)]);
-  const patch = options.patch ?? delta;
-  if (patch !== '') {
-    const extra = patch.includes('+2,2') ? ['-L', '3,3'] : [];
-    answers.push([['blame', '--line-porcelain', '-L', '2,2', ...extra, F, '--', '.gitignore'], bytes(options.origins ?? row(S, 2, 2, '**/src/tmp/'))]);
-  }
-  const actualRecord = { ...record, originalIgnoreBase64: original === null ? null : Buffer.from(original).toString('base64') };
-  return { answers, input: { project: '/fixture', runId: 'run-1', base: B, final: F, record: actualRecord, currentIgnoreBytes: options.current === undefined ? final : options.current, currentIgnoreMode: '100644' as const } };
-}
-async function run(data = plan()) {
-  const script = scripted(data.answers); const result = await collectTrialScratchSetup(data.input, script.command); script.verify(); return result;
-}
 
 describe('Plan23 root trial collector scripted command boundary', () => {
   it('authenticates raw before/containing/final blobs and excludes only the exact established scratch append', async () => {

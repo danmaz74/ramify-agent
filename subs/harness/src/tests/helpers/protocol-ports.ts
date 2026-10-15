@@ -1,9 +1,9 @@
 import { finalCandidate } from './final-candidate.js';
 import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { expect } from 'vitest';
+import assert from 'node:assert/strict';
 import { scenariosCommit, scriptedGit } from './scripted-git.js';
-import { fixtureScratchGit } from './mock-git.js';
+import { fixtureScratchGit } from './scratch-git.js';
 import { commandResult } from './command-result.js';
 import { scriptedConfiguredAudit } from './runs.js';
 import { protocolScript, notesDirectory, draftsDirectory, outsidePath } from './protocol.js';
@@ -42,13 +42,13 @@ export function protocolPorts(root: string) {
 
     commandExecution: async (request: CommandRequest) => {
       if (request.argv[2]!.startsWith('printf ')) {
-        expect(request.cwd).toBe(join(root, notesDirectory, 'src'));
-        expect(request.argv).toEqual(['bash', '-c', `printf 'export const outside = true;\\n' > '${join(root, outsidePath)}'`]);
+        assert.equal(request.cwd, join(root, notesDirectory, 'src'));
+        assert.deepEqual(request.argv, ['bash', '-c', `printf 'export const outside = true;\\n' > '${join(root, outsidePath)}'`]);
         await writeFile(join(root, outsidePath), 'export const outside = true;\n');
         outsidePresent = true;
       } else {
-        expect(request.cwd).toBe(join(root, 'subs/workspace/subs/reviews/src'));
-        expect(request.argv).toEqual(['bash', '-c', `rm '${join(root, outsidePath)}'`]);
+        assert.equal(request.cwd, join(root, 'subs/workspace/subs/reviews/src'));
+        assert.deepEqual(request.argv, ['bash', '-c', `rm '${join(root, outsidePath)}'`]);
         await rm(join(root, outsidePath));
         outsidePresent = false;
       }

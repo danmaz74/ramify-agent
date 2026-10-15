@@ -24,6 +24,8 @@ import { workLayout } from '../work/records.js';
 import { readBody, readTranscript } from '../transcripts/writer.js';
 import { ContentStore } from '../transcripts/store.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
+import * as collectionProvider from '../../subs/kpi/src/capture.js';
+import type { DeliveredScopeInputs } from '../../subs/kpi/src/capture.js';
 import { constructStep } from '../steps/construct.js';
 import { renderStep } from '../steps/render.js';
 
@@ -174,6 +176,8 @@ const json = async (path: string): Promise<unknown> => JSON.parse(await readFile
 test('a standalone resource return retains partial candidate, scratch and the assignment without a submission', async () => {
   const { root, scratch } = await project();
   const inputs = await authoredInputs(root, scratch);
+  const delivered = vi.spyOn(collectionProvider, 'deliveredScopeInputs');
+  cleanups.push(async () => { delivered.mockRestore(); });
   const temporary = join(root, notesDirectory, 'src/tmp/recovery.txt');
   await mkdir(join(root, notesDirectory, 'src/tmp'), { recursive: true });
   await writeFile(temporary, 'retain the pending repair');
@@ -186,6 +190,17 @@ test('a standalone resource return retains partial candidate, scratch and the as
   const summary = finished(result);
   expect(summary).toMatchObject({ ended: 'resource-pending', pending: true, resource: 'context', settled: true, submission: null });
   expect(result.exitStatus).toBe(1);
+  const collected = invocationSchema.parse(await json(summary.records.invocation));
+  // Manual steps deliberately have no frozen run baseline; preserve the child's two-component qualification.
+  expect(collected.scope.measurement).toBeNull();
+  expect(collected.scope.size?.components.map(component => component.component)).toEqual(['owned-source', 'support-documents']);
+  expect(collected.scope.size).toMatchObject({ bytes: null, coverage: 'partial' });
+  expect(delivered).toHaveBeenCalled();
+  const facts: DeliveredScopeInputs = delivered.mock.results[0]!.value;
+  expect(collected.scope.size?.components.find(component => component.component === 'support-documents')).toEqual({
+    component: 'support-documents', detail: 'Actual delivered/inherited inputs', state: 'measured',
+    bytes: facts.supplementary.reduce((sum, entry) => sum + entry.bytes, 0) + (facts.scope.brief ?? 0),
+  });
   expect(await readFile(join(root, notesSource), 'utf8')).toContain('450');
   expect(await readFile(temporary, 'utf8')).toBe('retain the pending repair');
   expect(parseStepInputs(await readFile(summary.records.inputs, 'utf8'))).toMatchObject({ role: 'engineer', assignment: expect.objectContaining({ goal: 'Raise the note limit to 500.' }) });

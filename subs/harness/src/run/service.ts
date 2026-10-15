@@ -139,11 +139,12 @@ import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, c
 import { constructDesignOrientationStep, constructReviewStep } from '../steps/reviewer.js';
 import { inputsHash, loadPromptPackages, renderContractPrompt, renderEngineerPrompt, renderFailureAnalystPrompt, renderGlobalForkPrompt, renderInitialArchitectPrompt, renderLocalArchitectPrompt, renderReconciliationPrompt, sha256, renderNonfunctionalCoordinatorPrompt, renderNonfunctionalRepairPrompt, renderExtractionPrompt, renderCapabilityArchitectPrompt, type ExtractionTurn, type LoadedPackage } from '../prompts/packages.js';
 import {
-  baselineScope, captureSnapshot, deliveredScopeInputs, invocationScope, revisionMismatch, rootModuleOfSnapshot, scopeSize, supportDocument, readScopeMeasurement, writeScopeMeasurement,
+  baselineScope, captureSnapshot, revisionMismatch, rootModuleOfSnapshot, scopeSize,
   type DeclaredScope,
-} from '../kpi/capture.js';
-import { cachedChangeHistory } from '../kpi/delivered.js';
-import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../kpi/lines.js';
+} from '../../subs/kpi/src/capture.js';
+import { deliveredScopeInputs, invocationScope, supportDocument, readScopeMeasurement, writeScopeMeasurement } from '../measurement/inputs.js';
+import { cachedChangeHistory } from '../../subs/kpi/src/delivered.js';
+import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../subs/kpi/src/lines.js';
 import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
 import type { ProjectLock } from '../store/lock.js';
 import { acceptAnalysis } from '../analysis/accept.js';

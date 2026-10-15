@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, test } from 'vitest';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
+import { afterEach, describe, expect, test } from 'vitest';
+
+const directories: string[] = [];
+afterEach(async () => { for (const directory of directories.splice(0)) await rm(directory, { recursive: true, force: true }); });
 import type { CandidateSource, ChangeHistory, LineCommit } from '../../../evidence/src/git.js';
 import { metricSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { runView } from '../inputs.js';
@@ -98,15 +104,15 @@ describe('the delivered change of a run view, read through a scripted history', 
   const ignore: Record<string, string> = { [B]: 'dist/\n', [S]: 'dist/\n**/src/tmp/\n', [G2]: 'dist/\n**/src/tmp/\n' };
   const row = (line: number, commit: string, sourceLine = line, sourcePath = '.gitignore'): LineCommit => ({ line, commit, boundary: false, sourceLine, sourcePath, projectPrefix: '' });
 
-  function history(): { history: { projectRoot: string; changes: ChangeHistory; candidates: CandidateSource }; calls: string[] } {
+  function history(weights = [3, 2]): { history: { projectRoot: string; changes: ChangeHistory; candidates: CandidateSource }; calls: string[] } {
     const calls: string[] = [];
     const answer = <T>(name: string, value: T | undefined): Promise<T> => { calls.push(name); return value === undefined ? Promise.reject(new Error(`unscripted ${name}`)) : Promise.resolve(value); };
     const origins: Record<string, LineCommit[]> = {
       '.gitignore': [row(2, S)],
       // Four lines the materialization added, one of which the rewording rewrote.
       [feature]: [row(3, M, 3, feature), row(4, M, 4, feature), row(5, R, 5, feature), row(6, M, 6, feature)],
-      'src/a.ts': [row(1, G1, 1, 'src/a.ts'), row(2, G1, 2, 'src/a.ts'), row(3, G1, 3, 'src/a.ts')],
-      'src/b.ts': [row(1, G2, 1, 'src/b.ts'), row(2, G2, 2, 'src/b.ts')],
+      'src/a.ts': Array.from({ length: weights[0]! }, (_, i) => row(i + 1, G1, i + 1, 'src/a.ts')),
+      'src/b.ts': Array.from({ length: weights[1]! }, (_, i) => row(i + 1, G2, i + 1, 'src/b.ts')),
     };
     // The feature file's two base lines, its pending tags, were last held by the materialization; the first gate's commit dropped them.
     const seen: Record<string, LineCommit[]> = { [feature]: [row(1, M, 1, feature), row(2, M, 2, feature)] };
@@ -115,8 +121,8 @@ describe('the delivered change of a run view, read through a scripted history', 
       changedFiles: (root, from, to) => answer('files', root === '/project' && from === B && to === G2 ? [
         { before: '.gitignore', after: '.gitignore', binary: false, added: [[2, 1]], deleted: [] },
         { before: feature, after: feature, binary: false, added: [[3, 4]], deleted: [[1, 2]] },
-        { before: null, after: 'src/a.ts', binary: false, added: [[1, 3]], deleted: [] },
-        { before: null, after: 'src/b.ts', binary: false, added: [[1, 2]], deleted: [] },
+        { before: null, after: 'src/a.ts', binary: false, added: weights[0] === 0 ? [] : [[1, weights[0]!]], deleted: [] },
+        { before: null, after: 'src/b.ts', binary: false, added: weights[1] === 0 ? [] : [[1, weights[1]!]], deleted: [] },
         { before: null, after: 'assets/logo.png', binary: true, added: [], deleted: [] },
       ] : undefined),
       lineOrigins: (_root, _from, _to, path) => answer(`origins ${path}`, origins[path]),
@@ -204,5 +210,78 @@ describe('the delivered change of a run view, read through a scripted history', 
     // The feature file's lines were blamed once, for the setup identities, and
     // never for a weight: they are the harness's by path.
     expect(scripted.calls.filter(call => call === `origins ${feature}`)).toHaveLength(1);
+  });
+
+  async function weightedRun(second: number | null = 3000, partial = false) {
+    const bucket = { production: { sourceFiles: 1, sourceBytes: 10000, resourceFiles: 0, resourceBytes: 0 }, tests: { sourceFiles: 0, sourceBytes: 0, resourceFiles: 0, resourceBytes: 0 }, documentation: { files: 0, bytes: 0 }, views: { ordinaryBytes: 0, testsBytes: 0 } };
+    const snapshot = { schema: 'ramify-agent.measurement-snapshot/1', id: size(1000).snapshot, policy: 'scope-size/2', head: B,
+      measure: { revision: 'rev/1:scripted:1', hash, document: { schema: 'ramify.measure/2', revision: 'rev/1:scripted:1', root: '/project', ownershipRule: 'nearest', views: 'measured', modules: [{ id: 'p', dir: '', parent: null, exact: bucket, subtree: bucket }], files: [] } },
+      view: null, supplementary: [{ path: '.ramify-architect', bytes: 0 }] };
+    const secondLines = invocation('inv-0002', 'engineer', second);
+    if (partial) {
+      const start = secondLines[0]!;
+      const body = invocationSchema.parse(start.records![0]!.body);
+      secondLines[0] = { ...start, records: [{ path: runLayout.invocation(body.id), body: { ...body, scope: { ...body.scope, size: { ...size(null, 'source component missing'), subtotal: 200 } } } }] };
+    }
+    const record = constructedRecord();
+    const directory = await mkdtemp(join(tmpdir(), 'weighted-query-'));
+    directories.push(directory);
+    const path = join(directory, runLayout.measurement(snapshot.id));
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify(snapshot));
+    for (const [id, source] of [['inv-0001', 'src/a.ts'], ['inv-0002', 'src/b.ts']]) {
+      const linesPath = join(directory, runLayout.lineEvents(id!));
+      await mkdir(dirname(linesPath), { recursive: true });
+      await writeFile(linesPath, JSON.stringify({ schema: 'ramify-agent.line-events/1', invocation: id,
+        paths: [{ path: source, owner: 'p', added: 100, deleted: 200, binary: false, bytes: null }],
+        unmapped: { paths: 0, added: 0, deleted: 0 }, coverage: 'complete', gaps: [] }));
+    }
+    return constructedRun([
+      { type: 'job-started', data: {}, records: [{ path: runLayout.measurement(snapshot.id), body: snapshot }] },
+      { type: 'scratch-setting-up', data: { originalIgnoreBase64: Buffer.from(ignore[B]!).toString('base64') } },
+      { type: 'scratch-setup-complete', data: { commit: S, appended: true } },
+      { type: 'scenarios-materialized', data: { commit: M, files: [feature] } },
+      ...invocation('inv-0001', 'engineer', 1000), gate('ga-0001', 'passed', G1),
+      ...secondLines, gate('ga-0002', 'passed', G2),
+    ], { ...record, baseline: { measurement: { id: snapshot.id, revision: 1, hash } }, manifest: { ...record.manifest, source: { commit: B, dirty: false } } }, directory);
+  }
+
+  test('exact weighted scope uses surviving 10/30 shares, not gross invocation edits', async () => {
+    const scripted = history([10, 30]);
+    const response = await metricsOf(runView(await weightedRun()), scripted.history);
+    expect(response.baseline).toMatchObject({ state: 'measured', bytes: 10000 });
+    expect(response.evaluation.invocations.map(row => row.lines)).toEqual([
+      expect.objectContaining({ added: 100, deleted: 200 }), expect.objectContaining({ added: 100, deleted: 200 }),
+    ]);
+    expect(find(response.metrics, 'scope-bytes-per-changed-line')).toMatchObject({ state: 'measured', value: 2500, numerator: 100000, denominator: 40, policyVersion: 'kpi/1', measurementPolicy: 'scope-size/2', coverage: { covered: 2, total: 2 } });
+    expect(find(response.metrics, 'scope-size-ratio')).toMatchObject({ state: 'measured', value: 0.25 });
+    expect(find(response.metrics, 'reduction-factor')).toMatchObject({ state: 'measured', value: 4 });
+    expect(response.scopeComparisons?.total).toMatchObject({ attributedWeight: 40, completeSizeWeight: 40, unknownSizeWeight: 0 });
+    expect(find(response.metrics, 'scope-bytes-per-changed-line').evidence).toEqual(expect.arrayContaining(['inv-0001: w_e = 10 lines, S_e = 1000 bytes', 'inv-0002: w_e = 30 lines, S_e = 3000 bytes']));
+    expect(scripted.calls.filter(call => call.startsWith('commits')).every(call => call === 'commits b..2')).toBe(true);
+    expect(scripted.calls).toEqual(expect.arrayContaining(['files', 'origins src/a.ts', 'origins src/b.ts']));
+  });
+
+  test.each([false, true])('missing writer size preserves subtotal and incomplete denominator (partial component=%s)', async partial => {
+    const scripted = history([10, 3]);
+    const response = await metricsOf(runView(await weightedRun(null, partial)), scripted.history);
+    expect(find(response.metrics, 'scope-bytes-per-changed-line')).toMatchObject({ state: 'unavailable', value: null, subtotal: partial ? 10600 : 10000, denominator: 10, coverage: { covered: 1, total: 2 } });
+    expect(response.scopeComparisons?.total).toMatchObject({ attributedWeight: 13, completeSizeWeight: 10, unknownSizeWeight: 3 });
+    expect(find(response.metrics, 'scope-bytes-per-changed-line').evidence.join('\n')).toContain('inv-0002');
+    expect(scripted.calls).toEqual(expect.arrayContaining(['origins src/a.ts', 'origins src/b.ts']));
+  });
+
+  test('known zero surviving weight is not applicable; failed history is unavailable, never zero', async () => {
+    const run = runView(await weightedRun());
+    const scripted = history([0, 0]);
+    const zero = await metricsOf(run, scripted.history);
+    expect(find(zero.metrics, 'scope-bytes-per-changed-line')).toMatchObject({ state: 'not-applicable', value: null });
+    const calls: string[] = [];
+    const failed = await metricsOf(run, { ...scripted.history, changes: { ...scripted.history.changes, commitsBetween: async () => { calls.push('failed commits'); throw new Error('history read failed'); } } });
+    expect(find(failed.metrics, 'scope-bytes-per-changed-line')).toMatchObject({ state: 'unavailable', value: null });
+    expect(find(failed.metrics, 'scope-bytes-per-changed-line').evidence.join('\n')).toContain('history read failed');
+    expect(calls.length).toBeGreaterThan(0);
+    expect(find(zero.metrics, 'session-count')).toMatchObject({ state: 'measured', value: 2 });
+    expect(find(zero.metrics, 'session-weighted-total')).toMatchObject({ state: 'measured', value: 0.4, numerator: 4000, denominator: 10000 });
   });
 });

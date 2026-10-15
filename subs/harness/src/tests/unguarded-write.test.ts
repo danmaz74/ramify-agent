@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { guardingReport } from '../kpi/guarding.js';
+import { guardingReport } from '../../subs/kpi/src/guarding.js';
 import { runLayout, type InvocationOutcome, type LineEventSummary } from '../run/records.js';
 import type { Observation } from '../run/observations.js';
 import type { IterationResult } from '../work/iterations.js';

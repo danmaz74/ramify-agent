@@ -34,6 +34,7 @@ import { repairExportFixture } from './repair-export-fixture.js';
 /** External collaborators only: the readers, HTTP answers and service are real. */
 export class FakeQueryEffects extends RamifyCli {
   readonly calls = { agent: 0, audit: 0, exporter: 0, evidence: 0 };
+  readonly acquisition = { measurement: 0, inputs: 0, command: 0 };
   readonly agent = createScriptedAgent(() => { this.calls.agent++; throw new Error('Query invoked agent'); });
   readonly audit: ConfiguredAuditPort = {
     read: async () => { this.calls.audit++; throw new Error('Query read audit'); },
@@ -45,8 +46,8 @@ export class FakeQueryEffects extends RamifyCli {
     lineOrigins: async () => { throw new Error('No recorded line origins'); },
     lineLastSeen: async () => { throw new Error('No recorded line last-seen'); },
   };
-  readonly commandExecution = async () => { this.calls.exporter++; throw new Error('Query invoked command/exporter'); };
-  override async run(): Promise<never> { this.calls.evidence++; throw new Error('Query launched evidence CLI'); }
+  readonly commandExecution = async () => { this.acquisition.command++; this.calls.exporter++; throw new Error('Query invoked command/exporter'); };
+  override async run(args: readonly string[]): Promise<never> { if (args.includes('measure')) this.acquisition.measurement++; this.calls.evidence++; throw new Error('Query launched evidence CLI'); }
   override async stopDaemon(): Promise<void> { /* No daemon was started by this fake. */ }
 }
 const plan = 'review-notes';
@@ -147,7 +148,7 @@ export async function recordedProjectionConsumers(paging = false, prepare?: (roo
   async function open() {
   const lock = await acquireProjectLock(root);
   return RunService.open({ projectRoot: root, lock, agent: effects.agent, ramify: effects,
-    inputs: { capture: async () => { throw new Error('No evidence capture'); }, index: async () => null, changes: async () => [], refresh: async () => null },
+    inputs: { capture: async () => { effects.acquisition.inputs++; throw new Error('No evidence capture'); }, index: async () => null, changes: async () => [], refresh: async () => null },
     configuredAudit: effects.audit, commandExecution: effects.commandExecution, changeHistory: effects.history,
     repairIncidentExport: { executable: '/tools/scripted-exporter', workspace: root }, warn });
   }
@@ -274,10 +275,18 @@ export async function recordedProjectionConsumers(paging = false, prepare?: (roo
     }
   }
   return { root, directory, effects, exercise, get queries() { return queries; }, get sessions() { return sessions; }, get, version, priorVersion, pagingEntries,
-    reopen: async () => {
+    reopen: async (checkRest = false) => {
       await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
       await service.close();
+      const atRest = checkRest ? await captureProjectionFiles(root) : undefined;
       ({ service, recovery } = await open());
+      if (atRest) {
+        // Compare complete project bytes at equivalent closed-service points,
+        // without suppressing lifecycle files or hiding durable changes.
+        await service.close();
+        assert.deepEqual(await captureProjectionFiles(root), atRest);
+        ({ service, recovery } = await open());
+      }
       assert.deepEqual(recovery.skipped, []);
       source = createQuerySource(service); queries = new RunQueries(source); sessions = new SessionQueries(source);
       server = createApp({ projectRoot: root, runs: service }).listen(0, '127.0.0.1');

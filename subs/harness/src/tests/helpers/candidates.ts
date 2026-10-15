@@ -1,4 +1,4 @@
-import { expect } from 'vitest';
+import assert from 'node:assert/strict';
 import type { CandidateSource, TreeEntry } from '../../../subs/evidence/src/git.js';
 import { reviewPolicyVersion, type ReviewPolicy } from '../../run/records.js';
 
@@ -35,7 +35,7 @@ export function scriptedCandidates(root: string, commits: Readonly<Record<string
   const calls: string[] = [];
   const failing = new Set<string>();
   const commitOf = (operation: keyof CandidateSource, project: string, commit: string, detail = ''): ScriptedCommit => {
-    expect(project).toBe(root);
+    assert.equal(project, root);
     calls.push(`${operation} ${commit}${detail === '' ? '' : ` ${detail}`}`);
     if (failing.has(`${operation} ${commit}`)) throw new Error(`fatal: ${operation} of ${commit} cannot be answered`);
     const scripted = commits[commit];
@@ -73,13 +73,13 @@ export function scriptedCandidates(root: string, commits: Readonly<Record<string
     async diffNameStatus(project, from, to) {
       const scripted = commitOf('diffNameStatus', project, to, from);
       const comparison = scripted.comparisons?.[from];
-      if (comparison === undefined) expect(from).toBe(scripted.base);
+      if (comparison === undefined) assert.equal(from, scripted.base);
       return [...(comparison?.changes ?? scripted.changes)];
     },
     async diffPatch(project, from, to, path) {
       const scripted = commitOf('diffPatch', project, to, path ?? '');
       const comparison = scripted.comparisons?.[from];
-      if (comparison === undefined) expect(from).toBe(scripted.base);
+      if (comparison === undefined) assert.equal(from, scripted.base);
       if (path !== undefined && comparison?.patches?.[path] !== undefined) return comparison.patches[path]!;
       const changed = (comparison?.changes ?? scripted.changes).filter(change => path === undefined || change.path === path);
       return changed.map(change => {
@@ -120,7 +120,7 @@ export function treeCandidates(root: string): ScriptedCandidates {
     calls,
     fail(operation, commit) { failing.add(`${operation} ${commit}`); },
     async commitTree(project, commit) {
-      expect(project).toBe(root);
+      assert.equal(project, root);
       calls.push(`commitTree ${commit}`);
       if (failing.has(`commitTree ${commit}`)) throw new Error(`fatal: commitTree of ${commit} cannot be answered`);
       return `tree-of-${commit}`;

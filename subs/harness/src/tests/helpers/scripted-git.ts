@@ -1,7 +1,7 @@
-import { expect } from 'vitest';
+import assert from 'node:assert/strict';
 import type { GitService } from '../../../subs/evidence/src/git.js';
 import type { CandidateTreePreview } from '../../../subs/evidence/src/candidate-tree.js';
-import { scriptedScratchGit, type ScratchGitScript } from './mock-git.js';
+import { scriptedScratchGit, type ScratchGitScript } from './scratch-git.js';
 
 export interface GitCheckpoint {
   readonly subject: string;
@@ -66,7 +66,7 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
   const failures: string[] = [];
   function check(operation: string, project: string, assertion?: () => void): void {
     calls[operation] = (calls[operation] ?? 0) + 1;
-    try { expect(project).toBe(root); assertion?.(); }
+    try { assert.equal(project, root); assertion?.(); }
     catch (error) { failures.push(String(error)); throw error; }
   }
   function unsupported(operation: string): never {
@@ -93,9 +93,9 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
     async previewCandidateTree(project) {
       const answer = script.previews?.[previewIndex];
       check('previewCandidateTree', project, () => {
-        expect(answer, 'no additional tree preview was scripted').toBeDefined();
-        expect(answer!.repositoryRoot).toBe(root);
-        expect(answer!.head).toBe(head);
+        assert.notEqual(answer, undefined, 'no additional tree preview was scripted');
+        assert.equal(answer!.repositoryRoot, root);
+        assert.equal(answer!.head, head);
       });
       previewIndex += 1;
       return answer!;
@@ -110,9 +110,9 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
     async commitAccepted(project, message) {
       const step = script.checkpoints[index];
       check('commitAccepted', project, () => {
-        expect(step, 'no additional commit call was scripted').toBeDefined();
+        assert.notEqual(step, undefined, 'no additional commit call was scripted');
         const title = message.split('\n')[0]!;
-        expect(title === step!.subject || title.startsWith(`${step!.subject}:`), `expected checkpoint ${step!.subject}, got ${title}`).toBe(true);
+        assert.equal(title === step!.subject || title.startsWith(`${step!.subject}:`), true, `expected checkpoint ${step!.subject}, got ${title}`);
       });
       index += 1;
       if (!message.includes('\nRamify-Scenarios: ') && !message.includes('\nRamify-Scratch: ')) gates += 1;
@@ -124,7 +124,7 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
     async findCommitByTrailers(project, trailers) {
       if (trailers[1]?.key === 'Ramify-Scratch') {
         check('findCommitByTrailers', project, () => {
-          expect(trailers).toEqual([
+          assert.deepEqual(trailers, [
             { key: 'Ramify-Run', value: branch?.slice('ramify-agent-run/'.length) },
             { key: 'Ramify-Scratch', value: 'setup' },
           ]);
@@ -134,30 +134,30 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
         return answer;
       }
       check('findCommitByTrailers', project, () => {
-        expect(trailers.map(trailer => trailer.key)).toEqual(['Ramify-Run', 'Ramify-Gate']);
-        expect(trailers[0]!.value).toBe(branch?.slice('ramify-agent-run/'.length));
-        expect(trailers[1]!.value).toBe(script.checkpoints[index]?.gate ?? `ga-${String(gates + 2).padStart(4, '0')}`);
+        assert.deepEqual(trailers.map(trailer => trailer.key), ['Ramify-Run', 'Ramify-Gate']);
+        assert.equal(trailers[0]!.value, branch?.slice('ramify-agent-run/'.length));
+        assert.equal(trailers[1]!.value, script.checkpoints[index]?.gate ?? `ga-${String(gates + 2).padStart(4, '0')}`);
       });
       return null; // This scenario has no recovered attempt.
     },
     async changedPaths(project, base = 'HEAD') {
-      check('changedPaths', project, () => expect(base).toBe(head));
+      check('changedPaths', project, () => assert.equal(base, head));
       return pending.map(change => change.path);
     },
     async changedEntries(project, base = 'HEAD') {
-      check('changedEntries', project, () => expect(base).toBe(head));
+      check('changedEntries', project, () => assert.equal(base, head));
       return [...pending];
     },
     async diffNameStatus(project, from, to) {
-      check('diffNameStatus', project, () => expect([from, to]).toEqual([last.from, last.to]));
+      check('diffNameStatus', project, () => assert.deepEqual([from, to], [last.from, last.to]));
       return [...last.changes];
     },
     async worktreeLineChanges(project, base = 'HEAD') {
-      check('worktreeLineChanges', project, () => expect(base).toBe(head));
+      check('worktreeLineChanges', project, () => assert.equal(base, head));
       throw new Error('Line measurements are unavailable in this lifecycle scenario');
     },
     async worktreePatch(project, base = 'HEAD') {
-      check('worktreePatch', project, () => expect(base).toBe(head));
+      check('worktreePatch', project, () => assert.equal(base, head));
       if (script.patch === undefined) throw new Error('The working tree\'s patch is unavailable in this lifecycle scenario');
       return script.patch;
     },
@@ -167,10 +167,10 @@ export function scriptedGit(root: string, script: GitScript): ScriptedGit {
     givenWrites() { pending = script.checkpoints[index]!.changes; },
     assertComplete() {
       scratch.assertComplete();
-      expect(failures).toEqual([]);
-      expect(index).toBe(script.checkpoints.length);
-      expect(previewIndex).toBe(script.previews?.length ?? 0);
-      expect(scratchLookups).toBe(script.recoveredScratch?.length ?? 0);
+      assert.deepEqual(failures, []);
+      assert.equal(index, script.checkpoints.length);
+      assert.equal(previewIndex, script.previews?.length ?? 0);
+      assert.equal(scratchLookups, script.recoveredScratch?.length ?? 0);
     },
     head: () => head,
     commits: () => made,

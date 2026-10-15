@@ -11,7 +11,7 @@ import type { TaskPacket } from '../prompts/tasks.js';
 import type { DeliveredInput } from '../prompts/delivered-manifest.js';
 import type { BriefingRevision } from '../prompts/briefings.js';
 import { effectiveBlocks } from '../prompts/blocks.js';
-import { deliveredScopeInputs } from '../kpi/capture.js';
+import { deliveredScopeInputs } from '../measurement/inputs.js';
 import { HarnessSessionOperations } from '../run/session-operations.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
