@@ -58,7 +58,7 @@ Feature: provider-backed-run-measurements
     And reverted changes contribute no surviving weight
     And uncertain overlapping contributions stay unattributed with their reasons
 
-  @ramify-sc-006 @ramify-pending
+  @ramify-sc-006
   Scenario: Degraded starts preserve the history actually used
     Given a requested continuation that actually starts fresh
     And an observed local architect fork and a segment with unknown actual start
@@ -75,7 +75,7 @@ Feature: provider-backed-run-measurements
     And the resulting captured records match the baseline
     And incompatible view and measurement revisions retain an explicit limitation
 
-  @ramify-sc-008 @ramify-pending
+  @ramify-sc-008
   Scenario: Recorded usage and search uncertainty survive composition
     Given invocation usage with separate input and cache categories and a missing charge rate
     And replayed search observations with unknown scope status and conflicting source identities
@@ -85,7 +85,7 @@ Feature: provider-backed-run-measurements
     And original searches are not counted twice
     And conflicting or unknown observations retain their coverage qualifications
 
-  @ramify-sc-009 @ramify-pending
+  @ramify-sc-009
   Scenario: Reopening and repeated reads preserve records and responses
     Given a recorded run supported by the merged implementation base
     And captured durable file contents and baseline metric and session responses
