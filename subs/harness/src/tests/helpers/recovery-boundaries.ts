@@ -88,7 +88,7 @@ export function recoveryBoundaries(root: string, entries: 'a' | 'a+b' = 'a+b', c
   }, { scenarios: false });
   const configuredAudit = retain({ ...audits,
     async read(project: string, commit: string) { expect(project).toBe(root); expect([initial, ...(completion ? [scenarios, trees.initial] : [])]).toContain(commit); return audits.read(project, commit); },
-    async run(input: Parameters<typeof audits.run>[0]) { expect(input.projectRoot).toBe(root); if (input.attemptId === 'ga-0001') { expect(input.mode).toBe('full'); expect(input.nested).toBe(true); expect(input.sourceCommit).toBe(initial); expect(auditRunId).toBeUndefined(); auditRunId = input.runId; } else { expect(completion).toBe(true); expect(input.runId).toBe(branch?.slice('ramify-agent-run/'.length)); expect(input.attemptId).toBe('ga-0002'); expect(input.mode).toBe('project-default'); expect(input.nested ?? false).toBe(false); } return audits.run(input); },
+    async run(input: Parameters<typeof audits.run>[0]) { expect(input.projectRoot).toBe(root); if (input.attemptId === 'ga-0001') { expect(input.mode).toBe('project-default'); expect(input.nested).toBe(false); expect(input.sourceCommit).toBe(initial); expect(auditRunId).toBeUndefined(); auditRunId = input.runId; } else { expect(completion).toBe(true); expect(input.runId).toBe(branch?.slice('ramify-agent-run/'.length)); expect(input.attemptId).toBe('ga-0002'); expect(input.mode).toBe('project-default'); expect(input.nested ?? false).toBe(false); } return audits.run(input); },
   });
   class RecoveryRamify extends FakeRamifyCli {
     override async run(args: readonly string[], cwd: string, signal?: AbortSignal) {

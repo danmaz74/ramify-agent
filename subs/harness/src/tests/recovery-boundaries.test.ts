@@ -59,7 +59,7 @@ test('unused required recovery answers fail fixture completion', () => {
   expect(() => answer.assertComplete()).toThrow();
 });
 
-test('a caught partial or unnested readiness audit request fails its recovery fixture', async () => {
+test('a caught full or nested readiness override fails its recovery fixture', async () => {
   for (const request of [{ mode: 'project-default' as const, nested: true }, { mode: 'full' as const, nested: false }]) {
     const answer = recoveryBoundaries('/declared/project');
     await answer.options.git.createRunBranch('/declared/project', 'job-001');

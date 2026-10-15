@@ -45,7 +45,7 @@ test('a caught exhausted branch response remains a teardown failure', async () =
   expect(() => answers.assertAnswered()).toThrow('caught Git failures');
 });
 
-test('a caught audit request that omits the nested full policy remains a teardown failure', async () => {
+test('a caught readiness audit request that forces full mode remains a teardown failure', async () => {
   const answers = nfrBoundaries(root);
   await answers.options.configuredAudit.run({ projectRoot: root, sourceCommit: 'a'.repeat(40),
     runId: id, attemptId: 'ga-0001', mode: 'full', nested: false,

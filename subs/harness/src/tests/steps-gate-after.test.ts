@@ -311,7 +311,7 @@ describe('S15: gate subjects, refusals and the in-place diagnosis', () => {
     const readiness = await gate({ checkpoint: 'readiness', git: fixtureScratchGit(gitAtReadiness.git), configuredAudit: readinessAudit });
     expect(readiness.exitStatus, readiness.lines.join('\n')).toBe(0);
     expect(readinessAudit.requests.map(request => ({ mode: request.mode, nested: request.nested ?? false, commit: request.sourceCommit })))
-      .toEqual([{ mode: 'full', nested: true, commit: 'base-1' }]);
+      .toEqual([{ mode: 'project-default', nested: false, commit: 'base-1' }]);
     expect(readiness.attempt).toMatchObject({ checkpoint: 'readiness', verdict: 'passed', commit: null, proposedBy: null });
     expect(gitAtReadiness.messages).toEqual([]);
     expect((await events(root, 'm-002')).filter(event => event.type === 'readiness-passed')).toHaveLength(1);

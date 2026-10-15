@@ -475,11 +475,11 @@ describe('the accepted boundary after an audit infrastructure retry', () => {
     const passing = passingAudit();
     let failedOnce = false;
     // The first iteration gate's request cannot be answered: the audit
-    // service is unavailable. Readiness made the one full request before it.
+    // service is unavailable. Readiness already audited the baseline.
     const configuredAudit: ConfiguredAuditPort = {
       read: passing.read,
       async run(input) {
-        if (!failedOnce && input.mode === 'project-default') {
+        if (!failedOnce && input.sourceCommit === 'revision-01' && input.mode === 'project-default') {
           failedOnce = true;
           throw new Error('the audit service was unavailable');
         }

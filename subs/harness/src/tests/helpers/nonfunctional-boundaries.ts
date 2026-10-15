@@ -213,7 +213,7 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
   const audit = retain({ ...auditAnswers,
     async read(project: string, commit: string) { expect(project).toBe(root); expect([initial, finalHead]).toContain(commit); return auditAnswers.read(project, commit); },
     async run(input: Parameters<typeof auditAnswers.run>[0]) {
-      expect(input.projectRoot).toBe(root); expect(input.mode).toBe('full'); expect(input.nested).toBe(true);
+      expect(input.projectRoot).toBe(root); expect(input.mode).toBe(input.attemptId === 'ga-0001' ? 'project-default' : 'full'); expect(input.nested).toBe(input.attemptId !== 'ga-0001');
       // Validate the committed gate checkpoint itself rather than interpreting its numeric identity.
       if (input.attemptId === 'ga-0001') { expect(input.sourceCommit).toBe(initial); expect(runId ?? input.runId).toBe(input.runId); runId = input.runId; once('readiness-audit'); }
       else { expect(input.attemptId).toBe('ga-0002'); expect(input.runId).toBe(runId); expect(input.sourceCommit).toBe(finalHead); once('final-audit'); }
