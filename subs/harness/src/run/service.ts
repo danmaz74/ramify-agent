@@ -4402,7 +4402,7 @@ export class RunService {
       inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/1',
       validate: input => validateCoordinatorAction(input, context),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-      equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined })),
+      writer: true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined })),
     });
     if (result.ended !== 'submitted' || result.value === undefined) {
       await this.fail(run, 'agent-failed', `Non-functional coordinator action ended ${result.ended}`);
@@ -4437,7 +4437,7 @@ export class RunService {
       inputSchema: coordinatorInvestigationJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-investigation/1',
       validate: input => validateCoordinatorInvestigation(input, action.nfrs),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-      equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: assessment.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: action.scope })),
+      writer: true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: assessment.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: action.scope })),
     });
     if (result.ended !== 'submitted' || result.value === undefined) {
       await this.fail(run, 'agent-failed', `Non-functional investigation ended ${result.ended}`);
@@ -4658,7 +4658,7 @@ export class RunService {
             : checked;
         },
         keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-        equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: prepared.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined })),
+        writer: true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: prepared.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined })),
       });
       if (result.ended !== 'submitted' || result.value === undefined) {
         await this.fail(run, 'agent-failed', `The non-functional coordinator ended ${result.ended} without a complete assessment`);

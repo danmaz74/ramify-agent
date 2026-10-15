@@ -140,6 +140,7 @@ for (const { boundary, ...variant } of repairCrashes) {
         const repairStarted = firstAgent.sessions.some(session => session.spec.role === 'nonfunctional-repair-engineer');
         const assessed = write === 'nonfunctional-assessed' &&
           (await runEventsOnDisk(fixture.root, 'review-notes', id)).filter(event => event.type === 'nonfunctional-assessed').length === 2;
+        if (boundary === 'writer-acquired' && !(await runEventsOnDisk(fixture.root, 'review-notes', id)).some(event => event.type === 'nonfunctional-repair-assigned')) return;
         if (boundary === 'invocation-ended' && !repairStarted) return;
         if (boundary === 'nonfunctional-assessed' && !assessed) return;
         frozen = true;

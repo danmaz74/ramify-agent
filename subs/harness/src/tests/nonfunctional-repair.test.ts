@@ -59,6 +59,7 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   let actions = 0;
   const inspectionCommand = 'git merge-base --is-ancestor prerequisite HEAD && cat plans/review-notes/.harness/jobs/*/job.json';
   const inspected: string[] = [];
+  let registeredProcesses = 0;
   const agent = createScriptedAgent(withDefaultTurns(spec => {
     const steps = (() => {
     if (spec.submission.name === intakeToolName) return submit({ goal: 'Keep an audit record of reviews.', elements: [
@@ -103,10 +104,13 @@ test.each([false, true])('one authorized repair edits two modules from the chose
     return [{ kind: 'tool', tool: 'shell', input: { command: inspectionCommand } }, ...steps];
   }));
   const { service } = await openRuns(fixture.root, { ...boundaryAnswers.options, ramify, agent,
+    groups: { alive: () => false, kill: () => { throw new Error('No scripted group remains alive'); } },
     commandExecution: async request => {
       expect(request.cwd).toBe(fixture.root);
       expect(request.argv.at(-1)).toBe(inspectionCommand);
       inspected.push(inspectionCommand);
+      expect(request.registerProcessGroup).toBeTypeOf('function');
+      await request.registerProcessGroup!(++registeredProcesses, 'scripted-process-identity');
       const stdout = 'prerequisite ancestry and captured run plan hash inspected';
       return { outcome: { kind: 'completed', exitCode: 0 }, startedAt: new Date().toISOString(), elapsedMs: 0,
         stdout, stderr: '', output: { path: request.outputFile ?? null, bytes: stdout.length, truncated: false, tail: stdout } };
@@ -145,6 +149,11 @@ test.each([false, true])('one authorized repair edits two modules from the chose
     coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName,
   ]));
   expect(inspected).toHaveLength(reviewers.length);
+  expect(events.filter(event => event.type === 'writer-process-registered')).toHaveLength(reviewers.length);
+  for (const event of events.filter(event => event.type === 'writer-process-registered')) {
+    expect(events.find(release => release.type === 'writer-released' && release.data.invocation === event.data.invocation)?.data)
+      .toMatchObject({ confirmed: true });
+  }
   for (const reviewer of reviewers) expect(reviewer.results.find(result => result.tool === 'shell'))
     .toMatchObject({ isError: false, text: expect.stringContaining('prerequisite ancestry and captured run plan hash inspected') });
   const coordinator = agent.sessions.filter(session => session.spec.submission.name === coordinatorAssessmentToolName);
