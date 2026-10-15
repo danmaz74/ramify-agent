@@ -40,5 +40,5 @@ test('CA19: accepted reviewer submissions replay before their combined review re
   () => runAcceptedHandback('review-submission-restart', cleanups), 180_000);
 test('CA19: a submitted reviewer concern replays into one exact pending attempt and CheckFinding',
   () => runAcceptedHandback('concern-submission-restart', cleanups), 180_000);
-test('CA26: failed combined gates exhaust the captured repair bound with the first cause and no handback',
+test('CA26: failed combined gates retain their causes and permit correction past the captured repair count',
   () => runAcceptedHandback('repair-exhaustion', cleanups), 180_000);

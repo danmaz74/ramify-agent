@@ -117,12 +117,23 @@ describe('run-to-Git integration', () => {
 
   test('a final candidate without any captured writer origin is refused before a real Git commit', async () => {
     const { root } = await target();
-    const opened = await openRuns(root, { git: gitService, script: [{ kind: 'submit', input: emptyAnalysis() }],
+    let reachedCorrection!: () => void;
+    const correctionStarted = new Promise<void>(resolve => { reachedCorrection = resolve; });
+    const opened = await openRuns(root, { git: gitService, script: spec => {
+      if (spec.submission.name === 'submit_final_correction') {
+        reachedCorrection(); return [{ kind: 'wait', ms: 60_000 }];
+      }
+      return spec.role === 'initial-architect' ? submit(emptyAnalysis()) : [];
+    },
       afterWrite: async write => { if (write === 'readiness-attempted') await writeFile(join(root, 'src/late.ts'), 'export const late = true;\n'); } });
     cleanups.push(() => opened.service.close());
     const receipt = await opened.service.execute(startRun('review-notes'));
+    await Promise.race([correctionStarted, opened.service.settled('review-notes', receipt.jobId).then(() => {
+      throw new Error('Run ended before the failed final verification returned to correction');
+    })]);
+    await opened.service.execute(stopRun('review-notes', receipt.jobId, opened.service.getRun('review-notes', receipt.jobId)!.version));
     await opened.service.settled('review-notes', receipt.jobId);
-    expect(onlyRun(opened.service, 'review-notes').state).toBe('failed');
+    expect(onlyRun(opened.service, 'review-notes').state).toBe('stopped');
     expect((await git(root, 'log', '--format=%H')).trim().split('\n')).toHaveLength(1);
     const events = await runEventsOnDisk(root, 'review-notes', receipt.jobId);
     const gate = events.find(event => event.type === 'gate-attempted' && event.data.checkpoint === 'final');

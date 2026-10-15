@@ -12112,8 +12112,11 @@ export class RunService {
       await this.fail(run, 'inputs-changed', 'The source tree changed after non-functional assessment', [runLayout.assessment(binding.assessment.id)]);
       return;
     }
-    const latestCorrection = run.log.all('final-correction-planned').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY;
-    const previousFinal = run.log.all('gate-attempted').filter(event => event.sequence > latestCorrection && event.data.checkpoint === 'final' && (event.sequence >= 0 || !run.restartImport || !this.latestOperationRecovery(run)?.admission?.invalidatesQualification)).at(-1);
+    const latestQualificationChange = Math.max(
+      run.log.all('final-correction-planned').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
+      run.log.all('nonfunctional-final-invalidated').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
+    );
+    const previousFinal = run.log.all('gate-attempted').filter(event => event.sequence > latestQualificationChange && event.data.checkpoint === 'final' && (event.sequence >= 0 || !run.restartImport || !this.latestOperationRecovery(run)?.admission?.invalidatesQualification)).at(-1);
     let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount(run) + 1);
     let attempt!: GateAttempt;
     if (previousFinal !== undefined) {

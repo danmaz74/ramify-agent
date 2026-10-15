@@ -63,6 +63,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   if (external !== undefined) cleanups.push(async () => external.assertComplete());
   let architect = 0;
   let reviewer = 0;
+  let reconciliationTurns = 0;
   let raisedConcern = false;
   let originalEngineer = true;
   let localTurn = 0;
@@ -162,10 +163,11 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         { kind: 'submit', input: { inspected: paths, missing: [], concerns: shouldRaise ? [concern] : [] } }];
     }
     if (spec.submission.name === 'submit_reconciliation') {
+      reconciliationTurns += 1;
       const id = latest(/### `(cf-\d+)`/gu)?.[1];
       if (id === undefined) return submit({ relations: [], dispositions: [], next: { kind: 'complete' },
         brief: 'The accepted correction closed the finding; no new concern needs attention.' });
-      const firstRound = latest(/round (\d+) of/gu)?.[1] === '1';
+      const firstRound = reconciliationTurns === 1;
       const report = latest(/- `(cfr-\d+)` by /gu)?.[1];
       if (!firstRound && report === undefined) throw new Error(`Reconciliation lacks its report: ${spec.prompt}`);
       return submit({ relations: [], dispositions: [{ checkFinding: id,
@@ -527,8 +529,11 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     await reopened.service.settled('need', receipt.jobId);
     return;
   }
-  await until(() => mode === 'drift' ? driftFeedback.length > 0 : (opened.service.events('need', receipt.jobId) ?? []).some(event =>
-    event.type === 'capability-handed-back' && handbackMaterialized || event.type === 'job-failed'), 120_000).catch(async error => {
+  await until(() => mode === 'drift' ? driftFeedback.length > 0
+    : mode === 'repair-exhaustion' ? (opened.service.events('need', receipt.jobId) ?? []).filter(event =>
+      event.type === 'gate-attempted' && event.data.verdict === 'failed').length >= 4
+    : (opened.service.events('need', receipt.jobId) ?? []).some(event =>
+      event.type === 'capability-handed-back' && handbackMaterialized || event.type === 'job-failed'), 120_000).catch(async error => {
     const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
     const gate = events.filter(event => event.type === 'gate-attempted').at(-1);
     const body = gate?.type === 'gate-attempted' ? JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId,
@@ -537,9 +542,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   });
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   if (mode === 'repair-exhaustion') {
-    const failed = events.find(event => event.type === 'job-failed');
-    expect(failed?.type === 'job-failed' ? failed.data.reason : null,
-      JSON.stringify({ gateContexts, tail: events.slice(-20).map(event => [event.type, event.data]) })).toBe('repair-exhausted');
+    expect(events.filter(event => event.type === 'job-failed'),
+      JSON.stringify({ gateContexts, tail: events.slice(-20).map(event => [event.type, event.data]) })).toEqual([]);
     const architectInvocations = new Set(events.flatMap(event => event.type === 'invocation-started' &&
       event.data.role === 'capability-architect' ? [event.data.invocation] : []));
     const failedGateIds = events.flatMap(event => event.type === 'gate-attempted' &&
@@ -551,7 +555,6 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         }));
     const combined = attempts.filter(attempt => attempt.proposedBy !== null && architectInvocations.has(attempt.proposedBy));
     expect(combined.map(attempt => attempt.repairRound)).toEqual([0, 1, 2, 3]);
-    expect(failed?.type === 'job-failed' ? failed.data.message : '').toContain(`first cause was ${combined[0]?.cause ?? 'unknown'} at gate ${combined[0]?.id}`);
     expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
     expect(events.filter(event => event.type === 'work-item-completed' && event.data.workItem === 'wi-001')).toHaveLength(0);
     const job = JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, 'job.json'), 'utf8')) as {
@@ -563,6 +566,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     expect(outcomeReports.map(event => event.type === 'obligation-reported' ? [event.data.judgment, event.data.revision] : null)).toEqual([['done', 1]]);
     expect(failedGateIds.length).toBeGreaterThanOrEqual(4);
     expect(attempts.every(attempt => attempt.cause !== null)).toBe(true);
+    await stopStable(opened.service, receipt.jobId);
     await opened.service.settled('need', receipt.jobId);
     return;
   }

@@ -13,6 +13,7 @@ import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { completionProposed, submit, write } from './helpers/iterations.js';
+import { disposition, reconcile, submission } from './helpers/check-findings-composition.js';
 import { mockGit } from './helpers/mock-git.js';
 import {
   attemptRecord, candidates, eventsOf, gate, limit, notesDirectory, plan, reviewRun, reviewTarget, store, tool,
@@ -310,6 +311,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     const run = await reviewRun(root, cleanups, {
       engineer: engineers(),
       reviewers: { 'rq-0001': clean(store), 'rq-0002': concern(limit, 'The limit counts UTF-16 units'), 'rq-0003': clean(store) },
+      reconcilers: { 'wi-001.rc01': reconcile(submission([disposition('cf-0001', { action: 'leave' })], { kind: 'unresolved' })) },
     });
     const { service, runId } = run;
     const coverage = service.reviews(plan, runId)!;

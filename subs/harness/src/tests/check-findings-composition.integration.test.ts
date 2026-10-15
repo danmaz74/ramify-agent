@@ -154,7 +154,7 @@ describe('the composed CheckFinding path over a real repository', () => {
     // claims the repair on its own tree; round 2 was based on that tree and fixed both.
     const basis = async (id: string) => JSON.parse(await readFile(runPath(root, plan, runId, reconciliationLayout.basis(id)), 'utf8')) as ReconciliationBasis;
     expect(await basis('wi-001.rc01')).toMatchObject({ source: { commit: commits[1], tree: trees[1] }, floor: 'any' });
-    expect(await basis('wi-001.rc02')).toMatchObject({ source: { commit: commits[2], tree: trees[2] }, floor: 'non-low' });
+    expect(await basis('wi-001.rc02')).toMatchObject({ source: { commit: commits[2], tree: trees[2] }, floor: 'any' });
     const closed = eventsOf(events, 'iteration-closed').find(event => event.data.commit === commits[2])!;
     expect(closed.data.checkFindings!.map(event => event.type === 'check-finding-decided' && [event.data.checkFinding, event.data.decision.decision])).toEqual([
       ['cf-0001', { action: 'claim-repair', candidate: { kind: 'tree', id: trees[2] }, change: closed.data.iteration }],

@@ -20,7 +20,7 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { contractNeeded, type Seam } from './helpers/contracts.js';
-import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
+import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { openUnchangedRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
@@ -192,6 +192,21 @@ test('a contract requested by an engineer inherits the requester\'s assignment p
   const opened = await openUnchangedRuns(fixture.root, { agent, inputs: treeInputs(), unchangedCheckpoints: [scenariosCommit('revision-diff')] });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('revision-diff'));
+  await until(() => {
+    const events = opened.service.events('revision-diff', receipt.jobId) ?? [];
+    const contractStart = events.find(event => event.type === 'invocation-started' && event.data.role === 'contract-engineer');
+    return contractStart?.type === 'invocation-started' && events.some(event => event.type === 'invocation-ended' && event.data.invocation === contractStart.data.invocation);
+  });
+  for (;;) {
+    const run = opened.service.getRun('revision-diff', receipt.jobId)!;
+    if (run.state === 'stopped') break;
+    try {
+      await opened.service.execute(stopRun('revision-diff', receipt.jobId, run.version));
+      break;
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'stale-version') throw error;
+    }
+  }
   await opened.service.settled('revision-diff', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'revision-diff', receipt.jobId);
   const requester = await assignmentPackage(fixture.root, receipt.jobId, events, 'wi-001', 1);

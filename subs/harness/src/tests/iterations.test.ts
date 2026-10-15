@@ -13,7 +13,7 @@ import {
 } from './helpers/iterations.js';
 import { gateGit, scenariosCommit, operationsOf, type GateCommit } from './helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
+import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 
 /*
  * Iteration assignments, engineers and the iteration gate, over the fixture
@@ -86,7 +86,7 @@ async function target(options: { readonly notes?: boolean } = {}) {
 }
 
 /** Opens a run over `root` with the scripted fake and the stated Git answers. */
-async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly GateCommit[]) {
+async function run(root: string, plan: Parameters<typeof byRole>[0], commits: readonly GateCommit[], stopAfterContextReturn = false) {
   // The feature files' commit comes before every boundary a scenario states.
   const before = commits.slice(0, -1).flatMap(commit => commit.commit ?? []).at(-1) ?? materialized;
   const after = commits.at(-1)?.commit ?? before;
@@ -102,6 +102,16 @@ async function run(root: string, plan: Parameters<typeof byRole>[0], commits: re
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun('review-notes'));
+  if (stopAfterContextReturn) {
+    await until(() => (opened.service.events('review-notes', receipt.jobId) ?? []).some(event =>
+      event.type === 'invocation-ended' && event.data.ended === 'context-budget-reached'));
+    for (;;) {
+      const current = opened.service.getRun('review-notes', receipt.jobId)!;
+      if (current.state === 'stopped') break;
+      try { await opened.service.execute(stopRun('review-notes', receipt.jobId, current.version)); break; }
+      catch (error) { if ((error as { code?: string }).code !== 'stale-version') throw error; }
+    }
+  }
   await opened.service.settled('review-notes', receipt.jobId);
   return { ...opened, runId: receipt.jobId, scripted };
 }
@@ -266,7 +276,7 @@ describe('K3: exact-owner and included-subtree test areas in the engineer\'s bri
 
 // Keep the historical acceptance matrix's owning title; the old adapter output is explicit.
 describe('X1a: an engineer reaches its context budget', () => {
-  test('an explicit legacy context return retains its original unfinished failure', async () => {
+  test('an explicit legacy context return keeps work unfinished until the caller stops', async () => {
     const root = await target();
     const budgetTurn = [
       { kind: 'compaction' as const, reason: 'threshold' as const, tokensBefore: 130_000, tokensAfter: 40_000 },
@@ -274,23 +284,20 @@ describe('X1a: an engineer reaches its context budget', () => {
       { kind: 'message' as const, text: 'I raised the limit and have not written its test.' },
       { kind: 'legacy-context-return' as const, tokens: 200_000, report: 'I raised the limit and have not written its test.' },
     ];
-    // No engineer accepts a return, so neither iteration nor later completion gates are admitted.
+    // The first context return is preserved; it does not exhaust the task.
     const { service, runId, scripted, agent } = await run(root, {
       'initial-architect': [submit(analysis([entry('review-note', notes)]))],
       'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
       engineer: Array(6).fill(budgetTurn),
-    }, []);
-    expect(onlyRun(service, 'review-notes')).toMatchObject({ state: 'failed', failure: {
-      reason: 'limit-exceeded', message: 'Engineer inv-0007 reached its hard context limit without an accepted return; wi-001.i01 remains unfinished',
-      evidence: ['invocations/inv-0007/outcome.json'],
-    } });
+    }, [], true);
+    expect(onlyRun(service, 'review-notes')).toMatchObject({ state: 'stopped', failure: null });
     const job = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.record), 'utf8')) as
       { policy: { limits: { budgetReturnsPerIteration: number } } };
     expect(job.policy.limits.budgetReturnsPerIteration).toBe(6);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'iteration-closed' || event.type === 'work-item-completed' || event.type === 'gate-committing')).toEqual([]);
     const engineers = agent!.sessions.filter(session => session.spec.role === 'engineer');
-    expect(engineers).toHaveLength(1);
+    expect(engineers.length).toBeGreaterThanOrEqual(1);
     expect(engineers[0]!.start).toEqual({ mode: 'fresh' });
     expect(engineers[0]!.verdicts).toEqual([]);
     expect(engineers[0]!.suppressedCompactions).toBe(1);

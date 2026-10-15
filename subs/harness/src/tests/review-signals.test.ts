@@ -11,6 +11,7 @@ import { openCandidateSnapshot, snapshotToolNames } from '../../subs/reviews/src
 import { scriptedCandidates, type ScriptedCommit } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { completionProposed, submit, write } from './helpers/iterations.js';
+import { disposition, reconcile, submission } from './helpers/check-findings-composition.js';
 import { candidates, eventsOf, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
 import { onlyRun } from './helpers/runs.js';
 
@@ -168,6 +169,9 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
         ],
         'rq-0003': clean(store),
       },
+      reconcilers: { 'wi-001.rc01': reconcile(submission(
+        [1, 2, 3, 4, 5].map(number => disposition(`cf-000${number}`, { action: 'leave' })), { kind: 'unresolved' },
+      )) },
     });
     const { service, runId, events, agent } = run;
     expect(onlyRun(service, plan).state).toBe('completed');

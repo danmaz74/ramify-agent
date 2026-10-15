@@ -11,7 +11,7 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import {
   addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, read, shell, submit, treeInputs,
 } from './helpers/iterations.js';
-import { git, initRepository, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
+import { git, initRepository, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun } from './helpers/runs.js';
 import { gitService } from '../../subs/evidence/src/git.js';
 
 /*
@@ -59,12 +59,15 @@ async function observationsOf(root: string, runId: string, invocation: string): 
 describe('X6: an unguarded shell mutation and an outside read make the MVP\'s limits visible', () => {
   test('the shell write reaches disk and is recorded, while candidate gates refuse to commit it', async () => {
     const root = await target();
+    let reachedCorrection!: () => void;
+    const correctionStarted = new Promise<void>(resolve => { reachedCorrection = resolve; });
     const { service } = await openRuns(root, {
       git: gitService,
       inputs: treeInputs(),
       script: byRole({
         'initial-architect': [submit(analysis([entry('review-note', notes)]))],
-        'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
+        'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion()),
+          [{ kind: 'await', until: async () => { reachedCorrection(); } }, { kind: 'wait', ms: 60_000 }]],
         engineer: [submit(
           completionProposed('Raised the note limit where the test asks for it.'),
           // A read into another module: permitted, recorded once.
@@ -79,9 +82,13 @@ describe('X6: an unguarded shell mutation and an outside read make the MVP\'s li
     });
     cleanups.push(() => service.close());
     const receipt = await service.execute(startRun('review-notes'));
+    await Promise.race([correctionStarted, service.settled('review-notes', receipt.jobId).then(() => {
+      throw new Error('Run ended before failed verification returned to its architect');
+    })]);
+    await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version));
     await service.settled('review-notes', receipt.jobId);
     const runId = receipt.jobId;
-    expect(onlyRun(service, 'review-notes').state).toBe('failed');
+    expect(onlyRun(service, 'review-notes').state).toBe('stopped');
 
     // The write happened. The guard did not see it and did not stop it.
     expect((await stat(join(root, outsidePath))).isFile()).toBe(true);
