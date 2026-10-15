@@ -135,6 +135,8 @@ with prescribed iterations. The shared Claude skill is linked from
 
 Never use breakpoints unless the user explicitly asks for them. Equip Pi with the tools, context and evidence its task needs. Do not withhold ordinary inspection access or turn resulting evidence gaps into requests for user approval.
 
+Correctly fixed issues are accepted. Do not notify the user about solved issues or request separate approval for corrected historical incidents. Present only unresolved findings that require the user's judgment, one at a time; handle ordinary repairs autonomously within the authorized scope.
+
 Use [ramify-agent-dogfooding](.claude/skills/ramify-agent-dogfooding/SKILL.md)
 when a Claude Code or Codex agent applies a real plan with the harness and
 improves it as problems surface. The shared skill lives in `.claude/skills/`
