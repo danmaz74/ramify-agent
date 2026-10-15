@@ -23,7 +23,7 @@ import type { ConfiguredAuditPort } from '../../../subs/audit/src/check-executio
 import type { CapabilityWorkflow } from '../../capability/workflow.js';
 import { acquireProjectLock, lockPath } from '../../store/lock.js';
 import { FakeRamifyCli } from './fake-ramify.js';
-import { fixtureScratchGit } from './mock-git.js';
+import { fixtureScratchGit } from './scratch-git.js';
 import { installScriptedCucumber } from './project-config.js';
 import {
   mappedAudit, passingAudit, sequentialAudit, type DirectCheckScript, type DirectCheckStep,

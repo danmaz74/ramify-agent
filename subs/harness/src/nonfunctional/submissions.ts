@@ -94,7 +94,6 @@ export function validateCoordinatorAction(input: unknown, context: ActionContext
   const undetermined = new Set(context.results.filter(item => item.result === 'undetermined').map(item => item.nfr));
   const covered = new Set(context.investigatedNfrs);
   if (value.kind === 'investigate') {
-    errors.push(...nonfunctionalScopeErrors(value.scope));
     if (context.decision.action !== 'investigate' && context.decision.action !== 'repair-or-close') {
       errors.push({ path: 'kind', message: `Investigation is not permitted while the next step is ${context.decision.action}` });
     }
@@ -172,8 +171,7 @@ export type NonfunctionalRepairSubmission = z.infer<typeof nonfunctionalRepairSu
 export const nonfunctionalRepairJsonSchema = z.toJSONSchema(nonfunctionalRepairSubmissionSchema);
 export const nonfunctionalRepairToolName = 'submit_nonfunctional_repair';
 
-/** Source-only candidate tools; VCS, run records, generated views and symlinks
- * cannot become assessment evidence merely by naming them in a scope. */
+/** Optional inspection of pinned source. Ordinary tools inspect history and run evidence. */
 export function boundedNonfunctionalTools(input: {
   readonly source: CandidateSource; readonly projectRoot: string; readonly candidate: string;
   readonly base: string; readonly scope?: readonly string[] | undefined;
@@ -199,20 +197,12 @@ export function boundedNonfunctionalTools(input: {
   })();
   const declarations = snapshotTools({ commit: input.candidate, base: input.base, tree: input.candidate, entries: new Map(), directories: new Set(['']), changes: [] }, input.source, input.projectRoot, input.comparisons);
   return declarations.definitions.map(definition => ({ ...definition,
-    description: `${definition.description} Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.`,
+    description: `${definition.description} This tool reads the pinned candidate source. Use ordinary file tools and shell for Git history, run records and other evidence.`,
     execute: async (value, signal) => (await tools()).definitions.find(tool => tool.name === definition.name)!.execute(value, signal),
   }));
 }
 
-/** Literal project-relative read scope, without dynamic globs or traversal. */
-export function nonfunctionalScopeErrors(scope: readonly string[]): SubmissionError[] {
-  return scope.flatMap((path, index) => path === '.' || path !== '' && !posix.isAbsolute(path) && !path.split('/').some(part => part === '..' || ['.git', 'node_modules', '.ramify', '.ramify-architect'].includes(part))
-    && !/^plans\/(?:[^/]+\/)?\.harness(?:\/|$)/u.test(path) && !/[*?\[\]{}\\]/u.test(path)
-    ? [] : [{ path: `scope.${index}`, message: 'Scope must be a literal project source path excluding VCS and run records' }]);
-}
-
-
-/** One literal source policy for both delivered changed paths and actual reads/searches. */
+/** Select pinned source starting points; this does not restrict ordinary evidence tools. */
 export function nonfunctionalSourceAllows(path: string, scopes: readonly string[]): boolean {
   return !path.split('/').some(part => ['.git', 'node_modules', '.ramify', '.ramify-architect'].includes(part))
     && !/^plans\/(?:[^/]+\/)?\.harness(?:\/|$)/u.test(path)

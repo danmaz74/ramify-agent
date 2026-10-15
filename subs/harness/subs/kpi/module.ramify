@@ -1,0 +1,23 @@
+ramify 1
+module kpi
+
+// Per-invocation measurement; harness retains collection timing and durable writes.
+expose-src LineChange, LineSnapshot, LineEventRequest, takeLineSnapshot, lineEvents from "lines.ts" to parent
+
+// Scope accounting and factual delivered-support inputs used by collection/query consumers.
+expose-src DeclaredScope, baselineScope, scopeSize, revisionMismatch, rootModuleOfSnapshot, captureSnapshot, SnapshotRequest, deliveredScopeInputs, DeliveredSupportEntry, DeliveredSupportSource, DeliveredScopeInputs from "capture.ts" to parent
+
+// Invocation qualification receives facts; acquisition and timing stay with harness.
+expose-src InvocationScopeDeclaration, invocationReadSize, invocationScopeSize, invocationScopeFailure from "capture.ts" to parent
+
+// Pure provider behavior and all owner-local signature companions.
+expose-src verifySetupLineIdentities, SetupLineIdentityInput, RecordedSetupDelta, SetupCandidatePartition, SetupLineMappingFacts, SetupSourceLine, SetupAddedLineFact, SetupDeletedLineFact from "setup-attribution.ts" to parent
+expose-src HarnessLineIdentities, deliveredChange, DeliveredChangeRequest, DeliveredChange, cachedChangeHistory from "delivered.ts" to parent
+
+// Recorded-fact calculation entry points for harness composition and projections.
+expose-src kpiMetrics, comparableScopeMetrics, kpiPolicyVersion, measurementPolicyVersion, InvocationFacts, MetricInputs, ScopeComparison from "metrics.ts" to parent
+expose-src lineageMetrics, lineagePolicyVersion, LineageInputs, SegmentFacts, SegmentUsage, StartKind from "lineage.ts" to parent
+expose-src explorationDetails, ExplorationObservation, ExplorationMetrics, SearchCount, SearchCounts from "exploration.ts" to parent
+expose-src invocationTiming, InvocationTiming, estimateRecordedCharge, ChargeInput, RecordedCharge from "efficiency.ts" to parent
+expose-src guardingReport, GuardingReport, GuardVerdictCounts from "guarding.ts" to parent
+// Session aggregation remains private; production projections use recorded facts.

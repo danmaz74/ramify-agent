@@ -28,7 +28,7 @@ import { taskSupportSections } from '../work/task-support.js';
 import { prepareAssignedCucumber, focusedScenarioFacts } from '../work/session.js';
 import { createShellTool } from '../tools/shell.js';
 import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from '../capability/authorization.js';
-import { boundedNonfunctionalTools, nonfunctionalScopeErrors } from '../nonfunctional/submissions.js';
+import { boundedNonfunctionalTools } from '../nonfunctional/submissions.js';
 import { coordinatorAssessmentPrompt } from '../nonfunctional/prompts.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { commandResult } from './helpers/command-result.js';
@@ -226,13 +226,13 @@ test('one capability artifact authorization policy excludes configuration while 
   expect(capabilityAuthorizationErrors([{ path: 'package.json' }, { path: 'vitest.config.ts' }], supported).map(error => error.path)).toEqual(['authorizations.0.path', 'authorizations.1.path']);
 });
 
-test('NFR candidate tools enforce scoped bytes, reject run/VCS/symlink reads, and omit irrelevant temporal language', async () => {
+test('optional NFR snapshot tools keep pinned source semantics and point to ordinary evidence tools', async () => {
   const path = await root(); const tree = 'a'.repeat(40); const source = scriptedCandidates(path, { [tree]: { tree, base: 'base', changes: [{ status: 'M', path: 'src/a.ts' }], files: { 'src/a.ts': 'candidate bytes', 'other/b.ts': 'out of scope', 'plans/.harness/job.json': 'run record', '.git/config': 'metadata', 'src/escape': { symlink: '/outside' } } } });
   const grep = vi.spyOn(source, 'grepTree');
   const tools = boundedNonfunctionalTools({ source, projectRoot: path, candidate: tree, base: 'base', scope: ['src'] }); const read = tools.find(tool => tool.name === 'snapshot_read')!;
   expect(await read.execute({ path: 'src/a.ts' }, new AbortController().signal)).toMatchObject({ text: expect.stringContaining('candidate bytes') });
   for (const denied of ['other/b.ts', 'plans/.harness/job.json', '.git/config', 'src/escape', '../outside']) expect(await read.execute({ path: denied }, new AbortController().signal)).toMatchObject({ isError: true });
-  expect(nonfunctionalScopeErrors(['.git', 'plans/.harness', '../outside', 'src/**'])).toHaveLength(4);
+  expect(read.description).toContain('Use ordinary file tools and shell for Git history, run records and other evidence.');
   expect(coordinatorAssessmentPrompt('Exact scoped NFR package.', { tree, head: 'base', preparedAt: '2026-10-08T00:00:00Z' }, 1, 'initial')).not.toContain('temporal');
   const search = tools.find(tool => tool.name === 'snapshot_search')!;
   expect(await search.execute({ pattern: 'candidate|scope|record|metadata' }, new AbortController().signal)).toMatchObject({ text: expect.stringContaining('src/a.ts') });
@@ -265,7 +265,7 @@ test('actual RunService delivers accepted classifications, rejects a bad catalog
     if (spec.role === 'engineer') return submit(completionProposed('Declared implementation complete.', { bindings: [{ id: 'sc-001' }] }));
     if (spec.submission.name === coordinatorAssessmentToolName) {
       expect(spec.prompt).toContain(requirement); expect(spec.prompt).not.toContain(advice);
-      expect(spec.prompt).toContain('\"changedPaths\":[]'); expect(spec.prompt).toContain('\"readScope\":[\".\"]');
+      expect(spec.prompt).toContain('\"changedPaths\":[]'); expect(spec.prompt).toContain('\"snapshotScope\":[\".\"]');
       return submit({ kind: 'assessment', results: [{ nfr: 'nfr-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'], evidence: ['Prepared source inspected.'], uncertainty: '' }] });
     }
     return [];

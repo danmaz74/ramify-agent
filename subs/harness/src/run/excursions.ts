@@ -2,7 +2,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { isContained } from '../guard/resolve-contained-path.js';
 import type { GuardedScope } from '../guard/write-guard.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
-import { ownerOf } from '../kpi/lines.js';
+import { ownerOf } from '../measurement/owners.js';
 
 /*
  * Read excursions.

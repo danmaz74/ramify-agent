@@ -4,8 +4,8 @@ import { promisify } from 'node:util';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { verifySetupLineIdentities, type SetupAddedLineFact, type SetupDeletedLineFact, type SetupSourceLine } from '../subs/harness/src/kpi/setup-attribution.js';
-export { trialReportDestination } from '../subs/harness/src/kpi/trial-report.js';
+import { verifySetupLineIdentities, type SetupAddedLineFact, type SetupDeletedLineFact, type SetupSourceLine } from '../subs/harness/subs/kpi/src/setup-attribution.js';
+export { trialReportDestination } from '../subs/harness/src/qualification/trial-report.js';
 
 /** Native adapter owns its command boundary. Ordinary tests inject every raw answer. */
 export type TrialGitCommand = (project: string, args: readonly string[]) => Promise<Uint8Array>;

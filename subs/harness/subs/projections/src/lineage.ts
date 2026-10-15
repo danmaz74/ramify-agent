@@ -1,4 +1,4 @@
-import type { LineageInputs, SegmentFacts, StartKind } from '../../../src/kpi/lineage.js';
+import type { LineageInputs, SegmentFacts, StartKind } from '../../kpi/src/lineage.js';
 import type { Observation } from '../../../src/run/observations.js';
 import type { ForkRelation, ReplaceRelation } from '../../../src/run/records.js';
 import type { RunView } from './inputs.js';

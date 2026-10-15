@@ -16,7 +16,7 @@ import { git, onlyRun, openRuns, realRamify, runEventsOnDisk, runPath, startRun 
 import { badgeAnalysis, badgeImplementation, badgeStepFile, badgeSteps } from './helpers/badge-scenarios.js';
 import { gitService as productionGit } from '../../subs/evidence/src/git.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
-import { trialReportDestination } from '../kpi/trial-report.js';
+import { trialReportDestination } from '../qualification/trial-report.js';
 import { privateConfiguredAudit } from './helpers/configured-repository.js';
 
 /*

@@ -4,7 +4,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AgentEvent, AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { deliveredManifestViewSchema, metricsResponseSchema, type Role } from '../interfaces/protocol/runs.js';
-import { deliveredScopeInputs } from '../kpi/capture.js';
+import { deliveredScopeInputs } from '../measurement/inputs.js';
+import * as chargeProvider from '../../subs/kpi/src/efficiency.js';
 import { loadPromptPackages } from '../prompts/packages.js';
 import type { TaskKind, TaskPacket } from '../prompts/tasks.js';
 import { HarnessSessionOperations } from '../run/session-operations.js';
@@ -32,7 +33,15 @@ describe('Plan 23 F6 durable observation integration', () => {
     expect(exploration[0]).toMatchObject({ data: { requestedScope: ['src/a.ts'], resolvedScope: ['src/a.ts'], files: ['src/a.ts'] } });
   });
   test('captures original identities, exact output bytes, zero matches and recorded-rate estimates once across restoration', async () => {
+    // Observe the real charge provider; replay deduplication and durable writes stay here.
+    const estimate = vi.spyOn(chargeProvider, 'estimateRecordedCharge');
+    cleanups.push(async () => { estimate.mockRestore(); });
     const f = await recorded('restoration');
+    expect(estimate).toHaveBeenCalledWith({ model: 'fixed/model', newInputTokens: 100, cachedInputTokens: 40,
+      cacheWriteTokens: 10, outputTokens: 20, ratesPerMillion: { newInput: 2, cachedInput: 0.5, cacheWrite: 3, output: 4 } });
+    const usage = f.rows.filter(row => row.type === 'usage');
+    expect(usage).toHaveLength(1);
+    expect(usage[0]).toMatchObject({ data: { charge: { ...estimate.mock.results[0]!.value, sourceRevision: 'captured-model-r1' } } });
     expect(f.rows.filter(row => row.type === 'milestone')).toEqual([expect.objectContaining({ data: { kind: 'first-engineering-action', at: t(4) } })]);
     expect(f.usage).toEqual({ input: 100, cacheRead: 40, cacheWrite: 10, output: 20, total: 170 });
   });

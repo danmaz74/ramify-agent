@@ -215,7 +215,13 @@ in this module. These rules govern that judgement:
   catalog, from the plan and from principles alike, and assesses each
   against the candidate. Selection is about what a module engineer must keep in
   view while working; assessment is about what the plan must satisfy. A
-  repair module engineer receives the subset the coordinator cites.
+  repair module engineer receives the subset the coordinator cites. The coordinator
+  has ordinary file inspection and shell tools to inspect Git history, run
+  records, audit refs, command logs and generated views. Its context supplies
+  the project root, run directory and candidate identity. Investigation scopes
+  identify starting points; they do not restrict evidence access. Snapshot
+  tools remain available for pinned candidate source. Historical and execution
+  claims cite the revision or run their evidence describes.
 - **The rendering is one function.** Every package, for whichever consumer,
   is produced by the same package creator from the frozen catalog and a
   list of IDs, with the run's plan deviations rendered after the elements

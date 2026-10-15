@@ -1,3 +1,4 @@
+import type { SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { inspectAuditSettlement } from './audit-workspaces.js';
 import { localViewInputsOf } from '../work/view-inputs.js';
 import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths,
@@ -139,11 +140,12 @@ import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, c
 import { constructDesignOrientationStep, constructReviewStep } from '../steps/reviewer.js';
 import { inputsHash, loadPromptPackages, renderContractPrompt, renderEngineerPrompt, renderFailureAnalystPrompt, renderGlobalForkPrompt, renderInitialArchitectPrompt, renderLocalArchitectPrompt, renderReconciliationPrompt, sha256, renderNonfunctionalCoordinatorPrompt, renderNonfunctionalRepairPrompt, renderExtractionPrompt, renderCapabilityArchitectPrompt, type ExtractionTurn, type LoadedPackage } from '../prompts/packages.js';
 import {
-  baselineScope, captureSnapshot, deliveredScopeInputs, invocationScope, revisionMismatch, rootModuleOfSnapshot, scopeSize, supportDocument, readScopeMeasurement, writeScopeMeasurement,
+  baselineScope, captureSnapshot, revisionMismatch, rootModuleOfSnapshot, scopeSize,
   type DeclaredScope,
-} from '../kpi/capture.js';
-import { cachedChangeHistory } from '../kpi/delivered.js';
-import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../kpi/lines.js';
+} from '../../subs/kpi/src/capture.js';
+import { deliveredScopeInputs, invocationScope, supportDocument, readScopeMeasurement, writeScopeMeasurement } from '../measurement/inputs.js';
+import { cachedChangeHistory } from '../../subs/kpi/src/delivered.js';
+import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../subs/kpi/src/lines.js';
 import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
 import type { ProjectLock } from '../store/lock.js';
 import { acceptAnalysis } from '../analysis/accept.js';
@@ -195,6 +197,7 @@ import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from '../
 import {
   engineerEquipment, type EngineerEquipment, type EngineerEquipmentInputs, type EquipContext, type Equipment, type ShellCallRecord,
 } from '../work/engineer-equipment.js';
+import { nonfunctionalEquipment } from '../nonfunctional/equipment.js';
 import { engineerWorkingDirectory, repairWorkingDirectory } from '../work/engineer-directory.js';
 import { createGitInspectionTool } from '../work/git-inspection.js';
 import {
@@ -2737,7 +2740,7 @@ export class RunService {
               if (started.data.role !== 'nonfunctional-coordinator' || run.log.all('invocation-ended').some(ended => ended.data.invocation === started.data.invocation)) continue;
               const record = this.invocationRecord(run, started.data.invocation).body;
               const original = await (await this.operations(agent)).originalOperation(run.record.jobId, started.data.invocation);
-              if (record.writer || record.sessionOperation?.runId !== run.record.jobId || original === null
+              if (record.writer && !this.coordinatorWithoutCommands(run, started.data.invocation) || record.sessionOperation?.runId !== run.record.jobId || original === null
                 || ![coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName].includes(original.packet.submissionTool)) continue;
               originalCoordinators.add(started.data.invocation);
             }
@@ -2810,6 +2813,13 @@ export class RunService {
     return report;
   }
 
+  /** No shell can execute before its process registration; coordinator builtins only inspect. */
+  private coordinatorWithoutCommands(run: Run, invocation: string): boolean {
+    return run.log.all('invocation-started').some(event => event.data.invocation === invocation && event.data.role === 'nonfunctional-coordinator')
+      && !run.log.all('invocation-ended').some(event => event.data.invocation === invocation)
+      && !run.log.all('writer-process-registered').some(event => event.data.invocation === invocation);
+  }
+
   /** Only the phase marker opts a run into same-run continuation. */
   private async nonfunctionalResumeRefusal(run: Run): Promise<string | null> {
     if (this.options.agent === undefined) return 'no agent is configured';
@@ -2825,6 +2835,7 @@ export class RunService {
     }
     for (const acquired of run.log.all('writer-acquired')) {
       const releases = run.log.all('writer-released').filter(event => event.data.invocation === acquired.data.invocation);
+      if (releases.length === 0 && this.coordinatorWithoutCommands(run, acquired.data.invocation)) continue;
       if (releases.length !== 1 || releases[0]!.data.confirmed !== true) {
         return `writer ${acquired.data.invocation} has no unique confirmed release`;
       }
@@ -3031,7 +3042,7 @@ export class RunService {
       const priorReleases = run.log.all('writer-released').filter(event => event.data.invocation === id);
       const settled = acquired && !released ? await run.writer.release(id, unreconciled.has(id) ? { settled: async () => 'timed-out' } : undefined).catch(() => ({ confirmed: false, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] }))
         : { confirmed: !unreconciled.has(id) && (!acquired || priorReleases.length === 1 && priorReleases[0]!.data.confirmed), at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] };
-      if (run.policy.recovery !== undefined && acquired && !released) await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
+      if ((run.policy.recovery !== undefined || started.data.role === 'nonfunctional-coordinator') && acquired && !released) await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
       // Observations are appended without a transaction, by decision 2, so
       // the last of an invocation the harness was interrupted in may be
       // missing. The gap is recorded rather than left to be read as an
@@ -4280,7 +4291,8 @@ export class RunService {
   /** Current immutable source selection; an empty list requires an actual successful diff. */
   /** Exact recorded NFR operations retain their installed declaration and accepted-boundary default. */
   private async originalNonfunctionalContext(run: Run, agent: AgentPort, toolName: string, candidate: Candidate) {
-    if (!run.restoring) return { originalInvocation: undefined, legacy: false, base: undefined };
+    const fresh = { originalInvocation: undefined, legacy: false, base: undefined, writer: undefined, declarations: undefined };
+    if (!run.restoring) return fresh;
     const matches = [];
     for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator'
       && !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation))) {
@@ -4290,13 +4302,17 @@ export class RunService {
       const declaration = original.declarations.find(tool => tool.name === 'snapshot_diff');
       const legacyDeclaration = boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree,
         base: this.accepted(run) }).find(tool => tool.name === 'snapshot_diff')!;
-      const legacy = declaration !== undefined && canonicalJson(declaration) === canonicalJson({ name: legacyDeclaration.name,
-        description: legacyDeclaration.description, inputSchema: legacyDeclaration.inputSchema, mutating: false });
+      const legacyDescriptions = [legacyDeclaration.description, legacyDeclaration.description.replace(
+        'This tool reads the pinned candidate source. Use ordinary file tools and shell for Git history, run records and other evidence.',
+        'Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.')];
+      const legacy = declaration !== undefined && legacyDescriptions.some(description => canonicalJson(declaration) === canonicalJson({
+        name: legacyDeclaration.name, description, inputSchema: legacyDeclaration.inputSchema, mutating: false }));
       const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(event.data.invocation)));
-      matches.push({ originalInvocation: event.data.invocation, legacy, base: legacy ? record.base : undefined });
+      matches.push({ originalInvocation: event.data.invocation, legacy, base: legacy ? record.base : undefined,
+        writer: record.writer, declarations: original.declarations });
     }
     if (matches.length > 1) throw new Error('Ambiguous original NFR task correlation');
-    return matches[0] ?? { originalInvocation: undefined, legacy: false, base: undefined };
+    return matches[0] ?? fresh;
   }
 
   private async nonfunctionalSourceInputs(run: Run, candidate: Candidate, scope: readonly string[] = ['.'], workspace = false,
@@ -4346,9 +4362,34 @@ export class RunService {
       comparisons: comparisons.map(({ changes, ...comparison }) => ({ ...comparison, changedPaths: changes })),
       originalSource: run.record.manifest.source,
       comparisonLimit: 'Named comparisons cover net changes at their recorded Git boundaries, not every intermediate edit or affected caller. An empty diff establishes no historical preservation. Dirty original capture excludes uncommitted starting bytes from the starting commit comparison.',
-      readScope: scope, excludedDirectories: ['.git', 'node_modules', '.ramify', '.ramify-architect'], excludedRunOutputs: ['plans/.harness', 'plans/<plan>/.harness'],
-      authority: 'Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and explore the whole allowed tree as needed.' }) };
+      projectRoot: this.projectRoot, runDirectory: run.directory, snapshotScope: scope,
+      evidenceAccess: 'Use ordinary read/search tools and shell for Git history, audit refs, generated views and run records. Scope identifies starting points, not an access restriction. Read referenced artifacts where they actually live.',
+      authority: 'Prepared candidate source is authoritative. Starting points, prior completion claims and green audits do not establish satisfaction. Assess all supplied fixed/NFR obligations independently and inspect relevant source and execution evidence. Bind historical claims to their recorded revisions; live files or generated views may describe another revision.' }) };
     return { sections: [sourceSection, ...(discoveries === undefined ? [] : [discoveries])], snapshot, comparisons };
+  }
+
+  private nonfunctionalTools(run: Run, session: EquipContext, tools: readonly ToolDefinition[],
+    original: { readonly declarations: readonly SessionToolDeclaration[] | undefined }): Equipment {
+    // An exact retry retains its admitted tools. Every new operation receives ordinary inspection.
+    if (original.declarations !== undefined && !original.declarations.some(tool => tool.name === 'shell')) {
+      return { builtinTools: [], tools: tools.map(tool => {
+        const declaration = original.declarations!.find(item => item.name === tool.name);
+        if (declaration === undefined) throw new Error(`Original NFR tool ${tool.name} is unavailable`);
+        return { ...tool, ...declaration };
+      }) };
+    }
+    return nonfunctionalEquipment({ projectRoot: this.projectRoot, snapshotTools: tools,
+      commandExecution: this.options.commandExecution,
+      registerProcessGroup: async (pid, identity) => {
+        const committed = await this.write(run, { type: 'writer-process-registered', data: { invocation: session.invocation, pid, identity } });
+        if (committed === 'ended') throw new Error(`Run ${run.record.jobId} ended before process group ${pid} was registered`);
+        run.writer.register(session.invocation, pid);
+        await this.afterWrite('writer-process-registered', run.record.jobId);
+      },
+      commandTimeoutMs: run.policy.limits.commandTimeoutMs,
+      rejectedToolInputsPerTurn: run.policy.limits.rejectedToolInputsPerTurn,
+      outputFile: call => run.path(runLayout.shellOutput(session.invocation, call)),
+    }, session);
   }
 
   private async nonfunctionalAction(
@@ -4381,7 +4422,7 @@ export class RunService {
       inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/1',
       validate: input => validateCoordinatorAction(input, context),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-      equip: () => ({ builtinTools: [], tools: [...boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined })] }),
+      writer: original.writer ?? true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined }), original),
     });
     if (result.ended !== 'submitted' || result.value === undefined) {
       await this.fail(run, 'agent-failed', `Non-functional coordinator action ended ${result.ended}`);
@@ -4408,15 +4449,15 @@ export class RunService {
       attempt: run.log.all('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
       loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot, coordinatorInvestigationToolName),
       prompt: [`Investigate element IDs ${action.nfrs.join(', ')} for assessment ${assessment.id} of tree ${assessment.candidate.tree}.`,
-        `Question: ${action.question}`, `Scope: ${action.scope.join(', ')}`,
-        'Read the prepared candidate with snapshot_list/read/search/diff within the declared scope and report observed evidence and uncertainty. Git metadata and run records are excluded. Do not edit source.', '',
+        `Question: ${action.question}`, `Starting scope: ${action.scope.join(', ')}`,
+        'Inspect the named starting scope and follow relevant evidence using ordinary read/search tools and shell, including Git history and run records. The snapshot tools inspect the pinned candidate. Report observed evidence, its revision and remaining uncertainty. Do not edit source or harness records.', '',
         this.planPackage(run, await this.frozenCatalog(run), action.nfrs)].join('\n'),
       start: { mode: 'fresh' }, toolName: coordinatorInvestigationToolName,
       description: 'Report read-only investigation evidence for every named NFR.',
       inputSchema: coordinatorInvestigationJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-investigation/1',
       validate: input => validateCoordinatorInvestigation(input, action.nfrs),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-      equip: () => ({ builtinTools: [], tools: [...boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: assessment.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: action.scope })] }),
+      writer: original.writer ?? true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: assessment.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: action.scope }), original),
     });
     if (result.ended !== 'submitted' || result.value === undefined) {
       await this.fail(run, 'agent-failed', `Non-functional investigation ended ${result.ended}`);
@@ -4637,7 +4678,7 @@ export class RunService {
             : checked;
         },
         keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-        equip: () => ({ builtinTools: [], tools: [...boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: prepared.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined })] }),
+        writer: original.writer ?? true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: prepared.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined }), original),
       });
       if (result.ended !== 'submitted' || result.value === undefined) {
         await this.fail(run, 'agent-failed', `The non-functional coordinator ended ${result.ended} without a complete assessment`);

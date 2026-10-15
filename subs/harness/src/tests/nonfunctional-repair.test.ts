@@ -57,7 +57,11 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   const otherFile = join(fixture.root, 'subs/workspace/subs/catalog/src/nonfunctional-repair.ts');
   let assessments = 0;
   let actions = 0;
+  const inspectionCommand = 'git merge-base --is-ancestor prerequisite HEAD && cat plans/review-notes/.harness/jobs/*/job.json';
+  const inspected: string[] = [];
+  let registeredProcesses = 0;
   const agent = createScriptedAgent(withDefaultTurns(spec => {
+    const steps = (() => {
     if (spec.submission.name === intakeToolName) return submit({ goal: 'Keep an audit record of reviews.', elements: [
       { key: 'audit', kind: 'non-functional', document: 'doc-001', text: obligation, conditions: [], uncertainty: '' },
       { key: 'catalog-audit', kind: 'non-functional', document: 'doc-001', text: otherObligation, conditions: [], uncertainty: '' },
@@ -80,7 +84,7 @@ test.each([false, true])('one authorized repair edits two modules from the chose
         evidence: ['Author is recorded'], uncertainty: '' }] });
     }
     if (spec.submission.name === coordinatorActionToolName) return ++actions === 1
-      ? submit({ kind: 'investigate', nfrs: ['nfr-001'], question: 'Inspect the intermediate audit trace', scope: ['src/'] })
+      ? submit({ kind: 'investigate', nfrs: ['nfr-001'], question: 'Inspect the intermediate audit trace', scope: ['.git', 'plans/review-notes/.harness', '/external/evidence'] })
       : submit({ kind: 'repair', nfrs: ['nfr-001'], startingModule: firstModule,
         task: 'Add a cross-module audit record implementation', evidence: ['Intermediate trace inspected'], uncertainty: '' });
     if (spec.submission.name === coordinatorInvestigationToolName) return submit({ kind: 'investigation-result',
@@ -92,8 +96,26 @@ test.each([false, true])('one authorized repair edits two modules from the chose
       write(otherFile, 'export const catalogAuditRecord = true;\n'),
       write(plan, 'forbidden plan change\n')); }
     return [];
+    })();
+    if (spec.role !== 'nonfunctional-coordinator') return steps;
+    expect([...spec.builtinTools, ...spec.tools.map(tool => tool.name)]).toEqual(expect.arrayContaining(['read', 'grep', 'ls', 'find', 'shell']));
+    expect(spec.prompt).toContain('runDirectory');
+    expect(spec.prompt).not.toContain('Git metadata and run records are excluded');
+    return [{ kind: 'tool', tool: 'shell', input: { command: inspectionCommand } }, ...steps];
   }));
-  const { service } = await openRuns(fixture.root, { ...boundaryAnswers.options, ramify, agent });
+  const { service } = await openRuns(fixture.root, { ...boundaryAnswers.options, ramify, agent,
+    groups: { alive: () => false, kill: () => { throw new Error('No scripted group remains alive'); } },
+    commandExecution: async request => {
+      expect(request.cwd).toBe(fixture.root);
+      expect(request.argv.at(-1)).toBe(inspectionCommand);
+      inspected.push(inspectionCommand);
+      expect(request.registerProcessGroup).toBeTypeOf('function');
+      await request.registerProcessGroup!(++registeredProcesses, 'scripted-process-identity');
+      const stdout = 'prerequisite ancestry and captured run plan hash inspected';
+      return { outcome: { kind: 'completed', exitCode: 0 }, startedAt: new Date().toISOString(), elapsedMs: 0,
+        stdout, stderr: '', output: { path: request.outputFile ?? null, bytes: stdout.length, truncated: false, tail: stdout } };
+    },
+  });
   cleanups.push(() => service.close());
   const start = startRun('review-notes');
   if (start.type !== 'start-run') throw new Error('Unexpected command');
@@ -120,8 +142,20 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   await service.settled('review-notes', receipt.jobId);
   const run = onlyRun(service, 'review-notes');
   const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
-  expect(run.failure).toBeNull();
+  expect(run.failure, JSON.stringify(agent.sessions.filter(session => session.spec.role === 'nonfunctional-coordinator').map(session => ({ outcome: session.outcome, results: session.results })))).toBeNull();
   expect(run.state).toBe('completed');
+  const reviewers = agent.sessions.filter(session => session.spec.role === 'nonfunctional-coordinator');
+  expect(reviewers.map(session => session.spec.submission.name)).toEqual(expect.arrayContaining([
+    coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName,
+  ]));
+  expect(inspected).toHaveLength(reviewers.length);
+  expect(events.filter(event => event.type === 'writer-process-registered')).toHaveLength(reviewers.length);
+  for (const event of events.filter(event => event.type === 'writer-process-registered')) {
+    expect(events.find(release => release.type === 'writer-released' && release.data.invocation === event.data.invocation)?.data)
+      .toMatchObject({ confirmed: true });
+  }
+  for (const reviewer of reviewers) expect(reviewer.results.find(result => result.tool === 'shell'))
+    .toMatchObject({ isError: false, text: expect.stringContaining('prerequisite ancestry and captured run plan hash inspected') });
   const coordinator = agent.sessions.filter(session => session.spec.submission.name === coordinatorAssessmentToolName);
   expect(coordinator).toHaveLength(2);
   for (const session of coordinator) {
@@ -165,7 +199,7 @@ test.each([false, true])('one authorized repair edits two modules from the chose
   expect(repair?.spec.prompt).toMatch(/^Elements: nfr-001$/mu);
   // The repair engineer receives the changed-path section the coordinator received for the same candidate.
   expect(repair?.spec.prompt).toContain('"changedPaths":[');
-  expect(repair?.spec.prompt).toContain('"readScope":["."]');
+  expect(repair?.spec.prompt).toContain('"snapshotScope":["."]');
   expect(repair?.spec.prompt).toContain(`> ${obligation}`);
   for (const text of [otherObligation, fixed, advice]) expect(repair?.spec.prompt).not.toContain(text);
   const repairStart = events.find(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-repair-engineer');

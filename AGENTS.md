@@ -133,6 +133,8 @@ with prescribed iterations. The shared Claude skill is linked from
 
 ## Real-plan dogfooding
 
+Never use breakpoints unless the user explicitly asks for them. Equip Pi with the tools, context and evidence its task needs. Do not withhold ordinary inspection access or turn resulting evidence gaps into requests for user approval.
+
 Use [ramify-agent-dogfooding](.claude/skills/ramify-agent-dogfooding/SKILL.md)
 when a Claude Code or Codex agent applies a real plan with the harness and
 improves it as problems surface. The shared skill lives in `.claude/skills/`

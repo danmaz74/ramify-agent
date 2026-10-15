@@ -140,6 +140,7 @@ for (const { boundary, ...variant } of repairCrashes) {
         const repairStarted = firstAgent.sessions.some(session => session.spec.role === 'nonfunctional-repair-engineer');
         const assessed = write === 'nonfunctional-assessed' &&
           (await runEventsOnDisk(fixture.root, 'review-notes', id)).filter(event => event.type === 'nonfunctional-assessed').length === 2;
+        if (boundary === 'writer-acquired' && !(await runEventsOnDisk(fixture.root, 'review-notes', id)).some(event => event.type === 'nonfunctional-repair-assigned')) return;
         if (boundary === 'invocation-ended' && !repairStarted) return;
         if (boundary === 'nonfunctional-assessed' && !assessed) return;
         frozen = true;
@@ -198,6 +199,38 @@ function exhaustedAgent(obligation: string) {
     return [];
   }));
 }
+
+test('a coordinator command registration retains its settlement requirement after restart', async () => {
+  const fixture = await copyFixture(); cleanups.push(fixture.remove);
+  const boundaryAnswers = nfrBoundaries(fixture.root, { final: false }); answers.push(boundaryAnswers);
+  const obligation = 'The review must retain an audit record.';
+  const plan = join(fixture.root, 'plans/review-notes/plan.md');
+  await writeFile(plan, `${await readFile(plan, 'utf8')}\n${obligation}\n`);
+  const agent = createScriptedAgent(withDefaultTurns(spec => {
+    if (spec.submission.name === intakeToolName) return submit(intake(obligation));
+    if (spec.role === 'initial-architect') return submit(analysis([]));
+    if (spec.submission.name === coordinatorAssessmentToolName) return [{ kind: 'tool', tool: 'shell', input: { command: 'git log -1' } }];
+    return [];
+  }));
+  let frozen = false;
+  const first = await openRuns(fixture.root, { ...boundaryAnswers.options, agent,
+    commandExecution: async request => {
+      await request.registerProcessGroup!(42, 'scripted-process');
+      throw new Error('The registration barrier is frozen');
+    },
+    afterWrite: async write => { if (write === 'writer-process-registered') { frozen = true; await freeze(); } },
+  });
+  const receipt = await first.service.execute(startRun('review-notes'));
+  await until(() => frozen);
+  await staleCrashLock(fixture.root);
+  const resumedAgent = exhaustedAgent(obligation);
+  const reopened = await openRuns(fixture.root, { ...boundaryAnswers.options, agent: resumedAgent });
+  cleanups.push(() => reopened.service.close());
+  await reopened.service.settled('review-notes', receipt.jobId);
+  expect(onlyRun(reopened.service, 'review-notes').failure).toMatchObject({ reason: 'recovery-exhausted',
+    message: expect.stringContaining('no unique confirmed release') });
+  expect(resumedAgent.sessions).toHaveLength(0);
+});
 
 test('a closed round exhausts and a late source change still refuses the final gate', async () => {
   const fixture = await copyFixture();

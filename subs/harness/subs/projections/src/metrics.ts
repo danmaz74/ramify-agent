@@ -1,17 +1,17 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { verifySetupLineIdentities, type RecordedSetupDelta, type SetupAddedLineFact, type SetupCandidatePartition, type SetupDeletedLineFact, type SetupLineMappingFacts } from '../../../src/kpi/setup-attribution.js';
+import { verifySetupLineIdentities, type RecordedSetupDelta, type SetupAddedLineFact, type SetupCandidatePartition, type SetupDeletedLineFact, type SetupLineMappingFacts } from '../../kpi/src/setup-attribution.js';
 import { scratchIgnoreRule } from '../../../src/work/scratch.js';
 import type { CandidateSource, ChangeHistory, LineCommit } from '../../evidence/src/git.js';
 import { acceptedCommit } from '../../../src/checks/accepted.js';
 import { deliveredManifestViewSchema, operationIdentitySchema, scopeSizeViewSchema, recordedChargeSchema, type InvocationEvaluation, type InvocationEfficiency, type MetricsResponse, type Role, type SearchCountsView } from '../../../src/interfaces/protocol/runs.js';
-import { baselineScope, rootModuleOfSnapshot, scopeSize } from '../../../src/kpi/capture.js';
-import { deliveredChange, type DeliveredChange } from '../../../src/kpi/delivered.js';
-import { guardingReport } from '../../../src/kpi/guarding.js';
-import { lineageMetrics, lineagePolicyVersion, type LineageInputs } from '../../../src/kpi/lineage.js';
-import { comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion, type InvocationFacts } from '../../../src/kpi/metrics.js';
-import { explorationDetails, type SearchCount, type SearchCounts } from '../../../src/kpi/exploration.js';
-import { invocationTiming } from '../../../src/kpi/efficiency.js';
+import { baselineScope, rootModuleOfSnapshot, scopeSize } from '../../kpi/src/capture.js';
+import { deliveredChange, type DeliveredChange } from '../../kpi/src/delivered.js';
+import { guardingReport } from '../../kpi/src/guarding.js';
+import { lineageMetrics, lineagePolicyVersion, type LineageInputs } from '../../kpi/src/lineage.js';
+import { comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion, type InvocationFacts } from '../../kpi/src/metrics.js';
+import { explorationDetails, type SearchCount, type SearchCounts } from '../../kpi/src/exploration.js';
+import { invocationTiming } from '../../kpi/src/efficiency.js';
 import { observationSchema, type Observation } from '../../../src/run/observations.js';
 import { invocationSessions } from '../../../src/run/sessions.js';
 import type { RunEvent } from '../../../src/run/log.js';
@@ -183,7 +183,7 @@ function projectPath(row: LineCommit): string | null {
 /** Collects complete FINAL/BASE origin partitions before asking the shared pure verifier.
  * Old scripted Git rows, unavailable blob identities and unrecorded setup edits remain unknown.
  */
-export async function setupLineIdentitiesOf(view: RunView, history: RunHistory, base: string, final: string): Promise<import('../../../src/kpi/delivered.js').HarnessLineIdentities> {
+export async function setupLineIdentitiesOf(view: RunView, history: RunHistory, base: string, final: string): Promise<import('../../kpi/src/delivered.js').HarnessLineIdentities> {
   const chain = [base, ...await history.changes.commitsBetween(history.projectRoot, base, final)];
   if (chain.at(-1) !== final || new Set(chain).size !== chain.length) throw new Error('Complete first-parent revision chain unavailable');
   const candidates: SetupCandidatePartition[] = [];
@@ -334,7 +334,7 @@ async function deliveredOf(view: RunView, history: RunHistory | undefined, lines
   }
   if (history === undefined) return { state: 'unavailable', reason: 'No Git history is available to read the delivered change from' };
   const recorded = new Map([...lines].map(([id, summary]) => [id, summary === null || 'unavailable' in summary ? null : summary]));
-  let harnessDeltas: import('../../../src/kpi/delivered.js').HarnessLineIdentities;
+  let harnessDeltas: import('../../kpi/src/delivered.js').HarnessLineIdentities;
   try { harnessDeltas = await setupLineIdentitiesOf(view, history, base, final); }
   catch (error) { return { state: 'unavailable', reason: `Exact setup line attribution unavailable: ${error instanceof Error ? error.message : String(error)}` }; }
   return deliveredChange(history.changes, { projectRoot: history.projectRoot, base, final, writers, harness, harnessPaths, recorded, harnessDeltas });

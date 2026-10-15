@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import type { LineChange } from '../../kpi/lines.js';
+import type { LineChange } from '../../../subs/kpi/src/lines.js';
 import type { CandidateTreePreview } from '../../../subs/evidence/src/candidate-tree.js';
 import { mockGit, scriptedScratchGit, type ScratchGitScript } from './mock-git.js';
 

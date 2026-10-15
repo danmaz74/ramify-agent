@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import type { CommitTrailer, GitService } from '../../../subs/evidence/src/git.js';
 import type { CandidateTreePreview } from '../../../subs/evidence/src/candidate-tree.js';
-import type { LineChange } from '../../kpi/lines.js';
+import type { LineChange } from '../../../subs/kpi/src/lines.js';
 import { mockGit, scriptedScratchGit, type ScratchGitScript } from './mock-git.js';
 
 /*

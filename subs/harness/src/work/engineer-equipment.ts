@@ -15,7 +15,7 @@ import {
   completionCheckDeadlineMs, FindingsSeen, findingsOf, runHookCheck, type HookCheck, type HookFinding, type HookCheckReservation, type HookSubmissionPolicy,
 } from '../hooks/post-write.js';
 import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type MutationSnapshot } from '../hooks/mutation-order.js';
-import { ownerOf } from '../kpi/lines.js';
+import { ownerOf } from '../measurement/owners.js';
 import type { ObservationLog } from '../run/observations.js';
 import type { TranscriptNotes } from '../transcripts/recorder.js';
 import { ToolInputJudge, validateAgainst } from '../run/submissions.js';
