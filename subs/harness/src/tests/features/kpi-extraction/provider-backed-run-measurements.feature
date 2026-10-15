@@ -21,7 +21,7 @@ Feature: provider-backed-run-measurements
     And the HTTP metrics and session answers match the baseline
     And cross-owner imports satisfy the declared ordinary API contracts
 
-  @ramify-sc-002 @ramify-pending
+  @ramify-sc-002
   Scenario: Weighted scope measurements retain their arithmetic and evidence
     Given a complete baseline measurement of 10000 bytes
     And one writer with scope 1000 bytes and delivered weight 10 lines
@@ -31,7 +31,7 @@ Feature: provider-backed-run-measurements
     And the scope size ratio is 0.25 and the reduction factor is 4
     And policy versions and evidence identify both writer contributions
 
-  @ramify-sc-003 @ramify-pending
+  @ramify-sc-003
   Scenario: A missing writer scope stays unavailable with its known subtotal
     Given a writer with scope 1000 bytes and delivered weight 10 lines
     And another writer with unknown source size and delivered weight 3 lines
@@ -41,7 +41,7 @@ Feature: provider-backed-run-measurements
     And coverage identifies one of two writers and the missing size reason
     And the unknown size is not represented as zero
 
-  @ramify-sc-004 @ramify-pending
+  @ramify-sc-004
   Scenario: Zero delivered weight remains distinct from missing evidence
     Given complete recorded invocation costs and no delivered line weight
     When the metrics query reads the run
