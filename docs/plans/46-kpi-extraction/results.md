@@ -306,3 +306,73 @@ are not combined with this refreshed revision as a single analysis state.
 Project-wide ownership and final semantic judgments remain the coordinating
 architect's responsibility.
 
+### Gate ga-0010 and bounded repair
+
+The gate's default audit `20261014T222715Z-84f064:ga-0010` of candidate
+`fb7edc86206769ac6f0a2fa9e2e330ccdbd07e54` requested/executed ramify-partial
+and composed **fail**. The sole failed check was patch-integrity:
+`docs/plans/46-kpi-extraction/results.md:308: new blank line at EOF.`
+This follow-up removes that trailing blank line while retaining the report.
+The failed candidate and original producer evidence remain historical; no
+passing re-audit is claimed. The next gate owns selection, reuse and verdict.
+
+The supplied producer record reports typecheck, structure, web build, tests and
+scenarios passed. Tests: 420 files passed/1 skipped, 3371 tests passed/2 skipped,
+zero failures. Scenarios: 16 passed, 252 steps passed, zero failures/skips/undefined.
+The audit waited for `/tmp/ramify-audit-tests.lock`. React Flow dimension/style
+warnings and the web large-chunk advisory remain qualifications. Counts for
+non-test checks were unknown. Cucumber messages were read at producer artifact
+`reports/audit/cucumber/agent-scenarios/commands/agent-cucumber.ndjson`.
+These are gate-supplied records, not a fresh direct whole-suite run by this
+engineer; no complete audit was run during this repair.
+
+### Additional operator-supplied continuation provenance
+
+The following are supplied operator observations, not this engineer's Git
+inspections or substitutes for target acceptance:
+
+- Serving bootstrap `/workspaces/worktrees/kpi-restart-provider-fix-20261014`
+  at `f24924a7cae1af97cc3e626e507a14d131682338` was independently checked
+  clean. Its passing composed audit report is
+  `2434a9023a22a78a3ffd285fee2d343b53fa0b94`, ref
+  `refs/audited/runs/2026-10-14T21-47-34Z-f24924a7c`, tree
+  `1e76616d1161dc23adb1a26498f12d79351a67c2`: six selected checks passed,
+  3306 regression tests passed/two existing skips, chain depth two, no
+  outstanding failures. Runtime: openai-codex/gpt-6.1-sol, ramify.ts 0.5.1,
+  ramify-audit 0.8.0, Pi 0.87.1; no packed companion provider.
+- Current run `20261014T222715Z-84f064`, branch
+  `ramify-agent-run/20261014T222715Z-84f064`, captured pre-scenario source
+  `41c8e9f247344e3e5e01c5bae6ba69bf2f4a295c`. Readiness report
+  `5a3101bdbc451fd2621a4b6ecb9adb747ad2bffc`, ref
+  `refs/audited/runs/2026-10-14T22-46-28Z-41c8e9f24`, tree
+  `39494a0d1e847cc36c26b662c7a610c8a54e6abb`: six fresh checks passed,
+  3755 regression tests passed/two existing skips. Its six scenarios were
+  prior projections coverage, not Plan 46 acceptance. Captured plan: 375 lines,
+  SHA-256 `1aff9ceaaa92bfe0f6763afb17ac3ec445c3c2e86a3fbc38ca5952c850260673`.
+- Projections incorporation `9f63d4e4660fba64c004941b2acab2c95eec46fc`
+  remains linear, not a two-parent merge; operator's ancestry check to
+  `c633eeb62a67457c8465f3128eff6b12e52ccbcc` exited 0.
+- Target ga-0007 audited `37d9d41a6ccd9f2165df9e249a41f4e6c515f5b7`:
+  passing report `f1fca4afdcaacd31c31031027e93d48e36024b6c`, ref
+  `refs/audited/runs/2026-10-15T01-36-58Z-37d9d41a6`, tree
+  `ecd48288f1ad5390ca86687d03bdfdedf0d65047`. Auditor selected full for
+  26-path drift over limit 25, not an operator override. Six checks passed;
+  3765 tests passed/two existing skips/zero failures, 454 files accounted;
+  15 scenarios (nine current KPI/six prior projections), 222 steps passed.
+  Documentation gate ga-0008 report
+  `55aa5243e7e6e27970eb6de456d20fa19463549b` freshly ran patch/type/structure/
+  build and reused tests/scenarios; ga-0009 reused that composed report.
+  Neither is a fresh whole-suite execution.
+- inv-0057 closed cf-0001 fixed by reassessment, not waiver/supersession.
+  The invalid original fixture, erroneous done judgment, early operator handoff
+  and scoped repair remain history. Original run `20261014T103040Z-9c4e05`
+  is interrupted/incomplete; the separate terminal-restart importer limitation
+  remains. Bootstrap fixes and standalone/operator contributions are separate
+  from this run's delivery.
+- The user rejected per-engineer pauses. The captured setting cannot be changed
+  through this runtime's public protocol; an external client releases remaining
+  occurrences automatically without manual review. They are not user-requested
+  approvals. Future starts must omit breakpoints unless explicitly requested.
+
+Final target identity, clean status and qualifying final integrated audit/report
+remain unestablished here. No performance or cache improvement is claimed.
