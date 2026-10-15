@@ -49,7 +49,7 @@ Feature: provider-backed-run-measurements
     And recorded session costs remain available under their existing policies
     And a failed history read instead retains an unavailable attribution reason
 
-  @ramify-sc-005 @ramify-pending
+  @ramify-sc-005
   Scenario: Mixed setup and writer changes keep exact attribution
     Given a commit containing setup and writer edits to the same source path
     And authenticated surviving setup line identities
