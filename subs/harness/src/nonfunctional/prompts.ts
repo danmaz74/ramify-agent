@@ -6,10 +6,10 @@ export function coordinatorAssessmentPrompt(assessmentPackage: string, candidate
     `Assess the prepared source tree ${candidate.tree} in round ${round} (${phase}).`,
     'The package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Judge each as worded, under its stated or inferred conditions.',
     'Submit exactly one result for every element ID of the package.',
-    'For each result, name inspected scope, evidence, and uncertainty. Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.',
-    'Start from supplied implementation locations and inspect the prepared candidate using snapshot_list/read/search/diff. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints across the whole allowed tree.',
-    'Prepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Git metadata, generated views and run records are excluded from source evidence.',
-    'Do not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source.',
+    'For each result, name inspected scope, evidence, and uncertainty. Source analysis can establish implementation properties; inspect Git history, run records and command or audit evidence for historical and execution claims. Follow available evidence before choosing undetermined.',
+    'Start from supplied implementation and evidence locations. Use ordinary read/search tools and shell to follow relevant references, including Git history, generated views and run records. The snapshot_list/read/search/diff tools are optional conveniences for the pinned candidate. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints.',
+    'Prepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Bind evidence to the candidate or historical revision it describes; live files and generated views may describe another revision.',
+    'Do not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source or harness records.',
     'Submit your assessment using `submit_nonfunctional_assessment`.',
     '',
     assessmentPackage.trimEnd(),
@@ -37,7 +37,7 @@ export function coordinatorActionPrompt(candidate: Candidate, unresolved: readon
         : 'At this step, request a sequential read-only investigation.',
     'An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.',
     'A repair of an undetermined NFR requires investigation evidence for that same NFR. One repair batch is allowed per round.',
-    'If closing with unresolved NFRs, state an alternative or explicit uncertainty for each one. Do not claim the final gate has passed.',
+    'If closing with unresolved NFRs, state an alternative or explicit uncertainty for each one. Describe recorded gate results for their named candidates and distinguish pending checks.',
     'Submit the permitted action using `submit_nonfunctional_action`.',
   ].join('\n');
 }

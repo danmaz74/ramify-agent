@@ -113,7 +113,9 @@ describe('non-functional coordinator submissions', () => {
     expect(assessment).toContain('- stated: At every intermediate load step');
     expect(assessment).toContain('- inferred: The system may need a retry bound');
     expect(assessment).not.toContain('rec-001');
-    expect(assessment).toContain('Analysis of the source is sufficient evidence, including for requirements about tests or behavior; choose undetermined only when the source cannot settle a requirement or its stated conditions.');
+    expect(assessment).toContain('inspect Git history, run records and command or audit evidence for historical and execution claims');
+    expect(assessment).toContain('Follow available evidence before choosing undetermined.');
+    expect(assessment).toContain('Use ordinary read/search tools and shell');
     expect(assessment).not.toContain('lack observed evidence');
     expect(assessment).not.toContain('temporal condition lacks observed intermediate evidence');
     expect(assessment).not.toContain('capability progress as evidence');
