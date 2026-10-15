@@ -314,7 +314,8 @@ and composed **fail**. The sole failed check was patch-integrity:
 `docs/plans/46-kpi-extraction/results.md:308: new blank line at EOF.`
 This follow-up removes that trailing blank line while retaining the report.
 The failed candidate and original producer evidence remain historical; no
-passing re-audit is claimed. The next gate owns selection, reuse and verdict.
+passing re-audit was claimed at that repair's handback. Subsequent reuse and
+operator recovery are recorded below; the next gate owns its own verdict.
 
 The supplied producer record reports typecheck, structure, web build, tests and
 scenarios passed. Tests: 420 files passed/1 skipped, 3371 tests passed/2 skipped,
@@ -325,6 +326,34 @@ non-test checks were unknown. Cucumber messages were read at producer artifact
 `reports/audit/cucumber/agent-scenarios/commands/agent-cucumber.ndjson`.
 These are gate-supplied records, not a fresh direct whole-suite run by this
 engineer; no complete audit was run during this repair.
+
+### ga-0011 reuse and operator audit recovery
+
+Gate `20261014T222715Z-84f064:ga-0011` on
+`b7f62cdff2bc67346545ad89d003ca3032db173b` composed fail by reusing the
+older failed `fb7edc86206769ac6f0a2fa9e2e330ccdbd07e54` record. Audit
+applicability ignores the sole changed path, this report. Its repeated EOF
+failure is reused evidence, not evidence that the corrected file still had
+that error. Both failed gates remain history; tests and unrelated code were
+not changed to invalidate reuse.
+
+Operator-supplied recovery observations (not this engineer's execution): clean
+committed `b7f62cdff2bc67346545ad89d003ca3032db173b` was verified and
+`git diff --check HEAD^ HEAD` exited 0. The operator ran the documented
+`node_modules/.bin/ramify-audit audit --cwd . --force --json` from the target
+root, without `--full` or selection override. It exited 0 at
+2026-10-15T05:00:40Z, duration 46.289s: report
+`f67750ca693c80b9181a21da8ef8fd57f148a814`, ref
+`refs/audited/runs/2026-10-15T05-00-40Z-b7f62cdff`, tree
+`947c1057ab96516922fbc71054c43c45f7d32f4f`. Requested/executed mode was
+ramify-partial: patch/type/structure/build freshly passed, tests/scenarios
+reused prior passing evidence, composed pass with zero outstanding failures.
+Root full report remains `f1fca4afdcaacd31c31031027e93d48e36024b6c`.
+Read-only operator receipts: `/tmp/kpi-force-default-audit-20261015.json` and
+`/tmp/kpi-force-default-audit-20261015.exit`. This operator-forced refresh
+repairs applicability for the next ordinary gate; it is not automatic gate
+execution, a fresh whole-suite run, or a rewrite of either failed gate.
+Final full gate and semantic judgment remain required.
 
 ### Additional operator-supplied continuation provenance
 
