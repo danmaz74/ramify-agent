@@ -179,7 +179,9 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
   const assessed = agent.sessions.find(session => session.spec.submission.name === coordinatorAssessmentToolName)!;
   expect(assessed.results.find(result => result.tool === 'snapshot_diff' && result.text.includes('original-to-candidate note-store patch'))).toBeDefined();
   expect(assessed.results.find(result => result.tool === 'snapshot_diff' && result.text === `Comparison accepted-boundary: base ${B}; target ${C}\nThe candidate changed nothing`)).toBeDefined();
-  expect(assessed.spec.builtinTools).toEqual([]); expect(assessed.spec.tools.every(tool => !tool.mutating)).toBe(true);
+  expect([...assessed.spec.builtinTools, ...assessed.spec.tools.map(tool => tool.name)]).toEqual(expect.arrayContaining(['read', 'grep', 'ls', 'find', 'shell']));
+  expect(assessed.spec.tools.filter(tool => tool.name.startsWith('snapshot_')).every(tool => !tool.mutating)).toBe(true);
+  expect(comparisons.projectRoot).toBe(root); expect(comparisons.runDirectory).toContain(receipt.jobId);
   const metrics = await new RunQueries(createQuerySource(opened.service)).metrics('review-notes', receipt.jobId);
   expect(metricsResponseSchema.safeParse(metrics).success).toBe(true);
   for (const evaluation of metrics.evaluation.invocations) {

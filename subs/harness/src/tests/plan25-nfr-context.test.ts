@@ -133,7 +133,10 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
       const request = args[2] as { toolName: string; systemPrompt: string; prompt: string; equip: () => unknown };
       if (request.toolName === coordinatorAssessmentToolName) {
         request.systemPrompt = legacySystem; request.prompt = legacyPrompt;
-        request.equip = () => ({ builtinTools: [], tools: boundedNonfunctionalTools({ source, projectRoot: project, candidate: C, base: B }) });
+        request.equip = () => ({ builtinTools: [], tools: boundedNonfunctionalTools({ source, projectRoot: project, candidate: C, base: B }).map(tool => ({ ...tool,
+          description: tool.description.replace('This tool reads the pinned candidate source. Use ordinary file tools and shell for Git history, run records and other evidence.',
+            'Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.'),
+        })) });
       }
       return originalStart.apply(this, args);
     });
@@ -215,7 +218,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   expect(sourceBrief.defaultComparison).toBe('run-start');
   for (const value of [nfr, fixed, 'when tone is omitted', 'Omitted-tone caller', 'Badge source', 'Owned omitted-tone test', 'Second work item caller', 'Second accepted result caller', 'assigned module/source/test locations', '"workItem":"wi-001"', '"workItem":"wi-002"']) expect(text).toContain(value);
   for (const value of ['excluded view', 'excluded run', 'absent optional hint', project]) expect(packet.additions.find(item => item.key === 'brief:support:starting-points')!.text).not.toContain(value);
-  expect(text).toContain('Make your own semantic judgment for every element'); expect(text).toContain('Explore beyond stale or unhelpful hints across the whole allowed tree');
+  expect(text).toContain('Make your own semantic judgment for every element'); expect(text).toContain('Explore beyond stale or unhelpful hints.');
   expect(text).toContain('no pathless diff is required'); expect(text).toContain('Dirty original capture excludes uncommitted starting bytes');
   const session = active.agent!.sessions.find(session => session.spec.submission.name === coordinatorAssessmentToolName)!;
   expect(session.results.find(result => result.tool === 'snapshot_diff' && result.text.includes('historical accepted badge patch'))).toBeDefined();
