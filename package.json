@@ -30,7 +30,7 @@
     "@earendil-works/pi-coding-agent": "0.87.1",
     "@xyflow/react": "12.11.6",
     "express": "5.2.1",
-    "ramify-audit": "0.8.0",
+    "ramify-audit": "0.9.3",
     "ramify.ts": "0.5.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",

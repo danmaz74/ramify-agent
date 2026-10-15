@@ -234,7 +234,7 @@ afterEach(async () => {
   repositories.clear();
 });
 
-describe('ramify-audit 0.8.0 conformance', () => {
+describe('ramify-audit 0.9.3 conformance', () => {
   it('fact 1: command summaries preserve status and runner errors but never an exit code', async () => {
     const repository = await createRepository();
     const request = auditRequest(repository, [commandCheck('commands', [
