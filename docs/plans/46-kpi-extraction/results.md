@@ -1,5 +1,246 @@
 # KPI extraction results
 
+## Consolidated delivery report — nfr-repair-001
+
+This is the current root-owned reconciliation for supplied source tree
+`0441c1d02896b9feef34f20b772836e3f0ca4f09`, not a final acceptance or audit
+verdict. The harness handback and repaired root qualification are consolidated
+below. The historical record following this section is preserved verbatim;
+its “in progress”, “current”, pending items and old paths describe those earlier
+contributions, not a new assessment of this source. In particular, the original
+run remains interrupted/incomplete. **Final clean committed qualification is
+pending.** No future final gate pass or self-referential final commit is claimed.
+
+### Evidence authority and identity ledger
+
+This documentation repair read the existing owner reports, retirement case map,
+root qualification source and available accepted investigation submission
+`plans/kpi-extraction/.harness/jobs/20261014T222715Z-84f064/invocations/inv-0074/submission.json`
+before using its findings. The investigation inspected surviving independent
+assertions and native registrations without execution; it did not authenticate
+historical deleted bodies or execution artifacts. Its broader observations are
+used here only to reconcile the assigned nfr-005/nfr-028 reporting defect.
+
+Source assertions, attributed execution receipts and supplied provenance are
+separate evidence classes. Test source demonstrates assertions exist, not that
+they executed. Counts/hashes below are attributed to the cited owner/operator
+receipts; this repair did not authenticate their original command outputs,
+audit objects, ancestry or historical clean status. **No new authenticated
+execution of tests, scenarios, type checks, build or audit is supplied by this
+repair.** The available evidence does not establish the later final gate.
+
+| Identity | Available value and authority |
+| --- | --- |
+| Projections acceptance / incorporation | Supplied `f227116f16514dd3500b2f4ae1e716272af1845a` / `9f63d4e4660fba64c004941b2acab2c95eec46fc`; linear incorporation, not a two-parent merge. The old `9f63d5a2` is a transcription error. |
+| Original implementation baseline / materialization | Supplied `bad37865e1a3518b1a5d3a9923044d494a420025` / `dd35d5a2d03f3dc1e0bf1de60ae6de2587023b1f`. |
+| Original bootstrap / run | Supplied runtime `7515b630217b71ef83f203e8cb73c2642a001532` / `20261014T103040Z-9c4e05`; not the continuation runtime or a completed original run. |
+| Continuation bootstrap | Operator-supplied `f24924a7cae1af97cc3e626e507a14d131682338`, tree `1e76616d1161dc23adb1a26498f12d79351a67c2`, report `2434a9023a22a78a3ffd285fee2d343b53fa0b94`. This supplies the provenance previously unavailable in the harness handback, not independent verification here. |
+| Continuation run / baseline | `20261014T222715Z-84f064`; supplied pre-scenario commit `41c8e9f247344e3e5e01c5bae6ba69bf2f4a295c`, readiness tree `39494a0d1e847cc36c26b662c7a610c8a54e6abb`, report `5a3101bdbc451fd2621a4b6ecb9adb747ad2bffc`. Harness handback separately records continuation materialization `19b4bb0c4a94dee0fe8d2d23cb929a507349a79d`. |
+| Owner handback boundaries | Harness supplied start `37d9d41a6ccd9f2165df9e249a41f4e6c515f5b7`; root supplied accepted boundary `c633eeb62a67457c8465f3128eff6b12e52ccbcc`. These are distinct contribution boundaries. |
+| Inspected prepared candidate | Task-supplied head `6009091597f970e7abf91723e3fa9460e35f13dc`, tree `0441c1d02896b9feef34f20b772836e3f0ca4f09`; accepted-boundary comparison has no changed paths. That binds supplied source, not historical preservation, clean qualification or a later accepted final candidate. |
+| Final candidate | **Unavailable/pending:** the later gate must record its own committed candidate and qualification. This report does not invent its own final commit identity. |
+
+The canonical authored-plan sibling remains `main-plan.md`; this report is
+`docs/plans/46-kpi-extraction/results.md`, outside captured `plans/kpi-extraction`.
+Original and continuation preparation reports, audit refs, runtime versions and
+terminal-restart limitations remain in the unchanged historical sections below.
+
+### Consolidated source and API ownership comparison
+
+The final inventory in [measurement-retirement.md](../../../subs/harness/measurement-retirement.md),
+[measurement-integration.md](../../../subs/harness/measurement-integration.md) and
+[kpi-delivery-handback.md](../../../subs/harness/kpi-delivery-handback.md) replaces
+the early parent-directory description as the current ownership comparison:
+
+| Responsibility formerly in parent KPI implementation | Current defining owner / actual consumer and retained cost |
+| --- | --- |
+| Snapshot/component accounting, deduplication, revisions, invocation qualification | Ordinary untagged KPI `capture.ts`; harness `run/service.ts` supplies baseline/scope facts. `measurement/inputs.ts` translates delivered manifests, source/hash/bytes, exact-owner/subtree/nested/read selections and acquires locations. `steps/runner.ts` obtains read size before location acquisition, qualifies success/failure through KPI, then commits scope. |
+| Line snapshots/deltas, overlap/binary/unmapped qualifications | KPI `lines.ts`; harness chooses collection timing and commits returned records. |
+| Accepted-final attribution, exact setup exclusions, shared writers, bounded history cache | KPI `delivered.ts` and `setup-attribution.ts`; projections `metrics.ts` supplies recorded writers/history. Root `scripts/trial-attribution.ts` authenticates raw objects/diffs/blame and calls the actual selected verifier, retaining adaptation, durable-effect correlation and CLI 0/1/2 distinctions. |
+| Metrics/comparison, lineage, exploration, guarding, recorded timing/charges | KPI `metrics.ts`, `lineage.ts`, `exploration.ts`, `guarding.ts`, `efficiency.ts`; actual projections metrics/lineage consumers and harness `run/port-events.ts` use selected entries. Session aggregation is child-private. |
+| General owner lookup and protected report destination | Remain harness `measurement/owners.ts` (reviews, equipment, excursions and lines consumers) and `qualification/trial-report.ts` (root trial/live-trial/live-session consumers). Contract-validation lookup in `contracts/parity.ts` is not a duplicate calculator. |
+| Execution and effects | Harness retains admission, scheduling, settlement, recovery and **sole durable writing**. Evidence owns Git/measurement/CLI acquisition contracts. No writable service or ledger is a KPI input. |
+
+The legacy `subs/harness/src/kpi/` directory has been removed, not converted to
+forwarders. The handback's bounded resolved-relative-import scan found no imports
+into it; this is not universal dynamic-import evidence. No algorithms were
+changed by this reporting repair.
+
+Selected public entries/companions, rather than whole implementation files, are:
+
+- Capture: `captureSnapshot`, `baselineScope`, `scopeSize`, `revisionMismatch`,
+  `rootModuleOfSnapshot`, `deliveredScopeInputs`, `invocationReadSize`,
+  `invocationScopeSize`, `invocationScopeFailure`; `SnapshotRequest`,
+  `DeclaredScope`, `DeliveredScopeInputs`, `DeliveredSupportEntry`,
+  `DeliveredSupportSource`, `InvocationScopeDeclaration`.
+- Lines/delivered/setup: `takeLineSnapshot`, `lineEvents`, `LineChange`,
+  `LineSnapshot`, `LineEventRequest`; `deliveredChange`, `cachedChangeHistory`,
+  `DeliveredChangeRequest`, `DeliveredChange`, `HarnessLineIdentities`;
+  `verifySetupLineIdentities`, `SetupLineIdentityInput`, `RecordedSetupDelta`,
+  `SetupCandidatePartition`, `SetupLineMappingFacts`, `SetupSourceLine`,
+  `SetupAddedLineFact`, `SetupDeletedLineFact`.
+- Metrics/lineage: `kpiMetrics`, `comparableScopeMetrics`, `kpiPolicyVersion`,
+  `measurementPolicyVersion`, `InvocationFacts`, `MetricInputs`, `ScopeComparison`;
+  `lineageMetrics`, `lineagePolicyVersion`, `LineageInputs`, `SegmentFacts`,
+  `SegmentUsage`, `StartKind`.
+- Exploration/efficiency/guarding: `explorationDetails`, `ExplorationObservation`,
+  `ExplorationMetrics`, `SearchCount`, `SearchCounts`; `invocationTiming`,
+  `estimateRecordedCharge`, `InvocationTiming`, `ChargeInput`, `RecordedCharge`;
+  `guardingReport`, `GuardingReport`, `GuardVerdictCounts`.
+
+Removed selections are `sessionMetrics`, `SessionEntry`, `SessionMetrics`,
+`componentSubtotal`, `scopeSizePolicy`, `projectOnlySize`; local helpers are not
+public APIs. Foreign companions remain evidence-owned Git/history/measurement/CLI
+and harness-owned records/observation/protocol vocabulary, not copied definitions.
+Harness selected descendant re-exposures give projections access even when imports
+name defining child files. Parent re-exposures give root the verifier and full
+input/mapping/identity closure. Root descendant exposures remain protocol-only,
+not browser-tagged KPI algorithms. Declaration assertions are not exhaustive
+transitive browser-bundle proof.
+
+The descendant grants cover the **whole harness subtree**, including agent/Pi,
+audit, check-findings, evidence, KPI, ledger, nonfunctional, plan-evidence,
+projections and scenarios. This visibility, factual translation and signature
+coordination remain integration costs; they do not prove every descendant uses
+every grant or give KPI process/writing authority. Nested owned fixture projects
+remain separate trees.
+
+Requester evidence must not be merged across revisions. Harness ordinary/testing
+views were separately reported at `rev/1:0c6c53d9-7f36-47b4-b6a2-204adb9819d4:102`,
+with nine selected pages byte-identical but separate access rights and limits
+1/28. Root ordinary/testing refresh after restoration was separately reported at
+`rev/1:600cf346-c915-4a3c-aa7f-5ce986315dc3:12`, limits 39/80, two truncations
+each, exposing verifier/input/line-fact/return companions and destination helper.
+The harness slice supplied no current root/projections requester pages; the later
+root slice does not retroactively fill its projections gap. Earlier revisions and
+the task's supplied revision/coverage remain distinct observations. Truncated and
+inferred signatures prevent exhaustive closure claims; absence is not proof of
+unavailability.
+
+### Actual moved, retired and retained tests
+
+The [case map](../../../subs/harness/src/tests/measurement-parity/README.md)
+provides ordered/same-title assertion mappings, not just suite names. Investigation
+inv-0074 corroborates current independent literals/schema/errors/order assertions
+and native registrations. Exact old-body equivalence remains attributed to the
+retirement inspection, not freshly authenticated from deleted Git blobs here.
+
+| Retired/moved source | Independent surviving assertions / retained boundary |
+| --- | --- |
+| Five transitional coordinator suites, 45 bodies | Child efficiency3, exploration7, guarding3, lineage13, metrics19. Transitional parent/child equalities retire, not the independent oracles. `measurement-parity` now contains README/history only. |
+| Parent metrics18 | Child metrics cases1–18 plus existing case19: schema parsing, weighted100000/40=2500, ratio.25/inverse4, missing subtotal10000/weight10, overlap/partial states, unavailable versus zero, fresh-history4000. |
+| Parent delivered16 | Fifteen same-title child delivered attribution/cache cases; overlapping snapshot body relocated to child `lines.test.ts` (added3/deleted0 with partial overlapping-writers reason). Child's additional bounded-cache case remains; it is not a benefit claim. |
+| Parent pure exploration7 and timing/charge2 | Child exploration and efficiency independent counts, timing, category charges and uncertainty. Parent retains two assignment-root/declaredRoots adapter cases; child retains conflicting-duration and guarding cases. |
+| Parent pure scope duplicates/private API assertions | Child `scope-size-recipe.test.ts` retains corresponding-component120/50 and200/90, partial520/725, policy/revision mismatch, support dedup and missing/unselected qualifications. Retirement prose counts nine pure cases; the detailed map also identifies the private subtotal assertion. No new historical count is inferred. Parent retains actual manifest/write/read/location adapters, repeated brief hash orders and exact conflict Error name/message. |
+| Parent pure setup-identity section | Child `setup-attribution.test.ts` retains shifted/renamed positions, exact BASE deletions, unknown/stale/invalid/missing partitions, union and reversion assertions. Normalized identity is an attributed operator comparison. Parent `plan23-trial-attribution.test.ts` retains distinct assigned-module cwd case. |
+| Invocation qualification / composed consumers | Child retains absent-snapshot ordered components/subtotal25, missing-declaration replacement, failure snapshot/subtotal520/EACCES and read precedence710 through failure. Parent steps-run retains actual manual partial qualification; measurement/provider persistence, HTTP/protocol/session and reopened queries remain independently asserted. |
+| Root collection and acceptance | All 27 collector cases remain root-owned, with factored raw Git helpers plus composed root qualification/browser declaration assertions. No child tests moved to root. |
+| Registered native witnesses | Measurement2 installed-producer/publication-size, attribution7 real Git/CLI/cwd/destination/renamed/deletion/refusal, unguarded-write1 actual shell mutation/outside-scope/durable gate witness. Same exact registry/discovery/guards; native file damage was restored exactly before the later root receipt. |
+
+All eleven child KPI suites and retained composed adapters are reported executed
+in the handback. Native registrations and surviving source are evidence of
+coverage definitions, not independent proof of execution. The seven restored
+native titles and exact restoration provenance remain below. No interrupted-run
+record, test, registration or discovery configuration is changed by this repair.
+
+### Acceptance examples — evidenced outcomes, not status labels
+
+Rows sc-001–009 consolidate the harness handback's inv-0051 prepared execution
+claim (9 scenarios/137 steps); sc-010 uses post-restoration inv-0064 (1/15).
+These are separate focused receipts, not additive whole-suite coverage or plan
+acceptance. Fixtures script external ports only and call real providers/consumers.
+
+| Example | Actual independently asserted outcome and qualification |
+| --- | --- |
+| sc-001 | Real run/provider acquisition persists snapshot/hash, source510/API10 writer scope and line1 added/1 deleted; baseline1330/API25/architect6 plus support. Populated session/evaluation and HTTP equal real in-process queries. Missing new-module scope stays unknown with null complete value/numerator and coverage3/4, not zero. |
+| sc-002 | Public metrics assert (1000×10+3000×30)/40=2500, numerator100000/denominator40, baseline10000, ratio.25/inverse4, ordered writers and complete coverage. |
+| sc-003 | Missing writer source leaves complete value/numerator null/unavailable; known subtotal10000/weight10, coverage1/2 and unknown weight3 of total13 remain explicit. It is not 10000/13 or missing-as-zero. |
+| sc-004 | Known-zero delivery is not-applicable, distinct from failed-history unavailable with actual reason. Recorded session scope remains measured. Recorded category charges remain available at .00116 USD per invocation in both cases; no new pricing aggregate is invented. |
+| sc-005 | Corrected complete literal BASE/mixed/intermediate/FINAL trees independently authenticate positions2/3 before real verifier→deliveredChange. Normal six units = setup2+writer2+uncertain overlap2; intermediate reverted writer0. Setup reversion yields setup0+writer2+overlap2; unknown additions retain setup1+writer1+unavailable2+overlap2 and exact reasons. Negative oracle rejects old position5/hash/origin/removal/truncated-range facts. Earlier position5/6 passes were invalid factual qualification, not repaired successes. |
+| sc-006 | Five invocations/four sessions/five histories, coverage5/5, fresh degradation and scope subtotal1500 (not merged1400). Baseline unavailable, local fork3000 distinct from global, unknown global fork coverage0/1 and degraded fork partial1/2. |
+| sc-007 | Real translation/capture qualifies repeated identities/overlap once: source1330/API25/support35, total1390. Incompatible revisions leave owned/API unavailable while support35 survives; no silent cross-revision sum. |
+| sc-008 | Usage categories100 new/40 cache-read/10 cache-write/20 output; known recorded charge subtotal.00025 USD, missing output rate leaves complete charge null. Exact replay dedups; conflicting identity remains qualified, one search survives with outside-scope unavailable0/1. |
+| sc-009 | Supported historical disk fixture (optional operation-ledger linkage omitted), actual close/reopen, repeated metrics/session/detail HTTP/in-process parity, acquisition counters zero, full file bytes and event sequence11 unchanged. Git history reads allowed; not proof of every historical version or modern operation-ledger behavior. |
+| sc-010 | Real root collector/verifier authenticates FINAL setup line2, ordered mixed entries, unavailable added positions versus verified no-deletion[], fully reverted empty identities and exits[0,1,2,0]. Real filesystem accepts external destination, refuses in-project/alias/symlink destinations and preserves target bytes. Root declaration assertions preserve protocol-only descendant exposures; not exhaustive bundle proof. |
+
+### Verification consolidation and limitations
+
+Receipt roots are
+`plans/kpi-extraction/.harness/jobs/20261014T222715Z-84f064/invocations/`.
+The following are **reported executions**, not reruns in this documentation repair:
+
+- `inv-0051/shell/003.log`: quick selection, 33 files/301 cases, exit0/no skips;
+  eleven KPI suites included. Three stale projections filters selected nothing,
+  not passes. Full exact broad filter text is not reproduced in the handback;
+  its original log is required to authenticate the command, not an inferred list.
+- `inv-0051/shell/009.log`: `npm run test:quick --` the exact files
+  `lineage-metrics.test.ts efficiency-provenance.test.ts plan23-observation-presentation.test.ts plan23-setup-attribution.test.ts`, each under
+  `subs/harness/subs/projections/src/tests/`: 4 files/28 cases, exit0/no skips;
+  lineage repeats earlier coverage.
+- `inv-0051/shell/015.log`: `npm run test:quick --` the exact files
+  `owners.test.ts read-excursions.test.ts ownership-repair-equipment.test.ts composition.test.ts line-events.test.ts plan25-combined-delivery.test.ts`, each
+  under `subs/harness/src/tests/`: 6 files/28 cases, exit0/no skips.
+- `inv-0051/shell/004.log`: `npm run test:boundaries -- subs/harness/src/tests/measurement.boundary.test.ts subs/harness/src/tests/plan23-trial-attribution.boundary.test.ts subs/harness/src/tests/unguarded-write.test.ts && npm run type-check && npm run check:self`:
+  3 files/10 native cases (2+7+1), four TypeScript projects, chain exit0.
+  Structure partial: 457 analysis limits, zero errors/warnings/denied accesses.
+  `016.log` separately reports explicit post-document `npm run check:self` exit0;
+  cold/not-checked mutation hooks are not passes.
+- `inv-0051/shell/005.log`: `node_modules/.bin/cucumber-js --config subs/harness/src/tmp/ramify-focused/wi-001.i08/cucumber-focused-70135bd2c8f341fc.json --profile ramify-focused`:
+  9/137 pass, exit0, no failed/ambiguous/undefined/pending/skipped outcomes;
+  config SHA-256 `70135bd2c8f341fc02ec9fd12ac7af9b722181fd154d73ae1aa67cbde06c88e0`.
+  `006.log`'s 454 configured files are discovery, not 454-file execution.
+- `inv-0064/shell/005.log`: `npm run test:quick -- src/tests/plan23-trial-collector.test.ts src/tests/root-qualification.test.ts`:
+  2 files/28 cases; `npm run test:boundaries -- subs/harness/src/tests/plan23-trial-attribution.boundary.test.ts`:
+  1 file/7 native cases, exit0/no skips, after exact restoration.
+- `inv-0064/shell/006.log`: prepared root config
+  `src/tmp/ramify-focused/wi-002.i02/cucumber-focused-00bc7d8836ee746d.json`, profile
+  `ramify-focused`, SHA-256 `00bc7d8836ee746d06e7ff1f7919ec9711768ba060f6d411db970f7b05526fd0`:
+  1/15 pass, exit0/no failed/undefined/ambiguous/skipped outcomes. `007.log` reports
+  `npm run type-check`, `npm run check:self`, `npm run build:web` exit0;
+  structure partial457 limits, build488 modules with existing >500 kB advisory.
+
+Per-command counts overlap and must not be summed into unique coverage. Earlier
+fully spelled selections and failures remain in
+[kpi-collection-qualification.md](../../../subs/harness/kpi-collection-qualification.md),
+[kpi-mixed-attribution-qualification.md](../../../subs/harness/kpi-mixed-attribution-qualification.md),
+[kpi-weighted-query-qualification.md](../../../subs/harness/kpi-weighted-query-qualification.md)
+and [kpi-query-qualification.md](../../../subs/harness/kpi-query-qualification.md).
+Those notes are unchanged: ga-0002's generated-view reproducibility failure,
+partial features with undefined steps, invalid original sc-005 fixture,
+development schema/type/lock/category/rate/warning-count failures, unrun native
+checks in some slices, timed-out hooks and unauthorized `/tmp` redirect remain
+history, not newly successful checks.
+
+Retirement audit `118a891d429a226f3ee412f607bf0b132c2e8a46` remains failed:
+3754 passed/1 failed/2 opt-in skips; focused corrected M4 13/13 did not rewrite
+it. Root's initial 27-pass/1-fail expectation correction, accidental native
+JSON overwrite, pre-damage passes and exact restoration remain separately
+recorded below. Two inherited whole-suite opt-in skips were not relabeled passed.
+
+Audit provenance below remains supplied, not fresh execution here: ga-0007 full
+on `37d9d41a…`/tree `ecd48288…`, report `f1fca4af…`, claimed3765 tests/two skips
+and15 scenarios/222 steps; ga-0008 freshly checked patch/type/structure/build
+while reusing tests/scenarios; ga-0009 reused composed evidence. ga-0010 on
+`fb7edc86…` failed patch-integrity despite supplied passing tests/scenarios;
+ga-0011 on `b7f62cdf…` reused that failed record. Operator force-default recovery
+on `b7f62cdf…`/tree `947c1057…`, report `f67750ca…`, freshly passed non-test checks
+and reused tests/scenarios; it was not a fresh whole-suite run or later ordinary
+gate. Complete identities/refs/counts remain in their historical receipts below.
+
+### Remaining delivery obligations
+
+This reconciliation completes the bounded documentation integration, not NFR
+satisfaction or final semantic acceptance. Pending are the later **clean committed
+candidate identity and candidate-bound configured qualification**, its own final
+audit/report verdict and coordinator reassessment. Original execution artifacts,
+ancestry, historical byte-equivalence and final clean status are not authenticated
+by consolidating prose. Acquire existing authoritative receipts if authentication
+is needed; do not replace unknowns with inferred passes. No implementation,
+tests, frozen scenarios, declarations, discovery, audit configuration or captured
+run records were edited. No performance or provider cache benefit is claimed.
+
+## Historical record (unchanged)
+
 ## Status
 
 Implementation in progress. The original run retained audited source e99a3ae8
