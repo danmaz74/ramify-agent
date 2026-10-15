@@ -11,8 +11,13 @@ WORKSPACE_ROOT="$(cd "$AGENT_ROOT/.." && pwd -P)"
 COMPANION_MANIFEST="$RAMIFY_DEVCONTAINER_DIR/companion-repos.json"
 COMPANIONS=(ramify ramify-audit)
 # The local branch a fresh companion clone is created on, at the manifest commit.
-# shellcheck disable=SC2034 # used by setup.sh
-DEVELOPMENT_BRANCH="dev/workspace"
+companion_development_branch() {
+  case "$1" in
+    ramify) printf '%s\n' dev/workspace ;;
+    ramify-audit) printf '%s\n' main ;;
+    *) return 1 ;;
+  esac
+}
 # Setup-owned scratch for clones in progress; it never holds a working tree.
 # shellcheck disable=SC2034 # used by setup.sh
 STAGING_ROOT="$WORKSPACE_ROOT/.setup-staging"

@@ -53,7 +53,8 @@ Creation runs `.devcontainer/setup.sh`:
    in any HTTPS, SSH or scp-like spelling. A non-Git directory or another
    repository stops setup before anything changes.
 2. It clones each missing companion at the commit in
-   `.devcontainer/companion-repos.json` onto the local branch `dev/workspace`.
+   `.devcontainer/companion-repos.json` onto the local default branch: `main`
+   for ramify-audit and `dev/workspace` for the toolkit.
 3. It creates `worktrees/` and `evidence/`.
 4. It prepares dependencies: `npm ci` here; `npm ci`, then `npm ci` in
    `examples/collection-review` and `site` in the toolkit; `npm ci` in
@@ -79,6 +80,11 @@ To change a companion, open `development.code-workspace` (**File > Open
 Workspace from File**). It shows the three repositories in one window, with
 ramify-agent first; in that window, choose the repository each new terminal
 starts in.
+
+Keep `/workspaces/ramify-audit` on `main`, and merge completed audit work into
+`main` by default. Use side worktrees for implementation branches. Setup
+preserves an existing checkout's branch; changing this default does not switch
+an existing checkout automatically.
 
 ## Starting and reconnecting
 

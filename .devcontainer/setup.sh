@@ -7,8 +7,9 @@
 # 1. Verifies every companion path before changing anything. An existing
 #    companion must be the top level of a Git checkout with a remote naming
 #    the manifest's repository; anything else stops setup untouched.
-# 2. Clones each missing companion at its manifest commit onto the local
-#    branch dev/workspace. An existing checkout is never fetched, pulled,
+# 2. Clones each missing companion at its manifest commit onto its default
+#    local branch: main for ramify-audit, dev/workspace for ramify.
+#    An existing checkout is never fetched, pulled,
 #    checked out, reset or cleaned: its branch, HEAD, index, files and remotes
 #    stay as they are, whatever the manifest now says.
 # 3. Creates the workspace's worktrees/ and evidence/ directories.
@@ -62,6 +63,8 @@ take_created_directories() {
 clone_companion() {
   local name="$1" url="$2" commit="$3"
   local dir="$WORKSPACE_ROOT/$name" stage="$STAGING_ROOT/$name"
+  local branch
+  branch="$(companion_development_branch "$name")" || fail "no default branch for $name"
   echo ""
   echo "=== Cloning $name from $url at $commit"
   # Left by an interrupted earlier attempt; it holds only Git metadata.
@@ -72,17 +75,20 @@ clone_companion() {
     git -C "$stage" fetch origin "$commit" || fail "$url does not provide commit $commit"
   fi
   git -C "$stage" cat-file -e "$commit^{commit}" 2>/dev/null || fail "$url does not provide commit $commit"
-  git -C "$stage" branch --no-track "$DEVELOPMENT_BRANCH" "$commit"
-  git -C "$stage" symbolic-ref HEAD "refs/heads/$DEVELOPMENT_BRANCH"
+  # The fresh clone may already have main. It has no working tree yet, so
+  # select the manifest commit without changing any authored checkout.
+  git -C "$stage" update-ref "refs/heads/$branch" "$commit" \
+    || fail "could not select $branch at $commit in the fresh clone"
+  git -C "$stage" symbolic-ref HEAD "refs/heads/$branch"
 
   mkdir -p "$dir"
   take_created_directories "$name"
   mv -- "$stage/.git" "$dir/.git" || fail "could not move the clone into $dir"
   rmdir -- "$stage"
   rmdir -- "$STAGING_ROOT" 2>/dev/null || true
-  git -C "$dir" checkout --force --quiet "$DEVELOPMENT_BRANCH" \
-    || fail "could not check out $DEVELOPMENT_BRANCH in $dir; inspect it with git status before rerunning"
-  echo "$name is on $DEVELOPMENT_BRANCH at $(git -C "$dir" rev-parse HEAD)"
+  git -C "$dir" checkout --force --quiet "$branch" \
+    || fail "could not check out $branch in $dir; inspect it with git status before rerunning"
+  echo "$name is on $branch at $(git -C "$dir" rev-parse HEAD)"
 }
 
 echo "=== ramify-agent workspace setup"
