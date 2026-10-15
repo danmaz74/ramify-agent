@@ -10,7 +10,7 @@ Feature: provider-backed-root-qualification
   exposure. Verify root consumers and participate in the final clean committed
   default audit and delivery report.
 
-  @ramify-sc-010 @ramify-pending
+  @ramify-sc-010
   Scenario: Root qualification retains setup verification and destination protection
     Given existing root qualification consumers of setup attribution and trial reporting
     When they verify valid and invalid setup evidence and choose report destinations
