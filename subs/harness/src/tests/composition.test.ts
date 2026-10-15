@@ -547,6 +547,8 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
  * becoming a second copy of the test that owns them.
  */
 const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly file: string; readonly test: string }> = [
+  { union: 'observation log[context].data.native.source', values: ['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'], file: 'subs/harness/src/tests/execution-observations.test.ts', test: '%s context settings and compaction failure remain honest evidence without a harness threshold' },
+  { union: 'query metrics.evaluation.invocations[].context.observations[].native.source', values: ['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'], file: 'subs/harness/subs/projections/src/tests/continuity-projections.test.ts', test: 'context projection preserves %s settings, missing estimates and failed compaction without manufacturing usage' },
   { union: 'run log.type', values: ['operation-recovery-attempt', 'operation-recovery-pausing', 'operation-recovery-paused'], file: 'subs/harness/src/tests/operation-recovery.test.ts', test: 'R01: structured transport receives exactly two successor invocations then pauses with lineage and retained attempts' },
   { union: 'run log.type', values: ['operation-recovery-resumed'], file: 'subs/harness/src/tests/operation-recovery.test.ts', test: 'R02: %s evidence waits for one explicit group; exact commands deduplicate and stale occurrences refuse' },
   { union: 'run log.type', values: ['operation-recovery-replied'], file: 'subs/harness/src/tests/single-session.test.ts', test: 'a finite standalone recovery group retains an occurrence and explicit resume deduplicates accepted submissions' },
