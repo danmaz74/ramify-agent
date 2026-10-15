@@ -477,7 +477,7 @@ export type AgentEvent = (
 
 /** Pi effective settings are observations, never a harness context ceiling. */
 export interface ContextNativeObservation {
-  readonly source: 'pi@0.87.1:SettingsManager';
+  readonly source: 'pi@0.87.1:SettingsManager' | 'pi@1.3.0:SettingsManager';
   readonly compaction: { readonly enabled: boolean; readonly reserveTokens: number; readonly keepRecentTokens: number };
   readonly occupancy: 'current';
   readonly projectedTokens: number | null;

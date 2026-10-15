@@ -1639,7 +1639,7 @@ export const scopeComparisonSchema = z.object({ mean: metricSchema, ratio: metri
 export type ScopeComparisonView = z.infer<typeof scopeComparisonSchema>;
 
 /** Effective Pi settings and context estimates; absent provider facts remain unknown. */
-export const nativeContextObservationSchema = z.object({ source: z.literal('pi@0.87.1:SettingsManager'),
+export const nativeContextObservationSchema = z.object({ source: z.enum(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager']),
   compaction: z.object({ enabled: z.boolean(), reserveTokens: z.number(), keepRecentTokens: z.number() }).strict(),
   occupancy: z.literal('current'), projectedTokens: z.number().nullable(), coverage: z.array(z.string()) }).strict();
 export const contextObservationViewSchema = z.object({ observations: z.array(z.object({ at: z.string(), tokens: z.number().nullable(),

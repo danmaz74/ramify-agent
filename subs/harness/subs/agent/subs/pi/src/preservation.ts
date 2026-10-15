@@ -76,7 +76,7 @@ export function readPiNativeRequestArtifact(bytes: Uint8Array): PiNativeRequestA
   return artifact as unknown as PiNativeRequestArtifact;
 }
 export interface PreservedPiTranscript {
-  readonly schema: 'ramify.pi-transcript/1'; readonly packageVersion: '0.87.1'; readonly transport: 'sse'; readonly model: string;
+  readonly schema: 'ramify.pi-transcript/1'; readonly packageVersion: '0.87.1' | '1.3.0'; readonly transport: 'sse'; readonly model: string;
   /** Shared provider routing identity; absent only in transcripts written before its adoption. */
   readonly providerSessionId?: string;
   readonly messages: readonly PiTranscriptMessage[]; readonly appliedAgentKeys: readonly string[];
@@ -103,11 +103,11 @@ interface Serializer {
 interface TranscriptUtilities { getDeclaredTools(messages: readonly PiTranscriptMessage[]): PiTranscriptTool[]; resolveTranscriptTools(messages: readonly PiTranscriptMessage[], additive: boolean): { requestTools: PiTranscriptTool[] } }
 interface GrammarUtilities { createGrammarToolInputProperties(tools: readonly PiTranscriptTool[], enabled: boolean): ReadonlyMap<string, string> }
 const packageEntry = fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent'));
-/** Resolve only import exports declared by the SDK's nested pi-ai package. */
+/** Resolve only import exports declared by the installed pi-ai package. */
 export async function installedPiPublicExport(subpath: string): Promise<string> {
-  const directory = join(dirname(packageEntry), '..', 'node_modules', '@earendil-works/pi-ai');
+  const directory = join(dirname(fileURLToPath(import.meta.resolve('@earendil-works/pi-ai'))), '..');
   const manifest = JSON.parse(await readFile(join(directory, 'package.json'), 'utf8')) as { version: string; exports: Record<string, { import?: string }> };
-  if (manifest.version !== '0.87.1') throw new Error(`Unsupported pi-ai ${manifest.version}`);
+  if (manifest.version !== '1.3.0') throw new Error(`Unsupported pi-ai ${manifest.version}`);
   for (const [pattern, target] of Object.entries(manifest.exports)) {
     if (!target.import) continue;
     const [before, after] = pattern.split('*');
@@ -129,7 +129,7 @@ let serialization: Promise<{ serializer: Serializer; transcript: TranscriptUtili
 export function installedPiSerialization() {
   serialization ??= (async () => {
     const version = await installedPiPackageVersion().catch(() => 'unknown');
-    if (version !== '0.87.1') throw new Error(`Unsupported pi package ${version}`);
+    if (version !== '1.3.0') throw new Error(`Unsupported pi package ${version}`);
     const load = async (subpath: string) => import(await installedPiPublicExport(subpath)) as Promise<unknown>;
     const [serializer, transcript, grammar] = await Promise.all([
       load('./api/openai-responses-shared'),
@@ -174,6 +174,6 @@ export function validateNativeRequest(payload: unknown, expected: NativePrefix, 
 }
 export function decodePreservedTranscript(bytes: Uint8Array): PreservedPiTranscript {
   const value = JSON.parse(new TextDecoder().decode(bytes)) as PreservedPiTranscript;
-  if (value.schema !== 'ramify.pi-transcript/1' || value.packageVersion !== '0.87.1' || value.transport !== 'sse' || !Array.isArray(value.messages) || !Array.isArray(value.appliedAgentKeys) || !Array.isArray(value.declarations) || !value.native || !Array.isArray(value.native.input) || (value.providerSessionId !== undefined && (typeof value.providerSessionId !== 'string' || value.providerSessionId.trim().length === 0))) throw new Error('Unsupported or corrupt opaque pi transcript');
+  if (value.schema !== 'ramify.pi-transcript/1' || (value.packageVersion !== '0.87.1' && value.packageVersion !== '1.3.0') || value.transport !== 'sse' || !Array.isArray(value.messages) || !Array.isArray(value.appliedAgentKeys) || !Array.isArray(value.declarations) || !value.native || !Array.isArray(value.native.input) || (value.providerSessionId !== undefined && (typeof value.providerSessionId !== 'string' || value.providerSessionId.trim().length === 0))) throw new Error('Unsupported or corrupt opaque pi transcript');
   return value;
 }

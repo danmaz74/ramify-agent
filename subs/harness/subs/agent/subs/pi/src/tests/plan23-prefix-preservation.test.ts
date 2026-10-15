@@ -76,7 +76,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const requestEntry = recorded!.transcript.find(item => item.kind === 'provider' && item.key.includes(':pi-request:'))!;
     const requestArtifact = JSON.parse(new TextDecoder().decode(f.payloads.get(requestEntry.payloadId)!)) as Record<string, unknown>;
     // Recorded observations of the installed package and the forced stream options, not restated constants.
-    expect(requestArtifact['packageVersion']).toBe('0.87.1'); expect(requestArtifact['transport']).toBe('sse'); expect(requestArtifact['maxRetries']).toBe(0);
+    expect(requestArtifact['packageVersion']).toBe('1.3.0'); expect(requestArtifact['transport']).toBe('sse'); expect(requestArtifact['maxRetries']).toBe(0);
     expect(requestArtifact).toMatchObject({ schema: 'ramify.pi-native-request/1', model: 'openai-codex/gpt-5.6-sol', request: f.native.wireRequests[0] });
     expect(f.native.transports).toEqual(['sse', 'sse']);
     expect(JSON.stringify(requestArtifact)).not.toContain('fixture-account');
@@ -177,7 +177,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(f.native.wireHeaders).toEqual(expected.map(sessionId => ({ sessionId, clientRequestId: sessionId })));
     f.native.verify();
   });
-  it('upgrades legacy child transcripts from the original creation identity and preserves it through a further fork', async () => {
+  it('continues 0.87.1 child transcripts with their original prefix and creation identity through a further fork', async () => {
     const f = await fixture([[text('Parent.')], [text('Child.')], [text('Restored child.')], [text('Grandchild.')]]);
     const parent = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'parent'))).receipt;
     const child = await f.operations.fork({ runId: 'run-A', operationId: 'child', sourcePoint: parent.point! });
@@ -185,11 +185,17 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     // Independent legacy fixture bypasses content addressing, as corruption fixtures do below.
     for (const [id, bytes] of f.payloads) {
       const value = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
-      if (value['schema'] === 'ramify.pi-transcript/1') { delete value['providerSessionId']; f.payloads.set(id, new TextEncoder().encode(JSON.stringify(value))); }
+      if (value['schema'] === 'ramify.pi-transcript/1') { value['packageVersion'] = '0.87.1'; delete value['providerSessionId']; f.payloads.set(id, new TextEncoder().encode(JSON.stringify(value))); }
     }
     const restored = createPiAgentOn(f.source).bindSessionStore!(f.store);
     const second = await (await restored.continue(f.next(child.sessionId, first.point!, 'child-restored'))).receipt;
     expect(second.status).toBe('completed');
+    const before = prefix(f.native, 1); const after = prefix(f.native, 2);
+    expect(after.instructions).toEqual(before.instructions); expect(after.tools).toEqual(before.tools);
+    expect(after.input.slice(0, before.input.length)).toEqual(before.input);
+    const snapshot = await restored.inspect('run-A', child.sessionId);
+    const entry = snapshot!.transcript.filter(item => item.kind === 'provider' && item.key.includes(':pi-state:')).at(-1)!;
+    expect(JSON.parse(new TextDecoder().decode(f.payloads.get(entry.payloadId)!))).toMatchObject({ packageVersion: '1.3.0', providerSessionId: f.P.sessionId });
     const grandchild = await restored.fork({ runId: 'run-A', operationId: 'grandchild', sourcePoint: second.point! });
     expect((await (await restored.continue(f.next(grandchild.sessionId, grandchild.point!, 'grandchild-first'))).receipt).status).toBe('completed');
     expect(f.native.wireRequests.map(body => body['prompt_cache_key'])).toEqual(Array(4).fill(f.P.sessionId));
@@ -291,7 +297,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const receipt = await (await operations.continue(f.next(f.P.sessionId, f.P.point!, 'unsupported'))).receipt;
     expect(receipt).toMatchObject({ status: 'unavailable', point: null }); expect(f.native.dispatches()).toBe(0); expect(f.native.requests).toHaveLength(0); f.native.verify();
   });
-  it.each(['native-prefix', 'encoding', 'model', 'transport', 'provider-identity-empty', 'provider-identity-type'])('S10 makes intact but corrupt %s history durably unavailable and Retry dispatches zero requests', async corruption => {
+  it.each(['native-prefix', 'encoding', 'model', 'transport', 'package-version', 'provider-identity-empty', 'provider-identity-type'])('S10 makes intact but corrupt %s history durably unavailable and Retry dispatches zero requests', async corruption => {
     const f = await fixture([[call('submit_orientation', { orientation: 'A' }, 'orient')]]);
     const T1 = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'orient'))).receipt;
     const snapshot = await f.operations.inspect('run-A', f.P.sessionId);
@@ -302,6 +308,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     if (corruption === 'provider-identity-type') value['providerSessionId'] = 7;
     if (corruption === 'model') value['model'] = 'Different/model';
     if (corruption === 'transport') value['transport'] = 'websocket-cached';
+    if (corruption === 'package-version') value['packageVersion'] = 'unqualified';
     // Independent corruption fixture bypasses content-addressing to exercise the decoder.
     f.payloads.set(entry.payloadId, new TextEncoder().encode(corruption === 'encoding' ? '{' : JSON.stringify(value)));
     const result = await (await f.operations.continue(f.next(f.P.sessionId, T1.point!, 'corrupt'))).receipt;
@@ -350,7 +357,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     if (shape === 'with-coerced-read') expect((interrupted!.body['effects'] as Array<{ tool: string; input: unknown }>).find(effect => effect.tool === 'read')?.input).toEqual({ offset: 2 });
     const stateEntry = (interrupted!.body['provider'] as Array<{ key: string; payloadId: string }>).filter(item => item.key.includes(':pi-state:')).at(-1)!;
     const opaque = JSON.parse(new TextDecoder().decode(f.payloads.get(stateEntry.payloadId)!)) as { messages: Array<{ role: string }>; transport: string; packageVersion: string; model: string };
-    expect(opaque).toMatchObject({ providerSessionId: f.P.sessionId, transport: 'sse', packageVersion: '0.87.1', model: 'openai-codex/gpt-5.6-sol' });
+    expect(opaque).toMatchObject({ providerSessionId: f.P.sessionId, transport: 'sse', packageVersion: '1.3.0', model: 'openai-codex/gpt-5.6-sol' });
     expect(opaque.messages.some(message => message.role === 'toolResult')).toBe(false);
     expect(opaque.messages.at(-1)?.role).toBe('assistant');
     const rebuilt = createPiAgentOn(f.source).bindSessionStore!(f.store);

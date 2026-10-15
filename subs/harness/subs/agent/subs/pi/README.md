@@ -7,13 +7,16 @@ rebinds current tools, policy, validators and destinations for each operation.
 
 ## Supported preservation
 
-The preserving driver qualifies Pi `0.87.1`, `openai-codex` models on
+The preserving driver qualifies Pi `1.3.0`, `openai-codex` models on
 `openai-codex-responses` (qualified with `gpt-5.6-sol`), SSE and zero provider
 retries. Unsupported models/transports are explicit unavailable or failed
 operations without a replacement start. Initial instructions, tool definitions
 and every inherited serialized input item retain their order and original
 opaque fields. Later roles and tool definitions are appended to the transcript;
 historical inactive tools cannot execute or submit for a current task.
+Transcripts written with Pi `0.87.1` remain readable; restoration verifies their
+retained native prefix before dispatch, and new state records name `1.3.0`.
+Historical context observations retain their original version attribution.
 
 `createPiAgent({ model, sessionStore })` exposes modern operations through
 `AgentPort`. Continue, exact-point Fork, model-free context/tool additions,

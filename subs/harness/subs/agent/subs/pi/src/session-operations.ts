@@ -205,7 +205,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     const unfinished = persistedMessages.some(message => message.role === 'assistant' && message.content.some(block => block.type === 'toolCall' && !persistedMessages.some(result => result.role === 'toolResult' && result.toolCallId === block.id)));
     if (!unfinished) completeNative = native;
     if (!completeNative) throw new SessionDriverUnavailableError('Opaque transcript has no complete native prefix');
-    const next: PreservedPiTranscript = { schema: 'ramify.pi-transcript/1', packageVersion: '0.87.1', transport: 'sse', model: modelIdentity, providerSessionId, messages: persistedMessages, ...(historyBoundary ? { historyBoundary } : {}), ...(nativeManager ? { nativeEntries: copy([nativeManager.getHeader()!, ...nativeManager.getEntries()]) } : restoredNativeEntries ? { nativeEntries: copy(restoredNativeEntries) } : {}), appliedAgentKeys: [...applied], declarations: copy(declarations), additionKeys: [...additions], activeTools: [...activeTools], native: completeNative, sequence: ++sequence, preparedOperationId: input.key.operationId };
+    const next: PreservedPiTranscript = { schema: 'ramify.pi-transcript/1', packageVersion: '1.3.0', transport: 'sse', model: modelIdentity, providerSessionId, messages: persistedMessages, ...(historyBoundary ? { historyBoundary } : {}), ...(nativeManager ? { nativeEntries: copy([nativeManager.getHeader()!, ...nativeManager.getEntries()]) } : restoredNativeEntries ? { nativeEntries: copy(restoredNativeEntries) } : {}), appliedAgentKeys: [...applied], declarations: copy(declarations), additionKeys: [...additions], activeTools: [...activeTools], native: completeNative, sequence: ++sequence, preparedOperationId: input.key.operationId };
     await runtime.persistPayload(`${input.key.operationId}:pi-state:${sequence}`, new TextEncoder().encode(JSON.stringify(next)));
     state = next;
     });
@@ -235,7 +235,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
   }
   const nativeSettings = SettingsManager.create(input.task.environment.workingDirectory, source.agentDirectory).getCompactionSettings(chosen.model);
   const settings = SettingsManager.inMemory({ transport: 'sse', compaction: { ...nativeSettings, enabled: true }, retry: { enabled: false }, cacheWarming: 'off' });
-  const nativeObservation = { source: 'pi@0.87.1:SettingsManager' as const, compaction: settings.getCompactionSettings(chosen.model), occupancy: 'current' as const, projectedTokens: null, coverage: ['Projected next-request estimate is not exposed by the installed public session API'] };
+  const nativeObservation = { source: 'pi@1.3.0:SettingsManager' as const, compaction: settings.getCompactionSettings(chosen.model), occupancy: 'current' as const, projectedTokens: null, coverage: ['Projected next-request estimate is not exposed by the installed public session API'] };
   const loader = new DefaultResourceLoader({ cwd: input.task.environment.workingDirectory, agentDir: source.agentDirectory, settingsManager: settings, noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true, noContextFiles: true, extensionFactories: source.preservingExtensions ?? [] });
   await loader.reload();
   const { session } = await createAgentSession({ cwd: input.task.environment.workingDirectory, agentDir: source.agentDirectory, modelRuntime, model: chosen.model, thinkingLevel: chosen.thinkingLevel, settingsManager: settings, resourceLoader: loader, sessionManager: manager, noTools: 'all', tools: [] });
@@ -293,7 +293,6 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
   // patches after its native lifecycle has prepared the next context.
   const nativePrepareNextTurn = session.agent.prepareNextTurnWithContext;
   session.agent.prepareNextTurnWithContext = async (turn, signal) => {
-    const boundTools = session.agent.state.tools;
     const next = await nativePrepareNextTurn?.(turn, signal);
     session.agent.state.tools = boundTools;
     await boundaryPersistence;
@@ -336,6 +335,17 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
       return nativeToolResult(result);
     },
   })) as PiSession['agent']['state']['tools'];
+  const boundTools = session.agent.state.tools;
+  // Pi now prepares custom-message runs before the first turn hook. Keep its
+  // native run lifecycle, discarding its initial prompt/loadout patch just as
+  // the next-turn hook discards later patches. Durable declarations and current
+  // implementations remain authoritative for both the first and later turns.
+  const nativePrompt = session.agent.prompt.bind(session.agent);
+  session.agent.prompt = async (value: PiTranscriptMessage | PiTranscriptMessage[] | string, images?: Parameters<PiSession['agent']['prompt']>[1]) => {
+    session.agent.state.tools = boundTools;
+    if (typeof value === 'string') return nativePrompt(value, images);
+    return nativePrompt((Array.isArray(value) ? value : [value]).filter(message => message.role !== 'system'));
+  };
   let dispatchStarted: number | null = null;
   const stream = session.agent.streamFunction;
   let requestCount = 0;
@@ -523,7 +533,7 @@ function reportMessage(event: AgentSessionEvent, runtime: SessionDriverRuntime, 
     const longWrite = usage.cacheWrite1h ?? 0;
     const effectiveWrite = usage.cacheWrite > 0 ? (rates.cacheWrite * (usage.cacheWrite - longWrite) + rates.input * 2 * longWrite) / usage.cacheWrite : rates.cacheWrite;
     const reported = usage.input + usage.output + usage.cacheRead + usage.cacheWrite > 0;
-    const charge: AgentEventObservation['charge'] = { model: `${chosen.model.provider}/${chosen.model.id}`, sourceRevision: `pi-ai@0.87.1:model-runtime:tier=${threshold}:cacheWrite1h=${longWrite}`,
+    const charge: AgentEventObservation['charge'] = { model: `${chosen.model.provider}/${chosen.model.id}`, sourceRevision: `pi-ai@1.3.0:model-runtime:tier=${threshold}:cacheWrite1h=${longWrite}`,
       ratesPerMillion: { newInput: rates.input, cachedInput: rates.cacheRead, cacheWrite: effectiveWrite, output: rates.output } };
     runtime.onEvent({ type: 'message', role: 'assistant', ...(sourceId === null ? {} : { observation: { sourceId, at, elapsedMs, ...(reported ? { charge } : { coverage: ['SDK normalized all-zero usage; original provider report presence unavailable'] }) } }), blocks, text: assistantText(blocks), usage: reported ? { input: message.usage.input, output: message.usage.output, cacheRead: message.usage.cacheRead, cacheWrite: message.usage.cacheWrite, total: message.usage.totalTokens } : null, detail: { ...noMessageDetail, model: charge.model, thinkingLevel: chosen.thinkingLevel ?? null, stopReason: message.stopReason === 'stop' ? 'end' : ['toolUse', 'tool-use'].includes(message.stopReason) ? 'tool-use' : ['length', 'error', 'aborted'].includes(message.stopReason) ? message.stopReason as 'length' | 'error' | 'aborted' : 'other',
         error: message.errorMessage ?? null, reasoningTokens: usage.reasoning ?? null, cost: { ...usage.cost }, cacheWrites: { short: usage.cacheWrite - longWrite, long: longWrite } } });
