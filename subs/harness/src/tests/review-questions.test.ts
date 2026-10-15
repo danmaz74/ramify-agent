@@ -320,7 +320,11 @@ describe('three questions over one candidate', () => {
 describe('unavailable reusable review context uses ordinary fresh inputs', () => {
   test('an unavailable preserving fork makes one fresh invocation with the ordinary review inputs', async () => {
     const root = await reviewTarget(cleanups); let reviewDispatches = 0;
+    const startedAt = Date.now();
     const run = await reviewRun(root, cleanups, {
+      // This case witnesses fork fallback; keep completion deadlines independent
+      // of wall-clock scheduling while all six review requests are processed.
+      now: () => new Date(startedAt),
       commits: guidedCommits(), policy: { kinds: ['scope', 'design'], concurrency: 1, retries: 0 },
       engineer: engineers(), reviewers: { 'orientation#1': orient([principles, readme]), 'orientation#2': orient([principles, readme]) },
       agentReady: agent => {
