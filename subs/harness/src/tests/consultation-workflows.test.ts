@@ -56,7 +56,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     expect(second).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Global advised the module architect' } } });
     expect(new Set([outer.session, first.child!.session, second.child!.session]).size).toBe(3);
     const global = fixture.seen.find(input => input.key.operationId === second.child!.invocation)!;
-    expect(global.session.activeTools).toEqual(['read', 'grep', 'ls', 'answer_architect_consultation']);
+    expect(global.session.activeTools).toEqual(['read', 'grep', 'ls', 'subagent', 'answer_architect_consultation']);
     expect(global.session.parent).toEqual(readSessionPointReference(G0.ref)!.point);
     expect(global.task.message).toContain('Local new facts for global');
     expect(global.task.message).not.toContain('Local received global result');
@@ -97,7 +97,9 @@ describe('Plan 33 awaited consultation workflows', () => {
       const transcript = await readTranscript(scenario.path(runLayout.transcript(event.data.session)));
       const started = transcript.entries.find(entry => entry.type === 'started' && entry.invocation === event.data.invocation)!;
       if (started.type !== 'started') throw new Error('Transcript start missing');
-      expect(constructed.brief.environment.availableTools).toEqual(started.declarations!.names);
+      const expectedTools = [...constructed.brief.environment.availableTools];
+      if (inputs.role !== 'context-selector') expectedTools.splice(constructed.equipment.builtinTools.length, 0, 'subagent');
+      expect(expectedTools).toEqual(started.declarations!.names);
       if (inputs.role === 'context-selector') expect(constructed.equipment.tools.map(tool => tool.name)).not.toContain('consult_architect');
     }
     expect(scenario.events.filter(event => event.type === 'consultation-started')).toHaveLength(2);

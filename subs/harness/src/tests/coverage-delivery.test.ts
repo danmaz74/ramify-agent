@@ -92,7 +92,7 @@ test('a local consultation retains the bounded coverage block and exact detail p
   expect(packet).toContain('13 limited records:');
   expect(packet).toContain('.ramify-architect/unusual/behavior.jsonl');
   expect(packet).toContain('architect-I');
-  expect(child.session.activeTools).toEqual(['read', 'grep', 'ls', 'answer_architect_consultation']);
+  expect(child.session.activeTools).toEqual(['read', 'grep', 'ls', 'subagent', 'answer_architect_consultation']);
 });
 
 test('a refreshed architect view cannot serve detail pointers for an older captured index', async () => {

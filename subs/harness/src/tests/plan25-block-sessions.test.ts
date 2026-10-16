@@ -83,7 +83,7 @@ test('S01/S02: old-point fork sees its exact prefix, active role/tool/cwd/valida
     spec: { ...child.spec, role: 'engineer', session: { mode: 'fork', from: a.ref }, scope: { workingDirectory: '/current-cwd' }, submission: { ...child.spec.submission, name } },
     brief: { ...child.brief, kind: 'engineering', environment: { ...child.brief.environment, availableTools: [name] } }, authority: { paths: ['current-owner'] }, validator: { schema: 'engineer/1' }, destination: { record: 'child-only' } });
   expect(seen[2]!.session.parent).toEqual(readSessionPointReference(a.ref)!.point);
-  expect(seen[2]!.session.activeTools).toEqual([name]); expect(seen[2]!.task.role).toBe('engineer'); expect(seen[2]!.task.environment.workingDirectory).toBe('/current-cwd');
+  expect(seen[2]!.session.activeTools).toEqual(['subagent', name]); expect(seen[2]!.task.role).toBe('engineer'); expect(seen[2]!.task.environment.workingDirectory).toBe('/current-cwd');
   expect(seen[2]!.session.policy).toMatchObject({ authority: { paths: ['current-owner'] }, validator: { schema: 'engineer/1' }, destination: { record: 'child-only' } });
   const packet = (await adapter.packet('run', 'child'))!;
   expect(packet.message).toContain('Selected procedure: procedure:engineer:main');
@@ -178,10 +178,12 @@ test('S03/S06: legacy retry preserves /1 bytes; new task migrates representation
   let calls = 0; const first = await open(() => { calls++; return [{ kind: 'submit', input: {} }]; }); const old = await legacy(first.root, first.adapter); const original = await readFile(old.path, 'utf8');
   await first.adapter.close(); const next = await open(() => { calls++; return [{ kind: 'submit', input: {} }]; }, first.root);
   await turn(next.adapter, { ...old.input, restore: true, loaded: { ...old.input.loaded, procedure: 'New files must not affect old retry', submissionSchema: 'invalid' } });
+  expect((await next.adapter.originalOperation('run', 'legacy'))!.declarations.map(tool => tool.name)).not.toContain('subagent');
   expect(calls).toBe(1); expect(await readFile(old.path, 'utf8')).toBe(original); expect(await next.adapter.packet('run', 'legacy')).toEqual(old.packet);
   await turn(next.adapter, old.input); expect(calls).toBe(1);
   await expect(next.adapter.start({ ...old.input, brief: { ...old.input.brief, objective: 'Perform' } })).rejects.toThrow('Conflicting harness session correlation');
   const migrated = await turn(next.adapter, request('migrate', old.ref)); const current = (await next.adapter.packet('run', 'migrate'))!;
+  expect((await next.adapter.originalOperation('run', 'migrate'))!.declarations.map(tool => tool.name)).toContain('subagent');
   expect(current.manifest.schema).toBe('ramify-agent.delivered-inputs/2');
   expect(current.manifest.entries.filter(entry => entry.delivery === 'inherited').map(entry => entry.hash)).toEqual(old.packet.manifest.entries.map(entry => entry.hash));
   expect(current.manifest.entries.filter(entry => entry.delivery === 'inherited' && entry.kind === 'environment')).toHaveLength(1);

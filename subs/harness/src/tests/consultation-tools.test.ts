@@ -33,7 +33,7 @@ describe('Plan 33 C05-C12 advisory tools', () => {
       expect(child.session.additions.map(item => item.text)).not.toContain('Later parent update excluded from L0/K0');
       const history = await Promise.all(child.session.transcript.map(entry => fixture.store.getPayload(entry.payloadId).then(bytes => bytes === null ? '' : new TextDecoder().decode(bytes))));
       expect(history.join('\n')).not.toContain('Exact answer');
-      expect(child.session.activeTools).toEqual(['read', 'grep', 'ls', 'answer_architect_consultation']);
+      expect(child.session.activeTools).toEqual(['read', 'grep', 'ls', 'subagent', 'answer_architect_consultation']);
       expect(child.task.message).toContain('advisory'); expect(child.task.message).toContain('No source snapshot or view refresh');
       expect(history.join('\n') + child.task.message + child.session.additions.map(item => item.text).join('\n')).toContain('Fixture view may be stale');
       expect(child.task.message).not.toContain('Known views:');
