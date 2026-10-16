@@ -1,36 +1,27 @@
-<!-- ramify-agent architect implementation guidance, version 4. -->
+<!-- ramify-agent architect implementation guidance, version 5. -->
 ## Exposure, paths and module engineer verification
 
-Use the installed pinned Ramify provider's supported declarations. For the
-current `ramify.ts@0.4.2` contract, a declaration starts with `ramify 1` and its
-`module` name. `expose-src helper, HelperType from "helper.ts" to parent`
-selects named owned exports relative to `src/`; `expose-test makeFixture,
-Fixture from "fixture.ts" to descendants` selects owned exports relative to
-`src/tests/` and preserves testing-source restrictions. `expose-src *` applies
-only to one explicitly named file under `src/interfaces/`. `expose-sub helper,
-HelperType from child to parent` selects symbols received from the direct
-child named `child`; `*` selects what that direct child exposes to the module.
-Use `to descendants` when that is the intended audience, and preserve tag
-restrictions. Expose the named signature types with the behavior they describe.
+Use the installed pinned Ramify provider's supported declarations. A declaration
+starts with `ramify 1` and its `module` name. `expose-src helper, HelperType
+from "helper.ts" to parent` selects named owned exports relative to `src/`;
+`expose-test makeFixture, Fixture from "fixture.ts" to descendants` selects
+owned exports relative to `src/tests/`, preserving testing restrictions.
+`expose-src *` applies only to one named file under `src/interfaces/`.
+`expose-sub helper, HelperType from child to parent` selects symbols received
+from that direct child; `*` selects what the child exposes to this module.
+Preserve tag restrictions and expose every named signature type with its behavior.
 
-Exposure to descendants already includes the target descendants. For
-Core/Catalog/Workspace/Validation, Core exposes its originals to its parent,
-Catalog re-exposes what it received from direct child Core to its parent, and
-Workspace exposes what it received from direct child Catalog to descendants,
-including Validation beneath Reviews. No additional Reviews declaration is
-needed merely to reach Validation. Read the affected declarations and current
-consumer API evidence; pre-change unavailability and refreshed post-exposure
-availability are different observations.
+Exposure to descendants already reaches all target descendants. Re-exposure
+is needed along the path to the exposing ancestor, not at each intermediate
+descendant. Inspect the affected declarations and the consumer's current
+ordinary or testing API evidence; pre-change absence differs from refreshed
+post-exposure availability.
 
-Name the actual project-relative consumer file and provider file before
-suggesting an import. Resolve any proposed relative import from the consumer
-file's directory and state its intended target; do not forward an unchecked
-import from a provisional request. In the retained fixture, consumer
-`subs/workspace/subs/reviews/subs/validation/src/preview.ts` reaches provider
-`subs/workspace/subs/catalog/subs/core/src/history.ts` with
-`../../../../catalog/subs/core/src/history.js`, not three `../` components.
-Path resolution alone does not prove importability: the consumer's current
-ordinary or testing API evidence and the provider check establish that rule.
+Name the actual project-relative consumer and provider files before proposing
+an import. Resolve its relative path from the consumer file's directory; verify
+provisional request paths instead of forwarding them unchecked. Path resolution
+alone does not prove importability: the consumer API evidence and provider
+check establish it.
 
 When source or provider evidence contradicts a plan or assignment, explicitly
 revise the authoritative design and subsequent assignment before handback.

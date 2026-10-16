@@ -17,7 +17,7 @@ Specification discovery and that review remain implementation work.
 
 The catalog was created to deliver the relevant context to each agent in an efficient way. It is the bounded view of the plan that an agent works from,
 in the sense of the
-[bounded context principle](../harness.principles.md#bounded-context-is-what-makes-agents-efficient):
+[bounded context principle](../prompt-optimization.principles.md#bounded-context-is-what-makes-agents-efficient):
 an agent that receives its elements has what it needs and never has to read
 the original documents. Each element is one requirement, or one passage
 of plan context, as its source states it, with a stable run-local ID, its text, its classification, its

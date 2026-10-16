@@ -48,6 +48,7 @@ const reconciliationProcedureFile = fileURLToPath(new URL('./reconciliation.proc
 /** The write-scope section every architect procedure that assigns a scope includes as `{{writeScope}}`. */
 const writeScopeSectionFile = fileURLToPath(new URL('./write-scope.procedure.md', import.meta.url));
 const discoveryReadOnlyFile = fileURLToPath(new URL('./discovery-read-only.procedure.md', import.meta.url));
+const architectPlanningFile = fileURLToPath(new URL('./architect-planning.procedure.md', import.meta.url));
 const architectEngineeringFile = fileURLToPath(new URL('./architect-engineering.procedure.md', import.meta.url));
 const engineerSystemFile = fileURLToPath(new URL('./engineer.system.md', import.meta.url));
 const engineerProcedureFile = fileURLToPath(new URL('./engineer.procedure.md', import.meta.url));
@@ -160,11 +161,11 @@ export interface PromptPackageOptions {
 export const initialArchitectPackage = 'initial-architect/7';
 export const catalogExtractorPackage = 'catalog-extractor/2';
 export const globalForkPackage = 'global-fork/8';
-export const localArchitectPackage = 'local-architect/19';
+export const localArchitectPackage = 'local-architect/21';
 export const contextSelectorPackage = 'context-selector/4';
 export const engineerPackage = 'engineer/17';
 export const capabilityEngineerPackage = 'engineer/16';
-export const capabilityArchitectPackage = 'capability-architect/7';
+export const capabilityArchitectPackage = 'capability-architect/9';
 export const contractEngineerPackage = 'contract-engineer/5';
 export const reviewerPackage = 'reviewer/5';
 export const failureAnalystPackage = 'failure-analyst/2';
@@ -285,7 +286,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
   const workOrientationSchema = `${JSON.stringify(workOrientationJsonSchema, null, 2)}\n`;
   const loaded = await loadPackage({
     role: 'local-architect',
-    name: options.capabilityWorkflow === false ? 'local-architect/19' : localArchitectPackage,
+    name: options.capabilityWorkflow === false ? 'local-architect/21' : localArchitectPackage,
     systemFile: localSystemFile,
     procedureFile: options.capabilityWorkflow === false ? localProcedureFile : capabilityLocalProcedureFile,
     schema: options.capabilityWorkflow === false ? localArchitectJsonSchema : capabilityLocalArchitectJsonSchema,
@@ -298,7 +299,7 @@ async function loadLocalArchitect(options: PromptPackageOptions): Promise<Loaded
       describe(workOrientationProcedureFile, workOrientation, 'procedure'),
       { path: 'work-orientation.schema.json', hash: sha256(workOrientationSchema), kind: 'submission-schema', bytes: Buffer.byteLength(workOrientationSchema) },
     ],
-    sections: { writeScope: writeScopeSectionFile, architectEngineering: architectEngineeringFile },
+    sections: { architectPlanning: architectPlanningFile, writeScope: writeScopeSectionFile, architectEngineering: architectEngineeringFile },
     options,
   });
   return { ...loaded, reconciliation: { procedure: withoutVersionComment(reconciliation).trim(), submissionSchema: reconciliationSchema },
@@ -339,7 +340,7 @@ async function loadCapabilityArchitect(options: PromptPackageOptions): Promise<L
     submissionKinds: [...capabilityActionSchema.options.map(option => option.shape.kind.value), 'reconciliation'],
     extraFiles: [describe(reconciliationProcedureFile, reconciliation, 'procedure'),
       { path: 'reconciliation.schema.json', hash: sha256(reconciliationSchema), kind: 'submission-schema', bytes: Buffer.byteLength(reconciliationSchema) }],
-    sections: { writeScope: writeScopeSectionFile, architectEngineering: architectEngineeringFile },
+    sections: { architectPlanning: architectPlanningFile, writeScope: writeScopeSectionFile, architectEngineering: architectEngineeringFile },
     options,
   });
   return { ...loaded, reconciliation: { procedure: withoutVersionComment(reconciliation).trim(), submissionSchema: reconciliationSchema } };

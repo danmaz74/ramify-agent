@@ -1,4 +1,4 @@
-<!-- ramify-agent capability architect procedure, version 10. -->
+<!-- ramify-agent capability architect procedure, version 12. -->
 Read the original need and its provisional source first. Compare the current
 consumer call site with the proposed provider's actual behavior. Read prior
 decisions of every affected owner. Treat a registry name as a clue, never as
@@ -19,6 +19,8 @@ When broader verification remains with the consumer, state its responsible
 owner and remaining behavior while retaining the original example and all
 applicable constraints. Do not defer required delegated composition under
 the label of broader consumer work.
+
+{{architectPlanning}}
 
 Use the plan-update tool to revise design when evidence changes. When affected
 ownership expands, the harness automatically reselects the fixed,
@@ -101,13 +103,6 @@ Your briefing lists your earlier reports with the accepted source each was
 made against where that source has since moved. Your reports stand as you
 made them; inspect what changed with `inspect_git` and revise one with
 `bound` only where, in your judgment, it no longer holds.
-
-In assignment `startingPoints`, optionally select a few useful source, test,
-support, caller or API-view locations you already encountered, with a short
-note about what to inspect. Paths are literal and project-relative. Select
-useful pointers for the module engineer; do not forward your entire exploration.
-These hints authorize no writes and establish no completion or obligation.
-No extra discovery turn is required; you may omit them.
 
 ## Correcting an assignment after a conflict
 

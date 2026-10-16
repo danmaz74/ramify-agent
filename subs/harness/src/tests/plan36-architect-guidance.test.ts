@@ -14,9 +14,11 @@ import { validateEngineer } from '../work/engineer.js';
 let packages: ReadonlyMap<Role, LoadedPackage>;
 let discovery: string;
 let engineering: string;
+let planning: string;
 beforeAll(async () => {
   packages = (await loadPromptPackages()).packages;
   discovery = await readFile(resolve('subs/harness/src/prompts/discovery-read-only.procedure.md'), 'utf8');
+  planning = await readFile(resolve('subs/harness/src/prompts/architect-planning.procedure.md'), 'utf8');
   engineering = await readFile(resolve('subs/harness/src/prompts/architect-engineering.procedure.md'), 'utf8');
 });
 const body = (text: string) => text.slice(text.indexOf('\n') + 1).trim();
@@ -114,9 +116,10 @@ test('fixture relative import resolves from the actual consumer while source and
   expect(resolve(dirname(consumer), '../../../catalog/subs/core/src/history.js')).not.toBe(provider);
   const packet = buildTaskPacket(input('capability-architect', 'capability', 'submit_capability_action'));
   const procedure = effectiveBlocks(packet.additions).get(packet.additions.find(item => item.kind === 'procedure')!.key)!.text;
-  expect(procedure).toContain(correct);
-  expect(procedure).toContain('Path resolution alone does not prove importability');
-  expect(procedure).toContain('No additional Reviews declaration');
+  const text = procedure.replace(/\s+/g, ' ');
+  expect(text).toContain("Resolve its relative path from the consumer file's directory");
+  expect(text).toContain('Path resolution alone does not prove importability');
+  expect(text).toContain('not at each intermediate descendant');
   expect(procedure).toContain('explicitly\nrevise the authoritative design');
 });
 
@@ -167,10 +170,23 @@ test.each([
   [false, 'local-architect', 'assignment', 'submit_work_item_result'],
   [true, 'local-architect', 'assignment', 'submit_work_item_result'],
   [true, 'capability-architect', 'capability', 'submit_capability_action'],
-] as const)('assigning architect receives the feature-check completion rule (%s/%s)', async (capabilityWorkflow, role, kind, tool) => {
+] as const)('assigning architect receives planning once, retains it on continuation and preserves feature-check rules (%s/%s)', async (capabilityWorkflow, role, kind, tool) => {
   const loaded = (await loadPromptPackages({ capabilityWorkflow })).packages.get(role)!;
-  const packet = buildTaskPacket({ ...input(role, kind, tool), loaded });
-  const procedure = [...effectiveBlocks(packet.additions).values()].find(block => block.kind === 'procedure')!.text.replace(/\s+/g, ' ');
+  const base = { ...input(role, kind, tool), loaded };
+  const packet = buildTaskPacket(base);
+  const rawProcedure = [...effectiveBlocks(packet.additions).values()].find(block => block.kind === 'procedure')!.text;
+  expect(rawProcedure.split(body(planning))).toHaveLength(2);
+  expect(rawProcedure.indexOf(body(planning))).toBeLessThan(rawProcedure.indexOf('`assignment.scope` decides'));
+  expect(rawProcedure.split('`assignment.startingPoints`')).toHaveLength(2);
+  const planningSource = packet.manifest.entries.find(entry => entry.kind === 'procedure')!.sources.find(source => source.path.endsWith('architect-planning.procedure.md'));
+  expect(planningSource).toMatchObject({ hash: exactInputHash(planning), bytes: Buffer.byteLength(planning) });
+  const current = revision('before');
+  const continued = buildTaskPacket({ ...base, inheritedPoint: 'architect:1', inherited: packet.additions, supplyRoleInstructions: false,
+    briefing: buildBriefingDelivery({ mode: 'continue', current, inheritedRevision: current.revision, history: [current] }) });
+  expect(continued.additions.some(block => block.kind === 'procedure')).toBe(false);
+  const effective = [...effectiveBlocks([...packet.additions, ...continued.additions]).values()].find(block => block.kind === 'procedure')!.text;
+  expect(effective).toBe(rawProcedure);
+  const procedure = rawProcedure.replace(/\s+/g, ' ');
   expect(procedure).toContain('Do not require an intermediate contribution to make the entire selected feature pass');
   expect(procedure).toContain('including unexpected failures and regressions');
   expect(procedure).toContain('unfinished assigned work requires `partial`');

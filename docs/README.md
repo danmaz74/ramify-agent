@@ -100,6 +100,14 @@ Design documents for the separate agent harness:
   [final results](plans/22-test-boundaries/final-results.md) retain the aggregate
   timing limitation and failed working-tree materializer observation
 - [Harness principles](harness.principles.md)
+- [Prompt optimization principles](prompt-optimization.principles.md), shared
+  context, guidance, instruction delivery, orientation reuse and concise results
+- [Engineer prompt optimization principles](prompt-optimization-engineer.principles.md),
+  local context with access to architectural advice
+- [Plan architect prompt optimization principles](prompt-optimization-plan-architect.principles.md),
+  forecasts and implementation mapping
+- [Module architect prompt optimization principles](prompt-optimization-module-architect.principles.md),
+  work decomposition and progress reconsideration
 - [Automatic project repair](architecture/automatic-project-repair.spec.md):
   one explicitly delegated root repair session for an unexpected architect
   preparation obstruction, verified handback, retained incident evidence,

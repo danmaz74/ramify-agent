@@ -219,8 +219,8 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(assignment.manifest.entries.filter(item => item.kind === 'tool-declaration')).toHaveLength(2);
     expect(orientation.message).toContain("Explore your module's README, declaration and relevant source");
     expect(orientation.message).toContain('Non-functional, fixed and recommendation elements');
-    expect(assignment.message).toContain('Build on the module reading and understanding already in this session.');
-    expect(assignment.message).toMatch(/If\s+this is a fresh session, read your module's README/u);
+    expect(assignment.message).toContain('Build on useful understanding already in this session; refresh it');
+    expect(assignment.message).toMatch(/In a fresh session, use the supplied paths to read the\s+module's README/u);
     expect(() => buildTaskPacket({ ...input(loaded, 'orientation'), briefing, inheritedPoint: 'P:T1', inherited: orientation.additions,
       loaded: { ...loaded, workOrientation: { ...loaded.workOrientation!, submissionSchema: '{"type":"object","additionalProperties":false}' } }, supplyRoleInstructions: false })).toThrow('Immutable tool declaration changed');
   });
@@ -251,25 +251,26 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     const local = current.get('local-architect')!;
     const packet = buildTaskPacket(input(local, 'completion'));
     const procedure = packet.additions.find(item => item.kind === 'procedure')!.text;
-    expect(procedure).toContain('A `request-completion` has two parts: a `summary`, and your `reports` on\nevery scenario and registered test of the work item. Add `outline` only if\nyou are changing the plan. Without it, the last committed outline stays.');
-    expect(procedure).toContain('Reviews that are still running do not block it: the work-item gate waits\nfor them to finish.');
+    expect(procedure).toContain('Use `request-completion` with a `summary` and reports covering every scenario\nand registered test. Include `outline` only to change its current revision.');
+    expect(procedure).toContain('Reviews may still be running; the work-item gate waits for them.');
     expect(procedure).not.toContain('review/gate requirement');
     const ordinaryProcedure = buildTaskPacket(input(ordinary.get('local-architect')!, 'completion')).additions.find(item => item.kind === 'procedure')!.text;
     expect(ordinaryProcedure).toContain('Without it, the last committed outline stays.');
-    expect(packet.roleInstructions).toContain('The task\'s views block lists the API view directories your module has');
-    expect(packet.roleInstructions).toContain('Each page mirrors one source file, with `.md` added');
+    expect(packet.roleInstructions).toContain('Use only the supplied view paths and preserve their coverage limitations.');
+    expect(packet.roleInstructions).toContain('Pages mirror defining source paths with `.md`');
     expect(packet.roleInstructions).not.toContain('.ramify/children');
   });
   test('procedure manifest entries and support paths name the embedded section sources and nothing undelivered', () => {
     const local = current.get('local-architect')!;
     const writeScope = 'subs/harness/src/prompts/write-scope.procedure.md';
     const engineering = 'subs/harness/src/prompts/architect-engineering.procedure.md';
+    const planning = 'subs/harness/src/prompts/architect-planning.procedure.md';
     const discovery = 'subs/harness/src/prompts/discovery-read-only.procedure.md';
     const procedureSources = (loaded: LoadedPackage, kind: TaskKind) =>
       buildTaskPacket(input(loaded, kind)).manifest.entries.filter(entry => entry.kind === 'procedure').flatMap(entry => entry.sources.map(source => source.path));
-    expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-capability.procedure.md', writeScope, engineering]);
-    expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect.procedure.md', writeScope, engineering]);
-    expect(procedureSources(current.get('capability-architect')!, 'capability')).toEqual(['subs/harness/src/prompts/capability-architect.procedure.md', writeScope, engineering]);
+    expect(procedureSources(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect-capability.procedure.md', planning, writeScope, engineering]);
+    expect(procedureSources(ordinary.get('local-architect')!, 'completion')).toEqual(['subs/harness/src/prompts/local-architect.procedure.md', planning, writeScope, engineering]);
+    expect(procedureSources(current.get('capability-architect')!, 'capability')).toEqual(['subs/harness/src/prompts/capability-architect.procedure.md', planning, writeScope, engineering]);
     expect(buildTaskPacket(input(local, 'assignment')).message).toContain('An included child module brings its whole subtree:');
     // A replaced procedure embeds no section, so its entry names only its own file.
     expect(procedureSources(local, 'orientation')).toEqual(['subs/harness/src/context-selection/orientation.procedure.md']);
@@ -281,7 +282,7 @@ describe('P01/P02/P05: stable role and complete current tasks', () => {
     expect(deliveredSupportPaths(local, 'assignment')).toEqual(manifestSources);
     // Role-specific read-only guidance is embedded; no new reference read is required.
     expect(deliveredSupportPaths(local, 'assignment')).toEqual(['subs/harness/src/prompts/local-architect.system.md', discovery,
-      'subs/harness/src/prompts/local-architect-capability.procedure.md', writeScope, engineering]);
+      'subs/harness/src/prompts/local-architect-capability.procedure.md', planning, writeScope, engineering]);
     expect(local.files.map(file => file.path)).toEqual(expect.arrayContaining(['local-architect.schema.json', 'subs/harness/src/prompts/reconciliation.procedure.md']));
     expect(deliveredSupportPaths(local, 'reconciliation')).toEqual(['subs/harness/src/prompts/local-architect.system.md', discovery, 'subs/harness/src/prompts/reconciliation.procedure.md']);
     expect(deliveredSupportPaths(current.get('initial-architect')!, 'initial-analysis')).toEqual(['subs/harness/src/prompts/initial-architect.system.md', 'skills/module-architect/SKILL.md', discovery, 'subs/harness/src/prompts/initial-analysis.procedure.md']);
@@ -392,7 +393,7 @@ describe('P04: manifests reflect supplied/inherited instructions and truthful re
   test('P05: catalog, policy and import instructions match the actual authority and empty content is omitted', () => {
     expect(current.get('initial-architect')!.procedure).toContain('Record no hypothesis that restates an entry');
     expect(current.get('initial-architect')!.procedure).toContain('do\nnot classify them again');
-    expect(current.get('local-architect')!.procedure).toContain('The entry is already registered; record a local decision only for a capability\nnot in the registry');
+    expect(current.get('local-architect')!.procedure).toContain('The entry is already registered. Record `localDecisions` only for new\n  capabilities, each registered once.');
     for (const loaded of [current.get('engineer')!, ordinary.get('engineer')!]) {
       expect(stableRoleInstructions(loaded)).toContain('Commands may be refused by policy before execution');
       expect(stableRoleInstructions(loaded)).toContain('those refusals make no\nchange and trigger no mutation check');

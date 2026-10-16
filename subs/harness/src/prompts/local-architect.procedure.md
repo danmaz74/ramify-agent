@@ -1,4 +1,4 @@
-<!-- ramify-agent module architect procedure, version 15. -->
+<!-- ramify-agent module architect procedure, version 17. -->
 Do this, in order:
 
 1. Read the goal, the requirement references and the acceptance references in
@@ -25,6 +25,8 @@ Do this, in order:
 6. Where it is not, decide what one module engineer can carry out next, and assign
    it.
 7. Submit.
+
+{{architectPlanning}}
 
 ## `assign`
 
@@ -386,13 +388,6 @@ work needs is not what the agreement says.
   keeps its identity and receives the new evidence at its next turn.
 
 If no revision would meet the request, answer `unresolved` instead.
-
-In assignment `startingPoints`, optionally select a few useful source, test,
-support, caller or API-view locations you already encountered, with a short
-note about what to inspect. Paths are literal and project-relative. Select
-useful pointers for the module engineer; do not forward your entire exploration.
-These hints authorize no writes and establish no completion or obligation.
-No extra discovery turn is required; you may omit them.
 
 ## Correcting an assignment after a conflict
 

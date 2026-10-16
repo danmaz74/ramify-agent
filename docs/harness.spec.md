@@ -6,7 +6,12 @@
 ## Purpose
 
 Specify the scope, verification, preparation and session behavior governed by
-the [harness principles](harness.principles.md). The principles remain
+the [harness principles](harness.principles.md) and the
+[shared](prompt-optimization.principles.md),
+[engineer](prompt-optimization-engineer.principles.md),
+[plan architect](prompt-optimization-plan-architect.principles.md) and
+[module architect](prompt-optimization-module-architect.principles.md)
+prompt optimization principles. The principles remain
 applicable alongside these detailed contracts.
 
 ## Specification
