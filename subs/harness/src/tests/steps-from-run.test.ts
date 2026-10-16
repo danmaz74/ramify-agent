@@ -208,7 +208,7 @@ describe('S03: inputs from a run', () => {
     const result = await inputsFromRun({ role: 'engineer', runDirectory: directory, invocation: freshId, builtinDeclarations: scripted });
     expect(result.status).toBe('imported');
     if (result.status !== 'imported') return;
-    expect(result.comparison).toEqual({ status: 'different', sections: ['tool declaration: read', 'tool declaration: grep', 'tool declaration: ls', 'tool declaration: edit', 'tool declaration: write'] });
+    expect(result.comparison).toEqual({ status: 'different', sections: ['message: environment:availableTools', 'tool declaration: read', 'tool declaration: grep', 'tool declaration: ls', 'tool declaration: edit', 'tool declaration: write', 'tool declaration: subagent (removed)'] });
   });
 
   test('other roles, unknown invocations and incomplete task records are refused with the reason', async () => {
@@ -333,10 +333,10 @@ describe('S04: render', () => {
     expect(await tree(run.root)).toEqual(before);
     expect(printed.exitStatus).toBe(0);
     const text = printed.stdout;
-    for (const heading of ['==== Role instructions ====', '==== Message ====', '==== Tool declarations (7) ====', '==== Submission schema (submit_iteration_result) ====']) {
+    for (const heading of ['==== Role instructions ====', '==== Message ====', '==== Tool declarations (8) ====', '==== Submission schema (submit_iteration_result) ====']) {
       expect(text).toContain(heading);
     }
-    for (const tool of ['read', 'grep', 'ls', 'edit', 'write', 'shell', 'submit_iteration_result']) expect(text).toContain(`--- ${tool}`);
+    for (const tool of ['read', 'grep', 'ls', 'edit', 'write', 'subagent', 'shell', 'submit_iteration_result']) expect(text).toContain(`--- ${tool}`);
     expect(text).toContain('Attempt `ga-0002` (check-failed)');
     expect(text).not.toContain('Continuation additions only');
   });

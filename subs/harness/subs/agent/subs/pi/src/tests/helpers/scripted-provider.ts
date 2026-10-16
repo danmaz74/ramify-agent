@@ -210,14 +210,15 @@ export async function scriptedRuntime(scripted: ScriptedProvider): Promise<{ run
 
 export interface NativeCodexRuntime { readonly runtime: ModelRuntime; readonly model: Model; readonly agentDirectory: string; readonly requests: Record<string, unknown>[]; readonly wireRequests: Record<string, unknown>[]; readonly transports: unknown[]; readonly wireHeaders: Array<{ sessionId: string | null; clientRequestId: string | null }>; dispatches(): number; push(...items: Array<readonly Record<string, unknown>[]>): void; verify(): void; remove(): Promise<void> }
 /** Real installed Codex serializer/parser, with only its HTTP transport intercepted. */
-export async function nativeCodexRuntime(outputs: readonly (readonly Record<string, unknown>[] | null | { readonly error: string })[], fixtureOptions: { contextWindow?: number; usage?: { input_tokens: number; output_tokens: number } } = {}): Promise<NativeCodexRuntime> {
+export async function nativeCodexRuntime(outputs: readonly (readonly Record<string, unknown>[] | null | { readonly error: string })[], fixtureOptions: { provider?: 'openai-codex' | 'openai'; contextWindow?: number; usage?: { input_tokens: number; output_tokens: number } } = {}): Promise<NativeCodexRuntime> {
   const agentDirectory = await mkdtemp(join(tmpdir(), 'ramify-agent-native-pi-'));
   const runtime = await ModelRuntime.create({ authPath: join(agentDirectory, 'auth.json'), modelsPath: null, modelsStorePath: join(agentDirectory, 'models-store.json'), allowModelNetwork: false, refreshOnCreate: false });
-  const originalModel = runtime.getModel('openai-codex', 'gpt-5.6-sol');
+  const provider = fixtureOptions.provider ?? 'openai-codex';
+  const originalModel = runtime.getModel(provider, 'gpt-5.6-sol');
   const model = originalModel && { ...originalModel, contextWindow: fixtureOptions.contextWindow ?? originalModel.contextWindow };
   if (!model) throw new Error('Installed pi catalog lacks the qualified model');
   // A second model under the same credentials but on another API: preservation refuses it, so tests can see that refusal rather than a credentials error.
-  const native = await import(await installedPiPublicExport('./api/openai-codex-responses')) as { streamSimple: StreamFunction; stream: StreamFunction };
+  const native = await import(await installedPiPublicExport(provider === 'openai' ? './api/openai-responses' : './api/openai-codex-responses')) as { streamSimple: StreamFunction; stream: StreamFunction };
   const queue = [...outputs]; const requests: Record<string, unknown>[] = []; const wireRequests: Record<string, unknown>[] = []; const transports: unknown[] = []; const wireHeaders: NativeCodexRuntime['wireHeaders'] = []; let dispatches = 0; let exhausted = false;
   const token = `fixture.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture-account' } })).toString('base64')}.fixture`;
   const intercept: StreamFunction = (selected, context, options) => { transports.push(options?.transport); return native.streamSimple(selected, context, {
@@ -250,7 +251,7 @@ export async function nativeCodexRuntime(outputs: readonly (readonly Record<stri
       return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
     },
   } as StreamOptions); };
-  runtime.registerNativeProvider({ id: 'openai-codex', name: 'Intercepted installed Codex', auth: { apiKey: { name: 'Fixture', resolve: async () => ({ auth: { apiKey: token } }) } }, getModels: () => [model, { ...model, id: 'gpt-5.4', name: 'Fixture model on another API', api: 'openai-responses' } as Model], stream: intercept, streamSimple: intercept } as Provider);
+  runtime.registerNativeProvider({ id: provider, name: 'Intercepted installed Responses', auth: { apiKey: { name: 'Fixture', resolve: async () => ({ auth: { apiKey: token } }) } }, getModels: () => [model, { ...model, id: 'gpt-5.4', name: 'Fixture model on another API', api: 'openai-responses' } as Model], stream: intercept, streamSimple: intercept } as Provider);
   return { runtime, model, agentDirectory, requests, wireRequests, transports, wireHeaders, dispatches: () => dispatches, push: (...items: Array<readonly Record<string, unknown>[]>) => queue.push(...items),
     verify: () => { if (exhausted || queue.length || JSON.stringify(wireRequests) !== JSON.stringify(requests)) throw new Error(`Native script exhaustion=${exhausted}, unused=${queue.length}, final payload/wire equality=${JSON.stringify(wireRequests) === JSON.stringify(requests)}`); },
     remove: () => rm(agentDirectory, { recursive: true, force: true }) };

@@ -157,15 +157,15 @@ export interface PromptPackageOptions {
 }
 
 /** The versions of the packages this iteration ships. */
-export const initialArchitectPackage = 'initial-architect/6';
+export const initialArchitectPackage = 'initial-architect/7';
 export const catalogExtractorPackage = 'catalog-extractor/2';
-export const globalForkPackage = 'global-fork/7';
-export const localArchitectPackage = 'local-architect/18';
+export const globalForkPackage = 'global-fork/8';
+export const localArchitectPackage = 'local-architect/19';
 export const contextSelectorPackage = 'context-selector/4';
-export const engineerPackage = 'engineer/16';
-export const capabilityEngineerPackage = 'engineer/15';
-export const capabilityArchitectPackage = 'capability-architect/6';
-export const contractEngineerPackage = 'contract-engineer/4';
+export const engineerPackage = 'engineer/17';
+export const capabilityEngineerPackage = 'engineer/16';
+export const capabilityArchitectPackage = 'capability-architect/7';
+export const contractEngineerPackage = 'contract-engineer/5';
 export const reviewerPackage = 'reviewer/5';
 export const failureAnalystPackage = 'failure-analyst/2';
 export const nonfunctionalCoordinatorPackage = 'nonfunctional-coordinator/5';
@@ -190,7 +190,7 @@ export async function loadPromptPackages(options: PromptPackageOptions = {}): Pr
     ['reviewer', await loadReviewer(options)],
     ['failure-analyst', await loadFailureAnalyst(options)],
     ['nonfunctional-coordinator', await loadNonfunctionalCoordinator(options)],
-    ['nonfunctional-repair-engineer', await loadPackage({ role: 'nonfunctional-repair-engineer', name: 'nonfunctional-repair-engineer/3',
+    ['nonfunctional-repair-engineer', await loadPackage({ role: 'nonfunctional-repair-engineer', name: 'nonfunctional-repair-engineer/4',
       systemFile: nonfunctionalRepairSystemFile, procedureFile: nonfunctionalRepairProcedureFile,
       schema: nonfunctionalRepairJsonSchema, submissionKinds: ['completed', 'partial'], options })],
   ]);

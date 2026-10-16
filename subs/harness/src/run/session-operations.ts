@@ -374,7 +374,7 @@ export class HarnessSessionOperations {
         !previous.packet.message.includes(input.brief.objective) || input.brief.sections.some(section => !retained.sections.some(old => old.key === section.key && old.text === section.text && (old.source ?? null) === (section.source ?? null)))) throw new Error('Conflicting harness session correlation');
     }
     const builtins = input.spec.builtinTools;
-    const builtinDeclarations = this.agent.builtinDeclarations?.(builtins, spec.scope.workingDirectory) ?? piBuiltinDeclarations(builtins, spec.scope.workingDirectory);
+    const builtinDeclarations = this.agent.builtinDeclarations?.(builtins, spec.scope.workingDirectory, spec.role) ?? piBuiltinDeclarations(builtins, spec.scope.workingDirectory, spec.role);
     const composed = previous ? null : composeOperationPacket({ runId, operationId, loaded: input.loaded, brief: input.brief, role: spec.role,
       mode: spec.session.mode, workingDirectory: spec.scope.workingDirectory, builtinDeclarations, tools: spec.tools, submissionName: spec.submission.name,
       source: sourceRef?.point ?? null, prior, ...(input.callerText === undefined ? {} : { callerText: input.callerText }) });

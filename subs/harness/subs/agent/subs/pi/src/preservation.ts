@@ -6,6 +6,15 @@ import { convertToLlm, type AgentSession as PiSession } from '@earendil-works/pi
 /** Preservation serializes the native prefix with pi's own serializer for this API; the model id does not change the shape. */
 const PRESERVING_PROVIDER = 'openai-codex';
 const PRESERVING_API = 'openai-codex-responses';
+const RESPONSES_PROVIDER = 'openai';
+const RESPONSES_API = 'openai-responses';
+/** Responses carries initial instructions in its first input item; Codex uses a separate field. */
+function requestInstructions(body: Record<string, unknown>, inInput: boolean): unknown {
+  if (!inInput) return body['instructions'];
+  if (body['instructions'] !== undefined) throw new Error('Unexpected separate Responses instructions');
+  const first = Array.isArray(body['input']) ? body['input'][0] as Record<string, unknown> | undefined : undefined;
+  return first && ['developer', 'system'].includes(String(first['role'])) ? first['content'] : undefined;
+}
 export type PiTranscriptMessage = PiSession['agent']['state']['messages'][number];
 export type PiChosenModel = NonNullable<PiSession['model']>;
 export type PiTranscriptTool = { name: string; description: string; parameters: Record<string, unknown> };
@@ -53,10 +62,11 @@ export function readPiNativeRequestArtifact(bytes: Uint8Array): PiNativeRequestA
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const artifact = parsed as Record<string, unknown>;
   if (typeof artifact['schema'] !== 'string' || !artifact['schema'].startsWith('ramify.pi-native-request')) return null;
-  if (artifact['schema'] !== 'ramify.pi-native-request/1' || typeof artifact['model'] !== 'string' || !artifact['model'].startsWith(`${PRESERVING_PROVIDER}/`)) {
+  if (artifact['schema'] !== 'ramify.pi-native-request/1' || typeof artifact['model'] !== 'string' || ![PRESERVING_PROVIDER, RESPONSES_PROVIDER].some(provider => (artifact['model'] as string).startsWith(`${provider}/`))) {
     throw new Error('Unsupported pi native request artifact identity');
   }
-  const modelId = artifact['model'].slice(PRESERVING_PROVIDER.length + 1);
+  const [provider, ...modelParts] = artifact['model'].split('/');
+  const modelId = modelParts.join('/');
   const body = artifact['request'];
   if (typeof artifact['packageVersion'] !== 'string' || artifact['packageVersion'].length === 0 ||
     typeof artifact['transport'] !== 'string' || artifact['transport'].length === 0 ||
@@ -67,7 +77,7 @@ export function readPiNativeRequestArtifact(bytes: Uint8Array): PiNativeRequestA
     throw new Error('Malformed pi native request artifact body');
   }
   const request = body as Record<string, unknown>;
-  if (request['model'] !== modelId || request['instructions'] !== artifact['instructions'] ||
+  if (request['model'] !== modelId || requestInstructions(request, provider === RESPONSES_PROVIDER) !== artifact['instructions'] ||
     !Array.isArray(request['input']) ||
     (request['tools'] !== undefined && !Array.isArray(request['tools'])) ||
     !sameNative(request['tools'] ?? [], artifact['tools']) || !sameNative(request['input'], artifact['input'])) {
@@ -141,7 +151,7 @@ export function installedPiSerialization() {
   return serialization;
 }
 export function supportedPreservingModel(model: PiChosenModel): string | null {
-  if (model.provider !== PRESERVING_PROVIDER || model.api !== PRESERVING_API) return `Session preservation supports only ${PRESERVING_PROVIDER} models on ${PRESERVING_API}`;
+  if (!((model.provider === PRESERVING_PROVIDER && model.api === PRESERVING_API) || (model.provider === RESPONSES_PROVIDER && model.api === RESPONSES_API))) return 'Session preservation supports only OpenAI Codex and OpenAI Responses provider/API pairs';
   const compat = model.compat as { supportsAdditionalTools?: boolean; supportsMidConvoSystemMessages?: boolean } | undefined;
   if (compat?.supportsAdditionalTools !== true || compat.supportsMidConvoSystemMessages !== true) return 'Model does not declare native appended tools and later system messages';
   return null;
@@ -151,23 +161,24 @@ export async function serializeNativePrefix(model: PiChosenModel, messages: read
   messages = convertToLlm(messages.filter(message => !(message.role === 'custom' && message.customType === 'execution-continuation')));
   const { serializer, transcript, grammar } = await installedPiSerialization();
   const compat = model.compat as Record<string, unknown> | undefined;
-  const toolOptions = { strict: null, supportsStrictMode: compat?.['supportsStrictMode'] ?? true, supportsOpenAIGrammarTools: compat?.['supportsOpenAIGrammarTools'] ?? false };
+  const inInput = model.api === RESPONSES_API;
+  const toolOptions = { ...(inInput ? {} : { strict: null }), supportsStrictMode: compat?.['supportsStrictMode'] ?? true, supportsOpenAIGrammarTools: compat?.['supportsOpenAIGrammarTools'] ?? false };
   const head = messages[0] as { role?: string; content?: string } | undefined;
   if (head?.role !== 'system' || typeof head.content !== 'string' || head.content === '') throw new Error('Initial role instructions are missing; default prompt substitution is forbidden');
   return {
     instructions: head.content,
     tools: serializer.convertResponsesTools(transcript.resolveTranscriptTools(messages, true).requestTools, toolOptions),
     input: serializer.convertResponsesMessages(model, { messages: copy(messages) }, new Set(['openai', 'openai-codex', 'opencode']), {
-      includeSystemPrompt: false,
+      includeSystemPrompt: inInput,
       grammarToolInputProperties: grammar.createGrammarToolInputProperties(transcript.getDeclaredTools(messages), compat?.['supportsOpenAIGrammarTools'] === true),
       supportsMidConvoSystemMessages: true, supportsAdditionalTools: true, supportsToolSearch: compat?.['supportsToolSearch'] ?? false, toolOptions,
     }),
   };
 }
-export function validateNativeRequest(payload: unknown, expected: NativePrefix, inherited: NativePrefix | null): NativePrefix {
+export function validateNativeRequest(payload: unknown, expected: NativePrefix, inherited: NativePrefix | null, api: string = PRESERVING_API): NativePrefix {
   if (payload === null || typeof payload !== 'object') throw new Error('Provider payload is not a request object');
   const body = payload as Record<string, unknown>;
-  const actual: NativePrefix = { instructions: body['instructions'] as string, tools: (body['tools'] ?? []) as unknown[], input: body['input'] as unknown[] };
+  const actual: NativePrefix = { instructions: requestInstructions(body, api === RESPONSES_API) as string, tools: (body['tools'] ?? []) as unknown[], input: body['input'] as unknown[] };
   if (!sameNative(actual, expected)) throw new Error('Final native request changed immutable instructions, tools or ordered provider input');
   if (inherited && (actual.instructions !== inherited.instructions || !sameNative(actual.tools, inherited.tools) || !sameNative(actual.input.slice(0, inherited.input.length), inherited.input))) throw new Error('Final native request failed inherited prefix equality');
   return copy(actual);

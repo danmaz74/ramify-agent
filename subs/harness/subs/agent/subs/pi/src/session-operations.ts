@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { subagentDeclaration, subagentTool } from './subagents.js';
 import {
   createAgentSession, createEditTool, createFindTool, createGrepTool, createLsTool, createReadTool, createWriteTool,
   DefaultResourceLoader, SessionManager, SettingsManager,
@@ -10,6 +11,7 @@ import { assistantText, noMessageDetail } from '../../../src/interfaces/port.js'
 import type { AgentEventObservation, BuiltinTool, SessionOutcome, ToolDefinition, ToolResult, WriteTool } from '../../../src/interfaces/port.js';
 import type { ContinueSessionInput, SessionDriverInvocation, SessionDriverRuntime, SessionExecutionBindings, SessionOperations, SessionOperationHandle, SessionOperationReceipt, SessionStore, SessionToolDeclaration } from '../../../src/interfaces/session-operations.js';
 import { builtinAction, chooseModel, permissiveSchema, type PiRuntimeSource } from './pi-agent.js';
+import { contextInformation } from './context-information.js';
 import { copy, decodePreservedTranscript, installedPiPackageVersion, installedPiPublicExport, installedPiSerialization, nativeRequestArtifact, same, sameNative, serializeNativePrefix, supportedPreservingModel, validateNativeRequest, type PiTranscriptMessage, type PiTranscriptTool, type PreservedPiTranscript } from './preservation.js';
 
 const builtinFactories = { read: createReadTool, edit: createEditTool, write: createWriteTool, grep: createGrepTool, find: createFindTool, ls: createLsTool };
@@ -28,17 +30,18 @@ function nativeToolResult(value: ToolResult): NativeToolResult {
   }
   return result;
 }
-export function piBuiltinDeclarations(names: readonly (BuiltinTool | WriteTool)[], workingDirectory: string): readonly SessionToolDeclaration[] {
-  return names.map(name => {
+export function piBuiltinDeclarations(names: readonly (BuiltinTool | WriteTool)[], workingDirectory: string, role?: string): readonly SessionToolDeclaration[] {
+  const delegation = role === undefined ? null : subagentDeclaration(role);
+  return [...names.map(name => {
     const tool = builtinFactories[name](workingDirectory);
     return { name: tool.name, description: tool.description, inputSchema: copy(tool.parameters) as unknown as SessionToolDeclaration['inputSchema'], mutating: name === 'edit' || name === 'write' };
-  });
+  }), ...(delegation ? [delegation] : [])];
 }
 function completed(value: SessionOperationReceipt): SessionOperationHandle {
   const receipt = Promise.resolve(value); return { receipt, outcome: receipt.then(item => item.outcome), settled: () => receipt, stop: () => receipt };
 }
 /** Fresh builtin implementations stay here; no caller receives pi SDK objects. */
-function enrichBindings(bindings: SessionExecutionBindings, declarations: readonly SessionToolDeclaration[]): SessionExecutionBindings {
+function enrichBindings(bindings: SessionExecutionBindings, declarations: readonly SessionToolDeclaration[], operations: SessionOperations, key: { runId: string; operationId: string }): SessionExecutionBindings {
   const tools: ToolDefinition[] = [...bindings.tools];
   for (const declaration of declarations) {
     if (tools.some(tool => tool.name === declaration.name) || !(declaration.name in builtinFactories)) continue;
@@ -52,6 +55,8 @@ function enrichBindings(bindings: SessionExecutionBindings, declarations: readon
       return { text, ...((result as NativeToolResult & { isError?: boolean }).isError ? { isError: true } : {}), piBuiltinResult: { schema: 'ramify.pi-builtin-result/1' as const, displayText: text, result: copy(result) } };
     } });
   }
+  const delegation = subagentTool(operations, key, bindings, declarations, tools);
+  if (delegation) tools.push(delegation);
   return { ...bindings, tools };
 }
 export function createPiSessionOperations(source: PiRuntimeSource, sessionStore: SessionStore): SessionOperations {
@@ -69,13 +74,13 @@ export function createPiSessionOperations(source: PiRuntimeSource, sessionStore:
       return completed({ runId, operationId, sessionId, turn: null, point: null, status: 'unavailable', outcome: null, reason });
     } catch (error) { return completed({ runId, operationId, sessionId, turn: null, point: null, status: 'unavailable', outcome: null, reason: String(error) }); }
   }
-  return { ...operations,
+  const adapter: SessionOperations = { ...operations,
     async continue(input) {
       const unavailable = await availability(input.runId, input.operationId, input.sessionId); if (unavailable) return unavailable;
       const prior = await sessionStore.read(input.runId, `operation:${input.operationId}`);
       if (prior?.body['receipt']) return operations.continue(input);
       const snapshot = await operations.inspect(input.runId, input.sessionId);
-      return operations.continue({ ...input, bindings: enrichBindings(input.bindings, [...(snapshot?.declarations ?? []), ...input.toolChange.add]) });
+      return operations.continue({ ...input, bindings: enrichBindings(input.bindings, [...(snapshot?.declarations ?? []).filter(item => !input.toolChange.add.some(added => added.name === item.name)), ...input.toolChange.add], adapter, input) });
     },
     async retry(input) {
       const previous = await sessionStore.read(input.runId, `operation:${input.operationId}`);
@@ -85,9 +90,10 @@ export function createPiSessionOperations(source: PiRuntimeSource, sessionStore:
       const recordedSessionId = previous.body['sessionId'];
       const sessionId = typeof recordedSessionId === 'string' ? recordedSessionId : snapshot?.sessionId ?? '';
       const unavailable = await availability(input.runId, input.operationId, sessionId); if (unavailable) return unavailable;
-      return operations.retry({ ...input, bindings: enrichBindings(input.bindings, snapshot?.declarations ?? []) });
+      return operations.retry({ ...input, bindings: enrichBindings(input.bindings, snapshot?.declarations ?? [], adapter, input) });
     },
   };
+  return adapter;
 }
 
 async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDriverInvocation, runtime: SessionDriverRuntime, operations: SessionOperations): Promise<SessionOutcome> {
@@ -301,6 +307,22 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
     if (compactionFailure) return { ...next, context: next?.context ?? turn.context, messages: [] };
     return { ...next, context: { ...(next?.context ?? turn.context), tools: boundTools }, messages: [] };
   };
+  const nativePrepareRequest = session.agent.prepareRequest;
+  session.agent.prepareRequest = async (request, signal) => {
+    const next = await nativePrepareRequest?.(request, signal);
+    await boundaryPersistence;
+    await runtime.assertLive();
+    const context = next?.context ?? request.context;
+    // Append after native projection/compaction. Keeping the notice in both
+    // native entries and opaque state preserves exactly what the model saw on
+    // continuation and forks, without replacing any inherited prefix bytes.
+    const notice = { role: 'system' as const, content: contextInformation(session.getContextUsage(), nativeObservation.compaction.reserveTokens), timestamp: Date.now() };
+    manager.appendMessage(notice as Parameters<SessionManager['appendMessage']>[0]);
+    messages = copy([...context.messages, notice]);
+    session.agent.state.messages = copy(messages);
+    await persist();
+    return { ...next, context: { ...context, messages: copy(messages) } };
+  };
   // Durable runtime guards and deterministic result encoding make accepted
   // effect recovery possible; SDK extension result rewrites are not supported.
   session.agent.beforeToolCall = undefined;
@@ -370,7 +392,7 @@ async function dispatchPreservingPi(source: PiRuntimeSource, input: SessionDrive
         if (fatal) throw new Error(fatal);
         if ((body as Record<string, unknown>)['model'] !== chosen.model.id) throw new Error('Final native request changed model identity');
         if (purpose === 'task' && (body as Record<string, unknown>)['prompt_cache_key'] !== providerSessionId) throw new Error('Final native request changed provider session identity');
-        const actual = validateNativeRequest(body, expected, purpose === 'compaction' ? null : inherited);
+        const actual = validateNativeRequest(body, expected, purpose === 'compaction' ? null : inherited, chosen.model.api);
         const artifact = nativeRequestArtifact(forced, await installedPiPackageVersion(), modelIdentity, actual, body);
         await runtime.persistPayload(`${input.key.operationId}:pi-request:${sequence}:${++requestCount}`, new TextEncoder().encode(JSON.stringify({ ...artifact, purpose })));
         await runtime.assertLive();

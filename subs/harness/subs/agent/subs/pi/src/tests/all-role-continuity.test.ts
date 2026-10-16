@@ -40,7 +40,10 @@ test.each(cases)('$role $path keeps the current task through native compaction',
   expect(f.events.filter(event => event.type === 'compaction')).toMatchObject([
     { phase: 'started', reason: 'threshold' }, { phase: 'ended', reason: 'threshold', aborted: false, errorText: null }]);
   expect(f.judged).toEqual([{ summary: `${role} completed ${path}` }]);
-  expect(f.native.requests.at(-1)!['instructions']).toBe('Exact role instructions.');
+  const beforeCompaction = f.native.requests[history ? 1 : 0]!['input'] as Array<{ role?: string; content?: unknown }>;
+  const notices = beforeCompaction.filter(item => item.role === 'developer' && typeof item.content === 'string' && item.content.startsWith('You have '));
+  expect(notices).toHaveLength(history ? 2 : 1);
+  expect(f.native.requests.at(-1)!['instructions']).toBe(['Exact role instructions.', ...notices.map(item => item.content)].join('\n\n'));
   f.native.verify();
 });
 

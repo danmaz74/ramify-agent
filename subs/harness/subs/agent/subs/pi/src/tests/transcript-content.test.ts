@@ -7,7 +7,7 @@ test('the public observation stream reports current user, assistant calls, resul
   const f = await preservingPi(cleanups, [[nativeCall('echo', { x: 1 }, 'echo')], [nativeCall('submit_map', { summary: 'Done' }, 'submit')]], { tools: [{ name: 'echo', description: 'Echo', inputSchema: {}, execute: async input => ({ text: JSON.stringify(input) }) }] });
   await (await f.operations.continue(f.input())).settled();
   const messages = f.events.filter(event => event.type === 'message'); expect(messages[0]).toMatchObject({ role: 'user', blocks: [{ type: 'text', text: 'Current task.' }] });
-  expect(f.native.requests[0]!['input']).toEqual([{ role: 'user', content: [{ type: 'input_text', text: f.task.message }] }]);
+  expect(f.native.requests[0]!['input']).toEqual([{ role: 'user', content: [{ type: 'input_text', text: f.task.message }] }, { role: 'developer', content: expect.stringMatching(/^You have (?:\d+|unknown) tokens left in this context window\.$/) }]);
   const assistant = messages.filter(event => event.role === 'assistant'); expect(assistant.some(event => event.usage !== null)).toBe(true);
   const calls = assistant.flatMap(event => event.blocks.filter(block => block.type === 'tool-call')); const results = messages.filter(event => event.role === 'tool-result');
   expect(calls.map(call => call.callId)).toEqual(results.map(result => result.callId)); expect(results[0]).toMatchObject({ blocks: [{ type: 'text', text: '{"x":1}' }] });

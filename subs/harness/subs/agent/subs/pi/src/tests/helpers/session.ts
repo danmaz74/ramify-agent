@@ -37,6 +37,7 @@ export function memoryStore() {
 }
 /** Installed supported serializer with entirely scripted HTTP replies and a public neutral store. */
 export async function preservingPi(cleanups: Array<() => Promise<void>>, outputs: Parameters<typeof nativeCodexRuntime>[0], options: {
+  role?: string;
   nativeOptions?: Parameters<typeof nativeCodexRuntime>[1];
   nativeCompaction?: { reserveTokens?: number; keepRecentTokens?: number };
   files?: Record<string, string>; tools?: readonly ToolDefinition[]; builtins?: readonly ('read'|'grep'|'find'|'ls'|'edit'|'write')[];
@@ -47,9 +48,9 @@ export async function preservingPi(cleanups: Array<() => Promise<void>>, outputs
   const memory = memoryStore(); const source: PiRuntimeSource = { runtime: async () => native.runtime, agentDirectory: native.agentDirectory, model: options.model ?? 'openai-codex/gpt-5.6-sol' };
   const agent = createPiAgentOn(source); const operations = agent.bindSessionStore!(memory.store);
   const policy: SessionExecutionPolicy = options.policy ?? { context: { compaction: 'forbidden', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 }, authority: { write: true }, validator: { revision: 1 }, destination: { record: 'map' } };
-  const declarations: readonly SessionToolDeclaration[] = [...piBuiltinDeclarations(options.builtins ?? [], places.workingDirectory), ...(options.tools ?? []).map(tool => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, mutating: tool.mutating === true })), submission];
+  const declarations: readonly SessionToolDeclaration[] = [...piBuiltinDeclarations(options.builtins ?? [], places.workingDirectory, options.role), ...(options.tools ?? []).map(tool => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, mutating: tool.mutating === true })), submission];
   const initial = await operations.create({ runId: 'pi-test', operationId: 'create', initialInstructions: options.instructions ?? 'Exact role instructions.', declarations, activate: declarations.map(item => item.name), policy });
-  const task = { role: 'engineer', message: 'Current task.', submissionTool: submission.name, environment: { workingDirectory: places.workingDirectory, candidate: null, snapshot: null, limits: {} }, policyIdentity: 'p1', validatorIdentity: 'v1', destinationIdentity: 'd1' };
+  const task = { role: options.role ?? 'engineer', message: 'Current task.', submissionTool: submission.name, environment: { workingDirectory: places.workingDirectory, candidate: null, snapshot: null, limits: {} }, policyIdentity: 'p1', validatorIdentity: 'v1', destinationIdentity: 'd1' };
   const events: AgentEvent[] = []; const judged: unknown[] = []; const verdicts = [...(options.verdicts ?? [])];
   const bindings: SessionExecutionBindings = { task, policy, tools: options.tools ?? [], submission: { name: submission.name, async accept(input) { judged.push(input); return verdicts.shift() ?? { accepted: true }; } }, currentAuthority: async () => true, onEvent: event => events.push(event), publish: async () => {} };
   const input = (point: AgentSessionPoint = initial.point!, operationId = 'task', bound = bindings) => ({ runId: 'pi-test', operationId, sessionId: point.sessionId, expectedPoint: point, task: bound.task, policy: bound.policy, additions: [], toolChange: { add: [], activate: [], inactivate: [] }, bindings: bound });

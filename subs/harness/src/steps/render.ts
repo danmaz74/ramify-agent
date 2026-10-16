@@ -19,7 +19,7 @@ import type { StepEnvironment } from './engineer.js';
 
 export interface RenderEnvironment extends StepEnvironment {
   /** The executor's own built-in declarations for these names and working directory. */
-  readonly builtinDeclarations: (names: readonly (BuiltinTool | WriteTool)[], workingDirectory: string) => readonly SessionToolDeclaration[];
+  readonly builtinDeclarations: (names: readonly (BuiltinTool | WriteTool)[], workingDirectory: string, role?: string) => readonly SessionToolDeclaration[];
   /** The identity the briefing occurrence is keyed by: the invocation it renders. */
   readonly operationId: string;
   /**
@@ -70,7 +70,7 @@ export async function renderStep(constructed: ConstructedStepCommon, environment
   const fresh = fallback === null ? null : freshFallback(step.inputs, fallback);
   if (fresh !== null) step = constructStep(fresh, environment);
   const workingDirectory = step.equipment.workingDirectory;
-  const builtins = environment.builtinDeclarations(step.equipment.builtinTools, workingDirectory);
+  const builtins = environment.builtinDeclarations(step.equipment.builtinTools, workingDirectory, step.role);
   const { packet } = composeOperationPacket({
     // The run identity names only an inherited point, which a start without a run never has.
     runId: runId ?? '', operationId: environment.operationId, loaded: step.loaded, brief: step.brief, role: step.role,

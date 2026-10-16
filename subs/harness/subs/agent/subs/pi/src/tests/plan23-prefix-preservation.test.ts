@@ -5,6 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AgentSessionPoint, SessionExecutionBindings, SessionExecutionPolicy, SessionStore, SessionStoreCommit, SessionStoreRecord, SessionTaskInput, SessionToolDeclaration } from '../../../../src/interfaces/session-operations.js';
 import { createPiAgentOn, type PiRuntimeSource } from '../pi-agent.js';
 import { piBuiltinDeclarations } from '../session-operations.js';
+import { readPiNativeRequestArtifact, validateNativeRequest } from '../preservation.js';
 import { nativeCodexRuntime, type NativeCodexRuntime } from './helpers/scripted-provider.js';
 import { workspace } from './helpers/session.js';
 
@@ -51,10 +52,10 @@ function memoryStore(restored?: StoredFixture) {
   };
   return { store, records, payloads, setFault: (value: typeof fault) => { fault = value; } };
 }
-async function fixture(outputs: Parameters<typeof nativeCodexRuntime>[0], definitions: readonly SessionToolDeclaration[] = [read, orientation], extensions: PiRuntimeSource['preservingExtensions'] = []) {
-  const places = await workspace(cleanups); const native = await nativeCodexRuntime(outputs); cleanups.push(native.remove);
+async function fixture(outputs: Parameters<typeof nativeCodexRuntime>[0], definitions: readonly SessionToolDeclaration[] = [read, orientation], extensions: PiRuntimeSource['preservingExtensions'] = [], provider: 'openai-codex' | 'openai' = 'openai-codex') {
+  const places = await workspace(cleanups); const native = await nativeCodexRuntime(outputs, { provider }); cleanups.push(native.remove);
   const memory = memoryStore();
-  const source: PiRuntimeSource = { runtime: async () => native.runtime, agentDirectory: native.agentDirectory, model: 'openai-codex/gpt-5.6-sol', preservingExtensions: extensions };
+  const source: PiRuntimeSource = { runtime: async () => native.runtime, agentDirectory: native.agentDirectory, model: `${provider}/gpt-5.6-sol`, preservingExtensions: extensions };
   const agent = createPiAgentOn(source); const operations = agent.bindSessionStore!(memory.store);
   const P = await operations.create({ runId: 'run-A', operationId: 'create', initialInstructions: 'Role A\nGeneral task protocol.', declarations: definitions, activate: definitions.map(item => item.name), policy });
   const task: SessionTaskInput = { role: 'architect', message: 'Orient A', submissionTool: 'submit_orientation', environment: { workingDirectory: places.workingDirectory, candidate: 'C0', snapshot: 'S0', limits: { max: 10 } }, policyIdentity: 'p1', validatorIdentity: 'v1', destinationIdentity: 'd1' };
@@ -66,7 +67,39 @@ async function fixture(outputs: Parameters<typeof nativeCodexRuntime>[0], defini
 const prefix = (native: NativeCodexRuntime, index: number) => {
   const request = native.requests[index]!; return { instructions: request['instructions'], tools: request['tools'], input: request['input'] as Record<string, unknown>[] };
 };
+const contextNotice = { role: 'developer', content: expect.stringMatching(/^You have (?:\d+|unknown) tokens left in this context window\.$/) };
 describe('Plan 23 installed pi native prefix preservation', () => {
+  it('preserves Responses input instructions, tools and opaque history across a tool turn and fork', async () => {
+    const f = await fixture([[reason, call('read', {}, 'read')], [call('submit_orientation', { orientation: 'A' }, 'orient')], [text('Child result.')]], [read, orientation], [], 'openai');
+    const first = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'orient'))).receipt;
+    expect(first).toMatchObject({ status: 'completed', outcome: { kind: 'submitted' } });
+    const wire = f.native.wireRequests[0]!;
+    expect(wire['instructions']).toBeUndefined();
+    expect(wire['input']).toEqual([
+      { role: 'developer', content: 'Role A\nGeneral task protocol.' },
+      { role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] },
+      contextNotice,
+    ]);
+    expect((wire['tools'] as Array<{ strict: boolean }>).every(tool => tool.strict === false)).toBe(true);
+    expect((f.native.wireRequests[1]!['input'] as unknown[]).slice(0, (wire['input'] as unknown[]).length)).toEqual(wire['input']);
+    expect(f.native.wireRequests[1]!['input']).toContainEqual(reason);
+    const child = await f.operations.fork({ runId: 'run-A', operationId: 'child', sourcePoint: first.point! });
+    const bound = { ...f.bindings, task: { ...f.task, message: 'Child assignment' } };
+    expect(await (await f.operations.continue(f.next(child.sessionId, child.point!, 'child-task', bound))).receipt).toMatchObject({ status: 'completed' });
+    const childInput = f.native.wireRequests[2]!['input'] as unknown[];
+    expect(childInput.slice(0, (f.native.wireRequests[1]!['input'] as unknown[]).length)).toEqual(f.native.wireRequests[1]!['input']);
+    const recorded = await f.operations.inspect('run-A', child.sessionId);
+    const ref = recorded!.transcript.find(item => item.kind === 'provider' && item.key.startsWith('child-task:pi-request:'))!;
+    const artifact = readPiNativeRequestArtifact(f.payloads.get(ref.payloadId)!)!;
+    expect(artifact.model).toBe('openai/gpt-5.6-sol');
+    expect(artifact.instructions).toBe('Role A\nGeneral task protocol.');
+    const changed = structuredClone(artifact.request) as Record<string, unknown>;
+    (changed['input'] as Array<Record<string, unknown>>)[0]!['content'] = 'Changed instructions';
+    expect(() => validateNativeRequest(changed, artifact, null, 'openai-responses')).toThrow('immutable');
+    expect(() => readPiNativeRequestArtifact(new TextEncoder().encode(JSON.stringify({ ...artifact, request: changed })))).toThrow('differs');
+    expect(f.native.requests.map(request => request['prompt_cache_key'])).toEqual(Array(3).fill(f.P.sessionId));
+    f.native.verify();
+  });
   it('S07/S10 retains exact initial prefix, opaque artifacts and effect results across multiple requests and a fresh adapter', async () => {
     const f = await fixture([[reason, call('read', {}, 'read')], [call('submit_orientation', { orientation: 'A' }, 'orient')], [text('Second task.')], [text('Third task.')]]);
     const T1 = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'orient'))).receipt;
@@ -82,13 +115,13 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(JSON.stringify(requestArtifact)).not.toContain('fixture-account');
     const first = prefix(f.native, 0); const second = prefix(f.native, 1);
     expect(first.instructions).toBe('Role A\nGeneral task protocol.');
-    expect(first.input).toEqual([{ role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }]);
+    expect(first.input).toEqual([{ role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }, contextNotice]);
     expect(first.tools).toEqual([
       { type: 'function', name: 'read', description: 'Read fixture.', parameters: read.inputSchema, strict: null },
       { type: 'function', name: 'submit_orientation', description: 'Submit orientation.\n\nThe input must satisfy this JSON Schema; the harness validates it and returns every error:\n{"additionalProperties":false,"properties":{"orientation":{"type":"string"}},"required":["orientation"],"type":"object"}', parameters: { type: 'object', properties: { orientation: {} } }, strict: null },
     ]);
     expect(second.instructions).toEqual(first.instructions); expect(second.tools).toEqual(first.tools);
-    expect(second.input).toEqual([...first.input, reason, call('read', {}, 'read'), { type: 'function_call_output', call_id: 'call_read', output: 'Exact read result.' }]);
+    expect(second.input).toEqual([...first.input, reason, call('read', {}, 'read'), { type: 'function_call_output', call_id: 'call_read', output: 'Exact read result.' }, contextNotice]);
     const storagePath = join(f.task.environment.workingDirectory, 'opaque-store.json');
     await writeFile(storagePath, JSON.stringify({ records: [...f.records], payloads: [...f.payloads].map(([id, bytes]) => [id, Buffer.from(bytes).toString('base64')]) } satisfies StoredFixture));
     const reopened = memoryStore(JSON.parse(await readFile(storagePath, 'utf8')) as StoredFixture);
@@ -98,12 +131,12 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(T2).toMatchObject({ status: 'completed', turn: 2 });
     const third = prefix(f.native, 2);
     expect(third.instructions).toEqual(first.instructions); expect(third.tools).toEqual(first.tools);
-    expect(third.input).toEqual([...second.input, call('submit_orientation', { orientation: 'A' }, 'orient'), { type: 'function_call_output', call_id: 'call_orient', output: 'The submission was accepted and recorded.' }, { role: 'user', content: [{ type: 'input_text', text: 'Assignment A' }] }]);
+    expect(third.input).toEqual([...second.input, call('submit_orientation', { orientation: 'A' }, 'orient'), { type: 'function_call_output', call_id: 'call_orient', output: 'The submission was accepted and recorded.' }, { role: 'user', content: [{ type: 'input_text', text: 'Assignment A' }] }, contextNotice]);
     const thirdTask = { ...f.task, message: 'Third A' };
     const anotherAdapter = createPiAgentOn(f.source).bindSessionStore!(reopened.store);
     const T3 = await (await anotherAdapter.continue(f.next(f.P.sessionId, T2.point!, 'third', { ...f.bindings, task: thirdTask }))).receipt;
     expect(T3).toMatchObject({ status: 'completed', turn: 3 });
-    expect(prefix(f.native, 3).input).toEqual([...third.input, { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Second task.', annotations: [] }], status: 'completed', id: 'msg_fixture', phase: 'final_answer' }, { role: 'user', content: [{ type: 'input_text', text: 'Third A' }] }]);
+    expect(prefix(f.native, 3).input).toEqual([...third.input, { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Second task.', annotations: [] }], status: 'completed', id: 'msg_fixture', phase: 'final_answer' }, { role: 'user', content: [{ type: 'input_text', text: 'Third A' }] }, contextNotice]);
     expect(await (await anotherAdapter.continue(f.next(f.P.sessionId, f.P.point!, 'orient'))).receipt).toEqual(T1); expect(f.native.dispatches()).toBe(4);
     expect(f.native.transports).toEqual(['sse', 'sse', 'sse', 'sse']);
     expect(f.native.wireHeaders).toEqual(Array(4).fill({ sessionId: f.P.sessionId, clientRequestId: f.P.sessionId }));
@@ -136,10 +169,11 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const leftRequest = prefix(f.native, 1); const original = prefix(f.native, 0);
     expect(leftRequest.instructions).toEqual(original.instructions); expect(leftRequest.tools).toEqual(original.tools);
     expect(leftRequest.input).toEqual([
-      { role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }, call('submit_orientation', { orientation: 'A' }, 'orient'), { type: 'function_call_output', call_id: 'call_orient', output: 'The submission was accepted and recorded.' },
+      ...original.input, call('submit_orientation', { orientation: 'A' }, 'orient'), { type: 'function_call_output', call_id: 'call_orient', output: 'The submission was accepted and recorded.' },
       { role: 'developer', content: 'Role L extension.' },
       { type: 'additional_tools', role: 'developer', tools: [{ type: 'function', name: 'submit_assignment', description: 'Submit assignment.\n\nThe input must satisfy this JSON Schema; the harness validates it and returns every error:\n{"properties":{"done":{"type":"boolean"}},"required":["done"],"type":"object"}', parameters: { type: 'object', properties: { done: {} } }, strict: null }] },
       { role: 'developer', content: 'Active tools: read, submit_assignment. Inactive historical tools must not be called.' }, { role: 'user', content: [{ type: 'input_text', text: 'Assign L' }] },
+      contextNotice,
     ]);
     const right = await (await f.operations.continue(f.next(R.sessionId, R.point!, 'right'))).receipt;
     expect(right.turn).toBe(2); expect(right.sessionId).not.toBe(left.sessionId);
@@ -209,7 +243,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const bound = { ...f.bindings, tools: [{ ...read, execute: async () => { freshCalls++; return { text: 'Fresh binding.' }; } }] };
     const two = await (await f.operations.continue({ ...f.next(f.P.sessionId, one.point!, 'two', bound), toolChange: { add: [read], activate: [], inactivate: [] } })).receipt;
     expect(two.status).toBe('completed'); expect(freshCalls).toBe(1);
-    expect(prefix(f.native, 3).input.at(-1)).toEqual({ type: 'function_call_output', call_id: 'call_second', output: 'Fresh binding.' });
+    expect(prefix(f.native, 3).input.slice(-2)).toEqual([{ type: 'function_call_output', call_id: 'call_second', output: 'Fresh binding.' }, contextNotice]);
     expect(prefix(f.native, 3).tools).toEqual(prefix(f.native, 0).tools);
     expect(prefix(f.native, 3).input.some(item => item['type'] === 'additional_tools')).toBe(false);
     for (const changed of [{ ...read, description: 'Changed.' }, { ...read, inputSchema: { type: 'string' } }]) {
@@ -249,7 +283,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const result = await (await f.operations.continue({ ...f.next(child.sessionId, child.point!, 'review', bound), toolChange: { add: [review], activate: [review.name], inactivate: [write.name, orientation.name] } })).receipt;
     expect(result).toMatchObject({ status: 'completed', outcome: { kind: 'submitted', input: {} } }); expect(writes).toBe(0); expect(f.accepted()).toBe(1); expect(reviews).toBe(1);
     expect(prefix(f.native, 2).tools).toEqual(prefix(f.native, 0).tools);
-    expect(prefix(f.native, 2).input.slice(-2)).toEqual([{ type: 'function_call_output', call_id: 'call_write', output: 'Inactive historical tool write_fixture' }, { type: 'function_call_output', call_id: 'call_old', output: 'Inactive historical tool submit_orientation' }]);
+    expect(prefix(f.native, 2).input.slice(-3)).toEqual([{ type: 'function_call_output', call_id: 'call_write', output: 'Inactive historical tool write_fixture' }, { type: 'function_call_output', call_id: 'call_old', output: 'Inactive historical tool submit_orientation' }, contextNotice]);
     f.native.verify();
   });
   it('binds fresh native builtin handlers privately from pure declarations', async () => {
@@ -283,7 +317,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
       receipt = await (await createPiAgentOn(f.source).bindSessionStore!(f.store).retry({ runId: 'rich', operationId: 'rich-task', bindings: bound })).receipt;
     } else receipt = await handle.receipt;
     expect(receipt).toMatchObject({ status: 'completed', outcome: { kind: 'submitted' } }); expect(richFixture.executions).toBe(1);
-    expect(prefix(f.native, 1).input.at(-1)).toEqual({ type: 'function_call_output', call_id: 'call_rich', output: [{ type: 'input_text', text: 'Rich result.' }, { type: 'input_image', detail: 'auto', image_url: 'data:image/png;base64,c2NyaXB0ZWQ=' }] });
+    expect(prefix(f.native, 1).input.slice(-2)).toEqual([{ type: 'function_call_output', call_id: 'call_rich', output: [{ type: 'input_text', text: 'Rich result.' }, { type: 'input_image', detail: 'auto', image_url: 'data:image/png;base64,c2NyaXB0ZWQ=' }] }, contextNotice]);
     const snapshot = await f.operations.inspect('rich', P.sessionId);
     const stateEntry = snapshot!.transcript.filter(item => item.key.includes(':pi-state:')).at(-1)!;
     const state = JSON.parse(new TextDecoder().decode(f.payloads.get(stateEntry.payloadId)!)) as { messages: Array<Record<string, unknown>> };
@@ -365,7 +399,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(recovered).toMatchObject({ status: 'completed', turn: 1, outcome: { kind: 'submitted', input: { orientation: 'A' } } }); expect(f.accepted()).toBe(1); expect(f.native.dispatches()).toBe(1);
     f.native.push([text('Next after recovery.')]);
     await (await rebuilt.continue(f.next(f.P.sessionId, recovered.point!, 'after-recovery'))).receipt;
-    expect(prefix(f.native, 1).input).toEqual([{ role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }, reason, ...(shape === 'solo' ? [] : [call('read', readArgs, 'accepted-read')]), call('submit_orientation', { orientation: 'A' }, 'accepted'), ...(shape === 'solo' ? [] : [{ type: 'function_call_output', call_id: 'call_accepted-read', output: 'Exact read result.' }]), { type: 'function_call_output', call_id: 'call_accepted', output: 'The submission was accepted and recorded.' }, { role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }]);
+    expect(prefix(f.native, 1).input).toEqual([...prefix(f.native, 0).input, reason, ...(shape === 'solo' ? [] : [call('read', readArgs, 'accepted-read')]), call('submit_orientation', { orientation: 'A' }, 'accepted'), ...(shape === 'solo' ? [] : [{ type: 'function_call_output', call_id: 'call_accepted-read', output: 'Exact read result.' }]), { type: 'function_call_output', call_id: 'call_accepted', output: 'The submission was accepted and recorded.' }, { role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }, contextNotice]);
     expect(f.reads()).toBe(shape === 'solo' ? 0 : 1);
     f.native.verify();
   });
@@ -389,7 +423,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(receipt).toMatchObject({ status: 'completed', turn: 1, outcome: { kind: 'submitted', input: { orientation: 'A' } } });
     expect(f.reads()).toBe(1); expect(f.native.dispatches()).toBe(2);
     expect(f.native.wireHeaders).toEqual(Array(2).fill({ sessionId: f.P.sessionId, clientRequestId: f.P.sessionId }));
-    expect(prefix(f.native, 1).input).toEqual([{ role: 'user', content: [{ type: 'input_text', text: 'Orient A' }] }, reason, call('read', {}, 'recover-read'), { type: 'function_call_output', call_id: 'call_recover-read', output: 'Exact read result.' }]); f.native.verify();
+    expect(prefix(f.native, 1).input).toEqual([...prefix(f.native, 0).input, reason, call('read', {}, 'recover-read'), { type: 'function_call_output', call_id: 'call_recover-read', output: 'Exact read result.' }, contextNotice]); f.native.verify();
   });
   it('missing initial role cannot dispatch the installed default prompt', async () => {
     const f = await fixture([]);
@@ -417,7 +451,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const snapshot = await f.operations.inspect('run-A', f.P.sessionId);
     const stateEntry = snapshot!.transcript.filter(item => item.kind === 'provider' && item.key.includes(':pi-state:')).at(-1)!;
     const state = JSON.parse(new TextDecoder().decode(f.payloads.get(stateEntry.payloadId)!)) as { messages: Array<{ role: string; stopReason?: string; toolCallId?: string; isError?: boolean }> };
-    expect(state.messages.filter(message => ['system', 'user', 'assistant', 'toolResult'].includes(message.role)).slice(0, 4).map(message => [message.role, message.stopReason ?? null])).toEqual([['system', null], ['user', null], ['assistant', 'toolUse'], ['toolResult', null]]);
+    expect(state.messages.filter(message => ['system', 'user', 'assistant', 'toolResult'].includes(message.role)).slice(0, 6).map(message => [message.role, message.stopReason ?? null])).toEqual([['system', null], ['user', null], ['system', null], ['assistant', 'toolUse'], ['toolResult', null], ['system', null]]);
     expect(state.messages.find(message => message.toolCallId === 'call_budget-call|fc_budget-call')).toMatchObject({ role: 'toolResult', toolName: 'read', isError: false });
     expect(state.messages.some(message => message.role === 'assistant' && (message.stopReason === 'error' || message.stopReason === 'aborted'))).toBe(false);
     f.native.verify();
@@ -431,7 +465,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     const unsupported = createPiAgentOn({ ...f.source, model: 'openai-codex/gpt-5.4' }).bindSessionStore!(f.store);
     const receipt = await (await unsupported.retry({ runId: 'run-A', operationId: 'interrupted', bindings: f.bindings })).receipt;
     expect(receipt.contextUnavailable).not.toBe(true);
-    expect(receipt).toEqual({ runId: 'run-A', operationId: 'interrupted', sessionId: f.P.sessionId, turn: null, point: null, status: 'unavailable', outcome: null, reason: 'Session preservation supports only openai-codex models on openai-codex-responses' });
+    expect(receipt).toEqual({ runId: 'run-A', operationId: 'interrupted', sessionId: f.P.sessionId, turn: null, point: null, status: 'unavailable', outcome: null, reason: 'Session preservation supports only OpenAI Codex and OpenAI Responses provider/API pairs' });
     expect(f.native.dispatches()).toBe(1);
     // Not recorded: the operation record is unchanged, so a supported adapter still completes the same Retry.
     expect(await f.store.read('run-A', 'operation:interrupted')).toEqual(interrupted);

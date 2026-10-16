@@ -7,9 +7,12 @@ rebinds current tools, policy, validators and destinations for each operation.
 
 ## Supported preservation
 
-The preserving driver qualifies Pi `1.3.0`, `openai-codex` models on
-`openai-codex-responses` (qualified with `gpt-5.6-sol`), SSE and zero provider
-retries. Unsupported models/transports are explicit unavailable or failed
+The preserving driver supports Pi `1.3.0`, `openai-codex` models on
+`openai-codex-responses` and `openai` models on `openai-responses`, with SSE and
+zero provider retries. Responses stores initial instructions in the first input
+item; Codex uses its separate instructions field. Installed serializer tests
+cover both formats, tool turns and inherited prefixes; live experiment evidence
+for the renewed `openai` login used `gpt-6.1-sol:high`. Unsupported models/transports are explicit unavailable or failed
 operations without a replacement start. Initial instructions, tool definitions
 and every inherited serialized input item retain their order and original
 opaque fields. Later roles and tool definitions are appended to the transcript;
@@ -60,6 +63,21 @@ and recent-history settings. Historical harness context budgets remain readable
 but do not constrain new requests. Missing estimates and projected request sizes
 are recorded explicitly.
 
+Before each supported task request, the adapter appends a developer message
+using public Codex's exact remaining-context wording:
+`You have {tokens_left} tokens left in this context window.` Unknown occupancy,
+including immediately after compaction, produces
+`You have unknown tokens left in this context window.` No wrapper or additional
+budget guidance is appended. The count is Pi's effective context capacity minus
+its current occupancy estimate and configured compaction reserve, clamped at zero.
+It precedes the notice itself and does not project the next request.
+
+Notices are retained in opaque history and request artifacts, preserving earlier
+prefixes on continuation and forks; compaction summary requests retain Pi's own
+instructions. The wording matches [the pinned public Codex renderer](https://github.com/openai/codex/blob/922510f4d7570b42838e015787ed53abfa8761a1/codex-rs/core/src/context/token_budget_context.rs#L176).
+Delivery timing and context accounting remain Pi's. No shared-session token
+allowance is introduced.
+
 The adapter keeps Pi's request projection and turn preparation, including native
 threshold compaction. An empty host control message starts the public native
 session lifecycle; it carries no provider input. Only SDK prompt/loadout patches
@@ -100,3 +118,42 @@ conditional skip. Its explicit original-live evidence invocation additionally
 requires the same clean candidate's successful live captures and verifies full
 settled inherited prefixes. Default local native controls alone do not establish
 external provider acceptance.
+
+## Experimental subagents
+
+Role-aware tool declarations offer
+`subagent` to plan, module and capability architects and to module and contract
+engineers, including non-functional repair engineers. Other roles receive no delegation tool. Preview and execution use
+the same declaration. Existing ambient Pi extension loading remains disabled.
+
+Call `subagent({tasks: [{task: "..."}, ...]})` to run independent tasks concurrently
+and wait for all results. Architects delegate exploration with `read`, `grep`,
+`find` and `ls` where the parent has them. Engineers' workers can additionally use
+the parent's `edit`, `write` and harness `shell`. Workers share the working
+directory and assignment scope; the coordinator assigns disjoint files and
+integrates and verifies the combined result. These file subdivisions are prompt
+instructions; the enforced scope remains the parent assignment.
+
+Every worker starts a fresh context with the parent's role instructions,
+context additions and current task, plus its specific delegation. Prior model
+conversation and tool results are not copied: include necessary findings in the
+delegation. The worker inherits the parent's model and thinking level and has an
+independent provider session identity. Workers cannot delegate, consult on behalf
+of the parent, or use parent submission tools. They finish with `report_subagent`;
+only the coordinator submits the assignment to the harness.
+
+Child sessions, native requests, effects and reports use the harness-owned
+session store. Tool calls retain the parent's guards and mutation checks.
+Namespaced tool and usage observations are attributed to the parent invocation;
+child context observations do not replace its context estimate. Worker compaction
+uses native Pi behavior without initiating a parent architectural checkpoint.
+Stopping the parent aborts workers and waits for their actual settlement.
+Completed delegation results replay from the parent effect journal; interrupted
+uncertain effects retain the ordinary unavailable outcome and are not restarted
+blindly. A worker failure is returned with the other workers' results, including
+its operation identity where available; worker reports never establish acceptance.
+
+This experiment supplies synchronous batches, not persistent chat with workers or
+separate worker worktrees. It is enabled for the listed roles, with no new project
+configuration. Qualification uses the installed native Pi serializer and loop
+with scripted provider replies; a live project trial remains separate.

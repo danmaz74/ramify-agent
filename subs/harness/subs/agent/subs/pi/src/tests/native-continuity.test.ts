@@ -20,7 +20,10 @@ test('installed native compaction persists its request and boundary and continue
   const requests = snapshot!.transcript.filter(item => item.kind === 'provider' && item.key.includes(':pi-request:')).map(item => JSON.parse(new TextDecoder().decode(f.payloads.get(item.payloadId)!)));
   expect(requests.map(item => item.purpose)).toEqual(['task', 'compaction', 'compaction', 'task']);
   expect(requests[1].instructions).not.toBe('Exact role instructions.');
-  expect(requests[3].instructions).toBe('Exact role instructions.');
+  // Native compaction folds historical system messages into its initial prompt.
+  const originalNotice = (requests[0].request.input as Array<{ content: string }>).at(-1)!.content;
+  expect(requests[3].instructions).toBe(`Exact role instructions.\n\n${originalNotice}`);
+  expect(requests[3].request.input.at(-1)).toMatchObject({ role: 'developer', content: 'You have unknown tokens left in this context window.' });
   expect(f.judged).toEqual([{ summary: 'Completed after compaction' }]); f.native.verify();
 });
 test('architect review starts with native compaction and gates the next task request', async () => {

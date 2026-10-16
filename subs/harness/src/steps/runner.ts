@@ -675,7 +675,7 @@ export class InvocationRunner<R extends RunnerRun> {
     const consultation = consultationAvailability(current.stepInputs !== undefined && 'consultation' in current.stepInputs ? current.stepInputs.consultation ?? undefined : undefined, current.role);
     const tools = consultation.target === null ? equipment.tools : [...equipment.tools, consultArchitectDeclaration];
     const workingDirectory = current.workingDirectory ?? this.projectRoot;
-    const builtinDeclarations = agent.builtinDeclarations?.(equipment.builtinTools, workingDirectory) ?? piBuiltinDeclarations(equipment.builtinTools, workingDirectory);
+    const builtinDeclarations = agent.builtinDeclarations?.(equipment.builtinTools, workingDirectory, current.role) ?? piBuiltinDeclarations(equipment.builtinTools, workingDirectory, current.role);
     const limits = invocationLimits(run.policy.limits, current);
     const spec: SessionSpec = { role: current.role, scope: { workingDirectory }, systemPrompt: current.systemPrompt,
       prompt: current.prompt, session: current.start, context: current.context ?? contextPolicyOf(run.policy, current.role),

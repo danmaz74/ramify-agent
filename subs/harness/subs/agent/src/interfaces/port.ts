@@ -559,8 +559,8 @@ export interface AgentSession {
 
 /** An agent implementation: pi, or the scripted fake. */
 export interface AgentPort {
-  /** Actual provider names and input schemas for the requested logical built-ins. */
-  builtinDeclarations?(names: readonly (BuiltinTool | WriteTool)[], workingDirectory: string): readonly SessionToolDeclaration[];
+  /** Actual provider names and schemas for the requested built-ins and optional role-specific delegation. */
+  builtinDeclarations?(names: readonly (BuiltinTool | WriteTool)[], workingDirectory: string, role?: string): readonly SessionToolDeclaration[];
   /** Durable preserving session operations. */
   readonly sessionOperations?: SessionOperations | null | undefined;
   /** Bind one harness-owned store lifetime without exposing provider transcript handling. */
