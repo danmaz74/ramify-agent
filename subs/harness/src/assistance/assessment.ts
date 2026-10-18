@@ -10,10 +10,10 @@ import { bindCandidateConcerns, type ConcernBinding } from '../run/review-finish
 import { ReviewQueue } from '../reviews/scheduler.js';
 import { reconciliationFactsMessage } from '../reviews/reconciliation-message.js';
 import { reconciliationSubmissionSchema, validateReconciliationForExecution, type AttentionEntry, type BoundReconciliation } from '../reviews/reconciliation.js';
-import type { Assessor, AssistedOutcome } from './contracts.js';
+import type { Assessor, AssistedEvidenceReference, AssistedOutcome } from './contracts.js';
 import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
-import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
+import { captureAssistanceDocuments, readAssistanceDocument, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
 import { acceptedProtectionExceptions, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries } from './findings.js';
@@ -36,6 +36,13 @@ interface ReviewEvidence {
   readonly read: readonly string[];
   readonly inspected: readonly string[];
 }
+interface DocumentsReference {
+  readonly schema: 'ramify-agent.assisted-document-reference/1';
+  readonly baselineCommit: string;
+  readonly artifact: AssistedEvidenceReference;
+}
+const isDocumentsReference = (value: unknown): value is DocumentsReference => typeof value === 'object' && value !== null
+  && 'schema' in value && value.schema === 'ramify-agent.assisted-document-reference/1';
 
 /** Compose existing facilities around assisted inputs; this never drives implementation work. */
 export function createAssessor(dependencies: AssessmentDependencies): Assessor {
@@ -78,9 +85,25 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
     if (factual.length) await context.recordFindings(factual);
 
-    const documents = stages<AssistanceDocuments>('documents') ?? await captureAssistanceDocuments({ projectRoot, planId: job.planId,
+    const captureDocuments = () => captureAssistanceDocuments({ projectRoot, planId: job.planId,
       planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates: source });
-    if (!stages('documents')) await record('documents', documents);
+    const savedDocuments = stages<AssistanceDocuments | DocumentsReference>('documents');
+    let documents: AssistanceDocuments;
+    if (isDocumentsReference(savedDocuments)) {
+      if (savedDocuments.baselineCommit !== baseline) throw new Error('Retained documents name another baseline');
+      try { documents = await context.readEvidence(savedDocuments.artifact) as AssistanceDocuments; }
+      catch {
+        // Recovery uses the same immutable source and must reproduce the exact committed artifact.
+        documents = await captureDocuments();
+        const regenerated = await context.retainEvidence(documents);
+        if (regenerated.sha256 !== savedDocuments.artifact.sha256 || regenerated.path !== savedDocuments.artifact.path) throw new Error('Retained document evidence is unavailable and could not be reproduced exactly');
+      }
+    } else if (savedDocuments) documents = savedDocuments;
+    else {
+      documents = await captureDocuments();
+      await record('documents', { schema: 'ramify-agent.assisted-document-reference/1', baselineCommit: baseline,
+        artifact: await context.retainEvidence(documents) } satisfies DocumentsReference);
+    }
     gaps.push(...documents.gaps.unreadablePrinciples.map(gap => `Principle evidence ${gap.path} is unavailable: ${gap.reason}`));
     const referenceQualifications = [
       ...documents.gaps.missing.map(gap => ({ ...gap, from: documents.manifest.documents.find(document => document.id === gap.from)?.path ?? gap.from })),
@@ -107,17 +130,19 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const followUp = previous === undefined ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Previous inspection is not evidence for this candidate.`;
     // The immutable candidate makes both unchanged dependencies and changed files inspectable.
     const principles = documents.documents.filter(document => document.kind === 'principle')
-      .map(document => ({ path: document.path, note: `Baseline ${baseline}; adoption undetermined. Assess applicability and status.\n${document.text}` }));
+      .map(document => ({ path: document.path, note: `Baseline ${baseline}; adoption undetermined. Assess applicability and status. Read exact text with assessment_evidence ref baseline:${document.path}, continuing chunks through nextOffset. If applicable required text is unavailable or uninspected, report uncertain evidence or a coverageGap.` }));
     const retainedEvidence = createAssessmentEvidenceTool({
       list: () => [
         ...context.assessments().flatMap(item => item.stages.map(stage => ({ ref: `assessments/${item.id}/stages/${stage.name}.json`, description: `${stage.name} evidence for candidate ${item.request.candidate}` }))),
         ...documents.documents.map(document => ({ ref: `baseline:${document.path}`, description: `${document.kind} at ${baseline}; adoption ${document.adoption}` })),
       ],
-      read: ref => {
+      read: async ref => {
         const document = documents.documents.find(item => `baseline:${item.path}` === ref);
-        if (document) return document;
+        if (document) return { ...document, text: await readAssistanceDocument({ projectRoot, planMarkdown: context.planMarkdown,
+          documents, id: document.id, candidates: source }) };
         for (const item of context.assessments()) for (const stage of item.stages)
-          if (`assessments/${item.id}/stages/${stage.name}.json` === ref) return stage.evidence;
+          if (`assessments/${item.id}/stages/${stage.name}.json` === ref) return isDocumentsReference(stage.evidence)
+            ? context.readEvidence(stage.evidence.artifact) : stage.evidence;
         throw new Error('No retained evidence at that reference');
       },
     });

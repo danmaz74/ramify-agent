@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import type { CandidateSource, TreeEntry } from '../../subs/evidence/src/git.js';
-import { captureAssistanceDocuments, readCandidateDocument } from '../assistance/documents.js';
+import { captureAssistanceDocuments, readAssistanceDocument, readCandidateDocument } from '../assistance/documents.js';
 
 function source(contents: Record<string, string>, read: string[], originals: Record<string, Uint8Array> = {}, algorithm: 'sha1' | 'sha256' = 'sha1'): CandidateSource {
   const entries: TreeEntry[] = Object.entries(contents).map(([path, text]) => {
@@ -23,9 +23,9 @@ function source(contents: Record<string, string>, read: string[], originals: Rec
 describe('assisted document capture', () => {
   it('uses pinned Git documents with the captured plan text and excludes superseded designs', async () => {
     const read: string[] = [];
+    const planMarkdown = '# Current plan\n[design](../../docs/current.md)\n[old](../../docs/.superseded/old.md)';
     const documents = await captureAssistanceDocuments({
-      projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
-      planMarkdown: '# Current plan\n[design](../../docs/current.md)\n[old](../../docs/.superseded/old.md)',
+      projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline', planMarkdown,
       candidates: source({
         'plans/p47/plan.md': '# Old committed plan',
         'docs/current.md': '# Current design',
@@ -36,7 +36,8 @@ describe('assisted document capture', () => {
     expect(documents.documents.map(document => [document.path, document.kind])).toEqual([
       ['plans/p47/plan.md', 'plan'], ['docs/current.md', 'plan'], ['src/quality.principles.md', 'principle'],
     ]);
-    expect(documents.documents[0]!.text).toContain('Current plan');
+    expect(documents.documents[0]).not.toHaveProperty('text');
+    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents, id: documents.manifest.root, candidates: source({}, []) })).toContain('Current plan');
     expect(read).not.toContain('plans/p47/plan.md');
     expect(read).not.toContain('docs/.superseded/old.md');
     expect(documents.gaps.missing.map(gap => gap.target)).toContain('docs/.superseded/old.md');
@@ -75,7 +76,6 @@ describe('assisted document capture', () => {
         'docs/literal.md': 'literal \uFFFD', 'docs/current.md': '# Current requirement', 'docs/report.pdf': '%PDF binary data' }, read,
       { 'docs/payload.bundle': Uint8Array.from([0xf0, 0x90, 0x80]) }, algorithm) });
     expect(documents.documents.map(document => document.path)).toEqual(['plans/p47/plan.md', 'docs/current.md', 'docs/literal.md']);
-    expect(documents.documents.find(document => document.path === 'docs/literal.md')?.text).toBe('literal \uFFFD');
     expect(documents.gaps.unreadableDocuments).toHaveLength(3);
     expect(documents.gaps.unreadableDocuments).toEqual(expect.arrayContaining([
       { path: 'docs/payload.bundle', reason: 'Document docs/payload.bundle could not be decoded exactly from Git', judgment: 'unjudged' },
@@ -83,11 +83,33 @@ describe('assisted document capture', () => {
       { path: 'docs/report.pdf', reason: 'Linked evidence docs/report.pdf is not captured as text', judgment: 'unjudged' },
     ]));
     expect(read).toEqual(['docs/payload.bundle', 'docs/data.dump', 'docs/literal.md', 'docs/current.md']);
+    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown: '', documents,
+      id: documents.documents.find(document => document.path === 'docs/literal.md')!.id,
+      candidates: source({ 'docs/literal.md': 'literal \uFFFD' }, [], {}, algorithm) })).toBe('literal \uFFFD');
   });
 
   it('retains uncertainty when optional blob identity cannot disambiguate replacement characters', async () => {
     await expect(readCandidateDocument('/project', 'baseline', { path: 'docs/unknown.md', kind: 'file', bytes: 3 },
       source({ 'docs/unknown.md': '\uFFFD' }, []))).rejects.toThrow('ambiguous replacement characters without Git blob identity');
+  });
+
+  it('retains complete references without document bodies and verifies on-demand content against retained hashes', async () => {
+    const planMarkdown = '[companion](../../docs/companion.md)';
+    const companion = '# Complete companion narrative';
+    const candidates = source({ 'docs/companion.md': companion }, []);
+    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline', planMarkdown, candidates });
+    const retained = JSON.parse(JSON.stringify(documents)) as typeof documents;
+    expect(retained.storage).toBe('git-references');
+    expect(JSON.stringify(retained)).not.toContain(companion);
+    expect(retained.documents.every(document => document.text === undefined)).toBe(true);
+    const id = retained.documents.find(document => document.path === 'docs/companion.md')!.id;
+    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: retained, id, candidates })).toBe(companion);
+    await expect(readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: retained, id,
+      candidates: source({ 'docs/companion.md': '# Different narrative' }, []) })).rejects.toThrow('differs from its retained content identity');
+    const legacy = { ...retained, documents: retained.documents.map(document => document.id === id ? { ...document, text: companion } : document) };
+    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: legacy, id, candidates: source({}, []) })).toBe(companion);
+    await expect(readAssistanceDocument({ projectRoot: '/project', planMarkdown: 'Changed captured input', documents: retained,
+      id: retained.manifest.root, candidates: source({}, []) })).rejects.toThrow('differs from its retained content identity');
   });
 
 });

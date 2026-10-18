@@ -105,6 +105,8 @@ export const assistedAssessmentSchema = z.object({
 }).strict();
 export type AssistedAssessment = z.infer<typeof assistedAssessmentSchema>;
 
+export interface AssistedEvidenceReference { readonly path: string; readonly sha256: string }
+
 export interface AssessorContext {
   readonly projectRoot: string;
   readonly job: AssistedJob;
@@ -113,6 +115,9 @@ export interface AssessorContext {
   readonly signal: AbortSignal;
   /** Durable stage checkpoint; a repeated stage name updates its latest evidence. */
   checkpoint(name: string, evidence: unknown): Promise<void>;
+  /** Immutable evidence beside the ledger; checkpoints retain its verified reference. */
+  retainEvidence(evidence: unknown): Promise<AssistedEvidenceReference>;
+  readEvidence(reference: AssistedEvidenceReference): Promise<unknown>;
   /** Existing stages allow an interrupted assessment to skip settled work. */
   stages(): readonly AssessmentStage[];
   assessments(): readonly AssistedAssessment[];

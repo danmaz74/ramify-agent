@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
@@ -121,6 +121,70 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(service.assessmentResult('sample', job.jobId, admitted.assessmentId)).toMatchObject({ gate: 'clear', completedAt: expect.any(String) });
   });
 
+  it.each(['missing', 'corrupt'] as const)('recovers a compact document checkpoint and complete immutable evidence after restart (%s artifact)', async mode => {
+    const companion = '# Companion narrative retained only in immutable Git';
+    const principle = '# Principle narrative retained only in immutable Git';
+    const pinned = '# Explicit pinned requirement remains delivered';
+    const planMarkdown = '# Plan\nThe feature returns 2. [Companion](../../docs/companion.md)\n';
+    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files,
+      'docs/companion.md': companion, 'quality.principles.md': principle, 'docs/pinned.md': pinned } };
+    let reviews = 0;
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        if (++reviews === 1) throw new Error('Interrupted after compact document checkpoint');
+        expect(input.prepared.message).toContain('baseline:quality.principles.md');
+        expect(input.prepared.message).not.toContain(principle);
+        expect(input.prepared.message).toContain(pinned);
+        const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
+        const stages = JSON.parse((await tool.execute({ ref: 'assessments/as-0001/stages/documents.json' }, new AbortController().signal)).text) as { content: string };
+        expect(JSON.parse(stages.content)).toMatchObject({ storage: 'git-references' });
+        for (const [path, text] of [['plans/sample/plan.md', planMarkdown], ['docs/companion.md', companion], ['quality.principles.md', principle]]) {
+          const first = JSON.parse((await tool.execute({ ref: `baseline:${path}`, limit: 8 }, new AbortController().signal)).text) as { content: string; nextOffset: number };
+          const rest = JSON.parse((await tool.execute({ ref: `baseline:${path}`, offset: first.nextOffset }, new AbortController().signal)).text) as { content: string; nextOffset: null };
+          expect(rest.nextOffset).toBeNull();
+          expect(JSON.parse(first.content + rest.content).text).toBe(text);
+        }
+        const report = reviewReport(input.candidate);
+        const validated = input.prepared.validate({ ...report, requirements: [...report.requirements,
+          { ref: 'requirement-document-1', outcome: 'met', explanation: 'Pinned requirement verified.', evidencePaths: ['src/feature.ts'] }] });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'compact-evidence-review', eventCount: 1 };
+      },
+    };
+    const { service, job, candidates } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, dependencies, planMarkdown);
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], commandId: 'compact-evidence',
+      requirementDocuments: [{ path: 'docs/pinned.md', revision: baseline }] });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    const detail = service.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    expect(detail.error).toContain('Interrupted after compact document checkpoint');
+    const stage = detail.stages.find(stage => stage.name === 'documents')!;
+    expect(stage.evidence).toMatchObject({ schema: 'ramify-agent.assisted-document-reference/1', baselineCommit: baseline });
+    const reference = stage.evidence as { artifact: { path: string; sha256: string } };
+    expect(JSON.stringify(stage.evidence)).not.toContain(companion);
+    expect(JSON.stringify(stage.evidence)).not.toContain(principle);
+    const directory = join(service.projectRoot, 'plans/sample/.harness/jobs', job.jobId);
+    const artifact = JSON.parse(await readFile(join(directory, reference.artifact.path), 'utf8'));
+    expect(artifact).toMatchObject({ storage: 'git-references', documents: expect.any(Array) });
+    expect(JSON.stringify(artifact)).not.toContain(companion); expect(JSON.stringify(artifact)).not.toContain(principle);
+    const log = await readFile(join(directory, 'events.jsonl'), 'utf8');
+    expect(log).not.toContain(companion); expect(log).not.toContain(principle);
+    await service.close();
+    await rm(join(directory, 'assessments', admitted.assessmentId, 'stages/documents.json'));
+    if (mode === 'missing') await rm(join(directory, reference.artifact.path));
+    else await writeFile(join(directory, reference.artifact.path), 'corrupted artifact');
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot,
+      assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(JSON.parse(await readFile(join(directory, 'assessments', admitted.assessmentId, 'stages/documents.json'), 'utf8'))).toEqual(stage.evidence);
+    await reopened.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(detail.revision));
+    expect((await outcome(reopened, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).requestedAt).toBe(detail.requestedAt);
+    expect(JSON.parse(await readFile(join(directory, reference.artifact.path), 'utf8'))).toEqual(artifact);
+  });
+
   it('keeps an audit failure and original-baseline protected edit actionable across a later candidate', async () => {
     const contract = 'docs/contract.spec.md';
     const changed = { ...source('1', baseline), files: { ...source('1', baseline).files, [contract]: 'weakened\n' },
@@ -184,7 +248,8 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(result.outcome.gate).toBe(required ? 'incomplete' : 'clear');
     expect(candidates.calls.some(call => call.includes('/archive/') || call.includes('docs/missing.md'))).toBe(false);
     if (required) expect(result.outcome.gaps.join(' ')).toContain('Applicable required evidence');
-    const evidence = service.assessmentDetail('sample', job.jobId, result.id).stages.find(stage => stage.name === 'documents')!.evidence;
+    const reference = service.assessmentDetail('sample', job.jobId, result.id).stages.find(stage => stage.name === 'documents')!.evidence as { artifact: { path: string } };
+    const evidence = JSON.parse(await readFile(join(service.projectRoot, 'plans/sample/.harness/jobs', job.jobId, reference.artifact.path), 'utf8'));
     expect(evidence).toMatchObject({ gaps: { outsideProject: [{ target: '/archive/result.json', judgment: 'unjudged' }], missing: [{ target: 'docs/missing.md' }], unreadableDocuments: [{ path: 'docs/payload.bundle', judgment: 'unjudged' }] } });
   });
 

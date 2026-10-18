@@ -309,6 +309,8 @@ export class AssistanceService {
             stages: [...assessment.stages.filter(stage => stage.name !== name), { name, evidence, completedAt: this.now().toISOString() }],
           }));
         },
+        retainEvidence: evidence => this.write(async () => { controller.signal.throwIfAborted(); return store.retainEvidence(evidence); }),
+        readEvidence: reference => store.readEvidence(reference),
         stages: () => store.assessment(id)?.stages ?? [],
         assessments: () => store.assessments(),
         findingState: () => this.findingState(store),

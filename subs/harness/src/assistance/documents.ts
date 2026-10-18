@@ -11,12 +11,14 @@ export interface AssistanceDocument {
   readonly path: string;
   readonly kind: 'plan' | 'principle';
   readonly sha256: string;
-  readonly text: string;
+  /** Historical stages stored inline text; new stages retain immutable references. */
+  readonly text?: string;
   /** Filename and location alone do not establish adoption. */
   readonly adoption: 'undetermined';
 }
 
 export interface AssistanceDocuments {
+  readonly storage?: 'git-references';
   readonly baselineCommit: string;
   readonly manifest: DocumentManifest;
   readonly documents: readonly AssistanceDocument[];
@@ -45,15 +47,35 @@ export async function captureAssistanceDocuments(input: {
   const unreadableDocuments: UnreadableDocumentReference[] = [];
   const captured = await discoverDocuments(input.projectRoot, input.planId, { commit: input.baselineCommit, dirty: false }, reader,
     { onOutsideReference: reference => outsideProject.push(reference), onUnreadableDocument: reference => unreadableDocuments.push(reference) });
-  const decoder = new TextDecoder('utf-8', { fatal: true });
-  const documents = captured.manifest.documents.map(document => {
-    const bytes = captured.bytes.get(document.id);
-    if (bytes === undefined) throw new Error(`Missing captured document bytes for ${document.path}`);
-    return { id: document.id, path: document.path, kind: document.kind, sha256: document.sha256,
-      text: decoder.decode(bytes), adoption: 'undetermined' as const };
-  });
-  return { baselineCommit: input.baselineCommit, manifest: captured.manifest, documents,
+  const documents = captured.manifest.documents.map(document => ({ id: document.id, path: document.path,
+    kind: document.kind, sha256: document.sha256, adoption: 'undetermined' as const }));
+  return { storage: 'git-references', baselineCommit: input.baselineCommit, manifest: captured.manifest, documents,
     gaps: { missing: captured.manifest.missing, unreadablePrinciples: captured.manifest.principlesScan.unreadable, outsideProject, unreadableDocuments } };
+}
+
+/** Resolve only a retained document identity; Git bytes must still match the captured manifest. */
+export async function readAssistanceDocument(input: {
+  readonly projectRoot: string; readonly planMarkdown: string; readonly documents: AssistanceDocuments;
+  readonly id: string; readonly candidates?: CandidateSource;
+}): Promise<string> {
+  const document = input.documents.documents.find(document => document.id === input.id);
+  if (!document) throw new Error('No retained document at that identity');
+  // Existing inline evidence stays available even if its Git source is no longer readable.
+  if (document.text !== undefined) return document.text;
+  const captured = input.documents.manifest.documents.find(item => item.id === document.id);
+  if (!captured || captured.path !== document.path || captured.sha256 !== document.sha256) throw new Error('Retained document identity differs from its manifest');
+  let bytes: Uint8Array;
+  if (document.id === input.documents.manifest.root) bytes = new TextEncoder().encode(input.planMarkdown);
+  else {
+    const source = input.candidates ?? gitCandidateSource;
+    const entry = (await source.treeEntries(input.projectRoot, input.documents.baselineCommit)).find(entry => entry.path === captured.path);
+    if (!entry) throw new Error(`Committed document ${captured.path} is unavailable`);
+    bytes = await readCandidateDocument(input.projectRoot, input.documents.baselineCommit, entry, source);
+  }
+  if (bytes.length !== captured.bytes || createHash('sha256').update(bytes).digest('hex') !== captured.sha256) {
+    throw new Error(`Document ${captured.path} differs from its retained content identity`);
+  }
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 /** Validate Git's text response before capturing bytes or treating a pinned document as evidence. */
