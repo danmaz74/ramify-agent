@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import { openCandidateSnapshot, resolveSnapshotPath, snapshotToolNames, snapshotTools } from '../snapshot.js';
+import { collectReviewDiffPayload } from '../diff-payload.js';
 import { validateReview } from '../submission.js';
 import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js';
 
@@ -12,6 +13,7 @@ import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js'
 
 const root = '/project';
 const source = () => scriptedCandidates(root, {
+  c0: { tree: 't0', base: 'c0', changes: [], files: { 'src/a.ts': 'export const a = 0;\n', 'src/gone.ts': 'removed\n', 'README.md': '# project\n' } },
   c1: {
     tree: 't1',
     base: 'c0',
@@ -98,17 +100,17 @@ describe('resolving a path in the audited candidate', () => {
       { tool: snapshotToolNames.read, denial: 'absolute', path: '/etc/passwd' },
       { tool: snapshotToolNames.search, denial: 'symlink', path: 'src/link' },
     ]);
-    expect(scripted.calls.filter(entry => entry.startsWith('readBlob'))).toEqual(['readBlob c1 src/a.ts', 'readBlob c1 README.md']);
+    expect(scripted.calls.filter(entry => entry.startsWith('readBlob'))).toEqual(['readBlob c1 src/a.ts', 'readBlob c1 README.md', 'readBlob c1 src/a.ts', 'readBlob c1 src/b.ts', 'readBlob c0 src/gone.ts']);
   });
 });
 
 describe('exact candidate text evidence', () => {
   test.each(['sha1', 'sha256'] as const)('refuses equal-length lossy decoding without recording inspection while preserving literal replacement text (%s)', async algorithm => {
-    const scripted = scriptedCandidates(root, { candidate: { tree: 'tree', base: 'base',
-      changes: [{ status: 'M', path: 'src/invalid.ts' }, { status: 'A', path: 'src/literal.ts' }, { status: 'M', path: 'src/binary.ts' }],
+    const scripted = scriptedCandidates(root, { base: { tree: 'base-tree', base: 'base', changes: [], files: { 'src/removed.ts': '\uFFFD', 'src/invalid.ts': '0', 'src/binary.ts': '0' } }, candidate: { tree: 'tree', base: 'base',
+      changes: [{ status: 'M', path: 'src/invalid.ts' }, { status: 'A', path: 'src/literal.ts' }, { status: 'M', path: 'src/binary.ts' }, { status: 'D', path: 'src/removed.ts' }],
       files: { 'src/invalid.ts': '\uFFFD', 'src/literal.ts': '\uFFFD', 'src/binary.ts': 'header\0payload' } } });
     const source = { ...scripted, treeEntries: async (project: string, commit: string) => (await scripted.treeEntries(project, commit)).map(entry => {
-      const bytes = entry.path === 'src/invalid.ts' ? Buffer.from([0xf0, 0x90, 0x80]) : Buffer.from(entry.path === 'src/literal.ts' ? '\uFFFD' : 'header\0payload');
+      const bytes = entry.path === 'src/invalid.ts' && commit === 'candidate' || entry.path === 'src/removed.ts' ? Buffer.from([0xf0, 0x90, 0x80]) : Buffer.from(commit === 'base' ? '0' : entry.path === 'src/literal.ts' ? '\uFFFD' : 'header\0payload');
       return { ...entry, bytes: bytes.length, objectId: createHash(algorithm).update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
     }) };
     const snapshot = await openCandidateSnapshot(source, root, { commit: 'candidate', base: 'base' });
@@ -120,6 +122,18 @@ describe('exact candidate text evidence', () => {
     expect(tools.read().has('src/literal.ts')).toBe(true);
     expect(await read('src/binary.ts')).toEqual({ text: 'src/binary.ts is a binary file of 14 bytes' });
     expect(tools.read().has('src/binary.ts')).toBe(false); expect(tools.inspected().has('src/binary.ts')).toBe(false);
+    const call = (name: string, input: unknown) => tools.definitions.find(tool => tool.name === name)!.execute(input, new AbortController().signal);
+    for (const path of ['src/invalid.ts', 'src/removed.ts', 'src/binary.ts']) {
+      expect(await call('snapshot_diff', { path })).toMatchObject({ isError: true });
+      expect(tools.inspected().has(path)).toBe(false);
+    }
+    expect(await call('snapshot_search', { pattern: '\uFFFD', path: 'src/invalid.ts' })).toMatchObject({ isError: true });
+    expect(await call('snapshot_search', { pattern: '\uFFFD', path: 'src/literal.ts' })).toEqual({ text: 'src/literal.ts:1: \uFFFD' });
+    expect(await call('snapshot_diff', { path: 'src/literal.ts' })).toMatchObject({ text: expect.stringContaining('+\uFFFD') });
+    const delivered = await collectReviewDiffPayload(snapshot, source, root);
+    expect(delivered.inlinePaths).toEqual(['src/literal.ts']);
+    expect(delivered.text).toContain('could not be decoded exactly from Git');
+    expect(scripted.calls.filter(call => call.startsWith('diffPatch'))).toEqual(['diffPatch candidate src/literal.ts', 'diffPatch candidate src/literal.ts']);
     const claimed = validateReview({ inspected: ['src/invalid.ts', 'src/literal.ts'], missing: [{ path: 'src/binary.ts', reason: 'binary' }], concerns: [] },
       { snapshot, inspected: tools.inspected(), read: tools.read(), maxConcerns: 2 });
     expect(claimed.ok).toBe(false);

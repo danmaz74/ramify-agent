@@ -6,6 +6,10 @@ import { join } from 'node:path';
 import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { ConfiguredAuditResult } from '../../subs/audit/src/check-execution.js';
 import { scriptedCandidates, type ScriptedCommit } from './helpers/candidates.js';
+import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
+import { validateReconciliationForExecution } from '../reviews/reconciliation.js';
+import type { AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
+import { findingDetails, reportReviewConcerns } from '../assistance/findings.js';
 import { AssistanceService } from '../assistance/service.js';
 import { createAssessor, type AssessmentDependencies } from '../assistance/assessment.js';
 import type { AssistedProtection } from '../assistance/contracts.js';
@@ -48,7 +52,7 @@ const source = (value: string, base: string, extras: Partial<ScriptedCommit> = {
   files: { 'src/feature.ts': `export const feature = ${value};\n`, 'src/dependency.ts': 'export const dependency = true;\n' }, ...extras,
 });
 
-const reviewReport = (candidate: string, concern = false) => ({
+const reviewReport = (candidate: string, concern = false): AssistedReviewSubmission => ({
   inspected: ['src/feature.ts'], missing: [],
   concerns: concern ? [{ summary: 'Feature returns 1 instead of 2', consequence: 'Acceptance behavior fails', rationale: 'The candidate returns 1',
     uncertainty: 'None', remedy: 'Return 2', locations: [{ path: 'src/feature.ts', startLine: 1, endLine: 1 }], suggests: null,
@@ -259,6 +263,89 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'documents')?.evidence).toEqual(legacy);
   });
 
+  it.each(['valid-review', 'lossy-review', 'lossy-base', 'valid-conflict', 'lossy-conflict', 'unproven-closure'] as const)(
+    'revalidates accepted historical candidate judgments before applying them after restart (%s)', async scenario => {
+      const root = await mkdtemp(join(tmpdir(), 'assistance-legacy-judgments-')); roots.push(root);
+      await mkdir(join(root, 'plans/sample'), { recursive: true });
+      await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
+      const reconciliation = scenario.includes('conflict') || scenario === 'unproven-closure';
+      const report = reviewReport(first, reconciliation);
+      const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+        resolveCommit: async (_root, revision) => revision, assessor: async context => {
+          const bindings = report.concerns.map(() => ({ ground: null, credibility: 'ungrounded' as const, modules: [] }));
+          const reviewed = { result: { status: 'submitted', value: report,
+            operationId: 'legacy-review', sessionId: 'legacy-session', eventCount: 1 }, bindings, read: ['src/feature.ts'], inspected: ['src/feature.ts'] };
+          await context.checkpoint('review-accepted', reviewed);
+          if (reconciliation) {
+            await context.recordFindings(reportReviewConcerns({ assessment: context.assessment.id, tree: 'tree-2', report, bindings,
+              evidence: { kind: 'assisted-review', ref: `assessments/${context.assessment.id}/stages/review.json`, hash: `sha256:${createHash('sha256').update(`${JSON.stringify(reviewed, null, 2)}\n`).digest('hex')}` } }), 'review-reports');
+            const state = context.findingState();
+            const details = findingDetails(state);
+            const proposed = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Historical source judgment.',
+              communication: { mode: 'quiet' }, action: scenario === 'unproven-closure'
+                ? { action: 'fixed', reassessed: ['cfr-0001'] }
+                : { action: 'request-user-decision', conflicts: [{ document: 'docs/authority.md', text: '\uFFFD' }],
+                  options: [{ id: 'restore', summary: 'Restore source', consequence: 'Repair candidate.' },
+                    { id: 'retain', summary: 'Retain source', consequence: 'Keep candidate.' }] } }],
+              next: { kind: scenario === 'unproven-closure' ? 'complete' : 'await-user' }, brief: 'Historical reconciliation.' };
+            const checked = await validateReconciliationForExecution(proposed, {
+              id: `${context.assessment.id}-reconciliation`, owner: context.job.jobId,
+              attention: new Map(details.map(detail => [detail.summary.id, { revision: detail.summary.revision,
+                reason: detail.summary.reason, awaiting: detail.summary.awaiting, risk: detail.summary.risk, modules: detail.summary.modules }])),
+              held: new Map(details.map(detail => [detail.summary.id, detail.summary.revision])),
+              actor: { kind: 'agent', role: 'assisted-reconciler', invocation: 'legacy-reconciliation' },
+              source: { kind: 'tree', id: 'tree-2' }, authority: { kind: 'governing-record', ref: context.job.plan.storedAt }, responsible: { kind: 'run' },
+              waiverRefusal: () => 'requires coordinator authority', evidence: () => [{ kind: 'assisted-reconciliation', ref: 'legacy', hash: null }],
+              // This is the pre-fix acquisition behavior: the old executor
+              // accepted a replacement character without checking blob identity.
+              document: async () => ({ text: '\uFFFD', revision: 'tree-2' }),
+              decide: command => { const changed = decideCheckFindingChange(state, command); return changed.ok ? null : changed.rejection; },
+            });
+            if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
+            await context.checkpoint('reconciliation-accepted', { status: 'submitted', value: checked.value,
+              operationId: 'legacy-reconciliation', sessionId: 'legacy-reconciliation-session', eventCount: 1 });
+          }
+          throw new Error('Legacy executor stopped after accepted judgment');
+        } });
+      services.push(old);
+      const job = await old.planStart({ planId: 'sample', commandId: 'register' });
+      const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first, kind: 'iteration',
+        brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'assess' });
+      await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+      const original = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+      const historical = original.stages;
+      await old.close();
+      const candidates = scriptedCandidates(root, {
+        [baseline]: source('0', baseline, { files: { ...source('0', baseline).files,
+          ...(scenario === 'lossy-base' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
+        [first]: source('2', baseline, { files: { ...source('2', baseline).files, 'docs/authority.md': '\uFFFD',
+          ...(scenario === 'lossy-review' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
+      });
+      const listed = candidates.treeEntries.bind(candidates);
+      vi.spyOn(candidates, 'treeEntries').mockImplementation(async (project, commit) => (await listed(project, commit)).map(entry => {
+        if (entry.path !== 'docs/authority.md' && !(entry.path === 'src/feature.ts' &&
+          (scenario === 'lossy-review' && commit === first || scenario === 'lossy-base' && commit === baseline))) return entry;
+        const bytes = scenario === 'valid-conflict' ? Buffer.from('\uFFFD') : Buffer.from([0xf0, 0x90, 0x80]);
+        return { ...entry, bytes: bytes.length, objectId: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
+      }));
+      const resumed = await AssistanceService.open({ projectRoot: root, assessor: createAssessor({ candidates, operations: unusedOperations,
+        audit: async input => audit(input.candidateCommit),
+        review: async () => { throw new Error('Accepted review must remain the original immutable report'); },
+        reconcile: async () => { throw new Error('Accepted reconciliation must not be replaced'); },
+      }) });
+      services.push(resumed);
+      await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+      await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(original.revision));
+      const result = await outcome(resumed, job.jobId, admitted.assessmentId);
+      const valid = scenario === 'valid-review' || scenario === 'valid-conflict';
+      expect(result.gate).toBe(valid ? scenario === 'valid-review' ? 'clear' : 'action-required' : 'incomplete');
+      if (!valid) expect(result.gaps.join(' ')).toContain(scenario === 'unproven-closure' ? 'no retained exact source-read provenance' : 'could not be decoded exactly from Git');
+      const finding = resumed.findings('sample', job.jobId)[0];
+      if (scenario === 'valid-conflict') expect(finding?.pendingUserDecision).not.toBeNull();
+      else if (reconciliation) { expect(finding?.pendingUserDecision).toBeNull(); expect(finding?.standing).toBe('open'); }
+      for (const stage of historical) expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(item => item.name === stage.name)).toEqual(stage);
+    });
+
   it('refuses replacement characters from malformed candidate bytes as verbatim user-decision authority', async () => {
     const document = 'docs/authority.md';
     let reconciliationCalls = 0;
@@ -399,6 +486,7 @@ describe('assisted assessment pipeline with real service records', () => {
     const { assess, candidates } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
+        await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
         const validated = input.prepared.validate(reviewReport(input.candidate));
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'unreadable-principle-review', eventCount: 1 };

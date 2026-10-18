@@ -4,7 +4,7 @@ import { prepareAssistedReview } from '../assisted.js';
 import { openCandidateSnapshot } from '../snapshot.js';
 
 const root = '/scripted/project';
-const source = () => scriptedCandidates(root, { candidate: {
+const source = () => scriptedCandidates(root, { base: { tree: 'tree-0', base: 'base', changes: [], files: { 'src/feature.ts': 'export const feature = false;\n' } }, candidate: {
   tree: 'tree-1', base: 'base', changes: [{ status: 'M', path: 'src/feature.ts' }],
   files: { 'src/feature.ts': 'export const feature = true;\n', 'README.md': '# Project\n' },
 } });

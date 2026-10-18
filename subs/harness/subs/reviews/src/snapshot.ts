@@ -3,7 +3,7 @@ import { posix, resolve } from 'node:path';
 import { z } from 'zod';
 import type { JsonSchema, ToolAction, ToolDefinition, ToolResult } from '../../agent/src/interfaces/port.js';
 import type { CandidateSource, TreeEntry } from '../../evidence/src/git.js';
-import { GitTextError, readVerifiedTextBlobBytes } from '../../evidence/src/git-text.js';
+import { GitTextError, readVerifiedTextBlobBytes, verifiedCandidateSource } from '../../evidence/src/git-text.js';
 
 /*
  * A reviewer's only view of the project: one audited candidate, served from
@@ -146,6 +146,7 @@ export interface SnapshotTools {
 
 /** The reviewer's four read tools over one snapshot. None of them mutates anything. */
 export function snapshotTools(snapshot: CandidateSnapshot, source: CandidateSource, projectRoot: string, comparisons?: readonly SnapshotComparison[]): SnapshotTools {
+  source = verifiedCandidateSource(source, { root: projectRoot, commit: snapshot.commit, entries: snapshot.entries });
   const defaultComparison = comparisons?.find(comparison => comparison.name === 'run-start') ?? comparisons?.find(comparison => comparison.name === 'accepted-boundary');
   if (comparisons !== undefined && (defaultComparison === undefined || new Set(comparisons.map(item => item.name)).size !== comparisons.length
     || comparisons.some(item => item.target !== snapshot.commit))) throw new Error('Snapshot comparisons must have distinct names and the pinned candidate target');
@@ -337,4 +338,21 @@ export function resolveChangedPath(snapshot: CandidateSnapshot, input: string): 
     return { ok: false, denial: 'missing', text: `The candidate did not change "${path}"; ${snapshotToolNames.diff} without a path lists what it changed` };
   }
   return path;
+}
+
+/** Revalidate historical inspection claims without rewriting their durable record.
+ * Old records do not distinguish a read from a delivered patch, so changed
+ * paths require exact text at both ends, including removed/context text.
+ */
+export async function verifySnapshotEvidence(snapshot: CandidateSnapshot, source: CandidateSource, projectRoot: string, paths: readonly string[], signal?: AbortSignal): Promise<void> {
+  source = verifiedCandidateSource(source, { root: projectRoot, commit: snapshot.commit, entries: snapshot.entries });
+  for (const path of new Set(paths)) {
+    const changed = resolveChangedPath(snapshot, path);
+    if (typeof changed === 'string') await source.diffPatch(projectRoot, snapshot.base, snapshot.commit, changed, signal);
+    else {
+      const held = resolveSnapshotPath(snapshot, path);
+      if (!held.ok || held.kind !== 'file') throw new GitTextError('unavailable', `Historical source evidence ${path} is unavailable`);
+      await source.readBlob(projectRoot, snapshot.commit, held.path, signal);
+    }
+  }
 }

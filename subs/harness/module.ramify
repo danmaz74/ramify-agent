@@ -230,4 +230,4 @@ expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23R
 // Executable composition of assisted Pi assessment; the root owns process lifetime.
 expose-src startAssistanceServer, AssistanceServerOptions, AssistanceServer from "assistance/runtime.ts" to parent
 
-expose-sub readVerifiedTextBlobBytes, GitTextError from evidence to descendants
+expose-sub verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from evidence to descendants

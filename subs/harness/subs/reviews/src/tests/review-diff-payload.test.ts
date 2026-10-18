@@ -14,8 +14,16 @@ function snapshot(changes: CandidateSnapshot['changes'], entries?: readonly Tree
 }
 
 function replies(patches: readonly { path: string; text: string }[], signal?: AbortSignal) {
-  return scratchCandidateReplies(root, patches.map(patch => ({ operation: 'diffPatch' as const,
-    args: [root, 'fixed-base', 'fixed-candidate', patch.path, signal], answer: patch.text })));
+  const entries = patches.map(patch => ({ path: patch.path, kind: 'file', bytes: 1 }));
+  const answers: Parameters<typeof scratchCandidateReplies>[1][number][] = patches.length ? [
+    { operation: 'treeEntries', args: [root, 'fixed-base', signal], answer: entries },
+  ] : [];
+  for (const patch of patches) {
+    answers.push({ operation: 'readBlob', args: [root, 'fixed-base', patch.path, signal], answer: 'x' });
+    if (patch.path !== 'src/deleted.ts') answers.push({ operation: 'readBlob', args: [root, 'fixed-candidate', patch.path, signal], answer: 'x' });
+    answers.push({ operation: 'diffPatch', args: [root, 'fixed-base', 'fixed-candidate', patch.path, signal], answer: patch.text });
+  }
+  return scratchCandidateReplies(root, answers);
 }
 
 describe('precollected candidate review diffs', () => {

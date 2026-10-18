@@ -1,3 +1,4 @@
+import { verifiedCandidateSource } from '../../subs/evidence/src/git-text.js';
 import { posix } from 'node:path';
 import type { CheckFindingLocation, CheckFindingReportCredibility } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import type { CandidateSource } from '../../subs/evidence/src/git.js';
@@ -50,6 +51,7 @@ export function groundCredibility(path: string | null, provenance: GroundProvena
  * and owns its `src/` and its two declaration files.
  */
 export async function candidateModuleIndex(source: CandidateSource, projectRoot: string, snapshot: CandidateSnapshot): Promise<ArchitectIndex> {
+  source = verifiedCandidateSource(source, { root: projectRoot, commit: snapshot.commit, entries: snapshot.entries });
   const modules = new Map<string, ModuleEntry>();
   const declared = (dir: string) => snapshot.entries.get(dir === '' ? 'module.ramify' : `${dir}/module.ramify`)?.kind === 'file';
   const visit = async (dir: string, parent: string | null): Promise<string | null> => {

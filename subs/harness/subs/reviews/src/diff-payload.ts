@@ -1,3 +1,4 @@
+import { GitTextError, verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import { resolveChangedPath, snapshotToolNames, type CandidateSnapshot } from './snapshot.js';
 
@@ -25,6 +26,7 @@ export async function collectReviewDiffPayload(
   signal?: AbortSignal,
   options: { readonly inlineBudgetBytes?: number; readonly summaryMaxFiles?: number } = {},
 ): Promise<ReviewDiffPayload> {
+  source = verifiedCandidateSource(source, { root: projectRoot, commit: snapshot.commit, entries: snapshot.entries });
   const budget = options.inlineBudgetBytes ?? REVIEW_DIFF_INLINE_BUDGET_BYTES;
   const summaryMaxFiles = options.summaryMaxFiles ?? REVIEW_DIFF_SUMMARY_MAX_FILES;
   for (const [name, value] of [['inlineBudgetBytes', budget], ['summaryMaxFiles', summaryMaxFiles]] as const) {
@@ -48,7 +50,14 @@ export async function collectReviewDiffPayload(
     // delivered. Still validate its path above and retain the full changed
     // list for the bounded summary, without fetching unused patch content.
     if (bytes > budget) continue;
-    const patch = await source.diffPatch(projectRoot, snapshot.base, snapshot.commit, path, signal);
+    let patch: string;
+    try { patch = await source.diffPatch(projectRoot, snapshot.base, snapshot.commit, path, signal); }
+    catch (error) {
+      signal?.throwIfAborted();
+      if (!(error instanceof GitTextError)) throw error;
+      unavailable.push(`${JSON.stringify(path)}: ${error.message}`);
+      continue;
+    }
     signal?.throwIfAborted();
     bytes += Buffer.byteLength(patch, 'utf8');
     if (patch.trim().length === 0) unavailable.push(`${JSON.stringify(path)}: the source returned an empty patch`);

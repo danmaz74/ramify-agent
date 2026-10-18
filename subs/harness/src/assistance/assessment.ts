@@ -1,10 +1,11 @@
+import { verifiedCandidateSource } from '../../subs/evidence/src/git-text.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
 import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
 import { gitCandidateSource, type CandidateSource } from '../../subs/evidence/src/git.js';
-import { openCandidateSnapshot, snapshotTools } from '../../subs/reviews/src/snapshot.js';
+import { openCandidateSnapshot, snapshotTools, verifySnapshotEvidence } from '../../subs/reviews/src/snapshot.js';
 import { prepareAssistedReview, type AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
 import { bindCandidateConcerns, type ConcernBinding } from '../run/review-finish.js';
 import { ReviewQueue } from '../reviews/scheduler.js';
@@ -36,6 +37,7 @@ interface ReviewEvidence {
   readonly read: readonly string[];
   readonly inspected: readonly string[];
 }
+type ReconciliationEvidence = PiAssessmentResult<BoundReconciliation> & { readonly exactSourceReads?: readonly string[] };
 interface DocumentsReference {
   readonly schema: 'ramify-agent.assisted-document-reference/1';
   readonly baselineCommit: string;
@@ -46,7 +48,7 @@ const isDocumentsReference = (value: unknown): value is DocumentsReference => ty
 
 /** Compose existing facilities around assisted inputs; this never drives implementation work. */
 export function createAssessor(dependencies: AssessmentDependencies): Assessor {
-  const source = dependencies.candidates ?? gitCandidateSource;
+  const source = verifiedCandidateSource(dependencies.candidates ?? gitCandidateSource);
   return async context => {
     const { assessment, job, projectRoot, signal } = context;
     const request = assessment.request;
@@ -58,6 +60,11 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       await context.checkpoint(name, value);
       evidence.push(`assessments/${assessment.id}/stages/${name}.json`);
     };
+    const retainedSourceGap = (detail: string): AssistedOutcome => compactOutcome({
+      gate: 'incomplete', summary: 'Retained judgments require a fresh assessment with verifiable source evidence.',
+      ...remainingBriefs(findingDetails(context.findingState())), gaps: [...gaps, detail],
+      evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`),
+    });
     const baseline = job.protection?.baselineCommit;
     if (!baseline) return incomplete('The execution has no usable protection baseline.', [job.protection?.unavailable ?? 'Start an execution with an available Git baseline.']);
     if (job.protection!.unavailable) gaps.push(`Protection baseline inspection unavailable: ${job.protection!.unavailable}`);
@@ -162,6 +169,19 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       },
     });
     let reviewed = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
+    if (reviewed?.result.status === 'submitted') {
+      const report = reviewed.result.value;
+      try {
+        await verifySnapshotEvidence(snapshot, source, projectRoot, [
+          ...reviewed.read, ...reviewed.inspected, ...report.inspected,
+          ...report.requirements.flatMap(answer => answer.evidencePaths),
+          ...report.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path]),
+        ], signal);
+      } catch (error) {
+        signal.throwIfAborted();
+        return retainedSourceGap(`Retained review source evidence is unavailable: ${errorText(error)}`);
+      }
+    }
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
         briefing: { id: assessment.id, iteration: assessment.id, snapshot, outcome: intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
@@ -195,7 +215,23 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       if (reports.length) await context.recordFindings(reports, 'review-reports');
     }
 
-    let reconciliation = stages<PiAssessmentResult<BoundReconciliation>>('reconciliation-accepted') ?? stages<PiAssessmentResult<BoundReconciliation>>('reconciliation');
+    let reconciliation = stages<ReconciliationEvidence>('reconciliation-accepted') ?? stages<ReconciliationEvidence>('reconciliation');
+    if (reconciliation?.status === 'submitted') {
+      try {
+        const closing = reconciliation.value.submission.dispositions.some(item => item.action.action === 'fixed' || item.action.action === 'supersede');
+        if (closing && !reconciliation.exactSourceReads?.length) throw new Error('Historical semantic closure has no retained exact source-read provenance');
+        await verifySnapshotEvidence(snapshot, source, projectRoot, reconciliation.exactSourceReads ?? [], signal);
+        for (const bound of reconciliation.value.conflicts) for (const conflict of bound.conflicts) {
+          const captured = conflict.document === job.plan.path || conflict.document === 'captured-plan';
+          const text = captured ? context.planMarkdown : await source.readBlob(projectRoot, snapshot.commit, conflict.document, signal);
+          const revision = captured ? `sha256:${job.plan.sha256}` : snapshot.tree;
+          if (conflict.revision !== revision || !text.includes(conflict.text)) throw new Error(`Historical conflicting text in ${conflict.document} is not exact source evidence`);
+        }
+      } catch (error) {
+        signal.throwIfAborted();
+        return retainedSourceGap(`Retained reconciliation source evidence is unavailable: ${errorText(error)}`);
+      }
+    }
     const details = findingDetails(context.findingState());
     const attention = details.filter(detail => detail.summary.standing === 'open' && detail.summary.verification.kind === 'assessment' && detail.summary.pendingUserDecision === null);
     if (attention.length && reconciliation?.status !== 'submitted') {
@@ -221,7 +257,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         operationId: `${assessment.id}-reconciliation-${assessment.revision}`, projectRoot, candidate: snapshot.commit, tree: snapshot.tree,
         message, systemPrompt: 'Investigate and reconcile the supplied findings using the pinned candidate evidence. Submit one disposition for each requested finding and evidence-backed relations. Inspect relevant code, tests and consumers before fixing or superseding a concern. Required checks and protection conflicts remain factual obligations. Use submit_reconciliation.',
         tools: [...tools.definitions, retainedEvidence], signal, timeoutMs: dependencies.timeoutMs,
-        onSubmitted: async (value, evidence) => record('reconciliation-accepted', { status: 'submitted', value, ...evidence }),
+        onSubmitted: async (value, evidence) => record('reconciliation-accepted', { status: 'submitted', value, ...evidence, exactSourceReads: [...tools.read().keys()] }),
         submission: { name: 'submit_reconciliation', description: 'Submit the reconciled judgments and remaining action brief.',
           inputSchema: z.toJSONSchema(reconciliationSubmissionSchema) as JsonSchema,
           validate: async value => {
@@ -251,6 +287,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
             return errors.length ? { ok: false as const, errors } : validated;
           } },
       });
+      reconciliation = { ...reconciliation, exactSourceReads: [...tools.read().keys()] };
       await record('reconciliation', reconciliation);
     }
     if (reconciliation?.status === 'submitted') await context.recordFindings(reconciliation.value.commands, 'reconciliation-decisions');

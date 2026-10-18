@@ -60,6 +60,7 @@ function guidedCommits(): Record<string, ScriptedCommit> {
   const scripted = candidates();
   const guidance = { 'ramify-agent.json': '{"schema":"ramify-agent.project/1"}\n', [`${notesDirectory}/src/tests/notes.test.ts`]: 'export {};\n', [principles]: 'Keep every store in memory.\n', [readme]: 'Notes keep one note per review run.\n' };
   return {
+    ...scripted,
     'revision-01': { ...scripted['revision-01']!, files: { ...scripted['revision-01']!.files, ...guidance } },
     'revision-02': { ...scripted['revision-02']!, files: { ...scripted['revision-02']!.files, ...guidance } },
     'revision-03': {
