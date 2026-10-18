@@ -80,7 +80,8 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
         return { status: 'submitted' as const, value: validated.value, operationId: input.operationId,
           sessionId: 'scripted-review', eventCount: 1 };
   });
-  const serviceOptions = { projectRoot: root, registrationProtection: async () => protection, resolveCommit: async (_project: string, revision: string) => revision,
+  let clock = new Date('2026-10-18T20:00:00.000Z');
+  const serviceOptions = { now: () => clock, projectRoot: root, registrationProtection: async () => protection, resolveCommit: async (_project: string, revision: string) => revision,
     assessor: createAssessor({ candidates, operations: async () => ({} as SessionOperations), audit, review,
       reconcile: async input => {
         const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0002', rationale: 'Implementation still needs repair.',
@@ -100,7 +101,7 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
     expect(result.status, result.error ?? 'assessment did not complete').toBe('completed');
     return result;
   };
-  return { root, service, job, assess, audit, review, serviceOptions, gitCalls: scripted.calls };
+  return { root, service, job, assess, audit, review, serviceOptions, gitCalls: scripted.calls, setTime: (time: string) => { clock = new Date(time); } };
 }
 
 afterEach(async () => {
@@ -154,6 +155,10 @@ describe('exact protection authorization through an assisted assessment', () => 
     const changedAgain = await assess(retained, diverged);
     expect(changedAgain.outcome?.gate).toBe('action-required');
     expect(changedAgain.outcome?.repairs.join(' ')).toContain(contract);
+    const different = await service.protectionAccept({ planId: 'sample', jobId: job.jobId, assessmentId: changedAgain.id,
+      path: contract, userName: 'Owner', authority: 'different-exact-change', commandId: 'accept-different-change' });
+    expect(different.finalization?.outcome.gate).toBe('clear');
+    expect(different.finalization?.authorities[0]?.id).not.toBe(accepted.finalization?.authorities[0]?.id);
   });
 
   it('clears a protected edit restored to the original baseline without any authorization', async () => {
@@ -168,11 +173,12 @@ describe('exact protection authorization through an assisted assessment', () => 
   });
 
   it('finalizes the unchanged pre-reviewed candidate atomically with approval and replays after restart', async () => {
-    const { service, job, assess, audit, review, serviceOptions, gitCalls } = await fixture({ pending: true });
+    const { service, job, assess, audit, review, serviceOptions, gitCalls, setTime } = await fixture({ pending: true });
     const original = await assess(baseline, edited, 'final');
     const input = { planId: 'sample', jobId: job.jobId, assessmentId: original.id,
       path: contract, userName: 'Owner', authority: 'conversation-approval', commandId: 'accept' };
     const callsBeforeApproval = [...gitCalls];
+    setTime('2026-10-18T20:01:00.000Z');
     const accepted = await service.protectionAccept(input);
     expect(accepted.finalization).toMatchObject({ candidate: edited, baseline, planHash: service.assistedJob('sample', job.jobId).plan.sha256,
       outcome: { gate: 'clear' }, authorities: [{ id: expect.any(String), hash: expect.stringMatching(/^[a-f0-9]{64}$/u) }] });
@@ -180,12 +186,23 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(service.assessmentDetail('sample', job.jobId, original.id)).toMatchObject({ outcome: original.outcome,
       finalizations: [accepted.finalization] });
     expect(await service.protectionAccept(input)).toEqual(accepted);
+    const decisions = structuredClone(service.findings('sample', job.jobId));
+    const laterCommand = { ...input, commandId: 'duplicate-new-command', userName: 'Other owner', authority: 'later-conversation' };
+    setTime('2026-10-18T20:02:00.000Z');
+    await expect(service.protectionAccept(laterCommand)).rejects.toThrow('already accepted');
+    expect(service.findings('sample', job.jobId)).toEqual(decisions);
+    expect(service.assessmentResult('sample', job.jobId, original.id)?.finalization).toEqual(accepted.finalization);
+    expect(accepted.finalization).toMatchObject({ commandId: input.commandId, finalizedAt: '2026-10-18T20:01:00.000Z' });
     await service.close();
     services.splice(services.indexOf(service), 1);
     const reopened = await AssistanceService.open(serviceOptions);
     services.push(reopened);
     expect(await reopened.protectionAccept(input)).toEqual(accepted);
-    expect(reopened.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
+    setTime('2026-10-18T20:03:00.000Z');
+    await expect(reopened.protectionAccept({ ...laterCommand, commandId: 'duplicate-after-restart' })).rejects.toThrow('already accepted');
+    expect(reopened.findings('sample', job.jobId)).toEqual(decisions);
+    expect(reopened.assessmentDetail('sample', job.jobId, original.id).finalizations).toEqual([accepted.finalization]);
+    expect(reopened.assessmentResult('sample', job.jobId, original.id)).toMatchObject({ gate: 'clear', finalization: accepted.finalization });
     expect(audit).toHaveBeenCalledTimes(1);
     expect(review).toHaveBeenCalledTimes(1);
     expect(gitCalls).toEqual(callsBeforeApproval);

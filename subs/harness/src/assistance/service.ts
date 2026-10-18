@@ -15,6 +15,7 @@ import { readPlan } from '../plans/discover.js';
 import { acquireProjectLock, type ProjectLock } from '../store/lock.js';
 import { ensureStateDirectory } from '../store/state-directory.js';
 import { assistedDirectory, AssistedStore, type AssistedEvent } from './store.js';
+import { acceptedProtectionExceptions } from './findings.js';
 import { finalizeApproval, type ApprovalFinalization } from './approval.js';
 import { defaultProtectionRules, inspectProtectedInputs } from './protection.js';
 import {
@@ -497,6 +498,10 @@ export class AssistanceService {
       const exact = protection.violations.find(change => change.path === request.path);
       if (!exact) throw new CommandRejection('invalid-request', `Protection stage does not report ${request.path} as an unauthorized change`);
       const state = this.findingState(store);
+      const identities = canonicalJson({ before: exact.before ?? null, after: exact.after ?? null });
+      const alreadyAccepted = acceptedProtectionExceptions(state, store.assessments()).some(exception => exception.path === request.path
+        && canonicalJson({ before: exception.before, after: exception.after }) === identities);
+      if (alreadyAccepted) throw new CommandRejection('conflict', `The exact protected change to ${request.path} is already accepted; retry the original command ID to recover its receipt`);
       const matches = [...state.findings.values()].filter(entry => entry.standing === 'open'
         && entry.verification.kind === 'check' && entry.verification.required
         && entry.verification.producer === 'check:protection' && entry.verification.obligation.subject === `protected:${request.path}`
