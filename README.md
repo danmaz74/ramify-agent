@@ -44,6 +44,10 @@ module engineer sessions and runs one harness step at a time.
 The [development workspace](docs/development/workspace.md) describes the
 devcontainer, its companion checkouts and its ports.
 
+For native implementation with delegated post-iteration assessment, see
+[assisted plans over MCP](docs/agent-assistance.md). This workflow is in
+implementation and has not completed its installed-client pilot or qualification.
+
 Run from the repository root. `ramify.ts` and `ramify-audit` are exact pins
 from the registry `.npmrc` names, never a nearby toolkit or audit checkout.
 Prepare a fresh clone or worktree with `npm ci`. To take a new toolkit

@@ -23,18 +23,46 @@ export interface PreparedReview {
   readonly validate: (input: unknown) => SubmissionValidation<ReviewSubmission>;
 }
 
-/** The parent supplies the fixed question and owns cancellation; review evidence stays here. */
-export async function prepareReview(input: ReviewPreparation): Promise<PreparedReview> {
-  const { snapshot } = input.briefing;
-  const tools = snapshotTools(snapshot, input.source, input.projectRoot);
-  const diff = await collectReviewDiffPayload(snapshot, input.source, input.projectRoot, input.signal);
+/** Candidate evidence shared by review callers with different factual briefings. */
+export interface CandidateReviewPreparation<T> {
+  readonly source: CandidateSource;
+  readonly projectRoot: string;
+  readonly snapshot: ReviewBriefing['snapshot'];
+  readonly maxConcerns: number;
+  readonly signal?: AbortSignal;
+  readonly message: (diffPayload: string) => string;
+  readonly validate: (value: unknown, evidence: {
+    readonly snapshot: ReviewBriefing['snapshot'];
+    readonly inspected: ReadonlySet<string>;
+    readonly read: ReadonlyMap<string, string>;
+    readonly deliveredPatches: ReadonlySet<string>;
+    readonly maxConcerns: number;
+  }) => SubmissionValidation<T>;
+}
+
+/** Collect once, then bind the exact delivered patches and observed reads to validation. */
+export async function prepareCandidateReview<T>(input: CandidateReviewPreparation<T>): Promise<Omit<PreparedReview, 'validate'> & {
+  readonly validate: (value: unknown) => SubmissionValidation<T>;
+}> {
+  const tools = snapshotTools(input.snapshot, input.source, input.projectRoot);
+  const diff = await collectReviewDiffPayload(input.snapshot, input.source, input.projectRoot, input.signal);
   const deliveredPatches = new Set(diff.inlinePaths);
   return {
-    message: reviewMessage({ ...input.briefing, diffPayload: diff.text }),
+    message: input.message(diff.text),
     candidateDiff: diff.text,
     tools,
-    validate: value => validateReview(value, {
-      snapshot, inspected: tools.inspected(), read: tools.read(), deliveredPatches, maxConcerns: input.maxConcerns,
+    validate: value => input.validate(value, {
+      snapshot: input.snapshot, inspected: tools.inspected(), read: tools.read(), deliveredPatches, maxConcerns: input.maxConcerns,
     }),
   };
+}
+
+/** The parent supplies the fixed question and owns cancellation; review evidence stays here. */
+export async function prepareReview(input: ReviewPreparation): Promise<PreparedReview> {
+  return prepareCandidateReview({
+    source: input.source, projectRoot: input.projectRoot, snapshot: input.briefing.snapshot,
+    maxConcerns: input.maxConcerns, signal: input.signal,
+    message: diffPayload => reviewMessage({ ...input.briefing, diffPayload }),
+    validate: validateReview,
+  });
 }

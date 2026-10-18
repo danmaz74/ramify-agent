@@ -1,0 +1,26 @@
+{
+  "schema": "ramify-agent.assistance-mcp-protocol-witness/1",
+  "date": "2026-10-18",
+  "client": "@modelcontextprotocol/client@2.3.1",
+  "server": "@modelcontextprotocol/server@2.3.1",
+  "stdio": {
+    "entry": "node_modules/.bin/tsx src/main.ts mcp --project <temporary local clone>",
+    "toolCount": 11,
+    "requiredToolsDiscovered": true,
+    "planStartRetryReturnedSameJob": true,
+    "reconnectedProcessDiscoveredSameJob": true,
+    "reconnectedPlanStartReturnedSameJob": true,
+    "jobDetailReturnedCapturedPlan": true,
+    "registrationBaselineWasGitCommit": true,
+    "assessmentInvoked": false,
+    "note": "The temporary local clone was removed after the witness. No model or audit call was made."
+  },
+  "linkedTransport": {
+    "test": "subs/harness/src/tests/assistance-mcp.test.ts",
+    "initializedAndDiscoveredTools": true,
+    "assessmentAdmissionStatusAndResult": true,
+    "reconnectDidNotRepeatAssessment": true,
+    "cancellationIsolation": true,
+    "externalAnswers": "The assessor was scripted; no Git, audit provider or Pi model was launched."
+  }
+}

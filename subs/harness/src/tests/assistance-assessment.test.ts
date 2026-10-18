@@ -1,0 +1,187 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
+import type { ConfiguredAuditResult } from '../../subs/audit/src/check-execution.js';
+import { scriptedCandidates, type ScriptedCommit } from './helpers/candidates.js';
+import { AssistanceService } from '../assistance/service.js';
+import { createAssessor, type AssessmentDependencies } from '../assistance/assessment.js';
+import type { AssistedProtection } from '../assistance/contracts.js';
+
+const baseline = 'a'.repeat(40), first = 'b'.repeat(40), repaired = 'c'.repeat(40);
+const roots: string[] = [], services: AssistanceService[] = [];
+const protection: AssistedProtection = { baselineCommit: baseline,
+  rules: { explicitPaths: [], excludedPaths: [], guardedPaths: [], additions: 'protect' }, gaps: [], unavailable: null };
+const audit = (candidate: string, state: 'passed' | 'failed' = 'passed') => ({ state, requestedSourceCommit: candidate,
+  auditedSourceCommit: candidate, detail: state === 'passed' ? 'configured audit passed' : 'configured audit failed',
+  result: { definition: { path: 'ramify-audit.json', blob: 'fixed-selection' } } as ConfiguredAuditResult });
+const outcome = async (service: AssistanceService, jobId: string, assessmentId: string) => {
+  await vi.waitFor(() => expect(service.assessmentStatus('sample', jobId, assessmentId).status).toMatch(/completed|interrupted/u));
+  const detail = service.assessmentDetail('sample', jobId, assessmentId);
+  expect(detail.status, detail.error ?? 'assessment did not complete').toBe('completed');
+  return detail.outcome!;
+};
+
+async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<AssessmentDependencies, 'candidates'>) {
+  const root = await mkdtemp(join(tmpdir(), 'assistance-assessment-')); roots.push(root);
+  await mkdir(join(root, 'plans', 'sample'), { recursive: true });
+  await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Plan\nThe feature returns 2.\n');
+  const candidates = scriptedCandidates(root, commits);
+  const service = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+    resolveCommit: async (_root, revision) => revision, assessor: createAssessor({ ...deps, candidates }) });
+  services.push(service);
+  const job = await service.planStart({ planId: 'sample', commandId: 'start' });
+  const assess = async (candidate: string, base: string, commandId: string, extra: Record<string, unknown> = {}) => {
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base, candidate,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId, ...extra });
+    return { id: admitted.assessmentId, outcome: await outcome(service, job.jobId, admitted.assessmentId) };
+  };
+  return { service, job, candidates, assess };
+}
+
+const unusedOperations = async (): Promise<SessionOperations> => ({} as SessionOperations);
+const source = (value: string, base: string, extras: Partial<ScriptedCommit> = {}): ScriptedCommit => ({
+  tree: `tree-${value}`, base, changes: [{ status: 'M', path: 'src/feature.ts' }],
+  files: { 'src/feature.ts': `export const feature = ${value};\n`, 'src/dependency.ts': 'export const dependency = true;\n' }, ...extras,
+});
+
+const reviewReport = (candidate: string, concern = false) => ({
+  inspected: ['src/feature.ts'], missing: [],
+  concerns: concern ? [{ summary: 'Feature returns 1 instead of 2', consequence: 'Acceptance behavior fails', rationale: 'The candidate returns 1',
+    uncertainty: 'None', remedy: 'Return 2', locations: [{ path: 'src/feature.ts', startLine: 1, endLine: 1 }], suggests: null,
+    risk: 'medium', ground: null }] : [],
+  codeAssessment: concern ? 'Behavior is incorrect.' : 'Feature returns 2.', scopeAssessment: 'The feature is within the requested outcome.',
+  design: { needed: false, reason: 'No interface change.', assessment: 'Dependency ownership is preserved.' },
+  requirements: [
+    { ref: 'captured-plan', outcome: concern ? 'unmet' : 'met', explanation: concern ? 'Feature returns 1.' : 'Feature returns 2.', evidencePaths: concern ? [] : ['src/feature.ts'] },
+    { ref: 'acceptance-1', outcome: concern ? 'unmet' : 'met', explanation: concern ? 'Feature returns 1.' : 'Feature returns 2.', evidencePaths: concern ? [] : ['src/feature.ts'] },
+  ],
+});
+
+afterEach(async () => {
+  for (const service of services.splice(0)) await service.close();
+  for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
+});
+
+describe('assisted assessment pipeline with real service records', () => {
+  it('carries a semantic repair across candidates and closes it only after fresh source assessment', async () => {
+    const visits: string[] = [];
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        visits.push(input.candidate);
+        const report = reviewReport(input.candidate, input.candidate === first);
+        const validated = input.prepared.validate(report);
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: `script-${visits.length}`, eventCount: 1 };
+      },
+      reconcile: async input => {
+        const isRepair = input.candidate === first;
+        if (!isRepair) await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
+        const submission = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: isRepair ? 'Behavior needs correction.' : 'Fresh candidate returns 2.',
+          communication: { mode: 'quiet' }, action: isRepair ? { action: 'repair' } : { action: 'fixed', reassessed: ['cfr-0001'] } }],
+          next: isRepair ? { kind: 'correct', goal: 'Return 2.' } : { kind: 'complete' }, brief: isRepair ? 'Repair feature.' : 'Feature repaired.' };
+        const validated = await input.submission.validate(submission);
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script-reconcile', eventCount: 1 };
+      },
+    });
+    const a = await assess(first, baseline, 'assess-first');
+    expect(a.outcome.gate).toBe('action-required');
+    expect(a.outcome.repairs.join(' ')).toContain('Feature returns 1');
+    const b = await assess(repaired, first, 'assess-repair', { previousAssessment: a.id });
+    expect(b.outcome.gate).toBe('clear');
+    expect(visits).toEqual([first, repaired]);
+    expect(service.assessmentDetail('sample', job.jobId, a.id).outcome?.gate).toBe('action-required');
+  });
+
+  it('keeps an audit failure and original-baseline protected edit actionable across a later candidate', async () => {
+    const contract = 'docs/contract.spec.md';
+    const changed = { ...source('1', baseline), files: { ...source('1', baseline).files, [contract]: 'weakened\n' },
+      changes: [{ status: 'M', path: 'src/feature.ts' }, { status: 'M', path: contract }] };
+    const later = { ...source('2', first), files: { ...source('2', first).files, [contract]: 'weakened\n' },
+      comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }, { status: 'M', path: contract }] } } };
+    const { assess } = await setup({ [baseline]: { ...source('0', baseline), files: { ...source('0', baseline).files, [contract]: 'strict\n' } }, [first]: changed, [repaired]: later }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit, input.candidateCommit === first ? 'failed' : 'passed'),
+      review: async input => {
+        const paths = input.prepared.message.includes('M docs/contract.spec.md') ? ['src/feature.ts', contract] : ['src/feature.ts'];
+        const report = { ...reviewReport(input.candidate), inspected: paths };
+        const validated = input.prepared.validate(report);
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script-review', eventCount: 1 };
+      },
+    });
+    const a = await assess(first, baseline, 'assess-failure');
+    expect(a.outcome.gate).toBe('action-required');
+    expect(a.outcome.repairs.join(' ')).toContain('configured audit failed');
+    expect([...a.outcome.repairs, ...a.outcome.decisions].join(' ')).toContain(contract);
+    const b = await assess(repaired, first, 'assess-later', { previousAssessment: a.id });
+    expect(b.outcome.gate).toBe('action-required');
+    expect([...b.outcome.repairs, ...b.outcome.decisions].join(' ')).toContain(contract);
+    expect(b.outcome.repairs.join(' ')).not.toContain('configured audit failed');
+  });
+
+  it('returns incomplete with a required review gap while retaining a material audit repair', async () => {
+    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit, 'failed'),
+      review: async input => ({ status: 'incomplete', reason: 'Pi stopped before a valid report', operationId: input.operationId, eventCount: 1 }),
+    });
+    const result = await assess(first, baseline, 'assess-missing');
+    expect(result.outcome.gate).toBe('incomplete');
+    expect(result.outcome.gaps.join(' ')).toContain('Required review unavailable');
+    expect(result.outcome.repairs.join(' ')).toContain('configured audit failed');
+  });
+
+  it('retains twenty material concerns and gates unfinished review coverage as incomplete', async () => {
+    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const base = reviewReport(input.candidate, true);
+        const report = { ...base, concerns: Array.from({ length: 20 }, (_, index) => ({
+          ...base.concerns[0]!, summary: `Material behavior ${index + 1} is incorrect`,
+        })), coverageGap: 'Further behavior remains unassessed after twenty concerns.' };
+        const validated = input.prepared.validate(report);
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script-review', eventCount: 1 };
+      },
+      reconcile: async input => ({ status: 'incomplete', reason: 'Reconciliation did not produce a valid disposition',
+        operationId: input.operationId, eventCount: 1 }),
+    });
+    const result = await assess(first, baseline, 'assess-overflow');
+    expect(result.outcome.gate).toBe('incomplete');
+    expect(result.outcome.gaps.join(' ')).toContain('Further behavior remains unassessed after twenty concerns.');
+    expect(result.outcome.repairs.filter(repair => repair.includes('Material behavior'))).toHaveLength(20);
+    expect(result.outcome.repairs.join(' ')).toContain('Material behavior 20 is incorrect');
+  });
+
+  it('uses the original plan baseline for final diff and freshly reads an unchanged dependency', async () => {
+    const reviewBases: string[] = [], dependencyReads: string[] = [];
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        reviewBases.push(input.prepared.message.match(/Base: ([a-f0-9]+); candidate/u)?.[1] ?? 'missing');
+        const read = await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/dependency.ts' }, new AbortController().signal);
+        dependencyReads.push(read.text);
+        const validated = input.prepared.validate(reviewReport(input.candidate));
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script-review', eventCount: 1 };
+      },
+    });
+    const local = await assess(first, baseline, 'assess-local');
+    expect(local.outcome.gate).toBe('clear');
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: first, candidate: repaired,
+      kind: 'final', brief: 'Complete integration.', acceptance: ['The feature returns 2.'], requirementDocuments: [],
+      planBaseline: baseline, previousAssessment: local.id, commandId: 'assess-final' });
+    const final = await outcome(service, job.jobId, admitted.assessmentId);
+    expect(final.gate).toBe('clear');
+    expect(reviewBases).toEqual([baseline, baseline]);
+    expect(dependencyReads).toHaveLength(2);
+    expect(dependencyReads.every(text => text.includes('dependency = true'))).toBe(true);
+  });
+});

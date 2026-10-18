@@ -611,6 +611,17 @@ export async function commitTree(root: string, commit: string, signal?: AbortSig
   return run.stdout.trim();
 }
 
+/** Resolve a submitted revision to the exact full commit object before assessment admission. */
+export async function resolveCommit(root: string, revision: string, signal?: AbortSignal): Promise<string> {
+  if (!/^[A-Za-z0-9._/-]+$/u.test(revision) || revision.startsWith('-')) throw new TypeError('Invalid Git revision');
+  const run = await gitOk(root, ['rev-parse', '--verify', `${revision}^{commit}`], signal);
+  const commit = run.stdout.trim();
+  if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(commit)) throw new GitError('Git returned an invalid commit ID', {
+    argv: ['git', 'rev-parse', '--verify', `${revision}^{commit}`], outcome: { kind: 'completed', exitCode: 0 }, output: run.stdout,
+  });
+  return commit;
+}
+
 /**
  * Every entry of a commit's tree beneath the project, recursively, in Git's
  * order, named as the project names it: a nested project's entries lose the
@@ -639,7 +650,9 @@ export function parseTreeEntries(output: string): TreeEntry[] {
       && objectId !== undefined && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(objectId) && /[1-9a-f]/u.test(objectId)
       && size !== undefined && /^(?:0|[1-9][0-9]*)$/u.test(size) && Number.isSafeInteger(bytes)
       && index < fields.length - 1 && path !== '';
-    entries.push({ path, kind, bytes: Number.isNaN(bytes) ? null : bytes, ...(validBlob ? { objectId } : {}) });
+    const validSubmodule = mode === '160000' && type === 'commit'
+      && objectId !== undefined && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(objectId) && /[1-9a-f]/u.test(objectId);
+    entries.push({ path, kind, bytes: Number.isNaN(bytes) ? null : bytes, ...(validBlob || validSubmodule ? { objectId } : {}) });
   }
   return entries;
 }

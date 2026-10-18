@@ -4,7 +4,7 @@ import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import {
   checkFindingAtSchema, checkFindingCommunicationSchema, checkFindingIdSchema, checkFindingOptionSchema, checkFindingRelationKindSchema,
   checkFindingReportIdSchema, checkFindingRiskSchema,
-  type CheckFindingActor, type CheckFindingReason, type CheckFindingRisk, type CheckFindingAt, type CheckFindingAwaiting, type CheckFindingCommand, type CheckFindingConflict,
+  type CheckFindingAuthority, type CheckFindingOwner, type CheckFindingActor, type CheckFindingReason, type CheckFindingRisk, type CheckFindingAt, type CheckFindingAwaiting, type CheckFindingCommand, type CheckFindingConflict,
   type CheckFindingDecisionInput, type CheckFindingEvent, type CheckFindingEvidence, type CheckFindingId, type CheckFindingRejection,
   type CheckFindingSource,
 } from '../../subs/check-findings/src/interfaces/check-findings.js';
@@ -273,6 +273,15 @@ export interface ReconciliationContext {
   readonly decide: (command: CheckFindingCommand) => CheckFindingRejection | null;
 }
 
+/** Execution-specific authority around shared judgment validation. */
+export interface ExecutionReconciliationContext extends Omit<ReconciliationContext, 'workItem' | 'module'> {
+  readonly owner: string;
+  readonly authority: CheckFindingAuthority;
+  readonly responsible: CheckFindingOwner;
+  /** A refusal explains this execution's actual authority; null permits the proposed waiver. */
+  readonly waiverRefusal: (entry: AttentionEntry) => string | null;
+}
+
 /** An accepted submission and what the harness bound for it. */
 export interface BoundReconciliation {
   readonly submission: ReconciliationSubmission;
@@ -309,6 +318,18 @@ export function nextOf(actions: readonly ReconciliationAction['action'][]): Reco
  * whole assessment against the state as it stands.
  */
 export async function validateReconciliation(input: unknown, context: ReconciliationContext): Promise<SubmissionValidation<BoundReconciliation>> {
+  return validateReconciliationForExecution(input, {
+    ...context,
+    owner: context.workItem,
+    authority: { kind: 'work-item-assessment', ref: context.id },
+    responsible: { kind: 'work-item', workItem: context.workItem },
+    waiverRefusal: entry => withinModule(context.module, entry.modules) ? null
+      : `concerns ${entry.modules.join(', ')}, and this architect may waive only within ${context.module}`,
+  });
+}
+
+/** Shared validation and binding; execution adapters supply factual ownership and authority. */
+export async function validateReconciliationForExecution(input: unknown, context: ExecutionReconciliationContext): Promise<SubmissionValidation<BoundReconciliation>> {
   const parsed = reconciliationSubmissionSchema.safeParse(input);
   if (!parsed.success) return { ok: false, errors: schemaErrors(parsed.error) };
   const submission = parsed.data;
@@ -317,7 +338,7 @@ export async function validateReconciliation(input: unknown, context: Reconcilia
   submission.relations.forEach((relation, index) => {
     for (const side of ['from', 'to'] as const) {
       if (!context.held.has(relation[side])) {
-        errors.push({ path: `relations.${index}.${side}`, message: `${relation[side]} is not a CheckFinding of ${context.workItem}`, expected: `one of ${[...context.held.keys()].join(', ') || 'none'}` });
+        errors.push({ path: `relations.${index}.${side}`, message: `${relation[side]} is not a CheckFinding of ${context.owner}`, expected: `one of ${[...context.held.keys()].join(', ') || 'none'}` });
       }
     }
   });
@@ -331,8 +352,9 @@ export async function validateReconciliation(input: unknown, context: Reconcilia
     } else if (!needsDisposition(entry)) {
       errors.push({ path: `${where}.checkFinding`, message: `${disposition.checkFinding} waits for ${entry.awaiting === 'user-decision' ? 'a user\'s answer' : 'a check to run again'}; it is not this assessment's to decide`, expected: 'no disposition for it' });
     } else {
-      if (disposition.action.action === 'waive' && !withinModule(context.module, entry.modules)) {
-        errors.push({ path: `${where}.action`, message: `insufficient-authority: ${disposition.checkFinding} concerns ${entry.modules.join(', ')}, and this architect may waive only within ${context.module}`, expected: 'another disposition for a signal outside your module' });
+      if (disposition.action.action === 'waive') {
+        const refusal = context.waiverRefusal(entry);
+        if (refusal !== null) errors.push({ path: `${where}.action`, message: `insufficient-authority: ${disposition.checkFinding} ${refusal}`, expected: 'a disposition within the declared authority' });
       }
     }
     if (disposition.action.action === 'leave' && disposition.risk !== undefined) {
@@ -403,10 +425,10 @@ export async function validateReconciliation(input: unknown, context: Reconcilia
 /** The child's commands for one submission, with every trusted field bound by the harness. A signal left open has none. */
 function bindCommands(
   submission: ReconciliationSubmission,
-  context: ReconciliationContext,
+  context: ExecutionReconciliationContext,
   conflicts: BoundReconciliation['conflicts'],
 ): Extract<CheckFindingCommand, { type: 'dispose' | 'relate' }>[] {
-  const authority = { kind: 'work-item-assessment' as const, ref: context.id };
+  const authority = context.authority;
   const evidence = context.evidence(submission);
   const common = { actor: context.actor, source: context.source, evidence: [...evidence] };
   const relations = submission.relations.map(relation => ({
@@ -434,7 +456,7 @@ function bindCommands(
         decision = { action: 'waive', authority, acceptedRisk: action.acceptedRisk ?? disposition.risk ?? entry?.risk ?? 'medium', uncertainty: action.uncertainty };
         break;
       case 'defer':
-        decision = { action: 'defer', authority, responsible: { kind: 'work-item', workItem: context.workItem }, revisit: { kind: 'condition', condition: action.revisit } };
+        decision = { action: 'defer', authority, responsible: context.responsible, revisit: { kind: 'condition', condition: action.revisit } };
         break;
       case 'request-user-decision':
         decision = {

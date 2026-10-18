@@ -1,0 +1,363 @@
+{
+  "kind": "live-mcp-assessment-smoke",
+  "at": "2026-10-18T09:49:08.795Z",
+  "executor": "uncommitted agent-assistance worktree",
+  "target": "/workspaces/evidence/agent-assistance-20261018/target",
+  "candidate": "10958a2b652fcc90656776d39c238b63c680f833",
+  "job": {
+    "planId": "assistance-smoke",
+    "jobId": "20261018T093908Z-760ba3",
+    "planHash": "4dd32f689995777f56996529e5eaecf404c47671924a441c27df6faae2964103"
+  },
+  "status": {
+    "id": "as-0001",
+    "status": "cancelled",
+    "revision": 3,
+    "error": null,
+    "stages": []
+  },
+  "result": null,
+  "elapsedMs": 602658,
+  "calls": [
+    {
+      "name": "plan_start",
+      "elapsedMs": 1930,
+      "responseCharacters": 365
+    },
+    {
+      "name": "job_detail",
+      "elapsedMs": 1932,
+      "responseCharacters": 3298
+    },
+    {
+      "name": "iteration_assess",
+      "elapsedMs": 1949,
+      "responseCharacters": 299
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 11954,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 21960,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 31968,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 41971,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 51975,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 61982,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 71990,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 81991,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 92003,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 102013,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 112024,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 122034,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 132044,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 142054,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 152066,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 162076,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 172086,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 182096,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 192107,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 202117,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 212128,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 222139,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 232149,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 242160,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 252171,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 262182,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 272193,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 282203,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 292213,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 302223,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 312234,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 322245,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 332255,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 342265,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 352275,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 362285,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 372295,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 382306,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 392316,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 402326,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 412336,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 422346,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 432356,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 442366,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 452377,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 462388,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 472398,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 482408,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 492418,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 502428,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 512438,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 522448,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 532458,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 542468,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 552478,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 562488,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 572498,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 582508,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 592518,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 602528,
+      "responseCharacters": 231
+    },
+    {
+      "name": "assessment_cancel",
+      "elapsedMs": 602613,
+      "responseCharacters": 1665
+    },
+    {
+      "name": "assessment_status",
+      "elapsedMs": 602630,
+      "responseCharacters": 235
+    },
+    {
+      "name": "assessment_result",
+      "elapsedMs": 602645,
+      "responseCharacters": 79
+    },
+    {
+      "name": "assessment_detail",
+      "elapsedMs": 602658,
+      "responseCharacters": 1665
+    }
+  ],
+  "stageSummaries": [],
+  "limitations": [
+    "Assesses an existing committed change, not a newly implemented native Sol iteration.",
+    "Does not audit the uncommitted executor feature."
+  ]
+}

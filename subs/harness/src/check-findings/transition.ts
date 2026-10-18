@@ -119,8 +119,35 @@ export function decideCheckFindingTransaction(log: RunLog, build: CheckFindingBu
   const ended = log.terminal;
   if (ended !== undefined && options.afterEnd !== true) return refused({ reason: 'run-ended', message: `Run ${log.runId} has ended with ${ended.type}; it accepts no CheckFinding change` });
 
-  let state = checkFindingStateOf(log.ledger);
-  const plan = build({ log, state });
+  return decideFindingTransaction(checkFindingStateOf(log.ledger), state => build({ log, state }),
+    (input, date) => log.carrier(input, date), at);
+}
+
+/** The execution wrapper supplies its carrier; the finding rules and record transaction are shared. */
+export interface FindingComposition<C> {
+  readonly event: C;
+  readonly records?: readonly CommitRecord[] | undefined;
+}
+
+export interface FindingPlan<C> {
+  readonly commands: readonly CheckFindingCommand[];
+  readonly compose: (decided: CheckFindingDecided) => FindingComposition<C>;
+}
+
+export type FindingTransaction<E> =
+  | { readonly kind: 'transaction'; readonly transaction: Transaction<E>; readonly decided: CheckFindingDecided }
+  | { readonly kind: 'replayed'; readonly decided: CheckFindingDecided }
+  | { readonly kind: 'refused'; readonly refusal: CheckFindingRefusal };
+
+/** Decide against the caller's current state while its writer mutex is held. */
+export function decideFindingTransaction<E, C extends { readonly type: string; readonly data: unknown }>(
+  initial: CheckFindingState,
+  build: (state: CheckFindingState) => FindingPlan<C> | { readonly stale: string },
+  carrier: (input: C, at?: Date) => E,
+  at?: Date,
+): FindingTransaction<E> {
+  let state = initial;
+  const plan = build(state);
   if ('stale' in plan) return refused({ reason: 'stale-basis', message: plan.stale });
 
   const events: CheckFindingEvent[] = [];
@@ -153,7 +180,7 @@ export function decideCheckFindingTransaction(log: RunLog, build: CheckFindingBu
   const composition = plan.compose(decided);
   const carried = (composition.event.data as { readonly checkFindings?: readonly CheckFindingEvent[] }).checkFindings ?? [];
   if (!sameEvents(carried, events)) throw new Error(`The ${composition.event.type} event does not carry exactly the decided CheckFinding events`);
-  const event = log.carrier(composition.event, at);
+  const event = carrier(composition.event, at);
   return {
     kind: 'transaction',
     transaction: { event, records: [...(composition.records ?? []), ...checkFindingRecords(events)] },

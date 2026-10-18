@@ -226,3 +226,6 @@ expose-test plan from "helpers/integration-scenario.ts" to descendants
 // Real Plan23 recorder stimuli: only recorded rows and plain fixture facts.
 // No recorder, writable log or private presentation function crosses the seam.
 expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23RestoreFacts, plan23Identity, Plan23Identity, plan23Invocation, Plan23Invocation, plan23Outcome, Plan23Outcome, Plan23Usage, plan23Time from "helpers/plan23-recorded.ts" to descendants
+
+// Executable composition of assisted Pi assessment; the root owns process lifetime.
+expose-src startAssistanceServer, AssistanceServerOptions, AssistanceServer from "assistance/runtime.ts" to parent

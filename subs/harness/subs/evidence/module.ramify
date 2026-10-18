@@ -42,7 +42,7 @@ expose-src CandidateSource, gitCandidateSource, TreeEntry, TreeMatch, commitTree
 expose-src ChangeHistory, ChangedFile, LineRange, GitLineRange, LineCommit, gitChangeHistory from "git.ts" to parent
 
 // Consumers inject this boundary; real Git integration tests live with the adapter.
-expose-src GitService, gitService, currentHead, runBranchName, inspectRunBranch, recoveryStatus, isAncestor, commonDirectory from "git.ts" to parent
+expose-src GitService, gitService, currentHead, resolveCommit, runBranchName, inspectRunBranch, recoveryStatus, isAncestor, commonDirectory from "git.ts" to parent
 expose-src trackedPaths, ignoreStatus, IgnoreRule, IgnoreStatus from "git.ts" to parent
 expose-src GitInspection, inspectGit from "git.ts" to parent
 expose-src CandidateTreePreview, previewCandidateTree from "candidate-tree.ts" to parent
@@ -55,3 +55,5 @@ expose-test ScriptedCli, CliReply from "helpers/scripted-cli.ts" to parent
 // Current ownership and unavailable acquisition retain their original evidence.
 expose-src OwnershipAnswer, OwnershipPath, OwnershipQueryResult, RawOwnershipEvidence, OwnershipUnavailableError, OwnershipCancelledError, requireOwnershipAnswer, decodeOwnershipEvidenceAnswer, ownershipAnswerOfAffected from "ownership-evidence.ts" to parent
 expose-src ProviderFailureEvidence, RecoveryEvidence from "provider-evidence.ts" to parent
+
+expose-src resolveCommit from "git.ts" to parent

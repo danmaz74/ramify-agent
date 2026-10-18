@@ -1,0 +1,84 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { z } from 'zod';
+import { openLedger, type Ledger } from '../../subs/ledger/src/ledger.js';
+import { acceptedCommandSchema } from '../interfaces/protocol/jobs.js';
+import { checkFindingEventsField } from '../check-findings/records.js';
+import { commitRecord, recoverCommits } from '../jobs/commit.js';
+import { jobsDirectory } from '../jobs/records.js';
+import { assistedAssessmentSchema, assistedJobSchema, type AssistedAssessment, type AssistedJob } from './contracts.js';
+
+export const assistedEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('assisted-started'), command: acceptedCommandSchema }).strict(),
+  z.object({ type: z.literal('assessment-requested'), command: acceptedCommandSchema, assessment: assistedAssessmentSchema }).strict(),
+  z.object({ type: z.literal('assessment-transition'), assessment: assistedAssessmentSchema }).strict(),
+  z.object({ type: z.literal('findings-recorded'), assessmentId: z.string(), key: z.string().min(1).optional(), hash: z.string().optional(), checkFindings: checkFindingEventsField }).strict(),
+  z.object({ type: z.literal('finding-answer-recorded'), assessmentId: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
+  z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
+]);
+export type AssistedEvent = z.infer<typeof assistedEventSchema>;
+
+export function assistedDirectory(projectRoot: string, planId: string, jobId: string): string {
+  return join(jobsDirectory(projectRoot, planId), jobId);
+}
+
+export class AssistedStore {
+  readonly ledger: Ledger<AssistedEvent>;
+  readonly job: AssistedJob;
+  readonly directory: string;
+
+  private constructor(directory: string, job: AssistedJob, ledger: Ledger<AssistedEvent>) {
+    this.directory = directory;
+    this.job = job;
+    this.ledger = ledger;
+  }
+
+  static async open(projectRoot: string, planId: string, jobId: string): Promise<AssistedStore> {
+    const directory = assistedDirectory(projectRoot, planId, jobId);
+    const ledger = await openLedger({ logPath: join(directory, 'events.jsonl'), recordsRoot: directory, eventSchema: assistedEventSchema });
+    if (ledger.replay()[0]?.transaction.event.type !== 'assisted-started') throw new Error('Assisted job has no committed start');
+    await recoverCommits(ledger);
+    const job = assistedJobSchema.parse(JSON.parse(await readFile(join(directory, 'job.json'), 'utf8')));
+    if (job.planId !== planId || job.jobId !== jobId || job.projectRoot !== projectRoot) throw new Error('Assisted job identity differs from its directory or project');
+    return new AssistedStore(directory, job, ledger);
+  }
+
+  static async create(projectRoot: string, job: AssistedJob, planMarkdown: string, command: z.infer<typeof acceptedCommandSchema>): Promise<AssistedStore> {
+    const directory = assistedDirectory(projectRoot, job.planId, job.jobId);
+    const { mkdir } = await import('node:fs/promises');
+    const { writeFileExclusive } = await import('../../subs/ledger/src/atomic.js');
+    await mkdir(join(directory, 'input'), { recursive: true });
+    await writeFileExclusive(join(directory, job.plan.storedAt), planMarkdown);
+    const ledger = await openLedger({ logPath: join(directory, 'events.jsonl'), recordsRoot: directory, eventSchema: assistedEventSchema });
+    await commitRecord(ledger, { event: { type: 'assisted-started', command }, records: [{ path: 'job.json', id: job.jobId, revision: 1, body: job }] });
+    return new AssistedStore(directory, job, ledger);
+  }
+
+  assessments(): AssistedAssessment[] {
+    const latest = new Map<string, AssistedAssessment>();
+    for (const line of this.ledger.replay()) {
+      const event = line.transaction.event;
+      if (event.type === 'assessment-requested' || event.type === 'assessment-transition') latest.set(event.assessment.id, event.assessment);
+    }
+    return [...latest.values()];
+  }
+
+  assessment(id: string): AssistedAssessment | undefined { return this.assessments().find(item => item.id === id); }
+
+  async record(event: AssistedEvent, assessment?: AssistedAssessment): Promise<void> {
+    if (assessment) {
+      await commitRecord(this.ledger, { event, records: [
+        { path: `assessments/${assessment.id}/rev-${String(assessment.revision).padStart(4, '0')}.json`, id: assessment.id, revision: assessment.revision, body: assessment },
+        ...assessment.stages.map(stage => ({ path: `assessments/${assessment.id}/stages/${stage.name}.json`, id: `${assessment.id}:${stage.name}`,
+          revision: assessment.revision, body: stage.evidence })),
+      ] });
+    } else await this.ledger.append({ event, records: [] });
+  }
+
+  async capturedPlan(): Promise<string> {
+    const markdown = await readFile(join(this.directory, this.job.plan.storedAt), 'utf8');
+    const { createHash } = await import('node:crypto');
+    if (createHash('sha256').update(markdown).digest('hex') !== this.job.plan.sha256) throw new Error('Captured plan differs from the registered content identity');
+    return markdown;
+  }
+}

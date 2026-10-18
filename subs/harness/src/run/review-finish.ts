@@ -109,13 +109,26 @@ export async function concernBindings(
   tools: Pick<SnapshotTools, 'read'>,
   submission: ReviewSubmission,
 ): Promise<ConcernBinding[]> {
-  const index = await candidateModuleIndex(context.candidates, context.projectRoot, snapshot).catch(error => {
-    context.warn(`Run ${target.log.runId}: the module declarations of ${request.key.candidate} could not be read, so ${request.id}'s concerns name only their work item's module: ${message(error)}`);
-    return null;
-  });
   const ledger = target.log.ledger.replay();
   const workItemModule = committedRecords(ledger).workItems.find(item => item.id === request.workItem)?.module ?? null;
   const provenance = { planId: context.planId, featureFiles: new Set(trackedScenarios(ledger).records.map(record => record.file)) };
+  return bindCandidateConcerns(context, snapshot, tools, submission, workItemModule,
+    path => groundCredibility(path, provenance));
+}
+
+/** Shared source binding; wrappers supply ownership fallback and actual document provenance. */
+export async function bindCandidateConcerns(
+  context: ConcernContext,
+  snapshot: CandidateSnapshot,
+  tools: Pick<SnapshotTools, 'read'>,
+  submission: ReviewSubmission,
+  workItemModule: string | null,
+  credibility: (path: string | null) => CheckFindingReportCredibility,
+): Promise<ConcernBinding[]> {
+  const index = await candidateModuleIndex(context.candidates, context.projectRoot, snapshot).catch(error => {
+    context.warn(`Module declarations at ${snapshot.commit} could not be read: ${message(error)}`);
+    return null;
+  });
   const read = tools.read();
   return submission.concerns.map(concern => {
     const resolved = concern.ground === null ? null : resolveSnapshotPath(snapshot, concern.ground.path);
@@ -124,7 +137,7 @@ export async function concernBindings(
     const ground = path === null || hash === undefined ? null : { ref: path, hash };
     return {
       ground,
-      credibility: groundCredibility(ground?.ref ?? null, provenance),
+      credibility: credibility(ground?.ref ?? null),
       modules: concernModules(index, concern.locations, workItemModule),
     };
   });

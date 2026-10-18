@@ -165,5 +165,7 @@ workspace; they do not create issues, synchronize trackers, or govern plan
 execution or acceptance. Tracker failures remain administrative outcomes.
 See [project configuration](README.md#project-configuration).
 
-Do not commit, push or synchronize tracker remotes without explicit user
-authorization. Report changes, validation and remaining work at handoff.
+The user gives standing authorization to make local commits and run audits
+as part of requested work; do not ask for confirmation again. Pushing and
+synchronizing tracker remotes still require explicit user authorization.
+Report changes, validation and remaining work at handoff.

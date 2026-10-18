@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-18",
+  "branch": "agent-assistance",
+  "base": "10958a2b652fcc90656776d39c238b63c680f833",
+  "candidate": "uncommitted worktree",
+  "checks": [
+    {
+      "command": "npm run type-check",
+      "outcome": "passed",
+      "scope": "root, web and scripts TypeScript configurations"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "outcome": "passed",
+      "scope": "final runtime adjustment"
+    },
+    {
+      "command": "npm run test:quick -- src/tests/cli.test.ts subs/harness/src/tests/assistance- subs/harness/src/tests/assisted-pi.test.ts subs/harness/subs/reviews/src/tests/assisted-review.test.ts subs/harness/src/tests/review-attempts.test.ts subs/harness/src/tests/review-lifecycle.test.ts subs/harness/src/tests/check-findings-composition.test.ts subs/harness/src/tests/run-recovery.test.ts",
+      "outcome": "passed",
+      "files": 16,
+      "tests": 108,
+      "durationSeconds": 35.33
+    },
+    {
+      "command": "npm run check:self",
+      "outcome": "passed",
+      "execution": "completed",
+      "coverage": "partial",
+      "errors": 0,
+      "warnings": 0,
+      "analysisLimits": 458,
+      "owners": 15,
+      "sourceFiles": 997
+    },
+    {
+      "command": "git diff --check",
+      "outcome": "passed"
+    }
+  ],
+  "limitations": [
+    "No audit of a clean committed implementation candidate yet.",
+    "Ordinary tests script external process boundaries.",
+    "Live witnesses are recorded separately."
+  ]
+}

@@ -25,6 +25,7 @@ export type SessionAgent =
   | { readonly name: 'fake'; readonly script: string };
 
 export type CommandLine =
+  | { readonly command: 'mcp'; readonly projectRoot: string; readonly model: string | undefined }
   | { readonly command: 'repair-export'; readonly run: string; readonly executable: string; readonly workspace: string; readonly incident?: string; readonly json: boolean }
   | { readonly command: 'consultations'; readonly run: string; readonly session: string | undefined; readonly id: string | undefined; readonly format: 'text' | 'json' }
   | { readonly command: 'recovery'; readonly recovery: RecoveryOptions }
@@ -69,6 +70,8 @@ export class UsageError extends Error {
 
 export const usage = [
   'Usage:',
+  '  ramify-agent mcp --project <root> [--model <provider/model>]',
+  '                       Serves assisted plan registration and assessment over MCP stdio.',
   '  ramify-agent consultations --run <run-directory> [--session <session-id>] [--format text|json]',
   '  ramify-agent consultations --run <run-directory> --id <consultation-id> [--format text|json]',
   '                       Reads retained exchanges, child investigations and caller result positions without changing run state.',
@@ -148,6 +151,7 @@ export function parseCommandLine(argv: readonly string[]): CommandLine {
   const [command, ...rest] = argv;
   if (command === undefined || command === 'help' || command === '--help' || command === '-h') return { command: 'help' };
   if (command === 'consultations') return parseConsultations(rest);
+  if (command === 'mcp') return parseMcp(rest);
   if (command === 'repair') return parseRepairExport(rest);
   if (command === 'serve') return parseServe(rest);
   if (command === 'session') return parseSession(rest);
@@ -156,6 +160,18 @@ export function parseCommandLine(argv: readonly string[]): CommandLine {
   if (command === 'recovery') return { command: 'recovery', recovery: parseRecovery(rest) };
   if (command === 'debug') return { command: 'debug', debug: parseDebug(rest) };
   throw new UsageError(`Unknown command "${command}"`);
+}
+
+function parseMcp(rest: readonly string[]): Extract<CommandLine, { command: 'mcp' }> {
+  let projectRoot: string | undefined;
+  let model: string | undefined;
+  options(rest, (flag, value, _inline, argument) => {
+    if (flag === '--project' && projectRoot === undefined) projectRoot = value();
+    else if (flag === '--model' && model === undefined) model = value();
+    else throw new UsageError(`Unknown or repeated option "${argument}"`);
+  });
+  if (!projectRoot) throw new UsageError('mcp needs --project <root>');
+  return { command: 'mcp', projectRoot, model };
 }
 
 export interface RestartOptions {

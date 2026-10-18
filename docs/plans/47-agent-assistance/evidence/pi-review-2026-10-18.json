@@ -1,0 +1,76 @@
+{
+  "kind": "live-pi-review-smoke",
+  "date": "2026-10-18T09:37:47.657Z",
+  "model": "openai/gpt-6-sol:high",
+  "candidate": "10958a2b652fcc90656776d39c238b63c680f833",
+  "base": "177c004ea13ada774347a96266ed5eacaba3f248",
+  "tree": "2a4f07237fe73fd598760435afc4f9b987c5c7f6",
+  "elapsedMs": 92632,
+  "result": {
+    "status": "submitted",
+    "value": {
+      "inspected": [
+        "subs/harness/src/tests/plan25-discovery-records.test.ts",
+        "subs/harness/subs/evidence/src/ramify-cli.ts"
+      ],
+      "missing": [],
+      "concerns": [],
+      "codeAssessment": "The installed-release predicate now includes 0.5.2 alongside 0.5.0/0.5.1. queryOwnershipResult chooses `ownership` only for verified support and otherwise retains `affected --batch`; both successful carriers are decoded into the existing normalized answer, and callers such as scope capture and project facts continue to use queryOwnershipAnswer. The modified assertion allows the current architect-planning phrase, “No separate discovery phase,” as well as the engineer phrase, “No extra discovery turn.” Existing tests exercise command selection and an installed-release witness, but this review did not execute them; no audit verdict is available.",
+      "scopeAssessment": "Both changed paths serve the stated compatibility fix: one adjusts released CLI detection, the other updates the producer-prose assertion. The surrounding prompt-package loader embeds architect-planning prose for the affected architect roles, and ownership consumers retain their existing interfaces. No unrelated work or missing scoped implementation was identified.",
+      "design": {
+        "needed": false,
+        "reason": "This is a narrow update to an existing release-capability switch and a wording assertion, not a new ownership or prompt architecture.",
+        "assessment": "The public RamifyCli interface and ownership-answer shape are unchanged. The existing boundary keeps dependency-specific knowledge in the evidence adapter: the pinned ramify.ts dependency is 0.5.2, exact installed-launcher identity permits the independent `ownership` protocol, explicit verification controls custom executables, and unverified executables keep the legacy `affected --batch` path. Failures still do not become ownership answers. Prompt composition already owns the architect-planning prose and embeds it into the relevant roles; the test accepts its current wording without changing delivered instructions. No supplied principle calls for a different boundary."
+      },
+      "requirements": [
+        {
+          "ref": "compatibility",
+          "outcome": "met",
+          "explanation": "The inspected adapter recognizes the installed 0.5.2 release in addition to 0.5.0/0.5.1, selects `ownership` when verified, and keeps `affected --batch` for unverified executables. The decoder supports the independent ownership and affected answer schemas. The test assertion matches both the current architect-planning wording and the engineer wording. This is a source-based assessment, not an audit pass or a claim that tests were run.",
+          "evidencePaths": [
+            "subs/harness/subs/evidence/src/ramify-cli.ts",
+            "subs/harness/subs/evidence/src/ownership-evidence.ts",
+            "subs/harness/subs/evidence/src/tests/ownership-evidence.test.ts",
+            "subs/harness/src/tests/plan25-discovery-records.test.ts",
+            "subs/harness/src/prompts/architect-planning.procedure.md",
+            "subs/harness/src/prompts/engineer.procedure.md",
+            "subs/harness/src/prompts/packages.ts",
+            "package.json"
+          ]
+        }
+      ],
+      "coverageGap": "This isolated smoke provided no audit and no test execution; runtime compatibility and suite status were not independently verified."
+    },
+    "operationId": "review-existing-change-1",
+    "sessionId": "20b1eace-8d3d-4abd-8986-3a6deaa8506e",
+    "eventCount": 1646
+  },
+  "usage": null,
+  "observedReads": [
+    "subs/harness/subs/evidence/src/ramify-cli.ts",
+    "subs/harness/src/tests/plan25-discovery-records.test.ts",
+    "subs/harness/subs/evidence/src/tests/ownership-evidence.test.ts",
+    "subs/harness/subs/evidence/src/ownership-evidence.ts",
+    "subs/harness/src/prompts/architect-planning.procedure.md",
+    "subs/harness/src/prompts/packages.ts",
+    "package.json",
+    "subs/harness/src/tests/write-guard.boundary.test.ts",
+    "subs/harness/subs/evidence/src/tests/ownership-recovery.boundary.test.ts",
+    "subs/harness/subs/evidence/README.md",
+    "subs/harness/src/prompts/local-architect.procedure.md",
+    "subs/harness/src/prompts/capability-architect.procedure.md",
+    "subs/harness/src/prompts/engineer.procedure.md",
+    "subs/harness/src/prompts/engineer-capability.procedure.md",
+    "subs/harness/src/run/project-facts.ts",
+    "subs/harness/src/work/scope.ts",
+    "subs/harness/subs/evidence/src/tests/helpers/scripted-cli.ts"
+  ],
+  "inspection": [
+    "subs/harness/subs/evidence/src/ramify-cli.ts",
+    "subs/harness/src/tests/plan25-discovery-records.test.ts"
+  ],
+  "limitations": [
+    "Existing committed compatibility change, not the uncommitted assisted feature.",
+    "No audit or native implementation iteration ran in this smoke."
+  ]
+}

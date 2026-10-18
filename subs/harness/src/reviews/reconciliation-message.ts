@@ -44,22 +44,42 @@ export interface ReconciliationPacket {
   readonly refused: ReadonlyArray<{ readonly reconciliation: string | null; readonly reason: string }>;
 }
 
+/** Factual packet shared by execution adapters; authority is supplied explicitly. */
+export interface ReconciliationFacts extends Omit<ReconciliationPacket, 'basis' | 'module' | 'owner' | 'capabilityContext'> {
+  readonly id: string;
+  readonly owner: string;
+  readonly round: number;
+  readonly source: { readonly commit: string; readonly tree: string };
+  readonly introduction: string;
+  readonly authority: string;
+  readonly context?: string;
+}
+
 export function reconciliationMessage(packet: ReconciliationPacket): string {
   const { basis } = packet;
+  return reconciliationFactsMessage({
+    ...packet, id: basis.id, owner: packet.owner ?? 'work item', round: basis.round,
+    source: basis.source,
+    introduction: `# Reconciliation ${basis.id} of ${basis.workItem} — round ${basis.round}\n\nThe ${packet.owner ?? 'work item'} requested completion. Assess the CheckFindings below together, in one submission.`,
+    authority: `You may waive a signal whose modules are \`${packet.module}\` or beneath it.`,
+    ...(packet.capabilityContext === undefined ? {} : { context: `This task coordinates consumer module \`${packet.capabilityContext.consumer}\` and provider module \`${packet.capabilityContext.provider}\`. Read both owners' source and tests before deciding a correction. The module below is the requesting work item's waiver authority, not a limit on task design or assignments.` }),
+  });
+}
+
+/** Both wrappers retain the same finding histories, coverage gaps and earlier decisions. */
+export function reconciliationFactsMessage(packet: ReconciliationFacts): string {
   const lines: string[] = [
-    `# Reconciliation ${basis.id} of ${basis.workItem} — round ${basis.round}`,
-    '',
-    `The ${packet.owner ?? 'work item'} requested completion. Assess the CheckFindings below together, in one submission.`,
-    ...(packet.capabilityContext === undefined ? [] : ['', `This task coordinates consumer module \`${packet.capabilityContext.consumer}\` and provider module \`${packet.capabilityContext.provider}\`. Read both owners' source and tests before deciding a correction. The module below is the requesting work item's waiver authority, not a limit on task design or assignments.`]),
+    packet.introduction,
+    ...(packet.context === undefined ? [] : ['', packet.context]),
     '',
     '## Source',
     '',
-    `The audited source is \`${basis.source.commit}\` (tree \`${basis.source.tree}\`). Start with the reviewed patch and its canonical changed-path list, then read the source each concern requires. Retain harness-produced changes in the audited diff; producer attribution never hides a patch.`,
+    `The candidate source is \`${packet.source.commit}\` (tree \`${packet.source.tree}\`). Start with the reviewed patch and its canonical changed-path list, then read the source each concern requires. Retain harness-produced changes in the audited diff; producer attribution never hides a patch.`,
     '',
     '## This round',
     '',
     'A correction may be planned for any signal. Reconsider repeated attempts against the latest evidence: change an ineffective approach, continue useful work, or end refinement when the requirements are satisfied and further benefit is too small.',
-    `You may waive a signal whose modules are \`${packet.module}\` or beneath it.`,
+    packet.authority,
     '',
     '## Review coverage',
     '',

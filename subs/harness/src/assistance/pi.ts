@@ -1,0 +1,127 @@
+import { createHash } from 'node:crypto';
+import type { AgentEvent, JsonSchema, ToolDefinition } from '../../subs/agent/src/interfaces/port.js';
+import type { SessionOperations, SessionExecutionPolicy, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
+import type { SubmissionValidation } from '../run/submissions.js';
+import { rejectionAnswer } from '../run/submissions.js';
+import type { AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
+import { assistedReviewSubmissionSchema } from '../../subs/reviews/src/assisted.js';
+import type { PreparedReview } from '../../subs/reviews/src/preparation.js';
+import { z } from 'zod';
+
+/** One independent Pi assessment over a pinned candidate. The caller owns stage records. */
+export interface PiAssessmentInput<T> {
+  readonly operations: SessionOperations;
+  readonly runId: string;
+  readonly operationId: string;
+  readonly projectRoot: string;
+  readonly candidate: string;
+  readonly tree: string;
+  readonly message: string;
+  readonly systemPrompt: string;
+  readonly tools: readonly ToolDefinition[];
+  readonly submission: {
+    readonly name: string;
+    readonly description: string;
+    readonly inputSchema: JsonSchema;
+    readonly validate: (value: unknown) => SubmissionValidation<T> | Promise<SubmissionValidation<T>>;
+  };
+  readonly currentAuthority?: (() => Promise<boolean>) | undefined;
+  /** Persist the validated report before Pi receives an accepted submission verdict. */
+  readonly onSubmitted?: ((value: T, evidence: { readonly sessionId: string; readonly operationId: string; readonly eventCount: number }) => Promise<void>) | undefined;
+  readonly onEvent?: ((event: AgentEvent) => void) | undefined;
+  readonly timeoutMs?: number | undefined;
+  readonly signal?: AbortSignal | undefined;
+}
+
+export type PiAssessmentResult<T> =
+  | { readonly status: 'submitted'; readonly value: T; readonly operationId: string; readonly sessionId: string; readonly eventCount: number }
+  | { readonly status: 'incomplete'; readonly reason: string; readonly operationId: string; readonly sessionId?: string; readonly eventCount: number };
+
+const hash = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const policy: SessionExecutionPolicy = {
+  context: { compaction: 'allowed', budgetTokens: null, budgetFraction: null, reportReserveTokens: 0 },
+  authority: { kind: 'candidate-read-only' }, validator: { kind: 'assessment-submission' }, destination: { kind: 'assisted-assessment' },
+};
+
+/** Uses the existing durable Pi session operations and exposes only supplied read tools. */
+export async function runPiAssessment<T>(input: PiAssessmentInput<T>): Promise<PiAssessmentResult<T>> {
+  const incomplete = (reason: string, eventCount: number, sessionId?: string): PiAssessmentResult<T> => ({
+    status: 'incomplete', reason, operationId: input.operationId, ...(sessionId ? { sessionId } : {}), eventCount,
+  });
+  if (input.signal?.aborted) return incomplete('Assessment was cancelled before Pi started', 0);
+  const timeoutMs = input.timeoutMs ?? 10 * 60_000;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error('Pi assessment timeout must be a positive safe integer');
+  const declarations: SessionToolDeclaration[] = [
+    ...input.tools.map(tool => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, mutating: tool.mutating ?? false })),
+    { name: input.submission.name, description: input.submission.description, inputSchema: input.submission.inputSchema, mutating: false },
+  ];
+  if (declarations.some(item => item.mutating)) throw new Error('Assessment tools must be read only');
+  if (new Set(declarations.map(item => item.name)).size !== declarations.length) throw new Error('Assessment tool names must be distinct');
+  const created = await input.operations.create({ runId: input.runId, operationId: `${input.operationId}:create`,
+    initialInstructions: input.systemPrompt, declarations, activate: declarations.map(item => item.name), policy });
+  if (created.status !== 'completed' || !created.point) return incomplete(`Pi session unavailable: ${created.reason ?? created.status}`, 0);
+  const sessionId = created.point.sessionId;
+  if (input.signal?.aborted) return incomplete('Assessment was cancelled before Pi started', 0, sessionId);
+  const task: SessionTaskInput = {
+    role: 'assisted-assessment', message: input.message, submissionTool: input.submission.name,
+    environment: { workingDirectory: input.projectRoot, candidate: input.candidate, snapshot: input.tree, limits: {} },
+    policyIdentity: hash(policy), validatorIdentity: hash({ tool: input.submission.name, schema: input.submission.inputSchema }),
+    destinationIdentity: hash({ runId: input.runId, operationId: input.operationId }),
+  };
+  let accepted: T | undefined;
+  let eventCount = 0;
+  const handle = await input.operations.continue({ runId: input.runId, operationId: input.operationId,
+    sessionId, expectedPoint: created.point, task, additions: [], toolChange: { add: declarations, activate: declarations.map(item => item.name), inactivate: [] }, policy,
+    bindings: { task, policy, tools: input.tools, submission: { name: input.submission.name, async accept(value, signal) {
+      if (signal.aborted) return { accepted: false, final: true, errors: ['Assessment was cancelled'] };
+      const verdict = await input.submission.validate(value);
+      if (!verdict.ok) return { accepted: false, errors: [rejectionAnswer(verdict.errors)] };
+      await input.onSubmitted?.(verdict.value, { sessionId, operationId: input.operationId, eventCount });
+      accepted = verdict.value;
+      return { accepted: true };
+    } }, currentAuthority: async () => !input.signal?.aborted && (await input.currentAuthority?.() ?? true),
+    onEvent(event) { eventCount++; try { input.onEvent?.(event); } catch { /* The durable session engine owns transcript evidence. */ } }, publish: async () => undefined },
+  });
+  const stop = () => { void handle.stop(); };
+  input.signal?.addEventListener('abort', stop, { once: true });
+  if (input.signal?.aborted) stop();
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const finished = handle.settled();
+    const receipt = await Promise.race([
+      finished,
+      new Promise<null>(resolve => { timeout = setTimeout(() => resolve(null), timeoutMs); }),
+    ]);
+    if (receipt === null) {
+      let stopTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          handle.stop(),
+          new Promise<never>((_, reject) => { stopTimer = setTimeout(() => reject(new Error(`Pi assessment ${input.operationId} did not confirm settlement after timeout`)), 30_000); }),
+        ]);
+      } finally { if (stopTimer) clearTimeout(stopTimer); }
+      return incomplete(`Pi assessment exceeded ${timeoutMs} ms`, eventCount, sessionId);
+    }
+    if (receipt.status !== 'completed' || receipt.outcome?.kind !== 'submitted') {
+      return incomplete(`Pi assessment ${receipt.status}: ${receipt.reason ?? receipt.outcome?.kind ?? 'no accepted submission'}`, eventCount, sessionId);
+    }
+    // A terminal receipt replay has no in-memory validator result. Never infer it from prose.
+    if (accepted === undefined) return incomplete('Pi submitted in a prior operation; the accepted report must be read from its retained assessment record', eventCount, sessionId);
+    return { status: 'submitted', value: accepted, operationId: input.operationId, sessionId, eventCount };
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    input.signal?.removeEventListener('abort', stop);
+  }
+}
+
+export interface AssistedPiReviewInput extends Omit<PiAssessmentInput<AssistedReviewSubmission>, 'message' | 'systemPrompt' | 'tools' | 'submission'> {
+  readonly prepared: Omit<PreparedReview, 'validate'> & { readonly validate: (value: unknown) => SubmissionValidation<AssistedReviewSubmission> };
+}
+
+export function runAssistedPiReview(input: AssistedPiReviewInput): Promise<PiAssessmentResult<AssistedReviewSubmission>> {
+  return runPiAssessment({ ...input, message: input.prepared.message, tools: input.prepared.tools.definitions,
+    systemPrompt: 'You are an independent reviewer of one pinned candidate. Review code and intended scope together. Use only the supplied candidate snapshot tools. Do not edit source. A claim about an audit is limited to the factual audit status in the task. Answer each acceptance reference, including absent implementation. Submit only through submit_assisted_review.',
+    submission: { name: 'submit_assisted_review', description: 'Submit the combined code, scope, design-need and acceptance coverage report.',
+      inputSchema: z.toJSONSchema(assistedReviewSubmissionSchema) as JsonSchema, validate: input.prepared.validate },
+  });
+}

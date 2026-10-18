@@ -20,6 +20,20 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.log(usage);
     return 0;
   }
+  if (commandLine.command === 'mcp') {
+    const { startAssistanceServer } = await import('../subs/harness/src/assistance/runtime.js');
+    const server = await startAssistanceServer({ projectRoot: commandLine.projectRoot, model: commandLine.model });
+    let stopping: Promise<void> | undefined;
+    const stop = () => {
+      stopping ??= server.close();
+      void stopping.then(() => { process.exitCode = 0; }, error => { console.error(error); process.exitCode = 1; });
+    };
+    process.stdin.once('end', stop);
+    process.stdin.once('close', stop);
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+    return -1;
+  }
   if (commandLine.command === 'consultations' || commandLine.command === 'repair-export') {
     const result = commandLine.command === 'consultations' ? await runConsultationsCommand(commandLine) : await (await import('../subs/harness/src/run/repair-export-command.js')).runRepairExportCommand(commandLine);
     if (result.stdout !== '') process.stdout.write(result.stdout);
