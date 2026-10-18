@@ -160,12 +160,14 @@ describe('assisted assessment pipeline with real service records', () => {
 
   it.each([false, true])('retains unavailable linked evidence for semantic applicability (required: %s)', async required => {
     const baselineSource = { ...source('0', baseline), files: { ...source('0', baseline).files,
-      'docs/context.md': '[Historical evidence](/archive/result.json) [Local history](missing.md)' } };
+      'docs/context.md': '[Historical evidence](/archive/result.json) [Local history](missing.md) [Binary evidence](payload.bundle)', 'docs/payload.bundle': '\uFFFD' } };
     const { service, job, assess, candidates } = await setup({ [baseline]: baselineSource, [first]: source('2', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
         expect(input.prepared.message).toContain('/archive/result.json');
         expect(input.prepared.message).toContain('docs/missing.md');
+        expect(input.prepared.message).toContain('docs/payload.bundle');
+        expect(input.prepared.message).toContain('ambiguous replacement characters without Git blob identity');
         expect(input.prepared.message).toContain('not automatically additional obligations');
         expect(input.prepared.message).toContain('mark the affected requirement uncertain');
         expect(input.prepared.message).toContain('Outside-project targets were not read and must not be accessed');
@@ -173,7 +175,7 @@ describe('assisted assessment pipeline with real service records', () => {
         const validated = input.prepared.validate({ ...report,
           scopeAssessment: required ? 'Required supporting evidence is unavailable.' : 'The historical references do not govern this outcome.',
           requirements: report.requirements.map(answer => answer.ref === 'captured-plan' && required
-            ? { ...answer, outcome: 'uncertain', explanation: 'Applicable required evidence /archive/result.json is unavailable.', evidencePaths: [] } : answer) });
+            ? { ...answer, outcome: 'uncertain', explanation: 'Applicable required evidence docs/payload.bundle is unavailable.', evidencePaths: [] } : answer) });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'qualification-review', eventCount: 1 };
       },
@@ -183,7 +185,7 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(candidates.calls.some(call => call.includes('/archive/') || call.includes('docs/missing.md'))).toBe(false);
     if (required) expect(result.outcome.gaps.join(' ')).toContain('Applicable required evidence');
     const evidence = service.assessmentDetail('sample', job.jobId, result.id).stages.find(stage => stage.name === 'documents')!.evidence;
-    expect(evidence).toMatchObject({ gaps: { outsideProject: [{ target: '/archive/result.json', judgment: 'unjudged' }], missing: [{ target: 'docs/missing.md' }] } });
+    expect(evidence).toMatchObject({ gaps: { outsideProject: [{ target: '/archive/result.json', judgment: 'unjudged' }], missing: [{ target: 'docs/missing.md' }], unreadableDocuments: [{ path: 'docs/payload.bundle', judgment: 'unjudged' }] } });
   });
 
   it('keeps an explicitly pinned unreadable document as a required gap despite a submitted review', async () => {
@@ -198,6 +200,23 @@ describe('assisted assessment pipeline with real service records', () => {
     const result = await assess(first, baseline, 'assess-pinned', { requirementDocuments: [{ path: 'docs/required.md', revision: baseline }] });
     expect(result.outcome.gate).toBe('incomplete');
     expect(result.outcome.gaps.join(' ')).toContain('Required document docs/required.md');
+  });
+
+  it('keeps an explicitly pinned binary requirement unavailable rather than accepting decoded text', async () => {
+    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files, 'docs/required.md': 'header\0payload' } };
+    const { assess } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        expect(input.prepared.message).not.toContain('header\0payload');
+        const validated = input.prepared.validate(reviewReport(input.candidate));
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'binary-pinned-review', eventCount: 1 };
+      },
+    });
+    const result = await assess(first, baseline, 'assess-binary-pinned', { requirementDocuments: [{ path: 'docs/required.md', revision: baseline }] });
+    expect(result.outcome.gate).toBe('incomplete');
+    expect(result.outcome.gaps.join(' ')).toContain('Required document docs/required.md');
+    expect(result.outcome.gaps.join(' ')).toContain('binary NUL bytes');
   });
 
   it('keeps unreadable principles deterministic even when the review otherwise reports clear', async () => {

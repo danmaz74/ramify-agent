@@ -119,3 +119,19 @@ test('a root principles listing failure is partial coverage with an explicit roo
   });
   expect(found.manifest.principlesScan).toMatchObject({ status: 'partial', unreadable: [{ path: '.', reason: expect.stringContaining('listing denied') }] });
 });
+
+
+test('opt-in unreadable companions retain qualifications while root-plan failures remain fatal', async () => {
+  const root = await fixture();
+  await put(root, 'plans/p/plan.md', '[linked](../../evidence.bundle) [current](../../current.md)');
+  await put(root, 'evidence.bundle', Uint8Array.of(0xff));
+  await put(root, 'current.md', '# Current requirements');
+  const unreadable: Array<{ path: string; reason: string; judgment: string }> = [];
+  const options = { onUnreadableDocument: (reference: typeof unreadable[number]) => unreadable.push(reference) };
+  const captured = await discoverDocuments(root, 'p', revision, nodeDocumentReader, options);
+  expect(captured.manifest.documents.map(document => document.path)).toEqual(['plans/p/plan.md', 'current.md']);
+  expect(unreadable).toEqual([{ path: 'evidence.bundle', reason: 'Document evidence.bundle is not valid UTF-8', judgment: 'unjudged' }]);
+  await expect(discoverDocuments(root, 'p', revision)).rejects.toThrow('not valid UTF-8');
+  await put(root, 'plans/p/plan.md', Uint8Array.of(0xff));
+  await expect(discoverDocuments(root, 'p', revision, nodeDocumentReader, options)).rejects.toThrow('not valid UTF-8');
+});

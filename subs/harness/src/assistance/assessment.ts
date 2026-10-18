@@ -13,7 +13,7 @@ import { reconciliationSubmissionSchema, validateReconciliationForExecution, typ
 import type { Assessor, AssistedOutcome } from './contracts.js';
 import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
-import { captureAssistanceDocuments, type AssistanceDocuments } from './documents.js';
+import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
 import { acceptedProtectionExceptions, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries } from './findings.js';
@@ -85,6 +85,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const referenceQualifications = [
       ...documents.gaps.missing.map(gap => ({ ...gap, from: documents.manifest.documents.find(document => document.id === gap.from)?.path ?? gap.from })),
       ...(documents.gaps.outsideProject ?? []),
+      ...(documents.gaps.unreadableDocuments ?? []).map(gap => ({ ...gap, target: gap.path })),
     ];
     const discoveryContext = referenceQualifications.length === 0 ? '' : `\nUncaptured document references (retained qualifications, not automatically additional obligations):\n${JSON.stringify(referenceQualifications)}\nA link alone does not establish applicability or binding force. Assess whether these references are required for this outcome, using the captured plan and ordinary candidate and retained-evidence tools. Explain unrelated historical references in scopeAssessment. If applicable required evidence remains unavailable, mark the affected requirement uncertain or report a coverageGap; do not claim clear coverage. Outside-project targets were not read and must not be accessed.`;
     const requirements = [
@@ -93,7 +94,9 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     ];
     for (const [index, document] of request.requirementDocuments.entries()) {
       try {
-        const text = await source.readBlob(projectRoot, document.revision, document.path);
+        const entry = (await source.treeEntries(projectRoot, document.revision)).find(entry => entry.path === document.path);
+        if (!entry) throw new Error('No committed document at this revision');
+        const text = new TextDecoder('utf-8', { fatal: true }).decode(await readCandidateDocument(projectRoot, document.revision, entry, source));
         requirements.push({ ref: `requirement-document-${index + 1}`, text: `${document.path} at ${document.revision}:\n${text}` });
       } catch (error) { gaps.push(`Required document ${document.path} at ${document.revision} is unavailable: ${errorText(error)}`); }
     }

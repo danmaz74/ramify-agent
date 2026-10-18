@@ -1,6 +1,7 @@
 import { resolve, relative, isAbsolute, sep } from 'node:path';
+import { createHash } from 'node:crypto';
 import type { Dirent } from 'node:fs';
-import { discoverDocuments, type DocumentReader, type OutsideDocumentReference } from '../../subs/plan-evidence/src/discovery.js';
+import { discoverDocuments, type DocumentReader, type OutsideDocumentReference, type UnreadableDocumentReference } from '../../subs/plan-evidence/src/discovery.js';
 import type { DocumentManifest } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { gitCandidateSource, type CandidateSource, type TreeEntry } from '../../subs/evidence/src/git.js';
 import { planIdSchema } from '../interfaces/protocol/ids.js';
@@ -24,6 +25,7 @@ export interface AssistanceDocuments {
     readonly unreadablePrinciples: DocumentManifest['principlesScan']['unreadable'];
     /** Absent in older retained document stages. Targets were never read. */
     readonly outsideProject?: readonly OutsideDocumentReference[];
+    readonly unreadableDocuments?: readonly UnreadableDocumentReference[];
   };
 }
 
@@ -40,8 +42,9 @@ export async function captureAssistanceDocuments(input: {
   const entries = await source.treeEntries(input.projectRoot, input.baselineCommit);
   const reader = candidateDocumentReader(input.projectRoot, input.planId, input.planMarkdown, input.baselineCommit, entries, source);
   const outsideProject: OutsideDocumentReference[] = [];
+  const unreadableDocuments: UnreadableDocumentReference[] = [];
   const captured = await discoverDocuments(input.projectRoot, input.planId, { commit: input.baselineCommit, dirty: false }, reader,
-    { onOutsideReference: reference => outsideProject.push(reference) });
+    { onOutsideReference: reference => outsideProject.push(reference), onUnreadableDocument: reference => unreadableDocuments.push(reference) });
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const documents = captured.manifest.documents.map(document => {
     const bytes = captured.bytes.get(document.id);
@@ -50,7 +53,26 @@ export async function captureAssistanceDocuments(input: {
       text: decoder.decode(bytes), adoption: 'undetermined' as const };
   });
   return { baselineCommit: input.baselineCommit, manifest: captured.manifest, documents,
-    gaps: { missing: captured.manifest.missing, unreadablePrinciples: captured.manifest.principlesScan.unreadable, outsideProject } };
+    gaps: { missing: captured.manifest.missing, unreadablePrinciples: captured.manifest.principlesScan.unreadable, outsideProject, unreadableDocuments } };
+}
+
+/** Validate Git's text response before capturing bytes or treating a pinned document as evidence. */
+export async function readCandidateDocument(root: string, commit: string, entry: TreeEntry, source: CandidateSource): Promise<Uint8Array> {
+  if (entry.kind !== 'file' && entry.kind !== 'executable') throw new Error(`Document ${entry.path} is not a regular file`);
+  const text = await source.readBlob(root, commit, entry.path);
+  const bytes = new TextEncoder().encode(text);
+  if (text.includes('\0')) throw new Error(`Document ${entry.path} contains binary NUL bytes`);
+  if (entry.bytes === null || bytes.length !== entry.bytes || new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes) !== text) {
+    throw new Error(`Document ${entry.path} could not be decoded exactly from Git`);
+  }
+  if (entry.objectId !== undefined) {
+    if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(entry.objectId)) throw new Error(`Document ${entry.path} has unavailable Git blob identity`);
+    const identity = createHash(entry.objectId.length === 40 ? 'sha1' : 'sha256').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    if (identity !== entry.objectId) throw new Error(`Document ${entry.path} could not be decoded exactly from Git`);
+  } else if (text.includes('\uFFFD')) {
+    throw new Error(`Document ${entry.path} has ambiguous replacement characters without Git blob identity`);
+  }
+  return bytes;
 }
 
 /** Present a candidate tree to existing document discovery without reading the worktree. */
@@ -104,12 +126,7 @@ export function candidateDocumentReader(rootPath: string, planId: string, planMa
       if (relativePath === planPath) return new TextEncoder().encode(planMarkdown);
       const entry = files.get(relativePath);
       if (entry === undefined) throw missing(relativePath);
-      const text = await source.readBlob(rootPath, baselineCommit, relativePath);
-      const bytes = new TextEncoder().encode(text);
-      if (entry.bytes !== null && bytes.length !== entry.bytes) {
-        throw new Error(`Document ${relativePath} could not be decoded exactly from Git`);
-      }
-      return bytes;
+      return readCandidateDocument(rootPath, baselineCommit, entry, source);
     },
   };
 }

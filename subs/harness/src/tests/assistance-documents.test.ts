@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import type { CandidateSource, TreeEntry } from '../../subs/evidence/src/git.js';
-import { captureAssistanceDocuments } from '../assistance/documents.js';
+import { captureAssistanceDocuments, readCandidateDocument } from '../assistance/documents.js';
 
-function source(contents: Record<string, string>, read: string[]): CandidateSource {
-  const entries: TreeEntry[] = Object.entries(contents).map(([path, text]) => ({
-    path, kind: 'file', bytes: Buffer.byteLength(text), objectId: 'a'.repeat(40),
-  }));
+function source(contents: Record<string, string>, read: string[], originals: Record<string, Uint8Array> = {}, algorithm: 'sha1' | 'sha256' = 'sha1'): CandidateSource {
+  const entries: TreeEntry[] = Object.entries(contents).map(([path, text]) => {
+    const bytes = originals[path] ?? new TextEncoder().encode(text);
+    return { path, kind: 'file', bytes: bytes.length, objectId: createHash(algorithm).update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
+  });
   return {
     async treeEntries(_root, commit) { expect(commit).toBe('baseline'); return entries; },
     async readBlob(_root, commit, path) {
@@ -65,4 +67,27 @@ describe('assisted document capture', () => {
     expect(Buffer.from(context).subarray(span.start, span.end).toString()).toBe('[history](/archive/result.json)');
     expect(documents.gaps.missing).toMatchObject([{ target: 'docs/missing.md', judgment: 'unjudged' }]);
   });
+  it.each(['sha1', 'sha256'] as const)('qualifies non-text links while authenticating literal replacement text with %s blobs', async algorithm => {
+    const read: string[] = [];
+    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
+      planMarkdown: '[evidence](../../docs/payload.bundle) [binary](../../docs/data.dump) [text](../../docs/literal.md) [requirements](../../docs/current.md) [binary format](../../docs/report.pdf)',
+      candidates: source({ 'docs/payload.bundle': '\uFFFD', 'docs/data.dump': 'header\0payload',
+        'docs/literal.md': 'literal \uFFFD', 'docs/current.md': '# Current requirement', 'docs/report.pdf': '%PDF binary data' }, read,
+      { 'docs/payload.bundle': Uint8Array.from([0xf0, 0x90, 0x80]) }, algorithm) });
+    expect(documents.documents.map(document => document.path)).toEqual(['plans/p47/plan.md', 'docs/current.md', 'docs/literal.md']);
+    expect(documents.documents.find(document => document.path === 'docs/literal.md')?.text).toBe('literal \uFFFD');
+    expect(documents.gaps.unreadableDocuments).toHaveLength(3);
+    expect(documents.gaps.unreadableDocuments).toEqual(expect.arrayContaining([
+      { path: 'docs/payload.bundle', reason: 'Document docs/payload.bundle could not be decoded exactly from Git', judgment: 'unjudged' },
+      { path: 'docs/data.dump', reason: 'Document docs/data.dump contains binary NUL bytes', judgment: 'unjudged' },
+      { path: 'docs/report.pdf', reason: 'Linked evidence docs/report.pdf is not captured as text', judgment: 'unjudged' },
+    ]));
+    expect(read).toEqual(['docs/payload.bundle', 'docs/data.dump', 'docs/literal.md', 'docs/current.md']);
+  });
+
+  it('retains uncertainty when optional blob identity cannot disambiguate replacement characters', async () => {
+    await expect(readCandidateDocument('/project', 'baseline', { path: 'docs/unknown.md', kind: 'file', bytes: 3 },
+      source({ 'docs/unknown.md': '\uFFFD' }, []))).rejects.toThrow('ambiguous replacement characters without Git blob identity');
+  });
+
 });
