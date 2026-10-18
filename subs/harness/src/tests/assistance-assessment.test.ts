@@ -263,12 +263,14 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'documents')?.evidence).toEqual(legacy);
   });
 
-  it.each(['valid-review', 'lossy-review', 'lossy-base', 'valid-conflict', 'lossy-conflict', 'unproven-closure'] as const)(
+  it.each(['valid-review', 'lossy-review', 'lossy-base', 'valid-conflict', 'lossy-conflict', 'unproven-closure', 'applied-fixed', 'applied-supersede', 'applied-lossy', 'valid-applied', 'user-applied'] as const)(
     'revalidates accepted historical candidate judgments before applying them after restart (%s)', async scenario => {
       const root = await mkdtemp(join(tmpdir(), 'assistance-legacy-judgments-')); roots.push(root);
       await mkdir(join(root, 'plans/sample'), { recursive: true });
       await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
-      const reconciliation = scenario.includes('conflict') || scenario === 'unproven-closure';
+      const applied = scenario.startsWith('applied-') || scenario === 'valid-applied' || scenario === 'user-applied';
+      const closure = scenario === 'unproven-closure' || applied;
+      const reconciliation = scenario.includes('conflict') || closure;
       const report = reviewReport(first, reconciliation);
       const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
         resolveCommit: async (_root, revision) => revision, assessor: async context => {
@@ -282,12 +284,12 @@ describe('assisted assessment pipeline with real service records', () => {
             const state = context.findingState();
             const details = findingDetails(state);
             const proposed = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Historical source judgment.',
-              communication: { mode: 'quiet' }, action: scenario === 'unproven-closure'
-                ? { action: 'fixed', reassessed: ['cfr-0001'] }
+              communication: { mode: 'quiet' }, action: closure
+                ? scenario === 'applied-supersede' ? { action: 'supersede', reassessed: ['cfr-0001'], replacement: 'Historical replacement judgment.' } : { action: 'fixed', reassessed: ['cfr-0001'] }
                 : { action: 'request-user-decision', conflicts: [{ document: 'docs/authority.md', text: '\uFFFD' }],
                   options: [{ id: 'restore', summary: 'Restore source', consequence: 'Repair candidate.' },
                     { id: 'retain', summary: 'Retain source', consequence: 'Keep candidate.' }] } }],
-              next: { kind: scenario === 'unproven-closure' ? 'complete' : 'await-user' }, brief: 'Historical reconciliation.' };
+              next: { kind: closure ? 'complete' : 'await-user' }, brief: 'Historical reconciliation.' };
             const checked = await validateReconciliationForExecution(proposed, {
               id: `${context.assessment.id}-reconciliation`, owner: context.job.jobId,
               attention: new Map(details.map(detail => [detail.summary.id, { revision: detail.summary.revision,
@@ -303,7 +305,21 @@ describe('assisted assessment pipeline with real service records', () => {
             });
             if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
             await context.checkpoint('reconciliation-accepted', { status: 'submitted', value: checked.value,
-              operationId: 'legacy-reconciliation', sessionId: 'legacy-reconciliation-session', eventCount: 1 });
+              operationId: 'legacy-reconciliation', sessionId: 'legacy-reconciliation-session', eventCount: 1,
+              ...(scenario === 'valid-applied' || scenario === 'applied-lossy' ? { exactSourceReads: ['src/feature.ts'] } : {}) });
+            if (applied) await context.recordFindings(checked.value.commands, 'reconciliation-decisions');
+            if (scenario === 'user-applied') {
+              const current = context.findingState().findings.get('cf-0001')!;
+              const common = { actor: { kind: 'user' as const, name: 'Fixture reviewer' }, source: { kind: 'tree' as const, id: 'tree-2' },
+                rationale: 'Actual subsequent user decision.', evidence: [], communication: { mode: 'quiet' as const } };
+              await context.recordFindings([
+                { type: 'dispose', checkFinding: current.id, expectedRevision: current.revision,
+                  decision: { ...common, decision: { action: 'reopen', cause: { kind: 'decision' } } } },
+                { type: 'dispose', checkFinding: current.id, expectedRevision: current.revision + 1,
+                  decision: { ...common, decision: { action: 'waive', authority: { kind: 'user-decision', ref: 'fixture-user-choice' },
+                    acceptedRisk: 'medium', uncertainty: 'The reviewer accepts this semantic risk.' } } },
+              ], 'actual-user-decision');
+            }
           }
           throw new Error('Legacy executor stopped after accepted judgment');
         } });
@@ -314,36 +330,128 @@ describe('assisted assessment pipeline with real service records', () => {
       await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
       const original = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
       const historical = original.stages;
+      const historicalDecisions = old.findings('sample', job.jobId)[0]?.decisions ?? [];
+      if (applied) expect(old.findings('sample', job.jobId)[0]?.standing).toBe('closed');
       await old.close();
       const candidates = scriptedCandidates(root, {
         [baseline]: source('0', baseline, { files: { ...source('0', baseline).files,
           ...(scenario === 'lossy-base' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
         [first]: source('2', baseline, { files: { ...source('2', baseline).files, 'docs/authority.md': '\uFFFD',
-          ...(scenario === 'lossy-review' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
+          ...(scenario === 'lossy-review' || scenario === 'applied-lossy' ? { 'src/feature.ts': '\uFFFD' } : {}) } }),
+        [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }),
       });
       const listed = candidates.treeEntries.bind(candidates);
       vi.spyOn(candidates, 'treeEntries').mockImplementation(async (project, commit) => (await listed(project, commit)).map(entry => {
         if (entry.path !== 'docs/authority.md' && !(entry.path === 'src/feature.ts' &&
-          (scenario === 'lossy-review' && commit === first || scenario === 'lossy-base' && commit === baseline))) return entry;
+          ((scenario === 'lossy-review' || scenario === 'applied-lossy') && commit === first || scenario === 'lossy-base' && commit === baseline))) return entry;
         const bytes = scenario === 'valid-conflict' ? Buffer.from('\uFFFD') : Buffer.from([0xf0, 0x90, 0x80]);
         return { ...entry, bytes: bytes.length, objectId: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
       }));
-      const resumed = await AssistanceService.open({ projectRoot: root, assessor: createAssessor({ candidates, operations: unusedOperations,
+      if (scenario === 'applied-supersede') {
+        // Going straight to a new assessment must also find and reopen an
+        // already-applied old closure, without resuming its original owner.
+        let directReconciliations = 0;
+        const direct = await AssistanceService.open({ projectRoot: root, resolveCommit: async (_root, revision) => revision,
+          assessor: createAssessor({ candidates, operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+            review: async input => {
+              const validated = input.prepared.validate(reviewReport(input.candidate));
+              if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+              return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'direct-review', eventCount: 1 };
+            }, reconcile: async input => {
+              directReconciliations++;
+              expect(input.message).toContain('cf-0001');
+              return { status: 'incomplete', reason: 'The reopened historical concern still needs fresh resolution.', operationId: input.operationId, eventCount: 1 };
+            },
+          }) }); services.push(direct);
+        const fresh = await direct.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+          kind: 'iteration', brief: 'Reassess the old finding.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'direct-fresh' });
+        expect((await outcome(direct, job.jobId, fresh.assessmentId)).gate).toBe('incomplete');
+        expect(directReconciliations).toBe(1);
+        expect(direct.findings('sample', job.jobId)[0]?.reason).toBe('reopened');
+        expect(direct.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted');
+        await direct.close();
+      }
+      const currentAssessor = createAssessor({ candidates, operations: unusedOperations,
         audit: async input => audit(input.candidateCommit),
         review: async () => { throw new Error('Accepted review must remain the original immutable report'); },
         reconcile: async () => { throw new Error('Accepted reconciliation must not be replaced'); },
+      });
+      let injectedCrash = false;
+      let resumed = await AssistanceService.open({ projectRoot: root, assessor: context => currentAssessor({ ...context,
+        recordFindings: async (commands, key) => {
+          await context.recordFindings(commands, key);
+          if (scenario === 'applied-fixed' && key?.startsWith('source-invalidation-') && !injectedCrash) {
+            injectedCrash = true;
+            throw new Error('Stopped after committing source-proof invalidation');
+          }
+        },
       }) });
       services.push(resumed);
       await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
       await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(original.revision));
+      if (scenario === 'applied-fixed') {
+        await vi.waitFor(() => expect(resumed.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+        expect(injectedCrash).toBe(true);
+        const beforeRestart = resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision;
+        expect(resumed.findings('sample', job.jobId)[0]?.reason).toBe('reopened');
+        await resumed.close();
+        resumed = await AssistanceService.open({ projectRoot: root, assessor: currentAssessor }); services.push(resumed);
+        await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+        await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(beforeRestart));
+      }
       const result = await outcome(resumed, job.jobId, admitted.assessmentId);
-      const valid = scenario === 'valid-review' || scenario === 'valid-conflict';
+      const valid = scenario === 'valid-review' || scenario === 'valid-conflict' || scenario === 'valid-applied';
       expect(result.gate).toBe(valid ? scenario === 'valid-review' ? 'clear' : 'action-required' : 'incomplete');
-      if (!valid) expect(result.gaps.join(' ')).toContain(scenario === 'unproven-closure' ? 'no retained exact source-read provenance' : 'could not be decoded exactly from Git');
+      if (!valid) expect(result.gaps.join(' ')).toContain(closure && scenario !== 'applied-lossy' ? 'no retained exact source-read provenance' : 'could not be decoded exactly from Git');
       const finding = resumed.findings('sample', job.jobId)[0];
       if (scenario === 'valid-conflict') expect(finding?.pendingUserDecision).not.toBeNull();
+      else if (scenario === 'valid-applied') expect(finding?.reason).toBe('fixed-by-assessment');
+      else if (scenario === 'user-applied') expect(finding?.reason).toBe('waived');
       else if (reconciliation) { expect(finding?.pendingUserDecision).toBeNull(); expect(finding?.standing).toBe('open'); }
+      expect(finding?.decisions.slice(0, historicalDecisions.length) ?? []).toEqual(historicalDecisions);
+      if (applied && scenario !== 'valid-applied' && scenario !== 'user-applied') {
+        expect(finding?.decisions.filter(decision => decision.decision.action === 'reopen')).toHaveLength(1);
+        expect(finding?.reason).toBe('reopened');
+      }
       for (const stage of historical) expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(item => item.name === stage.name)).toEqual(stage);
+      if (applied && scenario !== 'valid-applied' && scenario !== 'user-applied') {
+        await resumed.close();
+        let reconciliationCalls = 0, closeOnFreshEvidence = false;
+        const fresh = await AssistanceService.open({ projectRoot: root, resolveCommit: async (_root, revision) => revision, assessor: createAssessor({ candidates, operations: unusedOperations,
+          audit: async input => audit(input.candidateCommit), review: async input => {
+            // A valid current read can assess a repaired file even when its
+            // malformed base patch is unavailable for automatic delivery.
+            await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
+            const validated = input.prepared.validate(reviewReport(input.candidate));
+            if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+            return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'fresh-review', eventCount: 1 };
+          }, reconcile: async input => {
+            reconciliationCalls++;
+            expect(input.message).toContain('cf-0001');
+            if (!closeOnFreshEvidence) return { status: 'incomplete', reason: 'Fresh reconciliation has not established a resolution.', operationId: input.operationId, eventCount: 1 };
+            await input.tools.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/feature.ts' }, new AbortController().signal);
+            const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Fresh exact current source resolves the concern.',
+              communication: { mode: 'quiet' }, action: { action: 'fixed', reassessed: ['cfr-0001'] } }], next: { kind: 'complete' }, brief: 'Reassessed and fixed.' });
+            if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+            return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'fresh-reconciliation', eventCount: 1 };
+          },
+        }) }); services.push(fresh);
+        const assessFresh = async (commandId: string) => {
+          const accepted = await fresh.iterationAssess({ planId: 'sample', jobId: job.jobId, base: first, candidate: repaired, kind: 'iteration',
+            brief: 'Reassess the reopened concern.', acceptance: ['The feature returns 2.'], requirementDocuments: [], previousAssessment: admitted.assessmentId, commandId });
+          return outcome(fresh, job.jobId, accepted.assessmentId);
+        };
+        expect((await assessFresh('fresh-unresolved')).gate).toBe('incomplete');
+        expect(reconciliationCalls).toBe(1);
+        expect(fresh.findings('sample', job.jobId)[0]?.standing).toBe('open');
+        closeOnFreshEvidence = true;
+        expect((await assessFresh('fresh-fixed')).gate).toBe('clear');
+        expect(reconciliationCalls).toBe(2);
+        expect(fresh.findings('sample', job.jobId)[0]?.reason).toBe('fixed-by-assessment');
+        expect((await assessFresh('fresh-valid-reuse')).gate).toBe('clear');
+        expect(reconciliationCalls).toBe(2);
+        expect(fresh.findings('sample', job.jobId)[0]?.decisions.filter(decision => decision.decision.action === 'reopen')).toHaveLength(1);
+      }
     });
 
   it('refuses replacement characters from malformed candidate bytes as verbatim user-decision authority', async () => {

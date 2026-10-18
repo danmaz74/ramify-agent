@@ -167,7 +167,7 @@ describe('ordinary recovery through actual workflow callers', () => {
     const root = await reviewTarget(cleanups);
     const tree = 'c'.repeat(40);
     const first = reviewCandidates()['revision-01']!;
-    const source = scriptedCandidates(root, { 'revision-01': { ...first, tree, ...(mode === 'context' ? { files: { ...first.files, 'docs/notes.principles.md': 'Keep stores in memory.\n' } } : {}) } });
+    const source = scriptedCandidates(root, { [reviewMaterialized]: reviewCandidates()[reviewMaterialized]!, 'revision-01': { ...first, tree, ...(mode === 'context' ? { files: { ...first.files, 'docs/notes.principles.md': 'Keep stores in memory.\n' } } : {}) } });
     const git = gateGit(root, { head: reviewBase, commits: [
       gateScenariosCommit(plan, reviewMaterialized, reviewBase), revisionGates[0]!, { commit: null }, { commit: null },
     ], previews: Array.from({ length: mode === 'context' ? 7 : 4 }, () => ({ repositoryRoot: root, head: 'revision-01', tree })) });

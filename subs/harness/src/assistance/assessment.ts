@@ -5,19 +5,19 @@ import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
 import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
 import { gitCandidateSource, type CandidateSource } from '../../subs/evidence/src/git.js';
-import { openCandidateSnapshot, snapshotTools, verifySnapshotEvidence } from '../../subs/reviews/src/snapshot.js';
+import { openCandidateSnapshot, snapshotTools, verifySnapshotEvidence, resolveSnapshotPath, type CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import { prepareAssistedReview, type AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
 import { bindCandidateConcerns, type ConcernBinding } from '../run/review-finish.js';
 import { ReviewQueue } from '../reviews/scheduler.js';
 import { reconciliationFactsMessage } from '../reviews/reconciliation-message.js';
 import { reconciliationSubmissionSchema, validateReconciliationForExecution, type AttentionEntry, type BoundReconciliation } from '../reviews/reconciliation.js';
-import type { Assessor, AssistedEvidenceReference, AssistedOutcome } from './contracts.js';
+import type { Assessor, AssistedEvidenceReference, AssistedOutcome, AssistedAssessment, AssistedJob } from './contracts.js';
 import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
 import { captureAssistanceDocuments, qualifyLegacyDocuments, readAssistanceDocument, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
-import { acceptedProtectionExceptions, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries } from './findings.js';
+import { acceptedProtectionExceptions, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries, unverifiedSemanticClosures } from './findings.js';
 
 const digest = (value: unknown): string => `sha256:${createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex')}`;
 const errorText = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -36,6 +36,7 @@ interface ReviewEvidence {
   readonly bindings: readonly ConcernBinding[];
   readonly read: readonly string[];
   readonly inspected: readonly string[];
+  readonly sourceVerification?: 'git-exact-text/1';
 }
 type ReconciliationEvidence = PiAssessmentResult<BoundReconciliation> & { readonly exactSourceReads?: readonly string[] };
 interface DocumentsReference {
@@ -60,11 +61,25 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       await context.checkpoint(name, value);
       evidence.push(`assessments/${assessment.id}/stages/${name}.json`);
     };
-    const retainedSourceGap = (detail: string): AssistedOutcome => compactOutcome({
-      gate: 'incomplete', summary: 'Retained judgments require a fresh assessment with verifiable source evidence.',
-      ...remainingBriefs(findingDetails(context.findingState())), gaps: [...gaps, detail],
-      evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`),
-    });
+    const invalidateClosures = async (retained: AssistedAssessment, reason: string) => {
+      const stage = retained.stages.find(stage => stage.name === 'reconciliation-accepted') ?? retained.stages.find(stage => stage.name === 'reconciliation');
+      const reconciliation = stage?.evidence as ReconciliationEvidence | undefined;
+      if (reconciliation?.status !== 'submitted') return;
+      const reference = { kind: 'assisted-source-invalidation', ref: `assessments/${retained.id}/stages/${stage!.name}.json`, hash: digest(reconciliation) };
+      for (const invalidated of unverifiedSemanticClosures({ state: context.findingState(), commands: reconciliation.value.commands, evidence: reference })) {
+        // The checkpoint precedes the domain transition, so restart can repeat
+        // verification without losing why an already-applied closure reopened.
+        await record(`source-invalidation-${retained.id}-${invalidated.settlement}`, { reason, source: reference, settlement: invalidated.settlement });
+        await context.recordFindings([invalidated.command], `source-invalidation-${invalidated.settlement}`);
+      }
+    };
+    const retainedSourceGap = async (detail: string): Promise<AssistedOutcome> => {
+      await invalidateClosures(context.assessments().find(item => item.id === assessment.id)!, detail);
+      return compactOutcome({ gate: 'incomplete', summary: 'Retained judgments require a fresh assessment with verifiable source evidence.',
+        ...remainingBriefs(findingDetails(context.findingState())), gaps: [...gaps, detail],
+        evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`),
+      });
+    };
     const baseline = job.protection?.baselineCommit;
     if (!baseline) return incomplete('The execution has no usable protection baseline.', [job.protection?.unavailable ?? 'Start an execution with an available Git baseline.']);
     if (job.protection!.unavailable) gaps.push(`Protection baseline inspection unavailable: ${job.protection!.unavailable}`);
@@ -91,6 +106,24 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
       protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
     if (factual.length) await context.recordFindings(factual);
+
+    for (const retained of context.assessments()) {
+      if (retained.id === assessment.id) continue;
+      const cached = (retained.stages.find(stage => stage.name === 'reconciliation-accepted') ?? retained.stages.find(stage => stage.name === 'reconciliation'))?.evidence as ReconciliationEvidence | undefined;
+      if (cached?.status !== 'submitted' || !unverifiedSemanticClosures({ state: context.findingState(), commands: cached.value.commands,
+        evidence: { kind: 'assisted-source-verification', ref: retained.id, hash: null } }).length) continue;
+      try {
+        const historical = await openCandidateSnapshot(source, projectRoot, { commit: retained.request.candidate,
+          base: retained.request.kind === 'final' ? baseline : retained.request.base });
+        const review = (retained.stages.find(stage => stage.name === 'review-accepted') ?? retained.stages.find(stage => stage.name === 'review'))?.evidence as ReviewEvidence | undefined;
+        if (review?.result.status !== 'submitted') throw new Error('Historical settlement has no retained accepted review');
+        await verifyRetainedReview(review, { snapshot: historical, source, projectRoot, signal });
+        await verifyReconciliationSource(cached, { snapshot: historical, source, projectRoot, job, planMarkdown: context.planMarkdown, signal });
+      } catch (error) {
+        signal.throwIfAborted();
+        await invalidateClosures(retained, `Historical semantic settlement source proof is unavailable: ${errorText(error)}`);
+      }
+    }
 
     const captureDocuments = () => captureAssistanceDocuments({ projectRoot, planId: job.planId,
       planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates: source });
@@ -120,7 +153,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     // Existing finding operation identities cannot be repurposed for another review.
     const cachedReview = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
     if (legacyEvidenceChanged && cachedReview?.result.status === 'submitted') {
-      gaps.push('Retained review predates verification of unavailable historical document evidence; a fresh assessment must determine its applicability.');
+      return retainedSourceGap('Retained review predates verification of unavailable historical document evidence; a fresh assessment must determine its applicability.');
     }
     gaps.push(...documents.gaps.unreadablePrinciples.map(gap => `Principle evidence ${gap.path} is unavailable: ${gap.reason}`));
     const referenceQualifications = [
@@ -170,13 +203,8 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     });
     let reviewed = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
     if (reviewed?.result.status === 'submitted') {
-      const report = reviewed.result.value;
       try {
-        await verifySnapshotEvidence(snapshot, source, projectRoot, [
-          ...reviewed.read, ...reviewed.inspected, ...report.inspected,
-          ...report.requirements.flatMap(answer => answer.evidencePaths),
-          ...report.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path]),
-        ], signal);
+        await verifyRetainedReview(reviewed, { snapshot, source, projectRoot, signal });
       } catch (error) {
         signal.throwIfAborted();
         return retainedSourceGap(`Retained review source evidence is unavailable: ${errorText(error)}`);
@@ -194,13 +222,13 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         onSubmitted: async (value, evidence) => {
           const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => gaps.push(message) },
             snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');
-          await record('review-accepted', { result: { status: 'submitted', value, ...evidence }, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()] });
+          await record('review-accepted', { result: { status: 'submitted', value, ...evidence }, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'git-exact-text/1' });
         },
       }));
       const bindings = result.status === 'submitted' ? await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source,
         warn: message => gaps.push(message) }, snapshot, prepared.tools, result.value, null,
         path => path === null ? 'ungrounded' : 'agent-generated') : [];
-      reviewed = stages<ReviewEvidence>('review-accepted') ?? { result, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()] };
+      reviewed = stages<ReviewEvidence>('review-accepted') ?? { result, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'git-exact-text/1' };
       await record('review', reviewed);
     }
     if (!stages('review') && reviewed.result.status === 'submitted') await record('review', reviewed);
@@ -218,15 +246,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     let reconciliation = stages<ReconciliationEvidence>('reconciliation-accepted') ?? stages<ReconciliationEvidence>('reconciliation');
     if (reconciliation?.status === 'submitted') {
       try {
-        const closing = reconciliation.value.submission.dispositions.some(item => item.action.action === 'fixed' || item.action.action === 'supersede');
-        if (closing && !reconciliation.exactSourceReads?.length) throw new Error('Historical semantic closure has no retained exact source-read provenance');
-        await verifySnapshotEvidence(snapshot, source, projectRoot, reconciliation.exactSourceReads ?? [], signal);
-        for (const bound of reconciliation.value.conflicts) for (const conflict of bound.conflicts) {
-          const captured = conflict.document === job.plan.path || conflict.document === 'captured-plan';
-          const text = captured ? context.planMarkdown : await source.readBlob(projectRoot, snapshot.commit, conflict.document, signal);
-          const revision = captured ? `sha256:${job.plan.sha256}` : snapshot.tree;
-          if (conflict.revision !== revision || !text.includes(conflict.text)) throw new Error(`Historical conflicting text in ${conflict.document} is not exact source evidence`);
-        }
+        await verifyReconciliationSource(reconciliation, { snapshot, source, projectRoot, job, planMarkdown: context.planMarkdown, signal });
       } catch (error) {
         signal.throwIfAborted();
         return retainedSourceGap(`Retained reconciliation source evidence is unavailable: ${errorText(error)}`);
@@ -304,6 +324,46 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         : remaining.repairs.length || remaining.decisions.length ? 'Assessment completed with remaining actions.' : 'Required assessment completed with no remaining material issue.',
       ...remaining, gaps, evidence: [...new Set([...evidence, ...context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`)])] });
   };
+}
+
+async function verifyCandidateReads(paths: readonly string[], input: {
+  snapshot: CandidateSnapshot; source: CandidateSource; projectRoot: string; signal: AbortSignal;
+}): Promise<void> {
+  for (const path of new Set(paths)) {
+    const held = resolveSnapshotPath(input.snapshot, path);
+    if (!held.ok || held.kind !== 'file') throw new Error(`Historical read evidence ${path} is unavailable`);
+    await input.source.readBlob(input.projectRoot, input.snapshot.commit, held.path, input.signal);
+  }
+}
+
+async function verifyRetainedReview(review: ReviewEvidence, input: {
+  snapshot: CandidateSnapshot; source: CandidateSource; projectRoot: string; signal: AbortSignal;
+}): Promise<void> {
+  if (review.result.status !== 'submitted') throw new Error('Historical settlement has no accepted review');
+  const report = review.result.value;
+  const paths = [...review.read, ...review.inspected, ...report.inspected, ...report.requirements.flatMap(answer => answer.evidencePaths),
+    ...report.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path])];
+  if (review.sourceVerification === 'git-exact-text/1') {
+    // This producer verified every delivered channel. An exact read of a
+    // repaired file need not rely on the old malformed base's patch text.
+    await verifyCandidateReads(review.read, input);
+    await verifySnapshotEvidence(input.snapshot, input.source, input.projectRoot, paths.filter(path => !review.read.includes(path)), input.signal);
+  } else await verifySnapshotEvidence(input.snapshot, input.source, input.projectRoot, paths, input.signal);
+}
+
+async function verifyReconciliationSource(reconciliation: ReconciliationEvidence & { status: 'submitted' }, input: {
+  snapshot: CandidateSnapshot; source: CandidateSource; projectRoot: string; job: AssistedJob; planMarkdown: string; signal: AbortSignal;
+}): Promise<void> {
+  const { snapshot, source, projectRoot, job, planMarkdown, signal } = input;
+  const closing = reconciliation.value.submission.dispositions.some(item => item.action.action === 'fixed' || item.action.action === 'supersede');
+  if (closing && !reconciliation.exactSourceReads?.length) throw new Error('Historical semantic closure has no retained exact source-read provenance');
+  await verifyCandidateReads(reconciliation.exactSourceReads ?? [], input);
+  for (const bound of reconciliation.value.conflicts) for (const conflict of bound.conflicts) {
+    const captured = conflict.document === job.plan.path || conflict.document === 'captured-plan';
+    const text = captured ? planMarkdown : await source.readBlob(projectRoot, snapshot.commit, conflict.document, signal);
+    const revision = captured ? `sha256:${job.plan.sha256}` : snapshot.tree;
+    if (conflict.revision !== revision || !text.includes(conflict.text)) throw new Error(`Historical conflicting text in ${conflict.document} is not exact source evidence`);
+  }
 }
 
 function incomplete(summary: string, gaps: string[]): AssistedOutcome {

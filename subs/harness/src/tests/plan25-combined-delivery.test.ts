@@ -53,6 +53,7 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
   const changes = [{ status: 'A', path: store }];
   const source = scriptedCandidates(root, {
     [A]: { tree: A, files: {}, base: A, changes: [] },
+    'scenarios-00': { tree: 'tree-scenarios-00', files: { [caller]: files[caller], [testPath]: files[testPath], [readme]: files[readme], [`${notesDirectory}/module.ramify`]: files[`${notesDirectory}/module.ramify`] }, base: A, changes: [] },
     [B]: { tree: C, files, base: 'scenarios-00', changes, comparisons: { [A]: { changes } } },
     [C]: { tree: C, files, base: B, changes: [], comparisons: { [A]: { changes, patches: { [store]: 'original-to-candidate note-store patch\n' } } } },
   });

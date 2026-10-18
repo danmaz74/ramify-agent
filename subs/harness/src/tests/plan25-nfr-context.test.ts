@@ -31,7 +31,10 @@ const files = { 'src/badge.ts': 'export const tone = "success";\n', 'src/new-nam
   '.ramify-architect/README.md': 'generated', 'src/.ramify/api.json': 'generated', 'plans/.harness/run.json': 'run', 'src/link': { symlink: '/etc' } };
 
 function toolsFixture() {
-  const source = scriptedCandidates(root, { [C]: { tree: C, base: B, changes: recent, files, comparisons: {
+  const source = scriptedCandidates(root, {
+    [A]: { tree: A, base: A, changes: [], files: { 'src/badge.ts': 'export const tone = \"info\";\n', 'src/old-name.ts': 'export const renamed = true;\n', 'src/deleted.ts': 'export const deleted = true;\n', 'src/unchanged-caller.ts': files['src/unchanged-caller.ts'] } },
+    [B]: { tree: B, base: A, changes: historical, files: { 'src/badge.ts': 'export const tone = \"warning\";\n', 'src/new-name.ts': files['src/new-name.ts'], 'src/unchanged-caller.ts': files['src/unchanged-caller.ts'] } },
+    [C]: { tree: C, base: B, changes: recent, files, comparisons: {
     [A]: { changes: historical, patches: { 'src/badge.ts': 'A→C tone patch\n', 'src/old-name.ts': 'A→C deleted old name\n', 'src/new-name.ts': 'A→C added new name\n', 'src/deleted.ts': 'A→C deletion\n' } },
     [B]: { changes: recent, patches: { 'src/badge.ts': 'B→C repair patch\n', 'src/added.ts': 'x'.repeat(snapshotReadLimits.patchBytes + 10) } },
   } } });
