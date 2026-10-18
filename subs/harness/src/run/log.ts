@@ -86,11 +86,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('operation-recovery-pausing', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
   event('operation-recovery-paused', z.object({ occurrenceId: text, revision: z.int().positive() }).strict()),
   event('operation-recovery-resumed', z.object({ occurrenceId: text, revision: z.int().positive(), group: z.int().positive(), command: acceptedCommandSchema }).strict()),
+  event('external-candidate-observed', z.object({ id: text, beforeTree: text, afterTree: text }).strict()),
   event('operation-recovery-replied', z.object({ commandId: text, resultHash: text }).strict()),
   event('readiness-preparation-started', z.object({ key: text, attempt: z.int().positive() }).strict()),
   event('readiness-preparation-completed', z.object({ key: text, attempt: z.int().positive(), passed: z.boolean() }).strict()),
-  event('readiness-repair-committing', z.object({ id: text, occurrenceId: text, revision: z.int().positive(), tree: text }).strict()),
-  event('readiness-repair-committed', z.object({ id: text, occurrenceId: text, revision: z.int().positive(), tree: text, commit: text }).strict()),
+  event('readiness-repair-committing', z.object({ id: text, occurrenceId: text.optional(), revision: z.int().positive().optional(), tree: text }).strict()),
+  event('readiness-repair-committed', z.object({ id: text, occurrenceId: text.optional(), revision: z.int().positive().optional(), tree: text, commit: text }).strict()),
   event('repair-assignment-recorded', z.object({ assignment: text, invocation: text }).strict()),
   event('repair-preparation-recorded', z.object({ preparation: text, workItem: text, attempt: z.int().positive() }).strict()),
   event('repair-preparation-consumed', z.object({ preparation: text, workItem: text }).strict()),
@@ -103,6 +104,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('invocation-prepared', z.object({ invocation: text, recorded: z.enum(['delivered-inputs', 'operation-identity']).optional() }).strict()),
   /** The run's first event, holding the start command. It licenses the plan architect. */
   event('job-started', z.object({ command: acceptedCommandSchema }).strict()),
+  event('job-continued', z.object({ command: acceptedCommandSchema.optional(), reason: z.literal('service-startup').optional() }).strict()),
   event('debug-pausing', z.object({ pauseId: text, revision: z.int().positive(), role: roleSchema,
     work: invocationWorkSchema, goal: z.string(), nextAction: z.string() }).strict()),
   event('debug-paused', z.object({ pauseId: text, revision: z.int().positive() }).strict()),
@@ -216,7 +218,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('candidate-prepared', z.object({ candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/) }).strict()),
   /** Freezes the accepted catalog and captured round bound before the first candidate preview. */
   event('nonfunctional-phase-started', z.object({ catalogHash: z.string().regex(/^[0-9a-f]{64}$/), maxRounds: z.int().positive() }).strict()),
-  event('nonfunctional-final-invalidated', z.object({ occurrenceId: text, revision: z.int().positive(),
+  event('nonfunctional-final-invalidated', z.object({ occurrenceId: text.optional(), revision: z.int().positive().optional(),
     round: z.int().positive(), candidate: text, assessment: text, tree: text }).strict()),
   event('nonfunctional-assessed', z.object({ assessment: text, candidate: text, round: z.int().positive(), phase: z.enum(['initial', 'after-repair']) }).strict()),
   event('nonfunctional-investigated', z.object({ round: z.int().positive(), invocation: text, assessment: text,
@@ -777,6 +779,7 @@ const terminal = new Set<string>(terminalRunEvents);
  * deviation.
  */
 function mayFollow(ended: RunEvent, input: Pick<RunEvent, 'type' | 'data'> | RunEventInput): boolean {
+  if (input.type === 'job-continued') return ended.type === 'job-failed' || ended.type === 'job-interrupted';
   if (input.type === 'repair-export-recorded') return true;
   if (input.type === 'check-findings-recorded') return (input.data as RunEventOf<'check-findings-recorded'>['data']).cause.kind === 'user-command';
   return ended.type === 'job-completed' && input.type === 'analysis-approved';
@@ -941,5 +944,10 @@ export class RunLog {
 }
 
 function terminalOf(events: readonly RunEvent[]): RunEvent | undefined {
-  return events.find(current => terminal.has(current.type));
+  let ended: RunEvent | undefined;
+  for (const event of events) {
+    if (event.type === 'job-continued') ended = undefined;
+    else if (terminal.has(event.type)) ended = event;
+  }
+  return ended;
 }

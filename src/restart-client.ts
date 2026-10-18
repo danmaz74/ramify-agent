@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import { commandResponseSchema } from '../subs/harness/src/interfaces/protocol/jobs.js';
 import { errorResponseSchema } from '../subs/harness/src/interfaces/protocol/errors.js';
 import { protocolPaths } from '../subs/harness/src/interfaces/protocol/paths.js';
-import { restartInspectionSchema, prepareRestartCommandSchema, recoveryInspectionSchema } from '../subs/harness/src/interfaces/protocol/runs.js';
+import { restartInspectionSchema, prepareRestartCommandSchema } from '../subs/harness/src/interfaces/protocol/runs.js';
 import { UsageError, type RestartOptions } from './cli.js';
 import type { ControlResult } from './debug-client.js';
 
@@ -11,7 +11,7 @@ class RestartFailure extends Error {
   constructor(readonly code: string, message: string, readonly uncertain = false) { super(message); }
 }
 
-/** Inspection is read only; preparation creates a held successor and keeps its command identity on lost replies. */
+/** Legacy restart command adapts to ordinary continuation with stable command identity. */
 export async function runRestartCommand(options: RestartOptions, ports: RestartClientPorts = {}): Promise<ControlResult> {
   const identity = { planId: options.planId, sourceRunId: options.runId,
     ...(options.expectedVersion === undefined ? {} : { expectedVersion: options.expectedVersion }),
@@ -42,16 +42,15 @@ export async function runRestartCommand(options: RestartOptions, ports: RestartC
     if (options.action === 'inspect') {
       const inspection = await request(protocolPaths.runRestart(options.planId, options.runId), restartInspectionSchema.nullable());
       return { exitStatus: 0, output: { kind: 'restart-inspection', ...identity, inspection,
-        summary: inspection === null ? 'No retained source is available.' : inspection.canPrepare ? 'A linked successor can be prepared awaiting explicit recovery resume.' : 'Preparation requires the reported prerequisites.' } };
+        summary: inspection === null ? 'No retained source is available.' : inspection.canPrepare ? 'The unfinished run can continue.' : 'Continuation needs the reported prerequisites.' } };
     }
     const command = prepareRestartCommandSchema.parse({ commandId: options.commandId, expectedVersion: options.expectedVersion, type: 'prepare-restart',
       payload: { planId: options.planId, jobId: options.runId } });
     ({ receipt } = await request(protocolPaths.commands, commandResponseSchema, command));
-    const recovery = await request(protocolPaths.runRecovery(options.planId, receipt.jobId), recoveryInspectionSchema.nullable());
-    return { exitStatus: 0, output: { kind: 'restart-prepared', ...identity, successorRunId: receipt.jobId, receipt, recovery,
-      summary: 'The successor awaits explicit recovery resume. Preparation dispatched no execution.' } };
+    return { exitStatus: 0, output: { kind: 'run-continued', ...identity, runId: receipt.jobId, receipt,
+      summary: 'Unfinished work will continue in this run. Its original history remains available.' } };
   } catch (error) {
-    return { exitStatus: 2, output: { kind: 'error', ...identity, ...(receipt === undefined ? {} : { receipt, successorRunId: receipt.jobId }), uncertain: error instanceof RestartFailure && error.uncertain,
+    return { exitStatus: 2, output: { kind: 'error', ...identity, ...(receipt === undefined ? {} : { receipt, runId: receipt.jobId }), uncertain: error instanceof RestartFailure && error.uncertain,
       error: { code: error instanceof RestartFailure ? error.code : 'invalid-request', message: error instanceof Error ? error.message : String(error) },
       summary: 'If the preparation reply was lost, retry the identical command ID and payload to recover its receipt.' } };
   }

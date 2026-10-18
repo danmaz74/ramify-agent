@@ -196,7 +196,7 @@ test('a standalone resource return retains partial candidate, scratch and the as
   expect(collected.scope.size?.components.map(component => component.component)).toEqual(['owned-source', 'support-documents']);
   expect(collected.scope.size).toMatchObject({ bytes: null, coverage: 'partial' });
   expect(delivered).toHaveBeenCalled();
-  const facts: DeliveredScopeInputs = delivered.mock.results[0]!.value;
+  const facts: DeliveredScopeInputs = delivered.mock.results.at(-1)!.value;
   expect(collected.scope.size?.components.find(component => component.component === 'support-documents')).toEqual({
     component: 'support-documents', detail: 'Actual delivered/inherited inputs', state: 'measured',
     bytes: facts.supplementary.reduce((sum, entry) => sum + entry.bytes, 0) + (facts.scope.brief ?? 0),
@@ -220,30 +220,44 @@ test('an authored engineer step uses durable source after native compaction fail
   const summary = finished(result);
   expect(summary.submissionKind).toBe('completion-proposed');
   expect(agent.sessions[1]!.spec.prompt).toContain('Raise the note limit to 500.');
-  expect(agent.sessions[1]!.spec.prompt).toContain('No submission or partial result was inferred');
+  expect(agent.sessions[1]!.spec.prompt).toContain('The previous attempt was interrupted');
   expect(invocationSchema.parse(await json(summary.records.invocation)).recoveryPredecessor).toBe('inv-0001');
   expect(await readFile(join(root, notesSource), 'utf8')).toContain('500');
 });
 
-test('an authored step held on unavailable candidate evidence resumes only its exact retained occurrence', async () => {
+test('an interrupted authored task executes again without occurrence or candidate identity admission', async () => {
   const { root, scratch } = await project();
   const inputs = await authoredInputs(root, scratch);
   const run = manualRun(root, 'm-source-resume');
   const git = scriptedGit({ head: 'candidate-base', changed: [] });
   const held = await step(root, inputs, run, [{ kind: 'resource', resource: 'context', reason: 'Native compaction unavailable' }], git);
   expect(finished(held.result)).toMatchObject({ pending: true, submission: null });
-  const refused = await step(root, inputs, run, [], git);
-  expect(refused.result).toMatchObject({ status: 'not-started', reason: expect.stringContaining('occurrence-bound') });
-  expect(refused.agent.sessions).toHaveLength(0);
-  vi.spyOn(git, 'previewCandidateTree').mockResolvedValue({ repositoryRoot: root, head: 'candidate-base', tree: 'a'.repeat(40) });
-  const restoredGit = git;
-  const recoveryResume = { occurrenceId: 'opr-0001', expectedRevision: 1, commandId: 'resume-authored-source' };
-  const resumed = await step(root, inputs, run, [{ kind: 'submit', input: unsuitableScope('Original scope cannot supply the requested behavior.') }], restoredGit, { recoveryResume });
+  const recoveryResume = { commandId: 'continue-authored-source' };
+  const resumed = await step(root, inputs, run, [{ kind: 'submit', input: unsuitableScope('Original scope cannot supply the requested behavior.') }], git, { recoveryResume });
   expect(resumed.result.exitStatus).toBe(0);
-  expect(resumed.agent.sessions[0]!.spec.prompt).toContain('Explicit source-backed continuation from inv-0001');
-  const repeated = await step(root, inputs, run, [], restoredGit, { recoveryResume });
+  expect(resumed.agent.sessions[0]!.spec.prompt).toContain('Raise the note limit to 500.');
+  const repeated = await step(root, inputs, run, [], git, { recoveryResume });
   expect(repeated.result).toEqual(resumed.result);
   expect(repeated.agent.sessions).toHaveLength(0);
+});
+
+test('an accepted standalone task result survives a lost final acknowledgement without another agent attempt', async () => {
+  const { root, scratch } = await project();
+  const inputs = await authoredInputs(root, scratch);
+  const run = manualRun(root, 'm-accepted-result');
+  const git = scriptedGit({ head: 'candidate-base', changed: [] });
+  const accepted = await step(root, inputs, run, [{ kind: 'submit', input: unsuitableScope('The requested behavior needs another module.') }], git);
+  // Simulate loss of the final workflow acknowledgement after the acceptance owner retained it.
+  const eventsPath = join(run, runLayout.events);
+  const lines = (await readFile(eventsPath, 'utf8')).split('\n').filter(Boolean);
+  await writeFile(eventsPath, `${lines.filter(line => {
+    const entry = JSON.parse(line) as { event?: { type?: string } };
+    return entry.event?.type !== 'invocation-ended';
+  }).join('\n')}\n`);
+  const repeated = await step(root, inputs, run, [], git, { recoveryResume: { commandId: 'deliver-accepted-result' } });
+  expect(repeated.agent.sessions).toHaveLength(0);
+  expect(finished(repeated.result).submission).toEqual(finished(accepted.result).submission);
+  expect(finished(repeated.result).invocation).toBe(finished(accepted.result).invocation);
 });
 
 describe('S09/S12: one engineer step in a manual run', () => {

@@ -38,8 +38,8 @@ repeating an unsuccessful approach requires a reason.
 
 Counts trigger reconsideration, never establish progress, failure or completion.
 There is no fixed limit on implementation iterations or checkpoints. Checkpoints
-preserve work and history; an interrupted assessment remains pending. Existing
-architect turns serve checkpoints where possible. Acceptance requirements and
+follow the [harness recovery principles](harness-recovery.principles.md#state-lives-in-the-repository).
+Existing architect turns serve checkpoints where possible. Acceptance requirements and
 explicit operator stop remain effective.
 
 ### Vertical Work Is Not Split Artificially

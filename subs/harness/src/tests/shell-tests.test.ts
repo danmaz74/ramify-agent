@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { classifyShellTestRun } from '../tools/shell-tests.js';
+import { classifyShellTestRun, isInspectableShellCheck } from '../tools/shell-tests.js';
 
 const facts = { workingDirectory: '/project', testScripts: { '/project': 'vitest run', '/project/pkg': 'cucumber-js', '/project/npx': 'npx vitest run' } };
 const kind = (command: string) => classifyShellTestRun(command, facts).kind;
@@ -36,4 +36,17 @@ describe('shell suite classification', () => {
       kind: 'whole-suite', segment: 'npm test', reason: 'no test file or directory was named',
     });
   });
+});
+
+
+test('only direct inspectable checks bypass consequential effect reconciliation', () => {
+  for (const command of ['node_modules/.bin/vitest run src/example.test.ts', 'git diff -- src/example.ts',
+    'node_modules/.bin/tsc --noEmit', 'node_modules/.bin/ramify check --batch --root .']) {
+    expect(isInspectableShellCheck(command, '/project'), command).toBe(true);
+  }
+  for (const command of ['git commit -m accepted', 'npm publish', 'npm run custom',
+    'vitest run src/example.test.ts && curl example.com', 'vitest run $(touch changed).test.ts',
+    'git diff > receipt.txt', 'git diff --output=receipt.txt', 'tsc --noEmit false', 'bash -c "vitest run src/example.test.ts"']) {
+    expect(isInspectableShellCheck(command, '/project'), command).toBe(false);
+  }
 });

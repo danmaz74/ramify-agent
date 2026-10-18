@@ -116,6 +116,8 @@ function sampleData(type: RunEvent['type']): unknown {
     'reconciliation-refused': { workItem: 'wi-001', reconciliation: null, stage: 'completion', reason: 'a CheckFinding became open after the basis' },
     'job-completed': { gate: 'ga-0001', commit: null, workItems: 0 },
     'job-failed': { reason: 'internal', message: '', evidence: [] },
+    'external-candidate-observed': { id: 'observed-1', beforeTree: hash64, afterTree: hash64 },
+    'job-continued': { command },
     'job-stopped': { settled: false },
     'job-interrupted': { message: 'm' },
   };

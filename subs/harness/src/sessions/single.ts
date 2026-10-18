@@ -30,7 +30,7 @@ import { gateAttemptId, gateAttemptSchema, invocationOutcomeSchema, runLayout, t
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
 import { engineerBuiltinTools, engineerEquipment } from '../work/engineer-equipment.js';
 import { shellToolName } from '../tools/shell.js';
-import { manualRunner, openManualRun, readManualResourceResult, recordManualResourceResult, waitManualResourceResult } from '../steps/manual.js';
+import { manualRunner, openManualRun, settleManualAttempts, recordManualResourceIntent, readManualResourceResult, recordManualResourceResult, waitManualResourceResult } from '../steps/manual.js';
 import { committedBody, finished } from '../steps/runner.js';
 import { engineerWorkingDirectory } from '../work/engineer-directory.js';
 import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../work/scratch.js';
@@ -62,7 +62,7 @@ import { iterationApiViews } from '../work/session.js';
 
 /** What starts one single engineer session. */
 export interface SingleSessionOptions {
-  readonly recoveryResume?: { readonly runId: string; readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
+  readonly recoveryResume?: { readonly runId: string; readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId: string };
   readonly projectRoot: string;
   /** The module, by its declared-name path or its project-relative directory. */
   readonly module: string;
@@ -227,8 +227,9 @@ export async function runSingleSession(options: SingleSessionOptions): Promise<S
     if (options.recoveryResume && directory) {
       const repeated = await readManualResourceResult<SingleSessionResult>(directory, options.recoveryResume.commandId, binding);
       if (repeated) return repeated;
+      await recordManualResourceIntent(directory, options.recoveryResume.commandId, binding);
     }
-    const result = await runLocked({ ...options, projectRoot }, () => { releaseLock = false; });
+    const result = await runLocked({ ...options, projectRoot }, () => { releaseLock = false; }, () => lock.held());
     if (options.recoveryResume && directory && result.status === 'finished') await recordManualResourceResult(directory, options.recoveryResume.commandId, binding, result);
     return result;
   } catch (error) {
@@ -242,7 +243,7 @@ function notStarted(reason: string, records: string | null = null): SingleSessio
   return { status: 'not-started', reason, records, exitStatus: 2 };
 }
 
-async function runLocked(options: SingleSessionOptions, retainProjectLock: () => void): Promise<SingleSessionResult> {
+async function runLocked(options: SingleSessionOptions, retainProjectLock: () => void, authorityCurrent: () => Promise<boolean>): Promise<SingleSessionResult> {
   const { projectRoot, agent, ramify } = options;
   const git = options.git ?? gitService;
   const progress = (event: SessionProgress) => {
@@ -356,8 +357,10 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   run.index = initial;
   run.invocationBase = head;
   const records = run.directory;
-  const { runner, close } = manualRunner({ projectRoot, git, model: options.model ?? null, agent });
+  const { runner, close } = manualRunner({ projectRoot, git, model: options.model ?? null, agent, authorityCurrent });
   closeOperations = close;
+  const obstruction = await settleManualAttempts(run, runner, agent, projectRoot);
+  if (obstruction !== null) return notStarted(obstruction, run.directory);
 
   // The prompt is the goal; what the person did not give reads "not stated".
   const assignment: IterationAssignment = {
@@ -428,8 +431,6 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   // submission, so the session is not kept.
   const result = await runner.runResourceInvocation<EngineerSubmission>(run, agent, {
     recoveryResume: options.recoveryResume,
-    resourceBinding: { module: options.module, prompt: options.prompt, write: options.write ?? [], gate: options.gate ?? false, model: options.model ?? null, guardedFiles },
-    resourceCommandBinding: { resume: options.recoveryResume, module: options.module, prompt: options.prompt, write: options.write ?? [], gate: options.gate ?? false, model: options.model ?? null },
     role: 'engineer',
     work: {},
     attempt: 1,

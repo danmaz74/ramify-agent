@@ -1,3 +1,4 @@
+import { taskBriefingRevision } from '../prompts/briefings.js';
 import { consultationAvailability } from '../consultations/targets.js';
 import { consultationTool, consultArchitectDeclaration } from '../consultations/tools.js';
 import { consultationId } from '../consultations/records.js';
@@ -9,13 +10,11 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { interruptionEvidence, type AgentPort, type AgentSession, type JsonSchema, type SessionSpec, type SessionStart, type InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import type { GitService } from '../../subs/evidence/src/git.js';
-import { processGroupIdentity } from '../../subs/evidence/src/run-command.js';
-import { nodeProcessGroups } from '../run/writer.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
 import type { GuardedScope } from '../guard/write-guard.js';
 import type { Role } from '../interfaces/protocol/runs.js';
-import { canonicalJson, CommandLedger } from '../jobs/commands.js';
+import { canonicalJson } from '../jobs/commands.js';
 import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import type { Mutex, PriorityMutex } from '../jobs/mutex.js';
 import { invocationReadSize, invocationScopeSize, invocationScopeFailure, type DeclaredScope } from '../../subs/kpi/src/capture.js';
@@ -27,11 +26,11 @@ import type { RunEventInput, RunLog } from '../run/log.js';
 import { recordSettledSnapshot } from '../run/mutations.js';
 import { ObservationLog } from '../run/observations.js';
 import { contextPolicyOf, invocationLimits } from '../run/policy.js';
-import { recoveryHash } from '../run/recovery-admission.js';
+import { decideTaskReentry, mayRetryTask, taskInterruption, taskRetryDelay, waitForTaskRetry } from '../../subs/recovery/src/reentry.js';
 import { endedOf, InvocationBounds, PortEventRecorder, type CallInFlight } from '../run/port-events.js';
 import { declaredModuleDirectories } from '../run/project-config.js';
 import {
-  invocationId, invocationOutcomeSchema, invocationSchema, measurementSnapshotSchema, operationRecoverySchema, runLayout, sessionId,
+  invocationId, invocationOutcomeSchema, invocationSchema, measurementSnapshotSchema, runLayout, sessionId,
   type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type Invocation, type InvocationOutcome,
   type MeasurementSnapshot, type RecordRef, type ReplaceRelation, type RequestRelation, type RunPolicy, type SessionFinishReason, type SessionId,
 } from '../run/records.js';
@@ -112,16 +111,12 @@ export type InvocationProgress =
 
 /** What one invocation is: its role, its work, its prompt and the one submission it may make. */
 export interface InvocationRequest<T> {
-  readonly recoveryResume?: { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
-  /** Stable consumer inputs and guarded configuration, excluding generated view observations. */
-  readonly resourceBinding?: unknown;
-  readonly resourceCommandBinding?: unknown;
+  readonly recoveryResume?: { readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId: string };
   /** Scheduler request that owns this reviewer or design-orientation pipeline. */
   readonly recoveryReviewRequest?: string;
   /** A semantic admission callback is called only once across transport successors. */
   readonly singleAdmission?: boolean;
   readonly recoveryPredecessor?: string;
-  readonly recoveryGroup?: number;
   /** Consultation forks must never silently lose their pinned source. */
   readonly allowFreshFallback?: boolean;
   readonly consultationPackages?: ReadonlyMap<string, LoadedPackage>;
@@ -319,6 +314,7 @@ export interface RunnerHost<R extends RunnerRun> {
   readonly adoptContinuity?: (run: R, occurrenceId: string) => Promise<void>;
   /** A scheduler owns its recovery hold and successor admission. */
   readonly resourceInvocation?: <T>(run: R, agent: AgentPort, request: InvocationRequest<T>) => Promise<InvocationResult<T>>;
+  readonly authorityCurrent?: () => Promise<boolean>;
   readonly projectRoot: string;
   readonly git: GitService;
   /** The model the agent was asked to run, recorded with each session; null where it chose its own. */
@@ -408,7 +404,7 @@ export class InvocationRunner<R extends RunnerRun> {
    */
   write(run: R, input: RunEventInput, records: readonly CommitRecord[] = [], at?: Date): Promise<'committed' | 'already-committed' | 'ended'> {
     return run.mutex.run(async () => {
-      if (run.log.terminal) return 'ended';
+      if (run.log.terminal || this.host.authorityCurrent && !await this.host.authorityCurrent()) return 'ended';
       if (records.length === 0) {
         await run.log.append(input, at);
         return 'committed';
@@ -487,14 +483,13 @@ export class InvocationRunner<R extends RunnerRun> {
   async runInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (request.signal?.aborted === true) return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '' as SessionId, kept: false, notStarted: true, error: 'Stopped by the caller before dispatch' };
     const result = await this.invokeOnce(run, agent, request);
-    // Ordinary recovery groups require a recorded reconstruction. Standalone
-    // manual invocations retain their existing fresh-fallback eligibility.
-    if (request.allowFreshFallback === false || result.settlementConfirmed === false || run.writer.isUnsettled || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.() || request.recoveryGroup !== undefined && request.fallback === undefined) return result;
+    // Missing optional context starts the ordinary task fresh after settlement.
+    if (request.allowFreshFallback === false || result.settlementConfirmed === false || run.writer.isUnsettled || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.()) return result;
     const reason = result.error ?? 'The retained session is unavailable';
     const fresh = request.fallback?.(reason);
     return this.invokeOnce(run, agent, {
       ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined,
-      ...(request.recoveryGroup === undefined ? {} : { recoveryPredecessor: result.id }),
+      recoveryPredecessor: result.id,
       continuing: undefined, fork: undefined, replaces: undefined,
       prompt: fresh?.prompt ?? request.freshPrompt ?? request.prompt,
       ...(fresh === undefined ? {} : { brief: fresh.brief, stepInputs: fresh.stepInputs }),
@@ -502,160 +497,85 @@ export class InvocationRunner<R extends RunnerRun> {
     });
   }
 
-  /**
-   * Resource continuation for direct consumers without the service's scheduler.
-   * A settled operation's durable task supplies a fresh successor; ordinary
-   * returns and accepted submissions retain their existing consumer handling.
-   * Only identical ineffective attempts consume the finite automatic group.
-   */
+  /** Re-enter the same ordinary task after lifecycle and effect owners settle it. */
   async runResourceInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (this.host.resourceInvocation) return this.host.resourceInvocation(run, agent, request);
+    const previous = run.log.all('invocation-started').filter(event => event.data.role === request.role && canonicalJson(event.data.work) === canonicalJson(request.work)).at(-1);
+    if (previous) {
+      if (request.recoveryResume) {
+        const original = await (await this.host.operations(agent)).originalOperation(run.jobId, previous.data.invocation);
+        if (!original || !request.brief) throw new Error('The original ordinary task record is unavailable; continuation cannot infer its goal or scope');
+        const required = taskBriefingRevision({ revision: 'task-comparison', goal: request.brief.goal, requirements: request.brief.requirements, sections: [] }).sections;
+        const originalInputs = original.briefing.filter(section => section.key === 'goal' || section.key === 'requirements').map(({ key, text }) => ({ key, text }));
+        if (canonicalJson(originalInputs) !== canonicalJson(required)) throw new Error('This continuation names a different task goal or requirements; start a new standalone task');
+        const scope = original.authority['scope'] as { projectRoot?: string; roots?: string[]; files?: string[]; excluded?: string[]; denied?: string[]; guarded?: string[] } | null;
+        if (scope === undefined) throw new Error('The original ordinary task scope record is unavailable');
+        const sorted = (paths: readonly string[] | undefined) => [...new Set(paths ?? [])].sort();
+        if (original.authority['writer'] !== (request.writer === true)
+          || original.task.environment.workingDirectory !== (request.workingDirectory ?? this.projectRoot)
+          || (scope === null) !== (request.guarded === undefined)
+          || scope && (scope.projectRoot !== request.guarded?.projectRoot
+            || canonicalJson(sorted(scope.roots)) !== canonicalJson(sorted(request.guarded?.roots))
+            || canonicalJson(sorted(scope.files)) !== canonicalJson(sorted(request.guarded?.files))
+            || (['excluded', 'denied', 'guarded'] as const).some(key => (scope[key] ?? []).some(path => !request.guarded?.[key]?.includes(path))))) {
+          throw new Error('This continuation names a different task scope; start a new standalone task');
+        }
+      }
+      const outcome = invocationOutcomeSchema.safeParse(committedBody(run, runLayout.outcome(previous.data.invocation)));
+      if (request.recoveryResume && outcome.success && outcome.data.ended === 'submitted') {
+        const operations = await this.host.operations(agent);
+        await operations.reconcileOwnedEffects(run.jobId, previous.data.invocation);
+        const accepted = await operations.acceptance(run.jobId, previous.data.invocation);
+        if (!accepted || accepted.schema !== request.submissionSchema || accepted.submissionHash !== outcome.data.submission?.hash) throw new Error(`Accepted result for ${previous.data.invocation} is unavailable`);
+        const decision = decideTaskReentry({ authorized: !this.host.ignoring(run) && request.fenced?.() !== true,
+          stopped: request.signal?.aborted === true, settled: (run.log.all('writer-released').filter(event => event.data.invocation === previous.data.invocation).at(-1)?.data.confirmed ?? outcome.data.settled.confirmed) && run.writer.blocked === undefined,
+          unresolved: await operations.unresolvedEffects(run.jobId, previous.data.invocation),
+          accepted: { value: accepted.value as T } });
+        if (decision.action === 'wait') throw new Error(decision.reason);
+        if (decision.action === 'deliver') return { id: previous.data.invocation, session: previous.data.session,
+          ended: 'submitted', outcomeKind: 'submitted', value: decision.value, ref: outcome.data.session?.ref ?? '',
+          kept: previous.data.session !== undefined && run.log.all('invocation-ended').find(event => event.data.invocation === previous.data.invocation)?.data.kept === true,
+          settlementConfirmed: true };
+      }
+    }
+    await this.host.adoptContinuity?.(run, `manual-invocation-${run.log.count('invocation-started') + 1}`);
     let current = request;
-    let ineffective = 0;
-    let previousCandidate: string | undefined;
-    const completedEffectIdentities = new Set<string>();
-    const attempts: string[] = [];
-    const maximum = run.policy.recovery?.automaticRetries ?? 2;
-    const binding = { role: request.role, work: request.work, goal: request.brief?.goal ?? request.task?.goal,
-      requirements: request.brief?.requirements ?? request.task?.requirements, tool: request.toolName,
-      package: request.loaded.hash, scope: { write: request.scope.write, measurement: request.scope.measurement },
-      consumer: request.resourceBinding, guarded: request.guarded ? { revision: request.guarded.revision, roots: request.guarded.roots, files: request.guarded.files,
-        excluded: request.guarded.excluded?.filter(path => !path.endsWith('/.harness')), guarded: request.guarded.guarded } : undefined, policy: run.originalPolicy ?? run.policy };
-    const requestHash = recoveryHash(binding);
-    const latest = run.log.events.filter(event => event.type === 'operation-recovery-paused' || event.type === 'operation-recovery-resumed').at(-1);
-    if (request.recoveryResume) {
-      const resume = request.recoveryResume;
-      if (!/^opr-\d+$/u.test(resume.occurrenceId) || !Number.isSafeInteger(resume.expectedRevision) || resume.expectedRevision < 1
-        || resume.commandId.length === 0 || resume.commandId.length > 200) throw new Error('Recovery refused: occurrence, revision or command identity is invalid');
-      const held = operationRecoverySchema.parse(committedBody(run, runLayout.operationRecovery(resume.occurrenceId, resume.expectedRevision)));
-      if (held.boundary.requestHash !== requestHash) {
-        const original = held.boundary.retainedTask?.authority['bindings'] as Record<string, string> | undefined;
-        const changed = Object.entries(binding).filter(([key, value]) => original?.[key] !== recoveryHash(value)).map(([key]) => key);
-        throw new Error(`Recovery refused: bindings differ from the retained occurrence (${changed.join(', ')})`);
-      }
-      const command = { commandId: resume.commandId, expectedVersion: resume.expectedRevision, occurrenceId: resume.occurrenceId, requestHash };
-      const commands = new CommandLedger();
-      for (const event of run.log.all('operation-recovery-resumed')) commands.remember(event.data.command);
-      const admission = commands.admit(command);
-      if (admission.kind === 'repeat') {
-        const start = run.log.all('invocation-started').filter(event => event.sequence > admission.receipt.sequence && event.data.role === request.role && canonicalJson(event.data.work) === canonicalJson(request.work)).at(-1);
-        const ended = start && invocationOutcomeSchema.safeParse(committedBody(run, runLayout.outcome(start.data.invocation)));
-        if (!start || !ended?.success) throw new Error('The admitted recovery command is still pending reconciliation; its operation cannot be repeated');
-        const outcome = ended.data;
-        const accepted = outcome.submission ? await (await this.host.operations(agent)).acceptance(run.jobId, start.data.invocation) : null;
-        if (outcome.submission && accepted?.submissionHash !== outcome.submission.hash) throw new Error('Accepted recovery result evidence is unavailable');
-        const value = accepted?.value as T | undefined;
-        return { id: start.data.invocation, session: start.data.session, ended: outcome.ended, outcomeKind: outcome.ended === 'submitted' ? 'submitted' : 'resource-pending',
-          kept: outcome.ended !== 'submitted', ref: outcome.session?.ref ?? '', value,
-          pending: outcome.ended === 'resource-pending', resource: outcome.resource, resourceReason: outcome.resourceReason,
-          settlementConfirmed: outcome.settled.confirmed, changed: outcome.settled.lateWrites, actual: outcome.session?.mode === 'continued' ? 'continue' : outcome.session?.mode };
-      }
-      if (!latest || latest.type !== 'operation-recovery-paused' || latest.data.occurrenceId !== resume.occurrenceId || latest.data.revision !== resume.expectedRevision) throw new Error('Recovery refused: stale or conflicting occurrence');
-      const operations = await this.host.operations(agent);
-      const predecessor = held.boundary.invocation!;
-      if (!await operations.stopOriginal(run.jobId, predecessor, run.policy.limits.writerSettleMs)) throw new Error('Recovery refused: predecessor settlement remains unknown');
-      await operations.reconcileOwnedEffects(run.jobId, predecessor);
-      if ((await operations.unresolvedEffects(run.jobId, predecessor)).length) throw new Error('Recovery refused: predecessor effects remain unknown');
-      const originalOutcome = invocationOutcomeSchema.parse(committedBody(run, runLayout.outcome(predecessor)));
-      const alive = originalOutcome.settled.confirmed ? [] : run.log.all('writer-process-registered').filter(event => event.data.invocation === predecessor && nodeProcessGroups.alive(event.data.pid));
-      for (const group of alive) if (await processGroupIdentity(group.data.pid) !== group.data.identity || group.data.identity === null) throw new Error('Recovery refused: surviving process group identity is unknown');
-      if (run.writer.unsettledInvocation === predecessor) {
-        if (!(await run.writer.reinspect(predecessor, { settled: async () => 'settled' }))?.confirmed) throw new Error('Recovery refused: registered process groups or candidate effects remain unsettled');
-      } else if (alive.length > 0) {
-        run.writer.acquire(predecessor);
-        for (const group of alive) run.writer.register(predecessor, group.data.pid);
-        if (!(await run.writer.release(predecessor, { settled: async () => 'settled' })).confirmed) throw new Error('Recovery refused: registered process groups or candidate effects remain unsettled');
-      }
-      const source = await operations.originalOperation(run.jobId, predecessor);
-      if (!source || held.boundary.reconstruction?.name !== 'retained-task-request' || recoveryHash(source) !== held.boundary.reconstruction.inputsHash) throw new Error('Recovery refused: original durable task evidence changed or is unavailable');
-      const candidate = { head: await this.host.git.currentHead(this.projectRoot), tree: (await this.host.previewCandidateTree()).tree };
-      if (held.candidate.head && held.candidate.head !== candidate.head || held.candidate.tree && held.candidate.tree !== candidate.tree) throw new Error('Recovery refused: the retained candidate changed; responsible compatibility assessment is required');
-      if (held.boundary.retainedTask?.authority['runtime'] !== recoveryHash(await (await import('../run/recovery-runtime.js')).captureInstalledRecoveryRuntime(agent.name))) throw new Error('Recovery refused: runtime contracts changed');
-      const accepted = commands.accept(command, admission.contentHash, run.jobId, run.log.version + 1, this.host.now());
-      const commandIntent = run.path(`resource-command-intents/${recoveryHash(resume.commandId)}.json`);
-      await mkdir(dirname(commandIntent), { recursive: true });
-      await writeFileAtomic(commandIntent, `${JSON.stringify({ commandId: resume.commandId, binding: recoveryHash(request.resourceCommandBinding) })}\n`);
-      const resumed = { ...held, state: 'resumed' as const, revision: held.revision + 1, group: held.group + 1, settled: true,
-        reconciledInvocations: [...held.reconciledInvocations ?? [], predecessor] };
-      await this.write(run, { type: 'operation-recovery-resumed', data: { occurrenceId: held.id, revision: resumed.revision, group: resumed.group, command: accepted } },
-        [{ path: runLayout.operationRecovery(held.id, resumed.revision), id: held.id, revision: resumed.revision, body: resumed }]);
-      await this.host.adoptContinuity?.(run, held.id);
-      const text = `Explicit source-backed continuation from ${predecessor}. Preserve partial candidate and all accepted effects; no submission was inferred.\n${source.task.message}\nEvidence: ${run.path(runLayout.outcome(predecessor))}.`;
-      current = { ...request, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
-        recoveryPredecessor: predecessor, onStarted: undefined,
-        brief: request.brief ? { ...request.brief, sections: [...request.brief.sections, { key: 'support:resource-recovery', text }] } : undefined,
-        task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:resource-recovery', text }] } : undefined };
-    } else if (latest?.type === 'operation-recovery-paused') throw new Error('The manual run has retained pending work; an occurrence-bound recovery command is required');
-    else await this.host.adoptContinuity?.(run, `manual-invocation-${run.log.count('invocation-started') + 1}`);
-    current = { ...current, context: contextPolicyOf(run.policy, request.role) };
+    let retries = 0;
     for (;;) {
       const result = await this.runInvocation(run, agent, current);
-      if (result.id === '' || result.pending !== true || result.resource === undefined || request.signal?.aborted || request.fenced?.() || this.host.ignoring(run)) return result;
-      attempts.push(result.id);
-      const prerequisites: string[] = [];
-      if (result.settlementConfirmed !== true || run.writer.blocked !== undefined) prerequisites.push('Predecessor settlement remains unknown; replacement execution is refused');
+      const classification = taskInterruption({ ended: result.ended, interruption: result.interruption, classification: result.interruptionEvidence?.classification });
+      if (result.id === '' || classification === null) return result;
       const operations = await this.host.operations(agent);
-      const source = await operations.originalOperation(run.jobId, result.id).catch(error => {
-        prerequisites.push(`Original task evidence is unavailable: ${message(error)}`); return null;
+      await operations.reconcileOwnedEffects(run.jobId, result.id);
+      const decision = decideTaskReentry({
+        authorized: !this.host.ignoring(run) && request.fenced?.() !== true,
+        stopped: request.signal?.aborted === true,
+        settled: result.settlementConfirmed === true && run.writer.blocked === undefined,
+        unresolved: await operations.unresolvedEffects(run.jobId, result.id),
       });
-      if (!source) prerequisites.push('The original durable task request is required for reconstruction');
-      if (!request.brief && !request.task) prerequisites.push('Current owning task construction is required for source-backed reconstruction');
-      const unresolved = await operations.unresolvedEffects(run.jobId, result.id).catch(error => {
-        prerequisites.push(`Effect reconciliation is unavailable: ${message(error)}`); return ['unavailable'];
-      });
-      if (unresolved.length) prerequisites.push(`Unacknowledged mutating effects require reconciliation: ${unresolved.join(', ')}`);
-      const effects = await operations.completedEffects(run.jobId, result.id).catch(error => {
-        prerequisites.push(`Accepted effect evidence is unavailable: ${message(error)}`); return [];
-      });
-      const beforeEffects = completedEffectIdentities.size;
-      for (const effect of effects) if (!effect.tool.startsWith('afterMutation:')) completedEffectIdentities.add(recoveryHash({ tool: effect.tool, input: effect.input, result: effect.result, verdict: effect.verdict }));
-      if (completedEffectIdentities.size > beforeEffects) ineffective = 0;
-      let candidate = { head: '', tree: '' };
-      try { candidate.head = await this.host.git.currentHead(this.projectRoot); candidate.tree = (await this.host.previewCandidateTree()).tree; }
-      catch (error) { prerequisites.push(`Current candidate identity is unavailable: ${message(error)}`); }
-      if (previousCandidate !== undefined && candidate.tree !== '' && previousCandidate !== candidate.tree) ineffective = 0;
-      previousCandidate = candidate.tree;
-      const context = [
-        `Resource recovery from ${result.id}: ${result.resourceReason ?? result.resource}.`,
-        'The assignment remains pending. No submission or partial result was inferred. Preserve partial edits and accepted effects; never replay authenticated effects.',
-        `Current candidate: ${JSON.stringify(candidate)}. Current authority: ${JSON.stringify({ role: request.role, work: request.work, scope: request.scope, submission: request.toolName, policy: run.policy.version })}.`,
-        `Original task, findings, configuration and submission obligations: ${source?.task.message ?? request.freshPrompt ?? request.prompt}`,
-        `Durable predecessor outcome: ${run.path(runLayout.outcome(result.id))}. Transcript: ${run.path(runLayout.transcript(result.session))}. Accepted records: ${run.path(runLayout.events)}.`,
-      ].join('\n\n');
-      if (prerequisites.length > 0 || ineffective >= maximum) {
-        if (prerequisites.length === 0) prerequisites.push('The automatic group made no candidate progress; inspect the retained operation and explicitly retry its original task');
-        const id = `opr-${String(run.log.count('operation-recovery-pausing') + 1).padStart(4, '0')}`;
-        const recovery = operationRecoverySchema.parse({ schema: 'ramify-agent.operation-recovery/1', id, revision: 1, state: 'paused',
-          boundary: { kind: 'invocation', role: request.role, work: request.work, invocation: result.id, tool: request.toolName,
-            source: request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from,
-            start: request.start, requestHash,
-            retainedTask: { candidate, acceptedHead: this.host.base(run), work: request.work, configuration: recoveryHash(run.policy),
-              obligations: [{ kind: 'submission', id: request.toolName }], sourceRecords: [runLayout.outcome(result.id), runLayout.transcript(result.session)],
-              authority: { role: request.role, scope: request.scope, guarded: binding.guarded, bindings: Object.fromEntries(Object.entries(binding).map(([key, value]) => [key, recoveryHash(value)])), runtime: recoveryHash(await (await import('../run/recovery-runtime.js')).captureInstalledRecoveryRuntime(agent.name)) } },
-            ...(source ? { reconstruction: { name: 'retained-task-request', mode: 'fresh', invocation: result.id, inputsHash: recoveryHash(source) } } : {}) },
-          evidence: { classification: 'transport', diagnostic: result.resourceReason ?? 'Resource recovery remains pending' },
-          group: 0, automaticAttempts: ineffective, attempts, pausedAt: this.host.now().toISOString(),
-          settled: result.settlementConfirmed === true && unresolved.length === 0, candidate, partialPaths: result.changed ?? [], prerequisites });
-        await this.write(run, { type: 'operation-recovery-pausing', data: { occurrenceId: id, revision: 1 } },
-          [{ path: runLayout.operationRecovery(id, 1), id, revision: 1, body: recovery }]);
-        await this.write(run, { type: 'operation-recovery-paused', data: { occurrenceId: id, revision: 1 } });
-        return { ...result, resourceReason: `${result.resourceReason ?? 'Resource recovery pending'}. ${prerequisites.join('; ')}. Evidence: ${run.path(runLayout.operationRecovery(id, 1))}` };
-      }
-      ineffective++;
-      const fallback = request.fallback?.('Source-backed resource continuation');
-      current = { ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' },
-        context: contextPolicyOf(run.policy, request.role),
-        session: undefined, continuing: undefined, fork: undefined, replaces: undefined,
-        recoveryPredecessor: result.id, onStarted: undefined,
-        prompt: fallback?.prompt ?? request.freshPrompt ?? request.prompt,
-        ...(fallback ? { stepInputs: fallback.stepInputs } : {}),
-        brief: fallback?.brief || request.brief ? { ...(fallback?.brief ?? request.brief!),
-          sections: [...(fallback?.brief ?? request.brief)!.sections, { key: 'support:resource-recovery', text: context }] } : undefined,
-        task: request.task ? { ...request.task, candidate: candidate.tree,
-          literalSections: [...request.task.literalSections ?? [], { key: 'support:resource-recovery', text: context }] } : undefined,
-        degraded: { requested: request.start.mode === 'continue' ? 'continued' : request.start.mode === 'fork' ? 'fork' : 'fresh',
-          reason: `Source-backed resource continuation from ${result.id}; ${result.resourceReason ?? result.resource}` } };
+      if (decision.action === 'wait') return { ...result, pending: true, resourceReason: decision.reason };
+      if (!mayRetryTask({ attempt: retries++, limit: run.policy.recovery?.automaticRetries ?? 2, classification })) return { ...result, pending: true, resourceReason: `Repeated interruption: ${result.resourceReason ?? result.error ?? classification}. The task remains pending; execute it again when the interruption is resolved.` };
+      const delay = taskRetryDelay({ attempt: retries - 1, classification, retryAfterMs: result.interruptionEvidence?.retryAfterMs });
+      if (!await waitForTaskRetry(delay, request.signal)) return { ...result, pending: true, resourceReason: 'Execution was cancelled during transport backoff' };
+      current = this.restartTaskRequest(request, result.id, result.resourceReason ?? result.error ?? classification);
     }
+  }
+
+  /** Construct the same pending task fresh; hosted and standalone owners share this construction. */
+  restartTaskRequest<T>(request: InvocationRequest<T>, predecessor: string, interruption: string): InvocationRequest<T> {
+    const reason = `The previous attempt was interrupted: ${interruption}. Inspect current files and finish the pending assignment; preserve partial work and accepted results.`;
+    const fresh = request.fallback?.(reason);
+    const brief = fresh?.brief ?? request.brief;
+    return { ...request, originalInvocation: undefined, restore: false,
+      start: { mode: 'fresh' }, session: undefined, continuing: undefined,
+      fork: undefined, replaces: undefined,
+      ...(request.singleAdmission ? { onStarted: undefined } : {}),
+      recoveryPredecessor: predecessor,
+      prompt: fresh?.prompt ?? request.freshPrompt ?? request.prompt,
+      ...(fresh ? { stepInputs: fresh.stepInputs } : {}),
+      brief: brief ? { ...brief, sections: [...brief.sections, { key: 'support:interruption', text: reason }] } : undefined,
+      task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:interruption', text: reason }] } : undefined,
+    };
   }
 
   /** Present the effective ordinary input; preview owns no operation, tool or writer. */
@@ -800,7 +720,6 @@ export class InvocationRunner<R extends RunnerRun> {
       scope: { ...request.scope, size: null },
       writer: request.writer === true,
       ...(request.recoveryPredecessor === undefined ? {} : { recoveryPredecessor: request.recoveryPredecessor }),
-      ...(request.recoveryGroup === undefined ? {} : { recoveryGroup: request.recoveryGroup }),
       ...(request.candidateBefore === undefined ? {} : { candidateBefore: request.candidateBefore }),
       base: this.host.base(run),
       ...(request.startingTree === undefined ? {} : { startingTree: request.startingTree }),
@@ -1014,7 +933,7 @@ export class InvocationRunner<R extends RunnerRun> {
         // no longer limits validation corrections.
         validator: { name: request.toolName, schema: request.inputSchema, submissionSchema: request.submissionSchema, bound: limits.rejectedSubmissionsPerTurn },
         destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) },
-        accepted: () => { if (value === undefined || submissionHash === null) throw new Error('Accepted destination was not retained'); return { value, schema: request.submissionSchema, submissionHash }; }, currentAuthority: async () => !this.host.ignoring(run) && !recoveryRequested && request.fenced?.() !== true && request.signal?.aborted !== true,
+        accepted: () => { if (value === undefined || submissionHash === null) throw new Error('Accepted destination was not retained'); return { value, schema: request.submissionSchema, submissionHash }; }, currentAuthority: async () => (!this.host.authorityCurrent || await this.host.authorityCurrent()) && !this.host.ignoring(run) && !recoveryRequested && request.fenced?.() !== true && request.signal?.aborted !== true,
         identified: async identity => {
           recorder.identify(identity);
           await this.prepareInvocation(run, id, undefined, identity);

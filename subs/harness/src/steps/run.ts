@@ -31,7 +31,7 @@ import { constructStep, freshFallback } from './construct.js';
 import { constructEngineerStep } from './engineer.js';
 import { parseStepInputs, StepInputsError, validateStepInputs, type StepInputs } from './inputs.js';
 import { constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn } from './local-architect.js';
-import { manualRunLocationOf, manualRunner, unsettledWriter, openManualRun, recordAuthoredInputs, readManualResourceResult, recordManualResourceResult, waitManualResourceResult, type ManualRun } from './manual.js';
+import { manualRunLocationOf, manualRunner, openManualRun, recordAuthoredInputs, settleManualAttempts, recordManualResourceIntent, readManualResourceResult, recordManualResourceResult, waitManualResourceResult, type ManualRun } from './manual.js';
 import { constructDesignOrientationStep } from './reviewer.js';
 import { prepareManualReview, ReviewRefusal, type ManualReview } from './review-step.js';
 import { committedBody, finished, kept, type InvocationProgress, type InvocationRequest, type InvocationResult, type InvocationRunner } from './runner.js';
@@ -58,7 +58,7 @@ const message = (error: unknown): string => (error instanceof Error ? error.mess
 
 /** What one `step run` is given. */
 export interface StepRunOptions {
-  readonly recoveryResume?: { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
+  readonly recoveryResume?: { readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId: string };
   /** The step inputs file. */
   readonly inputs: string;
   /** The manual run directory, `<project>/plans/<plan>/.harness/jobs/<run>`, created where it does not exist. */
@@ -224,8 +224,9 @@ export async function runStep(options: StepRunOptions): Promise<StepRunResult> {
     if (options.recoveryResume) {
       const repeated = await readManualResourceResult<StepRunResult>(options.run, options.recoveryResume.commandId, binding);
       if (repeated) return repeated;
+      await recordManualResourceIntent(options.run, options.recoveryResume.commandId, binding);
     }
-    const result = await runLocked(options, inputs, { ...location, projectRoot }, () => { releaseLock = false; });
+    const result = await runLocked(options, inputs, { ...location, projectRoot }, () => { releaseLock = false; }, () => lock.held());
     if (options.recoveryResume && result.status === 'finished') await recordManualResourceResult(options.run, options.recoveryResume.commandId, binding, result);
     return result;
   } catch (error) {
@@ -258,7 +259,7 @@ function takenStart(inputs: StepInputs, run: ManualRun, sessionOf: (ref: string,
 }
 
 async function runLocked(options: StepRunOptions, original: StepInputs, location: { readonly projectRoot: string; readonly planId: string; readonly runId: string },
-  retainProjectLock: () => void): Promise<StepRunResult> {
+  retainProjectLock: () => void, authorityCurrent: () => Promise<boolean>): Promise<StepRunResult> {
   const { agent, ramify } = options;
   const { projectRoot } = location;
   const git = options.git ?? gitService;
@@ -282,12 +283,6 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
   if (opened.status === 'refused') return notStarted(`The manual run cannot be used: ${opened.reason}`);
   const run = opened.run;
   run.index = index;
-  // A writer of an earlier invocation that is not known to be settled may still be writing.
-  const unsettled = options.recoveryResume ? null : unsettledWriter(run.log);
-  if (unsettled !== null) return notStarted(`The manual run cannot be used: ${unsettled}`, run.directory);
-  const latestRecovery = run.log.events.filter(event => event.type === 'operation-recovery-paused' || event.type === 'operation-recovery-resumed').at(-1);
-  if (latestRecovery?.type === 'operation-recovery-paused' && !options.recoveryResume) return notStarted('The manual run retains pending work; supply an occurrence-bound recovery command', run.directory);
-
   // The inputs are the manual run's own; where they came from stays their provenance.
   let inputs: StepInputs;
   try {
@@ -298,7 +293,9 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
     inputs = validateStepInputs({ ...original, ...('consultation' in original && !retained ? { consultation: unavailableConsultation(consultation ?? undefined, 'This manual run has no retained architect sessions for these inputs.') } : {}), run: { planId: run.planId, runId: run.jobId } });
   }
   catch (error) { return notStarted(error instanceof StepInputsError ? error.message : message(error), run.directory); }
-  const { runner, close } = manualRunner({ projectRoot, git, model: options.model ?? null, agent, ...(options.now === undefined ? {} : { now: options.now }) });
+  const { runner, close } = manualRunner({ projectRoot, git, model: options.model ?? null, agent, authorityCurrent, ...(options.now === undefined ? {} : { now: options.now }) });
+  const obstruction = await settleManualAttempts(run, runner, agent, projectRoot);
+  if (obstruction !== null) { await close(); return notStarted(obstruction, run.directory); }
   const sessionOf = (ref: string, session: string | undefined): string | null => {
     for (const ended of [...run.log.all('invocation-ended')].reverse()) {
       if (session !== undefined && ended.data.session !== session) continue;
@@ -344,8 +341,6 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
     const result: InvocationResult<unknown> = await runner.runResourceInvocation(run, agent, {
       ...prepared.request, consultationPackages: packages,
       recoveryResume: options.recoveryResume,
-      resourceBinding: original,
-      resourceCommandBinding: { resume: options.recoveryResume, inputs: original, model: options.model ?? null },
       startingTree: { dirty: startingChanged.length > 0, changed: [...startingChanged] },
       signal: options.signal,
       progress: event => {

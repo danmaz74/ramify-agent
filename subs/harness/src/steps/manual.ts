@@ -1,6 +1,7 @@
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import type { AgentPort } from '../../subs/agent/src/interfaces/port.js';
+import { processGroupIdentity } from '../../subs/evidence/src/run-command.js';
 import type { GitService } from '../../subs/evidence/src/git.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
@@ -23,7 +24,7 @@ import { iterationLayout } from '../work/iterations.js';
 import { integrationScenarioOf, originKindOf, workLayout } from '../work/records.js';
 import { authoredOutlineInvocation } from './authoring.js';
 import type { EngineerStepInputs } from './inputs.js';
-import { committedBody, InvocationRunner, type LiveInvocation, type RunnerRun } from './runner.js';
+import { committedBody, stoppedOutcome, finished, InvocationRunner, type LiveInvocation, type RunnerRun } from './runner.js';
 
 /*
  * A manual run: the run layout `plans/<plan>/.harness/jobs/<run>/` with a
@@ -70,6 +71,16 @@ export async function recordManualResourceResult(directory: string, commandId: s
     records: [{ path, id: commandId, revision: 1, body }] });
 }
 
+/** Persist command identity before execution; replies remain ledger transactions. */
+export async function recordManualResourceIntent(directory: string, commandId: string, binding: unknown): Promise<void> {
+  const path = join(directory, 'resource-command-intents', `${recoveryHash(commandId)}.json`);
+  await mkdir(dirname(path), { recursive: true });
+  const existing = await readFile(path, 'utf8').catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; });
+  const body = { commandId, binding: recoveryHash(binding) };
+  if (existing !== null && canonicalJson(JSON.parse(existing)) !== canonicalJson(body)) throw new Error('Command conflicts with its admitted content');
+  if (existing === null) await writeFileAtomic(path, `${JSON.stringify(body)}\n`);
+}
+
 /** Observe an already admitted command without acquiring execution authority. */
 export async function waitManualResourceResult<T>(projectRoot: string, directory: string, commandId: string, binding: unknown,
   ownerToken: string, signal?: AbortSignal): Promise<T | null> {
@@ -77,14 +88,7 @@ export async function waitManualResourceResult<T>(projectRoot: string, directory
   if (repeated) return repeated;
   const intent = await readFile(join(directory, 'resource-command-intents', `${recoveryHash(commandId)}.json`), 'utf8').catch(() => null);
   if (intent !== null && (JSON.parse(intent) as { binding?: string }).binding !== recoveryHash(binding)) throw new Error('Recovery command conflicts with its admitted content');
-  const bytes = await readFile(join(directory, runLayout.events), 'utf8').catch(() => '');
-  const admitted = bytes.split('\n').filter(Boolean).some(line => {
-    try { const stored = JSON.parse(line) as { event?: unknown };
-      const event = (stored.event ?? stored) as { type?: string; data?: { command?: { commandId?: string } } };
-      return event.type === 'operation-recovery-resumed' && event.data?.command?.commandId === commandId;
-    } catch { return false; }
-  });
-  if (!admitted) return null;
+  if (intent === null) return null;
   for (;;) {
     const result = await readManualResourceResult<T>(directory, commandId, binding);
     if (result) return result;
@@ -293,10 +297,12 @@ export function manualRunner(options: {
   readonly agent: AgentPort;
   readonly now?: (() => Date) | undefined;
   readonly warn?: ((text: string) => void) | undefined;
+  readonly authorityCurrent?: () => Promise<boolean>;
 }): ManualRunner {
   let operations: Promise<HarnessSessionOperations> | undefined;
   const open = (agent: AgentPort) => operations ??= HarnessSessionOperations.open(sessionOperationsDirectory(options.projectRoot), agent);
   const runner = new InvocationRunner<ManualRun>({
+    authorityCurrent: options.authorityCurrent,
     adoptContinuity: async (run, occurrenceId) => {
       if (run.policy.continuity) return;
       const defaults = defaultRunPolicy({ projectRoot: options.projectRoot });
@@ -324,6 +330,44 @@ export function manualRunner(options: {
     runner,
     close: async () => (operations === undefined ? true : (await operations.catch(() => undefined))?.close() ?? true),
   };
+}
+
+/** Settle historical attempts under the project lock before ordinary dispatch. */
+export async function settleManualAttempts(run: ManualRun, runner: InvocationRunner<ManualRun>, agent: AgentPort, projectRoot: string): Promise<string | null> {
+  if (unsettledWriter(run.log) === null) return null;
+  const operations = await HarnessSessionOperations.open(sessionOperationsDirectory(projectRoot), agent);
+  try {
+    const ended = new Set(run.log.all('invocation-ended').map(event => event.data.invocation));
+    const released = new Map(run.log.all('writer-released').map(event => [event.data.invocation, event.data.confirmed]));
+    for (const start of run.log.all('invocation-started')) {
+      const id = start.data.invocation;
+      const writer = run.log.all('writer-acquired').some(event => event.data.invocation === id);
+      if (ended.has(id) && (!writer || released.get(id) === true)) continue;
+      if (!await operations.stopOriginal(run.jobId, id, run.policy.limits.writerSettleMs)) return `The previous attempt ${id} has not settled`;
+      const groups = run.log.all('writer-process-registered').filter(event => event.data.invocation === id && nodeProcessGroups.alive(event.data.pid));
+      for (const group of groups) if (group.data.identity === null || await processGroupIdentity(group.data.pid) !== group.data.identity) return `The process identity for ${id} is unavailable`;
+      let settled = stoppedOutcome().settled;
+      if (writer) {
+        run.writer.acquire(id);
+        for (const group of groups) run.writer.register(id, group.data.pid);
+        settled = await run.writer.release(id, { settled: async () => 'settled' });
+        await runner.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
+      }
+      if (!settled.confirmed) return `The previous writer ${id} or its child processes have not settled`;
+      await operations.reconcileOwnedEffects(run.jobId, id);
+      const unresolved = await operations.unresolvedEffects(run.jobId, id);
+      if (unresolved.length) return `Consequential operation outcomes for ${id} remain unresolved: ${unresolved.join(', ')}`;
+      if (!ended.has(id)) {
+        const accepted = await operations.acceptance(run.jobId, id);
+        await runner.endInvocation(run, id, start.data.session, finished('not-kept'), {
+          ...stoppedOutcome(), settled,
+          ...(accepted ? { ended: 'submitted', disposition: 'applied', submission: { hash: accepted.submissionHash } }
+            : { error: 'Execution was interrupted; the task remains pending' }),
+        });
+      }
+    }
+    return null;
+  } finally { await operations.close(); }
 }
 
 /**

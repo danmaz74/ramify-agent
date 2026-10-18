@@ -2,7 +2,7 @@ import { mkdir, realpath, stat } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { GateCommandStarted } from '../checks/execution.js';
 import { configuredFullRecovery, sameAuditPolicy, type CommittedAuditConfiguration, type ConfiguredAuditPort, type ConfiguredFullAuditResult } from '../../subs/audit/src/check-execution.js';
-import { recoveryHash } from './recovery-admission.js';
+import { compatibleAuditRepair } from './recovery-admission.js';
 import { checkExecutionObstruction, type CheckExecutionObstruction } from './recovery-checks.js';
 import { checkpointPolicies, installOperation, setupChecks } from '../checks/checkpoint.js';
 import { configuredAuditRecord } from '../checks/gate.js';
@@ -47,9 +47,6 @@ interface StepResult {
 }
 
 export interface ReadinessRequest {
-  readonly completedPreparation?: readonly string[];
-  readonly preparationStarted?: (key: string) => Promise<void>;
-  readonly preparationCompleted?: (key: string, passed: boolean) => Promise<void>;
   /** The run whose branch the last step creates. */
   readonly runId: string;
   /** The count of committed readiness attempts, this one included. */
@@ -106,7 +103,7 @@ export async function runReadiness(execution: ConfiguredAuditPort, request: Read
   } else {
     try {
       current = await execution.read(projectRoot, request.head, request.signal);
-      const compatible = sameAuditPolicy(current, captured.config);
+      const compatible = sameAuditPolicy(current, captured.config) || compatibleAuditRepair(captured.config, current);
       if (compatible) config = current;
       steps.push(compatible
         ? { step: 'audit-config', outcome: 'passed', detail: `${current.path} blob ${current.blob} at ${request.head}; captured at ${captured.config.sourceCommit}` }
@@ -234,16 +231,12 @@ async function declaredPreparationStep(
   if (refused !== null) return { step: 'declared-preparation', outcome: 'failed', detail: refused };
   await mkdir(request.gateDirectory, { recursive: true });
   for (const [index, check] of setup.entries()) {
-    const key = recoveryHash({ preparation: configuration.workspace.setupCommands, position: index, command: check.command });
-    if (request.completedPreparation?.includes(key)) continue;
     if (request.signal?.aborted) return { step: 'declared-preparation', outcome: 'not-verified', detail: 'declared preparation was cancelled' };
     const outputFile = join(request.gateDirectory, `${String(index + 1).padStart(2, '0')}-preparation.log`);
     await request.started?.({ kind: 'setup', ...(check.name === undefined ? {} : { name: check.name }), position: index + 1, total: setup.length });
-    await request.preparationStarted?.(key);
     const run = await (request.commandExecution ?? runCommand)({ argv: check.command.argv, cwd: check.command.cwd,
       env: checkCommandEnvironment(check.command), timeoutMs: check.command.timeoutMs, outputFile,
       ...(request.signal === undefined ? {} : { signal: request.signal }) });
-    await request.preparationCompleted?.(key, run.outcome.kind === 'completed' && run.outcome.exitCode === 0);
     if (run.outcome.kind !== 'completed' || run.outcome.exitCode !== 0) {
       const ending = run.outcome.kind === 'completed' ? `exited ${run.outcome.exitCode}` : run.outcome.kind;
       return { step: 'declared-preparation', outcome: run.outcome.kind === 'completed' ? 'failed' : 'not-verified',

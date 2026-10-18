@@ -89,7 +89,7 @@ function port(config: CommittedAuditConfiguration, answer?: Partial<ConfiguredFu
 }
 
 async function attempt(fixture: { root: string; head: string }, config: CommittedAuditConfiguration,
-  configured = port(config), runId = 'readiness-fixture', recovery: Partial<Pick<ReadinessRequest, 'completedPreparation' | 'preparationStarted' | 'preparationCompleted' | 'attempt' | 'gateId'>> = {}) {
+  configured = port(config), runId = 'readiness-fixture', recovery: Partial<Pick<ReadinessRequest, 'attempt' | 'gateId'>> = {}) {
   const output = await mkdtemp(join(tmpdir(), 'ramify-agent-declared-readiness-'));
   cleanups.push(() => rm(output, { recursive: true, force: true }));
   const result = await runReadiness(configured.adapter, {
@@ -135,11 +135,11 @@ function step(result: Awaited<ReturnType<typeof attempt>>, name: string) {
 }
 
 describe('declared preparation and default configured readiness', () => {
-  test('readiness resumes its audit prerequisite without repeating a committed setup effect', async () => {
+  test('readiness repeats ordinary setup after an interrupted audit prerequisite', async () => {
     const fixture = await project();
     const command = { argv: ['build-tool', 'prepare'], cwd: '.', env: {}, timeoutMs: 30_000 };
     const config = configuration(fixture, { setupCommands: [command] });
-    const execution = strictReadinessCommand(fixture.root, command, 1);
+    const execution = strictReadinessCommand(fixture.root, command, 2);
     boundaries.get(fixture.root)!.command(execution.run); checks.push(execution.assertComplete);
     let auditCalls = 0;
     const adapter: ConfiguredAuditPort = { read: async () => config, run: async input => ++auditCalls === 1
@@ -147,14 +147,11 @@ describe('declared preparation and default configured readiness', () => {
         provider: { status: 'failed', error: { code: 'ENOENT', message: 'Required check executable missing', retryable: false } } })
       : resultOf(input) };
     const strict = strictReadinessAudit(adapter, fixture.root, config, ['ga-0001', 'ga-0002']); checks.push(strict.assertComplete);
-    const completed: string[] = [], started: string[] = [];
-    const callbacks = { completedPreparation: completed, preparationStarted: async (key: string) => { started.push(key); },
-      preparationCompleted: async (key: string, passed: boolean) => { if (passed) completed.push(key); } };
-    const first = await attempt(fixture, config, { adapter: strict.adapter, calls: [] }, 'readiness-fixture', callbacks);
+    const first = await attempt(fixture, config, { adapter: strict.adapter, calls: [] }, 'readiness-fixture');
     expect(first.obstruction).toMatchObject({ automatic: false, diagnostic: expect.stringContaining('ENOENT') });
-    expect(first.attempt.verdict).toBe('failed'); expect(completed).toHaveLength(1);
-    const resumed = await attempt(fixture, config, { adapter: strict.adapter, calls: [] }, 'readiness-fixture', { ...callbacks, attempt: 2, gateId: 'ga-0002' });
-    expect(resumed.attempt.verdict).toBe('passed'); expect(started).toEqual(completed); expect(auditCalls).toBe(2);
+    expect(first.attempt.verdict).toBe('failed');
+    const resumed = await attempt(fixture, config, { adapter: strict.adapter, calls: [] }, 'readiness-fixture', { attempt: 2, gateId: 'ga-0002' });
+    expect(resumed.attempt.verdict).toBe('passed'); expect(auditCalls).toBe(2);
   });
   test('a setup-only deep package is required; an undeclared manifest creates no check', async () => {
     const deep = 'subs/a/subs/b/subs/c/subs/d/tools';
@@ -225,6 +222,16 @@ describe('declared preparation and default configured readiness', () => {
     expect(result.calls).not.toContain(`project-default:${fixture.head}`);
   });
 
+  test('a configuration blob change with the same required checks uses current ordinary verification', async () => {
+    const fixture = await project();
+    const captured = configuration(fixture);
+    const current = { ...captured, blob: 'new-config-blob' };
+    configRoots.set(current, fixture.root);
+    const result = await attempt(fixture, captured, port(current));
+    expect(step(result, 'audit-config')?.outcome).toBe('passed');
+    expect(result.attempt.verdict).toBe('passed');
+  });
+
   test('provider failure and captured-policy conflict stop before branch creation', async () => {
     const fixture = await project();
     boundaries.get(fixture.root)!.expectBranches(0);
@@ -235,7 +242,7 @@ describe('declared preparation and default configured readiness', () => {
     expect(failingStep(failed.attempt)?.detail).toContain('configured discovery unavailable');
     expect(step(failed, 'run-branch')?.outcome).toBe('not-verified');
     expect(boundaries.get(fixture.root)!.branches().join('\n')).toBe('');
-    const conflictingConfig = { ...config, blob: 'changed-blob' };
+    const conflictingConfig = { ...config, blob: 'changed-blob', checks: [] };
     configRoots.set(conflictingConfig, fixture.root);
     const mismatched = port(conflictingConfig, undefined, 0);
     const conflict = await attempt(fixture, config, mismatched);

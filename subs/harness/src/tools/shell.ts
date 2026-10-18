@@ -5,7 +5,7 @@ import { childEnvironment, runCommand, type CommandOutcome } from '../../subs/ev
 import { readFile, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join, relative, sep } from 'node:path';
-import { classifyShellTestRun, shellTestDirectories, type FocusedCucumberSelection } from './shell-tests.js';
+import { classifyShellTestRun, isInspectableShellCheck, shellTestDirectories, type FocusedCucumberSelection } from './shell-tests.js';
 import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type MutationOrder, type MutationSnapshot } from '../hooks/mutation-order.js';
 
 /*
@@ -184,6 +184,11 @@ export function createShellTool(options: ShellOptions): ShellTool {
 
   const definition: ToolDefinition = {
     ...shellToolDeclaration(maxTimeoutMs),
+    consequential: input => {
+      const parsed = inputSchema.safeParse(input);
+      return !parsed.success || (!options.focusedCommands?.some(command => command.shellCommand === parsed.data.command)
+        && !isInspectableShellCheck(parsed.data.command, options.workingDirectory));
+    },
     // A shell call is a command; its text is the one field of the input read.
     action: input => {
       const command = typeof input === 'object' && input !== null ? (input as { readonly command?: unknown }).command : undefined;

@@ -24,6 +24,10 @@ test('manual resource resume carries one occurrence, revision and stable command
   expect(parseCommandLine(['step', 'run', '--inputs', 'task.json', '--run', '/p/plans/p/.harness/jobs/r', ...resume]))
     .toMatchObject({ step: { recoveryResume: { occurrenceId: 'resource-0001', expectedRevision: 2, commandId: 'resume-once' } } });
   const session = ['session', '--project', '/p', '--module', 'p/module', '--prompt', 'Original need'];
+  expect(parseCommandLine(['step', 'run', '--inputs', 'task.json', '--run', '/r', '--command-id', 'continue-task']))
+    .toMatchObject({ step: { recoveryResume: { commandId: 'continue-task' } } });
+  expect(parseCommandLine([...session, '--resume-run', 'run-1', '--command-id', 'continue-task']))
+    .toMatchObject({ recoveryResume: { runId: 'run-1', commandId: 'continue-task' } });
   expect(parseCommandLine([...session, '--resume-run', 'run-1', ...resume]))
     .toMatchObject({ recoveryResume: { runId: 'run-1', occurrenceId: 'resource-0001', expectedRevision: 2, commandId: 'resume-once' } });
   for (const flags of [resume, ['--resume-run', 'run-1'], ['--resume-run', '../other', ...resume], ['--resume-run', 'run-1', ...resume, '--command-id', 'different']]) {

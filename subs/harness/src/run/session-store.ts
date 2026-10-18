@@ -4,9 +4,10 @@ import { readFileSync, statSync, type BigIntStats } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { acquireProjectLock, type ProjectLock } from '../store/lock.js';
+import { SessionRecordUnavailableError, SessionDriverUnavailableError } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { SessionStore, SessionStoreCommit, SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
 import { openLedger } from '../../subs/ledger/src/ledger.js';
-import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
+import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
 
 /** Session adapters share this writer domain; ledger still rejects an unrelated concurrent process writer. */
 const queues = new Map<string, Promise<unknown>>();
@@ -59,8 +60,7 @@ interface ValidatedState {
   readonly records: Map<string, SessionStoreRecord>;
   readonly serializedRecords: Map<string, string>;
   readonly bodyRefs: Map<string, string>;
-  readonly bodiesNeedingNormalization: Set<string>;
-  readonly payloads: Map<string, Fingerprint>;
+  readonly payloads: Set<string>;
   log: Fingerprint | null;
 }
 interface WriterDomain {
@@ -71,13 +71,7 @@ interface WriterDomain {
 }
 const writers = new Map<string, WriterDomain>();
 
-/** Metadata is checked even under ownership: an out-of-band edit must not hide
- * behind previously validated bytes. Nanosecond ctime also detects same-size
- * rewrites with a restored mtime; inode/device detect replacement. The finite
- * owned identity scan uses immediate metadata reads: enqueueing one async fs
- * task per historical payload on every operation overwhelms the worker queue.
- * Every identity is still checked, and changed bytes are read and hashed.
- */
+/** Journal metadata detects an unexpected writer; payload bytes are checked on demand. */
 function fingerprint(path: string): Fingerprint | null {
   try {
     const value = statSync(path, { bigint: true });
@@ -131,8 +125,8 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
   function bodyBytes(id: string): Buffer {
     let bytes: Buffer;
     try { bytes = readFileSync(bodyPath(id)); }
-    catch (error) { writer.state = null; if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`Committed session record body unavailable: ${id}`); throw error; }
-    if (hash(bytes) !== id) { writer.state = null; throw new Error(`Corrupt session record body ${id}`); }
+    catch (error) { writer.state = null; if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new SessionRecordUnavailableError(`Committed session record body unavailable: ${id}`); throw error; }
+    if (hash(bytes) !== id) { writer.state = null; throw new SessionRecordUnavailableError(`Corrupt session record body ${id}`); }
     return bytes;
   }
   function readBody(id: string): Record<string, unknown> {
@@ -145,9 +139,8 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
     if (bodyId !== undefined) {
       // Parse the same physically read and hash-authenticated bytes. The owning
       // record validator only omits root keys; nested unknown values are intact.
-      let body = JSON.parse(bodyBytes(bodyId).toString('utf8')) as Record<string, unknown>;
-      for (const name of Object.keys(body)) if (!Object.hasOwn(record.body, name)) delete body[name];
-      if (jsonNormalized && state.bodiesNeedingNormalization.has(bodyId)) body = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
+      let body = readBody(bodyId);
+      if (jsonNormalized && needsJsonNormalization(body)) body = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
       return { runId: record.runId, id: record.id, revision: record.revision, schema: record.schema, body };
     }
     return JSON.parse(state.serializedRecords.get(key)!) as SessionStoreRecord;
@@ -165,18 +158,16 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
     let bytes: Uint8Array;
     try { bytes = await readFile(payloadPath(id)); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
-    if (hash(bytes) !== id) throw new Error(`Corrupt transcript payload ${id}`);
+    if (hash(bytes) !== id) throw new SessionDriverUnavailableError(`Corrupt transcript payload ${id}`);
     return new Uint8Array(bytes);
   }
-  async function validatePayload(id: string, prior?: Fingerprint, missing = 'Committed transcript payload unavailable'): Promise<Fingerprint> {
+  async function validatePayload(id: string, missing = 'Committed transcript payload unavailable'): Promise<void> {
     const path = payloadPath(id);
     const before = fingerprint(path);
     if (before === null) throw new Error(`${missing}: ${id}`);
-    if (prior !== undefined && sameFingerprint(before, prior)) return before;
     if (await readPayload(id) === null) throw new Error(`${missing}: ${id}`);
     const after = fingerprint(path);
     if (!sameFingerprint(before, after)) throw new Error(`Transcript payload changed while validating: ${id}`);
-    return before;
   }
   async function load(): Promise<ValidatedState> {
     await assertWriter();
@@ -187,27 +178,6 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
         writer.state = null;
         writer.unavailable = 'Session ledger changed outside the owned writer';
         throw new Error(writer.unavailable);
-      }
-      // Each immutable identity is checked once, not once per historical
-      // reference. Unchanged payloads need no historical read or hash.
-      const changed: string[] = [];
-      try {
-        let scanned = 0;
-        for (const [id, prior] of cached.payloads) {
-          const current = fingerprint(payloadPath(id));
-          if (current === null) throw new Error(`Committed transcript payload unavailable: ${id}`);
-          if (!sameFingerprint(current, prior)) changed.push(id);
-          // Keep large owned histories cooperative with Stop and other event-loop work.
-          if (++scanned % 128 === 0) await new Promise<void>(resolve => setImmediate(resolve));
-        }
-      } catch (error) { writer.state = null; throw error; }
-      // Only changed identities need asynchronous reads and before/after hash validation.
-      if (changed.length > 0) {
-        const checked = await Promise.allSettled(changed.map(async id => [id, await validatePayload(id)] as const));
-        for (const result of checked) {
-          if (result.status === 'rejected') { writer.state = null; throw result.reason; }
-        }
-        for (const result of checked) if (result.status === 'fulfilled') cached.payloads.set(...result.value);
       }
       const after = journalProof();
       if (!sameFingerprint(after.log, cached.log) || !after.bytes.equals(before.bytes) || !cached.ledger.matchesCommittedContent(after.bytes)) {
@@ -228,8 +198,6 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
     }
     const records = new Map<string, SessionStoreRecord>();
     const bodyRefs = new Map<string, string>();
-    const bodies = new Map<string, Record<string, unknown>>();
-    const bodiesNeedingNormalization = new Set<string>();
     const payloadIds = new Set<string>();
     for (const entry of current.replay()) {
       for (const item of entry.transaction.event.records) {
@@ -239,13 +207,9 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
         if (item.revision !== expected) throw new Error(`Corrupt session record revision for ${item.id}`);
         if (entry.transaction.event.type === 'session-store-commit/2') {
           const header = headerSchema.parse(item);
-          let body = bodies.get(header.bodyId);
-          if (body === undefined) {
-            body = readBody(header.bodyId);
-            bodies.set(header.bodyId, body);
-            if (needsJsonNormalization(body)) bodiesNeedingNormalization.add(header.bodyId);
-          }
-          records.set(id, envelope.parse({ runId: header.runId, id: header.id, revision: header.revision, schema: header.schema, body }));
+          // The ledger authenticates headers. A body is inspected only when its
+          // record is requested or participates in CAS, isolating optional history.
+          records.set(id, envelope.parse({ runId: header.runId, id: header.id, revision: header.revision, schema: header.schema, body: {} }));
           bodyRefs.set(id, header.bodyId);
         } else {
           records.set(id, envelope.parse(item));
@@ -254,19 +218,20 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
       }
       for (const id of entry.transaction.event.payloads) payloadIds.add(id);
     }
-    const payloads = new Map<string, Fingerprint>();
-    for (const id of payloadIds) payloads.set(id, await validatePayload(id));
+    // Transcript bytes are optional context: authenticate only when requested.
+    // Retain committed identities so later lifecycle updates can reference lost context.
+    const payloads = payloadIds;
     await assertWriter();
     const after = journalProof();
     if (!sameFingerprint(after.log, proof.log) || !after.bytes.equals(proof.bytes) || !current.matchesCommittedContent(after.bytes)) {
       writer.state = null; writer.unavailable = 'Session ledger changed while validating'; throw new Error(writer.unavailable);
     }
     const serializedRecords = new Map([...records].filter(([id]) => !bodyRefs.has(id)).map(([id, item]) => [id, JSON.stringify(item)]));
-    const loaded: ValidatedState = { ledger: current, records, serializedRecords, bodyRefs, bodiesNeedingNormalization, payloads, log: proof.log };
+    const loaded: ValidatedState = { ledger: current, records, serializedRecords, bodyRefs, payloads, log: proof.log };
     writer.state = loaded;
     return loaded;
   }
-  // Opening validates existing new-format data; missing records do not become fresh sessions.
+  // Opening validates durable headers; individual bodies and optional context are read on demand.
   try { await serialized(logPath, () => load()); }
   catch (error) {
     await serialized(directory, async () => { writer.references--; if (writer.references === 0) { writers.delete(directory); await writer.lock.release(); } });
@@ -323,10 +288,10 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
         const expected = input.expected.find(value => value.id === item.id);
         if (item.runId !== input.runId || !expected || item.revision !== (expected.revision ?? 0) + 1) throw new Error(`Invalid CAS envelope for ${item.id}`);
       }
-      const payloads = new Map(state.payloads);
-      for (const id of new Set(input.payloads)) {
-        // load already validated cached identities for this transaction.
-        if (!payloads.has(id)) payloads.set(id, await validatePayload(id, undefined, 'Missing committed payload'));
+      const payloads = new Set(input.payloads);
+      for (const id of payloads) {
+        // New references must be present; historical references may have lost optional context.
+        if (!state.payloads.has(id)) await validatePayload(id, 'Missing committed payload');
       }
       // Cache the JSON representation the ledger actually commits. In
       // particular, Dates, undefined fields and non-finite numbers must not
@@ -373,7 +338,7 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
         state.serializedRecords.delete(key);
       }
       for (const item of headers) state.bodyRefs.set(JSON.stringify([item.runId, item.id]), item.bodyId);
-      for (const [id, value] of payloads) state.payloads.set(id, value);
+      for (const id of payloads) state.payloads.add(id);
       return { kind: 'committed' as const };
     });
   }
@@ -398,7 +363,15 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
         await assertWriter();
         const id = hash(copy);
         await writeFileExclusive(payloadPath(id), copy);
-        const stored = await readPayload(id);
+        let stored: Uint8Array | null;
+        try { stored = await readPayload(id); }
+        catch (error) {
+          if (!(error instanceof SessionDriverUnavailableError)) throw error;
+          // Known bytes reconstitute this optional content-addressed cache entry.
+          await assertWriter();
+          await writeFileAtomic(payloadPath(id), copy);
+          stored = await readPayload(id);
+        }
         if (stored === null || !Buffer.from(stored).equals(Buffer.from(copy))) throw new Error(`Transcript payload identity collision: ${id}`);
         return id;
       });

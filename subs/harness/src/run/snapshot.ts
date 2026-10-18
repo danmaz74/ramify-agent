@@ -92,7 +92,11 @@ const stateOf: Partial<Record<RunEvent['type'], JobState>> = {
 /** A run's snapshot, derived from its `job.json` and its event log. */
 export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): RunSnapshot {
   const last = events.at(-1);
-  const ended = events.find(event => stateOf[event.type] !== undefined);
+  let ended: RunEvent | undefined;
+  for (const event of events) {
+    if (event.type === 'job-continued') ended = undefined;
+    else if (stateOf[event.type] !== undefined) ended = event;
+  }
 
   let phase: RunPhase = 'analysis';
   let recovery: RunSnapshot['recovery'] = null;
@@ -220,6 +224,11 @@ export function runSnapshot(record: RunRecord, events: readonly RunEvent[]): Run
         break;
       case 'stop-requested':
         stopRequested = true;
+        break;
+      case 'job-continued':
+        failure = null;
+        stopRequested = false;
+        recovery = null;
         break;
       case 'job-failed':
         failure = { reason: event.data.reason, message: event.data.message, evidence: event.data.evidence };

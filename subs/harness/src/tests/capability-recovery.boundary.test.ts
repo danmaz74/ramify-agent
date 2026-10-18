@@ -79,10 +79,14 @@ test('CA20: a registered real process group survives a service crash and is sett
   const second = await openCapabilityRuns(fixture.root, {
     git: gitService, script, inputs: treeInputs(),
   });
-  cleanups.push(() => second.service.close());
+  cleanups.push(async () => { await expect(second.service.close()).rejects.toThrow(/settlement.*(?:unavailable|not confirmed)/u); });
+  await until(() => !nodeProcessGroups.alive(pid));
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   expect(nodeProcessGroups.alive(pid)).toBe(false);
-  expect(events.find(event => event.type === 'job-failed')?.data.reason).toBe('writer-unsettled');
+  expect(events.filter(event => event.type === 'job-failed')).toHaveLength(0);
+  expect(second.service.getRun('need', receipt.jobId)?.state).toBe('running');
+  expect(second.agent!.sessions).toHaveLength(0);
+  expect(events).toEqual(before);
   expect(events.filter(event => event.type === 'capability-handed-back' || event.type === 'gate-attempted')).toHaveLength(0);
   expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
   expect(first.service.events('need', receipt.jobId)).toEqual(before);

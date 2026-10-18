@@ -38,11 +38,11 @@ test('context recovery preserves the standalone assignment and leaves its reques
   const { result } = await session(root, [
     { kind: 'await', until: async () => writeFile(scratch, 'pending qualification') },
     { kind: 'resource', resource: 'context', reason: 'Native overflow compaction failed; source evidence is required' },
-  ], { gate: true }, { gateRuns: false, resourceInspections: 1 });
+  ], { gate: true }, { gateRuns: false, successorInvocations: 2 });
   const summary = finished(result);
   expect(summary).toMatchObject({ ended: 'resource-pending', pending: true, resource: 'context', submission: null,
-    gate: { ran: false, reason: expect.stringContaining('source evidence') } });
-  expect((await outcomeOf(summary.records)).settled.confirmed).toBe(true);
+    gate: { ran: false, reason: expect.stringContaining('Repeated interruption') } });
+  expect(JSON.parse(await readFile(join(summary.records, 'invocations/inv-0003/outcome.json'), 'utf8')).settled.confirmed).toBe(true);
   expect(await readFile(scratch, 'utf8')).toBe('pending qualification');
   expect(result.exitStatus).toBe(1);
 });
@@ -58,13 +58,13 @@ test('native compaction failure continues standalone partial work under the orig
     write('../../../../src/stray.ts', 'export const forbidden = true;'),
     { kind: 'submit', input: completionProposed('The retained correction is complete.') },
   ], { gate: true }, { changed: [notesSource], ramify: [checked('changed'), checked('changed'), checked('complete')],
-    gate: passingGate, resourceInspections: 1, successorInvocations: 1, recoveryCandidates: ['a'.repeat(40)] });
+    gate: passingGate, successorInvocations: 1 });
   const summary = finished(result);
   expect(result.exitStatus).toBe(0);
   expect(summary).toMatchObject({ ended: 'submitted', gate: { ran: true, verdict: 'passed' } });
   expect(agent.sessions).toHaveLength(2);
   expect(agent.sessions[1]!.spec.prompt).toContain('Raise the note limit to 500.');
-  expect(agent.sessions[1]!.spec.prompt).toContain('No submission or partial result was inferred');
+  expect(agent.sessions[1]!.spec.prompt).toContain('The previous attempt was interrupted');
   expect(agent.sessions[1]!.results.some(reply => reply.isError)).toBe(true);
   expect(await readFile(join(root, notesSource), 'utf8')).toContain('500');
   const successor = invocationSchema.parse(JSON.parse(await readFile(join(summary.records, 'invocations/inv-0002/invocation.json'), 'utf8')));
@@ -72,32 +72,32 @@ test('native compaction failure continues standalone partial work under the orig
   expect(successor.session.actual).toBe('fresh');
 });
 
-test('seven useful standalone source handoffs cross former caps while an unchanged candidate retains distinct accepted evidence', async () => {
+test('ordinary standalone handoffs preserve assignment and inspectable reads', async () => {
   const root = await project();
-  for (let number = 1; number <= 7; number++) await writeFile(join(root, notesDirectory, `src/evidence-${number}.txt`), `Source evidence ${number} for the original note limit need`);
+  for (let number = 1; number <= 2; number++) await writeFile(join(root, notesDirectory, `src/evidence-${number}.txt`), `Source evidence ${number} for the original note limit need`);
   let invocations = 0;
-  const { result, agent } = await session(root, () => ++invocations <= 7 ? [
+  const { result, agent } = await session(root, () => ++invocations <= 2 ? [
     read(`evidence-${invocations}.txt`), { kind: 'resource', resource: 'context', reason: 'Native compaction unavailable; useful source evidence was retained' },
   ] : [{ kind: 'submit', input: unsuitableScope('The seven source facts identify the original scope obstruction.') }], {},
-  { resourceInspections: 7, successorInvocations: 7, recoveryCandidates: Array(7).fill('a'.repeat(40)) });
+  { successorInvocations: 2 });
   expect(result.exitStatus).toBe(0);
-  expect(agent.sessions).toHaveLength(8);
+  expect(agent.sessions).toHaveLength(3);
   expect(agent.sessions.at(-1)!.spec.prompt).toContain('Raise the note limit to 500.');
-  expect(agent.sessions.slice(0, 7).every(session => session.results.every(reply => !reply.isError))).toBe(true);
+  expect(agent.sessions.slice(0, 2).every(session => session.results.every(reply => !reply.isError))).toBe(true);
   expect((await readFile(join(finished(result).records, 'events.jsonl'), 'utf8')).includes('operation-recovery-paused')).toBe(false);
 });
 
-test('a finite standalone recovery group retains an occurrence and explicit resume deduplicates accepted submissions', async () => {
+test('repeated interruption leaves ordinary standalone continuation and command deduplication available', async () => {
   const root = await project();
   const scratch = join(root, notesDirectory, 'src/tmp/pending.txt');
   const first = await session(root, [{ kind: 'await', until: async () => {
     await mkdir(dirname(scratch), { recursive: true }); await writeFile(scratch, 'pending original work');
   } }, { kind: 'resource', resource: 'context', reason: 'Native compaction failed' }], {},
-    { resourceInspections: 3, successorInvocations: 2, recoveryCandidates: Array(3).fill('a'.repeat(40)) });
+    { successorInvocations: 2 });
   const hold = finished(first.result);
   expect(hold).toMatchObject({ pending: true, ended: 'resource-pending' });
   expect(first.agent.sessions).toHaveLength(3);
-  const recoveryResume = { runId: hold.session, occurrenceId: 'opr-0001', expectedRevision: 1, commandId: 'resume-standalone' };
+  const recoveryResume = { runId: hold.session, commandId: 'resume-standalone' };
   let started!: () => void;
   let release!: () => void;
   const admitted = new Promise<void>(resolve => { started = resolve; });
@@ -106,7 +106,7 @@ test('a finite standalone recovery group retains an occurrence and explicit resu
     expect(await readFile(scratch, 'utf8')).toBe('pending original work');
     started(); await released;
   } }, { kind: 'submit', input: unsuitableScope('The original need requires another module.') }], { recoveryResume },
-    { resourceInspections: 1, recoveryCandidates: ['a'.repeat(40)], changedObservations: 5, headObservations: 2 });
+    { changedObservations: 5, headObservations: 1 });
   await admitted;
   const concurrent = session(root, [], { recoveryResume }, { starts: false });
   const conflictingLive = await session(root, [], { recoveryResume, prompt: 'A conflicting live replacement need' }, { starts: false });
@@ -118,23 +118,13 @@ test('a finite standalone recovery group retains an occurrence and explicit resu
   expect(second.result.exitStatus).toBe(0);
   expect(second.agent.sessions).toHaveLength(1);
   expect(finished(second.result).session).toBe(hold.session);
-  expect(second.agent.sessions[0]!.spec.prompt).toContain('Explicit source-backed continuation from inv-0003');
-  expect(second.agent.sessions[0]!.spec.context.compaction).toBe('allowed');
-  const captured = manualRunRecordSchema.parse(JSON.parse(await readFile(join(hold.records, 'job.json'), 'utf8')));
-  expect(captured.policy.version).toBe('run-policy/7');
-  const transitions = (await readFile(join(hold.records, 'events.jsonl'), 'utf8')).split('\n').filter(Boolean)
-    .map(line => JSON.parse(line) as { event: { type: string; data: unknown } }).filter(line => line.event.type === 'continuity-policy-adopted');
-  expect(transitions).toHaveLength(1);
-  expect(transitions[0]!.event.data).toMatchObject({ from: 'run-policy/7', to: 'run-policy/8', policy: { continuity: { version: 'resource-continuity/1' } } });
+  expect(second.agent.sessions[0]!.spec.prompt).toContain('Raise the note limit to 500.');
   const repliedBytes = await readFile(join(hold.records, 'events.jsonl'), 'utf8');
   const replies = repliedBytes.split('\n').filter(Boolean).map(line => JSON.parse(line) as {
     event: { type: string; data: { commandId: string; resultHash: string } }; records: Array<{ body: { resultHash: string } }>;
   }).filter(line => line.event.type === 'operation-recovery-replied');
   expect(replies).toHaveLength(1);
   expect(replies[0]!.event.data).toEqual({ commandId: recoveryResume.commandId, resultHash: replies[0]!.records[0]!.body.resultHash });
-  const stale = await session(root, [], { recoveryResume: { ...recoveryResume, commandId: 'stale-resume' } }, { changedObservations: 2, headObservations: 1 });
-  expect(stale.result).toMatchObject({ status: 'not-started', reason: expect.stringContaining('stale or conflicting occurrence') });
-  expect(stale.agent.sessions).toHaveLength(0);
   const conflict = await session(root, [], { recoveryResume, prompt: 'A conflicting replacement need' }, { starts: false });
   expect(conflict.result).toMatchObject({ status: 'not-started', reason: expect.stringContaining('conflicts with its recorded result') });
   expect(conflict.agent.sessions).toHaveLength(0);
@@ -143,6 +133,19 @@ test('a finite standalone recovery group retains an occurrence and explicit resu
   expect(repeated.result.exitStatus).toBe(0);
   expect(finished(repeated.result).submission).toEqual(finished(second.result).submission);
   expect(await readFile(join(hold.records, 'events.jsonl'), 'utf8')).toBe(repliedBytes);
+});
+
+test.each(['goal', 'scope'] as const)('an accepted standalone result cannot be relabeled as a different %s by a new continuation command', async changed => {
+  const root = await project();
+  const first = await session(root, [{ kind: 'submit', input: unsuitableScope('The original task needs another module.') }]);
+  const retained = finished(first.result);
+  const recoveryResume = { runId: retained.session, commandId: `different-${changed}` };
+  const resumed = await session(root, [], { recoveryResume,
+    ...(changed === 'goal' ? { prompt: 'A different requirement.' } : { write: ['docs/new-scope.md'] }),
+  }, { changedObservations: 2, headObservations: 1 });
+  expect(resumed.result).toMatchObject({ status: 'not-started', reason: expect.stringContaining(`different task ${changed}`) });
+  expect(resumed.agent.sessions).toHaveLength(0);
+  expect(await summaryOf(retained.records)).toMatchObject({ module: notes });
 });
 
 describe('a single engineer session', () => {

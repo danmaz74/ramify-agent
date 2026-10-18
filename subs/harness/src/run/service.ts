@@ -1,8 +1,11 @@
+import { checkExecutionObstruction } from './recovery-checks.js';
+import { observeExternalCandidate } from './candidate-attribution.js';
+import { recordedExternalChanges } from './recovery-gate.js';
+import { decideTaskReentry, mayRetryTask, taskInterruption, taskRetryDelay } from '../../subs/recovery/src/reentry.js';
 import type { SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
-import { inspectAuditSettlement } from './audit-workspaces.js';
+
 import { localViewInputsOf } from '../work/view-inputs.js';
-import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths,
-  type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair-preparation.js';
+import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths, type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair-preparation.js';
 import { repairIncidentRecordSchema, repairResultSchema, repairIncidentId, type RepairIncidentRecord, type RepairResult, type RepairIncidentStage } from './repair-records.js';
 import { createRepairExportPayload, exportRepairIncident, repairExportPayloadPath, repairExternalRef, repairProjectKey, type RepairExportConfiguration } from './repair-export.js';
 import { verifiedRepairDeltas } from './repair-gate.js';
@@ -14,11 +17,10 @@ import { captureGlobalTarget, localConsultationInputs, engineerConsultationInput
 import { boundedNonfunctionalTools, nonfunctionalSourceAllows } from '../nonfunctional/submissions.js';
 import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from '../capability/authorization.js';
 import { taskSupportSections } from '../work/task-support.js';
-import { declaredCheckInputs, moduleInputPointers, startingPointsSection, type StartingPointGroup } from '../work/starting-inputs.js';
+import { declaredCheckInputs, startingPointsSection, type StartingPointGroup } from '../work/starting-inputs.js';
 export { taskSupportSections } from '../work/task-support.js';
 import type { ProvisionalSourceGit } from '../../subs/evidence/src/provisional-git.js';
-import { sourceRestartRuntime, restartRuntimeCompatibility, validateRestartRepair, normalizeRestartIdentityForComparison } from './restart-runtime.js';
-import { planRestartImport, restartWorkflowEntries, stageRestartImport, readRestartImport, inspectRestartArtifacts, type RestartImport, type RestartRecognizedEffect } from './restart-import.js';
+import { restartWorkflowEntries, readRestartImport, type RestartImport } from './restart-import.js';
 import { runCommand, type CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { z } from 'zod';
 import { finalCorrectionSchema, type FinalCorrection } from './final-correction.js';
@@ -36,47 +38,29 @@ import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.j
 import type { PreparedGate } from '../checks/gate.js';
 import type { GuardedScope } from '../guard/write-guard.js';
 import { decideWrite } from '../guard/write-guard.js';
-import { ExcursionWatcher } from './excursions.js';
+
 import { selectCheckFindings } from '../../subs/check-findings/src/queries.js';
 import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
-import type {
-  CheckFindingAt, CheckFindingCommand, CheckFindingId, CheckFindingQueryInput, CheckFindingRisk,
-  CheckFindingSelection, CheckFindingState, CheckFindingSummary,
-} from '../../subs/check-findings/src/interfaces/check-findings.js';
+import type { CheckFindingAt, CheckFindingCommand, CheckFindingId, CheckFindingQueryInput, CheckFindingSelection, CheckFindingState, CheckFindingSummary,  } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import type { CheckFindingCause } from '../check-findings/records.js';
 import { checkFindingStateOf } from '../check-findings/state.js';
-import {
-  commitCheckFindingChange, decideCheckFindingTransaction, type CheckFindingBuild, type CheckFindingCommit,
-} from '../check-findings/transition.js';
-import {
-  attentionAt, basisChange, briefText as reconciliationBrief, needsLaterRound, reconciliationAssessmentSchema, reconciliationBasisSchema,
-  reconciliationId, reconciliationJsonSchema, reconciliationLayout, reconciliationSubmissionDescription, reconciliationToolName,
-  validateReconciliation,
-  type AttentionEntry, type BasisRequest, type BoundReconciliation, type BriefAppendOutcome, type ReconciliationAssessment,
-  type ReconciliationBasis, type ReconciliationSubmission, type UnresolvedReason,
-} from '../reviews/reconciliation.js';
+import { commitCheckFindingChange, decideCheckFindingTransaction, type CheckFindingBuild, type CheckFindingCommit,  } from '../check-findings/transition.js';
+import { attentionAt, basisChange, briefText as reconciliationBrief, needsLaterRound, reconciliationAssessmentSchema, reconciliationBasisSchema, reconciliationId, reconciliationJsonSchema, reconciliationLayout, reconciliationSubmissionDescription, reconciliationToolName, validateReconciliation, type AttentionEntry, type BasisRequest, type BoundReconciliation, type BriefAppendOutcome, type ReconciliationAssessment, type ReconciliationBasis, type ReconciliationSubmission, type UnresolvedReason,  } from '../reviews/reconciliation.js';
 import { reconciliationMessage, type PacketRequest, type ReconciliationPacket } from '../reviews/reconciliation-message.js';
-import { outsideScope, recordSettledSnapshot } from './mutations.js';
+import { outsideScope } from './mutations.js';
 import { captureProvisionalSource } from '../capability/source.js';
 import { capabilityHandbackGuidance, capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../capability/delivery.js';
-import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, capabilityLayout,
-  type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange, type CapabilityHandback,
-} from '../capability/records.js';
+import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, capabilityLayout, type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange, type CapabilityHandback,  } from '../capability/records.js';
 import { capabilityRunPolicyVersion, supportedCapabilityPolicy, captureCapabilityLimits } from '../capability/policy.js';
 import { createCapabilityWorkflow } from '../capability/workflow.js';
 import { commitCapabilityTransition } from '../capability/ledger.js';
-import { qualificationActionSchema, capabilityActionSchema, capabilityPlanUpdateSchema, buildCapabilityPlanRevision,
-  unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type QualificationAction, type CapabilityAction } from '../capability/submission.js';
+import { qualificationActionSchema, capabilityActionSchema, capabilityPlanUpdateSchema, buildCapabilityPlanRevision, unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type QualificationAction, type CapabilityAction } from '../capability/submission.js';
 import { capabilityCompletionBlockers, capabilityHandbackReadiness, replayCapabilityState } from '../capability/state.js';
 import type { CapabilityWorkflow } from '../capability/workflow.js';
 import { userCheckFindingChange, userRejectionCode } from '../check-findings/user-commands.js';
 import type { CheckFindingUserCommand } from '../interfaces/protocol/check-findings.js';
 import { canonicalJson } from '../jobs/commands.js';
-import {
-  reviewAttemptId, reviewAttemptSchema, reviewLayout, reviewOrientationSchema, reviewRequestSchema, reviewSchemas, reviewSubmissionSchema,
-  type ForkPoint, type NotVerifiedReason, type OrientationSubmission, type ReviewAttempt, type ReviewOrientation, type ReviewRequest,
-  type ReviewResult, type ReviewSubmission,
-} from '../reviews/records.js';
+import { reviewAttemptId, reviewAttemptSchema, reviewLayout, reviewOrientationSchema, reviewRequestSchema, reviewSubmissionSchema, type ForkPoint, type NotVerifiedReason, type OrientationSubmission, type ReviewAttempt, type ReviewOrientation, type ReviewRequest, type ReviewResult, type ReviewSubmission,  } from '../reviews/records.js';
 import type { CapturedInput } from '../../subs/reviews/src/inputs.js';
 import { prepareReview, type PreparedReview } from '../../subs/reviews/src/preparation.js';
 import { ReviewQueue } from '../reviews/scheduler.js';
@@ -94,58 +78,37 @@ import { ensureStateDirectory } from '../store/state-directory.js';
 import { planPath, readPlan } from '../plans/discover.js';
 import { discoverDocuments } from '../../subs/plan-evidence/src/discovery.js';
 import { verifyDocumentBytes } from '../../subs/plan-evidence/src/interfaces/contracts.js';
-import {
-  elementIdSchema, openElementCatalog, serializeElementCatalog, type ElementCatalog, type ElementKind, type PackageCitation, type PackageDeviation,
-} from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import {
-  acceptIntake, acceptPrinciples, applyCheck, asValidation, checkJsonSchema, checkMessage, checkSubmissionSchema, checkToolName,
-  intakeJsonSchema, intakeMessage, intakeSubmissionSchema, intakeToolName, principleJsonSchema, principleMessage,
-  principleSubmissionSchema, principleToolName,
-  type CheckState, type CheckSubmission, type ExtractionInputs, type IntakeSubmission, type PrincipleSubmission,
-} from '../analysis/extraction.js';
+import { elementIdSchema, openElementCatalog, serializeElementCatalog, type ElementCatalog, type ElementKind, type PackageCitation, type PackageDeviation,  } from '../../subs/plan-evidence/src/interfaces/catalog.js';
+import { acceptIntake, acceptPrinciples, applyCheck, asValidation, checkJsonSchema, checkMessage, checkSubmissionSchema, checkToolName, intakeJsonSchema, intakeMessage, intakeSubmissionSchema, intakeToolName, principleJsonSchema, principleMessage, principleSubmissionSchema, principleToolName, type CheckState, type CheckSubmission, type ExtractionInputs, type IntakeSubmission, type PrincipleSubmission,  } from '../analysis/extraction.js';
 import type { CatalogFinding } from '../analysis/records.js';
 import { readAcceptedEvidence } from '../analysis/evidence.js';
 import { assessmentSchema, roundSchema, type Assessment, type Candidate } from '../../subs/nonfunctional/src/interfaces/contracts.js';
 import { decideNonfunctionalRound, type RoundDecision } from '../../subs/nonfunctional/src/rounds.js';
 import { replayNonfunctionalPhase } from './nonfunctional-phase.js';
 import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
-import { assessedElements, bindCoordinatorAssessment, coordinatorAssessmentJsonSchema, coordinatorAssessmentToolName,
-  coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName,
-  coordinatorActionSchema,
-  nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName, validateCoordinatorAction, validateCoordinatorInvestigation,
-  nonfunctionalRepairSubmissionSchema,
-  type CoordinatorAssessmentSubmission, type CoordinatorAction, type CoordinatorInvestigation, type NonfunctionalRepairSubmission } from '../nonfunctional/submissions.js';
+import { assessedElements, bindCoordinatorAssessment, coordinatorAssessmentJsonSchema, coordinatorAssessmentToolName, coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName, coordinatorActionSchema, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName, validateCoordinatorAction, validateCoordinatorInvestigation, nonfunctionalRepairSubmissionSchema, type CoordinatorAssessmentSubmission, type CoordinatorAction, type CoordinatorInvestigation, type NonfunctionalRepairSubmission } from '../nonfunctional/submissions.js';
 import { coordinatorAssessmentPrompt, coordinatorActionPrompt, repairPrompt } from '../nonfunctional/prompts.js';
-import { contextSelectionSchema, type ContextSelection } from '../context-selection/contracts.js';
+import { type ContextSelection } from '../context-selection/contracts.js';
 import { readRecordedContextSelection, type RecordedContextSelection } from '../context-selection/recorded.js';
 import { citePackage, deliverPackage } from '../context-selection/delivery.js';
 import { orientationPacket, prepareContextSelection, workOrientationSubmissionSchema, workOrientationToolName, type ContextSelectorSubmission, type SelectionSource, type WorkOrientationSubmission } from '../context-selection/submissions.js';
 import { documentChanges, readCapturedDocuments } from './document-inputs.js';
-import { captureInstalledRecoveryRuntime } from './recovery-runtime.js';
-import { captureRecoveryCandidate, recoveryHash, recoveryRuntimeSchema, repairDispatchBlockers, validateExternalRepair, type RecoveryIdentity, type RecoveryRuntime } from './recovery-admission.js';
+import { compatibleAuditRepair, type RecoveryRuntime } from './recovery-admission.js';
 import { commitReadinessRepair, readinessRepairOperationPath, readinessRepairOperationSchema } from './readiness-commit.js';
 import { operationRecoverySchema, type OperationRecovery, type RecoveryBoundary } from './records.js';
 import { recoveryInspectionSchema, restartInspectionSchema, type RestartInspection, type RecoveryInspection } from '../interfaces/protocol/runs.js';
 import type { InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import { composeTaskBrief, type KnownProjectFacts } from './task-brief.js';
 import { constructEngineerStep, engineerStepInputsOf, type ConstructedEngineerStep } from '../steps/engineer.js';
-import {
-  committedBody, finished, invocationRecord, InvocationRunner, kept,
-  type InvocationRequest, type InvocationResult, type LiveInvocation, type RunnerHost, type RunnerRun, type SessionKeeping,
-} from '../steps/runner.js';
+import { committedBody, finished, invocationRecord, InvocationRunner, kept, type InvocationRequest, type InvocationResult, type LiveInvocation, type RunnerHost, type RunnerRun, type SessionKeeping,  } from '../steps/runner.js';
 import { knownFactsInputs } from '../steps/constructed.js';
-import { projectPath, serializeStepInputs, stepInputsSchemaId, validateStepInputs, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs,
-  type EngineerStepInputs, type KnownFactsInputs, type OrientationStepInputs, type ProjectPath, type StepInputs } from '../steps/inputs.js';
+import { projectPath, stepInputsSchemaId, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs, type EngineerStepInputs, type KnownFactsInputs, type OrientationStepInputs, type ProjectPath, type StepInputs } from '../steps/inputs.js';
 import { constructStep, freshFallback } from '../steps/construct.js';
-import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs,
-  type ConstructedWorkTurnStep } from '../steps/local-architect.js';
+import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs, type ConstructedWorkTurnStep } from '../steps/local-architect.js';
 import { constructDesignOrientationStep, constructReviewStep } from '../steps/reviewer.js';
-import { inputsHash, loadPromptPackages, renderContractPrompt, renderEngineerPrompt, renderFailureAnalystPrompt, renderGlobalForkPrompt, renderInitialArchitectPrompt, renderLocalArchitectPrompt, renderReconciliationPrompt, sha256, renderNonfunctionalCoordinatorPrompt, renderNonfunctionalRepairPrompt, renderExtractionPrompt, renderCapabilityArchitectPrompt, type ExtractionTurn, type LoadedPackage } from '../prompts/packages.js';
-import {
-  baselineScope, captureSnapshot, revisionMismatch, rootModuleOfSnapshot, scopeSize,
-  type DeclaredScope,
-} from '../../subs/kpi/src/capture.js';
-import { deliveredScopeInputs, invocationScope, supportDocument, readScopeMeasurement, writeScopeMeasurement } from '../measurement/inputs.js';
+import { loadPromptPackages, renderContractPrompt, renderEngineerPrompt, renderFailureAnalystPrompt, renderGlobalForkPrompt, renderInitialArchitectPrompt, renderLocalArchitectPrompt, renderReconciliationPrompt, sha256, renderNonfunctionalCoordinatorPrompt, renderNonfunctionalRepairPrompt, renderExtractionPrompt, renderCapabilityArchitectPrompt, type ExtractionTurn, type LoadedPackage } from '../prompts/packages.js';
+import { baselineScope, captureSnapshot, revisionMismatch, rootModuleOfSnapshot,  } from '../../subs/kpi/src/capture.js';
+import { supportDocument, readScopeMeasurement, writeScopeMeasurement } from '../measurement/inputs.js';
 import { cachedChangeHistory } from '../../subs/kpi/src/delivered.js';
 import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../subs/kpi/src/lines.js';
 import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
@@ -153,81 +116,41 @@ import type { ProjectLock } from '../store/lock.js';
 import { acceptAnalysis } from '../analysis/accept.js';
 import { acceptDecision } from '../architecture/accept.js';
 import { briefText, globalContext, type GlobalContext } from '../architecture/context.js';
-import {
-  architectureLayout, architectureSchemas, globalDecisionId, localDecisionId, placementRequestSchema, requestId,
-  type PlacementDecision, type PlacementRequest,
-} from '../architecture/records.js';
+import { architectureLayout, architectureSchemas, globalDecisionId, localDecisionId, placementRequestSchema, requestId, type PlacementDecision, type PlacementRequest,  } from '../architecture/records.js';
 import { forkMessage, unresolvedForkMessage } from '../architecture/session.js';
-import {
-  defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation,
-  planDeviationId, planDeviationSchema, unresolvedRequestId, unresolvedRequestSchema,
-  type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest,
-} from '../deviations/records.js';
+import { defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation, planDeviationId, planDeviationSchema, unresolvedRequestId, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest,  } from '../deviations/records.js';
 import { deviationCommands, isPlanDeviation, nextCheckFinding } from '../deviations/finding.js';
 import { nonfunctionalDeviationCommands, nonfunctionalDeviationHash, prepareNonfunctionalDeviation } from '../deviations/nonfunctional.js';
 import { environmentCommands, environmentOptions } from '../deviations/environment.js';
-import {
-  forkJsonSchema, forkSubmissionSchema, forkToolName, validateFork,
-  type ForkSubmission, type PlacementEvidence, type PlacementRequestBody,
-} from '../architecture/submission.js';
-import {
-  acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis,
-  type AnalysisEvidence, type InitialAnalysisSubmission,
-} from '../analysis/submission.js';
+import { forkJsonSchema, forkSubmissionSchema, forkToolName, validateFork, type ForkSubmission, type PlacementEvidence, type PlacementRequestBody,  } from '../architecture/submission.js';
+import { acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis, type AnalysisEvidence, type InitialAnalysisSubmission,  } from '../analysis/submission.js';
 import { registerContract, registrationNeeded, type AttachedConsumer } from '../contracts/accept.js';
 import { cycleClosedBy, cycleIdentity, type DependencyCycle, type DependencyEdge } from '../contracts/graph.js';
 import { fakeNamingViolations, type NamedFile } from '../contracts/naming.js';
 import type { StandIn } from '../contracts/parity.js';
-import {
-  contractId, contractOfObligation, contractsLayout, obligationId, requirementId,
-  type ConsumerRequirement, type ContractRecord, type ProviderObligation,
-} from '../contracts/records.js';
-import {
-  bindingKey, conformanceKey, nextWorkItem, openRequirements, providerItemOf, verificationKey,
-  type ScheduleState,
-} from '../contracts/schedule.js';
-import { reopenEvidence, type SchedulingBinding } from '../contracts/revision.js';
+import { contractId, contractOfObligation, contractsLayout, obligationId, requirementId, type ConsumerRequirement, type ContractRecord, type ProviderObligation,  } from '../contracts/records.js';
+import { bindingKey, conformanceKey, nextWorkItem, openRequirements, providerItemOf, verificationKey, type ScheduleState,  } from '../contracts/schedule.js';
+import { reopenEvidence } from '../contracts/revision.js';
 import { contractMessage, type RevisionBriefing } from '../contracts/session.js';
-import {
-  contractJsonSchema, contractToolName, validateContract,
-  type ContractSubmission, type EstablishedContract, type NeedAsBehavior,
-} from '../contracts/submission.js';
+import { contractJsonSchema, contractToolName, validateContract, type ContractSubmission, type EstablishedContract, type NeedAsBehavior,  } from '../contracts/submission.js';
 import { remainingInjections } from '../contracts/verification.js';
 import type { Hypothesis, RegistryEntry } from '../analysis/records.js';
 import { assignedFeaturePaths } from '../work/feature-selection.js';
 import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from '../work/assignment.js';
-import {
-  engineerEquipment, type EngineerEquipment, type EngineerEquipmentInputs, type EquipContext, type Equipment, type ShellCallRecord,
-} from '../work/engineer-equipment.js';
+import { engineerEquipment, type EngineerEquipment, type EquipContext, type Equipment, type ShellCallRecord,  } from '../work/engineer-equipment.js';
 import { nonfunctionalEquipment } from '../nonfunctional/equipment.js';
 import { engineerWorkingDirectory, repairWorkingDirectory } from '../work/engineer-directory.js';
 import { createGitInspectionTool } from '../work/git-inspection.js';
-import {
-  capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerJsonSchema, engineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationAcceptance, iterationMessage,
-  type AssignedObligation,
-  validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews,
-} from '../work/engineer.js';
-import {
-  iterationAssignmentSchema, iterationId, iterationLayout, iterationSchemas, type FailureDigest, type IterationAssignment, type IterationResult,
-  type WriteScope,
-} from '../work/iterations.js';
-import {
-  digestLines, failureAnalysisJsonSchema, failureAnalysisMessage, failureAnalysisSubmissionDescription, failureAnalysisToolName,
-  failureDigest, renderTranscript, validateFailureAnalysis,
-  type AnalysisEvidence as FailureEvidence, type DigestShellCall, type FailureAnalysisSubmission,
-} from '../work/failure.js';
+import { engineerSubmissionSchema, iterationAcceptance, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews,  } from '../work/engineer.js';
+import { iterationAssignmentSchema, iterationId, iterationLayout, type FailureDigest, type IterationAssignment, type IterationResult, type WriteScope,  } from '../work/iterations.js';
+import { digestLines, failureAnalysisJsonSchema, failureAnalysisMessage, failureAnalysisSubmissionDescription, failureAnalysisToolName, failureDigest, renderTranscript, validateFailureAnalysis, type AnalysisEvidence as FailureEvidence, type DigestShellCall, type FailureAnalysisSubmission,  } from '../work/failure.js';
 import { isContained, resolveRealTarget } from '../guard/resolve-contained-path.js';
-import {
-  scopeConfigurationPaths, missingHistoricalAuthority, captureGuardedFiles, deniedFiles, guardedScopeOf, protectedScopeOf, injectionSiteRule, moduleOwning,
-  resolveWriteScope, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles,
-} from '../work/scope.js';
-import { committedRecords, refOf, recordHash } from '../work/committed.js';
-import {
-  obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection,
-} from '../work/obligations.js';
-import { capabilityOf, frontierOrder, hypothesesFor } from '../work/frontier.js';
+import { scopeConfigurationPaths, missingHistoricalAuthority, captureGuardedFiles, deniedFiles, guardedScopeOf, protectedScopeOf, injectionSiteRule, moduleOwning, resolveWriteScope, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles,  } from '../work/scope.js';
+import { committedRecords, refOf } from '../work/committed.js';
+import { obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection,  } from '../work/obligations.js';
+import { hypothesesFor } from '../work/frontier.js';
 import { integrationScenarioOf, originKindOf, workLayout, workItemId, workItemSchema, type WorkItem } from '../work/records.js';
-import { apiCoverageStatement, apiViewsOf, prepareAssignedCucumber, focusedScenarioFacts, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
+import { apiViewsOf, prepareAssignedCucumber, defaultWriteScopeSection, iterationApiViews, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from '../work/session.js';
 import { localArchitectToolName, type LocalArchitectSubmission } from '../work/submission.js';
 import { gateDiagnostics, type GateAudience } from '../checks/diagnostics.js';
 import { scenarioResultsOf, type ScenarioResult } from '../checks/scenario-results.js';
@@ -239,41 +162,29 @@ import { extractPlanScenarios, type PlanScenarioExtraction } from '../../subs/sc
 import type { RenderedFeatureFile } from '../../subs/scenarios/src/rendering.js';
 import { RunLog, type RunEvent, type RunEventInput, type RunEventOf } from './log.js';
 import { ObservationLog } from './observations.js';
-import { endedOf, InvocationBounds, PortEventRecorder, type CallInFlight } from './port-events.js';
-import { contextPolicyOf, defaultContextPolicies, defaultRunPolicy, invocationLimits, engineerBoundsOf, withProjectTimeouts, type EngineerBounds } from './policy.js';
+
+import { contextPolicyOf, defaultContextPolicies, defaultRunPolicy, engineerBoundsOf, withProjectTimeouts, type EngineerBounds } from './policy.js';
 import { captureProjectConfig, resolveBeadsProjectConfig, moduleTestAreas, type TestArea } from './project-config.js';
 import { BeadsSessions } from './beads-sessions.js';
-import {
-  commitForMaterialization, commitForScenarios, contentHash as featureContentHash, expectedFeatureFiles, expectedFeatureHashes,
-  materializationMessage, rerenderFeatureFiles, incompleteScenarios, rewordedTrailerValue, rewordingMessage, scenarioNameOf, trackedScenarios,
-} from './feature-files.js';
+import { commitForMaterialization, commitForScenarios, contentHash as featureContentHash, expectedFeatureFiles, expectedFeatureHashes, materializationMessage, rerenderFeatureFiles, incompleteScenarios, rewordedTrailerValue, rewordingMessage, scenarioNameOf, trackedScenarios,  } from './feature-files.js';
 import type { ScenarioState } from '../../subs/scenarios/src/states.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { integrationBriefing, type IntegrationBriefing } from '../work/integration.js';
 import { briefed, entryScenariosOf, type EngineerScenarios } from '../work/scenario-briefing.js';
 import { failingStep, performRecovery, readinessFailureReason, recoveryFor, runReadiness, withRecovery } from './readiness.js';
 import { declaredModuleDirectories } from './project-config.js';
-import {
-  assignmentStartingPointsOf, auditPreparationPathsOf, declaredCheckFacts, defaultWriteScopesOf, engineerBoundsFor, iterationAssignmentOf,
-  knownProjectFactsOf, obligationBriefingOf, ownedTestAreasOf, unauthorizedGuardedOf, viewIdentityOf as projectViewIdentity,
-} from './project-facts.js';
+import { assignmentStartingPointsOf, auditPreparationPathsOf, declaredCheckFacts, defaultWriteScopesOf, engineerBoundsFor, iterationAssignmentOf, knownProjectFactsOf, obligationBriefingOf, ownedTestAreasOf, unauthorizedGuardedOf, viewIdentityOf as projectViewIdentity,  } from './project-facts.js';
 import { assertScratchSafe, ensureScratchRule, scratchSafetyRule, ScratchIgnoreConflictError } from '../work/scratch.js';
-import {
-  globalForkSourceSchema, gateAttemptId, gateAttemptSchema, gateOperationSchema, invocationId, invocationOutcomeSchema, invocationSchema, lineEventSummarySchema,
-  measurementSnapshotSchema, readinessAttemptSchema, recoveryId, runDirectory, runLayout, runRecordSchema, runSchemas, sessionId, snapshotId,
-  type GateOperation, type Invocation, type InvocationOutcome, type LineEventSummary, type MeasurementSnapshot, type RecordRef, type RunPolicy,
-  type RunRecord, type ArchitectRef, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type ReplaceRelation,
-  type RequestRelation, type SessionFinishReason, type SessionId,
-} from './records.js';
-import { reduceSessions, type RunSessions } from './sessions.js';
+import { globalForkSourceSchema, gateAttemptId, gateAttemptSchema, invocationOutcomeSchema, invocationSchema, lineEventSummarySchema, measurementSnapshotSchema, readinessAttemptSchema, recoveryId, runDirectory, runLayout, runRecordSchema, runSchemas, sessionId, snapshotId, type GateOperation, type Invocation, type InvocationOutcome, type LineEventSummary, type MeasurementSnapshot, type RecordRef, type RunPolicy, type RunRecord, type ArchitectRef, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type RequestRelation, type SessionFinishReason, type SessionId,  } from './records.js';
+import { type RunSessions } from './sessions.js';
 import { runSnapshot, type RunSnapshot } from './snapshot.js';
-import { InvocationTranscript, recordAppend, verdictNote } from '../transcripts/recorder.js';
+import { InvocationTranscript, recordAppend } from '../transcripts/recorder.js';
 import { ContentStore } from '../transcripts/store.js';
 import { readBody, readTranscript, TranscriptWriter } from '../transcripts/writer.js';
-import { SubmissionJudge, validateAgainst, type SubmissionValidation } from './submissions.js';
+import { validateAgainst, type SubmissionValidation } from './submissions.js';
 import { nodeProcessGroups, WriterBlockedError, WriterOwnership, type ProcessGroups, type TreeObserver } from './writer.js';
-import { HarnessSessionOperations, ReusableSessionUnavailableError, readSessionPointReference, settleSessionEquipment, type HarnessTaskBrief } from './session-operations.js';
-import { deliveredSupportPaths, type TaskEnvironment, type TaskKind } from '../prompts/tasks.js';
+import { HarnessSessionOperations, readSessionPointReference, type HarnessTaskBrief } from './session-operations.js';
+import { deliveredSupportPaths, type TaskKind } from '../prompts/tasks.js';
 import { processGroupIdentity } from '../../subs/evidence/src/run-command.js';
 
 /*
@@ -408,7 +319,7 @@ export interface RunServiceOptions {
   readonly afterWrite?: ((write: RunWrite, runId: string) => Promise<void>) | undefined;
   /** The wall clock. Tests control it at invocation boundaries. */
   readonly now?: (() => Date) | undefined;
-  /** Trusted installed-runtime evidence seam. Production hashes its installed implementation. */
+  /** Legacy adapter option, ignored: task continuation does not authenticate runtime hashes. */
   readonly recoveryRuntime?: (() => Promise<RecoveryRuntime>) | undefined;
   /** Settled producer evidence independent of a source commit acknowledgement. */
   readonly auditSettlement?: ((sourceRun: string, gate: string, commit: string) => Promise<{ confirmed: boolean; evidence: string[] }>) | undefined;
@@ -598,7 +509,7 @@ class Run implements RunnerRun {
   constructor(
     readonly record: RunRecord,
     readonly directory: string,
-    readonly log: RunLog,
+    public log: RunLog,
     readonly base: string,
     writer: WriterOwnership,
   ) {
@@ -669,7 +580,6 @@ export class RunService {
   private beadsSessions: Promise<BeadsSessions> | undefined;
   private closed = false;
   private closing: Promise<void> | undefined;
-  private readonly runningRuntime: Promise<RecoveryRuntime>;
 
   private readonly repairIncidentExport: RepairExportConfiguration | undefined;
   private readonly git: GitService;
@@ -679,9 +589,6 @@ export class RunService {
   get candidateSource(): CandidateSource { return this.candidates; }
 
   private constructor(private readonly options: RunServiceOptions, private readonly workflow: CapabilityWorkflow | null) {
-    this.runningRuntime = this.readRecoveryRuntime();
-    // Retain a rejection for explicit inspection without an unhandled startup promise.
-    void this.runningRuntime.catch(() => undefined);
     this.repairIncidentExport = options.repairIncidentExport === undefined ? undefined : { ...options.repairIncidentExport };
     this.git = options.git ?? gitService;
     this.candidates = options.candidates ?? gitCandidateSource;
@@ -734,16 +641,16 @@ export class RunService {
         if (!effect || (await service.previewCandidateTree()).tree !== effect.tree) return undefined;
         return { commit: effect.commit, tree: effect.tree };
       },
-      evidenceApplicable: (run, event) => event.sequence >= 0 || !run.restartImport || !service.latestOperationRecovery(run)?.admission?.invalidatesQualification,
-      // The provider's definition as the run captured it, whatever the candidate commit holds.
-      auditDefinition: async run => {
-        const recovered = service.latestOperationRecovery(run)?.admission;
-        if (recovered?.admitted) return recovered.after.configuration.policy as import('../../subs/audit/src/check-execution.js').CommittedAuditConfiguration;
+      auditDefinition: async (run, sourceCommit) => {
         const captured = run.record.auditConfiguration;
         if (captured === undefined || 'invalid' in captured) {
           throw new Error(`The run carries no committed audit definition: ${captured === undefined ? 'none was captured' : captured.invalid}`);
         }
-        return captured.config;
+        const corrected = recordedExternalChanges(run.log.ledger.replay()).some(observation => observation.changes.some(change => change.path === captured.config.path));
+        if (!corrected) return captured.config;
+        const current = await service.options.configuredAudit.read(service.projectRoot, sourceCommit);
+        if (!compatibleAuditRepair(captured.config, current)) throw new Error('Required audit checks or acceptance policy changed');
+        return current;
       },
       previewCandidateTree: () => service.previewCandidateTree(),
       get candidates() { return service.candidates; },
@@ -752,7 +659,7 @@ export class RunService {
       recoverGate: (run, attempt, diagnostic, group, attempts) => service.waitOperationRecovery(run,
         { kind: 'gate', checkpoint: attempt.checkpoint, work: { ...attempt.subject }, candidate: attempt.audited ?? attempt.head },
         { classification: 'check-execution', diagnostic }, attempts, attempt.infrastructureAttempt, group),
-      awaitGateAdmission: (run, resumedGroup = false) => service.awaitGateAdmission(run, resumedGroup),
+      awaitGateAdmission: run => service.awaitGateAdmission(run),
       retryGateDelay: async (run, milliseconds) => {
         const deadline = Date.now() + milliseconds;
         while (!service.ignoring(run) && Date.now() < deadline) {
@@ -765,23 +672,10 @@ export class RunService {
     };
   }
 
-  /** Gate dispatch waits for peer recovery and revalidates an explicitly admitted attempt group. */
-  private async awaitGateAdmission(run: Run, resumedGroup: boolean): Promise<boolean> {
-    if (run.policy.recovery === undefined) return true;
-    for (;;) {
-      while (run.recoveryPause && !this.ignoring(run)) {
-        const changed = run.changed();
-        if (!run.recoveryPause) break;
-        await changed;
-      }
-      if (this.ignoring(run)) return false;
-      const recovery = this.latestOperationRecovery(run);
-      if (!resumedGroup || recovery?.state !== 'resumed' || !recovery.admission) return true;
-      const blockers = repairDispatchBlockers(recovery.admission, await this.captureRecoveryIdentity(run));
-      if (blockers.length === 0) return true;
-      if (!await this.waitOperationRecovery(run, recovery.boundary, { classification: 'preparation', diagnostic: blockers.join('; ') },
-        recovery.attempts, recovery.automaticAttempts, recovery.group, true, recovery.admission.after)) return false;
-    }
+  /** Peer work pauses dispatch until its lifecycle owner has settled. */
+  private async awaitGateAdmission(run: Run): Promise<boolean> {
+    while (run.recoveryPause && !this.ignoring(run)) { const changed = run.changed(); if (!run.recoveryPause) break; await changed; }
+    return !this.ignoring(run);
   }
 
   /** The invocation runner every role's invocation of every run goes through. */
@@ -791,6 +685,7 @@ export class RunService {
   private runnerHost(): RunnerHost<Run> {
     const service = this;
     return {
+      authorityCurrent: () => service.options.lock.held(),
       get projectRoot() { return service.projectRoot; },
       get git() { return service.git; },
       get model() { return service.options.model ?? null; },
@@ -877,6 +772,7 @@ export class RunService {
 
   private async afterWrite(write: RunWrite, runId: string): Promise<void> {
     await this.options.afterWrite?.(write, runId);
+    if (!await this.options.lock.held()) throw new Error('Execution ownership was lost before the operation could continue');
   }
 
   /** One run-log write, serialized with every other, as the invocation runner makes it. */
@@ -898,7 +794,7 @@ export class RunService {
     // committed before anything ends the run, as when the mutex held it.
     await run.gating?.catch(() => undefined);
     const written = await run.mutex.run<'committed' | 'ended'>(async () => {
-      if (run.log.terminal || this.closed || (run.stopRequested && terminal.type !== 'job-stopped' && terminal.type !== 'job-interrupted')) return 'ended';
+      if (!await this.options.lock.held() || run.log.terminal || this.closed || (run.stopRequested && terminal.type !== 'job-stopped' && terminal.type !== 'job-interrupted')) return 'ended';
       const sessions = this.sessionsOf(run);
       for (const session of sessions?.values() ?? []) {
         if (run.restartImport && !run.log.ownEvents.some(event => event.type === 'session-opened' && event.data.session === session.id)) continue;
@@ -1359,9 +1255,8 @@ export class RunService {
     return committed === 'committed';
   }
 
-  /** Infrastructure setup failures retain the frozen question until an explicit compatible repair. */
+  /** A temporarily unavailable prerequisite leaves its ordinary review question pending. */
   private async recoverableReviewAttempt(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, id: string): Promise<boolean> {
-    let group = 0;
     for (;;) {
       try { return await this.runReviewAttempt(run, agent, packages, id); }
       catch (error) {
@@ -1369,9 +1264,8 @@ export class RunService {
         const request = reviewRequestSchema.parse(this.committedBody(run, reviewLayout.request(id)));
         const resumed = await this.waitOperationRecovery(run, { kind: 'preparation', role: 'reviewer', reviewRequest: id,
           candidate: request.key.candidate, work: { workItem: request.workItem, iteration: request.key.iteration, request: id } },
-          { classification: 'preparation', diagnostic: `Frozen review ${id} setup is unavailable: ${message(error)}` }, [], 0, group);
+          { classification: 'preparation', diagnostic: `Frozen review ${id} setup is unavailable: ${message(error)}` }, [], 0);
         if (!resumed) return false;
-        group++;
       }
     }
   }
@@ -1491,7 +1385,7 @@ export class RunService {
     if (source === undefined) return fresh('The captured review session is unavailable');
     if (!source.invocations.includes(from.invocation) || source.awaiting === from.invocation) throw new EvidenceUnavailableError(`${from.session} has not reached the end of ${from.invocation}`);
     const outcome = this.effectiveInvocationOutcome(run, from.invocation);
-    if (outcome?.session?.ref !== from.ref) throw new EvidenceUnavailableError('The captured review source differs from its accepted invocation point');
+    if (outcome?.session?.ref !== from.ref) return fresh('The captured review point is unavailable; using the ordinary review question');
     if (!await (await this.operations(agent)).hasPoint(run.record.jobId, from.ref)) {
       if (from.reason === 'scope-review') return fresh('The captured assignment point is unavailable; reconstructing the complete scope review packet');
       return fresh('The recorded design orientation is unavailable');
@@ -1747,26 +1641,6 @@ export class RunService {
     clearTimeout(timer);
   }
 
-  /**
-   * Recovery of a run's reviews: every request an accepted iteration is owed
-   * and has not is recorded once. An accepted reader submission is replayed;
-   * every request still unsettled is finished as not verified, since an
-   * interrupted run starts no new reader. An unaccepted attempt whose reader
-   * was running lost its session with the harness.
-   */
-  private async recoverReviews(run: Run): Promise<string[]> {
-    if (run.policy.reviews === undefined) return [];
-    const recovered: string[] = [];
-    for (const closed of this.reviewableClosings(run)) {
-      for (const request of await this.handling.requestReviews(run, closed)) recovered.push(`review request ${request} of ${closed.iteration}`);
-    }
-    const finishedIds = await this.finishUnsettledReviews(run, (_request, running) => (running
-      ? { reason: 'execution-failed', detail: 'The harness stopped while this attempt ran; its reader\'s session was lost with it' }
-      : { reason: 'stopped', detail: 'The harness stopped before this review ran; a recovered run is interrupted and runs nothing more' }));
-    for (const attempt of finishedIds) recovered.push(`review attempt ${attempt}, finished as not verified`);
-    return recovered;
-  }
-
   /** The run's review requests and coverage, from its log; undefined for an unknown run. */
   reviews(planId: string, runId: string, workItem?: string): { readonly coverage: ReviewCoverage; readonly requests: ReturnType<typeof unsettledRequests> } | undefined {
     this.refuseEarlierPolicy(planId, runId);
@@ -1986,7 +1860,7 @@ export class RunService {
     if (source === undefined) return fresh('The captured review session is unavailable');
     if (!source.invocations.includes(from.invocation) || source.awaiting === from.invocation) throw new EvidenceUnavailableError(`${from.session} has not reached the end of ${from.invocation}`);
     const outcome = this.effectiveInvocationOutcome(run, from.invocation);
-    if (outcome?.session?.ref !== point.ref) throw new EvidenceUnavailableError('The recorded completion point does not match its accepted invocation');
+    if (outcome?.session?.ref !== point.ref) return fresh('The captured completion point is unavailable; using the ordinary reconciliation task');
     if (!await (await this.operations(agent)).hasPoint(run.record.jobId, point.ref)) return fresh('The recorded completion session point is unavailable; reconstructing the complete reconciliation packet');
     const ended = run.log.all('invocation-ended').find(event => event.data.invocation === from.invocation)?.sequence ?? 0;
     const briefs = run.log.all('brief-appended')
@@ -2407,63 +2281,6 @@ export class RunService {
 
   // Loading and recovery
 
-  /** The snapshot's exclusive file write precedes the request transaction.
-   * Recover that precise suspended writer from its authenticated submission,
-   * then adopt only matching live source and index bytes. */
-  private async reconcileSuspendedCapabilityRequest(run: Run): Promise<void> {
-    const records = committedRecords(run.log.ledger.replay());
-    const requested = new Set([...records.capabilityRequests.values()].map(request => request.invocation));
-    for (const started of run.log.all('invocation-started')) {
-      const iteration = started.data.work.iteration;
-      if (started.data.role !== 'engineer' || iteration === undefined ||
-        requested.has(started.data.invocation) || records.results.has(iteration)) continue;
-      const ended = run.log.all('invocation-ended').find(event => event.data.invocation === started.data.invocation);
-      const outcome = records.outcomes.get(started.data.invocation);
-      if (ended?.data.ended !== 'submitted' || ended.data.submission === null || !ended.data.kept ||
-        outcome?.disposition !== 'applied' || !outcome.settled.confirmed || outcome.session?.ref === undefined) continue;
-      const bytes = await readIfExists(run.path(runLayout.submission(started.data.invocation)));
-      if (bytes === undefined || sha256(bytes) !== ended.data.submission || outcome.submission?.hash !== ended.data.submission) {
-        throw new Error(`Suspended engineer ${started.data.invocation} has unauthenticated submission bytes`);
-      }
-      const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-      const { schema: _schema, ...body } = raw;
-      const parsed = engineerSubmissionSchema.safeParse(body);
-      if (raw.schema !== 'ramify-agent.engineer-submission/1' || !parsed.success || parsed.data.kind !== 'capability-needed') continue;
-      const assignment = records.assignments.get(iteration);
-      const item = assignment === undefined ? undefined : records.workItems.find(entry => entry.id === assignment.workItem);
-      const taskId = assignment?.coordination?.kind === 'capability-task' ? assignment.coordination.id : undefined;
-      const parentTask = taskId === undefined ? undefined : records.capabilityTasks.get(taskId);
-      const parentPlan = parentTask === undefined ? undefined : records.capabilityPlans.get(parentTask.id)?.at(-1);
-      if (assignment === undefined || item === undefined ||
-        (assignment.coordination?.kind === 'capability-task' && (parentTask === undefined || parentPlan === undefined))) {
-        throw new Error(`Suspended engineer ${started.data.invocation} lacks its original assignment`);
-      }
-      const release = run.log.all('writer-released').filter(event => event.data.invocation === started.data.invocation);
-      if (release.length !== 1 || release[0]!.data.confirmed !== true) throw new Error(`Suspended engineer ${started.data.invocation} has no confirmed writer release`);
-      const requestId = capabilityRequestId(records.capabilityRequests.size + 1);
-      const source = await captureProvisionalSource({ git: this.git, sourceGit: this.options.provisionalSourceGit, projectRoot: this.projectRoot, runDirectory: run.directory,
-        request: requestId, acceptedBase: this.accepted(run), writerSettledBy: started.data.invocation,
-        changedPaths: await this.git.changedPaths(this.projectRoot, this.accepted(run)) });
-      const captured = await readFile(run.path(runLayout.capturedPlan));
-      const request: CapabilityRequest = { schema: 'ramify-agent.capability-request/1', id: requestId,
-        parent: parentTask === undefined ? { kind: 'work-item', id: item.id } : { kind: 'capability-task', id: parentTask.id },
-        assignment: assignment.id,
-        invocation: started.data.invocation, consumer: assignment.coordination?.kind === 'capability-task'
-          ? 'module' in assignment.scope.base ? assignment.scope.base.module : parentTask!.consumer
-          : item.module,
-        requirementPackage: parentTask === undefined
-          ? { id: runLayout.capturedPlan, revision: 1, hash: sha256(captured) }
-          : refOf(parentTask.id, parentPlan!.revision, parentPlan!),
-        continuation: { session: started.data.session, point: outcome.session.ref }, source,
-        summary: parsed.data.summary, original: identifyCapabilityNeed(requestId, parsed.data.request) };
-      await run.mutex.run(() => commitCapabilityTransition(run.log, { type: 'capability-requested', data: {
-        request: request.id, parent: request.parent.id, assignment: request.assignment, invocation: started.data.invocation,
-      } }, [{ path: capabilityLayout.request(request.id), id: request.id, revision: 1, body: request }]));
-      requested.add(started.data.invocation);
-      break;
-    }
-  }
-
   private readonly refusedPolicies = new Map<string, string>();
 
   private refuseEarlierPolicy(planId: string, runId: string): void {
@@ -2536,17 +2353,6 @@ export class RunService {
       for (const event of run.log.ownEvents) if (event.type === 'restart-prepared' || event.type === 'operation-recovery-resumed' || event.type === 'stop-requested') this.commands.remember(event.data.command);
       const rewritten = await recoverCommits(run.log.ledger);
       if (rewritten.rewritten.length > 0) report.rematerialized.push(`${run.key}: ${rewritten.rewritten.length} record file(s)`);
-      if (!run.log.terminal && run.record.breakpoint !== undefined) {
-        for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
-        await this.endRun(run, { type: 'job-interrupted', data: {
-          message: 'The live server for this debug-enabled run was lost. Pending debugger and workflow effects were not replayed; start a new run to continue.',
-        } }, 'interrupted');
-        report.interrupted.push(run.key);
-        for (const event of run.log.events) {
-          if (event.type === 'job-started' || event.type === 'stop-requested' || event.type === 'analysis-approved' || event.type === 'debug-resumed' || event.type === 'debug-exchange-admitted') this.commands.remember(event.data.command);
-        }
-        continue;
-      }
       // A crash can land after the durable close event and before its
       // filesystem cleanup. Repeat the idempotent cleanup on every load.
       try {
@@ -2557,231 +2363,52 @@ export class RunService {
       }
 
       if (!run.log.terminal) {
-        const repair = this.latestRepairIncident(run);
-        if (repair !== undefined && ['admitted', 'running'].includes(repair.stage) && this.latestOperationRecovery(run)?.state !== 'paused') {
-          const incident = { ...repair.incident, revision: repair.incident.revision + 1,
-            endedAt: this.now().toISOString(), continuation: { delivered: false, reason: 'Service interruption requires manual attention; repair is never restarted automatically', evidence: [] } };
-          await this.persistRepairIncident(run, incident, 'interrupted');
-          if (!run.policy.recovery) await this.fail(run, 'recovery-exhausted', 'An interrupted automatic repair requires manual attention; no repair invocation was restarted');
-          report.interrupted.push(run.key);
-          if (run.policy.recovery && !run.stopRequested) {
-            await this.waitOperationRecovery(run, { kind: 'preparation', role: 'engineer',
-              work: { workItem: incident.workItem, automaticRepair: incident.incidentId },
-              retainedTask: { candidate: { head: incident.candidateBefore?.head ?? '', tree: incident.candidateBefore?.tree ?? '' },
-                acceptedHead: this.accepted(run), work: { workItem: incident.workItem, automaticRepair: incident.incidentId },
-                configuration: recoveryHash(run.record.auditConfiguration), obligations: [{ kind: 'automatic-repair', id: incident.incidentId }],
-                sourceRecords: [incident.preparation.path, posix.join('repairs', 'sources', `${incident.incidentId}.json`), runLayout.contingentRepairAssignment],
-                authority: { assignment: incident.authority.assignment, submission: 'submit_automatic_repair' } } },
-              { classification: 'unknown', diagnostic: 'The service stopped during the admitted automatic repair; original source, authority and pending preparation are retained. Restart supplies no successor authority.' },
-              run.log.all('invocation-started').filter(event => event.data.work.automaticRepair === incident.incidentId).map(event => event.data.invocation), 0, 0, false);
-            continue;
-          }
-        }
-      }
-
-      if (!run.log.terminal && run.policy.recovery !== undefined && run.stopRequested) {
-        for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
-        const settled = !run.writer.isUnsettled && run.log.all('invocation-started').every(started => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation))); return outcome.success && outcome.data.settled.confirmed; });
-        await this.endRun(run, { type: 'job-stopped', data: { settled } }, 'run-ended');
-        continue;
-      }
-      if (!run.log.terminal && run.policy.recovery !== undefined) {
-        const recovery = this.latestOperationRecovery(run);
-        if (recovery && recovery.state !== 'resumed') {
-          run.recoveryPause = recovery;
-          run.recoveryRestart = true;
-          // A service restart is never a new authorization to attempt this operation.
-          for (const event of run.log.all('operation-recovery-resumed')) this.commands.remember(event.data.command);
-          for (const event of run.log.events) if (event.type === 'job-started' || event.type === 'stop-requested' || event.type === 'analysis-approved') this.commands.remember(event.data.command);
-          if (recovery.state === 'pausing') {
-            run.recoveryPause = undefined;
-            await this.waitOperationRecovery(run, recovery.boundary, recovery.evidence, recovery.attempts, recovery.automaticAttempts, recovery.group, false);
-          }
-          continue;
-        }
-        const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
-        const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
-        const latestAttempt = run.log.all('operation-recovery-attempt').at(-1);
-        const lastOutcome = latestAttempt === undefined ? undefined : invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(latestAttempt.data.invocation)));
-        const interruptedGroup = latestAttempt && lastOutcome?.success && ['failed', 'resource-pending', 'context-budget-reached'].includes(lastOutcome.data.ended)
-          && (recovery?.state !== 'resumed' || latestAttempt.data.group >= recovery.group) ? latestAttempt : undefined;
-        const unfinished = [];
-        for (const event of pending) if (!(await operations?.acceptance(run.jobId, event.data.invocation))) unfinished.push(event);
-        if (unfinished.length > 0) {
-          let safe = true;
-          const unconfirmed = new Set<string>();
-          for (const event of pending) {
-            try { if (await operations?.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs) === false) { safe = false; unconfirmed.add(event.data.invocation); } }
-            catch (error) { safe = false; unconfirmed.add(event.data.invocation); this.warn(`Original operation settlement failed: ${message(error)}`); }
-          }
-          for (const invocation of await this.closeInterruptedInvocations(run, new Set(), unconfirmed)) report.invocations.push(`${run.key}: ${invocation}`);
-          const event = unfinished.at(-1)!;
-          const invocation = this.invocationRecord(run, event.data.invocation).body;
-          const mode = invocation.session.requested;
-          const start: RecoveryBoundary['start'] = mode === 'fresh' ? { mode: 'fresh' } : mode === 'fork' ? { mode: 'fork', from: invocation.session.from } : { mode: 'continue', ref: invocation.session.from };
-          await this.waitOperationRecovery(run, { kind: 'invocation', role: invocation.role, work: invocation.work, invocation: invocation.id,
-            source: invocation.session.from ?? null, start, session: event.data.session,
-            requestHash: sha256(canonicalJson({ role: invocation.role, work: invocation.work, prompt: invocation.prompt.requestedInputsHash })) },
-            { classification: 'unknown', diagnostic: safe ? 'The service stopped during this original operation; no accepted result was found and no automatic attempt was authorized by restart' : 'Startup retains unconfirmed operation settlement or an unresolved effect. Pending work is held until its owner and effects are independently reconciled.' },
-            unfinished.map(event => event.data.invocation), 0, recovery?.group ?? 0, false);
-          continue;
-        }
-        if (pending.length === 0 && interruptedGroup && !run.log.events.slice(interruptedGroup.sequence).some(event => ['iteration-closed', 'review-attempt-finished', 'work-item-completed'].includes(event.type))) {
-          const invocation = this.invocationRecord(run, interruptedGroup.data.invocation).body;
-          const outcome = invocationOutcomeSchema.parse(this.committedBody(run, runLayout.outcome(invocation.id)));
-          const start: RecoveryBoundary['start'] = invocation.session.requested === 'fresh' ? { mode: 'fresh' }
-            : invocation.session.requested === 'fork' ? { mode: 'fork', from: invocation.session.from } : { mode: 'continue', ref: invocation.session.from };
-          const attempts = run.log.all('operation-recovery-attempt').filter(event => event.data.requestHash === interruptedGroup.data.requestHash).map(event => event.data.invocation);
-          await this.waitOperationRecovery(run, { kind: 'invocation', role: invocation.role, work: invocation.work, invocation: invocation.id,
-            source: invocation.session.from ?? null, start, requestHash: interruptedGroup.data.requestHash },
-            outcome.interruptionEvidence ?? { classification: 'unknown', diagnostic: outcome.error ?? 'The service stopped between interrupted attempts' },
-            attempts, interruptedGroup.data.attempt, interruptedGroup.data.group, false);
-          continue;
-        }
-        // Accepted destinations can reconcile through their exact original owning
-        // tasks; the next missing operation is held by the startup admission guard.
-        if (pending.length > 0) run.startupRecovery = true;
-      }
-
-      if (!run.log.terminal && run.policy.continuity && run.policy.recovery) {
-        // Reconcile an authenticated accepted destination without dispatching a successor.
-        const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
         const unconfirmed = new Set<string>();
         const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
-        for (const event of pending) if (!await operations?.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs)) unconfirmed.add(event.data.invocation);
-        for (const invocation of await this.closeInterruptedInvocations(run, new Set(), unconfirmed)) report.invocations.push(`${run.key}: ${invocation}`);
-        const gate = run.log.all('gate-committing').find(event => !run.log.all('gate-attempted').some(attempt => attempt.data.gate === event.data.gate));
-        const operation = gate ? this.committedBody(run, runLayout.gateOperation(gate.data.gate)) as GateOperation | null : null;
-        const candidate = await this.previewCandidateTree().catch(() => ({ head: '', tree: '' }));
-        const latest = run.log.all('invocation-started').at(-1);
-        const boundary: RecoveryBoundary = operation
-          ? { kind: 'gate', checkpoint: operation.checkpoint, work: operation.request.subject, candidate: operation.request.head }
-          : { kind: !run.log.find('analysis-accepted') || run.log.find('readiness-passed') ? 'preparation' : 'readiness', checkpoint: !run.log.find('analysis-accepted') || run.log.find('readiness-passed') ? 'startup' : 'readiness',
-            ...(latest ? { role: latest.data.role as Role, work: latest.data.work, invocation: latest.data.invocation } : {}) };
-        boundary.retainedTask = { candidate: { head: candidate.head, tree: candidate.tree }, acceptedHead: this.accepted(run), work: boundary.work ?? {},
-          configuration: recoveryHash(run.record.auditConfiguration), obligations: operation ? [{ kind: 'gate', id: gate!.data.gate }] : [{ kind: 'retained-workflow', id: run.jobId }],
-          sourceRecords: [runLayout.record, runLayout.events, ...(gate ? [runLayout.gateOperation(gate.data.gate)] : [])],
-          authority: { source: 'explicit-occurrence-bound-resume-required', policy: run.policy.version } };
-        await this.waitOperationRecovery(run, boundary, { classification: 'unknown', diagnostic: 'The service restarted after retained work. Authenticated accepted destinations are preserved; a new model, writer or gate producer requires explicit compatible resume.' },
-          pending.map(event => event.data.invocation), 0, this.latestOperationRecovery(run)?.group ?? 0, false);
-        report.interrupted.push(run.key);
-        continue;
-      }
-
-      if (!run.log.terminal && this.workflow !== null && supportedCapabilityPolicy(run.policy.version)) {
-        try {
-          await this.reconcileSuspendedCapabilityRequest(run);
-        } catch (error) {
-          await this.fail(run, 'inputs-changed', `Suspended capability source could not be reconciled: ${message(error)}`);
-          report.interrupted.push(run.key);
+        const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
+        for (const event of pending) {
+          // Revoke authenticated native children even when provider drainage
+          // itself remains unavailable. Killing a child is not task settlement.
+          for (const group of run.log.all('writer-process-registered').filter(group => group.data.invocation === event.data.invocation)) {
+            if (await processGroupIdentity(group.data.pid) === group.data.identity) (this.options.groups ?? nodeProcessGroups).kill(group.data.pid);
+          }
+          try {
+            if (operations && !await operations.stopOriginal(run.jobId, event.data.invocation, run.policy.limits.stopSettleMs)) unconfirmed.add(event.data.invocation);
+          } catch (error) {
+            unconfirmed.add(event.data.invocation);
+            this.warn(`Original operation settlement failed: ${message(error)}`);
+          }
         }
-      }
-
-
-      if (!run.log.terminal) {
-        if (this.workflow !== null && supportedCapabilityPolicy(run.policy.version) &&
-          run.log.find('capability-requested') !== undefined) {
-          for (const effect of await this.completeEffects(run)) report.effects.push(`${run.key}: ${effect}`);
-          for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
-          const writerIssue = [...run.log.all('writer-acquired')].find(acquired => {
-            const releases = run.log.all('writer-released').filter(event => event.data.invocation === acquired.data.invocation);
-            return releases.length !== 1 || releases[0]!.data.confirmed !== true;
-          });
-          if (writerIssue !== undefined || run.log.find('stop-requested') !== undefined) {
-            const cause = writerIssue === undefined ? 'A stop was requested before restart'
-              : `Writer ${writerIssue.data.invocation} has no unique confirmed settlement`;
-            const active = replayCapabilityState(run.log.events).stack.at(-1);
-            if (active !== undefined && active.startsWith('cap-')) await this.write(run, {
-              type: 'capability-stopped', data: { task: active, reason: cause },
-            });
-            await this.fail(run, writerIssue === undefined ? 'recovery-exhausted' : 'writer-unsettled', cause);
-            report.interrupted.push(run.key);
-          } else if (this.options.agent === undefined) {
-            await this.fail(run, 'recovery-exhausted', 'Capability continuation has no agent port');
-            report.interrupted.push(run.key);
-          } else {
-            const { packages } = await loadPromptPackages({
-              ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
-              capabilityWorkflow: true,
-            });
-            const changed = [...packages].filter(([role, loaded]) => run.record.prompts[role]?.hash !== loaded.hash).map(([role]) => role);
-            if (changed.length > 0) {
-              await this.fail(run, 'inputs-changed', `Captured prompt packages changed before capability recovery: ${changed.join(', ')}`);
-              report.interrupted.push(run.key);
-            } else {
-              run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
-              const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
-              run.done = this.drive(run, this.options.agent, packages, baseline, true)
-                .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted',
-                  `Capability continuation failed: ${message(error)}`))
-                .catch(error => this.warn(`Run ${run.record.jobId}: ${message(error)}`));
-              report.effects.push(`${run.key}: resumed capability coordination from its committed stack`);
-            }
-          }
-        } else if (run.log.find('nonfunctional-phase-started')) {
-          const reason = await this.nonfunctionalResumeRefusal(run);
-          if (reason !== null) {
-            await this.fail(run, 'recovery-exhausted', `The non-functional phase cannot resume: ${reason}`);
-            report.interrupted.push(run.key);
-          } else {
-            for (const effect of await this.completeEffects(run)) report.effects.push(`${run.key}: ${effect}`);
-            const agent = this.options.agent!;
-            const originalCoordinators = new Set<string>();
-            if (agent.bindSessionStore) for (const started of run.log.all('invocation-started')) {
-              if (started.data.role !== 'nonfunctional-coordinator' || run.log.all('invocation-ended').some(ended => ended.data.invocation === started.data.invocation)) continue;
-              const record = this.invocationRecord(run, started.data.invocation).body;
-              const original = await (await this.operations(agent)).originalOperation(run.record.jobId, started.data.invocation);
-              if (record.writer && !this.coordinatorWithoutCommands(run, started.data.invocation) || record.sessionOperation?.runId !== run.record.jobId || original === null
-                || ![coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName].includes(original.packet.submissionTool)) continue;
-              originalCoordinators.add(started.data.invocation);
-            }
-            run.restoring = originalCoordinators.size > 0;
-            for (const invocation of await this.closeInterruptedInvocations(run, originalCoordinators)) report.invocations.push(`${run.key}: ${invocation}`);
-            const { packages } = await loadPromptPackages({
-              ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
-            });
-            run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
-            run.done = this.resumeNonfunctionalPhase(run, agent, packages)
-              .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted',
-                `The non-functional phase could not resume: ${message(error)}`))
-              .catch(error => this.warn(`Run ${run.record.jobId}: ${message(error)}`));
-            report.effects.push(`${run.key}: resumed the non-functional phase`);
-          }
-        } else if (this.options.agent?.bindSessionStore && !run.log.find('stop-requested') && run.log.all('invocation-started').some(event =>
-          this.invocationRecord(run, event.data.invocation).body.sessionOperation?.runId === run.record.jobId)) {
-          const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
-          if ([...packages].some(([role, loaded]) => run.record.prompts[role]?.hash !== loaded.hash)) throw new Error('Captured owning prompt packages changed before restoration');
-          if (run.log.all('writer-released').some(event => event.data.confirmed !== true)) throw new Error('Original writer settlement was unconfirmed');
-          for (const effect of await this.completeEffects(run)) report.effects.push(`${run.key}: ${effect}`);
-          for (const decision of await this.completeDeliveries(run)) report.effects.push(`${run.key}: the delivery of decision ${decision}`);
-          run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
-          const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
-          run.restorationSequence = run.log.version;
-          run.restoring = true;
-          run.done = this.drive(run, this.options.agent, packages, baseline, true)
-            .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted', `Original owning workflow restoration failed: ${message(error)}`))
-            .catch(error => this.warn(`Run ${run.record.jobId}: ${message(error)}`));
-          report.effects.push(`${run.key}: restored ordinary owning workflow from its original task correlations`);
+        for (const invocation of unconfirmed.size > 0 ? [] : await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
+        const unsettled = unconfirmed.size > 0 || run.writer.isUnsettled
+          || run.log.all('writer-released').some(event => !event.data.confirmed);
+        const reentry = decideTaskReentry({ authorized: true, stopped: run.stopRequested, settled: !unsettled });
+        if (run.stopRequested) {
+          await this.endRun(run, { type: 'job-stopped', data: { settled: !unsettled } }, 'run-ended');
+        } else if (reentry.action === 'wait') {
+          // A replacement must never overlap a surviving writer. Keep its task
+          // pending and report the concrete owner that could not be settled.
+          run.recoveryRestart = true;
+          this.warn(`Run ${run.jobId}: former execution has not settled; unfinished work remains pending`);
+          report.interrupted.push(run.key);
         } else {
-        for (const effect of await this.completeEffects(run)) report.effects.push(`${run.key}: ${effect}`);
-        for (const decision of await this.completeDeliveries(run)) report.effects.push(`${run.key}: the delivery of decision ${decision}`);
-        for (const invocation of await this.closeInterruptedInvocations(run)) report.invocations.push(`${run.key}: ${invocation}`);
-        // A request an accepted iteration is owed is recorded once, and
-        // every unsettled one is finished: the run runs nothing more.
-        for (const review of await this.recoverReviews(run)) report.reviews.push(`${run.key}: ${review}`);
-        // Every session the run still keeps is finished as a run end
-        // finishes it, and one opened whose first invocation never started
-        // was interrupted with it, so a recovered run holds no suspended
-        // session either.
-        const ended = await this.endRun(run, {
-          type: 'job-interrupted',
-          data: { message: 'The harness stopped while the run was running. Its records are complete to the last committed transition; start a new run to continue.' },
-        }, 'interrupted');
-        if (ended === 'committed') report.interrupted.push(run.key);
+          const prior = this.latestOperationRecovery(run);
+          const hadWriter = pending.some(event => this.invocationRecord(run, event.data.invocation).body.writer);
+          if (!hadWriter && prior?.settled) await this.observeQuiescentCandidate(run, prior.candidate.tree);
+          for (const effect of await this.completeEffects(run)) report.effects.push(`${run.key}: ${effect}`);
+          for (const delivery of await this.completeDeliveries(run)) report.effects.push(`${run.key}: delivery ${delivery}`);
+          if (this.options.agent) {
+          await run.log.append({ type: 'job-continued', data: { reason: 'service-startup' } }, this.now());
+          run.recoveryPause = undefined;
+          run.startupRecovery = false;
+          await this.startRecoveredDriver(run);
+          report.effects.push(`${run.key}: continued unfinished tasks through ordinary execution`);
+          }
         }
       }
 
       for (const event of run.log.events) {
+        if (event.type === 'job-continued' && event.data.command) this.commands.remember(event.data.command);
         if (event.type === 'job-started' || event.type === 'stop-requested' || event.type === 'analysis-approved' || event.type === 'debug-resumed' || event.type === 'debug-exchange-admitted') {
           this.commands.remember(event.data.command);
         }
@@ -2805,59 +2432,6 @@ export class RunService {
   }
 
   /** No shell can execute before its process registration; coordinator builtins only inspect. */
-  private coordinatorWithoutCommands(run: Run, invocation: string): boolean {
-    return run.log.all('invocation-started').some(event => event.data.invocation === invocation && event.data.role === 'nonfunctional-coordinator')
-      && !run.log.all('invocation-ended').some(event => event.data.invocation === invocation)
-      && !run.log.all('writer-process-registered').some(event => event.data.invocation === invocation);
-  }
-
-  /** Only the phase marker opts a run into same-run continuation. */
-  private async nonfunctionalResumeRefusal(run: Run): Promise<string | null> {
-    if (this.options.agent === undefined) return 'no agent is configured';
-    if (run.log.find('stop-requested')) return 'a stop was requested';
-    if (unsettledRequests(run.log.events).length > 0) return 'ordinary reviews have not settled';
-    const finishedItems = new Set(run.log.all('work-item-completed').map(event => event.data.workItem));
-    if (run.log.all('work-item-started').some(event => !finishedItems.has(event.data.workItem))) {
-      return 'ordinary work has not settled';
-    }
-    const closedIterations = new Set(run.log.all('iteration-closed').map(event => event.data.iteration));
-    if (run.log.all('iteration-assigned').some(event => !closedIterations.has(event.data.iteration))) {
-      return 'an ordinary iteration has not closed';
-    }
-    for (const acquired of run.log.all('writer-acquired')) {
-      const releases = run.log.all('writer-released').filter(event => event.data.invocation === acquired.data.invocation);
-      if (releases.length === 0 && this.coordinatorWithoutCommands(run, acquired.data.invocation)) continue;
-      if (releases.length !== 1 || releases[0]!.data.confirmed !== true) {
-        return `writer ${acquired.data.invocation} has no unique confirmed release`;
-      }
-    }
-    const accepted = await readAcceptedEvidence(run.directory, run.record, run.log.events);
-    if (accepted.status === 'unavailable') return `fixed catalog cannot be authenticated: ${accepted.reason}`;
-    const sourceChanges = await documentChanges(this.projectRoot, run.record.planId, run.directory, run.record.manifest);
-    if (sourceChanges.length > 0) return `captured documents changed: ${sourceChanges.join('; ')}`;
-    const marker = run.log.find('nonfunctional-phase-started')!;
-    const source = run.log.find('analysis-accepted')?.data.evidence.catalog.hash;
-    if (source !== marker.data.catalogHash) return 'phase marker names another catalog';
-    const nfrIds = assessedElements(accepted.catalog);
-    const replay = replayNonfunctionalPhase(run.log.ledger.replay(), nfrIds, marker.data.maxRounds);
-    if (!replay.ok) return `phase ledger prefix is invalid: ${replay.reason}`;
-    if (replay.value.final !== null) {
-      const preview = await this.previewCandidateTree();
-      if (preview.tree !== replay.value.final.candidate.tree) return 'source tree changed after the final assessment';
-    }
-    const { packages } = await loadPromptPackages({
-      ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }),
-    });
-    for (const role of ['nonfunctional-coordinator', 'nonfunctional-repair-engineer'] as const) {
-      if (run.record.prompts[role]?.hash !== packages.get(role)?.hash) return `${role} prompt package changed after capture`;
-    }
-    return null;
-  }
-
-  private async resumeNonfunctionalPhase(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): Promise<void> {
-    await this.qualifyFinal(run, agent, packages);
-  }
-
   /**
    * Every external effect whose intent has no completion, performed again
    * under its key: the parent append of a decision, the commit a gate makes,
@@ -3022,7 +2596,7 @@ export class RunService {
           const current = await processGroupIdentity(event.data.pid);
           if (current !== null && current === event.data.identity) run.writer.register(id, event.data.pid);
           else {
-            if ((this.options.groups ?? nodeProcessGroups).alive(event.data.pid)) unreconciled.add(id);
+            if (current === null && (this.options.groups ?? nodeProcessGroups).alive(event.data.pid)) unreconciled.add(id);
             this.warn(`Run ${run.record.jobId}: process group ${event.data.pid} cannot be authenticated after restart; it will not be signalled`);
           }
         }
@@ -3030,7 +2604,7 @@ export class RunService {
       const priorReleases = run.log.all('writer-released').filter(event => event.data.invocation === id);
       const settled = acquired && !released ? await run.writer.release(id, unreconciled.has(id) ? { settled: async () => 'timed-out' } : undefined).catch(() => ({ confirmed: false, at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] }))
         : { confirmed: !unreconciled.has(id) && (!acquired || priorReleases.length === 1 && priorReleases[0]!.data.confirmed), at: this.now().toISOString(), groupsKilled: 0, lateWrites: [] };
-      if ((run.policy.recovery !== undefined || started.data.role === 'nonfunctional-coordinator') && acquired && !released) await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
+      if (acquired && !released) await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
       // Observations are appended without a transaction, by decision 2, so
       // the last of an invocation the harness was interrupted in may be
       // missing. The gap is recorded rather than left to be read as an
@@ -3042,7 +2616,7 @@ export class RunService {
           detail: 'the harness stopped while this invocation was running, so its last observations may be missing',
         },
       }).catch(error => this.warn(`Run ${run.record.jobId}: ${id}'s truncation gap was not recorded: ${message(error)}`));
-      if (run.policy.recovery && this.options.agent) {
+      if (this.options.agent) {
         const operations = await this.operations(this.options.agent);
         const accepted = await operations.acceptance(run.jobId, id);
         if (accepted) {
@@ -3066,7 +2640,7 @@ export class RunService {
         disposition: 'incomplete',
         submission: null,
         rejectedSubmissions: 0,
-        settled: { ...settled, confirmed: run.policy.recovery !== undefined ? settled.confirmed : false },
+        settled,
         outsideScope: [],
         usage: { unavailable: 'the harness stopped while the session was running' },
         elapsedMs: 0,
@@ -3271,156 +2845,65 @@ export class RunService {
     });
   }
 
-  /** Build the same authenticated import for inspection and durable preparation. */
-  private async restartPlan(source: Run) {
+  /** Inspect retained authority and ownership; history and optional sessions stay in place. */
+  private async continuationBlockers(run: Run, settle = false): Promise<string[]> {
     const blockers: string[] = [];
     if (!await this.options.lock.held()) blockers.push('The harness no longer holds the project execution lock');
-    const live = [...this.runs.values()].find(run => !run.log.terminal);
-    if (live) blockers.push(`Run ${live.jobId} is still live or awaiting resume in this project`);
-    const successor = [...this.runs.values()].find(run => run.record.restart?.sourceRun === source.jobId) ?? this.restartClaims.get(source.key);
-    if (successor) blockers.push(`Source occurrence already has successor ${successor.jobId}`);
-    const terminal = source.log.terminal;
-    if (!terminal) blockers.push('Source is nonterminal; use its existing recovery occurrence');
-    else if (!['job-failed', 'job-interrupted'].includes(terminal.type)) blockers.push(terminal.type === 'job-completed' ? 'Completed execution has no unfinished plan obligation' : 'The recorded operator stop stands');
-    const recognizedEffects: RestartRecognizedEffect[] = [];
-    for (const effect of source.log.ledger.pendingEffects()) {
-      try {
-        if (!effect.key.startsWith('gate-commit:') || effect.event.type !== 'gate-committing') throw new Error('unsupported external effect');
-        const gate = effect.event.data.gate;
-        const operation = gateOperationSchema.parse(this.committedBody(source, runLayout.gateOperation(gate)));
-        if (operation.checkpoint !== 'work-item' || operation.request.runId !== source.jobId || operation.request.id !== gate || !operation.request.proposedBy || !operation.request.subject.workItem || operation.unauthorized || operation.ruleFailed) throw new Error('unsupported or unauthenticated owning gate');
-        const invocation = this.invocationRecord(source, operation.request.proposedBy).body;
-        const outcome = this.effectiveInvocationOutcome(source, operation.request.proposedBy);
-        if (invocation.role !== 'local-architect' || invocation.work.workItem !== operation.request.subject.workItem || outcome?.ended !== 'submitted' || !outcome.settled.confirmed) throw new Error('owning architect destination is unavailable');
-        if (!operation.message.split('\n').includes(`Ramify-Run: ${source.jobId}`) || !operation.message.split('\n').includes(`Ramify-Gate: ${gate}`)) throw new Error('original gate trailers do not match');
-        const commit = await this.git.findCommitByTrailers(this.projectRoot, [{ key: 'Ramify-Run', value: source.jobId }, { key: 'Ramify-Gate', value: gate }]);
-        if (!commit) throw new Error('no authenticated commit receipt');
-        const currentHead = await this.git.currentHead(this.projectRoot);
-        if (this.git.isAncestor === undefined || !await this.git.isAncestor(this.projectRoot, this.accepted(source), commit) || !await this.git.isAncestor(this.projectRoot, commit, currentHead)) throw new Error('receipt history is not preserved');
-        const producer = await (this.options.auditSettlement ? this.options.auditSettlement(source.jobId, gate, commit) : inspectAuditSettlement(this.projectRoot, source.jobId, gate, commit));
-        if (!producer.confirmed || producer.evidence.length === 0) throw new Error('external audit producer settlement is unknown');
-        recognizedEffects.push({ producerSettlement: producer.evidence, sourceRun: source.jobId, gate, commit, tree: await this.candidates.commitTree(this.projectRoot, commit), recordHash: recordHash(operation), proposedBy: operation.request.proposedBy, checkpoint: operation.checkpoint, subjectWorkItem: operation.request.subject.workItem });
-      } catch (error) { blockers.push(`Settlement: source effect ${effect.key} has no authenticated completion: ${message(error)}`); }
+    const other = [...this.runs.values()].find(candidate => candidate !== run && !candidate.log.terminal);
+    if (other) blockers.push(`Run ${other.jobId} is still active in this project`);
+    if (!run.log.terminal || !['job-failed', 'job-interrupted'].includes(run.log.terminal.type)) blockers.push('Only unfinished failed or interrupted work can continue');
+    if (run.stopRequested || run.log.find('stop-requested')) blockers.push('The recorded operator stop stands');
+    if (run.record.breakpoint) blockers.push('The debugger pause remains effective');
+    if (!this.options.agent) blockers.push('No agent is configured');
+    if (run.live.size || run.writer.isUnsettled) blockers.push('The former execution has not settled');
+    const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
+    for (const started of run.log.all('invocation-started')) {
+      const outcome = this.effectiveInvocationOutcome(run, started.data.invocation);
+      // Older terminal cleanup lacked reliable process evidence. Ask the
+      // lifecycle owner, never infer settlement from a terminal event.
+      if (!outcome?.settled.confirmed && (!settle || !operations || !await operations.stopOriginal(run.jobId, started.data.invocation, run.policy.limits.stopSettleMs))) blockers.push(`Former attempt ${started.data.invocation} has not settled`);
+      for (const effect of await operations?.unresolvedEffects(run.jobId, started.data.invocation) ?? []) blockers.push(`Task ${started.data.invocation}: ${effect}`);
     }
-    if (source.live.size || source.writer.isUnsettled) blockers.push('Settlement: source has a live or unsettled owner');
-    if (this.beadsSessions && !(await this.beadsSessions).settlementConfirmed(source.jobId)) blockers.push('Settlement: an administrative owner still holds shared session storage');
-    let current: RecoveryIdentity | undefined, original: RecoveryIdentity | undefined;
-    let settlement: 'confirmed' | 'unknown' = 'unknown';
-    if (!blockers.some(reason => reason.includes('lock') || reason.startsWith('Settlement:'))) {
-      try {
-        const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
-        for (const event of source.log.all('invocation-started')) {
-          const outcome = this.effectiveInvocationOutcome(source, event.data.invocation);
-          if (!outcome?.settled.confirmed) blockers.push(`Settlement: invocation ${event.data.invocation} is unconfirmed`);
-          if (!operations) blockers.push('Settlement: original session/effect owner evidence is unavailable');
-          else {
-            if ((await operations.unresolvedEffects(event.jobId, event.data.invocation)).length) blockers.push(`Settlement: invocation ${event.data.invocation} has an unknown external effect`);
-            const operation = await operations.originalOperation(event.jobId, event.data.invocation);
-            const invocation = this.invocationRecord(source, event.data.invocation).body;
-            if (!operation || invocation.prompt.inputsHash && inputsHash([operation.packet.roleInstructions, operation.packet.message]) !== invocation.prompt.inputsHash) blockers.push(`Original task ${event.data.invocation} cannot be authenticated`);
-          }
-        }
-        for (const group of source.log.all('writer-process-registered')) if ((this.options.groups ?? nodeProcessGroups).alive(group.data.pid)) blockers.push(`Settlement: retained process group ${group.data.pid} has live ownership`);
-        if (operations?.settlementConfirmed(source.jobId) === false) blockers.push('Settlement: source session owner has not confirmed drainage');
-        if (!blockers.some(reason => reason.startsWith('Settlement:'))) settlement = 'confirmed';
-        current = await this.captureRecoveryIdentity(source, true);
-        const recovery = this.latestOperationRecovery(source);
-        const retained = recovery?.state === 'resumed' ? recovery.admission?.after : recovery?.identity;
-        if (retained) original = { ...retained, acceptedHead: this.accepted(source), durableIdentity: current.durableIdentity };
-        else {
-          const recognized = recognizedEffects.at(-1);
-          const sourceTree = recognized?.tree ?? [...source.log.all('invocation-ended')].reverse().map(event => this.effectiveInvocationOutcome(source, event.data.invocation)?.candidateAfter).find(Boolean)
-            ?? [...source.log.all('invocation-started')].reverse().map(event => this.invocationRecord(source, event.data.invocation).body.candidateBefore).find(Boolean)
-            ?? await this.candidates.commitTree(this.projectRoot, this.accepted(source));
-          if (!sourceTree) blockers.push('Retained source candidate identity is unavailable');
-          else {
-            const entries = await this.candidates.treeEntries(this.projectRoot, sourceTree);
-            if (entries.some(entry => !entry.objectId)) throw new Error('Retained candidate has no exact source object identity');
-            const sourceHead = recognized?.commit ?? this.accepted(source);
-            const unchanged = sourceTree === current.candidate.tree && sourceHead === current.candidate.head;
-            original = { ...current, runtime: sourceRestartRuntime(source.record, source.log.ledger.replay()),
-              capturedInputs: current.capturedInputs.map(input => input.path.startsWith('prompt:') ? { ...input, hash: source.record.prompts[input.path.slice(7) as Role]?.hash ?? input.hash } : input),
-              configuration: source.record.auditConfiguration && 'config' in source.record.auditConfiguration ? { identity: recoveryHash(source.record.auditConfiguration.config), policy: source.record.auditConfiguration.config } : current.configuration,
-              candidate: { head: sourceHead, tree: sourceTree, index: unchanged ? current.candidate.index : 'historical-index-unavailable', staged: [], unstaged: [], untracked: [], files: entries.map(entry => ({ path: entry.path, hash: entry.objectId!, mode: ({ file: '100644', executable: '100755', symlink: '120000', submodule: '160000' } as const)[entry.kind] })).sort((a, b) => a.path.localeCompare(b.path)) } };
-            // Configuration's protected policy is historical; its identity uses the same
-            // comparison form when the committed policy and bytes are unchanged.
-            if (recoveryHash({ ...original.configuration.policy as object, sourceCommit: undefined }) === recoveryHash({ ...current.configuration.policy as object, sourceCommit: undefined })) original.configuration.identity = current.configuration.identity;
-          }
-        }
-      } catch (error) { blockers.push(message(error)); }
+    for (const group of run.log.all('writer-process-registered')) {
+      const identity = await processGroupIdentity(group.data.pid);
+      if (identity !== null && identity === group.data.identity && (this.options.groups ?? nodeProcessGroups).alive(group.data.pid)) blockers.push(`Former process group ${group.data.pid} still owns execution`);
     }
-    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
-    if (current) blockers.push(...restartRuntimeCompatibility(source.record, source.log.ledger.replay(), current.runtime, packages).blockers);
-    const planned = planRestartImport({ record: source.record, entries: source.log.ledger.replay(), sourceDigest: source.log.ledger.committedContentHash, recognizedEffects,
-      ...(original ? { sourceIdentity: original } : {}), ...(current ? { currentIdentity: current } : {}), ...(source.restartImport ? { previousImport: source.restartImport } : {}) });
-    blockers.push(...planned.blockers);
-    if (planned.seed) try { await inspectRestartArtifacts(planned.seed, source.directory); } catch (error) { blockers.push(message(error)); }
-    return { ...planned, blockers: [...new Set(blockers)], current, original, packages, successor, settlement };
+    return blockers;
   }
 
   async restartInspection(planId: string, sourceRunId: string): Promise<RestartInspection | null> {
-    return this.commandMutex.run(async () => {
-      const source = this.runs.get(key(planId, sourceRunId));
-      if (!source) {
-        const unavailable = this.restartUnavailable.get(key(planId, sourceRunId));
-        return unavailable ? restartInspectionSchema.parse({ planId, runId: sourceRunId, cursor: 0, sourceDigest: 'unavailable', generation: 1, canPrepare: false, blockers: [unavailable], successor: null, boundary: null, preserved: [], inapplicable: [], candidate: { source: null, current: null }, policy: { before: this.refusedPolicies.get(key(planId, sourceRunId)) ?? 'unavailable', current: 'run-policy/8' }, limitations: [], settlement: 'unknown', effects: 'unknown', changes: [] }) : null;
-      }
-      const planned = await this.restartPlan(source);
-      const pending = planned.seed?.pending;
-      let comparison;
-      try { comparison = planned.original && planned.current ? validateRestartRepair(planned.original, planned.current, undefined, source.record, source.log.ledger.replay(), planned.packages) : undefined; } catch { /* Compatibility refusals are already concrete planner blockers. */ }
-      return restartInspectionSchema.parse({ planId, runId: sourceRunId, cursor: source.log.version, sourceDigest: source.log.ledger.committedContentHash,
-        generation: (source.record.restart?.generation ?? 0) + 1, canPrepare: planned.blockers.length === 0, blockers: planned.blockers,
-        successor: planned.successor?.jobId ?? null, boundary: pending ? { kind: pending.kind === 'final-gate' ? 'gate' : 'invocation', ...(pending.role ? { role: pending.role } : {}), ...(pending.work ? { work: pending.work } : {}), ...(pending.originalInvocation ? { invocation: pending.originalInvocation } : {}) } : null,
-        preserved: planned.preserved, inapplicable: planned.inapplicable, candidate: { source: planned.original ? { head: planned.original.candidate.head, tree: planned.original.candidate.tree } : null, current: planned.current ? { head: planned.current.candidate.head, tree: planned.current.candidate.tree } : null },
-        ...(planned.original && planned.current ? { runtime: { before: planned.original.runtime.harness, current: planned.current.runtime.harness, compatible: !planned.blockers.some(reason => /runtime|contract|prompt/i.test(reason)) } } : {}),
-        policy: { before: source.policy.version, current: 'run-policy/8' }, limitations: planned.current ? restartRuntimeCompatibility(source.record, source.log.ledger.replay(), planned.current.runtime, planned.packages).limitations : [], settlement: planned.settlement, effects: planned.settlement === 'confirmed' ? 'reconciled' : 'unknown',
-        changes: comparison?.changes.map(change => ({ path: change.path, before: change.before.hash, after: change.after.hash })) ?? [] });
-    });
+    const run = this.runs.get(key(planId, sourceRunId));
+    if (!run) return null;
+    const blockers = await this.continuationBlockers(run);
+    const candidate = await this.previewCandidateTree().catch(() => null);
+    return restartInspectionSchema.parse({ planId, runId: sourceRunId, cursor: run.log.version,
+      sourceDigest: run.log.ledger.committedContentHash, generation: 1, canPrepare: blockers.length === 0,
+      blockers, successor: null, boundary: null, preserved: [], inapplicable: [],
+      candidate: { source: null, current: candidate ? { head: candidate.head, tree: candidate.tree } : null },
+      policy: { before: run.policy.version, current: 'run-policy/8' }, limitations: [],
+      settlement: blockers.some(reason => /settled|process group/u.test(reason)) ? 'unknown' : 'confirmed',
+      effects: blockers.some(reason => reason.startsWith('Task ')) ? 'unknown' : 'reconciled', changes: [] });
   }
 
+  /** Legacy command name: continue the existing task without copying its history. */
   private async prepareRestart(command: Extract<RunCommand, { type: 'prepare-restart' }>, contentHash: string): Promise<Receipt> {
-    const source = this.runs.get(key(command.payload.planId, command.payload.jobId));
-    if (!source) throw new CommandRejection(this.restartUnavailable.has(key(command.payload.planId, command.payload.jobId)) ? 'conflict' : 'not-found', this.restartUnavailable.get(key(command.payload.planId, command.payload.jobId)) ?? 'The source run is unavailable');
-    this.commands.requireVersion(command, source.log.version);
-    const planned = await this.restartPlan(source);
-    if (planned.blockers.length || !planned.seed || !planned.original || !planned.current) throw new CommandRejection('conflict', planned.blockers.join('; ') || 'Authenticated restart import unavailable');
-    const at = this.now(), runId = newJobId(at), directory = runDirectory(this.projectRoot, source.planId, runId);
-    const seed = planned.seed;
-    await stageRestartImport(source.directory, directory, seed);
-    const currentPrompts = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
-    await writeFile(join(directory, runLayout.promptManifest), `${JSON.stringify(currentPrompts.manifest, null, 2)}\n`);
-    const defaults = defaultRunPolicy({ projectRoot: this.projectRoot });
-    const policy: RunPolicy = { ...source.policy, version: 'run-policy/8', continuity: defaults.continuity, recovery: defaults.recovery,
-      context: { ...source.policy.context, ...Object.fromEntries(Object.keys(source.policy.context).map(role => [role, defaultContextPolicies[role as Role]])) } };
-    const restart = { sourceRun: source.jobId, sourceCursor: source.log.version, sourceDigest: source.log.ledger.committedContentHash,
-      importDigest: seed.digest, importPath: runLayout.restartImport, generation: (source.record.restart?.generation ?? 0) + 1 };
-    const record = runRecordSchema.parse({ ...source.record, jobId: runId, createdAt: at.toISOString(), restart, policy, reviewStop: false, breakpoint: undefined,
-      prompts: Object.fromEntries([...planned.packages].map(([role, loaded]) => [role, { package: loaded.package, hash: loaded.hash }])) });
-    await writeOnce(join(directory, runLayout.record), `${JSON.stringify(record, null, 2)}\n`);
-    await this.afterWrite('restart-staged', runId);
-    if (this.closed || !await this.options.lock.held()) throw new CommandRejection('conflict', 'Project ownership or service shutdown changed before restart initialization');
-    this.commands.requireVersion(command, source.log.version);
-    if (!source.log.ledger.matchesCommittedContent(await readFile(source.log.path))) throw new CommandRejection('conflict', 'Source ledger bytes changed before restart initialization');
-    if (recoveryHash(await this.captureRecoveryIdentity(source, true)) !== recoveryHash(planned.current)) throw new CommandRejection('conflict', 'Candidate, runtime, configuration or captured input changed during restart preparation');
-    const log = await RunLog.open(join(directory, runLayout.events), runId);
-    log.installWorkflowImport(restartWorkflowEntries(seed));
-    let run!: Run; run = new Run(record, directory, log, source.base, this.newWriter(policy, () => this.accepted(run)));
-    run.restartImport = seed;
-    const id = 'restart-resume-1';
-    const recovery = operationRecoverySchema.parse({ schema: 'ramify-agent.operation-recovery/1', id, revision: 1, state: 'paused',
-      boundary: { kind: seed.pending.kind === 'final-gate' ? 'gate' : 'invocation', ...(seed.pending.role ? { role: seed.pending.role } : {}), ...(seed.pending.work ? { work: seed.pending.work } : {}),
-        ...(seed.pending.originalInvocation ? { invocation: seed.pending.originalInvocation } : {}), ...(seed.pending.submission ? { tool: seed.pending.submission } : {}), start: { mode: 'fresh' }, source: null,
-        requestHash: recoveryHash(seed.pending), ...(seed.pending.kind === 'final-gate' ? { checkpoint: 'final' } : {}) },
-      evidence: { classification: 'preparation', diagnostic: 'Linked successor prepared from authenticated retained progress; explicit recovery resume authorizes execution' },
-      group: 0, automaticAttempts: 0, attempts: [], pausedAt: at.toISOString(), settled: true, candidate: { head: planned.current.candidate.head, tree: planned.current.candidate.tree },
-      partialPaths: planned.current.candidate.files.filter(file => planned.current!.candidate.staged.includes(file.path) || planned.current!.candidate.unstaged.includes(file.path) || planned.current!.candidate.untracked.includes(file.path)).map(file => file.path), prerequisites: [], identity: planned.original });
-    const accepted = this.commands.accept(command, contentHash, runId, log.nextSequence, at);
-    await commitRecord(log.ledger, { event: log.next({ type: 'restart-prepared', data: { ...restart, occurrenceId: id, revision: 1, command: accepted } }, at),
-      records: [{ path: runLayout.operationRecovery(id), id, revision: 1, body: recovery }] });
-    run.recoveryPause = recovery; run.recoveryRestart = true;
-    this.runs.set(run.key, run); this.restartClaims.set(source.key, { jobId: runId, sourceDigest: restart.sourceDigest }); this.commands.remember(accepted);
-    await this.afterWrite('restart-prepared', runId);
+    const run = this.runs.get(key(command.payload.planId, command.payload.jobId));
+    if (!run) throw new CommandRejection('not-found', 'The retained run is unavailable');
+    this.commands.requireVersion(command, run.log.version);
+    const blockers = await this.continuationBlockers(run, true);
+    if (blockers.length) throw new CommandRejection('conflict', blockers.join('; '));
+    const at = this.now();
+    const accepted = this.commands.accept(command, contentHash, run.jobId, run.log.nextSequence, at);
+    await run.log.append({ type: 'job-continued', data: { command: accepted } }, at);
+    this.commands.remember(accepted);
+    await this.completeEffects(run);
+    await this.completeDeliveries(run);
+    run.recoveryPause = undefined;
+    run.startupRecovery = false;
+    const latestWriter = [...run.log.all('invocation-started')].reverse().find(event => this.invocationRecord(run, event.data.invocation).body.writer);
+    const prior = latestWriter ? this.effectiveInvocationOutcome(run, latestWriter.data.invocation) : undefined;
+    await this.observeQuiescentCandidate(run, prior?.settled.confirmed ? prior.candidateAfter : undefined);
+    await this.startRecoveredDriver(run);
     return accepted.receipt;
   }
 
@@ -3981,22 +3464,11 @@ export class RunService {
 
   /** A repaired candidate receives new semantic evidence in the same run. */
   private async qualifyFinal(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>): Promise<void> {
-    const restartRecovery = this.latestOperationRecovery(run);
-    if (run.restartImport?.pending.kind === 'final-gate' && restartRecovery?.state === 'resumed' && restartRecovery.admission?.invalidatesQualification
-      && !run.log.all('nonfunctional-final-invalidated').some(event => event.data.occurrenceId === restartRecovery.id)) {
-      const replay = replayNonfunctionalPhase(run.log.ledger.replay(), assessedElements(await this.frozenCatalog(run)), run.policy.limits.nonfunctionalRoundsPerPlan ?? 3);
-      if (!replay.ok) throw new Error(`Imported final assessment cannot be reconstructed: ${replay.reason}`);
-      if (replay.value.final) {
-        const spent = replay.value.input.closedRounds.length;
-        await this.write(run, { type: 'nonfunctional-final-invalidated', data: { occurrenceId: restartRecovery.id, revision: restartRecovery.revision,
-          round: spent, candidate: replay.value.final.candidateId, assessment: replay.value.final.assessment.id, tree: (await this.previewCandidateTree()).tree } });
-      }
-    }
     while (!this.ignoring(run)) {
       const binding = await this.assessNonfunctional(run, agent, packages);
       if (binding === null || this.ignoring(run)) return;
-      if (!await this.recordNonfunctionalDeviations(run, binding) || this.ignoring(run)) return;
       try {
+        if (!await this.recordNonfunctionalDeviations(run, binding) || this.ignoring(run)) return;
         const failed = await this.finalGate(run, binding);
         if (failed === undefined || this.ignoring(run)) return;
         if (!await this.planFinalCorrection(run, agent, packages, binding, failed)) return;
@@ -4007,19 +3479,16 @@ export class RunService {
       }
       catch (error) {
         if (!(error instanceof CandidateReassessmentRequired)) throw error;
-        const recovery = this.latestOperationRecovery(run);
         const replay = replayNonfunctionalPhase(run.log.ledger.replay(),
           assessedElements(await this.frozenCatalog(run)), run.policy.limits.nonfunctionalRoundsPerPlan ?? 3);
         const observed = await this.previewCandidateTree();
-        if (!replay.ok || !replay.value.final || !recovery?.admission?.admitted
-          || recovery.state !== 'resumed' || recovery.boundary.kind !== 'gate' || recovery.boundary.checkpoint !== 'final'
-          || !recovery.admission.requiresReassessment || observed.tree !== recovery.admission.after.candidate.tree
-          || replay.value.final.assessment.id !== binding.assessment.id) {
-          await this.fail(run, 'inputs-changed', 'Final reassessment has no applicable admitted repair and retained assessment'); return;
+        if (!replay.ok || !replay.value.final || replay.value.final.assessment.id !== binding.assessment.id
+          || observed.tree === binding.assessment.candidate.tree) {
+          await this.fail(run, 'inputs-changed', 'Final reassessment requires the retained assessment and a changed candidate'); return;
         }
         const spent = replay.value.input.closedRounds.length;
         await this.write(run, { type: 'nonfunctional-final-invalidated', data: {
-          occurrenceId: recovery.id, revision: recovery.revision, round: spent,
+          round: spent,
           candidate: binding.candidateId, assessment: binding.assessment.id, tree: observed.tree,
         } });
       }
@@ -4068,7 +3537,7 @@ export class RunService {
         inputSchema: z.toJSONSchema(finalCorrectionSchema) as JsonSchema,
         submissionSchema: 'ramify-agent.final-correction/1', validate: input => validateAgainst(finalCorrectionSchema, input),
         scope: { write: null, measurement: null, size: null }, writer: true,
-        equip: session => ({ ...this.nonfunctionalTools(run, session, [], { declarations: undefined }),
+        equip: session => ({ ...this.nonfunctionalTools(run, session, []),
           builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
       });
       if (this.ignoring(run)) return false;
@@ -4266,8 +3735,7 @@ export class RunService {
     }
     const preview = await this.previewCandidateTree();
     if (preview.tree !== binding.assessment.candidate.tree) {
-      await this.fail(run, 'inputs-changed', 'The source tree changed before non-functional deviations were recorded');
-      return false;
+      throw new CandidateReassessmentRequired('The current candidate needs fresh assessment before recording deviations');
     }
     for (const result of unresolved) {
       const item = evidence.catalog.elements.find(candidate => candidate.id === result.nfr);
@@ -4349,36 +3817,9 @@ export class RunService {
   }
 
   /** Current immutable source selection; an empty list requires an actual successful diff. */
-  /** Exact recorded NFR operations retain their installed declaration and accepted-boundary default. */
-  private async originalNonfunctionalContext(run: Run, agent: AgentPort, toolName: string, candidate: Candidate) {
-    const fresh = { originalInvocation: undefined, legacy: false, base: undefined, writer: undefined, declarations: undefined };
-    if (!run.restoring) return fresh;
-    const matches = [];
-    for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator'
-      && !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation))) {
-      const original = await (await this.operations(agent)).originalOperation(run.record.jobId, event.data.invocation);
-      if (original === null || original.packet.submissionTool !== toolName) continue;
-      if (original.task.environment.candidate !== candidate.tree || original.task.environment.snapshot !== candidate.tree) throw new Error('Original NFR candidate binding changed');
-      const declaration = original.declarations.find(tool => tool.name === 'snapshot_diff');
-      const legacyDeclaration = boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree,
-        base: this.accepted(run) }).find(tool => tool.name === 'snapshot_diff')!;
-      const legacyDescriptions = [legacyDeclaration.description, legacyDeclaration.description.replace(
-        'This tool reads the pinned candidate source. Use ordinary file tools and shell for Git history, run records and other evidence.',
-        'Only the fixed NFR source scope is available; Git metadata and harness run records are excluded.')];
-      const legacy = declaration !== undefined && legacyDescriptions.some(description => canonicalJson(declaration) === canonicalJson({
-        name: legacyDeclaration.name, description, inputSchema: legacyDeclaration.inputSchema, mutating: false }));
-      const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(event.data.invocation)));
-      matches.push({ originalInvocation: event.data.invocation, legacy, base: legacy ? record.base : undefined,
-        writer: record.writer, declarations: original.declarations });
-    }
-    if (matches.length > 1) throw new Error('Ambiguous original NFR task correlation');
-    return matches[0] ?? fresh;
-  }
-
-  private async nonfunctionalSourceInputs(run: Run, candidate: Candidate, scope: readonly string[] = ['.'], workspace = false,
-    original?: { readonly legacy: boolean; readonly base: string | undefined }) {
-    const base = original?.base ?? this.accepted(run);
-    const runStart = original?.legacy ? undefined : this.recordedRunBase(run.record, run.log);
+  private async nonfunctionalSourceInputs(run: Run, candidate: Candidate, scope: readonly string[] = ['.'], workspace = false) {
+    const base = this.accepted(run);
+    const runStart = this.recordedRunBase(run.record, run.log);
     const comparisons: SnapshotComparison[] = [];
     for (const [name, boundary] of [['run-start', runStart], ['accepted-boundary', base]] as const) {
       if (boundary === undefined) continue;
@@ -4428,16 +3869,7 @@ export class RunService {
     return { sections: [sourceSection, ...(discoveries === undefined ? [] : [discoveries])], snapshot, comparisons };
   }
 
-  private nonfunctionalTools(run: Run, session: EquipContext, tools: readonly ToolDefinition[],
-    original: { readonly declarations: readonly SessionToolDeclaration[] | undefined }): Equipment {
-    // An exact retry retains its admitted tools. Every new operation receives ordinary inspection.
-    if (original.declarations !== undefined && !original.declarations.some(tool => tool.name === 'shell')) {
-      return { builtinTools: [], tools: tools.map(tool => {
-        const declaration = original.declarations!.find(item => item.name === tool.name);
-        if (declaration === undefined) throw new Error(`Original NFR tool ${tool.name} is unavailable`);
-        return { ...tool, ...declaration };
-      }) };
-    }
+  private nonfunctionalTools(run: Run, session: EquipContext, tools: readonly ToolDefinition[]): Equipment {
     return nonfunctionalEquipment({ projectRoot: this.projectRoot, snapshotTools: tools,
       commandExecution: this.options.commandExecution,
       registerProcessGroup: async (pid, identity) => {
@@ -4469,10 +3901,10 @@ export class RunService {
     const investigationPaths = run.log.all('nonfunctional-investigated')
       .filter(event => event.data.assessment === assessment.id && event.data.round === assessment.round)
       .map(event => run.path(runLayout.submission(event.data.invocation)));
-    const original = await this.originalNonfunctionalContext(run, agent, coordinatorActionToolName, candidate);
-    const sourceInputs = await this.nonfunctionalSourceInputs(run, candidate, ['.'], false, original);
+
+    const sourceInputs = await this.nonfunctionalSourceInputs(run, candidate, ['.'], false);
     const result = await this.runInvocation<CoordinatorAction>(run, agent, {
-      originalInvocation: original.originalInvocation, role: 'nonfunctional-coordinator', task: { goal: `Assess the requirements of candidate ${candidate.tree}`, requirements: [this.planPackage(run, catalog)], candidate: candidate.tree, snapshot: candidate.tree, literalSections: sourceInputs.sections }, work: {},
+      role: 'nonfunctional-coordinator', task: { goal: `Assess the requirements of candidate ${candidate.tree}`, requirements: [this.planPackage(run, catalog)], candidate: candidate.tree, snapshot: candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-action:${assessment.id}:${decision.action}` },
       attempt: run.log.all('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
       loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot, coordinatorActionToolName),
       prompt: [coordinatorActionPrompt(candidate, unresolved, investigatedNfrs,
@@ -4482,7 +3914,7 @@ export class RunService {
       inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/1',
       validate: input => validateCoordinatorAction(input, context),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-      writer: original.writer ?? true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined }), original),
+      writer: true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: sourceInputs.comparisons, scope: undefined })),
     });
     if (result.ended !== 'submitted' || result.value === undefined) {
       await this.fail(run, 'agent-failed', `Non-functional coordinator action ended ${result.ended}`);
@@ -4502,10 +3934,10 @@ export class RunService {
   ): Promise<boolean> {
     const loaded = packages.get('nonfunctional-coordinator');
     if (loaded === undefined) throw new Error('Non-functional coordinator package is unavailable');
-    const original = await this.originalNonfunctionalContext(run, agent, coordinatorInvestigationToolName, assessment.candidate);
-    const sourceInputs = await this.nonfunctionalSourceInputs(run, assessment.candidate, action.scope, false, original);
+
+    const sourceInputs = await this.nonfunctionalSourceInputs(run, assessment.candidate, action.scope, false);
     const result = await this.runInvocation<CoordinatorInvestigation>(run, agent, {
-      originalInvocation: original.originalInvocation, role: 'nonfunctional-coordinator', task: { goal: action.question, requirements: [this.planPackage(run, await this.frozenCatalog(run), action.nfrs)], candidate: assessment.candidate.tree, snapshot: assessment.candidate.tree, literalSections: sourceInputs.sections }, work: {},
+      role: 'nonfunctional-coordinator', task: { goal: action.question, requirements: [this.planPackage(run, await this.frozenCatalog(run), action.nfrs)], candidate: assessment.candidate.tree, snapshot: assessment.candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-investigation:${assessment.id}:${action.nfrs.join(',')}` },
       attempt: run.log.all('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
       loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot, coordinatorInvestigationToolName),
       prompt: [`Investigate element IDs ${action.nfrs.join(', ')} for assessment ${assessment.id} of tree ${assessment.candidate.tree}.`,
@@ -4517,7 +3949,7 @@ export class RunService {
       inputSchema: coordinatorInvestigationJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-investigation/1',
       validate: input => validateCoordinatorInvestigation(input, action.nfrs),
       keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-      writer: original.writer ?? true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: assessment.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: action.scope }), original),
+      writer: true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: assessment.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: sourceInputs.comparisons, scope: action.scope })),
     });
     if (result.ended !== 'submitted' || result.value === undefined) {
       await this.fail(run, 'agent-failed', `Non-functional investigation ended ${result.ended}`);
@@ -4643,20 +4075,8 @@ export class RunService {
   ): Promise<boolean> {
     const started = run.log.all('invocation-started').filter(event =>
       event.data.role === 'nonfunctional-repair-engineer' && event.data.work.nonfunctionalRepair === assignment.id);
-    if (started.length > 1) {
-      await this.fail(run, 'recovery-exhausted', `Repair ${assignment.id} has duplicate child invocations`);
-      return false;
-    }
-    if (started.length === 0) {
-      const prepared = await this.readPreparedCandidate(run, assignment.candidate);
-      const observed = await this.previewCandidateTree();
-      if (observed.tree !== prepared.candidate.tree) {
-        await this.fail(run, 'inputs-changed', `Source changed before assigned repair ${assignment.id} could start`);
-        return false;
-      }
-      return await this.performNonfunctionalRepair(run, agent, packages, catalog, assignment);
-    }
-    const invocation = started[0]!.data.invocation;
+    if (started.length === 0) return await this.performNonfunctionalRepair(run, agent, packages, catalog, assignment);
+    const invocation = started.at(-1)!.data.invocation;
     const ended = run.log.all('invocation-ended').find(event => event.data.invocation === invocation);
     const release = run.log.all('writer-released').find(event => event.data.invocation === invocation);
     if (ended === undefined || release?.data.confirmed !== true) {
@@ -4671,6 +4091,12 @@ export class RunService {
         || (outcome.data.submission?.hash ?? null) !== ended.data.submission
         || outcome.data.settled.confirmed !== true) {
         throw new Error('committed child outcome does not match its settled invocation');
+      }
+      if (outcome.data.ended === 'failed' && outcome.data.interruption !== undefined
+        || ['resource-pending', 'context-budget-reached'].includes(outcome.data.ended)) {
+        // An interrupted attempt leaves this same ordinary repair assignment
+        // pending. Its captured authority and retained edits remain effective.
+        return await this.performNonfunctionalRepair(run, agent, packages, catalog, assignment);
       }
       if (ended.data.submission !== null) {
         const raw = await readFile(run.path(runLayout.submission(invocation)));
@@ -4722,10 +4148,10 @@ export class RunService {
         await this.fail(run, 'internal', 'No prompt package is loaded for the non-functional coordinator');
         return null;
       }
-      const original = await this.originalNonfunctionalContext(run, agent, coordinatorAssessmentToolName, prepared.candidate);
-      const sourceInputs = await this.nonfunctionalSourceInputs(run, prepared.candidate, ['.'], false, original);
+
+      const sourceInputs = await this.nonfunctionalSourceInputs(run, prepared.candidate, ['.'], false);
       const result = await this.runInvocation<CoordinatorAssessmentSubmission>(run, agent, {
-        originalInvocation: original.originalInvocation, role: 'nonfunctional-coordinator', task: { goal: `Assess the complete NFR catalog for ${prepared.candidate.tree}`, requirements: [this.planPackage(run, catalog.catalog)], candidate: prepared.candidate.tree, snapshot: prepared.candidate.tree, literalSections: sourceInputs.sections }, work: {},
+        role: 'nonfunctional-coordinator', task: { goal: `Assess the complete NFR catalog for ${prepared.candidate.tree}`, requirements: [this.planPackage(run, catalog.catalog)], candidate: prepared.candidate.tree, snapshot: prepared.candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-assessment:${prepared.id}:${round}:${phase}` },
         attempt: run.log.all('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
         loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot),
         prompt: coordinatorAssessmentPrompt(this.planPackage(run, catalog.catalog), prepared.candidate, round, phase),
@@ -4740,7 +4166,7 @@ export class RunService {
             : checked;
         },
         keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
-        writer: original.writer ?? true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: prepared.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: original.legacy ? undefined : sourceInputs.comparisons, scope: undefined }), original),
+        writer: true, equip: session => this.nonfunctionalTools(run, session, boundedNonfunctionalTools({ source: this.candidates, projectRoot: this.projectRoot, candidate: prepared.candidate.tree, base: sourceInputs.snapshot.base, snapshot: sourceInputs.snapshot, comparisons: sourceInputs.comparisons, scope: undefined })),
       });
       if (result.ended !== 'submitted' || result.value === undefined) {
         await this.fail(run, 'agent-failed', `The non-functional coordinator ended ${result.ended} without a complete assessment`);
@@ -4771,49 +4197,10 @@ export class RunService {
 
   /** Recovery records are read from committed revisions, independently of the live driver. */
   private latestOperationRecovery(run: Run): OperationRecovery | undefined {
-    const event = run.log.ownEvents.filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'restart-prepared'].includes(event.type)).at(-1);
+    const continued = run.log.ownEvents.map(event => event.type).lastIndexOf('job-continued');
+    const event = run.log.ownEvents.slice(continued + 1).filter(event => ['operation-recovery-pausing', 'operation-recovery-paused', 'operation-recovery-resumed', 'restart-prepared'].includes(event.type)).at(-1);
     if (!event || !('occurrenceId' in event.data)) return undefined;
     return operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId as string, (event.data as { revision: number }).revision)));
-  }
-
-  private async readRecoveryRuntime(): Promise<RecoveryRuntime> {
-    return recoveryRuntimeSchema.parse(await (this.options.recoveryRuntime?.() ?? captureInstalledRecoveryRuntime(this.options.agent?.name ?? 'unavailable')));
-  }
-
-  private async captureRecoveryIdentity(run: Run, allowPromptMigration = false): Promise<RecoveryIdentity> {
-    if (!run.log.ledger.matchesCommittedContent(await readFile(run.log.path))) throw new Error('Harness-owned durable ledger bytes changed');
-    if (canonicalJson(JSON.parse(await readFile(run.path(runLayout.record), 'utf8'))) !== canonicalJson(run.record)) throw new Error('Harness-owned execution record changed');
-    const candidate = await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates);
-    const acceptedHead = this.accepted(run);
-    if (candidate.head !== acceptedHead && (this.git.isAncestor === undefined || !await this.git.isAncestor(this.projectRoot, acceptedHead, candidate.head))) throw new Error('Current target HEAD does not preserve the accepted Git history');
-    const captured = await readCapturedDocuments(run.directory, run.record.manifest);
-    const inputs = captured.manifest.documents.map(document => ({ path: document.path, hash: document.sha256 }));
-    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
-    for (const [role, loaded] of packages) {
-      if (!allowPromptMigration && run.record.prompts[role]?.hash !== loaded.hash) throw new Error(`Captured prompt package changed: ${role}`);
-      inputs.push({ path: `prompt:${role}`, hash: loaded.hash });
-    }
-    const documents = await documentChanges(this.projectRoot, run.planId, run.directory, run.record.manifest);
-    if (documents.length > 0) throw new Error(`Captured inputs changed: ${documents.join('; ')}`);
-    const latest = new Map<string, { path: string; body: unknown }>();
-    for (const entry of run.log.ledger.replay()) for (const record of entry.transaction.records) if (!record.path.startsWith('operation-recoveries/') && record.path !== 'restart/branch.json') latest.set(record.path, record);
-    const durable = [];
-    for (const [path, record] of latest) {
-      const bytes = await readFile(run.path(path));
-      const parsed: unknown = JSON.parse(bytes.toString('utf8'));
-      if (canonicalJson(parsed) !== canonicalJson(record.body)) throw new Error(`Harness-owned durable record changed: ${path}`);
-      durable.push({ path, hash: sha256(bytes) });
-    }
-    durable.push({ path: runLayout.record, hash: sha256(await readFile(run.path(runLayout.record))) });
-    const config = await this.options.configuredAudit.read(this.projectRoot, candidate.tree);
-    const configurationBytes = await readIfExists(join(this.projectRoot, config.path));
-    const { sourceCommit: _configurationSource, ...configurationPolicy } = config;
-    const runtime = await this.runningRuntime;
-    const installed = await this.readRecoveryRuntime();
-    if (recoveryHash(runtime) !== recoveryHash(installed)) throw new Error('Installed runtime changed while this service was running; restart the service before declaring the runtime repair');
-    return { candidate, runtime,
-      configuration: { identity: recoveryHash({ config: configurationPolicy, bytes: configurationBytes === undefined ? null : sha256(configurationBytes) }), policy: config },
-      capturedInputs: inputs.sort((a, b) => a.path.localeCompare(b.path)), durableIdentity: recoveryHash(durable), acceptedHead: this.accepted(run) };
   }
 
   /** A later authenticated settlement is new evidence; the original outcome remains immutable. */
@@ -4841,16 +4228,14 @@ export class RunService {
     const blockers: string[] = [];
     if (run.writer.blocked) blockers.push(`Settlement: ${run.writer.blocked}`);
     if (run.live.size > 0) blockers.push('Settlement: admitted operations are still live');
-    const preparation = run.log.all('readiness-preparation-started').find(started => !run.log.all('readiness-preparation-completed').some(completed => completed.sequence > started.sequence && completed.data.attempt === started.data.attempt && completed.data.key === started.data.key));
-    if (preparation) blockers.push(`Settlement: readiness setup effect ${preparation.data.key} has no independently confirmed completion`);
     const operations = this.sessionOperations === undefined ? undefined : await this.sessionOperations;
     for (const started of run.log.all('invocation-started')) {
       if (run.restartImport && started.sequence < 0) continue;
-      const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation)));
+      const outcome = invocationOutcomeSchema.safeParse(this.effectiveInvocationOutcome(run, started.data.invocation) ?? this.committedBody(run, runLayout.outcome(started.data.invocation)));
       if ((!outcome.success || !outcome.data.settled.confirmed) && !recovery.reconciledInvocations?.includes(started.data.invocation)) blockers.push(`Settlement: invocation ${started.data.invocation} is unconfirmed`);
       for (const group of !outcome.success || !outcome.data.settled.confirmed && !recovery.reconciledInvocations?.includes(started.data.invocation)
         ? run.log.all('writer-process-registered').filter(event => event.data.invocation === started.data.invocation) : []) {
-        if ((this.options.groups ?? nodeProcessGroups).alive(group.data.pid)) blockers.push(`Settlement: invocation ${started.data.invocation} retains a registered process group ${group.data.pid}`);
+        if (await processGroupIdentity(group.data.pid) === group.data.identity && (this.options.groups ?? nodeProcessGroups).alive(group.data.pid)) blockers.push(`Settlement: invocation ${started.data.invocation} retains a registered process group ${group.data.pid}`);
       }
       try {
         if (operations && (await operations.unresolvedEffects(run.jobId, started.data.invocation)).length > 0) blockers.push(`Settlement: invocation ${started.data.invocation} retains an unknown external effect`);
@@ -4860,7 +4245,7 @@ export class RunService {
     return blockers;
   }
 
-  /** Only an explicit occurrence-bound resume may reconcile a predecessor barrier. */
+  /** Lifecycle-owned settlement is independent of the optional session context. */
   private async reconcileRecoverySettlement(run: Run, recovery: OperationRecovery): Promise<void> {
     const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
     if (!operations) return;
@@ -4868,7 +4253,7 @@ export class RunService {
     const observations = [...recovery.settlementObservations ?? []];
     for (const started of run.log.all('invocation-started')) {
       if (run.restartImport && started.sequence < 0) continue;
-      const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(started.data.invocation)));
+      const outcome = invocationOutcomeSchema.safeParse(this.effectiveInvocationOutcome(run, started.data.invocation) ?? this.committedBody(run, runLayout.outcome(started.data.invocation)));
       const unknown = await operations.unresolvedEffects(run.jobId, started.data.invocation);
       if (unknown.length === 0 && (outcome.success && outcome.data.settled.confirmed || reconciled.has(started.data.invocation))) continue;
       if (!await operations.stopOriginal(run.jobId, started.data.invocation, run.policy.limits.stopSettleMs)) continue;
@@ -4905,58 +4290,11 @@ export class RunService {
     recovery.settled = (await this.settlementBlockers(run, recovery)).length === 0;
   }
 
-  private async recoveryBlockers(run: Run, recovery: OperationRecovery, declared = false): Promise<string[]> {
-    const blockers = recovery.prerequisites.filter(reason => !reason.startsWith('Settlement:'));
-    blockers.push(...await this.settlementBlockers(run, recovery));
+  private async recoveryBlockers(run: Run, recovery: OperationRecovery): Promise<string[]> {
+    const blockers = await this.settlementBlockers(run, recovery);
     if (run.log.terminal || run.stopRequested || this.closed) blockers.push('Stop or service shutdown takes precedence');
-    if (!run.policy.recovery) blockers.push('This historical policy does not authorize interruption recovery');
-    if (!declared && ['permanent', 'adapter-fault', 'preparation', 'check-execution'].includes(recovery.evidence.classification)) blockers.push('This nontransport obstruction requires an external repair declaration');
-    if (recovery.state !== 'paused') blockers.push('Ordinary writers and tools have not reached a confirmed pause');
     if (run.writer.isUnsettled || run.live.size > 0) blockers.push('Writer or tool settlement is unavailable');
-    const reservesInvocation = recovery.boundary.kind === 'invocation' || recovery.boundary.kind === 'preparation';
-    const refusal = reservesInvocation ? this.invocationRefusal(run) : this.executionTimeRefusal(run);
-    if (refusal !== null) blockers.push(refusal);
-    const repair = this.latestRepairIncident(run);
-    if (repair && ['admitted', 'running', 'interrupted', 'blocked', 'unverified'].includes(repair.stage) && recovery.boundary.work?.automaticRepair !== repair.incident.incidentId) blockers.push('An unfinished automatic root repair requires manual attention');
-    if (!recovery.boundary.reconstruction && recovery.boundary.source && this.options.agent && !(await (await this.operations(this.options.agent)).hasPoint(run.jobId, recovery.boundary.source))) blockers.push('The exact recorded session source is unavailable');
-    if (recovery.boundary.reconstruction?.name === 'fresh-step-construction') {
-      try {
-        const inputs = validateStepInputs(recovery.boundary.reconstruction.inputs);
-        if (recoveryHash(inputs) !== recovery.boundary.reconstruction.inputsHash || inputs.role !== recovery.boundary.role) blockers.push('Named source reconstruction inputs changed or name another role');
-      } catch (error) { blockers.push(`Named source reconstruction is unavailable: ${message(error)}`); }
-    }
-    if (this.options.agent) {
-      try {
-        const operations = await this.operations(this.options.agent);
-        if (recovery.boundary.reconstruction?.name === 'retained-task-request') {
-          const source = await operations.originalOperation(run.jobId, recovery.boundary.reconstruction.invocation);
-          if (!source || recoveryHash(source) !== recovery.boundary.reconstruction.inputsHash) blockers.push('Retained original task inputs are unavailable or changed');
-        }
-        for (const id of recovery.attempts.filter(id => /^inv-/u.test(id) && !run.restartImport)) {
-          if ((await operations.unresolvedEffects(run.jobId, id)).length > 0) blockers.push(`Invocation ${id} retains an unknown external effect`);
-          const original = await operations.originalOperation(run.jobId, id);
-          const recorded = this.invocationRecord(run, id).body;
-          if (recorded.prompt.inputsHash && (!original || recorded.prompt.inputsHash !== inputsHash([original.packet.roleInstructions, original.packet.message]))) blockers.push(`Original operation ${id} inputs are unavailable or changed`);
-        }
-      } catch (error) { blockers.push(`Original session/effect records cannot be authenticated: ${message(error)}`); }
-    }
     return blockers;
-  }
-
-  private async compareRecoveryIdentity(run: Run, before: RecoveryIdentity, current: RecoveryIdentity, declaration?: import('../interfaces/protocol/runs.js').ExternalRepairDeclaration) {
-    if (!run.restartImport || !run.record.restart) return validateExternalRepair(before, current, declaration);
-    const authenticated = await readRestartImport(run.directory, run.record.restart.importDigest);
-    if (authenticated.sourceRun !== run.record.restart.sourceRun || authenticated.sourceDigest !== run.record.restart.sourceDigest || recoveryHash(authenticated) !== recoveryHash(run.restartImport)) throw new Error('Prepared restart source identity or lineage changed');
-    if (recoveryHash(before) !== recoveryHash(authenticated.sourceIdentity)) return validateExternalRepair(before, current, declaration);
-    const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
-    // Cross-run proof was authenticated above; the successor's physical record
-    // identity differs from the source's by construction.
-    const compared = validateRestartRepair({ ...before, durableIdentity: current.durableIdentity }, current, declaration,
-      authenticated.sourceRecord, authenticated.inventory, packages);
-    return { ...compared, before, restartComparison: { sourceRun: run.record.restart.sourceRun, sourceCursor: run.record.restart.sourceCursor,
-      sourceDigest: run.record.restart.sourceDigest, importDigest: run.record.restart.importDigest,
-      normalizedBefore: normalizeRestartIdentityForComparison({ ...before, durableIdentity: current.durableIdentity }, current,
-        authenticated.sourceRecord, authenticated.inventory, packages) } };
   }
 
   /** Read-only inspection never launches or prepares an agent operation. */
@@ -4965,21 +4303,7 @@ export class RunService {
     const recovery = run.recoveryPause ?? this.latestOperationRecovery(run);
     if (!recovery || recovery.state === 'resumed' || run.log.terminal) return null;
     const blockers = await this.recoveryBlockers(run, recovery);
-    let observations: Partial<RecoveryInspection> = {};
-    try {
-      const current = await this.captureRecoveryIdentity(run);
-      if (!recovery.identity) blockers.push('Settled recovery identity is unavailable');
-      else {
-        const compared = await this.compareRecoveryIdentity(run, recovery.identity, current);
-        blockers.push(...compared.blockers);
-        observations = { changes: compared.changes.map(change => ({ path: change.path, before: change.before.hash, after: change.after.hash })),
-          runtime: { before: recovery.identity.runtime.harness + '/' + recovery.identity.runtime.provider, current: current.runtime.harness + '/' + current.runtime.provider,
-            compatible: run.restartImport ? !compared.blockers.some(blocker => /contracts are incompatible|Unsupported captured.*(?:runtime|prompt)|Captured prompt package is missing/iu.test(blocker)) : recoveryHash(recovery.identity.runtime.contracts) === recoveryHash(current.runtime.contracts) },
-          configuration: { before: recovery.identity.configuration.identity, current: current.configuration.identity,
-            compatible: !compared.blockers.some(blocker => blocker.includes('required checks')) },
-          repairRequired: [...compared.blockers, ...blockers].some(blocker => blocker.includes('declaration')) };
-      }
-    } catch (error) { blockers.push(message(error)); }
+    const observations: Partial<RecoveryInspection> = { repairRequired: false };
     const now = this.now().getTime();
     const { kind, role, work, invocation, source, candidate, checkpoint } = recovery.boundary;
     return recoveryInspectionSchema.parse({ planId, runId, cursor: run.log.version, ...(run.record.restart ? { restart: { sourceRun: run.record.restart.sourceRun, sourceCursor: run.record.restart.sourceCursor, sourceDigest: run.record.restart.sourceDigest, importDigest: run.record.restart.importDigest, generation: run.record.restart.generation } } : {}), occurrenceId: recovery.id, revision: recovery.revision,
@@ -5007,7 +4331,7 @@ export class RunService {
 
   /** Publish a usable pause only after admitted operations and their effects settle. */
   private async waitOperationRecovery(run: Run, boundary: RecoveryBoundary, evidence: InterruptionEvidence,
-    attempts: readonly string[], automaticAttempts: number, group = 0, wait = true, expectedIdentity?: RecoveryIdentity): Promise<boolean> {
+    attempts: readonly string[], automaticAttempts: number, group = 0, wait = true): Promise<boolean> {
     if (!run.policy.recovery || this.ignoring(run)) return false;
     // Another admitted reader may fail while the first operation is settling.
     // It retains its own outcome and waits for the current occurrence to finish.
@@ -5016,8 +4340,7 @@ export class RunService {
     const id = `opr-${String(run.log.count('operation-recovery-pausing') + 1).padStart(4, '0')}`;
     const recovery: OperationRecovery = { schema: 'ramify-agent.operation-recovery/1', id, revision: 1, state: 'pausing', boundary, evidence,
       group, automaticAttempts, attempts: [...attempts], pausedAt: null, settled: false, candidate: { head: '', tree: '' }, partialPaths: [], prerequisites: [],
-      reconciledInvocations: [...new Set(run.log.all('operation-recovery-resumed').flatMap(event => operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision))).reconciledInvocations ?? []))],
-      settlementObservations: run.log.all('operation-recovery-resumed').flatMap(event => operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision))).settlementObservations ?? []) };
+      reconciledInvocations: [], settlementObservations: [] };
     run.recoveryPause = recovery;
     run.recoveryReviewRelease = run.reviews?.suspend(false);
     await this.write(run, { type: 'operation-recovery-pausing', data: { occurrenceId: id, revision: 1 } },
@@ -5031,12 +4354,10 @@ export class RunService {
     recovery.prerequisites = await this.settlementBlockers(run, recovery);
     recovery.settled = recovery.prerequisites.length === 0;
     try {
-      const observed = await this.captureRecoveryIdentity(run);
-      recovery.identity = expectedIdentity ?? observed;
-      recovery.candidate = { head: recovery.identity.candidate.head, tree: recovery.identity.candidate.tree };
-      recovery.partialPaths = expectedIdentity === undefined ? await this.git.changedPaths(this.projectRoot, this.accepted(run))
-        : [...this.latestOperationRecovery(run)?.partialPaths ?? []];
-    } catch (error) { recovery.prerequisites.push(`Recovery identity cannot be authenticated: ${message(error)}`); }
+      const candidate = await this.previewCandidateTree();
+      recovery.candidate = { head: candidate.head, tree: candidate.tree };
+      recovery.partialPaths = await this.git.changedPaths(this.projectRoot, this.accepted(run));
+    } catch (error) { recovery.prerequisites.push(`Current candidate is unavailable: ${message(error)}`); }
     await run.mutex.run(async () => {
       if (this.ignoring(run)) return;
       recovery.state = 'paused'; recovery.revision++; recovery.pausedAt = this.now().toISOString();
@@ -5065,32 +4386,44 @@ export class RunService {
   }
 
   private async resumeRecovery(command: Extract<RunCommand, { type: 'resume-recovery' }>, contentHash: string): Promise<Receipt> {
-    const { planId, jobId, occurrenceId, expectedRevision, repair } = command.payload;
+    const { planId, jobId } = command.payload;
     this.refuseEarlierPolicy(planId, jobId);
     const run = this.runs.get(key(planId, jobId));
     if (!run) throw new CommandRejection('not-found', `No run ${jobId} for plan ${planId}`);
     const receipt = await run.mutex.run(async () => {
       const recovery = run.recoveryPause;
-      if (!recovery || recovery.id !== occurrenceId) throw new CommandRejection('conflict', 'This is not the current recovery occurrence');
-      if (recovery.revision !== expectedRevision) throw new CommandRejection('stale-version', `Recovery is at revision ${recovery.revision}`, recovery.revision);
-      await this.reconcileRecoverySettlement(run, recovery);
-      const blockers = await this.recoveryBlockers(run, recovery, repair !== undefined);
-      let identity: RecoveryIdentity | undefined;
-      try { identity = await this.captureRecoveryIdentity(run); } catch (error) { blockers.push(message(error)); }
-      if (!recovery.identity || !identity) blockers.push('Authenticated settled recovery identities are unavailable');
-      let admission;
-      try { admission = recovery.identity && identity ? await this.compareRecoveryIdentity(run, recovery.identity, identity, repair) : undefined; } catch (error) { blockers.push(message(error)); }
-      blockers.push(...admission?.blockers ?? []);
-      if (blockers.length > 0) throw new CommandRejection('conflict', blockers.join('; '), recovery.revision);
+      if (run.log.terminal) throw new CommandRejection('conflict', 'Use restart-run to continue a historical failed run');
+      if (run.stopRequested || run.debugPause && !recovery) throw new CommandRejection('conflict', 'The explicit stop or debugger pause remains effective');
+      if (recovery) await this.reconcileRecoverySettlement(run, recovery);
+      const blockers = recovery ? await this.settlementBlockers(run, recovery) : [];
+      if (!recovery && run.recoveryRestart) {
+        const operations = this.options.agent ? await this.operations(this.options.agent) : undefined;
+        const pending = run.log.all('invocation-started').filter(started => !run.log.all('invocation-ended').some(ended => ended.data.invocation === started.data.invocation));
+        for (const started of pending) if (!operations || !await operations.stopOriginal(run.jobId, started.data.invocation, run.policy.limits.stopSettleMs)) blockers.push(`Former attempt ${started.data.invocation} has not settled`);
+        if (!blockers.length) {
+          // The old owner may have completed its last durable transition while
+          // draining. Reopen only after it settled, before becoming the writer.
+          run.log = await RunLog.open(run.log.path, run.jobId, undefined, run.record.restart !== undefined);
+          if (run.restartImport) run.log.installWorkflowImport(restartWorkflowEntries(run.restartImport));
+          run.stopRequested = run.log.find('stop-requested') !== undefined;
+          if (run.stopRequested) blockers.push('The explicit stop remains effective');
+          else await this.closeInterruptedInvocations(run);
+        }
+      }
+      if (run.writer.isUnsettled) blockers.push('The former writer has not settled');
+      if (blockers.length) throw new CommandRejection('conflict', blockers.join('; '));
       const at = this.now();
-      await this.adoptContinuityPolicy(run, occurrenceId);
+      await this.adoptContinuityPolicy(run, recovery?.id ?? 'continuation');
       const accepted = this.commands.accept(command, contentHash, jobId, run.log.nextSequence, at);
-      const resumed = operationRecoverySchema.parse({ ...recovery, state: 'resumed', revision: recovery.revision + 1, group: recovery.group + 1, admission });
-      await commitRecord(run.log.ledger, { event: run.log.next({ type: 'operation-recovery-resumed', data: { occurrenceId, revision: resumed.revision, group: resumed.group, command: accepted } }, at),
-        records: [{ path: runLayout.operationRecovery(occurrenceId, resumed.revision), id: occurrenceId, revision: resumed.revision, body: resumed }] });
+      if (recovery) {
+        const resumed = operationRecoverySchema.parse({ ...recovery, state: 'resumed', revision: recovery.revision + 1, group: Math.max(1, recovery.group) });
+        await commitRecord(run.log.ledger, { event: run.log.next({ type: 'operation-recovery-resumed', data: { occurrenceId: recovery.id, revision: resumed.revision, group: resumed.group, command: accepted } }, at),
+          records: [{ path: runLayout.operationRecovery(recovery.id, resumed.revision), id: recovery.id, revision: resumed.revision, body: resumed }] });
+      } else await run.log.append({ type: 'job-continued', data: { command: accepted } }, at);
       this.commands.remember(accepted); run.recoveryPause = undefined; run.startupRecovery = false;
       return accepted.receipt;
     });
+    await this.observeQuiescentCandidate(run, this.latestOperationRecovery(run)?.candidate.tree);
     run.recoveryReviewRelease?.(); run.recoveryReviewRelease = undefined;
     run.notify();
     if (run.recoveryRestart) {
@@ -5100,253 +4433,79 @@ export class RunService {
     return receipt;
   }
 
-  private async initializeRestartBranch(run: Run): Promise<void> {
-    if (!run.restartImport || run.log.ownEvents.some(event => event.type === 'restart-branch-ready')) return;
-    const recovery = this.latestOperationRecovery(run);
-    if (!recovery?.admission?.admitted) throw new Error('Restart branch setup has no admitted candidate identity');
-    if (!this.git.inspectRunBranch) throw new Error('Exact successor branch inspection is unavailable');
-    const identity = recovery.admission.after;
-    const intent = run.log.ownEvents.find(event => event.type === 'restart-branch-setting-up');
-    const branch = await this.git.inspectRunBranch(this.projectRoot, run.jobId);
-    if (branch.head !== null && !intent) throw new Error(`Successor branch ${branch.branch} already exists without an admitted setup effect`);
-    if (branch.head !== null && branch.head !== identity.candidate.head) throw new Error(`Successor branch ${branch.branch} conflicts with the admitted HEAD`);
-    if (recoveryHash(await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates)) !== recoveryHash(identity.candidate)) throw new Error('Candidate or index drifted before successor branch setup');
-    await run.log.ledger.effect({ key: `restart-branch:${run.jobId}`, serialize: work => run.mutex.run(work),
-      intent: () => ({ event: run.log.next({ type: 'restart-branch-setting-up', data: { branch: branch.branch, head: identity.candidate.head, tree: identity.candidate.tree } }, this.now()),
-        records: [{ path: 'restart/branch.json', id: run.jobId, revision: 1, body: { schema: 'ramify-agent.restart-branch/1', branch: branch.branch, identity } }] }),
-      perform: async () => {
-        if (this.ignoring(run) || !await this.options.lock.held()) throw new Error('Stop or project ownership loss precedes branch dispatch');
-        const current = await this.git.inspectRunBranch!(this.projectRoot, run.jobId);
-        if (current.head !== null && (current.head !== identity.candidate.head || current.current !== current.branch)) throw new Error('An existing successor ref has no authenticated admitted branch receipt');
-        if (current.head === null) await this.git.createRunBranch(this.projectRoot, run.jobId);
-        const settled = await this.git.inspectRunBranch!(this.projectRoot, run.jobId);
-        if (settled.branch !== branch.branch || settled.current !== branch.branch || settled.head !== identity.candidate.head) throw new Error('Successor branch setup did not preserve the admitted HEAD');
-        if (recoveryHash(await captureRecoveryCandidate(this.projectRoot, this.git, this.candidates)) !== recoveryHash(identity.candidate)) throw new Error('Successor branch setup changed the admitted source or index');
-        return { branch: settled.branch, head: identity.candidate.head, tree: identity.candidate.tree };
-      },
-      complete: result => ({ event: run.log.next({ type: 'restart-branch-ready', data: result }, this.now()), records: [] }),
-    });
+  private async observeQuiescentCandidate(run: Run, beforeTree: string | undefined): Promise<void> {
+    if (!beforeTree) return;
+    const after = await this.previewCandidateTree();
+    await observeExternalCandidate({ projectRoot: this.projectRoot, beforeTree, afterTree: after.tree,
+      acceptedHead: this.accepted(run), candidates: this.candidates, write: (event, records) => this.write(run, event, records) });
   }
 
   private async startRecoveredDriver(run: Run): Promise<void> {
     if (this.ignoring(run) || !this.options.agent) return;
-    try { await this.initializeRestartBranch(run); }
-    catch (error) {
-      const pending = run.restartImport?.pending;
-      await this.waitOperationRecovery(run, { kind: 'preparation', checkpoint: 'restart-branch', ...(pending?.role ? { role: pending.role as Role } : {}),
-        ...(pending?.work ? { work: pending.work } : {}), source: null, start: { mode: 'fresh' } }, { classification: 'preparation', diagnostic: message(error) }, [], 0, 0, false);
-      return;
-    }
     const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
     run.index = await this.options.inputs.index(this.projectRoot, run.record.manifest).catch(() => null);
-    const baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(runLayout.measurement(snapshotId(1))), 'utf8')));
+    let baseline: MeasurementSnapshot;
+    const baselinePath = runLayout.measurement(snapshotId(1));
+    try { baseline = measurementSnapshotSchema.parse(JSON.parse(await readFile(run.path(baselinePath), 'utf8'))); }
+    catch (error) {
+      const diagnostic = `Task ${run.jobId} requires readable baseline record ${baselinePath}: ${message(error)}`;
+      this.warn(diagnostic);
+      await this.waitOperationRecovery(run, { kind: 'preparation', checkpoint: 'baseline' }, { classification: 'preparation', diagnostic }, [], 0, 0, false);
+      return;
+    }
     run.restorationSequence = run.log.version;
     run.restoring = true;
-    run.done = this.drive(run, this.options.agent, packages, baseline, true)
+    const agent = this.options.agent;
+    run.done = (async () => {
+      // A durable repair assignment is ordinary pending work. Execute it before
+      // constructing the parent task whose preparation it was assigned to restore.
+      const pending = this.latestRepairIncident(run);
+      if (pending && ['admitted', 'running', 'interrupted'].includes(pending.stage) && pending.incident.verification?.verified !== true) {
+        const preparation = repairPreparationSchema.parse(this.committedBody(run, pending.incident.preparation.path));
+        const restored = await this.automaticProjectRepair(run, agent, packages, baseline, preparation,
+          new Error(pending.incident.harnessError.message), null);
+        if (restored === null || 'refusal' in restored || this.ignoring(run)) return;
+        await this.persistRepairIncident(run, { ...restored.incident,
+          continuation: { delivered: false, reason: 'Verified source repair awaits ordinary parent task delivery', evidence: [] } }, 'running',
+          [{ path: runLayout.repairDelta(restored.incident.incidentId), id: restored.incident.incidentId, revision: 1, body: restored.delta }]);
+      }
+      if (!this.ignoring(run)) await this.drive(run, agent, packages, baseline, true);
+    })()
       .catch(error => this.fail(run, error instanceof WriterBlockedError ? 'writer-unsettled' : 'recovery-exhausted', `Recovery continuation failed: ${message(error)}`))
       .catch(error => this.warn(`Run ${run.jobId}: ${message(error)}`));
   }
 
-  /** Reconstruct the current task from committed state, without asking the predecessor for a report. */
-  private async retainedResourceTask<T>(run: Run, request: InvocationRequest<T>): Promise<NonNullable<RecoveryBoundary['retainedTask']>> {
-    const candidate = await this.previewCandidateTree();
-    const records = committedRecords(run.log.ledger.replay());
-    const findings = [...checkFindingStateOf(run.log.ledger).findings.values()].filter(entry => entry.standing === 'open');
-    const scenarioRecords = trackedScenarios(run.log.ledger.replay()).records;
-    const obligations: NonNullable<RecoveryBoundary['retainedTask']>['obligations'] = [
-      ...findings.map(entry => ({ kind: 'check-finding', id: entry.id, revision: entry.revision })),
-      ...[...records.capabilityRequests.keys()].filter(id => !records.capabilityHandbacks.has(id)).map(id => ({ kind: 'capability-request', id })),
-      ...[...records.requirements.values()].map(requirement => ({ kind: 'requirement', id: requirement.id, revision: requirement.revision })),
-      ...unsettledRequests(run.log.events).map(review => ({ kind: `review:${review.kind}`, id: review.id })),
-      ...scenarioRecords.map(scenario => ({ kind: 'scenario', id: scenario.id })),
-      { kind: 'submission', id: request.toolName },
-    ];
-    const paths = new Set<string>();
-    for (const entry of run.log.ledger.replay()) for (const record of entry.transaction.records) {
-      if (/^(?:work-items|architecture|contracts|capabilities|check-findings|scenarios|gates)\//u.test(record.path)
-        || record.path === runLayout.events || record.path.startsWith('invocations/') && record.path.endsWith('/submission.json')) paths.add(record.path);
-    }
-    return { candidate: { head: candidate.head, tree: candidate.tree }, acceptedHead: this.accepted(run), work: request.work,
-      configuration: this.latestOperationRecovery(run)?.admission?.after.configuration.identity ?? recoveryHash(run.record.auditConfiguration),
-      progressIdentity: recoveryHash({ candidate: candidate.tree, acceptedHead: this.accepted(run),
-        registry: records.registry, decisions: [...records.decisions.values()], requirements: [...records.requirements.values()],
-        findings: findings.map(entry => ({ id: entry.id, revision: entry.revision, standing: entry.standing })),
-        capabilityState: [...replayCapabilityState(run.log.events).tasks.values()] }),
-      obligations, sourceRecords: [...paths],
-      authority: { role: request.role, writer: request.writer === true, scope: request.scope, submission: request.toolName,
-        assignment: request.work.iteration ?? request.work.automaticRepair ?? null, policy: run.policy.version } };
-  }
-
-  /** A transport attempt group is independent of semantic role and request budgets. */
+  /** Ordinary construction owns task context; recovery only replaces a settled attempt. */
   private async recoverableInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
-    if (run.restartImport) {
-      const historical = request.originalInvocation && run.restartImport.inventory.some(entry => entry.transaction.event.type === 'invocation-started' && entry.transaction.event.data.invocation === request.originalInvocation);
-      const requestedPoint = request.start.mode === 'continue' ? request.start.ref : request.start.mode === 'fork' ? request.start.from : undefined;
-      const historicalPoint = requestedPoint ? readSessionPointReference(requestedPoint)?.runId !== run.jobId : false;
-      if (historical || historicalPoint) request = { ...request, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
-        originalInvocation: historical ? request.originalInvocation : undefined, allowFreshFallback: true,
-        task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:restart-provenance', text: `Source-backed reconstruction from ${run.restartImport.sourceRun}; pending task ${JSON.stringify(run.restartImport.pending)}. Outstanding obligations: ${run.restartImport.outstanding.join('; ')}. Source sessions have no successor authority. Authenticated historical proof: ${run.path(runLayout.restartImport)}.` }] } : request.task };
-    }
-    const policy = run.policy.recovery;
-    if (!policy) return this.runner.runInvocation(run, agent, request);
-    while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
-    if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
-    if (run.startupRecovery) {
-      const candidate = run.log.all('invocation-started').find(event => event.data.role === request.role && canonicalJson(event.data.work) === canonicalJson(request.work)
-        && !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
-      const accepted = candidate && await (await this.operations(agent)).acceptance(run.jobId, candidate.data.invocation);
-      if (!accepted) {
-        const ready = await this.waitOperationRecovery(run, { kind: 'invocation', role: request.role, work: request.work, source: request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from,
-          start: request.start, ...(request.session === undefined ? {} : { session: request.session }),
-          requestHash: sha256(canonicalJson({ role: request.role, work: request.work, tool: request.toolName, prompt: request.prompt, system: request.systemPrompt })) },
-          { classification: 'unknown', diagnostic: 'Durable acceptance was reconciled after restart; further ordinary execution waits for explicit authorization' }, [], 0);
-        if (!ready) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' };
-        run.startupRecovery = false;
-      }
-    }
-    const prior = this.latestOperationRecovery(run);
-    const consumed = prior?.state === 'resumed' && run.log.all('operation-recovery-attempt').some(event => event.data.group === prior.group && event.data.requestHash === prior.boundary.requestHash && (() => { const outcome = invocationOutcomeSchema.safeParse(this.committedBody(run, runLayout.outcome(event.data.invocation))); return outcome.success && ['submitted', 'ended', 'invalid-submission'].includes(outcome.data.ended); })());
-    const resumed = prior?.state === 'resumed' && !consumed && prior.boundary.kind === 'invocation' && prior.boundary.role === request.role && (prior.boundary.tool === undefined || prior.boundary.tool === request.toolName) && canonicalJson(prior.boundary.work) === canonicalJson(request.work) ? prior : undefined;
-    const requestHash = resumed?.boundary.requestHash ?? sha256(canonicalJson({ role: request.role, work: request.work, tool: request.toolName, prompt: request.prompt, system: request.systemPrompt }));
-    let group = resumed?.group ?? 0;
-    let current = resumed?.boundary.start ? { ...request, start: resumed.boundary.start as SessionStart, session: resumed.boundary.session,
-      originalInvocation: undefined, restore: false, recoveryPredecessor: resumed.attempts.at(-1) } : request;
-    if (resumed?.boundary.reconstruction?.name === 'fresh-step-construction' && resumed.boundary.reconstruction.inputs !== undefined) {
-      const retained = validateStepInputs(resumed.boundary.reconstruction.inputs);
-      const { packages } = await loadPromptPackages({ ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null });
-      current = { ...current, allowFreshFallback: true, fallback: () => {
-        const step = constructStep(retained, { projectRoot: this.projectRoot, packages });
-        return { prompt: step.prompt, brief: step.brief, stepInputs: step.before.inputs };
-      } };
-    }
-    if (resumed?.boundary.reconstruction?.name === 'retained-task-request') {
-      const source = await (await this.operations(agent)).originalOperation(run.jobId, resumed.boundary.reconstruction.invocation);
-      current = { ...current, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
-        task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:resource-recovery', text: `${source?.task.message ?? request.prompt}\nCurrent retained task: ${JSON.stringify(resumed.boundary.retainedTask)}. Effects and authoritative records: ${run.path(runLayout.events)}.` }] } : request.task };
-    }
-    if (resumed?.boundary.reconstruction?.name !== 'retained-task-request' && resumed?.boundary.start?.mode === 'continue' && resumed.boundary.start.ref) {
-      const original = run.log.all('invocation-started').find(event => event.data.invocation === resumed.attempts[0]);
-      if (original?.data.continues) current = { ...current, start: { mode: 'fork', from: resumed.boundary.start.ref }, session: undefined, continuing: undefined,
-        fork: { from: original.data.continues.from, briefs: original.data.continues.briefs, reason: 'interruption-recovery' },
-        degraded: { requested: 'continued', reason: 'Recovery forks the exact captured continuation source' } };
-    }
-    if (resumed?.admission?.declaration) current = { ...current,
-      callerText: `External repair admitted for the retained operation. ${resumed.admission.declaration.explanation}\nObserved changes: ${resumed.admission.changes.map(change => change.path).join(', ') || 'No source delta'}. Verify the diagnosis and keep the captured authority.`,
-      task: request.task ? { ...request.task, candidate: resumed.admission.after.candidate.tree } : undefined,
-      brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: resumed.admission.after.candidate.tree } } : undefined,
-      ...(request.singleAdmission ? { onStarted: undefined } : {}) };
-    if (run.restartImport && resumed?.id === 'restart-resume-1') current = { ...current,
-      callerText: [current.callerText, `Source-backed reconstruction from ${run.restartImport.sourceRun}; exact pending task ${JSON.stringify(run.restartImport.pending)}. Outstanding obligations: ${run.restartImport.outstanding.join('; ')}. Historical proof: ${run.path(runLayout.restartImport)}. Earlier sessions have no successor authority.`].filter(Boolean).join('\n') };
-    const all = [...resumed?.attempts ?? []];
-    const seenEffects = new Set<string>();
-    for (const id of all) for (const effect of await (await this.operations(agent)).completedEffects(run.jobId, id)) {
-      if (!effect.tool.startsWith('afterMutation:')) seenEffects.add(recoveryHash({ tool: effect.tool, input: effect.input, result: effect.result, verdict: effect.verdict }));
-    }
-    const groupEvents = run.log.all('operation-recovery-attempt').filter(event => event.data.requestHash === requestHash && event.data.group === group);
-    let automatic = Math.max(0, ...groupEvents.map(event => event.data.attempt));
-    let lastResourceProgress = resumed?.boundary.retainedTask?.progressIdentity;
+    let current: InvocationRequest<T> = { ...request, allowFreshFallback: true };
+    let replacements = 0;
     for (;;) {
-      while (run.recoveryPause) { if (request.recoveryReviewRequest && !run.recoveryReviewPipelines.has(request.recoveryReviewRequest)) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); } const changed = run.changed(); if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; await changed; }
+      while (run.recoveryPause && !this.ignoring(run)) {
+        if (request.recoveryReviewRequest) { run.recoveryReviewPipelines.add(request.recoveryReviewRequest); run.notify(); }
+        const changed = run.changed();
+        if (!run.recoveryPause) break;
+        await changed;
+      }
       if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
       if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' };
-      const applicable = this.latestOperationRecovery(run);
-      if (applicable?.state === 'resumed' && applicable.group === group && applicable.boundary.requestHash === requestHash && applicable.admission && automatic === 0) {
-        const blockers = repairDispatchBlockers(applicable.admission, await this.captureRecoveryIdentity(run));
-        if (blockers.length > 0) { if (!await this.waitOperationRecovery(run, applicable.boundary, { classification: 'preparation', diagnostic: blockers.join('; ') }, all, automatic, group, true, applicable.admission.after)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' }; group++; continue; }
-      }
-      const beforeInvocations = run.log.count('invocation-started');
-      const result = await this.runner.runInvocation(run, agent, { ...current, recoveryGroup: group,
-        context: run.policy.continuity ? contextPolicyOf(run.policy, request.role) : current.context,
-        onStarted: async (id, session) => {
-          // Admission is durable before provider dispatch and before the caller's
-          // semantic start callback, so a crash cannot renew this attempt.
-          if (!run.log.all('operation-recovery-attempt').some(event => event.data.invocation === id && event.data.group === group)) await this.write(run,
-            { type: 'operation-recovery-attempt', data: { requestHash, group, attempt: automatic, invocation: id, predecessor: this.invocationRecord(run, id).body.recoveryPredecessor ?? null } });
-          await current.onStarted?.(id, session);
-        } });
-      if (result.id !== '') {
-        const produced = run.log.all('invocation-started').slice(beforeInvocations).map(event => event.data.invocation);
-        if (produced.length === 0) produced.push(result.id);
-        for (const id of produced) {
-          if (!all.includes(id)) all.push(id);
-          if (!run.log.all('operation-recovery-attempt').some(event => event.data.invocation === id && event.data.group === group)) await this.write(run,
-            { type: 'operation-recovery-attempt', data: { requestHash, group, attempt: automatic, invocation: id, predecessor: this.invocationRecord(run, id).body.recoveryPredecessor ?? null } });
-        }
-      }
-      const resource = result.settlementConfirmed === false || result.ended === 'resource-pending' || result.ended === 'context-budget-reached' || result.interruption === 'idle-timeout' || result.interruption === 'absolute-timeout';
-      if ((!resource && result.ended !== 'failed') || this.ignoring(run)) return result;
-      let unresolved: string[] = [];
-      let evidence: InterruptionEvidence = resource ? { ...result.interruptionEvidence, classification: 'transport', diagnostic: result.resourceReason ?? result.error ?? `Resource recovery remains pending (${result.ended})` }
-        : result.interruptionEvidence ?? { classification: 'unknown', diagnostic: result.error ?? 'Provider interruption has insufficient structured classification evidence' };
-      let reconstruction: ReturnType<NonNullable<InvocationRequest<T>['fallback']>> = undefined;
-      let retainedState: RecoveryBoundary['retainedTask'];
-      let retainedTask: Awaited<ReturnType<HarnessSessionOperations['originalOperation']>> = null;
-      try {
-        const operations = await this.operations(agent);
-        unresolved = await operations.unresolvedEffects(run.jobId, result.id);
-        reconstruction = request.fallback?.('Recovery source reconstruction');
-        retainedState = resource ? await this.retainedResourceTask(run, request) : undefined;
-        retainedTask = resource ? await operations.originalOperation(run.jobId, result.id) : null;
-        let usefulEffects = false;
-        for (const effect of await operations.completedEffects(run.jobId, result.id)) {
-          if (effect.tool.startsWith('afterMutation:')) continue;
-          const identity = recoveryHash({ tool: effect.tool, input: effect.input, result: effect.result, verdict: effect.verdict });
-          if (!seenEffects.has(identity)) { seenEffects.add(identity); usefulEffects = true; }
-        }
-        if (resource && usefulEffects || retainedState?.progressIdentity && lastResourceProgress && retainedState.progressIdentity !== lastResourceProgress) automatic = 0;
-        if (retainedState?.progressIdentity) lastResourceProgress = retainedState.progressIdentity;
-      } catch (error) {
-        evidence = { ...evidence, classification: 'preparation', diagnostic: `${evidence.diagnostic}; recovery source or effect evidence is unavailable: ${message(error)}` };
-      }
-      const boundary: RecoveryBoundary = { kind: 'invocation', role: request.role, work: request.work, invocation: result.id,
-        source: request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from,
-        requestHash, start: request.start, ...(retainedState === undefined ? {} : { retainedTask: retainedState }), ...(request.recoveryReviewRequest === undefined ? {} : { reviewRequest: request.recoveryReviewRequest }), ...(request.session === undefined ? {} : { session: request.session }), tool: request.toolName,
-        ...(reconstruction ? { reconstruction: { name: 'fresh-step-construction', mode: 'fresh', inputsHash: recoveryHash(reconstruction.stepInputs), inputs: reconstruction.stepInputs } } : retainedTask ? { reconstruction: { name: 'retained-task-request', mode: 'fresh', invocation: result.id, inputsHash: recoveryHash(retainedTask) } } : {}) };
-      if (resource && !retainedTask || result.settlementConfirmed !== true || unresolved.length > 0 || evidence.classification !== 'transport' || automatic >= policy.automaticRetries) {
-        if (!await this.waitOperationRecovery(run, boundary, evidence, all, automatic, group)) return { ...result, ended: 'stopped', outcomeKind: 'stopped', value: undefined };
-        group++; automatic = 0;
+      const result = await this.runner.runInvocation(run, agent, current);
+      const interruption = taskInterruption({ ended: result.ended, interruption: result.interruption, classification: result.interruptionEvidence?.classification });
+      if (this.ignoring(run) || interruption === null) return result;
+      const unresolved = await (await this.operations(agent)).unresolvedEffects(run.jobId, result.id);
+      const reentry = decideTaskReentry({ authorized: !this.ignoring(run), settled: result.settlementConfirmed === true, unresolved });
+      const retry = mayRetryTask({ attempt: replacements, limit: run.policy.recovery?.automaticRetries ?? 2,
+        classification: interruption });
+      if (reentry.action === 'wait' || !retry) {
+        const ready = await this.waitOperationRecovery(run, { kind: 'invocation', role: request.role, work: request.work, invocation: result.id, start: { mode: 'fresh' }, source: null },
+          result.interruptionEvidence ?? { classification: 'unknown', diagnostic: reentry.action === 'wait' ? reentry.reason : result.error ?? result.resourceReason ?? 'The provider is unavailable' }, [result.id], replacements);
+        if (!ready) return { ...result, ended: 'stopped', value: undefined, outcomeKind: 'stopped' };
+        replacements = 0;
       } else {
-        automatic++;
-        const delay = Math.min(policy.maxDelayMs, Math.max(policy.baseDelayMs * 2 ** (automatic - 1), evidence.retryAfterMs ?? 0));
-        await Promise.race([new Promise<void>(resolve => { const timer = setTimeout(resolve, delay); void run.changed().then(() => { clearTimeout(timer); resolve(); }); }), ...(request.signal ? [new Promise<void>(resolve => request.signal!.addEventListener('abort', () => resolve(), { once: true }))] : [])]);
-        if (this.ignoring(run) || request.signal?.aborted) return { ...result, ended: 'stopped', outcomeKind: 'stopped', value: undefined };
+        const delay = taskRetryDelay({ attempt: replacements, classification: interruption, retryAfterMs: result.interruptionEvidence?.retryAfterMs });
+        replacements++;
+        if (delay > 0 && !await this.gateHost().retryGateDelay!(run, delay)) return { ...result, ended: 'stopped', value: undefined, outcomeKind: 'stopped' };
       }
-      if (resource && result.ended === 'submitted' && result.value !== undefined) {
-        const confirmed = this.effectiveInvocationOutcome(run, result.id);
-        if (confirmed?.settled.confirmed) return { ...result, settlementConfirmed: true, pending: false, ref: confirmed.session?.ref ?? result.ref };
-      }
-      if (resource) {
-        retainedState ??= await this.retainedResourceTask(run, request);
-        retainedTask ??= await (await this.operations(agent)).originalOperation(run.jobId, result.id);
-        const successor = request.fallback?.('Source-backed resource recovery');
-        const recoveryContext = `Original task source: ${result.id}. Interrupted work remains pending; no partial or completion report was inferred. Retained candidate and accepted effects must be reconciled, never discarded or replayed.\nCurrent durable task: ${JSON.stringify(retainedState)}.\nAuthority is the current assignment and validator; earlier sessions are revoked. Accepted records and effects are available at ${run.path(runLayout.events)} and ${run.path('session-operations')}.\n${retainedTask?.task.message ?? request.freshPrompt ?? request.prompt}`;
-        current = { ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined, continuing: undefined, fork: undefined,
-          recoveryPredecessor: result.id, recoveryGroup: group,
-          prompt: [successor?.prompt ?? request.freshPrompt ?? request.prompt, `\nContinue the original pending task after resource interruption ${result.id}. No report or submission was inferred. Preserve current obligations, partial candidate and accepted effects; do not replay authenticated effects.`,
-            `Durable predecessor inputs: ${run.path(runLayout.stepInputs(result.id))}. Retained transcript: ${run.path(runLayout.transcript(result.session))}.`].join('\n'),
-          ...(successor ? { stepInputs: successor.stepInputs } : {}),
-          brief: successor?.brief ?? (request.brief ? { ...request.brief, sections: [...request.brief.sections, { key: 'support:resource-recovery', text: recoveryContext }] } : undefined),
-          task: request.task ? { ...request.task, literalSections: [...request.task.literalSections ?? [], { key: 'support:resource-recovery', text: recoveryContext }] } : request.task,
-          ...(request.singleAdmission ? { onStarted: undefined } : {}),
-          degraded: { requested: request.start.mode === 'continue' ? 'continued' : request.start.mode === 'fork' ? 'fork' : 'fresh', reason: 'Source-backed successor retains the current task after native recovery or watchdog interruption' } };
-        continue;
-      }
-      // A successor gets a new identity and reuses only the original exact source.
-      const admitted = this.latestOperationRecovery(run);
-      const originalStart = request.start;
-      const originalEvent = run.log.all('invocation-started').find(event => event.data.invocation === result.id);
-      const exactContinue = originalStart.mode === 'continue' && originalEvent?.data.continues;
-      current = { ...request, originalInvocation: undefined, restore: false, recoveryPredecessor: result.id, recoveryGroup: group,
-        ...(request.singleAdmission ? { onStarted: undefined } : {}),
-        ...(exactContinue ? { start: { mode: 'fork', from: originalStart.ref }, session: undefined, continuing: undefined,
-          fork: { from: exactContinue.from, briefs: exactContinue.briefs, reason: 'interruption-recovery' },
-          degraded: { requested: 'continued', reason: 'Recovery forks the exact captured continuation source after the interrupted turn made its latest point unavailable' } } : {}),
-        ...(admitted?.state === 'resumed' && admitted.admission?.declaration ? {
-          callerText: `External repair admitted for this retained operation. ${admitted.admission.declaration.explanation}\nChanged areas: ${admitted.admission.declaration.areas.join(', ')}.\nObserved changes: ${admitted.admission.changes.map(change => change.path).join(', ') || 'No source delta'}.\nThe diagnosis remains unverified; preserve authority and verify the repaired operation.`,
-          task: request.task ? { ...request.task, candidate: admitted.admission.after.candidate.tree } : undefined,
-          brief: request.brief ? { ...request.brief, environment: { ...request.brief.environment, candidate: admitted.admission.after.candidate.tree } } : undefined,
-        } : {}),
-        attempt: request.attempt, allowFreshFallback: request.fallback !== undefined ? request.allowFreshFallback : false };
+      current = this.runner.restartTaskRequest(request, result.id, result.resourceReason ?? result.error ?? `Attempt ended ${result.ended}`);
     }
   }
 
@@ -5461,10 +4620,12 @@ export class RunService {
     if (this.ignoring(run)) return false;
     const refusal = this.invocationRefusal(run);
     if (refusal !== null) { await this.fail(run, 'limit-exceeded', refusal); return false; }
-    const pauseId = `pause-${String(run.log.count('debug-pausing') + 1).padStart(4, '0')}`;
+    const existing = [...run.log.all('debug-pausing')].reverse().find(event => !run.log.all('debug-resumed').some(resumed => resumed.data.pauseId === event.data.pauseId));
+    const pauseId = existing?.data.pauseId ?? `pause-${String(run.log.count('debug-pausing') + 1).padStart(4, '0')}`;
+    const revision = existing ? Math.max(existing.data.revision, ...run.log.events.filter(event => 'pauseId' in event.data && event.data.pauseId === pauseId && 'revision' in event.data).map(event => Number((event.data as { revision: number }).revision))) : 1;
     const goal = request.task?.goal ?? request.description;
     const nextAction = `Execute the prepared ${roleDisplayName(request.role).toLowerCase()} task with its ordinary tools and submission validator.`;
-    const pause: BreakpointState = { kind: 'breakpoint', planId: run.planId, runId: run.jobId, pauseId, revision: 1,
+    const pause: BreakpointState = { kind: 'breakpoint', planId: run.planId, runId: run.jobId, pauseId, revision,
       cursor: run.log.version, state: 'pausing', role: request.role, work: { ...request.work }, goal, nextAction,
       taskState: 'pending', summary: `Settling admitted work before ${roleDisplayName(request.role).toLowerCase()}: ${goal}` };
     run.debugPause = pause;
@@ -5472,7 +4633,7 @@ export class RunService {
     // The barrier is for new attempts, not the calls within those pipelines.
     const releaseReviews = run.reviews?.suspend();
     try {
-      if (await this.write(run, { type: 'debug-pausing', data: { pauseId, revision: 1, role: request.role,
+      if (!existing && await this.write(run, { type: 'debug-pausing', data: { pauseId, revision, role: request.role,
         work: request.work, goal, nextAction } }) === 'ended') return false;
       await run.reviews?.settled();
       await run.gating;
@@ -5498,7 +4659,7 @@ export class RunService {
       if (settledRefusal !== null) { await this.fail(run, 'limit-exceeded', settledRefusal); return false; }
       const reached = await run.mutex.run(async () => {
         if (this.ignoring(run)) return false;
-        await run.log.append({ type: 'debug-paused', data: { pauseId, revision: 1 } }, this.now());
+        if (!run.log.all('debug-paused').some(event => event.data.pauseId === pauseId && event.data.revision === revision)) await run.log.append({ type: 'debug-paused', data: { pauseId, revision } }, this.now());
         pause.state = 'paused';
         pause.cursor = run.log.version;
         pause.summary = `Paused before ${request.role}: ${goal} Assignment prepared; engineer not yet invoked. Resume executes its ordinary task.`;
@@ -5524,61 +4685,31 @@ export class RunService {
     }
   }
 
-  /** Restore only an exact owning role/work/request phase; no whole-history cursor or new identity. */
-  private async restoreInvocation<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>) {
-    const pending = run.log.all('invocation-started').filter(event => !run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation));
-    const analysisPrefix = !run.log.find('analysis-accepted') && ['catalog-extractor', 'initial-architect'].includes(request.role);
-    const candidates = run.log.all('invocation-started').filter(event => (event.sequence <= (run.restorationSequence ?? run.log.version) || event.data.invocation === request.originalInvocation)
+  /** Deliver an accepted destination once when ordinary workflow construction reaches its task. */
+  private async restoreInvocation<T>(run: Run, _agent: AgentPort, request: InvocationRequest<T>) {
+    if (request.role === 'capability-architect') return null;
+    const events = run.log.all('invocation-started').filter(event => event.sequence <= (run.restorationSequence ?? run.log.version)
+      && !run.restoredInvocations.has(event.data.invocation) && event.data.role === request.role
+      && !(request.role === 'local-architect' && (run.log.all('iteration-assigned').some(assigned => assigned.data.invocation === event.data.invocation && committedRecords(run.log.ledger.replay()).results.has(assigned.data.iteration))
+        || run.log.all('gate-attempted').some(attempt => { const gate = gateAttemptSchema.safeParse(this.committedBody(run, runLayout.gate(attempt.data.gate))); return gate.success && gate.data.proposedBy === event.data.invocation && gate.data.verdict !== 'passed'; })))
       && (request.originalInvocation === undefined || event.data.invocation === request.originalInvocation)
-      && !run.restoredInvocations.has(event.data.invocation) && event.data.role === request.role &&
-      canonicalJson(event.data.work) === canonicalJson(request.work) && (pending.includes(event) || analysisPrefix || event.data.invocation === request.originalInvocation));
-    const matched = [];
-    for (const event of candidates) {
-      const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(event.data.invocation)));
-      const closed = run.log.all('invocation-ended').find(item => item.data.invocation === event.data.invocation);
-      if (closed && closed.data.ended !== 'submitted') continue;
-      if (event.sequence < 0 && run.restartImport && request.role === 'local-architect' && this.latestOperationRecovery(run)?.admission?.requiresReassessment) {
-        const submission = await readIfExists(run.path(runLayout.submission(event.data.invocation)));
-        if (submission && (JSON.parse(submission.toString('utf8')) as { kind?: string }).kind === 'request-completion') continue;
-      }
-      if (record.prompt.hash !== request.loaded.hash || request.originalInvocation !== event.data.invocation && record.prompt.requestedInputsHash !== inputsHash([request.systemPrompt, request.prompt, ...(request.callerText === undefined ? [] : [request.callerText])])) continue;
-      const packet = await (await this.operations(agent)).packet(event.sequence < 0 && run.restartImport ? event.jobId : run.record.jobId, event.data.invocation);
-      if (packet && packet.submissionTool !== request.toolName) continue;
-      matched.push({ event, record, packet });
-    }
-    if (matched.length > 1) throw new Error('Ambiguous original owning task correlation');
-    if (matched.length === 0) {
-      if (candidates.some(event => pending.includes(event))) throw new Error('Original unfinished owning task inputs changed or are unavailable');
-      return null;
-    }
-    const { event, packet } = matched[0]!; const id = event.data.invocation;
-    run.restoredInvocations.add(id);
-    const ended = run.log.all('invocation-ended').find(item => item.data.invocation === id);
-    if (ended) {
+      && (canonicalJson(event.data.work) === canonicalJson(request.work) || request.role === 'nonfunctional-coordinator' && event.data.work.task === undefined)
+      && run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation && ended.data.ended === 'submitted'));
+    for (const event of events) {
+      const id = event.data.invocation;
       const outcome = invocationOutcomeSchema.parse(this.committedBody(run, runLayout.outcome(id)));
-      if (!outcome.settled.confirmed || outcome.ended !== 'submitted' || !outcome.submission) throw new Error('Original accepted owning phase is not confirmed');
+      if (!outcome.settled.confirmed || !outcome.submission) throw new Error(`Accepted task result ${id} has no confirmed settlement`);
       const bytes = await readIfExists(run.path(runLayout.submission(id)));
-      if (!bytes || sha256(bytes) !== outcome.submission.hash) throw new Error('Original accepted owning destination changed');
+      if (!bytes || sha256(bytes) !== outcome.submission.hash) throw new Error(`Accepted task result ${id} is unavailable or changed`);
       const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-      if (schema !== request.submissionSchema) throw new Error('Original accepted owning validator schema changed');
+      if (schema !== request.submissionSchema) continue;
+      if (request.role === 'nonfunctional-coordinator' && !(await request.validate(body)).ok) continue;
+      run.restoredInvocations.add(id);
+      const ended = run.log.all('invocation-ended').find(ended => ended.data.invocation === id)!;
       return { hasIntent: true, result: { id, ended: outcome.ended, value: body as T, ref: outcome.session?.ref ?? '', session: event.data.session,
         kept: ended.data.kept, outcomeKind: 'submitted' as const, elapsedMs: outcome.elapsedMs, inFlight: [], lastText: null } };
     }
-    if (request.writer && run.writer.held === undefined) {
-      const acquired = run.log.all('writer-acquired').some(item => item.data.invocation === id);
-      const released = run.log.all('writer-released').find(item => item.data.invocation === id);
-      if (!acquired || released) throw new Error('Original writer has no pending ownership');
-      run.writer.acquire(id);
-      for (const group of run.log.all('writer-process-registered').filter(item => item.data.invocation === id)) {
-        const identity = await processGroupIdentity(group.data.pid);
-        if (identity !== null && identity === group.data.identity) run.writer.register(id, group.data.pid);
-        else throw new Error('Original writer process ownership cannot be authenticated');
-      }
-    }
-    let closed = () => undefined as void;
-    run.live.set(id, { role: request.role, reader: request.reader === true, session: undefined, done: new Promise<void>(resolve => { closed = () => resolve(); }) });
-    return { hasIntent: packet !== null, started: { id, session: event.data.session, observations: await ObservationLog.open(run.path(runLayout.observations(id))),
-      transcript: this.invocationTranscript(run, event.data.session, id), closed: () => { run.live.delete(id); closed(); } } };
+    return null;
   }
 
   /** Latest immutable invocation revision, unlike owning assignment/license lookups. */
@@ -6274,32 +5405,7 @@ export class RunService {
           await this.fail(run, 'recovery-exhausted', `Capability ${activeId} has an invalid accepted coordinator action`);
           return false;
         }
-        if (authenticated.disposition === 'superseded') {
-          // Closing the service can race an already accepted agent receipt.
-          // That owning result remains discarded, even though its bytes are
-          // retained. Only the existing bounded, record-backed reconstruction
-          // may continue; no report or action is replayed from this result.
-          const effect = run.log.events.some(event =>
-            (event.type.startsWith('capability-') && 'invocation' in event.data &&
-              event.data.invocation === latest.data.invocation) ||
-            (event.type === 'unresolved-requested' && event.data.invocation === latest.data.invocation) ||
-            ((event.type === 'obligation-reported' || event.type === 'obligation-registered') &&
-              event.data.by === latest.data.invocation));
-          const source = authenticated.session?.ref ? readSessionPointReference(authenticated.session.ref) : null;
-          if (ended.data.kept || ended.data.finished !== 'run-ended' || authenticated.interruption !== undefined ||
-            effect || source === null || source.runId !== run.record.jobId ||
-            authenticated.sessionOperation?.runId !== run.record.jobId ||
-            authenticated.sessionOperation.operationId !== latest.data.invocation ||
-            canonicalJson(authenticated.sessionOperation.point) !== canonicalJson(source.point) ||
-            authenticated.sessionOperation.sessionId !== source.point.sessionId) {
-            await this.fail(run, 'recovery-exhausted', `Capability ${activeId} has an unauthenticated superseded coordinator shutdown`);
-            return false;
-          }
-        } else {
-          if (authenticated.disposition !== 'applied' || !ended.data.kept || !authenticated.session?.ref) {
-            await this.fail(run, 'recovery-exhausted', `Capability ${activeId} has an unauthenticated accepted coordinator action`);
-            return false;
-          }
+        if (authenticated.disposition === 'applied') {
           const chosen = parsed.data;
           const effectExists = chosen.kind === 'assign'
             ? run.log.all('capability-assigned').some(event => event.data.invocation === latest.data.invocation)
@@ -6313,7 +5419,7 @@ export class RunService {
             return false;
           }
           if (!effectExists) replay = { id: latest.data.invocation, ended: 'submitted', value: chosen,
-            ref: authenticated.session.ref, session: latest.data.session, kept: true, outcomeKind: 'submitted' };
+            ref: authenticated.session?.ref ?? '', session: latest.data.session, kept: ended.data.kept, outcomeKind: 'submitted' };
         }
       }
       if (ended?.data.kept && outcome?.session?.ref) {
@@ -6407,9 +5513,8 @@ export class RunService {
     const attempts: string[] = [];
     for (const started of run.log.all('invocation-started')) {
       if (started.data.role !== 'local-architect' || started.data.work.workItem !== item.id) continue;
-      const packet = await (await this.operations(agent)).packet(run.record.jobId, started.data.invocation);
       const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(started.data.invocation)));
-      if (packet?.submissionTool === workOrientationToolName || record.prompt.requestedInputsHash === inputsHash([first.systemPrompt, first.prompt])) attempts.push(started.data.invocation);
+      if ((record.prompt.manifest?.entries as Array<{ key?: string }> | undefined)?.some(entry => entry.key === `tool:${workOrientationToolName}`)) attempts.push(started.data.invocation);
     }
     if (orientation === undefined) {
       // A completed dedicated orientation may precede its own event if the
@@ -6417,14 +5522,11 @@ export class RunService {
       // to publish the same packet without another model call.
       let prior: { id: string; session: SessionId; ref: string | null; value: WorkOrientationSubmission } | undefined;
       for (const ended of [...run.log.all('invocation-ended')].reverse()) {
-        if (ended.data.submission === null || !ended.data.kept) continue;
+        if (ended.data.submission === null) continue;
         const started = run.log.all('invocation-started').find(event => event.data.invocation === ended.data.invocation);
         if (started?.data.role !== 'local-architect' || started.data.work.workItem !== item.id) continue;
-        // The orientation is the module architect's operation whose recorded
-        // intent submits through the orientation tool. Its identity is that
-        // intent, not the prompt this restart would render for it.
-        const packet = await (await this.operations(agent)).packet(run.record.jobId, ended.data.invocation);
-        if (packet?.submissionTool !== workOrientationToolName) continue;
+        const outcome = this.effectiveInvocationOutcome(run, ended.data.invocation);
+        if (outcome?.disposition !== 'applied' || !outcome.settled.confirmed || outcome.submission?.hash !== ended.data.submission) continue;
         const raw = await readIfExists(run.path(runLayout.submission(ended.data.invocation)));
         if (raw === undefined || sha256(raw) !== ended.data.submission) continue;
         try {
@@ -6433,8 +5535,7 @@ export class RunService {
           const { schema: _schema, ...body } = submitted;
           void _schema;
           const value = workOrientationSubmissionSchema.parse(body);
-          const outcome = this.committedBody(run, runLayout.outcome(ended.data.invocation)) as { session?: { ref?: string } };
-          prior = { id: ended.data.invocation, session: started.data.session, ref: outcome.session?.ref ?? null, value };
+          prior = { id: ended.data.invocation, session: started.data.session, ref: outcome.session?.ref || null, value };
           break;
         } catch { /* Another local submission is not an orientation. */ }
       }
@@ -6862,18 +5963,17 @@ export class RunService {
         const raw = await readIfExists(run.path(runLayout.submission(unqualified.invocation)));
         const submitted = raw === undefined ? null : JSON.parse(raw.toString('utf8')) as Record<string, unknown>;
         const parsed = submitted === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(submitted));
-        if (assignment === undefined || !parsed?.success || parsed.data.kind !== 'capability-needed' ||
-          unqualified.continuation.point === null) {
+        if (assignment === undefined || !parsed?.success || parsed.data.kind !== 'capability-needed') {
           await this.fail(run, 'recovery-exhausted', `Pending request ${unqualified.id} cannot recover its original module engineer submission`);
           return null;
         }
         const suspended: SuspendedCapabilityOutcome = { kind: 'capability-needed', summary: parsed.data.summary,
           need: parsed.data.request, invocation: unqualified.invocation,
-          session: unqualified.continuation.session, point: unqualified.continuation.point };
+          session: unqualified.continuation.session, point: unqualified.continuation.point ?? '' };
         const answer = await this.coordinateCapabilityNeed(run, agent, packages, baseline, item, assignment, suspended,
           undefined, { session: undefined, point: undefined, workingDirectory }, unqualified);
         if (answer === null || answer.kind === 'delegated') return null;
-        session = answer.parent.session; sessionRef = answer.parent.point;
+        session = answer.parent.session; sessionRef = answer.parent.point || undefined;
         lastAssignment = assignment;
         let resumed = await this.takeIteration(run, agent, packages, baseline, item, assignment, await this.refreshIndex(run), {
           session: suspended.session, point: suspended.point, priorInvocation: suspended.invocation, guidance: answer.guidance,
@@ -6883,7 +5983,7 @@ export class RunService {
           const next = await this.coordinateCapabilityNeed(run, agent, packages, baseline, item, assignment, resumed, undefined,
             { session, point: sessionRef, workingDirectory });
           if (next === null || next.kind === 'delegated') return null;
-          session = next.parent.session; sessionRef = next.parent.point;
+          session = next.parent.session; sessionRef = next.parent.point || undefined;
           resumed = await this.takeIteration(run, agent, packages, baseline, item, assignment, await this.refreshIndex(run), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: next.guidance,
           });
@@ -6900,17 +6000,13 @@ export class RunService {
       if (pending !== undefined) {
         const handback = saved.capabilityHandbacks.get(capabilityState.requests.get(pending.id)!.task!)!;
         const assignment = saved.assignments.get(pending.assignment)!;
-        if (pending.continuation.point === null) {
-          await this.fail(run, 'recovery-exhausted', `Original assignment ${assignment.id} has no captured engineer continuation point`);
-          return null;
-        }
         const qualified = await this.replayAcceptedCapabilityQualification(run, pending, 'local-architect');
         if (qualified === null) return null;
         if (qualified === undefined) {
-          await this.fail(run, 'recovery-exhausted', `Handback ${handback.task} has no accepted original local qualification point`);
+          await this.fail(run, 'recovery-exhausted', `Handback ${handback.task} has no accepted original local qualification result`);
           return null;
         }
-        session = qualified.session; sessionRef = qualified.ref;
+        session = qualified.session; sessionRef = qualified.ref || undefined;
         lastAssignment = assignment;
         const guidance = [
           `Capability ${handback.task} handed back at ${handback.returnedTree}.`,
@@ -6918,7 +6014,7 @@ export class RunService {
           `Continue ${assignment.id} from its current candidate. Its original goal remains unfinished.`,
         ].join('\n');
         let resumed = await this.takeIteration(run, agent, packages, baseline, item, assignment, await this.refreshIndex(run), {
-          session: pending.continuation.session, point: pending.continuation.point,
+          session: pending.continuation.session, point: pending.continuation.point ?? '',
           priorInvocation: pending.invocation, guidance,
         });
         if (resumed === null) return null;
@@ -6926,7 +6022,7 @@ export class RunService {
           const answer = await this.coordinateCapabilityNeed(run, agent, packages, baseline, item, assignment, resumed, undefined,
             { session, point: sessionRef, workingDirectory });
           if (answer === null || answer.kind === 'delegated') return null;
-          session = answer.parent.session; sessionRef = answer.parent.point;
+          session = answer.parent.session; sessionRef = answer.parent.point || undefined;
           resumed = await this.takeIteration(run, agent, packages, baseline, item, assignment, await this.refreshIndex(run), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: answer.guidance,
           });
@@ -6938,33 +6034,12 @@ export class RunService {
       }
     }
 
-    const retainedRecovery = this.latestOperationRecovery(run);
-    const preparationRecovery = retainedRecovery?.state === 'resumed' && retainedRecovery.boundary.kind === 'preparation'
-      && retainedRecovery.boundary.role === 'local-architect' && retainedRecovery.boundary.work?.workItem === item.id ? retainedRecovery : undefined;
-    const retainedPreparation = preparationRecovery?.boundary.requestHash?.startsWith('prep-')
-      ? repairPreparationSchema.parse(this.committedBody(run, runLayout.repairPreparation(preparationRecovery.boundary.requestHash))) : undefined;
-    if (run.restoring && preparationRecovery !== undefined) {
-      // This boundary has no local invocation to replay. Reconstruct its pure
-      // preparation from the accepted partial and original session source.
-      attempt = (retainedPreparation?.attempt ?? Number(preparationRecovery.boundary.requestHash?.split(':').at(-1) ?? 1)) - 1;
-      if (!Number.isSafeInteger(attempt) || attempt < 0) throw new Error('Pending local preparation has no valid captured attempt');
-      sessionRef = preparationRecovery.boundary.source ?? undefined;
-      session = preparationRecovery.boundary.session;
-      if (retainedPreparation?.originalAssignment) {
-        lastAssignment = initialRecords.assignments.get(retainedPreparation.originalAssignment);
-        lastResult = initialRecords.results.get(retainedPreparation.originalAssignment);
-        if (lastAssignment === undefined || lastResult?.outcome !== 'partial') throw new Error('Pending local preparation lost its original accepted partial');
-      }
-      continuing = lastResult === undefined ? (sessionRef === undefined ? undefined : 'context-selected') : 'iteration-closed';
-      const selection = await this.currentSelection(run, item.id);
-      if (selection) contextPackage = { text: selection.packageText, selection: selection.event.data.selection, citation: selection.selection.package };
-    }
-
-    if (run.restoring && preparationRecovery === undefined && continuing !== 'capability-returned') {
+    if (run.restoring && continuing !== 'capability-returned') {
       const main: typeof run.log.events[number][] = [];
       for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' && event.data.work.workItem === item.id)) {
-        const packet = await (await this.operations(agent)).packet(event.sequence < 0 && run.restartImport ? event.jobId : run.record.jobId, event.data.invocation);
-        if (packet?.submissionTool === localArchitectToolName) main.push(event);
+        const record = this.invocationRecord(run, event.data.invocation).body;
+        const declarations = record.prompt.manifest?.entries as Array<{ key?: string }> | undefined;
+        if (!declarations || declarations.some(entry => entry.key === `tool:${localArchitectToolName}`)) main.push(event);
       }
       const latest = main.at(-1);
       if (latest?.type === 'invocation-started' && !run.log.all('work-item-yielded').some(event => event.data.invocation === latest.data.invocation)) {
@@ -6973,7 +6048,7 @@ export class RunService {
         const previous = this.effectiveInvocationOutcome(run, originalLocalInvocation);
         attempt = original.attempt - 1; session = latest.data.session;
         sessionRef = previous?.session?.ref || original.session.from || undefined;
-        continuing = latest.data.continues?.reason;
+        continuing = lastResult === undefined ? latest.data.continues?.reason ?? 'context-selected' : 'iteration-closed';
         const selection = await this.currentSelection(run, item.id);
         if (selection) contextPackage = { text: selection.packageText, selection: selection.event.data.selection, citation: selection.selection.package };
       }
@@ -7132,9 +6207,18 @@ export class RunService {
       const projection = this.obligationProjection(run);
       const plain = <V>(value: V): V => JSON.parse(JSON.stringify(value)) as V;
       let step: ConstructedWorkTurnStep;
-      const preparation = preparationRecovery !== undefined && attempt === retainedPreparation?.attempt ? retainedPreparation
+      const retainedRepair = this.latestRepairIncident(run);
+      const pendingRepair = retainedRepair?.incident.workItem === item.id && retainedRepair.incident.verification?.verified === true
+        && retainedRepair.incident.continuation?.delivered !== true ? retainedRepair.incident : undefined;
+      const preparation = pendingRepair ? repairPreparationSchema.parse(this.committedBody(run, pendingRepair.preparation.path))
         : lastResult?.outcome !== 'partial' ? undefined : await this.recordRepairPreparation(run, item, attempt, lastAssignment, lastResult);
       let repaired: { incident: RepairIncidentRecord; delta: RepairDelta } | undefined;
+      if (pendingRepair) {
+        repaired = { incident: { ...pendingRepair, revision: pendingRepair.revision + 1 },
+          delta: repairDeltaSchema.parse(this.committedBody(run, runLayout.repairDelta(pendingRepair.incidentId))) };
+        sessionRef = undefined; session = undefined; originalLocalInvocation = undefined; packageUndelivered = true;
+        intervening = [intervening, `Automatic repair restored preparation. Original iteration ${lastResult?.iteration} remains partial. Repair report: ${JSON.stringify(pendingRepair.result)}. Reassess the current candidate and assign remaining work through ordinary authority.`].filter(value => value !== undefined).join('\n\n');
+      }
       let refreshPreparation = false;
       const prepareTurn = async (): Promise<ConstructedWorkTurnStep> => {
         if (refreshPreparation) {
@@ -7171,37 +6255,13 @@ export class RunService {
         });
         return constructWorkTurnStep(turn, { projectRoot: this.projectRoot, packages });
       };
-      const recoveringPreparation = preparationRecovery !== undefined && attempt === (retainedPreparation?.attempt ?? Number(preparationRecovery.boundary.requestHash?.split(':').at(-1) ?? 1));
-      let externallyRetried = recoveringPreparation;
-      let preparationGroup = recoveringPreparation ? preparationRecovery!.group : 0;
-      const repairEvidence = () => {
-        const recovery = this.latestOperationRecovery(run);
-        return recovery?.state === 'resumed' && recovery.admission?.declaration
-          ? `External preparation repair admitted: ${recovery.admission.declaration.explanation}. Observed changes: ${recovery.admission.changes.map(change => change.path).join(', ') || 'No source delta'}. Verify the correction under the original authority.` : undefined;
-      };
-      if (recoveringPreparation) intervening = [intervening, repairEvidence()].filter(value => value !== undefined).join('\n\n');
+      let externallyRetried = false;
       const finishPreparation = async (): Promise<boolean> => {
         if (preparation !== undefined && !run.log.all('repair-preparation-consumed').some(event => event.data.preparation === preparation.id)) {
           await this.write(run, { type: 'repair-preparation-consumed', data: { preparation: preparation.id, workItem: item.id } });
           await this.afterWrite('repair-preparation-consumed', run.record.jobId);
         }
-        const admitted = this.latestOperationRecovery(run);
-        if (admitted?.state !== 'resumed' || admitted.boundary.kind !== 'preparation' || admitted.boundary.work?.workItem !== item.id || admitted.boundary.requestHash !== (preparation?.id ?? `local-architect-work-turn:${attempt}`) || !admitted.admission) return true;
-        let current: RecoveryIdentity;
-        try { current = await this.captureRecoveryIdentity(run); }
-        catch (error) { await this.fail(run, 'recovery-exhausted', `Prepared recovery identity cannot be authenticated: ${message(error)}`); return false; }
-        // Pure preparation may append authenticated internal records. These are
-        // expected progress; candidate, runtime and captured inputs stay bound.
-        const expected = { ...admitted.admission.after, durableIdentity: current.durableIdentity };
-        const blockers = repairDispatchBlockers({ ...admitted.admission, after: expected }, current);
-        if (blockers.length === 0) return true;
-        if (!await this.waitOperationRecovery(run, admitted.boundary, { classification: 'preparation', diagnostic: blockers.join('; ') },
-          admitted.attempts, admitted.automaticAttempts, admitted.group, true, expected)) return false;
-        preparationGroup = admitted.group + 1;
-        externallyRetried = true;
-        refreshPreparation = true;
-        intervening = [intervening, repairEvidence()].filter(value => value !== undefined).join('\n\n');
-        return false;
+        return true;
       };
       while (true) {
         if (this.ignoring(run)) return null;
@@ -7247,6 +6307,7 @@ export class RunService {
           }
           if (answer === null) return null;
           if (answer !== undefined && !('refusal' in answer)) {
+            if (answer.step === null) throw new Error('Ordinary architect preparation requires its constructed task');
             step = answer.step; repaired = answer;
             if (!await finishPreparation()) continue;
             break;
@@ -7255,14 +6316,13 @@ export class RunService {
             (answer !== undefined && 'refusal' in answer ? `. Automatic repair refused: ${answer.refusal}` : '');
           if (!await this.waitOperationRecovery(run, { kind: 'preparation', role: 'local-architect', work: { workItem: item.id },
             source: sessionRef ?? null, ...(session === undefined ? {} : { session }),
-            requestHash: preparation?.id ?? `local-architect-work-turn:${attempt}` },
-            { classification: 'preparation', diagnostic }, [], 0, preparationGroup)) return null;
-          preparationGroup++;
+            },
+            { classification: 'preparation', diagnostic }, [], 0)) return null;
           externallyRetried = true;
           refreshPreparation = true;
           // Admission retries this pure preparation, preserving the partial result
           // and the recorded refusal. It creates no new root-repair authority.
-          intervening = [intervening, repairEvidence(), await this.continuationEvidence(run, { workItem: item.id }, run.index)]
+          intervening = [intervening, await this.continuationEvidence(run, { workItem: item.id }, run.index)]
             .filter(value => value !== undefined).join('\n\n');
         }
       }
@@ -7448,7 +6508,7 @@ export class RunService {
             { session, point: sessionRef, workingDirectory });
           if (answer === null) return null;
           if (answer.kind === 'delegated') return 'reported';
-          session = answer.parent.session; sessionRef = answer.parent.point;
+          session = answer.parent.session; sessionRef = answer.parent.point || undefined;
           outcome = await this.takeIteration(run, agent, packages, baseline, item, assigned, index, {
             session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: answer.guidance,
           });
@@ -8873,7 +7933,7 @@ export class RunService {
     const bytes = await readIfExists(run.path(runLayout.submission(started.data.invocation)));
     if (bytes === undefined || sha256(bytes) !== ended.data.submission ||
       outcome?.submission?.hash !== ended.data.submission || outcome.disposition !== 'applied' ||
-      !outcome.settled.confirmed || !ended.data.kept || !outcome.session?.ref) {
+      !outcome.settled.confirmed) {
       await this.fail(run, 'recovery-exhausted', `Qualification of ${request.id} has an unauthenticated accepted action`);
       return null;
     }
@@ -8886,7 +7946,7 @@ export class RunService {
       return null;
     }
     return { id: started.data.invocation, ended: 'submitted', value: parsed.data,
-      ref: outcome.session.ref, outcomeKind: 'submitted', session: started.data.session, kept: true };
+      ref: outcome.session?.ref ?? '', outcomeKind: 'submitted', session: started.data.session, kept: true };
   }
 
   private async coordinateCapabilityNeed(
@@ -8923,7 +7983,7 @@ export class RunService {
       schema: 'ramify-agent.capability-request/1', id: requestId,
       parent: { kind: 'work-item', id: item.id }, assignment: assignment.id,
       invocation: suspended.invocation, consumer: item.module,
-      requirementPackage: packageRef, continuation: { session: suspended.session, point: suspended.point },
+      requirementPackage: packageRef, continuation: { session: suspended.session, point: suspended.point || null },
       source, summary: suspended.summary, original: identifyCapabilityNeed(requestId, suspended.need),
     };
     if (existingRequest === undefined) await run.mutex.run(() => commitCapabilityTransition(run.log, {
@@ -9248,7 +8308,7 @@ export class RunService {
           { key: 'support:work-item-package', text: selected },
           { key: 'support:capability-request', text: `Original request: ${JSON.stringify(request, null, 2)}` },
           { key: 'support:capability-plan', text: `Current plan: ${JSON.stringify(plan, null, 2)}` },
-        ] }, work: { capabilityTask: task.id, request: request.id }, attempt,
+        ] }, work: { task: `capability-action:${coordinatorBasis}`, capabilityTask: task.id, request: request.id }, attempt,
       loaded, systemPrompt: renderCapabilityArchitectPrompt(loaded, this.projectRoot),
       prompt: [
         ...(recovery === undefined ? [] : [recovery]),
@@ -9323,12 +8383,11 @@ export class RunService {
       coordinatorPoint = action.ref || undefined;
       coordinatorSession = action.kept ? action.session : undefined;
       if (coordinatorPoint === undefined || coordinatorSession === undefined) {
-        await this.fail(run, 'invalid-submission', `The capability architect of ${task.id} lost its continuation point`);
-        return null;
+        coordinatorPoint = undefined; coordinatorSession = undefined; reconstructedFrom = action.session;
       }
       coordinatorBasis = action.id;
       await this.write(run, { type: 'capability-coordinator-resumed', data: {
-        task: task.id, invocation: action.id, session: coordinatorSession,
+        task: task.id, invocation: action.id, session: coordinatorSession ?? action.session,
       } });
       await this.afterWrite('capability-coordinator-resumed', run.record.jobId);
       if (this.ignoring(run)) return null;
@@ -9392,9 +8451,8 @@ export class RunService {
     }
     coordinatorPoint = nextCoordinator.point;
     coordinatorSession = nextCoordinator.session;
-    if ((coordinatorPoint === undefined || coordinatorSession === undefined) && !replayed) {
-      await this.fail(run, 'invalid-submission', `The capability architect of ${task.id} lost its continuation point`);
-      return null;
+    if (coordinatorPoint === undefined || coordinatorSession === undefined) {
+      coordinatorPoint = undefined; coordinatorSession = undefined; reconstructedFrom = action.session;
     }
     coordinatorBasis = nextCoordinator.invocation;
     await this.write(run, { type: 'capability-coordinator-resumed', data: {
@@ -9460,11 +8518,8 @@ export class RunService {
     // request. Neither a prior answer nor the parent's later head is its
     // source; exploration and new role/tool input remain only in the child.
     const source = request.continuation;
-    if (source.point !== null && readSessionPointReference(source.point)?.runId !== run.record.jobId) {
-      await this.fail(run, 'recovery-exhausted', `Consultation ${id} has an invalid recorded original request point`);
-      return null;
-    }
-    const reconstructed = source.point === null || !await (await this.operations(agent)).hasPoint(run.record.jobId, source.point);
+    const reconstructed = source.point === null || readSessionPointReference(source.point)?.runId !== run.jobId
+      || !await (await this.operations(agent)).hasPoint(run.record.jobId, source.point);
     const response = await this.runInvocation(run, agent, {
       role: 'engineer', task: { kind: 'consultation', modules: [task.consumer], goal: action.question,
         requirements: [`Answer the exact question using complete request ${request.id} and current plan ${plan.task} revision ${plan.revision}; preserve the advisory boundary.`],
@@ -9680,7 +8735,7 @@ export class RunService {
     existingRequest?: CapabilityRequest,
   ): Promise<{ readonly guidance: string; readonly coordinatorPoint: string; readonly coordinatorSession: SessionId;
     readonly coordinatorInvocation: string } | null> {
-    if (suspended.ended !== 'submitted' || suspended.value?.kind !== 'capability-needed' || !suspended.kept || suspended.ref === '') {
+    if (suspended.ended !== 'submitted' || suspended.value?.kind !== 'capability-needed') {
       await this.fail(run, 'invalid-submission', `Nested need from ${assignment.id} has no retained requesting module engineer`);
       return null;
     }
@@ -9698,7 +8753,7 @@ export class RunService {
       parent: { kind: 'capability-task', id: parentTask.id }, assignment: assignment.id,
       invocation: suspended.id, consumer: assignmentOwner,
       requirementPackage: refOf(parentTask.id, parentPlan.revision, parentPlan),
-      continuation: { session: suspended.session, point: suspended.ref }, source,
+      continuation: { session: suspended.session, point: suspended.ref || null }, source,
       summary: suspended.value.summary, original: identifyCapabilityNeed(requestId, suspended.value.request) };
     try {
       if (existingRequest === undefined) {
@@ -9936,13 +8991,13 @@ export class RunService {
       if (pending !== undefined) {
         const raw = await readIfExists(run.path(runLayout.submission(pending.invocation)));
         const parsed = raw === undefined ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(JSON.parse(raw.toString('utf8')) as Record<string, unknown>));
-        if (!parsed?.success || parsed.data.kind !== 'capability-needed' || pending.continuation.point === null) {
+        if (!parsed?.success || parsed.data.kind !== 'capability-needed') {
           await this.fail(run, 'recovery-exhausted', `Nested request ${pending.id} cannot recover its engineer continuation`);
           return null;
         }
         const suspended: InvocationResult<EngineerSubmission> = {
           id: pending.invocation, ended: 'submitted', value: parsed.data,
-          ref: pending.continuation.point, session: pending.continuation.session, kept: true, outcomeKind: 'submitted',
+          ref: pending.continuation.point ?? '', session: pending.continuation.session, kept: true, outcomeKind: 'submitted',
         };
         const childId = replayCapabilityState(run.log.events).requests.get(pending.id)?.task;
         const handback = childId === null || childId === undefined ? undefined : committed.capabilityHandbacks.get(childId);
@@ -10051,7 +9106,7 @@ export class RunService {
       event.data.role === 'engineer' && event.data.work.iteration === assignment.id);
     const invocations: string[] = priorStarts.map(event => event.data.invocation);
     const findings: string[] = [];
-    let sessionRef: string | undefined = resume?.point;
+    let sessionRef: string | undefined = resume?.point || undefined;
     /** The module engineer's session while the harness keeps it; `sessionRef` is its executor's point. */
     let session: SessionId | undefined = resume?.session;
     /** A lost session the next one is reconstructed in place of. */
@@ -10082,8 +9137,8 @@ export class RunService {
           await this.fail(run, 'recovery-exhausted', `Engineer ${latestStart.data.invocation} has no valid committed submission`);
           return null;
         }
-        const resourceRestart = run.restoring && run.policy.continuity && !run.log.find('stop-requested')
-          && ['stopped', 'resource-pending', 'context-budget-reached'].includes(recorded.ended);
+        const resourceRestart = run.restoring && !run.log.find('stop-requested')
+          && (['stopped', 'resource-pending', 'context-budget-reached'].includes(recorded.ended) || recorded.ended === 'failed' && recorded.interruption !== undefined);
         if (resourceRestart) resourceRestartPredecessor = latestStart.data.invocation;
         else replay = { id: latestStart.data.invocation, ended: recorded.ended,
           value: parsed?.success ? parsed.data : undefined,
@@ -10373,7 +9428,7 @@ export class RunService {
       }
 
       if (result.value.kind === 'capability-needed') {
-        if (this.workflow === null || result.ref === '' || !result.kept || run.writer.isUnsettled) {
+        if (this.workflow === null || run.writer.isUnsettled) {
           await this.fail(run, 'internal', 'The requesting module engineer could not be retained after its writer settled');
           return null;
         }
@@ -11869,29 +10924,6 @@ export class RunService {
       .length;
   }
 
-  /** Context-budget returns belong to the durable capability task, including
-   * turns reconstructed into fresh coordinator sessions. */
-  private capabilityBudgetReturns(run: Run, task: string): number {
-    const records = committedRecords(run.log.ledger.replay());
-    return run.log.all('invocation-ended')
-      .filter(event => event.data.ended === 'context-budget-reached')
-      .filter(event => records.invocations.get(event.data.invocation)?.work.capabilityTask === task)
-      .length;
-  }
-
-  /** How many sessions of this work item were reconstructed, counted over committed history. */
-  private reconstructions(run: Run, workItem: string, iteration?: string): number {
-    const records = committedRecords(run.log.ledger.replay());
-    return [...records.invocations.values()]
-      .filter(invocation => (iteration === undefined ? invocation.work.workItem === workItem : invocation.work.iteration === iteration)
-        && invocation.session.requested !== invocation.session.actual)
-      .length;
-  }
-
-  private settleSession(run: Run, id: string, session: AgentSession, reader = false) {
-    return this.runner.settleSession(run, id, session, reader);
-  }
-
   private endInvocation(
     run: Run,
     id: string,
@@ -11925,9 +10957,7 @@ export class RunService {
   private async reachReadinessOwned(run: Run, signal: AbortSignal): Promise<boolean> {
     if (run.log.find('readiness-passed')) return true;
     const bound = run.policy.limits.readinessRecoveries;
-    let group = this.latestOperationRecovery(run)?.boundary.kind === 'readiness' ? this.latestOperationRecovery(run)!.group : 0;
-    const groupStart = group === 0 ? 0 : run.log.all('operation-recovery-resumed').at(-1)?.sequence ?? 0;
-    let groupSpent = run.log.all('readiness-failed').filter(event => event.sequence > groupStart && event.data.recovery !== null).length;
+    let spent = 0;
 
     for (;;) {
       if (this.ignoring(run)) return false;
@@ -11939,33 +10969,20 @@ export class RunService {
       // creates the run branch, once the repository is clean and the
       // baseline passed; a branch git refuses fails readiness there.
       let head = await this.git.currentHead(this.projectRoot);
-      const admission = this.latestOperationRecovery(run)?.admission;
-      const auditConfiguration = admission?.admitted
-        ? { config: admission.after.configuration.policy as Extract<RunRecord['auditConfiguration'], { config: unknown }>['config'] }
-        : run.record.auditConfiguration;
-      if (admission?.admitted && !await this.git.isCleanRepository(this.projectRoot)) {
-        const occurrence = this.latestOperationRecovery(run)!;
+      const auditConfiguration = run.record.auditConfiguration;
+      if (run.log.all('external-candidate-observed').length > 0 && !await this.git.isCleanRepository(this.projectRoot)) {
         const current = await this.previewCandidateTree();
-        if (current.tree !== admission.after.candidate.tree) {
-          if (!await this.waitOperationRecovery(run, { kind: 'readiness', checkpoint: 'readiness', candidate: admission.after.candidate.tree },
-            { classification: 'preparation', diagnostic: 'Readiness candidate changed after external repair admission' }, occurrence.attempts,
-            occurrence.automaticAttempts, occurrence.group, true, admission.after)) return false;
-          continue;
+        if (run.log.all('external-candidate-observed').some(event => event.data.afterTree === current.tree)) {
+          const id = `readiness-${current.tree}`;
+          head = await commitReadinessRepair(run, this.gateHost(), this.gates, {
+            schema: 'ramify-agent.readiness-repair-operation/1', id, head, tree: current.tree,
+            message: `Retain observed readiness correction\n\nRamify-Run: ${run.jobId}\nRamify-Gate: ${id}\n`,
+          });
         }
-        const id = `readiness-${occurrence.id}-${occurrence.revision}`;
-        head = await commitReadinessRepair(run, this.gateHost(), this.gates, { schema: 'ramify-agent.readiness-repair-operation/1', id,
-          occurrenceId: occurrence.id, revision: occurrence.revision, head, tree: current.tree,
-          message: `Retain admitted readiness repair ${occurrence.id}\n\nRamify-Run: ${run.jobId}\nRamify-Gate: ${id}\n` });
       }
-      const completedPreparation = run.log.all('readiness-preparation-completed').filter(event => event.data.passed).map(event => event.data.key);
-      const unresolved = run.log.all('readiness-preparation-started').filter(event => !run.log.all('readiness-preparation-completed')
-        .some(completion => completion.sequence > event.sequence && completion.data.key === event.data.key && completion.data.attempt === event.data.attempt));
-      if (unresolved.length > 0) {
-        const resumed = await this.waitOperationRecovery(run, { kind: 'readiness', checkpoint: 'readiness' },
-          { classification: 'check-execution', diagnostic: 'Readiness preparation has an unconfirmed command effect; its producer must independently establish completion' }, unresolved.map(entry => entry.data.key), 0, group);
-        if (!resumed) return false;
-        group++; groupSpent = 0; continue;
-      }
+
+      // A setup command without a receipt is rerun after its owner has settled.
+      // The owner defines repeatability; an unfinished intent is no approval gate.
       await this.write(run, { type: 'gate-started', data: { gate: gateId, checkpoint: 'readiness' } });
       let result = await runReadiness(this.options.configuredAudit, {
         runId: run.record.jobId,
@@ -11982,9 +10999,6 @@ export class RunService {
         head,
         signal,
         commandExecution: this.options.commandExecution,
-        completedPreparation,
-        preparationStarted: key => this.write(run, { type: 'readiness-preparation-started', data: { key, attempt: attemptNumber } }).then(() => undefined),
-        preparationCompleted: (key, passed) => this.write(run, { type: 'readiness-preparation-completed', data: { key, attempt: attemptNumber, passed } }).then(() => undefined),
         started: this.gates.commandStarted(run, gateId, 'readiness'),
         waiting: this.gates.commandWaiting(run, gateId, 'readiness'),
       });
@@ -12012,8 +11026,7 @@ export class RunService {
 
       const step = failingStep(result.attempt);
       const plan = signal.aborted || this.ignoring(run) ? null : recoveryFor(result.attempt, result.gate, run.policy, result.obstruction);
-      const spent = run.log.all('readiness-failed').filter(event => event.data.recovery !== null).length;
-      const recoverable = plan !== null && (group === 0 ? spent : groupSpent) < bound && !signal.aborted && !this.ignoring(run);
+      const recoverable = plan !== null && spent < bound && !signal.aborted && !this.ignoring(run);
 
       let recovery = null;
       if (recoverable) {
@@ -12030,7 +11043,7 @@ export class RunService {
           directory: run.path('recoveries'),
           signal,
         });
-        groupSpent += 1;
+        spent += 1;
       }
 
       const attempt = withRecovery(result.attempt, recovery?.id ?? null);
@@ -12052,9 +11065,9 @@ export class RunService {
         if (result.obstruction !== undefined && run.policy.recovery) {
           const resumed = await this.waitOperationRecovery(run, { kind: 'readiness', checkpoint: 'readiness', candidate: head },
             { classification: 'check-execution', diagnostic: result.obstruction.diagnostic },
-            run.log.all('readiness-failed').map(event => String(event.data.attempt)), spent + (recovery === null ? 0 : 1), group);
+            run.log.all('readiness-failed').map(event => String(event.data.attempt)), spent);
           if (!resumed) return false;
-          group += 1; groupSpent = 0;
+          spent = 0;
           continue;
         }
         await this.fail(run, readinessFailureReason(step?.step), `Readiness failed at ${step?.step ?? 'an unknown step'} after ${attemptNumber} attempt${attemptNumber === 1 ? '' : 's'}: ${step?.detail ?? ''}`,
@@ -12103,20 +11116,13 @@ export class RunService {
     }
     const beforeGate = await this.previewCandidateTree();
     if (beforeGate.tree !== binding.assessment.candidate.tree) {
-      const recovery = this.latestOperationRecovery(run);
-      if (recovery?.state === 'resumed' && recovery.boundary.kind === 'gate' && recovery.boundary.checkpoint === 'final'
-        && recovery.admission?.admitted && recovery.admission.requiresReassessment
-        && recovery.admission.after.candidate.tree === beforeGate.tree) {
-        throw new CandidateReassessmentRequired('The externally repaired final candidate needs fresh assessment');
-      }
-      await this.fail(run, 'inputs-changed', 'The source tree changed after non-functional assessment', [runLayout.assessment(binding.assessment.id)]);
-      return;
+      throw new CandidateReassessmentRequired('The current candidate needs fresh assessment');
     }
     const latestQualificationChange = Math.max(
       run.log.all('final-correction-planned').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
       run.log.all('nonfunctional-final-invalidated').at(-1)?.sequence ?? Number.NEGATIVE_INFINITY,
     );
-    const previousFinal = run.log.all('gate-attempted').filter(event => event.sequence > latestQualificationChange && event.data.checkpoint === 'final' && (event.sequence >= 0 || !run.restartImport || !this.latestOperationRecovery(run)?.admission?.invalidatesQualification)).at(-1);
+    const previousFinal = run.log.all('gate-attempted').filter(event => event.sequence > latestQualificationChange && event.data.checkpoint === 'final').at(-1);
     let gateId = previousFinal?.data.gate ?? gateAttemptId(this.gates.gateCount(run) + 1);
     let attempt!: GateAttempt;
     if (previousFinal !== undefined) {
@@ -12127,12 +11133,8 @@ export class RunService {
       }
       attempt = recorded.value;
     }
-    const recovery = this.latestOperationRecovery(run);
-    const repairedFinalGate = previousFinal !== undefined && attempt!.verdict !== 'passed'
-      && recovery?.state === 'resumed' && recovery.boundary.kind === 'gate' && recovery.boundary.checkpoint === 'final'
-      && recovery.admission?.admitted === true
-      && run.log.all('operation-recovery-resumed').some(event => event.data.occurrenceId === recovery.id && event.sequence > previousFinal.sequence);
-    if (previousFinal === undefined || repairedFinalGate) {
+    const pendingFinalGate = previousFinal !== undefined && checkExecutionObstruction(attempt!) !== null;
+    if (previousFinal === undefined || pendingFinalGate) {
       if (previousFinal !== undefined) gateId = gateAttemptId(this.gates.gateCount(run) + 1);
       const head = await this.git.currentHead(this.projectRoot);
       try {
@@ -12473,6 +11475,12 @@ export class RunService {
 
   private async recordRepairPreparation(run: Run, item: WorkItem, attempt: number,
     assignment: IterationAssignment | undefined, result: IterationResult): Promise<RepairPreparation> {
+    const pending = [...run.log.all('repair-preparation-recorded')].reverse().find(event => event.data.workItem === item.id
+      && !run.log.all('repair-preparation-consumed').some(consumed => consumed.data.preparation === event.data.preparation));
+    if (pending) {
+      const retained = repairPreparationSchema.parse(this.committedBody(run, runLayout.repairPreparation(pending.data.preparation)));
+      if (retained.originalAssignment === (assignment?.id ?? null) && retained.originalInvocation === (result.invocations.at(-1) ?? null)) return retained;
+    }
     const id = `prep-${String(run.log.count('repair-preparation-recorded') + 1).padStart(4, '0')}`;
     const number = assignment === undefined ? 0 : Number.parseInt(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2), 10);
     let candidate: { head: string; tree: string } | null = null;
@@ -12537,8 +11545,8 @@ export class RunService {
 
   /** One bounded writer, admitted only for a matching pure preparation after an accepted partial. */
   private async automaticProjectRepair(run: Run, agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot,
-    preparation: RepairPreparation, obstruction: unknown, prepare: (report: RepairResult) => Promise<ConstructedWorkTurnStep>):
-    Promise<{ step: ConstructedWorkTurnStep; incident: RepairIncidentRecord; delta: RepairDelta } | { refusal: string } | null> {
+    preparation: RepairPreparation, obstruction: unknown, prepare: ((report: RepairResult) => Promise<ConstructedWorkTurnStep>) | null):
+    Promise<{ step: ConstructedWorkTurnStep | null; incident: RepairIncidentRecord; delta: RepairDelta } | { refusal: string } | null> {
     const retainedIncident = this.latestRepairIncident(run);
     const resumedIncident = run.restoring && retainedIncident?.incident.preparation.id === preparation.id && ['admitted', 'running', 'interrupted'].includes(retainedIncident.stage) ? retainedIncident : undefined;
     const id = resumedIncident?.incident.incidentId ?? repairIncidentId(new Set(run.log.all('repair-incident-recorded').map(event => event.data.incidentId)).size + 1);
@@ -12553,7 +11561,7 @@ export class RunService {
     if (reason === null && (!durableTarget.success || JSON.stringify(durableTarget.data) !== JSON.stringify(preparation)
       || run.log.all('repair-preparation-recorded').at(-1)?.data.preparation !== preparation.id
       || run.log.all('repair-preparation-consumed').some(event => event.data.preparation === preparation.id))) reason = 'Preparation target is missing, mismatched or already consumed';
-    if (!run.policy.recovery && reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) reason = 'The run has spent its one automatic repair invocation';
+    if (!run.policy.recovery && !resumedIncident && reason === null && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) reason = 'The run has spent its one automatic repair invocation';
     if (!run.policy.recovery && reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) reason = 'No matching architect-recorded contingent root assignment is available';
     if (reason === null && (original === undefined || originalOutcome === undefined || originalOutcome.ended !== 'submitted' ||
       (!run.policy.recovery && originalOutcome.outsideScope.length > 0) || (originalOutcome.unknownPlacement?.length ?? 0) > 0 || !originalOutcome.settled.confirmed)) reason = 'Original partial candidate has unavailable or refused assignment provenance';
@@ -12605,7 +11613,9 @@ export class RunService {
         before = [...new Map([...await captureRepairSource(this.projectRoot, assignment.data.scope), ...await captureRepairFiles(this.projectRoot, dirty)].map(file => [file.path, file])).values()].sort((a, b) => a.path.localeCompare(b.path));
       }
     } catch (error) { reason ??= `Candidate and repair authority cannot be established: ${message(error)}`; }
-    if (originalSource) { before = originalSource.before; protectedBefore = originalSource.protectedBefore; head = originalSource.head; tree = originalSource.tree; dirty = originalSource.dirty; }
+    // Replacement attribution starts from the settled current candidate.
+    // Preserve the original protected-input witness independently of source edits.
+    if (originalSource) protectedBefore = originalSource.protectedBefore;
     let eligibleRefusal = !!resumedIncident && !originalSource;
     if (reason === null && !resumedIncident && run.log.all('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) {
       reason = 'The run has spent its one automatic repair invocation';
@@ -12629,7 +11639,7 @@ export class RunService {
       candidateAfter: null, invocation: null, session: null, result: null, verification: null, continuation: null,
       startedAt: null, endedAt: null, elapsedMs: null, usage: null, versions: { ramify: assignment.success ? assignment.data.scope.resolved.ownership.ramifyVersion : 'unavailable' },
       export: { externalRef: repairExternalRef(repairProjectKey(this.projectRoot), run.record.jobId, id), state: 'pending', issueId: null, reason: 'Not exported', attemptedAt: null } });
-    if (resumedIncident) incident = { ...resumedIncident.incident, revision: resumedIncident.incident.revision + 1, continuation: null };
+    if (resumedIncident) incident = { ...resumedIncident.incident, revision: resumedIncident.incident.revision + 1, candidateBefore: incident.candidateBefore, continuation: null };
     incident = await this.persistRepairIncident(run, incident, reason === null ? 'admitted' : 'refused', reason !== null || originalSource ? [] : [{
       path: sourcePath, id, revision: 1, body: { schema: 'ramify-agent.automatic-repair-source/1', before, protectedBefore, head, tree, dirty } }]);
     if (reason !== null || !assignment.success || original === undefined) {
@@ -12726,8 +11736,8 @@ export class RunService {
       const afterCandidate = await this.previewCandidateTree();
       if (afterCandidate.head !== head) return blocked('Repair changed Git history or HEAD');
       incident = { ...incident, candidateAfter: { head: afterCandidate.head, tree: afterCandidate.tree, changedPaths: afterDirty, staged: [], unstaged: [], untracked: [], evidence: [`Aggregate candidate paths: ${JSON.stringify(afterDirty)}`, runLayout.repairDelta(id)] },
-        verification: { verified: true, reason: 'Settled guarded delta preserves protected inputs and declarations; pure preparation repeated successfully', evidence: [runLayout.repairDelta(id)] } };
-      const step = await prepare(result.value);
+        verification: { verified: true, reason: prepare === null ? 'Settled guarded delta preserves protected inputs and declarations; ordinary parent preparation remains pending' : 'Settled guarded delta preserves protected inputs and declarations; pure preparation repeated successfully', evidence: [runLayout.repairDelta(id)] } };
+      const step = prepare === null ? null : await prepare(result.value);
       return { step, incident, delta };
     } catch (error) { return blocked(`Preparation remains unavailable or repair cannot be verified: ${message(error)}`); }
   }
@@ -13078,8 +12088,6 @@ function rootModuleOf(index: ArchitectIndex | null): string | undefined {
  */
 /** What a review request binds besides its candidate: its question's captured inputs and its fork point. */
 
-
-
 /**
  * The inputs a request bound, as read again now: each must be there with
  * the hash the request recorded, or the question is not the one it asked.
@@ -13388,8 +12396,6 @@ function resultText(result: ReviewResult): string {
   if (result.result === 'partial') return `partial, ${concerns(result.concerns)}; not inspected: ${result.missing.map(entry => `${entry.path} (${entry.reason})`).join(', ')}`;
   return `not verified (${result.reason}): ${result.detail}`;
 }
-
-
 
 /** Mechanical section identities only; goal/requirements are supplied by their owning records. */
 

@@ -89,7 +89,7 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
       const result = await inputs.runner.runResourceInvocation(run, inputs.agent, {
         role: inputs.target.role, work: { ...work, request: id }, attempt: 1, loaded, systemPrompt: loaded.system, prompt, brief,
         start: { mode: 'fork', from: inputs.target.ref }, fork: { from: inputs.target.point, reason: 'architect-consultation', briefs: [] },
-        allowFreshFallback: false, reader: true, workingDirectory: inputs.projectRoot, signal, fenced: () => signal.aborted,
+        allowFreshFallback: true, reader: true, workingDirectory: inputs.projectRoot, signal, fenced: () => signal.aborted,
         toolName: architectAnswerName, description: 'Submit the advisory answer as one nonblank string.', inputSchema: architectAnswerJsonSchema,
         submissionSchema: 'ramify-agent.architect-consultation-answer/1', validate: raw => validateAgainst(architectAnswerSchema, raw),
         scope: { write: null, measurement: null, size: null }, keep: () => finished('not-kept'),

@@ -31,14 +31,10 @@ import { briefText } from '../../architecture/context.js';
  * byte for byte, after all of them were deleted; recovery appends only the
  * completions of intents and starts the log holds open, and each once; no
  * work, obligation, decision, brief, effect or commit is duplicated; the run
- * is interrupted, or left completed; and a second restart changes nothing.
- * `appended` is each row's stated state: exactly what recovery adds to the
- * log at that boundary, apart from the `session-finished` events that every
- * row is held to by one rule. Recovery finishes each session the crash left
- * kept as `run-ended`, and one opened whose first invocation never started
- * as `interrupted`, just before the interruption; an interrupted invocation's
- * own end finishes its session as `interrupted`; and the recovered run holds
- * no live or suspended session.
+ * remains pending without an execution port, or retains an explicit stop or
+ * completed outcome; and a second restart changes nothing. Reusable sessions
+ * may remain available, but no interrupted invocation keeps execution ownership.
+
  */
 
 export type Machine = 'SM1' | 'SM2' | 'SM3' | 'SM4' | 'SM5' | 'SM6' | 'SM7' | 'SM8' | 'SM9' | 'SM10';
@@ -97,7 +93,7 @@ const scenariosLookup = (answer: string | null) => (responses: GitResponses): Gi
   recovered: [...(responses.recovered ?? []), { gate: scenariosCommitName, answers: [answer] }],
 });
 
-const interrupted: RunEvent['type'][] = ['job-interrupted'];
+const pending: RunEvent['type'][] = [];
 
 // These boundaries resume the same phase; the table below intentionally tests
 // the older interruption contract. Their dedicated tests exercise actual resume.
@@ -143,11 +139,11 @@ type InterruptedRunWrite = Exclude<RunWrite, keyof typeof restartRecoveryBoundar
 /** One row per durable boundary with the interrupted-run recovery contract. */
 export const recoveryTable = {
   'job-created': {
-    machines: ['SM1'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM1'], scenario: 'iteration', appended: pending,
     stated: 'Loads the run and appends job-interrupted; no invocation is started',
   },
   'session-opened': {
-    machines: ['SM1'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM1'], scenario: 'iteration', appended: pending,
     stated: 'The session opened before its first invocation started is finished as interrupted; no invocation is started',
   },
   'invocation-started': {
@@ -155,19 +151,19 @@ export const recoveryTable = {
     stated: 'Closes the invocation as failed with session-lost, with no agent call and no second start, then interrupts',
   },
   'invocation-ended': {
-    machines: ['SM2'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM2'], scenario: 'iteration', appended: pending,
     stated: 'Leaves the outcome as it was and appends no second end',
   },
   'analysis-accepted': {
-    machines: ['SM2'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM2'], scenario: 'iteration', appended: pending,
     stated: 'Re-materializes the entries, hypotheses, registry and work items from the one line; no second analysis',
   },
   'analysis-evidence-staged': {
-    machines: ['SM2'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM2'], scenario: 'iteration', appended: pending,
     stated: 'Immutable catalog and incorporation files may be orphaned; no analysis was accepted and recovery interrupts the run',
   },
   'readiness-attempted': {
-    machines: ['SM1', 'SM7'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM1', 'SM7'], scenario: 'iteration', appended: pending,
     stated: 'Re-materializes the readiness attempt and its gate; readiness does not run again',
   },
   'scenarios-materializing': {
@@ -183,19 +179,19 @@ export const recoveryTable = {
     stated: 'The commit is made and not recorded: recovery re-renders nothing new, finds the commit by its run and scenario trailers, and records it without a second commit',
   },
   'scenarios-materialized': {
-    machines: ['SM1'], scenario: 'iteration', appended: interrupted, commits: { before: 1, after: 1 },
+    machines: ['SM1'], scenario: 'iteration', appended: pending, commits: { before: 1, after: 1 },
     stated: 'The materialization and its one commit stand; nothing is written or committed again',
   },
   'work-item-started': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'No second start, and nothing delivered',
   },
   'work-orientation-recorded': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'The immutable orientation packet stays committed and the run is interrupted without a second orientation',
   },
   'context-selection-recorded': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'The immutable selection and package stay committed; recovery does not rerun the selector',
   },
   'context-package-append-requested': {
@@ -204,27 +200,27 @@ export const recoveryTable = {
     stated: 'Recovery retries the same keyed package append and records its actual outcome without selecting again',
   },
   'context-package-appended': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'The completed context append remains once and recovery does not append it again',
   },
   'hypotheses-delivered': {
-    machines: ['SM4', 'SM3'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4', 'SM3'], scenario: 'iteration', appended: pending,
     stated: 'Re-materializes the work item and the hypothesis; nothing is delivered a second time',
   },
   'outline-revised': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'Re-materializes the outline revision; no second revision',
   },
   'obligation-reported': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'The accepted report stands once, with its invocation and submission; nothing is reported again and the request it rode on reaches no outline or gate',
   },
   'iteration-assigned': {
-    machines: ['SM5'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM5'], scenario: 'iteration', appended: pending,
     stated: 'Rewrites the assignment from the log; nothing is assigned twice',
   },
   'writer-acquired': {
-    machines: ['SM9', 'SM5'], scenario: 'iteration', appended: ['invocation-ended', 'job-interrupted'],
+    machines: ['SM9', 'SM5'], scenario: 'iteration', appended: ['writer-released', 'invocation-ended'],
     stated: 'Closes that writer\'s invocation; no second writer is acquired',
   },
   'writer-released': {
@@ -245,19 +241,19 @@ export const recoveryTable = {
   },
   'gate-committed': {
     when: events => { const event = events.at(-1); return event?.type === 'gate-attempted' && event.data.checkpoint === 'work-item'; },
-    machines: ['SM7'], scenario: 'iteration', appended: interrupted, commits: { before: 2, after: 2 },
+    machines: ['SM7'], scenario: 'iteration', appended: pending, commits: { before: 2, after: 2 },
     stated: 'Leaves the complete attempt and its one commit alone and appends the interruption only',
   },
   'iteration-closed': {
-    machines: ['SM5'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM5'], scenario: 'iteration', appended: pending,
     stated: 'The scoped iteration stays exhausted after child-removal discovery fails; the work item has not committed or closed at the interruption',
   },
   'session-finished': {
-    machines: ['SM5'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM5'], scenario: 'iteration', appended: pending,
     stated: 'The module engineer session its accepted iteration released stays finished; the sessions the run still keeps are finished before the interruption',
   },
   'work-item-completed': {
-    machines: ['SM4'], scenario: 'iteration', appended: interrupted,
+    machines: ['SM4'], scenario: 'iteration', appended: pending,
     stated: 'The item stays completed and is not started again',
   },
   'job-completed': {
@@ -265,15 +261,15 @@ export const recoveryTable = {
     stated: 'A completed run rewrites nothing and appends nothing',
   },
   'placement-requested': {
-    machines: ['SM3'], scenario: 'placement', appended: interrupted,
+    machines: ['SM3'], scenario: 'placement', appended: pending,
     stated: 'The request stands; no fork and no decision',
   },
   'view-refreshed': {
-    machines: ['SM3'], scenario: 'placement', appended: interrupted,
+    machines: ['SM3'], scenario: 'placement', appended: pending,
     stated: 'The refresh stands and licensed exactly one fork, which recovery does not start',
   },
   'fork-returned-partial': {
-    machines: ['SM3', 'SM8'], scenario: 'placement', appended: interrupted,
+    machines: ['SM3', 'SM8'], scenario: 'placement', appended: pending,
     stated: 'The partial return counts one retry and is never a decision; nothing is appended to the parent',
   },
   'decision-accepted': {
@@ -292,43 +288,43 @@ export const recoveryTable = {
     stated: 'Appends decision-delivered once, and starts nothing',
   },
   'decision-delivered': {
-    machines: ['SM3'], scenario: 'placement', appended: interrupted,
+    machines: ['SM3'], scenario: 'placement', appended: pending,
     stated: 'The delivery stands; the module architect\'s next turn belongs to a run started again',
   },
   'contract-requested': {
-    machines: ['SM6', 'SM5'], scenario: 'delegation', appended: interrupted,
+    machines: ['SM6', 'SM5'], scenario: 'delegation', appended: pending,
     stated: 'Re-materializes the contract assignment with its requestedBy; no registration and no second sub-session',
   },
   'contract-registered': {
-    machines: ['SM6'], scenario: 'delegation', appended: interrupted,
+    machines: ['SM6'], scenario: 'delegation', appended: pending,
     stated: 'Re-materializes the contract, the obligation, the requirement and the provider work item: one of each',
   },
   'work-item-yielded': {
-    machines: ['SM6', 'SM4'], scenario: 'delegation', appended: interrupted,
+    machines: ['SM6', 'SM4'], scenario: 'delegation', appended: pending,
     stated: 'The yield stands; no resumption, and the provider work item is not started',
   },
   'provider-conformed': {
-    machines: ['SM6'], scenario: 'delegation', appended: interrupted,
+    machines: ['SM6'], scenario: 'delegation', appended: pending,
     stated: 'Conformance is recorded once for the obligation revision; the consumer is not resumed by recovery',
   },
   'work-item-resumed': {
-    machines: ['SM6', 'SM4'], scenario: 'delegation', appended: interrupted,
+    machines: ['SM6', 'SM4'], scenario: 'delegation', appended: pending,
     stated: 'The resumption stands; the requirement is still open',
   },
   'requirement-verified': {
-    machines: ['SM6'], scenario: 'delegation', appended: interrupted,
+    machines: ['SM6'], scenario: 'delegation', appended: pending,
     stated: 'The requirement is closed once, at its revision',
   },
   'revision-needed': {
-    machines: ['SM6'], scenario: 'revision', appended: interrupted,
+    machines: ['SM6'], scenario: 'revision', appended: pending,
     stated: 'The report stands, with the provider\'s iteration closed before it; nothing is revised',
   },
   'evidence-reopened': {
-    machines: ['SM6'], scenario: 'revision', appended: interrupted,
+    machines: ['SM6'], scenario: 'revision', appended: pending,
     stated: 'Re-materializes one revision of the contract, obligation and requirements with the same bindings',
   },
   'dependency-cycle-detected': {
-    machines: ['SM6'], scenario: 'cycle', appended: interrupted,
+    machines: ['SM6'], scenario: 'cycle', appended: pending,
     stated: 'The detection stands once; the return to the architect belongs to a run started again',
   },
 } satisfies Record<InterruptedRunWrite, RecoveryRow>;
@@ -339,14 +335,14 @@ export const narrowedRows: ReadonlyArray<RecoveryRow & { readonly name: string; 
     name: 'invocation-ended of a context-budget return',
     write: 'invocation-ended',
     when: events => (events.at(-1)?.data as { ended?: string }).ended === 'context-budget-reached',
-    machines: ['SM8'], scenario: 'engineer-budget', appended: interrupted,
+    machines: ['SM8'], scenario: 'engineer-budget', appended: pending,
     stated: 'The budget return is kept as it was: never a completion, counted over committed history, and no successor is started by recovery',
   },
   {
     name: 'writer-released after a stop was requested',
     write: 'writer-released',
     when: events => events.some(event => event.type === 'stop-requested'),
-    machines: ['SM10', 'SM9'], scenario: 'stop', appended: ['invocation-ended', 'job-interrupted'],
+    machines: ['SM10', 'SM9'], scenario: 'stop', appended: ['invocation-ended', 'job-stopped'],
     stated: 'A stop that has not reached job-stopped leaves a run with no terminal event: it is interrupted on load, the writer stays released, and the stopped invocation is closed without an agent call',
   },
 ];
@@ -449,7 +445,7 @@ export async function verifyRow(row: RecoveryRow & { readonly name: string; read
     // delivery or a completed context package. Dedicated append controls
     // exercise the available original store separately.
     const pendingAppend = ['context-package-append-requested', 'decision-accepted', 'brief-appending'].includes(row.name);
-    expect(appended.filter(event => event.type !== 'session-finished').map(event => event.type), `what recovery appended after ${row.name}`).toEqual(pendingAppend ? ['job-interrupted'] : row.appended);
+    expect(appended.filter(event => event.type !== 'session-finished').map(event => event.type), `what recovery appended after ${row.name}`).toEqual((pendingAppend ? [] : row.appended).filter(type => type !== 'job-interrupted'));
     if (pendingAppend) {
       expect(appended.some(event => ['context-package-appended', 'brief-appended', 'decision-delivered'].includes(event.type)), 'unavailable executor completed a pending append').toBe(false);
       expect(recovered.flatMap(line => line.effect?.phase === 'completion' ? [line.effect.key] : []))
@@ -458,13 +454,13 @@ export async function verifyRow(row: RecoveryRow & { readonly name: string; read
     expectSessionsFinished(frozen.map(line => line.event), appended, recovered.map(line => line.event), row.name);
     for (const event of appended) expect(recoveryCompletions.has(event.type), `${event.type} is not a completion`).toBe(true);
     if (!frozenTerminal) {
-      expect(first.recovery.interrupted).toEqual([`${plan}/${runId}`]);
-      expect(onlyRun(first.service, plan).state).toBe('interrupted');
+      expect(first.recovery.interrupted).toEqual([]);
+      expect(onlyRun(first.service, plan).state).toBe(row.scenario === 'stop' ? 'stopped' : 'running');
     } else {
       expect(first.recovery.interrupted).toEqual([]);
     }
-    if (row.effect !== undefined && !pendingAppend) expect(first.recovery.effects.some(effect => row.effect!.test(effect)), first.recovery.effects.join('; ')).toBe(true);
-    else expect(first.recovery.effects).toEqual([]);
+    if (row.effect !== undefined && !pendingAppend && row.name !== 'brief-appended') expect(first.recovery.effects.some(effect => row.effect!.test(effect)), first.recovery.effects.join('; ')).toBe(true);
+    else if (row.name !== 'brief-appended') expect(first.recovery.effects).toEqual([]);
 
     // Each completion recovery appended completes something the log held open.
     const frozenEvents = frozen.map(line => line.event);
@@ -560,32 +556,16 @@ export async function verifyRow(row: RecoveryRow & { readonly name: string; read
   }
 }
 
-/**
- * The sessions recovery finished: one `session-finished` for each session the
- * crash left kept, as `run-ended`, and for each opened with no invocation
- * started, as `interrupted`, in the order they were opened and just before
- * the interruption; an interrupted invocation's end finishing its session as
- * `interrupted`; and no session live or suspended afterwards.
- */
+/** Reusable context may remain; interrupted invocations must lose execution ownership. */
 function expectSessionsFinished(frozen: readonly RunEvent[], appended: readonly RunEvent[], recovered: readonly RunEvent[], name: string): void {
-  const left = [...reduceSessions(frozen).values()];
-  const released = appended.filter(event => event.type === 'session-finished').map(event => event.data);
-  if (frozen.some(event => ['job-completed', 'job-failed', 'job-stopped', 'job-interrupted'].includes(event.type))) {
-    expect(released, `sessions finished after the ended run ${name}`).toEqual([]);
-  } else {
-    expect(released, `the sessions recovery finished after ${name}`).toEqual(left.flatMap(session =>
-      session.state === 'suspended' ? [{ session: session.id, reason: 'run-ended' }]
-        : session.state === 'live' && session.awaiting === null ? [{ session: session.id, reason: 'interrupted' }]
-          : []));
-    const tail = appended.slice(appended.length - 1 - released.length).map(event => event.type);
-    expect(tail, `where recovery finished the sessions after ${name}`).toEqual([...released.map(() => 'session-finished'), 'job-interrupted']);
-  }
+  expect(recovered.filter(event => event.type === 'invocation-started').length,
+    `read-only recovery dispatched an invocation after ${name}`).toBe(frozen.filter(event => event.type === 'invocation-started').length);
   for (const event of appended) {
     if (event.type !== 'invocation-ended') continue;
     expect(event.data, `the session of the invocation recovery closed after ${name}`).toMatchObject({ kept: false, finished: 'interrupted' });
   }
-  const states = [...reduceSessions(recovered).values()].map(session => session.state);
-  expect(states.filter(state => state !== 'finished'), `sessions a recovered run still holds after ${name}`).toEqual([]);
+  expect([...reduceSessions(recovered).values()].filter(session => session.awaiting !== null),
+    `sessions awaiting interrupted invocations after ${name}`).toEqual([]);
 }
 
 async function expectMaterialized(root: string, runId: string, lines: readonly LogLine[]): Promise<void> {

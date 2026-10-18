@@ -8,12 +8,11 @@ import { scriptedCandidates } from './helpers/candidates.js';
 import { commandResult } from './helpers/command-result.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
-import { runLayout } from '../run/records.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
 
-test.each(['acknowledged', 'lost-acknowledgement'] as const)('readiness admits staged, unstaged, untracked and operational repairs through one %s run-branch commit', async outcome => {
+test.each(['acknowledged', 'lost-acknowledgement'] as const)('readiness retains observed source and operational corrections through one %s run-branch commit', async outcome => {
   const copy = await copyFixture(); cleanup.push(copy.remove);
   await writeFile(join(copy.root, 'ramify-agent.json'), JSON.stringify({ schema: 'ramify-agent.project/1',
     setup: [{ name: 'setup-effect', command: ['setup-tool', 'prepare'], cwd: '.', timeoutMs: 30000 }] }));
@@ -32,7 +31,7 @@ test.each(['acknowledged', 'lost-acknowledgement'] as const)('readiness admits s
     findCommitByTrailers: async (_root, trailers) => trailers.some(trailer => trailer.key === 'Ramify-Gate' && trailer.value.startsWith('readiness-')) && committed ? 'repair-commit' : null,
     commitAccepted: async (_root, message) => {
       if (!dirty) return null;
-      expect(branch).toMatch(/^ramify-agent-run\//u); expect(message).toContain('Ramify-Gate: readiness-opr-');
+      expect(branch).toMatch(/^ramify-agent-run\//u); expect(message).toContain('Ramify-Gate: readiness-');
       writes += 1; committed = true; dirty = false; head = 'repair-commit';
       if (outcome === 'lost-acknowledgement') throw new Error('Git committed the admitted candidate before its acknowledgement was lost');
       return head;
@@ -76,11 +75,10 @@ test.each(['acknowledged', 'lost-acknowledgement'] as const)('readiness admits s
   for (const [path, content] of Object.entries(after)) await writeFile(join(copy.root, path), content);
   repaired = true; dirty = true;
   await service.execute({ commandId: 'readiness-source-correction', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    repair: { areas: ['target', 'configuration'], explanation: 'Corrected source and required executable lookup, retaining all checks and completed preparation' } } });
+    planId: 'review-notes', jobId: receipt.jobId } });
   await service.settled('review-notes', receipt.jobId);
   const events = service.events('review-notes', receipt.jobId)!;
-  expect(events.at(-1)?.type, JSON.stringify(events.at(-1))).toBe('job-completed'); expect(writes).toBe(1); expect(setup).toBe(1); expect(audits).toBe(3);
+  expect(events.at(-1)?.type, JSON.stringify(events.at(-1))).toBe('job-completed'); expect(writes).toBe(1); expect(setup).toBe(2); expect(audits).toBe(3);
   expect(events.filter(event => event.type === 'readiness-repair-committing')).toHaveLength(1);
   expect(events.filter(event => event.type === 'readiness-repair-committed')).toHaveLength(1);
   const committedEvent = events.find(event => event.type === 'readiness-repair-committed')!;
@@ -88,10 +86,11 @@ test.each(['acknowledged', 'lost-acknowledgement'] as const)('readiness admits s
   const result = JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, `readiness/repairs/${committedEvent.data.id}/result.json`), 'utf8'));
   expect(result.acknowledgement).toMatchObject({ reconciled: outcome === 'lost-acknowledgement',
     diagnostic: outcome === 'lost-acknowledgement' ? expect.stringContaining('acknowledgement was lost') : null });
-  const resumed = events.find(event => event.type === 'operation-recovery-resumed')!;
-  if (resumed.type !== 'operation-recovery-resumed') throw new Error('Admission missing');
-  const record = JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.operationRecovery(inspection.occurrenceId, resumed.data.revision)), 'utf8'));
-  expect(record.admission.after.candidate).toMatchObject({ staged: ['src/staged.ts'], unstaged: ['ramify-audit.json', 'src/unstaged.ts'], untracked: ['src/new.ts'] });
+  const observed = events.find(event => event.type === 'external-candidate-observed')!;
+  if (observed.type !== 'external-candidate-observed') throw new Error('Candidate observation missing');
+  const record = JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, `candidate-observations/${observed.data.id}.json`), 'utf8'));
+  expect(record.beforeDirtyPaths).toEqual([]);
+  expect(record.changes.map((change: { path: string }) => change.path)).toEqual([...paths].sort());
   for (const [path, content] of Object.entries(after)) expect(await readFile(join(copy.root, path), 'utf8')).toBe(content);
   expect(git.unexpected).toEqual([]);
 });

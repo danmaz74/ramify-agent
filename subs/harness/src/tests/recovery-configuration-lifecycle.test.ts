@@ -8,14 +8,14 @@ import { byRole, submit } from './helpers/iterations.js';
 import { emptyAnalysis, openRuns, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
-import { runLayout } from '../run/records.js';
+import { externalCandidatePath } from '../run/candidate-attribution.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { declaringScenarios } from './helpers/declarations.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
 
-test('a declared executable lookup correction admits actual candidate configuration while preserving the original capture', async () => {
+test('an executable lookup correction is observed without a recovery admission record', async () => {
   const copy = await copyFixture(); cleanup.push(copy.remove);
   const oldTree = 'a'.repeat(40), newTree = 'b'.repeat(40); let fixed = false;
   const path = 'ramify-audit.json';
@@ -37,25 +37,23 @@ test('a declared executable lookup correction admits actual candidate configurat
   cleanup.push(() => service.close());
   const receipt = await service.execute(startRun('review-notes', 'scripted', 'configuration-repair', true));
   await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
-  const inspection = (await service.recoveryInspection('review-notes', receipt.jobId))!;
   fixed = true; await writeFile(join(copy.root, path), 'corrected configuration');
-  await service.execute({ commandId: 'admit-config-lookup', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    repair: { areas: ['configuration'], explanation: 'Corrected lookup of the same required npm executable; all checks and arguments remain required' } } });
+  await service.execute({ commandId: 'continue-config-lookup', expectedVersion: 0, type: 'resume-recovery', payload: {
+    planId: 'review-notes', jobId: receipt.jobId } });
   await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'review-requested'));
   const events = service.events('review-notes', receipt.jobId)!;
-  const resumed = events.find(event => event.type === 'operation-recovery-resumed')!;
-  expect(resumed.type).toBe('operation-recovery-resumed');
-  if (resumed.type !== 'operation-recovery-resumed') throw new Error('Resume record missing');
-  const admission = JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId,
-    runLayout.operationRecovery(inspection.occurrenceId, resumed.data.revision)), 'utf8')) as { admission: { admitted: boolean; invalidatesQualification: boolean; changes: Array<{ path: string }>; before: { configuration: { policy: { blob: string } } }; after: { configuration: { policy: { blob: string } } } } };
-  expect(admission.admission).toMatchObject({ admitted: true, invalidatesQualification: true, changes: [{ path }], before: { configuration: { policy: { blob: 'original-config-blob' } } }, after: { configuration: { policy: { blob: 'corrected-config-blob' } } } });
+  const observation = events.find(event => event.type === 'external-candidate-observed');
+  if (observation?.type !== 'external-candidate-observed') throw new Error('Missing candidate observation');
+  const record = JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId,
+    externalCandidatePath(observation.data.id)), 'utf8'));
+  expect(record).toMatchObject({ beforeTree: oldTree, afterTree: newTree, changes: [{ path }] });
+  expect(record).not.toHaveProperty('admission');
   expect(agent!.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
   await service.execute(stopRun('review-notes', receipt.jobId, service.getRun('review-notes', receipt.jobId)!.version)); await service.settled('review-notes', receipt.jobId);
   expect(git.unexpected).toEqual([]);
 });
 
-test.each(['compatible', 'incompatible'] as const)('a %s runtime correction survives restart and waits for explicit operator admission', async compatibility => {
+test.each(['compatible', 'incompatible'] as const)('a %s runtime change permits ordinary task continuation on startup', async compatibility => {
   const copy = await copyFixture(); cleanup.push(copy.remove);
   const tree = 'a'.repeat(40); let revised = false;
   const git = fixtureScratchGit(mockGit({ currentHead: async () => 'base', changedPaths: async () => [],
@@ -70,27 +68,13 @@ test.each(['compatible', 'incompatible'] as const)('a %s runtime correction surv
   const first = await openRuns(copy.root, options); cleanup.push(() => first.service.close());
   const receipt = await first.service.execute(startRun('review-notes', 'scripted', `runtime-${compatibility}`, true));
   await until(() => first.service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
-  const original = (await first.service.recoveryInspection('review-notes', receipt.jobId))!;
   await first.service.close(); revised = true;
   const reopened = await openRuns(copy.root, options); cleanup.push(() => reopened.service.close());
-  const inspection = (await reopened.service.recoveryInspection('review-notes', receipt.jobId))!;
-  expect(inspection).toMatchObject({ state: 'paused', occurrenceId: original.occurrenceId, revision: original.revision });
-  expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(1);
-  const command = { commandId: `admit-runtime-${compatibility}`, expectedVersion: 0, type: 'resume-recovery' as const, payload: {
-    planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    repair: { areas: ['runtime' as const], explanation: 'Installed a runtime fix preserving captured policy, records, validators, equipment and authority contracts' } } };
-  if (compatibility === 'incompatible') {
-    await expect(reopened.service.execute(command)).rejects.toMatchObject({ code: 'conflict' });
-    expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(1);
-  } else {
-    await reopened.service.execute(command);
-    await until(() => reopened.service.events('review-notes', receipt.jobId)!.some(event => event.type === 'review-requested'));
-    const resumed = reopened.service.events('review-notes', receipt.jobId)!.find(event => event.type === 'operation-recovery-resumed')!;
-    if (resumed.type !== 'operation-recovery-resumed') throw new Error('Missing resume receipt');
-    const record = JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.operationRecovery(inspection.occurrenceId, resumed.data.revision)), 'utf8'));
-    expect(record.admission).toMatchObject({ admitted: true, before: { runtime: { harness: 'original-runtime' } }, after: { runtime: { harness: 'new-installed-runtime' } } });
-    expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
-  }
+  await until(() => reopened.service.events('review-notes', receipt.jobId)!.some(event => event.type === 'review-requested'));
+  expect(await reopened.service.recoveryInspection('review-notes', receipt.jobId)).toBeNull();
+  expect(agent.sessions.filter(session => session.spec.role === 'initial-architect')).toHaveLength(2);
+  const events = reopened.service.events('review-notes', receipt.jobId)!;
+  expect(events.filter(event => event.type === 'invocation-ended' && event.data.ended === 'failed')).toHaveLength(1);
   await reopened.service.execute(stopRun('review-notes', receipt.jobId, reopened.service.getRun('review-notes', receipt.jobId)!.version));
   await reopened.service.settled('review-notes', receipt.jobId); expect(git.unexpected).toEqual([]);
 });

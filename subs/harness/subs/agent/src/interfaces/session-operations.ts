@@ -10,6 +10,8 @@ export type TranscriptPayloadId = string;
 export class SessionDriverUnavailableError extends Error {
   constructor(reason: string) { super(reason); this.name = 'SessionDriverUnavailableError'; }
 }
+/** A requested record body is missing or corrupt; its owner decides whether it is essential. */
+export class SessionRecordUnavailableError extends Error {}
 export interface AgentSessionPoint { readonly sessionId: AgentSessionId; readonly kind: 'turn' | 'checkpoint'; readonly turn: number; readonly checkpoint: string }
 export interface SessionOperationKey { readonly runId: string; readonly operationId: SessionOperationId }
 /** Original admitted execution identity. sourcePoint is real; no terminal checkpoint is guessed. */
@@ -69,7 +71,7 @@ export interface SessionExecutionBindings {
 }
 export interface SessionTranscriptEntry { readonly key: string; readonly payloadId: TranscriptPayloadId; readonly kind: 'agent' | 'provider' }
 /** A completed call whose handler threw records its error text as an error `result` and `thrown`, and replays as that error. */
-export interface SessionEffectRecord { readonly callId: string; readonly tool: string; readonly input: unknown; readonly phase: 'intent' | 'completed'; readonly result: ToolResult | null; readonly verdict: SubmissionVerdict | null; readonly thrown?: true }
+export interface SessionEffectRecord { readonly callId: string; readonly tool: string; readonly input: unknown; readonly phase: 'intent' | 'completed'; readonly result: ToolResult | null; readonly verdict: SubmissionVerdict | null; readonly thrown?: true; readonly consequential?: boolean }
 /** A finished admitted handler's immutable fact; it conveys no execution or submission authority. */
 export interface SessionEffectOwnerReceipt extends SessionOperationKey {
   readonly sessionId: string; readonly callId: string; readonly tool: string; readonly input: unknown;

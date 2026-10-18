@@ -1,3 +1,4 @@
+import { currentLifecycleEvents } from './inputs.js';
 import type { CapabilityTasksResponse, CapabilityTaskView } from '../../../src/interfaces/protocol/capability-tasks.js';
 import { replayCapabilityState } from '../../../src/capability/state.js';
 import { reviewStateOf } from '../../../src/reviews/state.js';
@@ -91,7 +92,7 @@ export function capabilityTasksOf(view: RunView): CapabilityTasksResponse {
     };
     return value;
   });
-  const ending = [...view.events].reverse().find(event =>
+  const ending = [...currentLifecycleEvents(view)].reverse().find(event =>
     event.type === 'job-completed' || event.type === 'job-failed' || event.type === 'job-stopped' || event.type === 'job-interrupted');
   const terminal = ending?.type === 'job-failed' ? { state: 'failed' as const,
     reason: ending.data.reason, message: ending.data.message }

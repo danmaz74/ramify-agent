@@ -29,8 +29,9 @@ function script(answers: Array<{ path: string; body?: unknown; status?: number; 
   return { fetch: fetcher, bodies, done: () => expect(answers).toEqual([]) };
 }
 
-test('recovery parser requires occurrence identity for mutations and finite deadlines', () => {
+test('continuation requires command identity and accepts optional legacy fields', () => {
   expect(options('inspect')).toMatchObject({ action: 'inspect', timeoutMs: 10000 });
+  expect(options('resume', ['--command-id=c1'])).toMatchObject({ commandId: 'c1' });
   expect(resume()).toMatchObject({ occurrenceId: 'rec-1', expectedRevision: 2, commandId: 'c1' });
   for (const args of [['recovery', 'other', ...base], ['recovery', 'resume', ...base], ['recovery', 'inspect', ...base, '--repair-file=x'],
     ['recovery', 'inspect', ...base, '--timeout-ms=0'], ['recovery', 'inspect', ...base, '--server=http://other'],
@@ -77,4 +78,11 @@ test('timeout never cancels execution and retains the submitted identity', async
     await vi.advanceTimersByTimeAsync(10);
     expect(await result).toMatchObject({ exitStatus: 2, output: { commandId: 'c1', uncertain: true, error: { code: 'timeout' } } });
   } finally { vi.useRealTimers(); }
+});
+
+test('ordinary continuation sends only the task and stable command identity', async () => {
+  const s = script([{ path: '/api/v1/commands', status: 202, body: { receipt } }]);
+  expect(await runRecoveryCommand(options('resume', ['--command-id=c1']), s)).toMatchObject({ exitStatus: 0 });
+  expect(s.bodies).toEqual([{ type: 'resume-recovery', commandId: 'c1', expectedVersion: 0, payload: { planId: 'p', jobId: 'r1' } }]);
+  s.done();
 });

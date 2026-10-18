@@ -1,0 +1,5 @@
+ramify 1
+module recovery
+
+// Task owners supply current authority and lifecycle/effect-owner observations.
+expose-src decideTaskReentry, mayRetryTask, taskInterruption, taskRetryDelay, waitForTaskRetry, TaskReentryFacts, TaskReentry from "reentry.ts" to parent

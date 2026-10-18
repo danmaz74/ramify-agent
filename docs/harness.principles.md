@@ -6,8 +6,9 @@ The agent-efficiency, guidance and bounded-context principles clarified on
 2026-10-15 are normative; runtime alignment remains pending.
 The whole-tree scope and verification rules adopted on 2026-10-01 are
 normative design decisions; their implementation remains pending.
-The execution-continuity principles adopted on 2026-10-13 are normative;
-their runtime migration is implemented.
+Recovery and execution-continuity commitments now live in
+[harness-recovery.principles.md](harness-recovery.principles.md), including
+the KISS clarification adopted on 2026-10-18; implementation alignment remains pending.
 The architect tracking-authority and external-tracker independence principles
 adopted on 2026-10-13 are normative; their runtime migration remains pending.
 The architect progress-checkpoint principle adopted on 2026-10-14 is
@@ -28,6 +29,9 @@ Prompt and context commitments now live in the
 [module architect](prompt-optimization-module-architect.principles.md)
 prompt optimization principles. Their original headings below retain links
 for existing references; the commitments themselves have moved.
+
+Recovery commitments live in the [harness recovery principles](harness-recovery.principles.md).
+Their original headings below also retain links for existing references.
 
 The toolkit's
 [importability principles](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/docs/model/cross-module-importability.principles.md)
@@ -62,11 +66,7 @@ Moved to [prompt-optimization.principles.md](prompt-optimization.principles.md#t
 
 ### Resource Observations Preserve Run Continuity
 
-A run never terminates because a context-size or time threshold is reached.
-Context-size checks serve only to optimize work through compaction or handoff
-to a new session. Time-limit checks serve only to recover a session that may
-be stuck. Compaction, handoff and recovery preserve the run's task, accepted
-work, authority and pending obligations.
+Moved to [harness-recovery.principles.md](harness-recovery.principles.md#resource-observations-preserve-run-continuity).
 
 ### Repetition Triggers Architect Reconsideration
 
@@ -211,8 +211,9 @@ Moved to [prompt-optimization-module-architect.principles.md](prompt-optimizatio
 ### Every Module Engineer Uses the Same Iteration Lifecycle
 
 The issuing architect's context differs; assignment preparation, module engineer tools,
-API views, gates, candidate commits, reviews, repair and recovery do not. A
-capability architect knows both consumer and provider and returns a verified
+API views, gates, candidate commits, reviews and repair do not.
+[Recovery uses ordinary execution](harness-recovery.principles.md#kiss-governs-all-recovery)
+for every role. A capability architect knows both consumer and provider and returns a verified
 bounded result to its caller. It uses the ordinary executor and result records.
 Architects inspect source, Git and targeted result artifacts; a parallel history
 replay tool does not replace those existing inspection surfaces.
@@ -341,15 +342,7 @@ The harness never treats every discovery as a reason to pause the run.
 
 ### State Lives in the Repository
 
-A blocked module engineer records its need and may leave failing tests, stubs, staged
-edits or untracked source. The harness captures the dirty candidate and its
-attribution after the writer settles and before suspension. Fresh recovery
-uses the durable request, plan, source and results; it cannot discard the
-candidate or invent a completed module engineer result.
-
-Only the next iteration's goal is fixed; later iterations are decided from
-the state reached. Resuming a session is an optimization, never a requirement
-for correctness.
+Moved to [harness-recovery.principles.md](harness-recovery.principles.md#state-lives-in-the-repository).
 
 ### What Integration on the Return Leaves Is Resolved at the Common Ancestor
 
@@ -390,24 +383,17 @@ Agents make every semantic decision.
 Ramify's generated views and post-write checks belong to the agent's project
 environment. A violation reaches the agent as an ordinary error.
 
-A runtime failure, such as a crashed session or malformed output, is never a
-semantic outcome.
+Runtime failure follows the [harness recovery principles](harness-recovery.principles.md#a-module-engineers-failure-is-its-architects-decision).
 
 <a id="an-engineers-failure-is-its-architects-decision"></a>
 
 ### A Module Engineer's Failure Is Its Architect's Decision
 
-A module engineer that ends without a result ends its iteration, not the run. Its
-module architect decides what comes next; only what the harness itself cannot
-continue from ends the run.
+Moved to [harness-recovery.principles.md](harness-recovery.principles.md#a-module-engineers-failure-is-its-architects-decision).
 
 ### Agent Invocations Should Be Considered Idempotent
 
-When an agent gets interrupted for any reason, we should always be able to
-restart it from the beginning. Agents are able to check the situation by
-reading files and are able not to redo/undo what's already done. When useful,
-we can choose prompts which help with this, but most of the time that's
-not necessary.
+Moved to [harness-recovery.principles.md](harness-recovery.principles.md#agent-invocations-should-be-considered-idempotent).
 
 ### Additional Instructions May Be Supplied in User Messages
 
@@ -415,4 +401,4 @@ Moved to [prompt-optimization.principles.md](prompt-optimization.principles.md#a
 
 ### An Oriented Context Is Reused, Never Required
 
-Moved to [prompt-optimization.principles.md](prompt-optimization.principles.md#an-oriented-context-is-reused-never-required).
+Moved to [harness-recovery.principles.md](harness-recovery.principles.md#an-oriented-context-is-reused-never-required).

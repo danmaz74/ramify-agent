@@ -1,6 +1,7 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
+import { isInspectableShellCheck } from '../tools/shell-tests.js';
 import type { AgentPort, AgentSession, AppendOutcome, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import type { AppendSessionContextInput, AgentSessionPoint, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
@@ -133,10 +134,11 @@ export async function readPointContext(directory: string, runId: string, point: 
   let found: PointContext;
   try { found = JSON.parse(await readFile(correlationPath(directory, 'points', [runId, point]), 'utf8')) as PointContext; }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new ReusableSessionUnavailableError('The named session point has no recorded briefing ancestry');
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) throw new ReusableSessionUnavailableError('The named session point has unavailable briefing ancestry');
     throw error;
   }
-  if (JSON.stringify(found.point) !== JSON.stringify(point)) throw new Error('The recorded briefing ancestry names a different session point');
+  const context = z.object({ point: pointSchema, inherited: z.array(annotatedInputSchema), history: z.array(occurrenceSchema), revision: retainedText }).safeParse(found);
+  if (!context.success || JSON.stringify(found.point) !== JSON.stringify(point)) throw new ReusableSessionUnavailableError('The recorded briefing ancestry is incompatible with the requested session point');
   return found;
 }
 
@@ -252,7 +254,17 @@ export class HarnessSessionOperations {
     if (!operation) return [];
     const effects = operation.body['effects'];
     if (!Array.isArray(effects)) throw new Error('Original effect journal is unreadable');
-    return effects.filter((effect: { phase?: string }) => effect.phase === 'intent').map((effect: { callId: string }) => effect.callId);
+    const original = await this.originalOperation(runId, operationId);
+    return (effects as SessionEffectRecord[]).filter(effect => {
+      if (effect.phase !== 'intent' || effect.consequential === false || effect.tool.startsWith('afterMutation:')) return false;
+      // Older records have no classification. Builtin file operations are inspectable.
+      if (effect.consequential === undefined && effect.tool !== original?.task.submissionTool && ['read', 'grep', 'find', 'ls', 'write', 'edit'].includes(effect.tool)) return false;
+      if (effect.consequential === undefined && effect.tool === 'shell' && typeof effect.input === 'object' && effect.input !== null) {
+        const command = (effect.input as { command?: unknown }).command;
+        if (typeof command === 'string' && isInspectableShellCheck(command, original?.task.environment.workingDirectory ?? '.')) return false;
+      }
+      return true;
+    }).map(effect => effect.callId);
   }
   /** Reconcile a dead owner's pending operation by fencing it, without dispatch. */
   async stopOriginal(runId: string, operationId: string, boundMs: number): Promise<boolean> {
@@ -326,7 +338,8 @@ export class HarnessSessionOperations {
     if (!raw) return null;
     const intent = readHarnessOperationIntent(raw);
     if (intent.runId !== runId || intent.operationId !== operationId) throw new Error('Invalid harness operation identity');
-    return { packet: intent.packet, task: intent.task, declarations: intent.declarations };
+    return { packet: intent.packet, task: intent.task, declarations: intent.declarations, authority: intent.policy.authority,
+      briefing: intent.context.history.find(entry => entry.revision === intent.context.revision)?.sections ?? [] };
   }
   async packet(runId: string, operationId: string): Promise<TaskPacket | null> {
     return (await this.originalOperation(runId, operationId))?.packet ?? null;

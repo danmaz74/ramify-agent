@@ -1,3 +1,4 @@
+import { currentLifecycleEvents } from './inputs.js';
 import type { ModuleTree } from '../../../src/interfaces/protocol/evidence.js';
 import type {
   ExecutionLineSummary, ExecutionModuleMap, ExecutionModuleRelation, ExecutionNode, ExecutionSourceRef,
@@ -40,7 +41,7 @@ export async function capturedLinesOf(view: RunView): Promise<{
     }
   }
   const ended = new Set(view.events.filter(event => event.type === 'invocation-ended').map(event => event.data.invocation));
-  const terminal = view.events.some(event => ['job-completed', 'job-failed', 'job-interrupted', 'job-stopped'].includes(event.type));
+  const terminal = currentLifecycleEvents(view).some(event => ['job-completed', 'job-failed', 'job-interrupted', 'job-stopped'].includes(event.type));
   const byOwner = new Map<string, Bucket>();
   const unmapped = bucket(), all = bucket();
   const gaps: string[] = [];

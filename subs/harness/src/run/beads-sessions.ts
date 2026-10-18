@@ -89,7 +89,8 @@ export class BeadsSessions {
     try {
       if (this.active.has(runId)) throw new Error('A prior administrative session has unconfirmed settlement; retry remains pending');
       const operations = await this.options.operations();
-      const operationId = `beads:${stage}:turn`;
+      const previousOperation = request.receipt?.operationId ?? `beads:${stage}:turn`;
+      const operationId = request.receipt?.contextUnavailable === true ? `${previousOperation}:fresh` : previousOperation;
       const identity = await operations.operationIdentity(runId, operationId);
       if (stage === 'finish' && initial.bindings.length === 0 && !identity
         && request.receipt === null && !initial.mutations.some(mutation => mutation.phase === 'intent')) {
@@ -101,17 +102,21 @@ export class BeadsSessions {
       }
       let fork: SessionOperationReceipt | null = null;
       let inheritedTools: readonly string[] = [];
-      const forkId = `beads:${stage}:fork`;
+      const forkId = `${operationId}:fork`;
       if (!identity) {
         const source = request.input.sourceRef === null ? null : readSessionPointReference(request.input.sourceRef);
-        if (!source || source.runId !== runId) throw new Error('Inherited source context is unavailable; administrative delivery remains pending');
-        const snapshot = await operations.inspect(runId, source.point.sessionId, source.point);
-        if (!snapshot?.available) throw new Error('Inherited source session point is unavailable; administrative delivery remains pending');
-        fork = await operations.fork({ runId, operationId: forkId, sourcePoint: source.point });
-        if (fork.status !== 'completed' || !fork.point) throw new Error(fork.reason ?? 'Administrative source fork unavailable');
-        const forkSnapshot = await operations.inspect(runId, fork.sessionId, fork.point);
-        if (!forkSnapshot) throw new Error('Administrative fork snapshot unavailable');
-        inheritedTools = forkSnapshot.activeTools;
+        if (request.receipt?.contextUnavailable !== true && source?.runId === runId) {
+          const snapshot = await operations.inspect(runId, source.point.sessionId, source.point);
+          if (snapshot?.available) {
+            const attempt = await operations.fork({ runId, operationId: forkId, sourcePoint: source.point });
+            if (attempt.status === 'completed' && attempt.point) {
+              fork = attempt;
+              inheritedTools = (await operations.inspect(runId, fork.sessionId, fork.point!))?.activeTools ?? [];
+            } else if (!(attempt.status === 'unavailable' && attempt.contextUnavailable)) {
+              throw new Error(attempt.reason ?? 'Administrative source fork failed');
+            }
+          }
+        }
       }
       const toolset = await createBeadsTools({ stage, request: request.input, store: this.store, runner: this.options.commandExecution, timeoutMs: this.options.commandTimeoutMs ?? 15_000 });
       const policy: SessionExecutionPolicy = {
@@ -119,6 +124,13 @@ export class BeadsSessions {
         authority: { kind: 'beads-administration', workspace: request.input.workspace, executable: request.input.executable ?? 'bd' },
         validator: { kind: 'beads-administration', stage }, destination: { kind: 'beads-administration', runId, stage },
       };
+      if (!identity && !fork) {
+        // Durable administrative evidence and tracker authority define the task;
+        // inherited implementation conversation is optional context.
+        fork = await operations.create({ runId, operationId: `${operationId}:create`,
+          initialInstructions: instructions, declarations: [], activate: [], policy });
+        if (fork.status !== 'completed' || !fork.point) throw new Error(fork.reason ?? 'Administrative fresh session unavailable');
+      }
       const task: SessionTaskInput = {
         role: 'beads-administrator', message: `Administrative stage: ${stage}\nRun: ${runId}\nTerminal outcome: ${request.input.outcome ?? 'implementation entered'}\n\nCaptured implementation evidence:\n${request.input.context}\n\nDurable relevant issue bindings:\n${JSON.stringify(stage === 'start' ? [] : initial.bindings)}`,
         submissionTool: 'submit_beads', environment: { workingDirectory: this.options.projectRoot, candidate: null, snapshot: null, limits: { stopSettleMs: 2000 } },

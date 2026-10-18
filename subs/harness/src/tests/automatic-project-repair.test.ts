@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import * as projectFacts from '../run/project-facts.js';
@@ -18,6 +18,8 @@ import { scriptedCandidates } from './helpers/candidates.js';
 import { freeze, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
+vi.unmock('../run/session-store.js');
+
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
   vi.restoreAllMocks();
@@ -34,12 +36,15 @@ const tree = 'a'.repeat(40);
  * A retained source-pointer assembler reads the old entry after an allowed rename.
  * Real readFile throws ENOENT; the repaired target restores a compatible source entry.
  */
-async function scenario(options: { delegated?: boolean; blocked?: boolean; mutateDeclaration?: boolean; freezeStage?: 'admitted' | 'running'; noFault?: boolean; skipRestore?: boolean; secondFault?: boolean; stopDuringRepair?: boolean; rootSibling?: boolean; freezeAssignment?: boolean; resourceRepair?: boolean } = {}) {
+async function scenario(options: { delegated?: boolean; blocked?: boolean; mutateDeclaration?: boolean; freezeStage?: 'admitted' | 'running'; noFault?: boolean; skipRestore?: boolean; secondFault?: boolean; stopDuringRepair?: boolean; rootSibling?: boolean; freezeAssignment?: boolean; resourceRepair?: boolean; downtimeEdit?: boolean } = {}) {
   const fixture = await copyFixture(); cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
   await writeFile(join(fixture.root, legacy), content);
   const rootPointer = 'src/repair-pointer.txt';
   if (options.rootSibling) await writeFile(join(fixture.root, rootPointer), legacy);
+  const afterDowntimeTree = options.downtimeEdit ? 'b'.repeat(40) : tree;
+  const externalPath = `${area}/external-note.ts`;
+  let downtimeChanged = false;
   let repairedRoot = false;
   let fault = false;
   const facts = projectFacts.knownProjectFactsOf;
@@ -50,21 +55,22 @@ async function scenario(options: { delegated?: boolean; blocked?: boolean; mutat
     }
     return facts(...args);
   });
-  const final = !options.secondFault && !options.stopDuringRepair && !options.freezeAssignment && !options.blocked && !options.skipRestore && !options.mutateDeclaration && !options.freezeStage && options.delegated !== false;
+  const final = !options.secondFault && !options.stopDuringRepair && !options.freezeAssignment && !options.blocked && !options.skipRestore && !options.mutateDeclaration && options.delegated !== false;
   const commits = [...(options.freezeAssignment ? [] : [scenariosCommit('review-notes', 'scenarios', 'base')]),
-    ...(final ? [{ commit: 'accepted', changes: [{ status: 'A', path: renamed }, ...(options.rootSibling ? [{ status: 'D', path: legacy }, { status: 'M', path: rootPointer }] : [])], subject: 'wi-001' }, { commit: null, changes: [], subject: 'final verification' }] : [])];
+    ...(final ? [{ commit: 'accepted', changes: [{ status: 'A', path: renamed }, ...(options.rootSibling ? [{ status: 'D', path: legacy }, { status: 'M', path: rootPointer }] : []), ...(options.downtimeEdit ? [{ status: 'A', path: externalPath }] : [])], subject: 'wi-001' }, { commit: null, changes: [], subject: 'final verification' }] : [])];
   const previews = [
     ...(options.freezeAssignment || options.delegated === false ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...(options.freezeAssignment || options.noFault ? [] : [{ repositoryRoot: fixture.root, head: 'scenarios', tree }]),
     ...((final && !options.noFault) || options.skipRestore || options.secondFault ? [{ repositoryRoot: fixture.root, head: 'scenarios', tree }] : []),
-    ...(options.resourceRepair ? [{ repositoryRoot: fixture.root, head: 'scenarios', tree }] : []),
+    ...(options.freezeStage ? Array.from({ length: 1 }, () => ({ repositoryRoot: fixture.root, head: 'scenarios', tree })) : []),
     ...(options.secondFault ? Array.from({ length: 2 }, () => ({ repositoryRoot: fixture.root, head: 'scenarios', tree })) : []),
     ...(final ? Array.from({ length: 4 }, () => ({ repositoryRoot: fixture.root, head: 'accepted', tree })) : []),
   ];
-  const boundary = gateGit(fixture.root, { head: 'base', commits, previews,
+  const statedPreviews = options.downtimeEdit ? previews.map((answer, index) => index >= 2 ? { ...answer, tree: afterDowntimeTree } : answer) : previews;
+  const boundary = gateGit(fixture.root, { head: 'base', commits, previews: statedPreviews,
     uncommitted: [{ status: 'D', path: legacy }, { status: 'A', path: renamed }] });
   let renamedByEngineer = false;
-  const dirty = () => renamedByEngineer ? [{ status: 'D', path: legacy }, { status: 'A', path: renamed }, ...(repairedRoot ? [{ status: 'M', path: rootPointer }] : [])] : [];
+  const dirty = () => renamedByEngineer ? [{ status: 'D', path: legacy }, { status: 'A', path: renamed }, ...(repairedRoot ? [{ status: 'M', path: rootPointer }] : []), ...(downtimeChanged ? [{ status: 'A', path: externalPath }] : [])] : [];
   const git = { ...boundary.git,
     changedPaths: async (root: string, base?: string) => {
       if (boundary.head() === 'scenarios' && !final) return dirty().map(change => change.path);
@@ -104,10 +110,21 @@ async function scenario(options: { delegated?: boolean; blocked?: boolean; mutat
     }
     return [];
   };
+  const candidateAnswers = () => scriptedCandidates(fixture.root, {
+    accepted: { tree: afterDowntimeTree, base: 'accepted', files: {}, changes: [] },
+    [tree]: { tree, base: 'accepted', files: {}, changes: [], comparisons: { scenarios: { changes: [{ status: 'D', path: legacy }, { status: 'A', path: renamed }] } } },
+    ...(options.downtimeEdit ? { [afterDowntimeTree]: { tree: afterDowntimeTree, base: 'accepted',
+      files: { [externalPath]: 'export const externalNote = true;\n' }, changes: [], comparisons: {
+        scenarios: { changes: [{ status: 'D', path: legacy }, { status: 'A', path: renamed }, { status: 'A', path: externalPath }] },
+        [tree]: { changes: [{ status: 'A', path: externalPath }] },
+      } } } : {}),
+  });
+  const reopen = () => openRuns(fixture.root, { git, inputs: treeInputs(), script,
+    candidates: final ? candidateAnswers() : undefined });
   const opened = await openRuns(fixture.root, { git, inputs: treeInputs(), script,
     ...(options.resourceRepair ? { policy: (root: string) => { const policy = testPolicy(root, { recovery: true, continuity: true }); return { ...policy,
       recovery: { ...policy.recovery!, baseDelayMs: 0 }, limits: { ...policy.limits, runAbsoluteMs: 1, maxInvocationsPerRun: 1 } }; } } : {}),
-    candidates: final ? scriptedCandidates(fixture.root, { accepted: { tree, base: 'accepted', files: {}, changes: [] }, [tree]: { tree, base: 'accepted', files: {}, changes: [] } }) : undefined,
+    candidates: final ? candidateAnswers() : undefined,
     afterWrite: async (write, runId) => {
       if (write === 'repair-assignment-recorded' && options.freezeAssignment) { frozen = true; await freeze(); }
       if (write === 'repair-preparation-recorded' && !options.noFault) fault = true;
@@ -122,7 +139,9 @@ async function scenario(options: { delegated?: boolean; blocked?: boolean; mutat
   const receipt = await opened.service.execute(startRun('review-notes'));
   activeRunId = receipt.jobId;
   if (options.freezeStage || options.freezeAssignment) await until(() => frozen); else await opened.service.settled('review-notes', receipt.jobId);
-  return { root: fixture.root, ...opened, runId: receipt.jobId, specs, boundary, git };
+  return { root: fixture.root, ...opened, runId: receipt.jobId, specs, boundary, git, reopen, externalPath, async addDowntimeSource() {
+    await writeFile(join(fixture.root, externalPath), 'export const externalNote = true;\n'); downtimeChanged = true;
+  } };
 }
 
 async function incidents(subject: Awaited<ReturnType<typeof scenario>>) {
@@ -186,23 +205,43 @@ test('repair topology mutation is unverified', async () => {
   subject.boundary.assertComplete();
 });
 
-test.each(['admitted', 'running'] as const)('restart during %s repair requires manual attention', async stage => {
-  const subject = await scenario({ freezeStage: stage });
+test.each([
+  ['admitted', 'missing', false], ['admitted', 'corrupt', false], ['running', 'missing', false], ['running', 'corrupt', false], ['running', 'missing', true],
+] as const)('restart during %s repair uses the durable assignment with %s optional context (downtime source %s)', async (stage, contextLoss, downtimeEdit) => {
+  const subject = await scenario({ freezeStage: stage, downtimeEdit });
+  if (downtimeEdit) await subject.addDowntimeSource();
+  const payloads = join(subject.root, 'plans', '.harness', 'session-operations', 'store', 'payloads');
+  for (const id of await readdir(payloads)) {
+    if (contextLoss === 'missing') await rm(join(payloads, id));
+    else await writeFile(join(payloads, id), 'corrupt optional provider context');
+  }
   await staleCrashLock(subject.root);
-  const reopened = await openRuns(subject.root, { git: subject.git, inputs: treeInputs(), script: [] });
+  const reopened = await subject.reopen();
   cleanups.push(() => reopened.service.close());
   await reopened.service.settled('review-notes', subject.runId);
-  expect(onlyRun(reopened.service, 'review-notes').failure?.message).toContain('manual attention');
-  expect(reopened.agent!.sessions).toHaveLength(0);
+  expect(onlyRun(reopened.service, 'review-notes').state, JSON.stringify(onlyRun(reopened.service, 'review-notes').failure)).toBe('completed');
   const events = await runEventsOnDisk(subject.root, 'review-notes', subject.runId);
-  expect(events.filter(event => event.type === 'repair-incident-recorded').at(-1)?.data.stage).toBe('interrupted');
+  expect(events.filter(event => event.type === 'repair-assignment-recorded')).toHaveLength(1);
+  const repairs = events.filter(event => event.type === 'invocation-started' && event.data.work.automaticRepair);
+  expect(repairs).toHaveLength(1);
+  expect(await readFile(join(subject.root, legacy), 'utf8')).toBe(content);
+  expect(await readFile(join(subject.root, renamed), 'utf8')).toBe(content);
+  expect(events.filter(event => event.type === 'repair-incident-recorded').at(-1)?.data.stage).toBe('continued');
+  if (downtimeEdit) {
+    const original = JSON.parse(await readFile(runPath(subject.root, 'review-notes', subject.runId, 'repairs/sources/apr-0001.json'), 'utf8')) as { before: { path: string }[] };
+    expect(original.before.some(file => file.path === subject.externalPath)).toBe(false);
+    const delta = repairDeltaSchema.parse(JSON.parse(await readFile(runPath(subject.root, 'review-notes', subject.runId, runLayout.repairDelta('apr-0001')), 'utf8')));
+    expect(delta.before.some(file => file.path === subject.externalPath)).toBe(true);
+    expect(delta.changes.some(change => change.path === subject.externalPath)).toBe(false);
+    expect(await readFile(join(subject.root, subject.externalPath), 'utf8')).toBe('export const externalNote = true;\n');
+  }
   subject.boundary.assertComplete();
-});
+}, 60_000);
 
 test('ordinary partial correction does not invoke automatic repair', async () => {
   const subject = await scenario({ noFault: true });
   const events = await runEventsOnDisk(subject.root, 'review-notes', subject.runId);
-  expect(onlyRun(subject.service, 'review-notes').state).toBe('completed');
+  expect(onlyRun(subject.service, 'review-notes').state, JSON.stringify(onlyRun(subject.service, 'review-notes').failure)).toBe('completed');
   expect(events.filter(event => event.type === 'repair-incident-recorded')).toHaveLength(0);
   expect(subject.specs.some(spec => spec.submission.name === 'submit_automatic_repair')).toBe(false);
   subject.boundary.assertComplete();
@@ -268,7 +307,7 @@ test('restart after contingent assignment capture retains one assignment and sta
 
 test('resource fallback continues the same authorized automatic repair after historical run age and invocation bounds', async () => {
   const subject = await scenario({ resourceRepair: true });
-  expect(onlyRun(subject.service, 'review-notes').state).toBe('completed');
+  expect(onlyRun(subject.service, 'review-notes').state, JSON.stringify(onlyRun(subject.service, 'review-notes').failure)).toBe('completed');
   const events = await runEventsOnDisk(subject.root, 'review-notes', subject.runId);
   const repairInvocations = events.filter(event => event.type === 'invocation-started' && event.data.work.automaticRepair);
   expect(repairInvocations).toHaveLength(2);

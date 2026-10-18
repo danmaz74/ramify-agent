@@ -47,13 +47,12 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
   const receipt = await service.execute(startRun('review-notes'));
   await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused'));
   const inspection = (await service.recoveryInspection('review-notes', receipt.jobId))!;
-  expect(inspection).toMatchObject({ state: 'paused', canResume: false, boundary: { kind: 'gate' }, evidence: { classification: 'check-execution' } });
+  expect(inspection).toMatchObject({ state: 'paused', canResume: true, boundary: { kind: 'gate' }, evidence: { classification: 'check-execution' } });
   const before = service.events('review-notes', receipt.jobId)!.filter(event => event.type === 'nonfunctional-assessed');
   expect(before).toHaveLength(1); expect(calls).toBe(2);
   if (area === 'target') { await writeFile(join(copy.root, path), 'export const corrected = true;\n'); changed = true; }
   await service.execute({ commandId: 'environment-correction', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    repair: { areas: [area], explanation: area === 'environment' ? 'Restored the required check executable without changing source or configuration' : 'Corrected source obstruction before final qualification' } } });
+    planId: 'review-notes', jobId: receipt.jobId } });
   await service.settled('review-notes', receipt.jobId);
   const events = service.events('review-notes', receipt.jobId)!;
   expect(events.at(-1)?.type).toBe('job-completed'); expect(calls).toBe(3);
@@ -68,14 +67,15 @@ test.each(['environment', 'target'] as const)('a final check %s repair resumes q
     if (refusal.type !== 'gate-attempted') throw new Error('Missing applicability boundary');
     const record = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(refusal.data.gate)), 'utf8')));
     const explanation = (await gateDiagnostics(record, 'local-architect')).summary.join('\n');
-    expect(explanation).toContain('Corrected source obstruction'); expect(explanation).toContain(path);
+    expect(explanation).toContain('candidate');
+    expect(events.filter(event => event.type === 'external-candidate-observed')).toHaveLength(1);
   }
   const attempted = events.filter(event => event.type === 'gate-attempted').map(event => event.data.gate);
   expect(new Set(attempted).size).toBe(attempted.length);
   expect(git.unexpected).toEqual([]);
 });
 
-test('a settled readiness audit pause resumes its prerequisite while preserving completed setup effects', async () => {
+test('a settled readiness audit pause reruns ordinary setup and its prerequisite', async () => {
   const copy = await copyFixture(); cleanup.push(copy.remove);
   await writeFile(join(copy.root, 'ramify-agent.json'), JSON.stringify({ schema: 'ramify-agent.project/1',
     setup: [{ name: 'setup-effect', command: ['setup-tool', 'prepare'], cwd: '.', timeoutMs: 30000 }] }));
@@ -107,12 +107,11 @@ test('a settled readiness audit pause resumes its prerequisite while preserving 
   const inspection = (await service.recoveryInspection('review-notes', receipt.jobId))!;
   expect(inspection.boundary.kind).toBe('readiness'); expect(setup).toBe(1); expect(calls).toBe(1);
   await service.execute({ commandId: 'restore-readiness-service', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    repair: { areas: ['environment'], explanation: 'Restored the prerequisite service' } } });
+    planId: 'review-notes', jobId: receipt.jobId } });
   await service.settled('review-notes', receipt.jobId);
   const events = service.events('review-notes', receipt.jobId)!;
-  expect(events.at(-1)?.type, JSON.stringify(events.at(-1))).toBe('job-completed'); expect(setup).toBe(1); expect(calls).toBe(3);
-  expect(events.filter(event => event.type === 'readiness-preparation-started')).toHaveLength(1);
-  expect(events.filter(event => event.type === 'readiness-preparation-completed')).toHaveLength(1);
+  expect(events.at(-1)?.type, JSON.stringify(events.at(-1))).toBe('job-completed'); expect(setup).toBe(2); expect(calls).toBe(3);
+  expect(events.filter(event => event.type === 'readiness-preparation-started')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'readiness-preparation-completed')).toHaveLength(0);
   expect(git.unexpected).toEqual([]);
 });

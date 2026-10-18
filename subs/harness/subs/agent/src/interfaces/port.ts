@@ -196,6 +196,8 @@ export interface ToolDefinition {
    * own input. A shell declares a command. Default: `harness`.
    */
   readonly action?: ((input: unknown) => ToolAction) | undefined;
+  /** Whether a lost result needs owner reconciliation. Inspectable operations may opt out. */
+  readonly consequential?: ((input: unknown) => boolean) | undefined;
   /** Runs the tool. It must end promptly once `signal` is aborted. */
   /** Stable identity supplied by neutral effect dispatch; old handlers may ignore it. */
   execute(input: unknown, signal: AbortSignal, callId?: string): Promise<ToolResult>;

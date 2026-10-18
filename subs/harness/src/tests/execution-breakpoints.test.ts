@@ -5,9 +5,10 @@ import { breakpointStateSchema, startRunCommandSchema, type DebugResumeCommand }
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { analysis, entry } from './helpers/analysis.js';
+import { scriptedCandidates } from './helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { installTestRunner, startRun, stopRun, testPolicy, until, runEventsOnDisk, emptyAnalysis, freeze, staleCrashLock } from './helpers/runs.js';
+import { installTestRunner, openRuns, startRun, stopRun, testPolicy, until, runEventsOnDisk, emptyAnalysis, freeze, staleCrashLock } from './helpers/runs.js';
 import { reviewRun, reviewTarget, gate, store, tool, candidates as reviewCandidates, notesDirectory } from './helpers/reviews.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { AfterHandling } from '../run/after-handling.js';
@@ -139,7 +140,7 @@ test('B15: unsupported selection is refused; legacy starts still omit the debugg
   expect(startRunCommandSchema.parse(startRun(plan)).payload.breakpoint).toBeUndefined();
 });
 
-test('B14: server loss interrupts a debug-enabled run before its first breakpoint instead of restoring the review stop', async () => {
+test('B14: server loss retains the analysis review stop before its first breakpoint', async () => {
   const root = await fixture();
   const first = await openUnchangedRuns(root, { script: [{ kind: 'submit', input: emptyAnalysis() }] });
   const receipt = await first.service.execute(start('debug-before-pause', true));
@@ -147,23 +148,28 @@ test('B14: server loss interrupts a debug-enabled run before its first breakpoin
   await first.service.close();
   const restarted = await openUnchangedRuns(root, { script: [] });
   cleanups.push(() => restarted.service.close());
-  expect(restarted.recovery.interrupted).toEqual([`${plan}/${receipt.jobId}`]);
-  expect(restarted.recovery.effects).toEqual([]);
+  expect(restarted.recovery.interrupted).toEqual([]);
   expect(restarted.agent!.sessions).toHaveLength(0);
-  expect(restarted.service.getRun(plan, receipt.jobId)?.state).toBe('interrupted');
+  expect(restarted.service.getRun(plan, receipt.jobId)).toMatchObject({ state: 'running', phase: 'awaiting-review' });
 });
 
 test('B14: losing a paused host retains evidence and never redispatches the engineer', async () => {
   const { service, runId, root } = await ordinary();
   const reached = await paused(service, runId);
   await service.close();
-  const restarted = await openUnchangedRuns(root, { script: [] });
+  const restarted = await openUnchangedRuns(root, { script: [], inputs: treeInputs(), gitScript: { head: 'scenarios-of-review-notes' } });
   cleanups.push(() => restarted.service.close());
-  expect(restarted.recovery.interrupted).toEqual([`${plan}/${runId}`]);
-  expect(restarted.recovery.effects).toEqual([]);
+  await until(async () => {
+    const failure = restarted.service.getRun(plan, runId)?.failure;
+    const recovery = await restarted.service.recoveryInspection(plan, runId);
+    if (failure || recovery) throw new Error(JSON.stringify({ failure, recovery, warnings: restarted.warnings, events: restarted.service.events(plan, runId)?.slice(-8), sessions: restarted.agent?.sessions.map(session => session.spec.role) }));
+    return restarted.service.debugState(plan, runId)?.state === 'paused';
+  });
+  expect(restarted.recovery.interrupted).toEqual([]);
   expect(restarted.agent!.sessions).toHaveLength(0);
   expect((await runEventsOnDisk(root, plan, runId)).find(event => event.type === 'debug-paused')?.data.pauseId).toBe(reached.pauseId);
-  expect(restarted.service.getRun(plan, runId)?.state).toBe('interrupted');
+  expect(restarted.service.getRun(plan, runId)?.state).toBe('running');
+  expect(restarted.service.debugState(plan, runId)?.pauseId).toBe(reached.pauseId);
 });
 
 test('B04: resume revalidates the captured source documents before starting the engineer', async () => {
@@ -327,12 +333,12 @@ test('B02: unavailable frozen review setup remains actionable and restored evide
 });
 
 
-test.each(['scenarios-materializing', 'gate-committing'] as const)('B14: server loss at %s interrupts before replaying an unfinished external effect', async boundary => {
+test.each(['scenarios-materializing', 'gate-committing'] as const)('B14: server loss at %s reconciles the owned effect before the next debugger pause', async boundary => {
   const root = await fixture();
   let crashed = false;
   let resumed = false;
   const first = await openUnchangedRuns(root, { inputs: treeInputs(),
-    unchangedCheckpoints: boundary === 'scenarios-materializing' ? [] : [scenariosCommit(plan)],
+    unchangedCheckpoints: [scenariosCommit(plan), ...(boundary === 'gate-committing' ? ['wi-001.i01'] : [])],
     script: byRole({ 'initial-architect': [submit(analysis([entry('review-note', module)]))],
       'local-architect': [submit(assign(module, {}, outline()))], engineer: [submit(completionProposed())] }),
     afterWrite: async write => { if (write === boundary || (boundary === 'gate-committing' && resumed && write === 'gate-attempted')) { crashed = true; await freeze(); } },
@@ -344,17 +350,40 @@ test.each(['scenarios-materializing', 'gate-committing'] as const)('B14: server 
     await first.service.execute(resume(receipt.jobId, before.pauseId));
   }
   await until(() => crashed);
-  const before = first.service.events(plan, receipt.jobId)!.length;
   await staleCrashLock(root);
-  const restarted = await openUnchangedRuns(root, { script: [] });
+  const lookup = first.git.findCommitByTrailers.bind(first.git);
+  vi.spyOn(first.git, 'findCommitByTrailers').mockImplementation(async (project, trailers) => {
+    if (trailers[1]?.key === 'Ramify-Scenarios') {
+      expect(project).toBe(root);
+      expect(trailers[0]).toEqual({ key: 'Ramify-Run', value: receipt.jobId });
+      return null;
+    }
+    return lookup(project, trailers);
+  });
+  const tree = 'a'.repeat(40);
+  vi.spyOn(first.git, 'previewCandidateTree').mockImplementation(async project => {
+    expect(project).toBe(root);
+    return { repositoryRoot: root, head: first.git.head(), tree };
+  });
+  const candidates = scriptedCandidates(root, {
+    'scenarios-of-review-notes': { tree, base: 'unchanged-fixture-revision', files: {}, changes: [] },
+    [tree]: { tree, base: 'scenarios-of-review-notes', files: {}, changes: [] },
+  });
+  const restarted = await openRuns(root, { git: first.git, candidates, inputs: treeInputs(),
+    script: byRole({ 'local-architect': [submit(assign(module, {}, outline()))] }) });
   cleanups.push(() => restarted.service.close());
-  expect(restarted.recovery.interrupted).toEqual([`${plan}/${receipt.jobId}`]);
-  expect(restarted.recovery.effects).toEqual([]);
-  expect(restarted.agent!.sessions).toHaveLength(0);
+  await until(async () => {
+    const failure = restarted.service.getRun(plan, receipt.jobId)?.failure;
+    if (failure) throw new Error(JSON.stringify(failure));
+    return restarted.service.debugState(plan, receipt.jobId)?.state === 'paused';
+  });
+  expect(restarted.agent!.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(0);
   const events = restarted.service.events(plan, receipt.jobId)!;
-  expect(events.slice(before).map(event => event.type)).not.toContain(boundary === 'scenarios-materializing' ? 'scenarios-materialized' : 'gate-attempted');
-  expect(restarted.service.getRun(plan, receipt.jobId)?.state).toBe('interrupted');
+  expect(events.filter(event => event.type === (boundary === 'scenarios-materializing' ? 'scenarios-materialized' : 'gate-attempted'))).toHaveLength(1);
+  expect(restarted.service.getRun(plan, receipt.jobId)?.state).toBe('running');
   if (boundary === 'gate-committing') expect(events.some(event => event.type === 'debug-resumed')).toBe(true);
+  await stop(restarted.service, receipt.jobId);
+
 });
 
 test('B04: stop during pausing settles its admitted reader and prevents pause publication or later dispatch', async () => {

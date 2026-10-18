@@ -142,11 +142,11 @@ export const externalRepairDeclarationSchema = z.object({
 }).strict();
 export type ExternalRepairDeclaration = z.infer<typeof externalRepairDeclarationSchema>;
 
-/** Authorizes one bounded attempt group at the current recovery occurrence. */
+/** Continue pending work. Legacy occurrence and repair fields remain readable. */
 export const recoveryResumeCommandSchema = z.object({
   commandId: commandIdSchema, expectedVersion: jobVersionSchema.default(0), type: z.literal('resume-recovery'),
-  payload: z.object({ planId: planIdSchema, jobId: jobIdSchema, occurrenceId: z.string().min(1),
-    expectedRevision: z.int().positive(), repair: externalRepairDeclarationSchema.optional() }).strict(),
+  payload: z.object({ planId: planIdSchema, jobId: jobIdSchema, occurrenceId: z.string().min(1).optional(),
+    expectedRevision: z.int().positive().optional(), repair: externalRepairDeclarationSchema.optional() }).strict(),
 }).strict();
 export type RecoveryResumeCommand = z.infer<typeof recoveryResumeCommandSchema>;
 

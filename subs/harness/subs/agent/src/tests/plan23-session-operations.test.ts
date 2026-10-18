@@ -38,6 +38,82 @@ function observation(promise: Promise<unknown>) { let ended = false; void promis
 async function flush() { for (let index = 0; index < 8; index++) await Promise.resolve(); }
 
 describe('Plan 23 F1 high-level session operations', () => {
+  it('runs inspectable reads and source edits without an effect journal or owner completion receipts', async () => {
+    const store = memoryStore(); const committed: SessionStoreCommit[] = [];
+    const commit = store.commit.bind(store);
+    store.commit = async input => { committed.push(structuredClone(input)); return commit(input); };
+    let guards = 0; let checks = 0;
+    const operations = createSessionOperations({ sessionStore: store, driver: createScriptedSessionDriver([
+      { kind: 'tool', tool: 'read', input: { path: 'candidate.ts' }, callId: 'read-source' },
+      { kind: 'tool', tool: 'write', input: { path: 'candidate.ts' }, callId: 'edit-source' },
+      { kind: 'submit', input: { complete: true }, callId: 'accept-result' },
+    ]) });
+    const start = await operations.create(create);
+    const bound = bindings({ tools: [
+      { ...tools[0]!, action: () => ({ kind: 'read', path: 'candidate.ts', range: null }), execute: async () => ({ text: 'partial source' }) },
+      { ...tools[1]!, action: () => ({ kind: 'write', paths: ['candidate.ts'] }), execute: async () => ({ text: 'updated source' }) },
+    ], guard: async () => { guards++; return { allow: true }; }, afterMutation: async () => { checks++; return { text: 'Current source verified' }; } });
+    const receipt = await (await operations.continue(continuation(start.sessionId, start.point!, 'inspectable', bound))).settled();
+    expect(receipt.status).toBe('completed'); expect(guards).toBe(1); expect(checks).toBe(1);
+    const effects = (await store.read('run-A', 'operation:inspectable'))?.body['effects'];
+    expect(effects).toMatchObject([{ callId: 'accept-result', phase: 'completed', verdict: { accepted: true } }]);
+    for (const transaction of committed) for (const record of transaction.records) {
+      expect(record.id.startsWith('effect-receipt:')).toBe(false);
+      if (record.id === 'operation:inspectable') expect((record.body['effects'] as { callId: string }[]).some(effect => ['read-source', 'edit-source'].includes(effect.callId))).toBe(false);
+    }
+  });
+
+  it('an interrupted inspectable command still drains before a fresh task and leaves no uncertain effect', async () => {
+    const store = memoryStore(); const entered = deferred(); const release = deferred();
+    const shell = { name: 'shell', description: 'Focused check', inputSchema: { type: 'object' }, mutating: true };
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch(input, runtime) {
+      if (input.key.operationId === 'check') {
+        await runtime.callTool('focused-check', 'shell', { command: 'vitest run one.test.ts' });
+        return { kind: 'ended' };
+      }
+      const inputValue = { finished: true };
+      await runtime.submit('accepted', inputValue);
+      return { kind: 'submitted', input: inputValue };
+    } } });
+    const start = await operations.create({ ...create, declarations: [...tools, shell], activate: [...create.activate, 'shell'] });
+    const bound = bindings({ tools: [{ ...shell, action: () => ({ kind: 'command', command: 'vitest run one.test.ts' }),
+      consequential: () => false, execute: async () => { entered.resolve(); await release.promise; return { text: 'check ended' }; } }] });
+    const check = await operations.continue(continuation(start.sessionId, start.point!, 'check', bound));
+    await entered.promise;
+    const stop = check.stop(); await check.receipt;
+    const drained = observation(check.settled()); await flush(); expect(drained()).toBe(false);
+    expect((await store.read('run-A', 'operation:check'))?.body['effects']).toEqual([]);
+    release.resolve(); await stop; await check.settled();
+    const fresh = await operations.create({ ...create, operationId: 'fresh-after-check' });
+    expect((await (await operations.continue(continuation(fresh.sessionId, fresh.point!, 'finish-task'))).settled()).status).toBe('completed');
+    expect((await store.read('run-A', 'operation:check'))?.body['effects']).toEqual([]);
+  });
+
+  it('reports incompatible retained tool declarations honestly and executes a fresh task with current procedures', async () => {
+    const store = memoryStore(); let dispatches = 0; let reads = 0;
+    const currentRead = { ...tools[0]!, description: 'Current read procedure v2' };
+    const currentTask = { ...task, message: 'Finish the same authorized task using current procedures' };
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch(invocation, runtime) {
+      dispatches++;
+      expect(invocation.task.message).toBe(currentTask.message);
+      expect(invocation.session.declarations.find(tool => tool.name === 'read')).toEqual(currentRead);
+      await runtime.callTool('inspect-current-source', 'read', {});
+      const input = { finished: true };
+      expect((await runtime.submit('accepted-current-result', input)).accepted).toBe(true);
+      return { kind: 'submitted', input };
+    } } });
+    const previous = await operations.create(create);
+    const currentBindings = bindings({ task: currentTask, tools: [{ ...currentRead,
+      action: () => ({ kind: 'read', path: 'candidate.ts', range: null }), execute: async () => { reads++; return { text: 'Current partial source' }; } }] });
+    const exact = await operations.continue({ ...continuation(previous.sessionId, previous.point!, 'exact-old-context', currentBindings),
+      toolChange: { add: [currentRead], activate: ['read'], inactivate: [] } });
+    expect(await exact.settled()).toMatchObject({ status: 'unavailable', contextUnavailable: true, point: null });
+    expect(dispatches).toBe(0); expect(reads).toBe(0);
+    const fresh = await operations.create({ ...create, operationId: 'current-create', declarations: [currentRead, ...tools.slice(1)] });
+    expect((await (await operations.continue(continuation(fresh.sessionId, fresh.point!, 'ordinary-current-task', currentBindings))).settled()).status).toBe('completed');
+    expect(dispatches).toBe(1); expect(reads).toBe(1);
+  });
+
   it('reports an exact historical point as unavailable for continuation without substituting the current point or dispatching', async () => {
     const store = memoryStore(); let dispatches = 0;
     const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch() { dispatches++; return { kind: 'ended' }; } } });
@@ -294,7 +370,7 @@ describe('Plan 23 F1 high-level session operations', () => {
     expect(end.status).toBe('completed'); expect(writes).toBe(0); expect(accepts).toBe(0);
     expect((await operations.inspect('run-A', P.sessionId))?.declarations.map(item => item.name)).toContain('write');
     const conflict = await operations.changeTools({ runId: 'run-A', operationId: 'replace', sessionId: P.sessionId, expectedPoint: end.point!, toolChange: { add: [{ ...tools[0]!, description: 'Changed' }], activate: [], inactivate: [] } });
-    expect(conflict.status).toBe('conflict');
+    expect(conflict).toMatchObject({ status: 'unavailable', contextUnavailable: true });
     const before = (await operations.inspect('run-A', P.sessionId))?.declarations.length;
     await operations.changeTools({ runId: 'run-A', operationId: 'same', sessionId: P.sessionId, expectedPoint: end.point!, toolChange: { add: [tools[0]!], activate: [], inactivate: [] } });
     expect((await operations.inspect('run-A', P.sessionId))?.declarations.length).toBe(before);
@@ -325,7 +401,7 @@ describe('Plan 23 F1 high-level session operations', () => {
     const handle = await operations.continue(continuation(P.sessionId, P.point!, 'hook', bound)); await entered.promise;
     const stop = handle.stop(); const idle = handle.settled(); const idleEnded = observation(idle); const stopEnded = observation(stop);
     const receipt = await handle.receipt; const fenced = await store.read('run-A', 'operation:hook');
-    expect(receipt.point).toBeNull(); expect(fenced?.body['effects']).toMatchObject([{ phase: 'completed' }, { phase: 'intent' }]);
+    expect(receipt.point).toBeNull(); expect(fenced?.body['effects']).toMatchObject([{ phase: 'completed' }]);
     await flush(); expect(idleEnded()).toBe(false); expect(stopEnded()).toBe(false);
     release.resolve(); expect(await stop).toEqual(receipt); expect(await idle).toEqual(receipt);
     expect((await store.read('run-A', 'operation:hook'))?.body).toEqual({ ...fenced!.body, quiescent: true }); expect(submissions).toBe(0);
@@ -338,7 +414,7 @@ describe('Plan 23 F1 high-level session operations', () => {
     const receiptEnded = observation(handle.receipt); const idleEnded = observation(handle.settled()); await returned.promise; await flush();
     expect(receiptEnded()).toBe(false); expect(idleEnded()).toBe(false); expect((await store.read('run-A', 'operation:orphan'))?.body['phase']).toBe('dispatched');
     release.resolve(); const receipt = await handle.settled(); expect(receipt.status).toBe('completed'); expect(receipt.point).not.toBeNull(); expect(hooks).toBe(1);
-    expect((await store.read('run-A', 'operation:orphan'))?.body).toMatchObject({ quiescent: true, effects: [{ phase: 'completed' }, { phase: 'completed' }] });
+    expect((await store.read('run-A', 'operation:orphan'))?.body).toMatchObject({ quiescent: true, effects: [{ phase: 'completed' }] });
   });
   it('shares terminal drainage across factories by persisted owner token and never redispatches', async () => {
     const entered = deferred(); const release = deferred(); const store = memoryStore(); let dispatches = 0;
@@ -412,7 +488,7 @@ describe('Plan 23 F1 high-level session operations', () => {
     // The scripted driver fails its turn on a thrown tool; the effect itself is known.
     expect(hooks).toBe(1); expect(result.status).toBe('failed'); expect(result.reason).toBe('external tool failed');
     const record = await store.read('run-A', 'operation:throwing-write');
-    expect(record?.body['effects']).toMatchObject([{ tool: 'write', phase: 'completed', result: { text: 'external tool failed', isError: true }, thrown: true }, { tool: 'afterMutation:write', phase: 'completed', result: { text: 'failure check retained' } }]);
+    expect(record?.body['effects']).toMatchObject([{ tool: 'write', phase: 'completed', result: { text: 'external tool failed', isError: true }, thrown: true }]);
   });
   it('keeps the point available after a tool call that throws and the provider reports as an error', async () => {
     const store = memoryStore(); const seen: string[] = []; let hooks = 0;
@@ -435,7 +511,6 @@ describe('Plan 23 F1 high-level session operations', () => {
     expect((await store.read('run-A', 'operation:throwing-read'))?.body['effects']).toMatchObject([
       { callId: 'missing-read', phase: 'completed', result: { text: 'ENOENT: no such file or directory', isError: true }, thrown: true },
       { callId: 'failed-write', phase: 'completed', result: { text: 'Path not found', isError: true }, thrown: true },
-      { callId: 'failed-write:afterMutation', phase: 'completed', result: { text: 'nothing changed' } },
     ]);
   });
   it('replays a recorded thrown tool failure as the same error without executing it again', async () => {
@@ -546,7 +621,7 @@ describe('explicit independently owned normalized store captures', () => {
     };
     const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch() { dispatches++; return { kind: 'ended' }; } } });
     if (issue.startsWith('operation')) await expect(operations.operationIdentity('run-A', 'create')).rejects.toThrow(/Corrupt|Unsupported/);
-    else await expect(operations.inspect('run-A', P.sessionId)).rejects.toThrow(/Corrupt|Unsupported/);
+    else expect(await operations.inspect('run-A', P.sessionId)).toBeNull();
     expect(dispatches).toBe(0);
   });
   it('keeps Stop and actual ignored-signal tool drainage independent of an advertised terminal capture', async () => {

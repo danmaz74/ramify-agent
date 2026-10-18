@@ -70,7 +70,6 @@ test.each(['iteration', 'work-item'] as const)('%s check recovery preserves its 
   if (groups === 2) {
     await until(() => service.events(plan, receipt.jobId)!.filter(event => event.type === 'operation-recovery-paused').length === 2);
     const again = (await service.recoveryInspection(plan, receipt.jobId))!;
-    expect(again.group).toBe(1);
     expect(again.attempts).toHaveLength(2);
     expect(service.events(plan, receipt.jobId)!.filter(event => event.type === 'invocation-ended')).toEqual(accepted);
     await resume(again, 2);

@@ -1,3 +1,4 @@
+import { currentLifecycleEvents } from './inputs.js';
 import type {
   ExecutionCapabilityDetail, ExecutionLink, ExecutionNode, ExecutionScenarioDetail, ExecutionSourceRef,
   ExecutionScenarioResult, ExecutionMapPage,
@@ -242,7 +243,7 @@ export function executionCoreOf(view: RunView): ExecutionCoreIndex {
     }
   }
   const settled = new Set(view.gates.keys());
-  const ended = view.events.some(event => ['job-completed', 'job-failed', 'job-interrupted', 'job-stopped'].includes(event.type));
+  const ended = currentLifecycleEvents(view).some(event => ['job-completed', 'job-failed', 'job-interrupted', 'job-stopped'].includes(event.type));
   const activeStarts = new Map<string, typeof view.events[number]>();
   for (const event of view.events) {
     if (event.type === 'gate-started' || event.type === 'gate-committing') activeStarts.set(event.data.gate, event);
