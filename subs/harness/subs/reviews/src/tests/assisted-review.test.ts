@@ -60,4 +60,23 @@ describe('assisted review preparation', () => {
     expect(prepared.validate({ ...report, concerns: [...report.concerns, concern(21)] }).ok).toBe(false);
     expect(prepared.message).toContain('never silently truncate');
   });
+
+  it('binds approval-only requirement answers to inspected factual protected paths', async () => {
+    const candidates = source();
+    const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });
+    const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
+      briefing: { id: 'approval-review', iteration: 'iteration-1', snapshot, outcome: 'Implement feature.',
+        audit: { status: 'passed' }, principles: [], requirements: [{ ref: 'feature', text: 'Feature works.' }],
+        protectionPaths: ['src/feature.ts'] } });
+    const report = { inspected: ['src/feature.ts'], missing: [], concerns: [], codeAssessment: 'Implementation is complete.',
+      scopeAssessment: 'Only the exact protected change needs authority.', design: { needed: false, reason: 'No ownership change.', assessment: 'Contracts preserved.' },
+      requirements: [{ ref: 'feature', outcome: 'unmet', explanation: 'Only owner authorization remains.',
+        evidencePaths: ['src/feature.ts'], pendingProtection: ['src/feature.ts'] }] };
+    expect(prepared.validate(report)).toEqual({ ok: true, value: report });
+    const answer = report.requirements[0]!;
+    for (const invalid of [{ ...answer, outcome: 'met' }, { ...answer, outcome: 'uncertain' },
+      { ...answer, pendingProtection: ['README.md'] }, { ...answer, pendingProtection: [] }, { ...answer, evidencePaths: [] }])
+      expect(prepared.validate({ ...report, requirements: [invalid] }).ok).toBe(false);
+  });
+
 });

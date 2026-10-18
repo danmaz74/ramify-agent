@@ -17,6 +17,8 @@ const requirementAnswerSchema = z.object({
   outcome: z.enum(['met', 'unmet', 'uncertain']),
   explanation: z.string().min(1).max(4000),
   evidencePaths: z.array(z.string().min(1)).max(50),
+  /** All other obligations are met; only these factual protection choices remain. */
+  pendingProtection: z.array(z.string().min(1)).min(1).max(50).optional(),
 }).strict();
 
 /** A combined code/scope report retains legacy concern and changed-path coverage. */
@@ -38,6 +40,7 @@ export interface AssistedReviewBriefing {
   readonly audit: { readonly status: 'passed' | 'failed' | 'pending' | 'unavailable'; readonly detail?: string };
   readonly requirements: readonly AssistedRequirement[];
   readonly principles: readonly { readonly path: string; readonly note: string }[];
+  readonly protectionPaths?: readonly string[];
   readonly previousFindings?: readonly { readonly id: string; readonly title: string; readonly standing: string }[];
 }
 
@@ -52,6 +55,7 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
     '## Acceptance references', '',
     ...input.requirements.map(item => `- ${item.ref}: ${item.text}`), '',
     'Answer every acceptance reference, including requirements with no implementation. Mark missing behavior unmet and uncertain evidence uncertain. A met answer needs source evidence actually inspected through a complete delivered patch or snapshot tool. Do not infer an audit pass from pending, failed or unavailable audit evidence.', '',
+    `Unauthorized protected differences: ${JSON.stringify(input.protectionPaths ?? [])}. For an unmet requirement whose implementation and all other obligations are satisfied, pendingProtection may name only these exact paths when their authorization is the sole remaining condition. Keep uncertain evidence uncertain. Do not create a semantic concern solely to duplicate a factual protection choice.`, '',
     '## Applicable principles', '',
     ...(input.principles.length ? input.principles.map(item => `- ${item.path}: ${item.note}`) : ['None supplied.']), '',
     '## Changed paths', '',
@@ -64,7 +68,7 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
 }
 
 /** Validate both changed-path evidence and complete, source-bound requirement answers. */
-export function validateAssistedReview(value: unknown, evidence: ReviewEvidence, requirements: readonly AssistedRequirement[]): SubmissionValidation<AssistedReviewSubmission> {
+export function validateAssistedReview(value: unknown, evidence: ReviewEvidence, requirements: readonly AssistedRequirement[], protectionPaths: readonly string[] = []): SubmissionValidation<AssistedReviewSubmission> {
   const parsed = assistedReviewSubmissionSchema.safeParse(value);
   if (!parsed.success) return { ok: false, errors: schemaErrors(parsed.error) };
   const report = parsed.data;
@@ -78,7 +82,9 @@ export function validateAssistedReview(value: unknown, evidence: ReviewEvidence,
     if (!expected.has(answer.ref)) errors.push({ path: `${where}.ref`, message: `Unknown acceptance reference ${answer.ref}` });
     if (seen.has(answer.ref)) errors.push({ path: `${where}.ref`, message: `Repeated acceptance reference ${answer.ref}` });
     seen.add(answer.ref);
-    if (answer.outcome === 'met' && answer.evidencePaths.length === 0)
+    if (answer.pendingProtection && (answer.outcome !== 'unmet' || answer.pendingProtection.some(path => !protectionPaths.includes(path))))
+      errors.push({ path: `${where}.pendingProtection`, message: 'Pending protection requires an unmet answer and exact factual unauthorized paths; all other obligations must be satisfied' });
+    if ((answer.outcome === 'met' || answer.pendingProtection) && answer.evidencePaths.length === 0)
       errors.push({ path: `${where}.evidencePaths`, message: `Met acceptance reference ${answer.ref} needs inspected source evidence` });
     for (const [at, path] of answer.evidencePaths.entries()) {
       const resolved = resolveSnapshotPath(evidence.snapshot, path);
@@ -111,6 +117,6 @@ export async function prepareAssistedReview(input: AssistedReviewPreparation): P
     source: input.source, projectRoot: input.projectRoot, snapshot: input.briefing.snapshot,
     maxConcerns: input.maxConcerns, signal: input.signal,
     message: diff => assistedReviewMessage(input.briefing, diff),
-    validate: (value, evidence) => validateAssistedReview(value, evidence, input.briefing.requirements),
+    validate: (value, evidence) => validateAssistedReview(value, evidence, input.briefing.requirements, input.briefing.protectionPaths),
   });
 }

@@ -227,6 +227,8 @@ describe('assisted jobs and assessments', () => {
       path: 'plan.md', userName: 'Owner', authority: 'decision-42', commandId: 'protection-accept-1' };
     await expect(service.protectionAccept({ ...input, path: 'other.md' })).rejects.toThrow('does not report');
     const first = await service.protectionAccept(input);
+    expect(first.finalization).toBeUndefined();
+    expect(service.assessmentResult('sample', job.jobId, admitted.assessmentId)?.gate).toBe('action-required');
     expect(first).toMatchObject({ path: 'plan.md', checkFinding: 'cf-0001', request: 'cfd-0001', option: 'accept-exact-change' });
     expect(await service.protectionAccept(input)).toEqual(first);
     expect(service.findings('sample', job.jobId)[0]?.reason).toBe('user-decision-answered');

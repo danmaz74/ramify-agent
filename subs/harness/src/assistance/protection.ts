@@ -143,13 +143,21 @@ export async function compareProtection(input: {
     if (beforeEntry === undefined && input.rules.additions === 'allow'
       && !input.rules.guardedPaths.some(pattern => matches(path, pattern))) continue;
     const before = identity(beforeEntry), after = identity(afterEntry);
-    const exception = (input.exceptions ?? []).find(item => item.path === path && item.authority.id !== ''
+    changes.push({ path, status, before, after, authorizedBy: null });
+  }
+  return authorizeProtection({ baselineCommit: input.baselineCommit, candidateCommit: input.candidateCommit,
+    changes, violations: changes }, input.exceptions ?? []);
+}
+
+/** Apply recorded authority to immutable comparison identities without repeating Git inspection. */
+export function authorizeProtection(comparison: ProtectionComparison, exceptions: readonly ProtectedException[]): ProtectionComparison {
+  const changes = comparison.changes.map(change => {
+    const exception = exceptions.find(item => item.path === change.path && item.authority.id !== ''
       && Number.isInteger(item.authority.revision) && item.authority.revision >= 0
       && /^[0-9a-f]{64}$/u.test(item.authority.hash)
-      && (before === null || before.objectId !== null) && (after === null || after.objectId !== null)
-      && sameIdentity(item.before, before) && sameIdentity(item.after, after));
-    changes.push({ path, status, before, after, authorizedBy: exception?.authority ?? null });
-  }
-  return { baselineCommit: input.baselineCommit, candidateCommit: input.candidateCommit,
-    changes, violations: changes.filter(change => change.authorizedBy === null) };
+      && (change.before === null || change.before.objectId !== null) && (change.after === null || change.after.objectId !== null)
+      && sameIdentity(item.before, change.before) && sameIdentity(item.after, change.after));
+    return { ...change, authorizedBy: exception?.authority ?? null };
+  });
+  return { ...comparison, changes, violations: changes.filter(change => change.authorizedBy === null) };
 }

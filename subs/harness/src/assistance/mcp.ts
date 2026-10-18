@@ -63,9 +63,9 @@ export function createAssistanceMcpServer(service: AssistanceService): McpServer
     commandId: args.command_id })));
   server.registerTool('assessment_status', { description: 'Read concise assessment status without starting work.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentStatus(args.plan_id, args.job_id, args.assessment_id)));
-  server.registerTool('assessment_result', { description: 'Read the compact gate result when assessment completed.', inputSchema: z.object(assessmentId) },
+  server.registerTool('assessment_result', { description: 'Read the effective compact gate result and any retained approval finalization when assessment completed.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentResult(args.plan_id, args.job_id, args.assessment_id)));
-  server.registerTool('assessment_detail', { description: 'Read detailed retained assessment evidence on demand.', inputSchema: z.object(assessmentId) },
+  server.registerTool('assessment_detail', { description: 'Read the original retained assessment and any append-only approval finalizations on demand.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentDetail(args.plan_id, args.job_id, args.assessment_id)));
   server.registerTool('assessment_cancel', { description: 'Cancel only the named assessment.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentCancel(args.plan_id, args.job_id, args.assessment_id)));
@@ -77,7 +77,7 @@ export function createAssistanceMcpServer(service: AssistanceService): McpServer
     inputSchema: z.object({ ...assessmentId, check_finding: z.string(), request: z.string(), option: z.string(), user_name: z.string(), authority: z.string(), command_id: z.string() }) },
   args => answer(() => service.findingAnswer({ planId: args.plan_id, jobId: args.job_id, assessmentId: args.assessment_id,
     checkFinding: args.check_finding, request: args.request, option: args.option, userName: args.user_name, authority: args.authority, commandId: args.command_id })));
-  server.registerTool('protection_accept', { description: 'Record an already-authorized user acceptance of one exact protected change from a completed assessment. The change identities stay in the protection stage; no source edit or automatic waiver is made.',
+  server.registerTool('protection_accept', { description: 'Record an already-authorized user acceptance of one exact protected change from a completed assessment. The change identities stay in the protection stage. Verified readiness may finalize this unchanged candidate immediately from retained stages; other failures and gaps remain blocking. No source edit or waiver is made.',
     inputSchema: z.object({ ...assessmentId, path: z.string(), user_name: z.string(), authority: z.string(), command_id: z.string() }) },
   args => answer(() => service.protectionAccept({ planId: args.plan_id, jobId: args.job_id, assessmentId: args.assessment_id,
     path: args.path, userName: args.user_name, authority: args.authority, commandId: args.command_id })));

@@ -15,6 +15,7 @@ import { readPlan } from '../plans/discover.js';
 import { acquireProjectLock, type ProjectLock } from '../store/lock.js';
 import { ensureStateDirectory } from '../store/state-directory.js';
 import { assistedDirectory, AssistedStore, type AssistedEvent } from './store.js';
+import { finalizeApproval, type ApprovalFinalization } from './approval.js';
 import { defaultProtectionRules, inspectProtectedInputs } from './protection.js';
 import {
   assessmentRequestSchema, assistedOutcomeSchema, assistedIterationSchema, iterationRequestSchema, type AssistedIteration, type IterationRequest, type AssessmentRequest, type AssistanceOptions, type AssistedProtection,
@@ -377,13 +378,23 @@ export class AssistanceService {
     return { id: assessment.id, status: assessment.status, revision: assessment.revision, error: assessment.error, stages: assessment.stages.map(stage => stage.name) };
   }
 
-  assessmentResult(planId: string, jobId: string, assessmentId: string): (AssistedOutcome & { completedAt?: string }) | null {
+  assessmentResult(planId: string, jobId: string, assessmentId: string): (AssistedOutcome & { completedAt?: string; finalization?: ApprovalFinalization }) | null {
     const assessment = this.requireAssessment(planId, jobId, assessmentId);
-    return assessment.outcome === null ? null : { ...assessment.outcome, ...(assessment.completedAt === undefined ? {} : { completedAt: assessment.completedAt }) };
+    const finalization = this.finalizations(this.requireStore(planId, jobId), assessmentId).at(-1);
+    return assessment.outcome === null ? null : { ...(finalization?.outcome ?? assessment.outcome), ...(finalization === undefined ? {} : { finalization }), ...(assessment.completedAt === undefined ? {} : { completedAt: assessment.completedAt }) };
   }
 
-  assessmentDetail(planId: string, jobId: string, assessmentId: string): AssistedAssessment {
-    return this.requireAssessment(planId, jobId, assessmentId);
+  assessmentDetail(planId: string, jobId: string, assessmentId: string): AssistedAssessment & { finalizations?: ApprovalFinalization[] } {
+    const assessment = this.requireAssessment(planId, jobId, assessmentId);
+    const finalizations = this.finalizations(this.requireStore(planId, jobId), assessmentId);
+    return finalizations.length ? { ...assessment, finalizations } : assessment;
+  }
+
+  private finalizations(store: AssistedStore, assessmentId: string): ApprovalFinalization[] {
+    return store.ledger.replay().flatMap(line => {
+      const event = line.transaction.event;
+      return event.type === 'protection-accepted' && event.assessmentId === assessmentId && event.finalization ? [event.finalization] : [];
+    });
   }
 
   async assessmentCancel(planId: string, jobId: string, assessmentId: string): Promise<AssistedAssessment> {
@@ -460,7 +471,7 @@ export class AssistanceService {
   }
 
   /** Accept one exact retained protected change with an already-authorized user's choice. */
-  async protectionAccept(input: ProtectionAcceptRequest): Promise<{ path: string; checkFinding: string; request: string; option: 'accept-exact-change'; receipt: { commandId: string; jobId: string; sequence: number; acceptedAt: string } }> {
+  async protectionAccept(input: ProtectionAcceptRequest): Promise<{ path: string; checkFinding: string; request: string; option: 'accept-exact-change'; finalization?: ApprovalFinalization; receipt: { commandId: string; jobId: string; sequence: number; acceptedAt: string } }> {
     const request = protectionAcceptSchema.parse(input);
     return this.write(async () => {
       const store = this.requireStore(request.planId, request.jobId);
@@ -473,7 +484,7 @@ export class AssistanceService {
         const choice = earlier.checkFindings.find(event => event.type === 'check-finding-decided' && event.data.decision.decision.action === 'request-user-decision');
         if (choice?.type !== 'check-finding-decided') throw new Error('Accepted protection choice has no request');
         return { path: earlier.path, checkFinding: choice.data.checkFinding, request: choice.data.decision.id,
-          option: 'accept-exact-change' as const, receipt: admitted.receipt };
+          option: 'accept-exact-change' as const, ...(earlier.finalization ? { finalization: earlier.finalization } : {}), receipt: admitted.receipt };
       }
       if (assessment.status !== 'completed') throw new CommandRejection('conflict', `Assessment ${assessment.id} has not completed`);
       const protection = assessment.stages.find(stage => stage.name === 'protection')?.evidence as {
@@ -520,9 +531,14 @@ export class AssistanceService {
         type: 'protection-accepted', data: { assessmentId: assessment.id, path: request.path, command: accepted, checkFindings: result.events },
       } }) }), carrier => ({ type: 'protection-accepted', ...carrier.data, checkFindings: [...carrier.data.checkFindings] }));
       if (decided.kind !== 'transaction') throw new CommandRejection('conflict', decided.kind === 'refused' ? decided.refusal.message : 'Choice was already recorded');
-      await store.ledger.append(decided.transaction);
+      if (decided.transaction.event.type !== 'protection-accepted') throw new Error('Protection choice produced another event');
+      const priorEvents = store.ledger.replay().flatMap(line => 'checkFindings' in line.transaction.event ? line.transaction.event.checkFindings : []);
+      const prospective = replayCheckFindingEvents([...priorEvents, ...decided.transaction.event.checkFindings]);
+      if (!prospective.ok) throw new Error(prospective.rejection.message);
+      const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: prospective.state, commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt });
+      await store.ledger.append({ ...decided.transaction, event: { ...decided.transaction.event, finalization } });
       this.commands.remember(accepted);
-      return { path: request.path, checkFinding: entry.id, request: requested.data.decision.id, option: 'accept-exact-change', receipt: accepted.receipt };
+      return { ...(finalization ? { finalization } : {}), path: request.path, checkFinding: entry.id, request: requested.data.decision.id, option: 'accept-exact-change', receipt: accepted.receipt };
     });
   }
   listAssistedJobs(): AssistedJob[] { return [...this.stores.values()].map(store => store.job); }

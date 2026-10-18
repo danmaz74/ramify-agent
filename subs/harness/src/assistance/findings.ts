@@ -73,7 +73,7 @@ export function factualFindingCommands(input: {
     entry.verification.kind === 'check' && entry.verification.producer === 'check:protection'
       ? [entry.verification.obligation.subject.slice('protected:'.length)] : [])]);
   for (const path of protectedPaths) checks.push({ subject: `protected:${path}`, producer: 'check:protection', selection: input.protectionSelection,
-    failed: currentPaths.has(path), passed: !currentPaths.has(path), summary: `Protected file ${path} differs from the execution baseline without an exact authorized exception.`, path });
+    failed: currentPaths.has(path), passed: !currentPaths.has(path) && !input.protection.changes.some(change => change.path === path && change.authorizedBy !== null), summary: `Protected file ${path} differs from the execution baseline without an exact authorized exception.`, path });
   for (const check of checks) {
     const evidence = check.producer === 'check:protection' ? input.protectionEvidence ?? input.evidence : input.evidence;
     const verification: CheckFindingVerification = { kind: 'check', producer: check.producer,
@@ -145,4 +145,11 @@ export function acceptedProtectionExceptions(state: CheckFindingState, assessmen
     }
   }
   return exceptions;
+}
+
+/** Authorization changes the governing condition, not the historical failure on this tree. */
+export function authorizedProtectionFinding(entry: Pick<import('../../subs/check-findings/src/interfaces/check-findings.js').CheckFindingEntry, 'verification'>, protection: ProtectionComparison): boolean {
+  const verification = entry.verification;
+  return verification.kind === 'check' && verification.producer === 'check:protection'
+    && protection.changes.some(change => change.authorizedBy !== null && verification.obligation.subject === `protected:${change.path}`);
 }

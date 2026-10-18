@@ -8,6 +8,7 @@ import { checkFindingEventsField } from '../check-findings/records.js';
 import { commitRecord, recoverCommits } from '../jobs/commit.js';
 import { jobsDirectory } from '../jobs/records.js';
 import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
+import { approvalFinalizationSchema } from './approval.js';
 import { assistedAssessmentSchema, assistedIterationSchema, assistedJobSchema, type AssistedAssessment, type AssistedEvidenceReference, type AssistedIteration, type AssistedJob } from './contracts.js';
 
 export const assistedEventSchema = z.discriminatedUnion('type', [
@@ -17,7 +18,7 @@ export const assistedEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('assessment-transition'), assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('findings-recorded'), assessmentId: z.string(), key: z.string().min(1).optional(), hash: z.string().optional(), checkFindings: checkFindingEventsField }).strict(),
   z.object({ type: z.literal('finding-answer-recorded'), assessmentId: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
-  z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
+  z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField, finalization: approvalFinalizationSchema.nullable().optional() }).strict(),
 ]);
 export type AssistedEvent = z.infer<typeof assistedEventSchema>;
 

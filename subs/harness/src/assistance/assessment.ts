@@ -13,11 +13,12 @@ import { reconciliationFactsMessage } from '../reviews/reconciliation-message.js
 import { reconciliationSubmissionSchema, validateReconciliationForExecution, type AttentionEntry, type BoundReconciliation } from '../reviews/reconciliation.js';
 import type { Assessor, AssistedEvidenceReference, AssistedOutcome, AssistedAssessment, AssistedJob } from './contracts.js';
 import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
+import { approvalReadiness } from './approval.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
 import { captureAssistanceDocuments, qualifyLegacyDocuments, readAssistanceDocument, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
-import { acceptedProtectionExceptions, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries, unverifiedSemanticClosures } from './findings.js';
+import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries, unverifiedSemanticClosures } from './findings.js';
 
 const digest = (value: unknown): string => `sha256:${createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex')}`;
 const errorText = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -213,7 +214,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
         briefing: { id: assessment.id, iteration: assessment.id, snapshot, outcome: intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
-          requirements, principles, previousFindings: summaries(context.findingState()).map(item => ({ id: item.id, title: item.title, standing: item.standing })) } });
+          requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: summaries(context.findingState()).map(item => ({ id: item.id, title: item.title, standing: item.standing })) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
@@ -313,12 +314,13 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     if (reconciliation?.status === 'submitted') await context.recordFindings(reconciliation.value.commands, 'reconciliation-decisions');
     else if (attention.length) gaps.push(`Reconciliation unavailable: ${reconciliation?.reason ?? 'no valid assessment'}`);
 
-    const remaining = remainingBriefs(findingDetails(context.findingState()));
+    const remaining = remainingBriefs(findingDetails(context.findingState()).filter(detail => !authorizedProtectionFinding(detail.summary, protection)));
     if (reviewed.result.status === 'submitted') for (const answer of reviewed.result.value.requirements) {
-      if (answer.outcome === 'unmet') remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);
+      if (answer.outcome === 'unmet' && !(answer.pendingProtection?.length && answer.pendingProtection.every(path => protection.changes.some(change => change.path === path && change.authorizedBy !== null)))) remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);
     }
     if (audit.state === 'failed' && !remaining.repairs.length) remaining.repairs.push(`Required audit failed: ${audit.detail}`);
     for (const change of protection.violations) if (!remaining.repairs.some(text => text.includes(change.path))) remaining.decisions.push(`Protected change ${change.path} requires an exact authorized exception or restoration.`);
+    await record('approval-readiness', approvalReadiness({ assessment, job, stages: context.stages(), tree: snapshot.tree, gaps, state: context.findingState() }));
     return compactOutcome({ gate: gaps.length ? 'incomplete' : remaining.repairs.length || remaining.decisions.length ? 'action-required' : 'clear',
       summary: gaps.length ? 'Assessment has required evidence gaps; established issues are retained.'
         : remaining.repairs.length || remaining.decisions.length ? 'Assessment completed with remaining actions.' : 'Required assessment completed with no remaining material issue.',
