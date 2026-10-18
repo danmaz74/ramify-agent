@@ -4,6 +4,14 @@ Agent assistance lets a native coordinator and workers implement a real plan whi
 
 ## Prepare and connect
 
+The [coordinator skill](../.agents/skills/ramify-agent-coordinate/SKILL.md) is the starting point for native assisted implementation. The coordinator gives its Sol workers the [module-work skill](../.agents/skills/ramify-agent-module-work/SKILL.md). Both live in this checkout's `.agents/skills/`; when working on another project, load them by their absolute source paths or make them available in your user skill directory. Keep links pointed at a checkout containing this implementation. Loading a skill does not establish an MCP connection.
+
+Once the MCP server below is connected, a starting request is:
+
+> Use $ramify-agent-coordinate to implement plans/my-plan/plan.md in this project. Coordinate Sol workers, use module focus when it helps, and let RA assess each committed iteration and the final result.
+
+For continuation, name the existing plan/job if known and ask the same skill to resume. It discovers the existing execution instead of registering a fresh baseline. A worker can be explicitly told to use `$ramify-agent-module-work` with its assignment; workers do not need their own MCP server.
+
 From the ramify-agent checkout, run `npm ci`. The target project needs a readable `plans/<plan-id>/plan.md`, Git commits for the original baseline and submitted candidates, and a committed `ramify-audit.json` whose checks can run in the provider workspace. Set up Pi credentials once with `npx pi` and `/login`; the [main README](../README.md#commands) describes that login. `mcp` takes the project lock, so one live harness owner serves a project at a time.
 
 Configure an MCP client to start a stdio process with this command and arguments, replacing the two absolute paths:
