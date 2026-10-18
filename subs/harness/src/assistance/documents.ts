@@ -4,7 +4,10 @@ import type { Dirent } from 'node:fs';
 import { discoverDocuments, type DocumentReader, type OutsideDocumentReference, type UnreadableDocumentReference } from '../../subs/plan-evidence/src/discovery.js';
 import type { DocumentManifest } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { gitCandidateSource, type CandidateSource, type TreeEntry } from '../../subs/evidence/src/git.js';
+import { readVerifiedTextBlobBytes as readCandidateDocument } from '../../subs/evidence/src/git-text.js';
 import { planIdSchema } from '../interfaces/protocol/ids.js';
+
+export { readVerifiedTextBlobBytes as readCandidateDocument } from '../../subs/evidence/src/git-text.js';
 
 export interface AssistanceDocument {
   readonly id: string;
@@ -76,25 +79,6 @@ export async function readAssistanceDocument(input: {
     throw new Error(`Document ${captured.path} differs from its retained content identity`);
   }
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-}
-
-/** Validate Git's text response before capturing bytes or treating a pinned document as evidence. */
-export async function readCandidateDocument(root: string, commit: string, entry: TreeEntry, source: CandidateSource): Promise<Uint8Array> {
-  if (entry.kind !== 'file' && entry.kind !== 'executable') throw new Error(`Document ${entry.path} is not a regular file`);
-  const text = await source.readBlob(root, commit, entry.path);
-  const bytes = new TextEncoder().encode(text);
-  if (text.includes('\0')) throw new Error(`Document ${entry.path} contains binary NUL bytes`);
-  if (entry.bytes === null || bytes.length !== entry.bytes || new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes) !== text) {
-    throw new Error(`Document ${entry.path} could not be decoded exactly from Git`);
-  }
-  if (entry.objectId !== undefined) {
-    if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(entry.objectId)) throw new Error(`Document ${entry.path} has unavailable Git blob identity`);
-    const identity = createHash(entry.objectId.length === 40 ? 'sha1' : 'sha256').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
-    if (identity !== entry.objectId) throw new Error(`Document ${entry.path} could not be decoded exactly from Git`);
-  } else if (text.includes('\uFFFD')) {
-    throw new Error(`Document ${entry.path} has ambiguous replacement characters without Git blob identity`);
-  }
-  return bytes;
 }
 
 /** Present a candidate tree to existing document discovery without reading the worktree. */

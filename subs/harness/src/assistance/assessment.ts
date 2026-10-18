@@ -218,8 +218,11 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
               evidence: () => [{ kind: 'assisted-reconciliation', ref: `assessments/${assessment.id}/stages/reconciliation.json`, hash: null }],
               document: async path => {
                 if (path === job.plan.path || path === 'captured-plan') return { text: context.planMarkdown, revision: `sha256:${job.plan.sha256}` };
-                if (!snapshot.entries.has(path)) return null;
-                return { text: await source.readBlob(projectRoot, snapshot.commit, path), revision: snapshot.tree };
+                const entry = snapshot.entries.get(path);
+                if (!entry) return null;
+                try { return { text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+                  await readCandidateDocument(projectRoot, snapshot.commit, entry, source)), revision: snapshot.tree }; }
+                catch { return null; }
               },
               decide: command => { const result = decideCheckFindingChange(state, command); return result.ok ? null : result.rejection; },
             });

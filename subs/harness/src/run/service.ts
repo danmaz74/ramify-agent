@@ -1,3 +1,4 @@
+import { readVerifiedTextBlobBytes } from '../../subs/evidence/src/git-text.js';
 import type { SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { inspectAuditSettlement } from './audit-workspaces.js';
 import { localViewInputsOf } from '../work/view-inputs.js';
@@ -2111,7 +2112,10 @@ export class RunService {
               return element === undefined || evidence.status !== 'available' ? null : { text: element.text, revision: `sha256:${evidence.catalogHash}` };
             }
             try {
-              return { text: await this.candidates.readBlob(this.projectRoot, basis.source.commit, path), revision: basis.source.commit };
+              const entry = (await this.candidates.treeEntries(this.projectRoot, basis.source.commit)).find(entry => entry.path === path);
+              if (!entry) return null;
+              return { text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+                await readVerifiedTextBlobBytes(this.projectRoot, basis.source.commit, entry, this.candidates)), revision: basis.source.commit };
             } catch {
               return null;
             }

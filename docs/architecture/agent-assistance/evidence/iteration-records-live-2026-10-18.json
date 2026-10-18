@@ -1102,6 +1102,30 @@
           }
         ]
       }
+    },
+    {
+      "observedAt": "2026-10-18T13:18:54.973Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "end",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-end-20261018",
+          "iteration_id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+          "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "acceptance": [
+            "Assess the existing committed implementation of the native iteration interface, not a new source change. Preserve the actual gate and timing from this live assessment; the coordinator reports transport observations separately."
+          ],
+          "additional_context": "Read-only live MCP witness: focused and broader starts both returned immutable records, start replay was exactly equal, both survived a clean server restart, and job_detail reported both started with no assessments before this end. The broader iteration intentionally remains unassessed. These coordinator observations are separate from source and scripted test coverage."
+        }
+      },
+      "result": {
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "assessmentId": "as-0001",
+        "status": "completed"
+      }
     }
   ],
   "retainedIterations": [

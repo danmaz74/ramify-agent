@@ -57,3 +57,6 @@ expose-src OwnershipAnswer, OwnershipPath, OwnershipQueryResult, RawOwnershipEvi
 expose-src ProviderFailureEvidence, RecoveryEvidence from "provider-evidence.ts" to parent
 
 expose-src resolveCommit from "git.ts" to parent
+
+// Exact UTF-8 text from immutable blobs, authenticated against available entry metadata.
+expose-src readVerifiedTextBlobBytes, GitTextError from "git-text.ts" to parent

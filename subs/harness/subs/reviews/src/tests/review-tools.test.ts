@@ -102,6 +102,30 @@ describe('resolving a path in the audited candidate', () => {
   });
 });
 
+describe('exact candidate text evidence', () => {
+  test.each(['sha1', 'sha256'] as const)('refuses equal-length lossy decoding without recording inspection while preserving literal replacement text (%s)', async algorithm => {
+    const scripted = scriptedCandidates(root, { candidate: { tree: 'tree', base: 'base',
+      changes: [{ status: 'M', path: 'src/invalid.ts' }, { status: 'A', path: 'src/literal.ts' }, { status: 'M', path: 'src/binary.ts' }],
+      files: { 'src/invalid.ts': '\uFFFD', 'src/literal.ts': '\uFFFD', 'src/binary.ts': 'header\0payload' } } });
+    const source = { ...scripted, treeEntries: async (project: string, commit: string) => (await scripted.treeEntries(project, commit)).map(entry => {
+      const bytes = entry.path === 'src/invalid.ts' ? Buffer.from([0xf0, 0x90, 0x80]) : Buffer.from(entry.path === 'src/literal.ts' ? '\uFFFD' : 'header\0payload');
+      return { ...entry, bytes: bytes.length, objectId: createHash(algorithm).update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
+    }) };
+    const snapshot = await openCandidateSnapshot(source, root, { commit: 'candidate', base: 'base' });
+    const tools = snapshotTools(snapshot, source, root);
+    const read = (path: string) => tools.definitions.find(tool => tool.name === 'snapshot_read')!.execute({ path }, new AbortController().signal);
+    expect(await read('src/invalid.ts')).toMatchObject({ isError: true, text: expect.stringContaining('could not be decoded exactly from Git') });
+    expect(tools.read().has('src/invalid.ts')).toBe(false); expect(tools.inspected().has('src/invalid.ts')).toBe(false);
+    expect(await read('src/literal.ts')).toEqual({ text: '     1\t\uFFFD' });
+    expect(tools.read().has('src/literal.ts')).toBe(true);
+    expect(await read('src/binary.ts')).toEqual({ text: 'src/binary.ts is a binary file of 14 bytes' });
+    expect(tools.read().has('src/binary.ts')).toBe(false); expect(tools.inspected().has('src/binary.ts')).toBe(false);
+    const claimed = validateReview({ inspected: ['src/invalid.ts', 'src/literal.ts'], missing: [{ path: 'src/binary.ts', reason: 'binary' }], concerns: [] },
+      { snapshot, inspected: tools.inspected(), read: tools.read(), maxConcerns: 2 });
+    expect(claimed.ok).toBe(false);
+  });
+});
+
 describe('a reviewer\'s submission', () => {
   const concern = (path: string, ground: { path: string; quote?: string } | null = null) => ({
     summary: 's', consequence: 'c', rationale: 'r', uncertainty: 'u', remedy: 'm', locations: [{ path, startLine: 1, endLine: 2 }], suggests: null,

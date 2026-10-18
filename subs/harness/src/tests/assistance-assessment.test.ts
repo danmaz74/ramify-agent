@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
@@ -183,6 +184,42 @@ describe('assisted assessment pipeline with real service records', () => {
     expect((await outcome(reopened, job.jobId, admitted.assessmentId)).gate).toBe('clear');
     expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).requestedAt).toBe(detail.requestedAt);
     expect(JSON.parse(await readFile(join(directory, reference.artifact.path), 'utf8'))).toEqual(artifact);
+  });
+
+  it('refuses replacement characters from malformed candidate bytes as verbatim user-decision authority', async () => {
+    const document = 'docs/authority.md';
+    let reconciliationCalls = 0;
+    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files, [document]: '\uFFFD' } };
+    const candidate = { ...source('1', baseline), files: { ...source('1', baseline).files, [document]: '\uFFFD' } };
+    const { service, job, candidates, assess } = await setup({ [baseline]: initial, [first]: candidate }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const validated = input.prepared.validate(reviewReport(input.candidate, true));
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'malformed-authority-review', eventCount: 1 };
+      },
+      reconcile: async input => {
+        reconciliationCalls++;
+        const proposed = { relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'A supposed document conflict.',
+          communication: { mode: 'quiet' }, action: { action: 'request-user-decision', conflicts: [{ document, text: '\uFFFD' }],
+            options: [{ id: 'restore', summary: 'Restore source', consequence: 'Repair the candidate.' },
+              { id: 'retain', summary: 'Retain source', consequence: 'Keep the candidate.' }] } }], next: { kind: 'await-user' }, brief: 'Resolve the supposed conflict.' };
+        const validated = await input.submission.validate(proposed);
+        expect(validated.ok).toBe(false);
+        if (!validated.ok) expect(validated.errors).toEqual(expect.arrayContaining([expect.objectContaining({
+          path: 'dispositions.0.action.conflicts.0.document', message: expect.stringContaining('neither an element') })]));
+        return { status: 'incomplete', reason: 'Malformed source text is unavailable for conflict verification.', operationId: input.operationId, eventCount: 1 };
+      },
+    });
+    const originalEntries = candidates.treeEntries.bind(candidates);
+    const raw = Buffer.from([0xf0, 0x90, 0x80]);
+    vi.spyOn(candidates, 'treeEntries').mockImplementation(async (root, commit) => (await originalEntries(root, commit)).map(entry => entry.path === document
+      ? { ...entry, bytes: raw.length, objectId: createHash('sha1').update(`blob ${raw.length}\0`).update(raw).digest('hex') } : entry));
+    const result = await assess(first, baseline, 'malformed-authority');
+    expect(reconciliationCalls).toBe(1);
+    expect(result.outcome.gate).toBe('incomplete');
+    expect(result.outcome.gaps.join(' ')).toContain('Malformed source text is unavailable');
+    expect(service.findings('sample', job.jobId)[0]?.pendingUserDecision).toBeNull();
   });
 
   it('keeps an audit failure and original-baseline protected edit actionable across a later candidate', async () => {

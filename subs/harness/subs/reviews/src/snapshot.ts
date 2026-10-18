@@ -3,6 +3,7 @@ import { posix, resolve } from 'node:path';
 import { z } from 'zod';
 import type { JsonSchema, ToolAction, ToolDefinition, ToolResult } from '../../agent/src/interfaces/port.js';
 import type { CandidateSource, TreeEntry } from '../../evidence/src/git.js';
+import { GitTextError, readVerifiedTextBlobBytes } from '../../evidence/src/git-text.js';
 
 /*
  * A reviewer's only view of the project: one audited candidate, served from
@@ -214,8 +215,12 @@ export function snapshotTools(snapshot: CandidateSnapshot, source: CandidateSour
     if ((resolved.entry.bytes ?? 0) > snapshotReadLimits.bytes) {
       return { text: `${resolved.path} holds ${resolved.entry.bytes} bytes, more than the ${snapshotReadLimits.bytes} one read answers; search it instead`, isError: true };
     }
-    const content = await source.readBlob(projectRoot, snapshot.commit, resolved.path, signal);
-    if (content.includes('\0')) return { text: `${resolved.path} is a binary file of ${resolved.entry.bytes ?? 'unknown'} bytes` };
+    let content: string;
+    try { content = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await readVerifiedTextBlobBytes(projectRoot, snapshot.commit, resolved.entry, source, signal)); }
+    catch (error) {
+      if (error instanceof GitTextError && error.reason === 'binary') return { text: `${resolved.path} is a binary file of ${resolved.entry.bytes ?? 'unknown'} bytes` };
+      throw error;
+    }
     read.set(resolved.path, `sha256:${createHash('sha256').update(content).digest('hex')}`);
     const lines = content.split('\n');
     if (lines.at(-1) === '') lines.pop();
