@@ -106,9 +106,9 @@ export class RamifyCli {
     return this.options.endpointDirectory !== undefined;
   }
 
-  /** The verified 0.5.0 and 0.5.1 launchers have the independent ownership command. */
+  /** The verified 0.5.0, 0.5.1 and 0.5.2 launchers have the independent ownership command. */
   get ownershipCommandSupported(): boolean {
-    return this.options.verifiedOwnershipCommand ?? ((this.options.executable ?? ramifyExecutable) === ramifyExecutable && (installedRamifyVersion === '0.5.0' || installedRamifyVersion === '0.5.1'));
+    return this.options.verifiedOwnershipCommand ?? ((this.options.executable ?? ramifyExecutable) === ramifyExecutable && (installedRamifyVersion === '0.5.0' || installedRamifyVersion === '0.5.1' || installedRamifyVersion === '0.5.2'));
   }
 
   run(args: readonly string[], cwd: string, signal?: AbortSignal): Promise<RamifyRun> {
