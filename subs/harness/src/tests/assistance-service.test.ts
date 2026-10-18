@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AssistanceService } from '../assistance/service.js';
-import type { AssistanceOptions, AssistedProtection, Assessor } from '../assistance/contracts.js';
+import { assistedAssessmentSchema, type AssistanceOptions, type AssistedProtection, type Assessor } from '../assistance/contracts.js';
 import { reportCommand } from '../check-findings/report.js';
 import { concern } from './helpers/check-findings.js';
 
@@ -14,7 +14,7 @@ const protection: AssistedProtection = { baselineCommit: commit,
 const roots: string[] = [];
 const services: AssistanceService[] = [];
 
-async function fixture(assessor?: Assessor): Promise<{ root: string; open: () => Promise<AssistanceService> }> {
+async function fixture(assessor?: Assessor, overrides: Partial<AssistanceOptions> = {}): Promise<{ root: string; open: () => Promise<AssistanceService> }> {
   const root = await mkdtemp(join(tmpdir(), 'assistance-service-'));
   roots.push(root);
   await mkdir(join(root, 'plans', 'sample'), { recursive: true });
@@ -26,7 +26,7 @@ async function fixture(assessor?: Assessor): Promise<{ root: string; open: () =>
       guardedPaths: [...(policy?.guardedPaths ?? protection.rules.guardedPaths)],
       additions: policy?.additions ?? protection.rules.additions },
   }),
-    resolveCommit: async (_root, revision) => revision === 'HEAD' ? commit : revision, ...(assessor === undefined ? {} : { assessor }) };
+    resolveCommit: async (_root, revision) => revision === 'HEAD' ? commit : revision, currentHead: async () => commit, isCleanRepository: async () => true, ...(assessor === undefined ? {} : { assessor }), ...overrides };
   return { root, open: async () => { const service = await AssistanceService.open(options); services.push(service); return service; } };
 }
 
@@ -235,5 +235,176 @@ describe('assisted jobs and assessments', () => {
     service = await open();
     expect(await service.protectionAccept(input)).toEqual(first);
     await expect(service.protectionAccept({ ...input, authority: 'another-record' })).rejects.toThrow('different command');
+  });
+});
+
+describe('native iteration records', () => {
+  it('captures focus, broader assignments and honest Git provenance without assessment', async () => {
+    const assessor = vi.fn<Assessor>();
+    let head = commit, clean: boolean | Error = false;
+    const { open } = await fixture(assessor, { currentHead: async () => head,
+      resolveCommit: async (_root, revision) => revision === 'HEAD' ? head : commit,
+      isCleanRepository: async () => { if (clean instanceof Error) throw clean; return clean; },
+      now: () => new Date('2026-10-18T12:00:00Z') });
+    const service = await open();
+    const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const ids = { planId: 'sample', jobId: job.jobId };
+    const focused = await service.iteration({ ...ids, action: 'start', brief: 'Implement freely', focusModule: 'subs/harness', commandId: 'focus' });
+    expect(focused).toMatchObject({ base: commit, brief: 'Implement freely', focusModule: 'subs/harness', startedAt: '2026-10-18T12:00:00.000Z',
+      provenance: { baseSource: 'head', requestedBase: null, checkoutHead: commit, checkoutHeadAfter: commit, cleanliness: 'dirty', cleanlinessError: null } });
+    head = other; clean = new Error('status unavailable');
+    const broad = await service.iteration({ ...ids, action: 'start', base: 'stable-tag', brief: 'Integrate owners', focusModule: null, commandId: 'broad' });
+    expect(broad).toMatchObject({ base: commit, focusModule: null, provenance: { baseSource: 'explicit', requestedBase: 'stable-tag', checkoutHead: other,
+      checkoutHeadAfter: other, cleanliness: 'unknown', cleanlinessError: 'status unavailable' } });
+    expect(broad.id).not.toBe(focused.id);
+    expect((await service.jobDetail('sample', job.jobId)).iterations).toEqual([
+      { ...focused, status: 'started', assessmentIds: [] }, { ...broad, status: 'started', assessmentIds: [] },
+    ]);
+    expect(assessor).not.toHaveBeenCalled();
+    await expect(service.iteration({ ...ids, action: 'start', brief: 'Bad focus', focusModule: '../outside', commandId: 'invalid-path' })).rejects.toThrow('project-relative');
+  });
+
+  it('replays starts before volatile Git observations, recovers their files, and conflicts on changed input', async () => {
+    const head = vi.fn(async () => commit), clean = vi.fn(async () => true), resolve = vi.fn(async () => commit);
+    let time = '2026-10-18T12:00:00Z';
+    const { root, open } = await fixture(undefined, { currentHead: head, isCleanRepository: clean, resolveCommit: resolve, now: () => new Date(time) });
+    let service = await open();
+    const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const start = { planId: 'sample', jobId: job.jobId, action: 'start' as const, brief: 'Same outcome', focusModule: null, commandId: 'start-work' };
+    const first = await service.iteration(start);
+    await service.close(); services.splice(services.indexOf(service), 1);
+    const path = join(root, 'plans', 'sample', '.harness', 'jobs', job.jobId, 'iterations', `${first.id}.json`);
+    await rm(path);
+    time = '2026-10-18T14:00:00Z'; head.mockRejectedValue(new Error('HEAD moved or disappeared')); clean.mockRejectedValue(new Error('unavailable')); resolve.mockRejectedValue(new Error('revision disappeared'));
+    service = await open();
+    expect(await service.iteration(start)).toEqual(first);
+    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual(first);
+    expect(head).toHaveBeenCalledTimes(2); expect(clean).toHaveBeenCalledTimes(1); expect(resolve).toHaveBeenCalledTimes(1);
+    await expect(service.iteration({ ...start, brief: 'Changed outcome' })).rejects.toThrow('different command');
+    expect((await service.jobDetail('sample', job.jobId)).iterations).toHaveLength(1);
+  });
+
+  it('rejects invalid revisions and a moving default HEAD without registering invented source', async () => {
+    const head = vi.fn<NonNullable<AssistanceOptions['currentHead']>>().mockResolvedValueOnce(commit).mockResolvedValueOnce(other);
+    const resolve = vi.fn<NonNullable<AssistanceOptions['resolveCommit']>>().mockResolvedValueOnce(commit).mockRejectedValueOnce(new Error('unknown revision'));
+    const { open } = await fixture(undefined, { currentHead: head, resolveCommit: resolve });
+    const service = await open(); const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const start = { planId: 'sample', jobId: job.jobId, action: 'start' as const, brief: 'Outcome', focusModule: null, commandId: 'work' };
+    await expect(service.iteration(start)).rejects.toThrow('changed during iteration start');
+    await expect(service.iteration({ ...start, base: 'missing' })).rejects.toThrow('Cannot resolve iteration base: unknown revision');
+    expect((await service.jobDetail('sample', job.jobId)).iterations).toEqual([]);
+  });
+
+  it('links cumulative repairs, retains start timing, and returns while assessment is held', async () => {
+    let time = '2026-10-18T12:00:00Z';
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const assessor = vi.fn<Assessor>(async context => {
+      expect(context.assessment.request).toMatchObject({ base: commit, brief: 'Original outcome', focusModule: 'subs/harness' });
+      if (context.assessment.request.candidate === other) { await held; return { gate: 'action-required', summary: 'Repair needed', repairs: ['fix'], decisions: [], gaps: [], evidence: [] }; }
+      return { gate: 'clear', summary: 'Repaired', repairs: [], decisions: [], gaps: [], evidence: [] };
+    });
+    const { root, open } = await fixture(assessor, { now: () => new Date(time) });
+    let service = await open(); const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const ids = { planId: 'sample', jobId: job.jobId };
+    const iteration = await service.iteration({ ...ids, action: 'start', brief: 'Original outcome', focusModule: 'subs/harness', commandId: 'work' });
+    time = '2026-10-18T12:02:00Z';
+    const end = { ...ids, action: 'end' as const, iterationId: iteration.id, candidate: other, commandId: 'candidate',
+      acceptance: ['scenario-1'], requirementDocuments: [{ path: 'docs/requirement.md', revision: 'HEAD' }], additionalContext: 'Cross-module consumer changed' };
+    const first = await service.iteration(end);
+    await vi.waitFor(() => expect(assessor).toHaveBeenCalledTimes(1));
+    expect(service.assessmentResult('sample', job.jobId, first.assessmentId)).toBeNull();
+    expect(service.assessmentDetail('sample', job.jobId, first.assessmentId).completedAt).toBeUndefined();
+    expect(service.assessmentDetail('sample', job.jobId, first.assessmentId).request).toMatchObject({ acceptance: ['scenario-1'],
+      requirementDocuments: [{ path: 'docs/requirement.md', revision: commit }], additionalContext: 'Cross-module consumer changed' });
+    time = '2026-10-18T12:03:00Z'; release();
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, first.assessmentId).status).toBe('completed'));
+    const firstDetail = service.assessmentDetail('sample', job.jobId, first.assessmentId);
+    expect(firstDetail).toMatchObject({ requestedAt: '2026-10-18T12:02:00.000Z', completedAt: '2026-10-18T12:03:00.000Z' });
+    expect(Date.parse(firstDetail.requestedAt) - Date.parse(iteration.startedAt)).toBe(120_000);
+    expect(Date.parse(firstDetail.completedAt!) - Date.parse(firstDetail.requestedAt)).toBe(60_000);
+    time = '2026-10-18T12:04:00Z';
+    const repair = await service.iteration({ ...end, commandId: 'repair', candidate: 'c'.repeat(40), previousAssessment: first.assessmentId });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, repair.assessmentId).status).toBe('completed'));
+    const repaired = service.assessmentDetail('sample', job.jobId, repair.assessmentId);
+    expect(repaired.request).toMatchObject({ iterationId: iteration.id, base: commit, previousAssessment: first.assessmentId });
+    expect(Date.parse(repaired.completedAt!) - Date.parse(iteration.startedAt)).toBe(240_000);
+    await service.close(); services.splice(services.indexOf(service), 1);
+    await rm(join(root, 'plans', 'sample', '.harness', 'jobs', job.jobId, 'assessments', first.assessmentId), { recursive: true });
+    service = await open();
+    expect(await service.iteration(end)).toMatchObject({ assessmentId: first.assessmentId });
+    expect(service.assessmentDetail('sample', job.jobId, first.assessmentId)).toEqual(firstDetail);
+    expect(assessor).toHaveBeenCalledTimes(2);
+    expect((await service.jobDetail('sample', job.jobId)).iterations).toEqual([{ ...iteration, status: 'submitted', assessmentIds: [first.assessmentId, repair.assessmentId] }]);
+    await expect(service.iteration({ ...end, candidate: commit })).rejects.toThrow('different command');
+  });
+
+  it('keeps overlapping iterations distinct and rejects wrong-job iteration references before launch', async () => {
+    const assessor = vi.fn<Assessor>(async () => ({ gate: 'incomplete', summary: 'Unavailable', repairs: [], decisions: [], gaps: ['review'], evidence: [] }));
+    const { open } = await fixture(assessor); const service = await open();
+    const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const otherJob = await service.planStart({ planId: 'sample', commandId: 'register-other' });
+    const start = { planId: 'sample', jobId: job.jobId, action: 'start' as const, brief: 'Outcome', focusModule: null };
+    const a = await service.iteration({ ...start, commandId: 'a' }), b = await service.iteration({ ...start, commandId: 'b' });
+    const end = { planId: 'sample', jobId: job.jobId, action: 'end' as const, iterationId: a.id, candidate: other, commandId: 'end', acceptance: [], requirementDocuments: [] };
+    await expect(service.iteration({ ...end, jobId: otherJob.jobId })).rejects.toThrow('does not belong');
+    await expect(service.iteration({ ...end, iterationId: `it-${'0'.repeat(36)}` })).rejects.toThrow('does not belong');
+    expect(assessor).not.toHaveBeenCalled();
+    const assessment = await service.iteration(end);
+    await vi.waitFor(() => expect(service.assessmentDetail('sample', job.jobId, assessment.assessmentId).completedAt).toBeDefined());
+    const detail = await service.jobDetail('sample', job.jobId);
+    expect(detail.iterations.map(item => [item.id, item.assessmentIds])).toEqual([[a.id, [assessment.assessmentId]], [b.id, []]]);
+    const legacy = await service.iterationAssess(request(job.jobId, 'legacy'));
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, legacy.assessmentId).status).toBe('completed'));
+    const { completedAt: _completedAt, ...historical } = service.assessmentDetail('sample', job.jobId, legacy.assessmentId);
+    expect(assistedAssessmentSchema.parse(historical).completedAt).toBeUndefined();
+    expect(historical.request.iterationId).toBeUndefined(); expect(historical.request.focusModule).toBeUndefined();
+    expect((await service.jobDetail('sample', job.jobId)).iterations).toHaveLength(2);
+    await expect(service.iterationAssess({ ...request(job.jobId, 'bad-final'), kind: 'final', planBaseline: other })).rejects.toThrow('registered execution baseline');
+  });
+
+  it('retains clock inconsistencies rather than manufacturing positive elapsed intervals', async () => {
+    let time = '2026-10-18T12:00:00Z';
+    const { open } = await fixture(async () => {
+      time = '2026-10-18T11:59:00Z';
+      return { gate: 'clear', summary: 'Verified with clock adjustment', repairs: [], decisions: [], gaps: [], evidence: [] };
+    }, { now: () => new Date(time) });
+    const service = await open(); const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const ids = { planId: 'sample', jobId: job.jobId };
+    const iteration = await service.iteration({ ...ids, action: 'start', brief: 'Root module work', focusModule: '.', commandId: 'work' });
+    time = '2026-10-18T12:01:00Z';
+    const admission = await service.iteration({ ...ids, action: 'end', iterationId: iteration.id, candidate: other, acceptance: [], requirementDocuments: [], commandId: 'end' });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admission.assessmentId).status).toBe('completed'));
+    const result = service.assessmentDetail('sample', job.jobId, admission.assessmentId);
+    expect(Date.parse(result.completedAt!) - Date.parse(result.requestedAt)).toBe(-120_000);
+    expect(Date.parse(result.completedAt!) - Date.parse(iteration.startedAt)).toBe(-60_000);
+    expect(await service.iteration({ ...ids, action: 'end', iterationId: iteration.id, candidate: other, acceptance: [], requirementDocuments: [], commandId: 'end' })).toMatchObject({ assessmentId: admission.assessmentId });
+    expect(service.assessmentDetail('sample', job.jobId, admission.assessmentId).completedAt).toBe(result.completedAt);
+  });
+
+  it('preserves submission time and absent completion across interruption and explicit resume', async () => {
+    let time = '2026-10-18T12:00:00Z', calls = 0;
+    const { open } = await fixture(async context => {
+      if (++calls === 1) {
+        await context.checkpoint('audit', { passed: true });
+        await new Promise<void>(resolve => context.signal.addEventListener('abort', () => resolve(), { once: true }));
+      }
+      return { gate: 'incomplete', summary: 'No review', repairs: [], decisions: [], gaps: ['review'], evidence: [] };
+    }, { now: () => new Date(time) });
+    let service = await open(); const job = await service.planStart({ planId: 'sample', commandId: 'register' });
+    const ids = { planId: 'sample', jobId: job.jobId };
+    const iteration = await service.iteration({ ...ids, action: 'start', brief: 'Work', focusModule: null, commandId: 'work' });
+    time = '2026-10-18T12:01:00Z';
+    const end = { ...ids, action: 'end' as const, iterationId: iteration.id, candidate: other, commandId: 'end', acceptance: [], requirementDocuments: [] };
+    const admission = await service.iteration(end);
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admission.assessmentId).stages).toEqual(['audit']));
+    await service.close(); services.splice(services.indexOf(service), 1);
+    service = await open(); time = '2026-10-18T12:10:00Z';
+    expect(await service.iteration(end)).toMatchObject({ assessmentId: admission.assessmentId, status: 'interrupted' });
+    expect(service.assessmentDetail('sample', job.jobId, admission.assessmentId).completedAt).toBeUndefined();
+    expect(calls).toBe(1);
+    await service.assessmentResume('sample', job.jobId, admission.assessmentId);
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admission.assessmentId).status).toBe('completed'));
+    expect(service.assessmentDetail('sample', job.jobId, admission.assessmentId)).toMatchObject({ requestedAt: '2026-10-18T12:01:00.000Z', completedAt: '2026-10-18T12:10:00.000Z' });
   });
 });

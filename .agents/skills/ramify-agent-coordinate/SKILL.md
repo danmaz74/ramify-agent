@@ -19,7 +19,7 @@ Before implementation edits, inspect Git HEAD, existing changes and relevant pro
 
 Read `job_detail` for the captured plan, original baseline, protection rules and setup gaps. Registration captures the plan once and does not commit source. Resolve unavailable or dirty protected baseline inputs before relying on protection. On continuation, use the captured plan; editing its original file does not update the registered input. Do not start another execution merely to discard findings or reset protection.
 
-Retain the target root, `planId`, `jobId`, original baseline and latest assessment/candidate IDs in ordinary progress notes. Include the next outcome, active workers and material decisions when needed for continuation. This is a short restart note, not a second findings database. Tool arguments use snake_case; results in `structuredContent.result` use camelCase.
+Retain the target root, `planId`, `jobId`, original baseline, open iteration IDs and latest assessment/candidate IDs in ordinary progress notes. Include the next outcome, active workers and material decisions when needed for continuation. This is a short restart note, not a second findings database. Tool arguments use snake_case; results in `structuredContent.result` use camelCase.
 
 ## Choose and delegate an iteration
 
@@ -36,11 +36,15 @@ For example: “Implement parser validation in the evidence module because its i
 
 Sol may edit other modules without scope expansion or permission based on module ownership. Use another worker when the work is substantial and separable; keep interacting provider and consumer changes together when that reduces repeated discovery. Reconsider the split if workers wait on each other or repeatedly relearn shared behavior. Coordinate overlapping writers through ordinary messages or separate worktrees.
 
+Immediately before implementation of the chosen outcome begins, call `iteration` with `action: "start"`, the registered `plan_id` and `job_id`, a unique retryable `command_id`, the outcome in `brief` and `focus_module` as a project-relative module path or explicit `null` for a broader assignment. Omit `base` to capture checkout HEAD, or name an explicit revision when needed. Retain the returned `id` as `iteration_id`, along with its start time, resolved base and Git provenance in continuation notes. Dirty starts are allowed but qualify attribution; unavailable cleanliness remains unknown. Start launches no assessor or implementation. Multiple open iterations are allowed; always identify the intended one.
+
 ## Assess and act
 
 After implementation and relevant local verification, prepare the intended candidate commit under existing user authorization. Keep unrelated edits out. RA assesses commits; uncommitted repairs do not change its result. Let RA run the configured audit with default provider selection; do not duplicate a full audit merely to submit an assessment.
 
-Call `iteration_assess` with the registered IDs, exact `base` and `candidate` commits, intended outcome in `brief`, applicable `acceptance` references and a new `command_id`. Use the iteration's starting commit as `base`; after a repair, preserve enough comparison scope to cover the original outcome. Link the prior assessment with `previous_assessment`. Supply pinned `requirement_documents` when needed. Retain the returned `assessmentId` as `assessment_id` for observation.
+Call `iteration` with `action: "end"`, the registered IDs, retained `iteration_id`, exact `candidate` commit, applicable `acceptance` references and a new `command_id`. It inherits the stored initial commit, brief and focus; do not repeat or replace them. Supply pinned `requirement_documents` when needed, and optional `additional_context` to supplement the original outcome. Retain the returned `assessmentId` as `assessment_id` for observation. End submits a candidate for checking and does not assert acceptance.
+
+For a repair, call end again with the same iteration ID, a new candidate and command ID, and `previous_assessment` pointing to the prior assessment. Preserve that iteration's original start and base; repairs are assessment attempts within it. Retry a lost start or end response with exactly the same command ID and arguments. Recover iteration records and linked assessments with `job_detail`; an iteration with no submission remains started and unassessed.
 
 Use `assessment_status` for quiet polling, then `assessment_result` when completed. Audit can take several minutes; elapsed time alone is not a reason to cancel. Prepare independent work while waiting, without accepting dependent work ahead of the result. Read `assessment_detail` only for evidence needed to resolve a concrete issue.
 
@@ -58,4 +62,4 @@ Use `finding_list` for pending choices. `finding_answer` records an actual autho
 
 On reconnect, recover the same job and assessment IDs. An interrupted assessment can use `assessment_resume` to reuse retained stages. A completed `incomplete` result needs its gap addressed and a new assessment. Cancel only work no longer wanted or explicitly requested to stop; do not edit RA's durable records manually.
 
-When all plan outcomes are implemented, submit `kind: "final"` with `plan_baseline` equal to the original registered baseline, the current candidate and the whole plan's acceptance question. A local iteration pass does not replace cumulative review. Report the final gate, candidate and remaining limitations. Publishing, merging and tracker synchronization retain their own authorization requirements.
+When all plan outcomes are implemented, separately call `iteration_assess` with `kind: "final"`, the registered IDs, exact `base` and `candidate`, a whole-plan `brief`, `acceptance` and a fresh `command_id` and `plan_baseline` equal to the original registered baseline. Keep this cumulative assessment separate from the native iteration record; its comparison uses the original registered plan baseline. A local iteration pass does not replace cumulative review. Report the final gate, candidate and remaining limitations. Publishing, merging and tracker synchronization retain their own authorization requirements.

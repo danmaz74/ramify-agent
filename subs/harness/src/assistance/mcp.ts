@@ -35,6 +35,21 @@ export function createAssistanceMcpServer(service: AssistanceService): McpServer
   server.registerTool('job_detail', { description: 'Read the captured plan and registration baseline, protected paths and setup gaps.',
     inputSchema: z.object(ids) },
   args => answer(() => service.jobDetail(args.plan_id, args.job_id)));
+  const iterationIds = { ...ids, command_id: z.string() };
+  server.registerTool('iteration', { description: 'Record native work starting, or submit a committed candidate for assessment. Focus is advisory; repairs reuse the iteration ID.',
+    inputSchema: z.discriminatedUnion('action', [
+      z.object({ ...iterationIds, action: z.literal('start'), brief: z.string(), focus_module: z.string().nullable(), base: z.string().optional() }).strict(),
+      z.object({ ...iterationIds, action: z.literal('end'), iteration_id: z.string(), candidate: z.string(),
+        acceptance: z.array(z.string()).default([]), requirement_documents: z.array(z.object({ path: z.string(), revision: z.string() })).default([]),
+        previous_assessment: z.string().optional(), additional_context: z.string().optional() }).strict(),
+    ]) },
+  args => answer(() => service.iteration(args.action === 'start'
+    ? { planId: args.plan_id, jobId: args.job_id, commandId: args.command_id, action: 'start', brief: args.brief,
+      focusModule: args.focus_module, ...(args.base === undefined ? {} : { base: args.base }) }
+    : { planId: args.plan_id, jobId: args.job_id, commandId: args.command_id, action: 'end', iterationId: args.iteration_id,
+      candidate: args.candidate, acceptance: args.acceptance, requirementDocuments: args.requirement_documents,
+      ...(args.previous_assessment === undefined ? {} : { previousAssessment: args.previous_assessment }),
+      ...(args.additional_context === undefined ? {} : { additionalContext: args.additional_context }) })));
   server.registerTool('iteration_assess', { description: 'Submit a fixed Git candidate for delegated assessment. Returns promptly with an assessment ID.',
     inputSchema: z.object({ ...ids, base: z.string(), candidate: z.string(), kind: z.enum(['iteration', 'final']).default('iteration'),
       brief: z.string(), acceptance: z.array(z.string()).default([]), plan_baseline: z.string().optional(),

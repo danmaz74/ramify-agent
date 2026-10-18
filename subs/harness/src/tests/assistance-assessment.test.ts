@@ -29,7 +29,7 @@ async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<Assessm
   await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Plan\nThe feature returns 2.\n');
   const candidates = scriptedCandidates(root, commits);
   const service = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
-    resolveCommit: async (_root, revision) => revision, assessor: createAssessor({ ...deps, candidates }) });
+    resolveCommit: async (_root, revision) => revision === 'HEAD' ? baseline : revision, currentHead: async () => baseline, isCleanRepository: async () => true, assessor: createAssessor({ ...deps, candidates }) });
   services.push(service);
   const job = await service.planStart({ planId: 'sample', commandId: 'start' });
   const assess = async (candidate: string, base: string, commandId: string, extra: Record<string, unknown> = {}) => {
@@ -97,6 +97,28 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(b.outcome.gate).toBe('clear');
     expect(visits).toEqual([first, repaired]);
     expect(service.assessmentDetail('sample', job.jobId, a.id).outcome?.gate).toBe('action-required');
+  });
+
+  it('passes stored outcome, advisory focus and supplemental context through the real recorded-iteration composition', async () => {
+    const { service, job } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        expect(input.prepared.message).toContain('Original intended outcome');
+        expect(input.prepared.message).toContain('Declared module focus: subs/harness');
+        expect(input.prepared.message).toContain('cross-module changes are allowed');
+        expect(input.prepared.message).toContain('Consumer verification completed');
+        const validated = input.prepared.validate(reviewReport(input.candidate));
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'recorded-review', eventCount: 1 };
+      },
+    });
+    const ids = { planId: 'sample', jobId: job.jobId };
+    const iteration = await service.iteration({ ...ids, action: 'start', brief: 'Original intended outcome', focusModule: 'subs/harness', commandId: 'work' });
+    const admitted = await service.iteration({ ...ids, action: 'end', iterationId: iteration.id, candidate: first,
+      acceptance: ['The feature returns 2.'], requirementDocuments: [], additionalContext: 'Consumer verification completed', commandId: 'candidate' });
+    expect((await outcome(service, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(service.assessmentDetail('sample', job.jobId, admitted.assessmentId).request.brief).toBe('Original intended outcome');
+    expect(service.assessmentResult('sample', job.jobId, admitted.assessmentId)).toMatchObject({ gate: 'clear', completedAt: expect.any(String) });
   });
 
   it('keeps an audit failure and original-baseline protected edit actionable across a later candidate', async () => {

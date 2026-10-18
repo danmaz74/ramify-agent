@@ -6,10 +6,11 @@ import { acceptedCommandSchema } from '../interfaces/protocol/jobs.js';
 import { checkFindingEventsField } from '../check-findings/records.js';
 import { commitRecord, recoverCommits } from '../jobs/commit.js';
 import { jobsDirectory } from '../jobs/records.js';
-import { assistedAssessmentSchema, assistedJobSchema, type AssistedAssessment, type AssistedJob } from './contracts.js';
+import { assistedAssessmentSchema, assistedIterationSchema, assistedJobSchema, type AssistedAssessment, type AssistedIteration, type AssistedJob } from './contracts.js';
 
 export const assistedEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('assisted-started'), command: acceptedCommandSchema }).strict(),
+  z.object({ type: z.literal('iteration-started'), command: acceptedCommandSchema, iteration: assistedIterationSchema }).strict(),
   z.object({ type: z.literal('assessment-requested'), command: acceptedCommandSchema, assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('assessment-transition'), assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('findings-recorded'), assessmentId: z.string(), key: z.string().min(1).optional(), hash: z.string().optional(), checkFindings: checkFindingEventsField }).strict(),
@@ -64,6 +65,14 @@ export class AssistedStore {
   }
 
   assessment(id: string): AssistedAssessment | undefined { return this.assessments().find(item => item.id === id); }
+
+  iterations(): AssistedIteration[] {
+    return this.ledger.replay().flatMap(line => line.transaction.event.type === 'iteration-started' ? [line.transaction.event.iteration] : []);
+  }
+
+  async startIteration(event: Extract<AssistedEvent, { type: 'iteration-started' }>): Promise<void> {
+    await commitRecord(this.ledger, { event, records: [{ path: `iterations/${event.iteration.id}.json`, id: event.iteration.id, revision: 1, body: event.iteration }] });
+  }
 
   async record(event: AssistedEvent, assessment?: AssistedAssessment): Promise<void> {
     if (assessment) {

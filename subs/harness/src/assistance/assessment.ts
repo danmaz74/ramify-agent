@@ -94,6 +94,9 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       } catch (error) { gaps.push(`Required document ${document.path} at ${document.revision} is unavailable: ${errorText(error)}`); }
     }
     const previous = request.previousAssessment === undefined ? undefined : context.assessments().find(item => item.id === request.previousAssessment);
+    const intendedOutcome = request.brief
+      + (request.focusModule === undefined ? '' : `\nDeclared module focus: ${request.focusModule ?? 'broader assignment'}. Focus is advisory; cross-module changes are allowed.`)
+      + (request.additionalContext === undefined ? '' : `\nAdditional context:\n${request.additionalContext}`);
     const followUp = previous === undefined ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Previous inspection is not evidence for this candidate.`;
     // The immutable candidate makes both unchanged dependencies and changed files inspectable.
     const principles = documents.documents.filter(document => document.kind === 'principle')
@@ -114,7 +117,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     let reviewed = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
-        briefing: { id: assessment.id, iteration: assessment.id, snapshot, outcome: request.brief + followUp, audit: { status: audit.state, detail: audit.detail },
+        briefing: { id: assessment.id, iteration: assessment.id, snapshot, outcome: intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
           requirements, principles, previousFindings: summaries(context.findingState()).map(item => ({ id: item.id, title: item.title, standing: item.standing })) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
@@ -159,11 +162,11 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const message = reconciliationFactsMessage({ id, owner: 'assisted execution', round: 1, source: { commit: snapshot.commit, tree: snapshot.tree },
         introduction: `Reconcile concerns for assisted job ${job.jobId}, assessment ${assessment.id}. Investigate uncertain claims using the candidate tools. Deduplicate by the same behavior or obligation, never just location. Do not edit source.`,
         authority: 'You may plan repairs, replace disproved judgments, or verify semantic fixes after inspection. You cannot waive or defer obligations, change protected commitments, or dismiss factual required failures. Leave unresolved material decisions for the coordinator. Do not promote stylistic nits or speculative optional work.',
-        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\nCaptured plan:\n${context.planMarkdown}\nIteration: ${request.brief}`,
+        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\nCaptured plan:\n${context.planMarkdown}\nIteration: ${intendedOutcome}`,
         requests: [{ request: assessment.id, kind: 'code/scope/design', iteration: assessment.id, candidate: snapshot.commit,
           attempt: reviewed.result.operationId, result: reviewed.result.status === 'submitted' ? (gaps.length ? 'partial; see assessment gaps' : 'complete') : `not verified: ${reviewed.result.reason}` }],
         attention, others: details.filter(detail => !entries.has(detail.summary.id)).map(detail => detail.summary),
-        iterations: [{ id: assessment.id, goal: request.brief + followUp, outcome: null }],
+        iterations: [{ id: assessment.id, goal: intendedOutcome + followUp, outcome: null }],
         earlier: context.assessments().filter(item => item.id !== assessment.id && item.outcome !== null).map(item => ({ id: item.id, next: item.outcome!.gate, brief: item.outcome!.summary })), refused: [],
       });
       const operations = await dependencies.operations();
