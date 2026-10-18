@@ -85,7 +85,7 @@ describe('D1–D3: optional explicit discovery records', () => {
       expect(loaded.submissionSchema).toContain('startingPoints');
       expect(loaded.procedure).toContain('startingPoints');
       expect(loaded.procedure).toContain('authorize no writes');
-      expect(loaded.procedure).toContain('No extra discovery turn');
+      expect(loaded.procedure).toMatch(/No (?:extra discovery turn|separate discovery phase) is required/u);
     }
     const local = packages.get('local-architect')!;
     expect(local.workOrientation?.submissionSchema).toContain('startingPoints');

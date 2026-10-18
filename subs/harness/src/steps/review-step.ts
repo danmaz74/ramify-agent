@@ -241,7 +241,7 @@ export async function prepareManualReview(inputs: ReviewStepInputs, context: {
     step, prepared, recorded,
     onStarted: async (invocation, session) => {
       if (!recorded) return true;
-      if (retained) return false;
+      if (retained) return true;
       const at = context.now();
       const appended = await run.mutex.run(async () => {
         if (stateOf()?.settledBy !== null) return false;

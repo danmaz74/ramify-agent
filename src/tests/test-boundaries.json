@@ -565,7 +565,7 @@
       "boundary": "Actual separate CLI clients, hosted protocol process, disconnection and kernel crash/restart",
       "whyFakeCannotProve": "Only distinct OS processes, actual HTTP commands and retained production ledger bytes establish client exit independence, retry, stop and interruption without replay.",
       "owningCases": [
-        "B17: actual clients disconnect, retry, stop and reconnect while the native host survives; crash recovery interrupts without replay"
+        "B17: actual clients disconnect, retry, stop and reconnect while the native host survives; host loss restarts the unfinished task after process settlement"
       ]
     },
     {

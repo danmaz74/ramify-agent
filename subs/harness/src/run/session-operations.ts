@@ -347,6 +347,20 @@ export class HarnessSessionOperations {
   async acceptance(runId: string, operationId: string): Promise<{ readonly input: unknown; readonly value: unknown; readonly schema: string; readonly submissionHash: string; readonly destination: Readonly<Record<string, unknown>>; readonly validator: Readonly<Record<string, unknown>> } | null> {
     const found = await this.read<{ runId: string; operationId: string; input: unknown; value: unknown; schema: string; submissionHash: string; destination: Readonly<Record<string, unknown>>; validator: Readonly<Record<string, unknown>> }>(this.path('acceptances', [runId, operationId]));
     if (found && (found.runId !== runId || found.operationId !== operationId || typeof found.schema !== 'string' || !/^[a-f0-9]{64}$/u.test(found.submissionHash))) throw new Error('Invalid harness acceptance correlation');
+    const intent = await this.read<Intent>(this.path('operations', [runId, operationId]));
+    const operation = await this.store.read(runId, `operation:${operationId}`);
+    const effects = operation?.body['effects'];
+    if (operation && !Array.isArray(effects)) throw new Error('Original effect journal is unreadable');
+    const submissions = (effects as SessionEffectRecord[] | undefined)?.filter(effect => effect.tool === intent?.task.submissionTool) ?? [];
+    if (!found) {
+      if ((effects as SessionEffectRecord[] | undefined)?.some(effect => effect.verdict?.accepted)) throw new Error(`Accepted submission ${operationId} has no acceptance correlation`);
+      return null;
+    }
+    if (!intent || intent.runId !== runId || intent.operationId !== operationId
+      || JSON.stringify(found.destination) !== JSON.stringify(intent.policy.destination)
+      || JSON.stringify(found.validator) !== JSON.stringify(intent.policy.validator)
+      || !submissions.some(effect => JSON.stringify(effect.input) === JSON.stringify(found.input)
+        && (effect.phase === 'intent' || effect.verdict?.accepted))) throw new Error(`Accepted submission ${operationId} does not match its durable task and submission`);
     return found;
   }
   /** Read source ancestry without admitting an operation or writing a packet. */

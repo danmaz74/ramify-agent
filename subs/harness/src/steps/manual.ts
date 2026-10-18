@@ -366,7 +366,7 @@ export async function settleManualAttempts(run: ManualRun, runner: InvocationRun
         });
       }
     }
-    return null;
+    return unsettledWriter(run.log);
   } finally { await operations.close(); }
 }
 

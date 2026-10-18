@@ -539,7 +539,8 @@ export class InvocationRunner<R extends RunnerRun> {
       }
     }
     await this.host.adoptContinuity?.(run, `manual-invocation-${run.log.count('invocation-started') + 1}`);
-    let current = request;
+    let current = previous && request.recoveryResume
+      ? this.restartTaskRequest(request, previous.data.invocation, 'Continuing the pending standalone task') : request;
     let retries = 0;
     for (;;) {
       const result = await this.runInvocation(run, agent, current);

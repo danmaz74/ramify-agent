@@ -277,7 +277,7 @@ test('B08: debug exchange preserves scope guard and records an out-of-scope refu
 });
 
 test('context obstruction during a debugger exchange recovers the pending task under current authority', async () => {
-  const opened = await ordinary([[{ kind: 'resource', resource: 'context', reason: 'Native summary unavailable' }], explain('Recovered original discussion')], {}, 1);
+  const opened = await ordinary([[{ kind: 'resource', resource: 'context', reason: 'Native summary unavailable' }], explain('Recovered original discussion')], {}, 0);
   await opened.service.execute(message(opened, 'Discuss normally'));
   const result = await settled(opened);
   expect(result).toMatchObject({ taskState: 'pending', outcome: 'ended', answer: 'Recovered original discussion' });
@@ -303,35 +303,40 @@ test.each(['stop', 'close'] as const)('B04 B14: %s after admission and before in
     expect(opened.service.debugResult(plan, opened.runId, command.commandId)?.status).toBe('stopped');
   } else {
     const closing = opened.service.close(); release.open(); await closing;
-    const restarted = await openUnchangedRuns(opened.root, { script: [] });
+    const restarted = await openUnchangedRuns(opened.root, { script: [], inputs: treeInputs(), gitScript: { head: `scenarios-of-${plan}` } });
     cleanups.push(() => restarted.service.close());
-    expect(restarted.recovery.interrupted).toEqual([`${plan}/${opened.runId}`]);
-    expect(restarted.service.debugResult(plan, opened.runId, command.commandId)).toMatchObject({ status: 'interrupted', taskState: 'terminal' });
+    expect(restarted.recovery.interrupted).toEqual([]);
+    await until(() => restarted.service.debugState(plan, opened.runId)?.state === 'paused' || restarted.service.getRun(plan, opened.runId)?.state === 'failed');
+    expect(restarted.service.debugState(plan, opened.runId), JSON.stringify({ run: restarted.service.getRun(plan, opened.runId), warnings: restarted.warnings, tail: restarted.service.events(plan, opened.runId)?.slice(-8) })).not.toBeNull();
+    expect(restarted.service.debugResult(plan, opened.runId, command.commandId)).toMatchObject({ status: 'admitted', taskState: 'pending' });
     expect(await restarted.service.execute(command)).toMatchObject({ commandId: command.commandId });
     expect(restarted.agent!.sessions).toHaveLength(0);
   }
   expect(opened.agent!.sessions.some(session => session.spec.role === 'engineer')).toBe(false);
 });
 
-test('B14: host shutdown during admitted model exchange retains interruption and never restores workflow or conversation', async () => {
+test('B14: host shutdown retains the debugger pause and admitted command without replaying the exchange', async () => {
   const started = gate();
   const opened = await ordinary([[{ kind: 'await', until: async () => { started.open(); await new Promise(() => undefined); } }]]);
   const command = message(opened, 'Persist admitted identity');
   const receipt = await opened.service.execute(command);
   await started.opened;
   await opened.service.close();
-  const restarted = await openUnchangedRuns(opened.root, { script: [] });
+  const restarted = await openUnchangedRuns(opened.root, { script: [], inputs: treeInputs(), gitScript: { head: `scenarios-of-${plan}` } });
   cleanups.push(() => restarted.service.close());
-  expect(restarted.recovery.interrupted).toEqual([`${plan}/${opened.runId}`]);
-  expect(restarted.recovery.effects).toEqual([]);
-  expect(restarted.service.debugResult(plan, opened.runId, command.commandId)).toMatchObject({ status: 'interrupted', taskState: 'terminal' });
+  expect(restarted.recovery.interrupted).toEqual([]);
+    await until(() => restarted.service.debugState(plan, opened.runId)?.state === 'paused' || restarted.service.getRun(plan, opened.runId)?.state === 'failed');
+    expect(restarted.service.debugState(plan, opened.runId), JSON.stringify({ run: restarted.service.getRun(plan, opened.runId), warnings: restarted.warnings, tail: restarted.service.events(plan, opened.runId)?.slice(-8) })).not.toBeNull();
+  expect(restarted.recovery.effects).toContainEqual(expect.stringContaining('continued unfinished tasks'));
+  expect(restarted.service.debugState(plan, opened.runId)?.pauseId).toBe(opened.pause.pauseId);
+  expect(restarted.service.debugResult(plan, opened.runId, command.commandId)).toMatchObject({ status: 'admitted', taskState: 'pending' });
   expect(await restarted.service.execute(command)).toEqual(receipt);
   expect(restarted.agent!.sessions).toHaveLength(0);
   expect(restarted.service.events(plan, opened.runId)!.some(event => event.sequence > opened.pause.cursor && event.type === 'iteration-closed')).toBe(false);
 });
 
 
-test('B08: unconfirmed debugger settlement retains pending recovery and blocks exchanges, writers and gates', async () => {
+test('B08: unconfirmed debugger settlement holds its outcome and blocks fresh exchanges and gates', async () => {
   const barrier = gate();
   const scripted = createScriptedAgent(declaringScenarios(byRole({
     'initial-architect': [submit(analysis([entry('review-note', module)]))],
@@ -345,20 +350,17 @@ test('B08: unconfirmed debugger settlement retains pending recovery and blocks e
       },
     }; } },
     policy: root => { const policy = testPolicy(root); return { ...policy, limits: { ...policy.limits, writerSettleMs: 20, stopSettleMs: 20 } }; },
-  }, 1);
+  }, 0);
   // Its intentional unconfirmed writer makes close retain the lock; this
   // fixture has no external process and asserts that refusal explicitly.
   cleanups.pop();
   cleanups.push(async () => { barrier.open(); await expect(opened.service.close()).rejects.toThrow('settlement was not confirmed'); });
   await opened.service.execute(message(opened, 'Use normal equipment.'));
-  await until(() => opened.service.events(plan, opened.runId)!.some(event => event.type === 'operation-recovery-paused'));
+  await until(() => opened.service.debugResult(plan, opened.runId, 'message-1')?.status === 'settled');
   const result = opened.service.debugResult(plan, opened.runId, 'message-1')!;
-  expect(result).toMatchObject({ taskState: 'pending', status: 'admitted' });
-  const inspection = await opened.service.recoveryInspection(plan, opened.runId);
-  expect(inspection).toMatchObject({ state: 'paused', canResume: false, continuity: { resource: 'stall', settlement: 'unknown', effects: 'unknown' } });
-  expect(inspection!.blockers.some(blocker => blocker.startsWith('Settlement:'))).toBe(true);
-  await expect(opened.service.execute(message(opened, 'Again', 'again', 1))).rejects.toMatchObject({ code: 'busy' });
-  await expect(opened.service.execute(resume(opened, 1))).rejects.toMatchObject({ code: 'busy' });
+  expect(result).toMatchObject({ taskState: 'terminal', status: 'settled', settlementConfirmed: false });
+  expect(opened.service.getRun(plan, opened.runId)?.writer.unsettled).not.toBeNull();
+  await expect(opened.service.execute(message(opened, 'Again', 'again', opened.service.debugState(plan, opened.runId)!.revision))).rejects.toMatchObject({ code: 'conflict' });
   expect(opened.service.getRun(plan, opened.runId)?.state).toBe('running');
   expect(scripted.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
   expect(opened.service.events(plan, opened.runId)!.some(event => event.sequence > opened.pause.cursor && event.type === 'gate-started')).toBe(false);

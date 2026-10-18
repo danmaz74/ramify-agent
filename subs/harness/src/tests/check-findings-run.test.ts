@@ -105,7 +105,7 @@ describe('CheckFindings of a driven run', () => {
 
     const restarted = await openRuns(root);
     cleanups.push(() => restarted.service.close());
-    expect(restarted.recovery.interrupted).toEqual([`${plan}/${runId}`]);
+    expect(restarted.recovery.interrupted).toEqual([]);
     expect(restarted.recovery.rematerialized).toEqual([`${plan}/${runId}: 2 record file(s)`]);
     expect(restarted.agent).toBeUndefined();
     expect(restarted.service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all' })).toEqual(list);
@@ -113,9 +113,8 @@ describe('CheckFindings of a driven run', () => {
     expect(JSON.parse(await readFile(runPath(root, plan, runId, checkFindingLayout.decision('cf-0001', 'cfd-0001')), 'utf8')))
       .toMatchObject({ schema: 'ramify-agent.check-finding-decision/1', checkFinding: 'cf-0001', revision: 2 });
 
-    // The recovered run is interrupted, and a redelivery after it changes nothing.
-    expect(await restarted.service.recordCheckFindings(plan, runId, { cause, commands: [report(concern())] }))
-      .toMatchObject({ kind: 'refused', refusal: { reason: 'run-ended' } });
+    // Projection-only reopening preserves the intentional review hold and its findings.
+    expect(onlyRun(restarted.service, plan)).toMatchObject({ state: 'running', phase: 'awaiting-review' });
     expect((await runEventsOnDisk(root, plan, runId)).filter(event => event.type === 'check-findings-recorded')).toHaveLength(2);
   }, 120_000);
 });

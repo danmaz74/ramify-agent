@@ -555,7 +555,7 @@ async function prepareReviewRequest(inputs: Extract<StepInputs, { role: 'reviewe
       ...(step.start.mode === 'fresh' && step.start.degraded !== undefined ? { degraded: step.start.degraded } : {}),
       toolName: step.submission.toolName, description: step.submission.description,
       inputSchema: step.submission.inputSchema, submissionSchema: step.submission.submissionSchema,
-      validate: prepared.validate,
+      validate: prepared.validate, singleAdmission: true,
       keep: () => finished('work-closed'),
       scope: readerScope, reader: true, workingDirectory: step.equipment.workingDirectory, absoluteMs: step.bounds.absoluteMs,
       equip: () => ({ builtinTools: [...step.equipment.builtinTools], tools: [...prepared.tools.definitions] }),

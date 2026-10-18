@@ -132,10 +132,12 @@ describe('a run started with the review stop', () => {
     const eventsPath = runPath(root, plan, receipt.jobId, runLayout.events);
     const firstLine = (await readFile(eventsPath, 'utf8')).split('\n')[0]!;
     await writeFile(eventsPath, `${firstLine}\n`);
-    const restarted = await openRuns(root, { script: [] });
+    const restarted = await openRuns(root);
     cleanups.push(() => restarted.service.close());
     expect((await types(root, receipt.jobId)).slice(0, 2)).toEqual(['job-started', 'document-manifest-committed']);
-    expect(restarted.recovery.interrupted).toEqual([`${plan}/${receipt.jobId}`]);
+    expect(restarted.recovery.interrupted).toEqual([]);
+    expect(restarted.agent).toBeUndefined();
+    expect(await types(root, receipt.jobId)).toEqual(['job-started', 'document-manifest-committed']);
   });
 
   test('recovery does not publish staged capture without job-started', async () => {
@@ -282,7 +284,7 @@ describe('a run started with the review stop', () => {
     const second = await openRuns(root, { script: [] });
     cleanups.push(() => second.service.close());
     expect(second.recovery.interrupted).toEqual([]);
-    expect(second.recovery.effects).toEqual([`${plan}/${receipt.jobId}: restored ordinary owning workflow from its original task correlations`]);
+    expect(second.recovery.effects).toEqual([`${plan}/${receipt.jobId}: continued unfinished tasks through ordinary execution`]);
     expect(onlyRun(second.service, plan)).toMatchObject({ state: 'running', phase: 'awaiting-review', review: 'not-reviewed' });
     expect(second.agent!.sessions).toHaveLength(0);
     expect(first.git.branch()).toBeNull();
@@ -300,10 +302,10 @@ describe('a run started with the review stop', () => {
     const restarted = await openRuns(root, { script: [], unchangedCheckpoints: [finalVerification] });
     cleanups.push(() => restarted.service.close());
     expect(restarted.recovery.interrupted).toEqual([]);
-    expect(restarted.recovery.effects).toEqual([`${plan}/${receipt.jobId}: restored ordinary owning workflow from its original task correlations`]);
+    expect(restarted.recovery.effects).toEqual([`${plan}/${receipt.jobId}: continued unfinished tasks through ordinary execution`]);
     expect(restarted.recovery.invocations).toEqual([]);
     expect(await types(root, receipt.jobId)).toEqual([
-      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested',
+      'job-started', 'document-manifest-committed', ...analysed, 'analysis-accepted', 'review-requested', 'job-continued',
     ]);
     expect(restarted.agent!.sessions).toHaveLength(0);
     expect(onlyRun(restarted.service, plan)).toMatchObject({ state: 'running', phase: 'awaiting-review', review: 'not-reviewed' });

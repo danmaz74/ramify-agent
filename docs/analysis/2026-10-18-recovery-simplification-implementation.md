@@ -39,12 +39,45 @@ capability, review and repair results remain because those decisions cannot be
 inferred from source files. Their optional conversation payloads are not execution
 prerequisites.
 
-The production TypeScript/TSX diff against the base removes 2,373 lines and adds
-952, including the new source files: a net reduction of 1,421 lines. This counts
+The production TypeScript/TSX diff against the base removes 2,378 lines and adds
+984, including the new source files: a net reduction of 1,394 lines. This counts
 changed production source only, excludes tests and documents, and does not count
 whole mixed workflow files as recovery savings. The shared policy implementation
 is 55 lines; candidate attribution is 47 lines. These measurements describe the
 change rather than establish its acceptance.
+
+## Quantitative comparison
+
+The comparison includes the audit corrections against the same base. Physical
+line counts include blank lines and comments. The affected-file comparison uses
+the union of all 43 changed production TypeScript/TSX files, including additions
+and deletions; it includes unchanged normal workflow code in those files.
+
+| Measure | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Production lines in affected files | 29,471 | 28,077 | −1,394 (4.7%) |
+| Production lines across `src/` and `subs/` | 91,766 | 90,372 | −1,394 (1.5%) |
+| AST decision sites in affected files | 4,987 | 4,537 | −450 (9.0%) |
+| `&&`, `\|\|`, `??` operator sites in affected files | 3,119 | 2,762 | −357 (11.4%) |
+| `RunService` method implementations | 296 | 283 | −13 (4.4%) |
+| `InvocationRequest` fields | 59 | 56 | −3 |
+| `service.ts` lines | 13,421 | 12,439 | −982 (7.3%) |
+| `restart-import.ts` lines | 353 | 132 | −221 (62.6%) |
+
+AST counts use the installed TypeScript 7 parser on both Git trees, with zero
+syntactic diagnostics. Decision sites count `if`, runtime ternaries, non-default
+`case` clauses, loops and `catch` clauses. Operator counts are separate. These
+are reproducible syntax counts, not formal cyclomatic complexity, execution-path
+counts, maintenance effort, performance, model-token savings or a recovery-only
+percentage. No runtime or token-cost improvement was measured.
+
+Two runtime-compatibility modules and five restart-import producer functions were
+removed; three legacy import readers remain. The five shared policy/backoff
+functions occupy 55 lines. Lifecycle ownership, accepted-result delivery and
+workflow scheduling remain with their owners; the module size does not represent
+all remaining recovery-related code. Compatibility schemas retain historical
+fields, so the reduced invocation interface is not a count of every public field
+removed.
 
 ## Findings addressed
 
@@ -130,7 +163,21 @@ witnesses are the exact cases registered in
 [test-boundaries.json](../../src/tests/test-boundaries.json). No live model or
 external administrative service was invoked.
 
-The configured repository audit has **not run**. It requires a clean committed
-candidate under [the testing contract](../testing.spec.md), and repository
-instructions require explicit authorization to commit. The implementation and
-local verification therefore do not claim configured audit qualification.
+The first configured audit, on `4b1a2c5d9ab878bf03d2401c83492db1ea68cb73`,
+automatically selected full scope. Patch integrity, type checking, scenarios,
+structural checking and the web build passed. The regression suite reported
+3,711 passed, 60 failed and two skipped tests. Its evidence remains at
+`refs/audited/runs/2026-10-18T07-46-56Z-4b1a2c5d9`.
+
+The corrective changes preserve the original accepted submission and task
+binding, avoid delivering consumed capability/reconciliation decisions again,
+retain pending contract work, and keep deliberate debugger pauses. Tests now
+exercise ordinary continuation and preservation of pending work without an
+execution agent, rather than requiring synthetic interruption or failed-review
+records. Corrected focused suites passed, including 43 review/reconciliation
+cases, 120 session/context cases and the native debugger process witness.
+
+The configured audit must be repeated on the corrective commit. The authoritative
+result for any committed candidate is its `git notes --ref=audit show <commit>`
+entry and associated `refs/audited` report. Local focused runs do not substitute
+for that qualification.

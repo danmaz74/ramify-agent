@@ -4498,7 +4498,7 @@ export class RunService {
       if (reentry.action === 'wait' || !retry) {
         const ready = await this.waitOperationRecovery(run, { kind: 'invocation', role: request.role, work: request.work, invocation: result.id, start: { mode: 'fresh' }, source: null },
           result.interruptionEvidence ?? { classification: 'unknown', diagnostic: reentry.action === 'wait' ? reentry.reason : result.error ?? result.resourceReason ?? 'The provider is unavailable' }, [result.id], replacements);
-        if (!ready) return { ...result, ended: 'stopped', value: undefined, outcomeKind: 'stopped' };
+        if (!ready) return result;
         replacements = 0;
       } else {
         const delay = taskRetryDelay({ attempt: replacements, classification: interruption, retryAfterMs: result.interruptionEvidence?.retryAfterMs });
@@ -4690,8 +4690,15 @@ export class RunService {
     if (request.role === 'capability-architect') return null;
     const events = run.log.all('invocation-started').filter(event => event.sequence <= (run.restorationSequence ?? run.log.version)
       && !run.restoredInvocations.has(event.data.invocation) && event.data.role === request.role
-      && !(request.role === 'local-architect' && (run.log.all('iteration-assigned').some(assigned => assigned.data.invocation === event.data.invocation && committedRecords(run.log.ledger.replay()).results.has(assigned.data.iteration))
+      && !run.log.all('reconciliation-assessed').some(assessment => assessment.data.invocation === event.data.invocation)
+      && !(request.role === 'global-fork' && run.log.all('fork-returned-partial').some(partial => partial.data.invocation === event.data.invocation))
+      && !(request.role === 'local-architect' && (run.log.all('work-item-yielded').some(yielded => yielded.data.invocation === event.data.invocation)
+        || run.log.all('iteration-assigned').some(assigned => assigned.data.invocation === event.data.invocation && committedRecords(run.log.ledger.replay()).results.has(assigned.data.iteration)
+          && !run.log.all('contract-requested').some(contract => contract.data.requestedBy === assigned.data.iteration
+            && !committedRecords(run.log.ledger.replay()).results.has(contract.data.iteration)))
         || run.log.all('gate-attempted').some(attempt => { const gate = gateAttemptSchema.safeParse(this.committedBody(run, runLayout.gate(attempt.data.gate))); return gate.success && gate.data.proposedBy === event.data.invocation && gate.data.verdict !== 'passed'; })))
+      && (request.originalInvocation !== undefined || !run.log.all('invocation-started').some(later => later.sequence > event.sequence
+        && later.sequence <= (run.restorationSequence ?? run.log.version) && later.data.role === event.data.role && canonicalJson(later.data.work) === canonicalJson(event.data.work)))
       && (request.originalInvocation === undefined || event.data.invocation === request.originalInvocation)
       && (canonicalJson(event.data.work) === canonicalJson(request.work) || request.role === 'nonfunctional-coordinator' && event.data.work.task === undefined)
       && run.log.all('invocation-ended').some(ended => ended.data.invocation === event.data.invocation && ended.data.ended === 'submitted'));
@@ -5513,7 +5520,7 @@ export class RunService {
     const attempts: string[] = [];
     for (const started of run.log.all('invocation-started')) {
       if (started.data.role !== 'local-architect' || started.data.work.workItem !== item.id) continue;
-      const record = invocationSchema.parse(this.committedBody(run, runLayout.invocation(started.data.invocation)));
+      const record = this.invocationRecord(run, started.data.invocation).body;
       if ((record.prompt.manifest?.entries as Array<{ key?: string }> | undefined)?.some(entry => entry.key === `tool:${workOrientationToolName}`)) attempts.push(started.data.invocation);
     }
     if (orientation === undefined) {
@@ -5887,7 +5894,9 @@ export class RunService {
     // the architect to assign verification; the requirements stay open until
     // that verification replaces the fake and passes, and waiting for them
     // here would wait for this item itself.
-    if (resumes !== null) {
+    const previousResume = run.log.all('work-item-resumed').filter(event => event.data.workItem === item.id).at(-1);
+    if (resumes !== null && !(run.restoring && previousResume !== undefined && canonicalJson(previousResume.data.requirements) === canonicalJson(resumes)
+      && !run.log.all('work-item-yielded').some(event => event.data.workItem === item.id && event.sequence > previousResume.sequence))) {
       await this.write(run, { type: 'work-item-resumed', data: { workItem: item.id, requirements: [...resumes], globalTarget: captureGlobalTarget({ planId: run.record.planId, runId: run.record.jobId }, this.globalContextOf(run)) } });
       await this.afterWrite('work-item-resumed', run.record.jobId);
       if (this.ignoring(run)) return null;
@@ -6036,7 +6045,7 @@ export class RunService {
 
     if (run.restoring && continuing !== 'capability-returned') {
       const main: typeof run.log.events[number][] = [];
-      for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' && event.data.work.workItem === item.id)) {
+      for (const event of run.log.all('invocation-started').filter(event => event.data.role === 'local-architect' && event.data.work.workItem === item.id && event.data.work.request === undefined)) {
         const record = this.invocationRecord(run, event.data.invocation).body;
         const declarations = record.prompt.manifest?.entries as Array<{ key?: string }> | undefined;
         if (!declarations || declarations.some(entry => entry.key === `tool:${localArchitectToolName}`)) main.push(event);
@@ -9072,6 +9081,9 @@ export class RunService {
     assignedIndex: ArchitectIndex | null,
     resume?: { readonly session: SessionId; readonly point: string; readonly guidance: string; readonly priorInvocation: string },
   ): Promise<IterationOutcome | null> {
+    // The capability owner already delivered this accepted request to its child.
+    // Its handback continues the unfinished assignment with a new engineer turn.
+    if (resume !== undefined) run.restoredInvocations.add(resume.priorInvocation);
     const savedResult = committedRecords(run.log.ledger.replay()).results.get(assignment.id);
     if (run.restoring && savedResult) {
       for (const invocation of [...savedResult.invocations].reverse()) {

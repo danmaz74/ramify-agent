@@ -304,7 +304,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
     expect(await session.settled()).toBe('settled'); expect(submissions).toBe(0);
     expect(await adapter.close()).toBe(true);
   });
-  test.each(['accepted', 'unfinished'] as const)('ordinary service restart restores the exact %s intake phase before another task', async phase => {
+  test.each(['accepted', 'unfinished'] as const)('ordinary service restart delivers accepted intake or replaces its %s unfinished attempt', async phase => {
     const fixture = await copyFixture(); roots.push(fixture.root); await installTestRunner(fixture.root);
     const git = scenarioGit(fixture.root, { head: 'restoration-source', after: 'restoration-source', commits: [], recovered: [] });
     let reached = false; let fault = true; const intentFaults: FaultHit[] = [];
@@ -327,13 +327,13 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
       await second.service.settled('review-notes', receipt.jobId);
       const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
       expect(events.filter(event => event.type === 'invocation-started' && event.data.invocation === 'inv-0001')).toHaveLength(1);
-      expect(events.filter(event => event.type === 'invocation-ended' && event.data.invocation === 'inv-0001')).toEqual([expect.objectContaining({ data: expect.objectContaining({ ended: 'submitted' }) })]);
+      expect(events.filter(event => event.type === 'invocation-ended' && event.data.invocation === 'inv-0001')).toEqual([expect.objectContaining({ data: expect.objectContaining({ ended: phase === 'accepted' ? 'submitted' : 'failed' }) })]);
       expect(resumed.sessions.filter(record => record.spec.role === 'catalog-extractor')).toHaveLength(phase === 'accepted' ? 0 : 1);
       expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
       expect(git.unexpected).toEqual([]);
     } finally { await second.service.close(); }
   }, 120_000);
-  test.each(['original', 'missing', 'raw-input', 'normalized-value', 'file-bytes', 'validator', 'destination'] as const)('terminal service Retry authenticates %s acceptance without a second accept or model dispatch', async variant => {
+  test.each(['original', 'missing', 'raw-input', 'normalized-value', 'file-bytes', 'validator', 'destination'] as const)('restart authenticates %s durable acceptance before delivery or replacement dispatch', async variant => {
     const fixture = await copyFixture(); roots.push(fixture.root); await installTestRunner(fixture.root);
     const git = scenarioGit(fixture.root, { head: 'terminal-source', after: 'terminal-source', commits: [], recovered: [] });
     let reached = false;
@@ -357,6 +357,14 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
     }
     await staleCrashLock(fixture.root);
     const resumed = createScriptedAgent(declaringScenarios(spec => spec.role === 'initial-architect' ? [{ kind: 'fail', error: 'Controlled stop after original accepted task' }] : []));
+    if (variant !== 'original') {
+      await expect(openRuns(fixture.root, { git, agent: resumed })).rejects.toThrow(/Accepted submission|Accepted destination/u);
+      expect(resumed.sessions).toHaveLength(0);
+      const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
+      expect(events.filter(event => event.type === 'invocation-started')).toHaveLength(1);
+      expect(events.some(event => event.type === 'invocation-ended')).toBe(false);
+      return;
+    }
     const second = await openRuns(fixture.root, { git, agent: resumed });
     try {
       await second.service.settled('review-notes', receipt.jobId);
@@ -364,8 +372,9 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
       expect(resumed.sessions.filter(record => record.spec.role === 'catalog-extractor')).toHaveLength(0);
       expect(events.filter(event => event.type === 'invocation-started' && event.data.invocation === 'inv-0001')).toHaveLength(1);
       const ended = events.find(event => event.type === 'invocation-ended' && event.data.invocation === 'inv-0001');
-      if (variant === 'original') { expect(ended).toMatchObject({ data: { ended: 'submitted' } }); const start = events.find(event => event.type === 'invocation-started' && event.data.invocation === 'inv-0001')!; if (start.type === 'invocation-started') await expectOriginalTranscript(fixture.root, receipt.jobId, 'inv-0001', start.data.session); }
-      else { expect(ended).toBeUndefined(); expect(resumed.sessions).toHaveLength(0); expect(second.service.getRun('review-notes', receipt.jobId)?.state).toBe('failed'); }
+      expect(ended).toMatchObject({ data: { ended: 'submitted' } });
+      const start = events.find(event => event.type === 'invocation-started' && event.data.invocation === 'inv-0001')!;
+      if (start.type === 'invocation-started') await expectOriginalTranscript(fixture.root, receipt.jobId, 'inv-0001', start.data.session);
       expect(git.unexpected).toEqual([]);
     } finally { await second.service.close(); }
   }, 120_000);
@@ -419,7 +428,7 @@ function interceptCommits(store: SessionStore, before: (input: CommitInput, path
     try {
       await restarted.service.settled('review-notes', runId);
       const events = await runEventsOnDisk(fixture.root, 'review-notes', runId);
-      expect(restarted.service.getRun('review-notes', runId)?.state, JSON.stringify(events.at(-1)) + restarted.warnings.join('\n')).toBe('completed');
+      expect(restarted.service.getRun('review-notes', runId)?.state, JSON.stringify(events.slice(-32)) + restarted.warnings.join('\n')).toBe('completed');
       expect(events.filter(event => event.type === 'invocation-started' && event.data.invocation === operation)).toHaveLength(1);
       expect(events.filter(event => event.type === 'invocation-ended' && event.data.invocation === operation)).toHaveLength(1);
       const originalStart = events.find(event => event.type === 'invocation-started' && event.data.invocation === operation)!;

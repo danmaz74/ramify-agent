@@ -666,7 +666,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     cleanups.push(() => reopened.service.close());
     expect(reopened.recovery.effects, JSON.stringify({ recovery: reopened.recovery,
       tail: (await runEventsOnDisk(fixture.root, 'need', receipt.jobId)).slice(-12) })).toContainEqual(
-      expect.stringContaining('resumed capability coordination'));
+      expect.stringContaining('continued unfinished tasks through ordinary execution'));
     await until(() => (reopened.service.events('need', receipt.jobId) ?? []).some(event =>
       event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01') ||
       (reopened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed'), 45_000);
