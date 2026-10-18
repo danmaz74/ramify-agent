@@ -9,6 +9,20 @@ Produce a practical implementation plan whose iteration boundaries reduce repeat
 
 This skill prepares the plan for the [coordinator skill](../ramify-agent-coordinate/SKILL.md). Astra owns the proposed decomposition and can use native Sol investigation when useful. Planning needs ordinary repository inspection and the installed Ramify tools; no RA MCP connection or registered job is required. Planning alone does not launch implementation or call `plan_start`.
 
+## Understand the module structure before decomposing work
+
+Read the shared [module orientation](../ramify-agent-module-work/references/module-orientation.md). It describes the module tree, declarations and exposures, generated ordinary/testing API catalogs, refresh commands and deeper toolkit documentation. Apply it to the target worktree rather than assuming this harness repository's module names or layout.
+
+For planning, distinguish three questions: where relevant behavior already exists, whether each intended consumer can import it, and which owner should implement any missing behavior. A module's `src/` contains its own implementation; child modules live beside it under `subs/` and have their own responsibilities and declarations. Grouping a directory subtree into one iteration does not make it one owner. Read module purposes and relevant `module.ramify` declarations before proposing responsibility or exposure changes.
+
+Use `.ramify-architect/README.md` at the project root for discovery, then narrow to relevant modules' `module.json`, `behavior.jsonl` and `tests.jsonl` records. Inspect defining source and consumers to confirm behavior and integration obligations. Refresh with the installed toolkit from the target project root, for example `node_modules/.bin/ramify materialize --view architect --view api --from <consumer-module-path>/src`. Check generated metadata for revision and coverage. These views describe the inspected worktree; a later source change can invalidate an earlier conclusion.
+
+For access analysis, name the consuming module and source area. Its `src/.ramify/` catalog establishes ordinary-source availability; `src/tests/.ramify/` establishes testing availability. Neither the project-wide architect map, an existing import nor a TypeScript export alone establishes a permitted dependency. If a symbol is missing, check coverage before concluding it is unavailable. For an unavailable interface, inspect the defining owner, the requester and the ancestor declarations between them, including relevant tags and re-exposures. Record which definitions would need to change separately from what is available today. Avoid inventing exposure syntax: consult the linked declaration specification when proposing exact lines.
+
+Prefer existing behavior where it satisfies the outcome. When existing functionality needs to serve different callers and a thin wrapper does not fit, consider extracting a shared implementation with adapters at the callers. Choose ownership by responsibility and the knowledge that should stay together, rather than placing code wherever it is easiest to import. An exposure change alone does not justify a new module or a separate iteration. Include provider, consumer, declaration and integration-test changes in the impact analysis, then choose boundaries that minimize repeated discovery and handoffs.
+
+For deeper questions, consult the toolkit's [access analysis](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/.claude/skills/module-architect/references/access.md) and [responsibility placement](https://github.com/danmaz74/ramify/blob/1d8a43fc6ba5c214f2a53d0411f4d7f832e70eb5/.claude/skills/module-architect/references/placement.md) guidance. Preserve adopted principles and sealed inputs when comparing designs; module ownership itself is not an editing restriction.
+
 ## Establish requirements and module impact
 
 Read the target project's instructions, the request or existing plan, and applicable principles and specifications. Preserve approved outcomes, acceptance, compatibility and genuine ordering constraints. Distinguish these commitments from suggested implementation choices. Preserve document status and source references; a principles filename does not establish adoption. Identify protected commitments a proposed design would need to change, without editing them to fit the plan.
@@ -24,6 +38,14 @@ The impact overview should explain:
 - How composed behavior will be verified, including obligations spanning iterations.
 
 Keep this overview brief and proportionate to the change. For substantial investigation, delegate bounded questions to native Sol when available and useful: affected contracts, reuse options, integration evidence and plausible iteration boundaries. Request a concise synthesis with source references and uncertainties, not source dumps. Astra reconciles the conclusions; independent investigations are worthwhile only when they avoid duplicated orientation. Honor the user's model and delegation preferences.
+
+## Brief Sol planning investigators
+
+When delegating an investigation, give Sol the bounded question, intended outcome, target worktree root, likely owners and consumers, applicable principles/specifications and protected inputs, and relevant source or test starting points. Include resolved absolute paths to this skill and the shared module-orientation reference, and explicitly ask the investigator to read the orientation and this skill's module-structure and impact-analysis sections before investigating. Do not assume parent context or skill discovery supplies them. The assignment is investigation; it does not start implementation, register an RA execution or require further delegation.
+
+For a module-focused investigation, use that module's `src/` as the initial CWD, retaining the absolute project and module roots. If the launcher cannot set CWD, instruct Sol to set the working directory on each shell call and resolve file-tool paths explicitly; use the module root if `src/` is absent. Broad investigations can start at the project root. Toolkit materialization and project-wide commands run from the project root. Sol may inspect other owners as needed.
+
+Ask for a concise answer with source references: reusable behavior, current consumer availability versus proposed exposure changes, affected owners and contracts, integration evidence, uncertainties, and the implications for iteration boundaries. Include only items relevant to the assigned question. The investigator should carry view-coverage limitations into its answer instead of interpreting missing search results as proof of absence.
 
 ## Choose useful iteration boundaries
 

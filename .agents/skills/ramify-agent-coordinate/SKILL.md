@@ -23,6 +23,8 @@ Retain the target root, `planId`, `jobId`, original baseline and latest assessme
 
 ## Choose and delegate an iteration
 
+Read the shared [module orientation](../ramify-agent-module-work/references/module-orientation.md) before choosing module focus or briefing workers. Use module purposes and the project-wide architect view for discovery; check the consuming module's ordinary or testing API catalog before assuming it can import an interface. A TypeScript export or a symbol in the architect view alone does not establish that availability. Keep these distinctions in worker briefs; delegate deeper exposure analysis when needed.
+
 Choose a coherent behavior and its verification, rather than treating every worker turn as an iteration. Use module focus when one owner's internals dominate the reasoning and external contracts are stable. Keep an assignment broader when interfaces must be discovered together, integration dominates debugging, or a small mechanical change spans several owners. Do not calculate a score or require a worker per module.
 
 Give workers the [module-work skill](../ramify-agent-module-work/SKILL.md), including its resolved path when it is not discoverable in their session. It also supports broader assignments. A useful short brief contains:
@@ -32,7 +34,7 @@ Give workers the [module-work skill](../ramify-agent-module-work/SKILL.md), incl
 - Applicable principles and specifications, preserving status and source references; relevant protected paths.
 - Known consumer/provider obligations, overlapping writers and who verifies integration.
 
-For a module-focused worker, supply the absolute target worktree root, module root and `<module-root>/src` working directory, all in the intended worktree. Set the worker's launch CWD there when supported. If the native launcher has no CWD option, explicitly instruct the worker to use that directory for its shell calls and resolve file-tool paths against it; do not assume a shell `cd` persists across calls. The worker skill explains the module layout and generated API catalogs. Project-wide commands use the project root explicitly. For a broader assignment, choose the project root or a useful common starting directory; an absent module `src/` uses the module root until implementation requires source there.
+For a module-focused worker, supply the absolute target worktree root, module root and `<module-root>/src` working directory, all in the intended worktree. Set the worker's launch CWD there when supported. If the native launcher has no CWD option, explicitly instruct the worker to use that directory for its shell calls and resolve file-tool paths against it; do not assume a shell `cd` persists across calls. The worker skill requires the same shared module orientation. Project-wide commands use the project root explicitly. For a broader assignment, choose the project root or a useful common starting directory; an absent module `src/` uses the module root until implementation requires source there.
 
 For example: “Implement parser validation in the evidence module because its internals dominate this change and the caller contract is stable. Preserve blob compatibility; add regression cases for malformed records and verify the protection consumer. Edit that consumer if necessary.”
 
