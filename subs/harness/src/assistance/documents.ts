@@ -63,8 +63,6 @@ export async function readAssistanceDocument(input: {
 }): Promise<string> {
   const document = input.documents.documents.find(document => document.id === input.id);
   if (!document) throw new Error('No retained document at that identity');
-  // Existing inline evidence stays available even if its Git source is no longer readable.
-  if (document.text !== undefined) return document.text;
   const captured = input.documents.manifest.documents.find(item => item.id === document.id);
   if (!captured || captured.path !== document.path || captured.sha256 !== document.sha256) throw new Error('Retained document identity differs from its manifest');
   let bytes: Uint8Array;
@@ -79,6 +77,27 @@ export async function readAssistanceDocument(input: {
     throw new Error(`Document ${captured.path} differs from its retained content identity`);
   }
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+}
+
+/** Historical text remains a record, but only verified source may be supplied as exact evidence. */
+export async function qualifyLegacyDocuments(input: {
+  readonly projectRoot: string; readonly planMarkdown: string; readonly documents: AssistanceDocuments;
+  readonly candidates?: CandidateSource;
+}): Promise<AssistanceDocuments> {
+  if (!input.documents.documents.some(document => document.text !== undefined)) return input.documents;
+  const unreadablePrinciples = [...input.documents.gaps.unreadablePrinciples];
+  const unreadableDocuments = [...(input.documents.gaps.unreadableDocuments ?? [])];
+  for (const document of input.documents.documents) {
+    if (document.text === undefined) continue;
+    try { await readAssistanceDocument({ ...input, id: document.id }); }
+    catch (error) {
+      const reason = `Historical inline text could not be verified: ${error instanceof Error ? error.message : String(error)}`;
+      if (document.kind === 'principle') unreadablePrinciples.push({ path: document.path, reason });
+      else unreadableDocuments.push({ path: document.path, reason, judgment: 'unjudged' });
+    }
+  }
+  return { ...input.documents, documents: input.documents.documents.map(({ text: _historicalText, ...document }) => document),
+    gaps: { ...input.documents.gaps, unreadablePrinciples, unreadableDocuments } };
 }
 
 /** Present a candidate tree to existing document discovery without reading the worktree. */

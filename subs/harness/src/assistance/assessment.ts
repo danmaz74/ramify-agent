@@ -13,7 +13,7 @@ import { reconciliationSubmissionSchema, validateReconciliationForExecution, typ
 import type { Assessor, AssistedEvidenceReference, AssistedOutcome } from './contracts.js';
 import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
-import { captureAssistanceDocuments, readAssistanceDocument, readCandidateDocument, type AssistanceDocuments } from './documents.js';
+import { captureAssistanceDocuments, qualifyLegacyDocuments, readAssistanceDocument, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
 import { acceptedProtectionExceptions, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries } from './findings.js';
@@ -104,6 +104,17 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       await record('documents', { schema: 'ramify-agent.assisted-document-reference/1', baselineCommit: baseline,
         artifact: await context.retainEvidence(documents) } satisfies DocumentsReference);
     }
+    if (documents.baselineCommit !== baseline) throw new Error('Retained documents name another baseline');
+    const previousPrincipleGaps = documents.gaps.unreadablePrinciples.length;
+    const previousDocumentGaps = documents.gaps.unreadableDocuments?.length ?? 0;
+    documents = await qualifyLegacyDocuments({ projectRoot, planMarkdown: context.planMarkdown, documents, candidates: source });
+    const legacyEvidenceChanged = documents.gaps.unreadablePrinciples.length !== previousPrincipleGaps
+      || (documents.gaps.unreadableDocuments?.length ?? 0) !== previousDocumentGaps;
+    // Existing finding operation identities cannot be repurposed for another review.
+    const cachedReview = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
+    if (legacyEvidenceChanged && cachedReview?.result.status === 'submitted') {
+      gaps.push('Retained review predates verification of unavailable historical document evidence; a fresh assessment must determine its applicability.');
+    }
     gaps.push(...documents.gaps.unreadablePrinciples.map(gap => `Principle evidence ${gap.path} is unavailable: ${gap.reason}`));
     const referenceQualifications = [
       ...documents.gaps.missing.map(gap => ({ ...gap, from: documents.manifest.documents.find(document => document.id === gap.from)?.path ?? gap.from })),
@@ -141,8 +152,12 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         if (document) return { ...document, text: await readAssistanceDocument({ projectRoot, planMarkdown: context.planMarkdown,
           documents, id: document.id, candidates: source }) };
         for (const item of context.assessments()) for (const stage of item.stages)
-          if (`assessments/${item.id}/stages/${stage.name}.json` === ref) return isDocumentsReference(stage.evidence)
-            ? context.readEvidence(stage.evidence.artifact) : stage.evidence;
+          if (`assessments/${item.id}/stages/${stage.name}.json` === ref) {
+            if (stage.name !== 'documents') return stage.evidence;
+            if (item.id === assessment.id) return documents;
+            const historical = isDocumentsReference(stage.evidence) ? await context.readEvidence(stage.evidence.artifact) as AssistanceDocuments : stage.evidence as AssistanceDocuments;
+            return qualifyLegacyDocuments({ projectRoot, planMarkdown: context.planMarkdown, documents: historical, candidates: source });
+          }
         throw new Error('No retained evidence at that reference');
       },
     });

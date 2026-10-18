@@ -9,6 +9,7 @@ import { scriptedCandidates, type ScriptedCommit } from './helpers/candidates.js
 import { AssistanceService } from '../assistance/service.js';
 import { createAssessor, type AssessmentDependencies } from '../assistance/assessment.js';
 import type { AssistedProtection } from '../assistance/contracts.js';
+import type { AssistanceDocuments } from '../assistance/documents.js';
 
 const baseline = 'a'.repeat(40), first = 'b'.repeat(40), repaired = 'c'.repeat(40);
 const roots: string[] = [], services: AssistanceService[] = [];
@@ -184,6 +185,78 @@ describe('assisted assessment pipeline with real service records', () => {
     expect((await outcome(reopened, job.jobId, admitted.assessmentId)).gate).toBe('clear');
     expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).requestedAt).toBe(detail.requestedAt);
     expect(JSON.parse(await readFile(join(directory, reference.artifact.path), 'utf8'))).toEqual(artifact);
+  });
+
+  it.each(['valid', 'lossy-principle', 'lossy-companion', 'cached-lossy-companion'] as const)('verifies resumed legacy inline documents without changing their historical records (%s)', async scenario => {
+    const lossy = scenario !== 'valid';
+    const root = await mkdtemp(join(tmpdir(), 'assistance-legacy-documents-')); roots.push(root);
+    await mkdir(join(root, 'plans/sample'), { recursive: true });
+    const planMarkdown = '# Plan\nThe feature returns 2. [Companion](../../docs/companion.md)\n';
+    await writeFile(join(root, 'plans/sample/plan.md'), planMarkdown);
+    const historicalText = '\uFFFD';
+    const bodies = { 'plans/sample/plan.md': planMarkdown, 'docs/companion.md': historicalText, 'quality.principles.md': historicalText };
+    const entries = Object.entries(bodies).map(([path, text], index) => ({ id: `doc-${String(index + 1).padStart(3, '0')}`, path,
+      kind: path.endsWith('.principles.md') ? 'principle' as const : 'plan' as const, sha256: createHash('sha256').update(text).digest('hex'), bytes: Buffer.byteLength(text),
+      storedAt: index === 0 ? 'input/plan.md' : `input/documents/doc-${String(index + 1).padStart(3, '0')}.bin`, revision: { commit: null, dirty: null } }));
+    const legacy: AssistanceDocuments = { baselineCommit: baseline,
+      manifest: { schema: 'ramify-agent.document-manifest/1', root: 'doc-001', documents: entries, missing: [], principlesScan: { status: 'complete', unreadable: [] } },
+      documents: entries.map(entry => ({ id: entry.id, path: entry.path, kind: entry.kind, sha256: entry.sha256,
+        text: entry.id === 'doc-001' ? 'Historical root copy is not authority' : historicalText, adoption: 'undetermined' })),
+      gaps: { missing: [], unreadablePrinciples: [] } };
+    const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+      resolveCommit: async (_root, revision) => revision, assessor: async context => {
+        await context.checkpoint('documents', legacy);
+        if (scenario === 'cached-lossy-companion') await context.checkpoint('review-accepted', { result: { status: 'submitted', value: reviewReport(first), operationId: 'legacy-review', sessionId: 'legacy-session', eventCount: 1 }, bindings: [], read: [], inspected: [] });
+        throw new Error('Legacy executor stopped');
+      } });
+    services.push(old);
+    const job = await old.planStart({ planId: 'sample', commandId: 'register-legacy' });
+    const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first, kind: 'iteration',
+      brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'legacy-assess' });
+    await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    const original = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    await old.close();
+    const files = { ...source('0', baseline).files, ...bodies };
+    const candidates = scriptedCandidates(root, { [baseline]: { ...source('0', baseline), files }, [first]: { ...source('2', baseline), files: { ...files, 'src/feature.ts': 'export const feature = 2;\n' } } });
+    const listed = candidates.treeEntries.bind(candidates);
+    vi.spyOn(candidates, 'treeEntries').mockImplementation(async (project, commit) => (await listed(project, commit)).map(entry => {
+      if (entry.path !== 'docs/companion.md' && entry.path !== 'quality.principles.md') return entry;
+      const invalid = scenario === 'lossy-principle' || lossy && entry.path === 'docs/companion.md';
+      const bytes = invalid ? Buffer.from([0xf0, 0x90, 0x80]) : Buffer.from(historicalText);
+      return { ...entry, bytes: bytes.length, objectId: createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') };
+    }));
+    const resumed = await AssistanceService.open({ projectRoot: root, assessor: createAssessor({ candidates, operations: unusedOperations,
+      audit: async input => audit(input.candidateCommit), review: async input => {
+        expect(scenario).not.toBe('cached-lossy-companion');
+        const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
+        const call = (ref: string) => tool.execute({ ref }, new AbortController().signal);
+        const capturedPlan = JSON.parse((await call('baseline:plans/sample/plan.md')).text) as { content: string };
+        expect(JSON.parse(capturedPlan.content).text).toBe(planMarkdown);
+        for (const path of ['docs/companion.md', 'quality.principles.md']) {
+          const answer = await call(`baseline:${path}`);
+          if (scenario === 'lossy-principle' || lossy && path === 'docs/companion.md') expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('could not be decoded exactly') });
+          else expect(JSON.parse(JSON.parse(answer.text).content).text).toBe(historicalText);
+        }
+        const documentStage = JSON.parse((await call(`assessments/${admitted.assessmentId}/stages/documents.json`)).text) as { content: string };
+        const projection = JSON.parse(documentStage.content) as AssistanceDocuments;
+        expect(projection.documents.every(document => document.text === undefined)).toBe(true);
+        if (scenario === 'lossy-principle') expect(projection.gaps.unreadablePrinciples).toMatchObject([{ path: 'quality.principles.md' }]);
+        if (lossy) expect(projection.gaps.unreadableDocuments).toMatchObject([{ path: 'docs/companion.md' }]);
+        const report = reviewReport(input.candidate);
+        const checked = input.prepared.validate({ ...report, requirements: report.requirements.map(answer => lossy && answer.ref === 'captured-plan'
+          ? { ...answer, outcome: 'uncertain', explanation: 'Required legacy companion text is unavailable.', evidencePaths: [] } : answer) });
+        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
+        return { status: 'submitted', value: checked.value, operationId: input.operationId, sessionId: 'legacy-source-review', eventCount: 1 };
+      } }) });
+    services.push(resumed);
+    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(original.revision));
+    const result = await outcome(resumed, job.jobId, admitted.assessmentId);
+    expect(result.gate).toBe(lossy ? 'incomplete' : 'clear');
+    if (scenario === 'lossy-principle') expect(result.gaps.join(' ')).toContain('Principle evidence quality.principles.md is unavailable');
+    if (scenario === 'cached-lossy-companion') expect(result.gaps.join(' ')).toContain('Retained review predates verification');
+    else if (lossy) expect(result.gaps.join(' ')).toContain('Required legacy companion text is unavailable');
+    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'documents')?.evidence).toEqual(legacy);
   });
 
   it('refuses replacement characters from malformed candidate bytes as verbatim user-decision authority', async () => {

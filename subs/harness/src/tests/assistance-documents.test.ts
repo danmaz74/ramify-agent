@@ -107,7 +107,8 @@ describe('assisted document capture', () => {
     await expect(readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: retained, id,
       candidates: source({ 'docs/companion.md': '# Different narrative' }, []) })).rejects.toThrow('differs from its retained content identity');
     const legacy = { ...retained, documents: retained.documents.map(document => document.id === id ? { ...document, text: companion } : document) };
-    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: legacy, id, candidates: source({}, []) })).toBe(companion);
+    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: legacy, id, candidates })).toBe(companion);
+    await expect(readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents: legacy, id, candidates: source({}, []) })).rejects.toThrow('Committed document docs/companion.md is unavailable');
     await expect(readAssistanceDocument({ projectRoot: '/project', planMarkdown: 'Changed captured input', documents: retained,
       id: retained.manifest.root, candidates: source({}, []) })).rejects.toThrow('differs from its retained content identity');
   });
