@@ -32,6 +32,8 @@ Give workers the [module-work skill](../ramify-agent-module-work/SKILL.md), incl
 - Applicable principles and specifications, preserving status and source references; relevant protected paths.
 - Known consumer/provider obligations, overlapping writers and who verifies integration.
 
+For a module-focused worker, supply the absolute target worktree root, module root and `<module-root>/src` working directory, all in the intended worktree. Set the worker's launch CWD there when supported. If the native launcher has no CWD option, explicitly instruct the worker to use that directory for its shell calls and resolve file-tool paths against it; do not assume a shell `cd` persists across calls. The worker skill explains the module layout and generated API catalogs. Project-wide commands use the project root explicitly. For a broader assignment, choose the project root or a useful common starting directory; an absent module `src/` uses the module root until implementation requires source there.
+
 For example: “Implement parser validation in the evidence module because its internals dominate this change and the caller contract is stable. Preserve blob compatibility; add regression cases for malformed records and verify the protection consumer. Edit that consumer if necessary.”
 
 Sol may edit other modules without scope expansion or permission based on module ownership. Use another worker when the work is substantial and separable; keep interacting provider and consumer changes together when that reduces repeated discovery. Reconsider the split if workers wait on each other or repeatedly relearn shared behavior. Coordinate overlapping writers through ordinary messages or separate worktrees.
