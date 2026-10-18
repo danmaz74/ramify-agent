@@ -1,0 +1,1460 @@
+{
+  "kind": "native-sol-mcp-pi-repair-pilot",
+  "date": "2026-10-18",
+  "executorAndTarget": "/workspaces/worktrees/agent-assistance",
+  "branch": "agent-assistance",
+  "registration": {
+    "job": {
+      "planId": "assistance-tree-entry-qualification",
+      "jobId": "20261018T101139Z-115fc6",
+      "planHash": "15f7eb64482e457cf3814cf0181fe721ba69883ab9d8cf45735d37d00fc2e7c7"
+    },
+    "detail": {
+      "job": {
+        "schema": "ramify-agent.job/3",
+        "kind": "assisted",
+        "planId": "assistance-tree-entry-qualification",
+        "jobId": "20261018T101139Z-115fc6",
+        "createdAt": "2026-10-18T10:11:39.138Z",
+        "projectRoot": "/workspaces/worktrees/agent-assistance",
+        "plan": {
+          "path": "plans/assistance-tree-entry-qualification/plan.md",
+          "storedAt": "input/plan.md",
+          "sha256": "15f7eb64482e457cf3814cf0181fe721ba69883ab9d8cf45735d37d00fc2e7c7"
+        },
+        "protection": {
+          "baselineCommit": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+          "rules": {
+            "explicitPaths": [],
+            "excludedPaths": [],
+            "guardedPaths": [
+              "package.json",
+              "package-lock.json",
+              "npm-shrinkwrap.json",
+              ".gitignore",
+              "tsconfig.json",
+              "vitest.config.ts",
+              "vitest.config.js",
+              "vitest.config.mts",
+              "vite.config.ts",
+              "vite.config.js",
+              "vite.config.mts",
+              "cucumber.js",
+              "cucumber.cjs",
+              "cucumber.mjs",
+              "cucumber.json",
+              "cucumber.yaml",
+              "cucumber.yml",
+              "ramify-agent.json",
+              "ramify-audit.json"
+            ],
+            "additions": "protect"
+          },
+          "gaps": [],
+          "unavailable": null
+        }
+      },
+      "planMarkdown": "# Qualify exact Git tree identities for assisted protection\n\nKeep the Git candidate reader as the common source of tree identities for harness and assisted execution. Valid submodule entries must retain their exact commit object IDs so an exact protected-change exception can distinguish submodule revisions. Existing blob behavior, modes and raw paths must remain compatible.\n\nMalformed, incomplete or contradictory metadata must never produce a proven object identity, including for submodules. Correct the parser and its owning regression tests as needed; do not weaken existing validity checks or protected-change comparisons. Keep the change small and preserve the public optional objectId shape.\n\nAcceptance: valid SHA-1 and SHA-256 submodule records retain their IDs; malformed records have no objectId; existing blob assertions and assisted protection regressions pass. The configured project audit must clear the previously reported tree-metadata assertion failure. Do not change project policy, sealed documents, dependencies or unrelated implementation.\n\nThis is a native Sol repair iteration assessed through the assisted MCP service. The coordinator retains sequencing; Pi performs source review and reconciliation. It completes a real qualification repair for Plan 47.\n"
+    },
+    "calls": [
+      {
+        "name": "plan_start",
+        "elapsedMs": 1732,
+        "responseCharacters": 403
+      },
+      {
+        "name": "job_detail",
+        "elapsedMs": 1734,
+        "responseCharacters": 4646
+      }
+    ]
+  },
+  "assessments": [
+    {
+      "candidate": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+      "base": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+      "status": {
+        "id": "as-0001",
+        "status": "completed",
+        "revision": 10,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents",
+          "review-accepted",
+          "review",
+          "reconciliation-accepted",
+          "reconciliation"
+        ]
+      },
+      "result": {
+        "gate": "incomplete",
+        "summary": "Assessment has required evidence gaps; established issues are retained.",
+        "repairs": [
+          "cf-0001, cf-0003: a check of the full audit failed.  Verify with passing configured-audit.",
+          "cf-0002: Submodule IDs are certified despite incomplete or contradictory ls-tree records. A missing size, numeric size instead of '-', extra metadata, empty path, or unterminated record can still supply objectId. The shared candidate reader then presents unproven identity as exact; assisted protection may match an exact exception against it, and recovery may accept it as a proven tree entry. Verify with fresh semantic assessment.",
+          "captured-plan: At this iteration boundary the unchanged tree lacks the parser/test repair. Valid submodule retention exists, but malformed submodules can receive proof and the full configured audit failed the stale tree-metadata expectation on this exact candidate; the plan's qualification is not complete. Future iterations are not judged as delivered here.",
+          "acceptance-2: Submodule validation does not require four metadata fields, a '-' size, nonempty path or trailing NUL, so malformed, incomplete and contradictory submodule records can emit objectId. Blob checks do impose those restrictions.",
+          "acceptance-4: The supplied project-default full audit is explicitly failed on this exact commit/tree: agent-vitest fails the submodule expectation in plan23-blob-object-facts.test.ts. There is no repaired candidate or passing rerun."
+        ],
+        "decisions": [],
+        "gaps": [
+          "Review coverage incomplete: The inspected and missing path arrays are empty because the candidate changed no paths; contextual source and provider evidence inspected are identified in the assessment prose. Review is source and supplied provider-evidence based; no live tests or fresh audit can be run with the snapshot-only tools. The captured plan file itself is absent from the candidate tree but its text was supplied in the assessment inputs."
+        ],
+        "evidence": [
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json",
+          "assessments/as-0001/stages/reconciliation-accepted.json",
+          "assessments/as-0001/stages/reconciliation.json"
+        ]
+      },
+      "elapsedMs": 211886,
+      "calls": [
+        {
+          "name": "iteration_assess",
+          "elapsedMs": 1465,
+          "responseCharacters": 337
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 16479,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 31499,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 46516,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 61538,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 76560,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 91576,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 106592,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 121608,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 136624,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 151640,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 166656,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 181672,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 196688,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 211703,
+          "responseCharacters": 455
+        },
+        {
+          "name": "assessment_result",
+          "elapsedMs": 211704,
+          "responseCharacters": 4707
+        },
+        {
+          "name": "assessment_detail",
+          "elapsedMs": 211847,
+          "responseCharacters": 3378460
+        },
+        {
+          "name": "finding_list",
+          "elapsedMs": 211886,
+          "responseCharacters": 17849
+        }
+      ],
+      "stages": [
+        {
+          "name": "audit",
+          "completedAt": "2026-10-18T10:11:54.697Z",
+          "state": "failed",
+          "requestedSourceCommit": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+          "auditedSourceCommit": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+          "detail": "a check of the full audit failed",
+          "provider": {
+            "reused": true,
+            "reuse": {
+              "auditedCommit": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+              "ignoredChangedPaths": [],
+              "requestedMode": "ramify-partial",
+              "resolution": "defaulted"
+            },
+            "verdict": "fail",
+            "mode": "project-default",
+            "reportCommit": "c8847bd8424d2e0e68147b1976f737a7df269c67",
+            "runRef": "refs/audited/runs/2026-10-18T10-10-10Z-e792f3c21",
+            "treeRef": "refs/audited/by-tree/351ba804e0e564cca29e05e3f6647d3f1c037d7b"
+          }
+        },
+        {
+          "name": "protection",
+          "completedAt": "2026-10-18T10:11:54.812Z",
+          "changes": 0,
+          "violations": 0
+        },
+        {
+          "name": "documents",
+          "completedAt": "2026-10-18T10:11:55.072Z",
+          "documents": 9,
+          "gaps": {
+            "missing": [],
+            "unreadablePrinciples": []
+          }
+        },
+        {
+          "name": "review",
+          "completedAt": "2026-10-18T10:14:18.803Z",
+          "status": "submitted",
+          "sessionId": "32b40d18-09ad-47ad-b265-bd006cedcaf2",
+          "operationId": "as-0001-review-2",
+          "eventCount": 4270,
+          "sourceReads": 10,
+          "inspectedChangedPaths": [],
+          "report": {
+            "inspected": [],
+            "missing": [],
+            "concerns": [
+              {
+                "summary": "Submodule IDs are certified despite incomplete or contradictory ls-tree records",
+                "consequence": "A missing size, numeric size instead of '-', extra metadata, empty path, or unterminated record can still supply objectId. The shared candidate reader then presents unproven identity as exact; assisted protection may match an exact exception against it, and recovery may accept it as a proven tree entry.",
+                "rationale": "The submodule branch checks only mode, type, and digest. Unlike validBlob, it omits metadata field count, canonical '-' size, nonempty path, and NUL termination. For example, `160000 commit <valid-id> 12\\tsubs/x\\0` receives an objectId and bytes 12 even though a submodule should have null bytes.",
+                "uncertainty": "This is established from source, not a demonstrated malicious Git response; ordinary Git ls-tree output should be well formed. The acceptance explicitly requires fail-closed behavior for malformed responses.",
+                "remedy": "Apply the same structural completeness checks as for blobs to submodules, additionally requiring exactly '-' for their size and retaining null bytes. Add table cases for missing/extra/contradictory size, missing path/terminator, and invalid IDs without relaxing the blob checks or changing the optional property shape.",
+                "locations": [
+                  {
+                    "path": "subs/harness/subs/evidence/src/git.ts",
+                    "startLine": 635,
+                    "endLine": 657
+                  },
+                  {
+                    "path": "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                    "startLine": 22,
+                    "endLine": 49
+                  }
+                ],
+                "suggests": null,
+                "risk": "medium",
+                "ground": {
+                  "path": "subs/harness/subs/evidence/src/git.ts",
+                  "quote": "const validSubmodule = mode === '160000' && type === 'commit'\n      && objectId !== undefined && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(objectId) && /[1-9a-f]/u.test(objectId);\n    entries.push({ path, kind, bytes: Number.isNaN(bytes) ? null : bytes, ...(validBlob || validSubmodule ? { objectId } : {}) });"
+                }
+              },
+              {
+                "summary": "The owning regression expects a valid submodule to lose its ID, so the configured audit fails",
+                "consequence": "The already-audited candidate does not qualify: the project-default full audit fails agent-vitest on this exact tree, and the test contradicts the required SHA-256 submodule identity behavior. There is no positive SHA-1 submodule assertion or malformed submodule coverage in the owning test.",
+                "rationale": "The test supplies `160000 commit <sha256> -` but expects an entry without objectId; the source returns the ID. The supplied audit reports exactly this expected/received difference and one failed test; no patch changed the expectation.",
+                "uncertainty": "The audit evidence is for the exact candidate and establishes failure, not the result of a proposed fix. No tests were executed by this reviewer.",
+                "remedy": "Correct the valid-submodule expected entry to include its commit ID; add a SHA-1 valid entry and fail-closed submodule cases, then obtain a fresh passing configured audit on the repaired candidate.",
+                "locations": [
+                  {
+                    "path": "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                    "startLine": 8,
+                    "endLine": 20
+                  }
+                ],
+                "suggests": "cf-0001",
+                "risk": "medium",
+                "ground": {
+                  "path": "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "quote": "+ `160000 commit ${sha256}       -\\tsubs/external\\0`;\n    expect(parseTreeEntries(output)).toEqual([\n      { path: 'src/quoted \"\u00e9\".ts', kind: 'file', bytes: 17, objectId: sha1 },\n      { path: 'src/tab\\tnewline\\nfile', kind: 'executable', bytes: 0, objectId: sha256 },\n      { path: 'src/link', kind: 'symlink', bytes: 12, objectId: sha1 },\n      { path: 'subs/external', kind: 'submodule', bytes: null },"
+                }
+              }
+            ],
+            "codeAssessment": "No paths changed between base and candidate. The reader already retains a canonical 40- or 64-hex nonzero commit ID for valid submodule rows; blob validation still checks type/mode, count, safe decimal size, nonempty path and terminating NUL. The submodule proof branch omits the latter checks, and the literal-format test still asserts the old no-ID behavior. The supplied provider audit for this exact candidate failed on that assertion (one failed test). The public TreeEntry.objectId remains optional; its comment saying IDs are absent for submodules is now stale (minor documentation cleanup when repairing). Source inspected through snapshot_read includes subs/harness/subs/evidence/src/git.ts and its owning tests, subs/harness/src/assistance/protection.ts and its tests, recovery-admission.ts, projections metrics.ts, evidence/module.ramify, and ramify-audit.json. Audit, protection, and documents evidence were read through assessment_evidence, not candidate files.",
+            "scopeAssessment": "The intended qualification repair has not been delivered; this is the unchanged baseline and failed qualification. No unrelated code, policy, dependency, or sealed-document changes appear in the diff. The narrow next step is a parser and owning-test correction followed by a new configured audit, not a change to the protection rules or comparisons. The captured plan is supplied as assessment input but is not a file in this tree.",
+            "design": {
+              "needed": false,
+              "reason": "This is a local fail-closed metadata qualification and regression repair using an existing optional field and existing shared Git candidate source; no new interface, ownership, or cross-module protocol is called for.",
+              "assessment": "The evidence module exposes TreeEntry and gitCandidateSource to the harness; assisted compareProtection already compares kind and exact objectId and refuses exceptions when either present identity lacks proof. Recovery similarly requires objectId, and blob consumers authenticate bytes. Thus malformed IDs escaping the common reader are the design-sensitive failure, not a reason to duplicate parsing or weaken consumers. The supplied approach and CheckFinding documents are proposed guidance, not newly approved contracts; the harness document contains specifically normative audit/evidence commitments and the module-architect document is active. Candidate-specific audit failure must remain a failure, separately from source-level judgments. The normative guidance to keep behavior with verification supports fixing parser and tests together; no principle or sealed commitment needs revision."
+            },
+            "requirements": [
+              {
+                "ref": "captured-plan",
+                "outcome": "unmet",
+                "explanation": "At this iteration boundary the unchanged tree lacks the parser/test repair. Valid submodule retention exists, but malformed submodules can receive proof and the full configured audit failed the stale tree-metadata expectation on this exact candidate; the plan's qualification is not complete. Future iterations are not judged as delivered here.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-1",
+                "outcome": "met",
+                "explanation": "Source validSubmodule accepts mode 160000, type commit, canonical nonzero lowercase 40- or 64-hex ID and emits objectId; a valid `-` size maps to null. This establishes SHA-1 and SHA-256 retention in the inspected parser, although the existing test expects the opposite for SHA-256 and lacks a positive SHA-1 submodule case.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-2",
+                "outcome": "unmet",
+                "explanation": "Submodule validation does not require four metadata fields, a '-' size, nonempty path or trailing NUL, so malformed, incomplete and contradictory submodule records can emit objectId. Blob checks do impose those restrictions.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-3",
+                "outcome": "met",
+                "explanation": "The inspected blob branch retains the strict mode/type/size/path/terminator guards and optional objectId shape, with native Git blob assertions in place. Assisted protection still compares exact kind and objectId and rejects exceptions on missing proof. The supplied provider suite reports only the submodule metadata assertion as failed; this is source-level compatibility, not a claim that the overall audit passed.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/git.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "subs/harness/src/tests/assistance-protection.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-4",
+                "outcome": "unmet",
+                "explanation": "The supplied project-default full audit is explicitly failed on this exact commit/tree: agent-vitest fails the submodule expectation in plan23-blob-object-facts.test.ts. There is no repaired candidate or passing rerun.",
+                "evidencePaths": [
+                  "ramify-audit.json",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+                ]
+              }
+            ],
+            "coverageGap": "The inspected and missing path arrays are empty because the candidate changed no paths; contextual source and provider evidence inspected are identified in the assessment prose. Review is source and supplied provider-evidence based; no live tests or fresh audit can be run with the snapshot-only tools. The captured plan file itself is absent from the candidate tree but its text was supplied in the assessment inputs."
+          }
+        },
+        {
+          "name": "reconciliation",
+          "completedAt": "2026-10-18T10:15:18.705Z",
+          "status": "submitted",
+          "sessionId": "b84082fa-1ec1-4bf3-9725-8ab7f36f35b4",
+          "operationId": "as-0001-reconciliation-2",
+          "eventCount": 1068,
+          "submission": {
+            "relations": [
+              {
+                "from": "cf-0002",
+                "to": "cf-0003",
+                "relation": "related-but-distinct",
+                "shared": "Both concern qualification of submodule IDs in the shared Git candidate reader and its owning parser regression.",
+                "evidence": [
+                  "subs/harness/subs/evidence/src/git.ts:635-657",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:8-49"
+                ],
+                "rationale": "cf-0002 is the parser's false proof for malformed submodule records; cf-0003 is a false test expectation for a structurally valid SHA-256 record and the resulting actual audit failure. Fixing only the expectation does not close the fail-closed parser defect, and tightening only the parser does not correct the valid-record assertion."
+              },
+              {
+                "from": "cf-0003",
+                "to": "cf-0001",
+                "relation": "same-issue",
+                "shared": "The failed configured audit on this exact candidate is the stale valid-submodule expectation in the tree-metadata test.",
+                "evidence": [
+                  "assessments/as-0001/stages/audit.json",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:8-20"
+                ],
+                "rationale": "The supplied project-default full audit shows agent-vitest failing this one assertion: received objectId for subs/external, expected no objectId. cf-0003 identifies the concrete failure represented by the audit check finding; the failed result cannot be reclassified as passed."
+              },
+              {
+                "from": "cf-0002",
+                "to": "cf-0001",
+                "relation": "related-but-distinct",
+                "shared": "Both prevent qualification of the same candidate against the captured plan.",
+                "evidence": [
+                  "subs/harness/subs/evidence/src/git.ts:648-655",
+                  "assessments/as-0001/stages/audit.json"
+                ],
+                "rationale": "The audit failure is the valid-record test mismatch, not an observed test failure for malformed submodule metadata. The independent fail-closed defect remains even after the audit assertion is repaired."
+              }
+            ],
+            "dispositions": [
+              {
+                "checkFinding": "cf-0002",
+                "rationale": "The unchanged candidate's validSubmodule branch checks mode, type, and digest but not the four metadata fields, '-' size, nonempty path, or NUL termination required for a proven Git ls-tree entry; malformed rows can acquire objectId and a numeric submodule size. The existing blob branch does enforce structural guards. compareProtection accepts an exception for matching exact kind and objectId when proof is present, while recovery requires objectId, so this is a genuine shared-reader validity defect. Correct the parser and test malformed SHA-1/SHA-256 submodule rows without relaxing blob validation; submodule bytes must stay null.",
+                "communication": {
+                  "mode": "quiet"
+                },
+                "risk": "medium",
+                "action": {
+                  "action": "repair"
+                }
+              },
+              {
+                "checkFinding": "cf-0003",
+                "rationale": "The test at lines 13-19 supplies a canonical SHA-256 submodule row but expects no objectId. The parser already supplies that ID; assessments/as-0001/stages/audit.json confirms the configured full audit on commit e792f3c21d2d2e3dd45f09aefe35f9740d605865 failed agent-vitest on precisely this mismatch. Correct the valid SHA-256 expectation, add positive SHA-1 and malformed submodule coverage, and rerun the configured audit on the repaired candidate; do not claim the existing failed result passed.",
+                "communication": {
+                  "mode": "quiet"
+                },
+                "risk": "medium",
+                "action": {
+                  "action": "repair"
+                }
+              }
+            ],
+            "next": {
+              "kind": "correct",
+              "goal": "Make the narrow parser and owning-test repair: certify submodule objectId only for complete NUL-terminated nonempty-path four-field `160000 commit <canonical nonzero SHA-1/SHA-256 ID> -` records; keep submodule bytes null and existing blob/mode/raw-path behavior and optional objectId shape. Update the stale valid-submodule assertion, add SHA-1 and malformed submodule cases, correct the obsolete TreeEntry objectId comment, run focused parser and assisted protection regressions, then obtain a fresh passing configured project audit. Do not modify policy, sealed documents, dependencies or protection comparisons."
+            },
+            "brief": "The canonical changed-path list is empty; protection evidence reports zero changes/violations. The candidate already returns valid submodule IDs, but its submodule proof lacks structural checks (cf-0002). Its owning test incorrectly rejects a valid ID, and the exact-candidate configured full audit failed that assertion (cf-0003, the same observed failure as cf-0001). These are distinct repair obligations in one small parser/test correction. This reconciliation does not edit source or turn the failed audit into a pass; a fresh assessment and audit are required after correction."
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "cf-0001",
+          "standing": "open",
+          "reason": "new",
+          "verification": {
+            "kind": "check",
+            "producer": "check:audit",
+            "obligation": {
+              "subject": "configured-audit",
+              "revision": 1
+            },
+            "selection": "066e759268e7aed1b9321d96b961b26305ad4518",
+            "required": true
+          },
+          "reports": 1,
+          "decisions": 0,
+          "settledBy": null
+        },
+        {
+          "id": "cf-0002",
+          "standing": "open",
+          "reason": "repair-planned",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 1,
+          "settledBy": null
+        },
+        {
+          "id": "cf-0003",
+          "standing": "open",
+          "reason": "repair-planned",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 1,
+          "settledBy": null
+        }
+      ]
+    },
+    {
+      "candidate": "888d8d3158bdcbd353cd23870cc4e5d98c9b294d",
+      "base": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+      "status": {
+        "id": "as-0002",
+        "status": "completed",
+        "revision": 10,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents",
+          "review-accepted",
+          "review",
+          "reconciliation-accepted",
+          "reconciliation"
+        ]
+      },
+      "result": {
+        "gate": "action-required",
+        "summary": "Assessment completed with remaining actions.",
+        "repairs": [
+          "cf-0004: A malformed header with an embedded newline can still certify a submodule ID. Such a record supplies an `objectId` even though it is not a native ls-tree header. Assisted protection can treat it as an exact exception identity, and recovery can admit it as proven tree identity, contrary to the plan's fail-closed guarantee. Verify with fresh semantic assessment.",
+          "captured-plan: The shared Git reader, SHA-1/SHA-256 submodule retention, regression correction, blob compatibility, small scope and passed configured composed audit are supported by inspected source and supplied provider evidence (as-0002 audit stage). But the plan's unconditional malformed-metadata prohibition is not satisfied: a newline between header tokens is accepted by `\\s+` and can yield submodule proof. Thus the complete captured outcome is not yet met.",
+          "acceptance-2: The enumerated incomplete/contradictory submodule cases now omit `objectId`, but a record with LF between `160000` and `commit` still passes the `\\s+` tokenization and subsequent checks, so the universal malformed-record guarantee fails."
+        ],
+        "decisions": [],
+        "gaps": [],
+        "evidence": [
+          "assessments/as-0002/stages/audit.json",
+          "assessments/as-0002/stages/protection.json",
+          "assessments/as-0002/stages/documents.json",
+          "assessments/as-0002/stages/review-accepted.json",
+          "assessments/as-0002/stages/review.json",
+          "assessments/as-0002/stages/reconciliation-accepted.json",
+          "assessments/as-0002/stages/reconciliation.json"
+        ]
+      },
+      "elapsedMs": 437781,
+      "calls": [
+        {
+          "name": "iteration_assess",
+          "elapsedMs": 2203,
+          "responseCharacters": 337
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 17213,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 32229,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 47242,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 62248,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 77257,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 92265,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 107272,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 122288,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 137309,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 152326,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 167332,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 182348,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 197367,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 212377,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 227392,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 242412,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 257430,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 272448,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 287468,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 302488,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 317505,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 332523,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 347539,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 362558,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 377574,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 392591,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 407609,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 422624,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 437643,
+          "responseCharacters": 455
+        },
+        {
+          "name": "assessment_result",
+          "elapsedMs": 437648,
+          "responseCharacters": 3227
+        },
+        {
+          "name": "assessment_detail",
+          "elapsedMs": 437757,
+          "responseCharacters": 3300898
+        },
+        {
+          "name": "finding_list",
+          "elapsedMs": 437781,
+          "responseCharacters": 33869
+        }
+      ],
+      "stages": [
+        {
+          "name": "audit",
+          "completedAt": "2026-10-18T10:25:59.040Z",
+          "state": "passed",
+          "requestedSourceCommit": "888d8d3158bdcbd353cd23870cc4e5d98c9b294d",
+          "auditedSourceCommit": "888d8d3158bdcbd353cd23870cc4e5d98c9b294d",
+          "detail": "composed pass",
+          "provider": {
+            "reused": true,
+            "reuse": {
+              "auditedCommit": "888d8d3158bdcbd353cd23870cc4e5d98c9b294d",
+              "ignoredChangedPaths": [],
+              "requestedMode": "ramify-partial",
+              "resolution": "defaulted"
+            },
+            "verdict": "pass",
+            "mode": "project-default",
+            "reportCommit": "15682c59d7cd41ea339ddc1b0ac9b26f346c4703",
+            "runRef": "refs/audited/runs/2026-10-18T10-25-03Z-888d8d315",
+            "treeRef": "refs/audited/by-tree/2e507185e3e5f78e110da3f872b160b010decb3d"
+          }
+        },
+        {
+          "name": "protection",
+          "completedAt": "2026-10-18T10:25:59.149Z",
+          "changes": 0,
+          "violations": 0
+        },
+        {
+          "name": "documents",
+          "completedAt": "2026-10-18T10:25:59.416Z",
+          "documents": 9,
+          "gaps": {
+            "missing": [],
+            "unreadablePrinciples": []
+          }
+        },
+        {
+          "name": "review",
+          "completedAt": "2026-10-18T10:30:38.800Z",
+          "status": "submitted",
+          "sessionId": "ef0a98a8-ca4b-4e31-9a26-da3c401c0c22",
+          "operationId": "as-0002-review-2",
+          "eventCount": 4125,
+          "sourceReads": 20,
+          "inspectedChangedPaths": [
+            "subs/harness/subs/evidence/src/git.ts",
+            "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+            "docs/plans/47-agent-assistance/implementation-results.md",
+            "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json"
+          ],
+          "report": {
+            "inspected": [
+              "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json",
+              "docs/plans/47-agent-assistance/implementation-results.md",
+              "subs/harness/subs/evidence/src/git.ts",
+              "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+            ],
+            "missing": [],
+            "concerns": [
+              {
+                "summary": "A malformed header with an embedded newline can still certify a submodule ID",
+                "consequence": "Such a record supplies an `objectId` even though it is not a native ls-tree header. Assisted protection can treat it as an exact exception identity, and recovery can admit it as proven tree identity, contrary to the plan's fail-closed guarantee.",
+                "rationale": "The header is split on `\\s+`, which includes LF, CR and Unicode whitespace; the new submodule validation checks the resulting four tokens but not their separators. For example, `160000\\ncommit <40 lowercase hex digits> -\\tsubs/a\\0` produces four valid tokens and a nonempty terminated path, so it receives `objectId`. Git's metadata fields are space-separated; the newline belongs in a raw path only after the header's tab. The new malformed-record tests cover field contents and termination but not an invalid header separator. The pre-existing blob proof has the same separator weakness.",
+                "uncertainty": "Normal Git ls-tree output should not contain an embedded header newline, so this needs malformed or corrupted command output. The result follows from the inspected parser; I did not execute an independent synthetic test. This is a remaining strict-validation case, not a claim that the supplied audit failed.",
+                "remedy": "Validate that metadata separators are ASCII spaces (while allowing Git's padding/multiple spaces), rather than arbitrary `\\s`, before granting proof. Add submodule and blob regressions with LF/CR or non-ASCII whitespace in the header, while retaining tabs and newlines in raw paths after the delimiter.",
+                "locations": [
+                  {
+                    "path": "subs/harness/subs/evidence/src/git.ts",
+                    "startLine": 641,
+                    "endLine": 655
+                  },
+                  {
+                    "path": "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                    "startLine": 52,
+                    "endLine": 69
+                  }
+                ],
+                "suggests": "cf-0002",
+                "risk": "medium",
+                "ground": {
+                  "path": "subs/harness/subs/evidence/src/git.ts",
+                  "quote": "const metadata = field.slice(0, tab).split(/\\s+/); ... const validSubmodule = metadata.length === 4 && mode === '160000' && type === 'commit' ... && size === '-' && index < fields.length - 1 && path !== ''; "
+                }
+              }
+            ],
+            "codeAssessment": "The changed submodule branch now checks four fields, mode/type, a canonical nonzero SHA-1 or SHA-256 ID, `-` size, nonempty path and a terminating NUL before supplying optional `objectId`. The tests correct the stale valid-submodule expectation and exercise the previously identified missing/contradictory metadata cases. Blob parsing and the public TreeEntry shape are otherwise unchanged. Inspected unchanged consumers: `CandidateSource` still serves both paths; assisted protection compares kind plus exact ID and refuses exceptions where a present entry lacks proof, while recovery refuses entries with absent IDs. The one remaining malformed-header case is detailed above. The retained audit for this candidate is passed as a composed project-default result; that is not a claim of a new standalone full rerun.",
+            "scopeAssessment": "The delivered parser/test repair is localized. The two documentation changes record the initial audit failure and qualification in progress; the committed JSON concerns the BASE commit, not the current audit outcome. No project policy, sealed principle, dependency or unrelated implementation change appears in the four-path patch. The listed failures from as-0001 are addressed for their concrete missing-size/numeric-size/extra-metadata/empty-path/unterminated-record examples and stale test assertion; the absolute malformed-metadata guarantee still has the separator exception. No extra evidence is needed to judge the implemented behavior or current configured audit.",
+            "design": {
+              "needed": false,
+              "reason": "The residual defect is a local protocol-parser validation correction, not a new interface, ownership or coordination decision.",
+              "assessment": "The evidence module owns the Git parser and exports one CandidateSource/optional TreeEntry.objectId to the harness and snapshot; the patch neither duplicates that rule nor changes the consumers' comparison contract. Inspected assisted protection's kind-plus-ID matching and nonnull-proof guard remain intact, and recovery's exact-identity check benefits from valid submodule IDs. Proposed agent-assistance and CheckFinding principles apply as guidance: distinguish semantic review from the provider's check verdict and do not declare overall Plan 47 acceptance from a historic failure or an audit alone. The harness principles contain specific normative audit/verification commitments alongside proposed guidance; this review uses the retained composed provider pass as check evidence, not an inferred fresh full rerun. The active module-architect evidence principle and the prompt-role principles (with the adoption qualifications stated in the task) do not mandate a different module seam or agent handoff for this bounded repair. Principle status is not inferred from filenames."
+            },
+            "requirements": [
+              {
+                "ref": "captured-plan",
+                "outcome": "unmet",
+                "explanation": "The shared Git reader, SHA-1/SHA-256 submodule retention, regression correction, blob compatibility, small scope and passed configured composed audit are supported by inspected source and supplied provider evidence (as-0002 audit stage). But the plan's unconditional malformed-metadata prohibition is not satisfied: a newline between header tokens is accepted by `\\s+` and can yield submodule proof. Thus the complete captured outcome is not yet met.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "docs/plans/47-agent-assistance/implementation-results.md"
+                ]
+              },
+              {
+                "ref": "acceptance-1",
+                "outcome": "met",
+                "explanation": "The parser accepts canonical nonzero 40- and 64-digit lowercase hexadecimal commit IDs only for otherwise valid gitlink mode/type/size/path/terminator, and the owning test asserts exact SHA-1 and SHA-256 submodule IDs and raw paths.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-2",
+                "outcome": "unmet",
+                "explanation": "The enumerated incomplete/contradictory submodule cases now omit `objectId`, but a record with LF between `160000` and `commit` still passes the `\\s+` tokenization and subsequent checks, so the universal malformed-record guarantee fails.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "subs/harness/src/run/recovery-admission.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-3",
+                "outcome": "met",
+                "explanation": "The blob validity branch is unchanged, the existing exact blob/mode/byte/raw-path expectations remain, and protected changes still require matching kind and exact ID with a nonnull proof before an exception can authorize them. The protection regressions are included in the supplied passing configured audit. This compatibility answer does not endorse the separate malformed-header case.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "subs/harness/src/tests/assistance-protection.test.ts",
+                  "subs/harness/src/tests/assistance-protection-authorization.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-4",
+                "outcome": "met",
+                "explanation": "The test's previously failing expectation for the valid SHA-256 submodule was corrected and the supplied as-0002 audit stage is `passed` for commit 888d8d3158bdcbd353cd23870cc4e5d98c9b294d, with `detail: composed pass`. The committed initial audit JSON is explicitly the failed full audit of the earlier baseline; the current passing result is composed provider evidence, not a newly claimed full standalone rerun.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json"
+                ]
+              }
+            ],
+            "coverageGap": null
+          }
+        },
+        {
+          "name": "reconciliation",
+          "completedAt": "2026-10-18T10:32:59.098Z",
+          "status": "submitted",
+          "sessionId": "ecb5a59e-5b32-4771-99eb-afa003694c3e",
+          "operationId": "as-0002-reconciliation-2",
+          "eventCount": 2800,
+          "submission": {
+            "relations": [
+              {
+                "from": "cf-0002",
+                "to": "cf-0004",
+                "relation": "related-but-distinct",
+                "shared": "Both can violate the fail-closed identity obligation for malformed submodule ls-tree metadata.",
+                "evidence": [
+                  "subs/harness/subs/evidence/src/git.ts:641-655",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:52-78",
+                  "subs/harness/src/assistance/protection.ts:145-150",
+                  "subs/harness/src/run/recovery-admission.ts:46-52"
+                ],
+                "rationale": "The new field-count, canonical-size, path and termination checks close cf-0002's concrete incomplete/contradictory records. cf-0004 survives because whitespace tokenization separately treats LF/CR or Unicode whitespace as header separators, producing valid-looking four fields; tightening the separator grammar and testing it is additional work, not a regression in the corrected expected identity."
+              },
+              {
+                "from": "cf-0004",
+                "to": "cf-0003",
+                "relation": "related-but-distinct",
+                "shared": "Both are exercised through the same parser and owning tests, but valid-submodule retention and malformed-header refusal are separate behaviors.",
+                "evidence": [
+                  "subs/harness/subs/evidence/src/git.ts:641-655",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:9-27",
+                  "assessments/as-0002/stages/audit.json"
+                ],
+                "rationale": "Passing the corrected valid-record test and configured audit does not prove that a malformed newline-separated header is refused. A separator validation repair should retain the now-correct SHA-1/SHA-256 positive assertions."
+              }
+            ],
+            "dispositions": [
+              {
+                "checkFinding": "cf-0002",
+                "rationale": "For the reported missing/extra/numeric size, missing path, truncated terminator, wrong mode/type, and invalid digest cases, git.ts:653-655 now requires exactly four fields, mode 160000/type commit, a canonical nonzero SHA-1 or SHA-256 ID, size '-', nonempty path and a terminating NUL. The owning tests at lines 52-78 exercise these negatives; valid submodules retain null bytes and their IDs. The broad malformed-header separator gap is separately tracked under cf-0004, not evidence these field-completeness checks are absent. A rejected numeric-size submodule still gets a parsed numeric bytes value despite the TreeEntry comment, but it cannot certify objectId; keep the null-byte invariant in mind when correcting the parser.",
+                "communication": {
+                  "mode": "quiet"
+                },
+                "action": {
+                  "action": "fixed",
+                  "reassessed": [
+                    "cfr-0002"
+                  ]
+                }
+              },
+              {
+                "checkFinding": "cf-0003",
+                "rationale": "The test at lines 9-27 now expects the valid SHA-256 submodule objectId and separately asserts valid SHA-1 and SHA-256 submodule IDs. The supplied as-0002 audit is passed for exact commit 888d8d3158bdcbd353cd23870cc4e5d98c9b294d with detail 'composed pass', rather than a claim of a new full standalone rerun. The retained initial-audit JSON describes the earlier failed baseline and does not contradict this result.",
+                "communication": {
+                  "mode": "quiet"
+                },
+                "action": {
+                  "action": "fixed",
+                  "reassessed": [
+                    "cfr-0003"
+                  ]
+                }
+              },
+              {
+                "checkFinding": "cf-0004",
+                "rationale": "In git.ts:641-655, splitting header metadata on /\\s+/ treats `160000\\ncommit <40 lower-case hex digits> -\\tsubs/a\\0` as four valid tokens. Its nonempty path and NUL terminator then allow objectId despite a non-native header. The same weakness predates this patch for blobs. compareProtection uses exact kind/objectId to authorize exceptions, and captureRecoveryCandidate rejects only missing objectId, so false proof matters even though ordinary Git output should be well formed. The current audit pass is not evidence against this untested malformed input.",
+                "communication": {
+                  "mode": "report",
+                  "choice": "Repair the header tokenization so only ASCII-space separators establish proof, and add malformed-header submodule and blob regressions without rejecting tabs/newlines inside raw paths after the delimiter.",
+                  "uncertainty": "This is demonstrated by source-level tokenization, not an independently executed synthetic parser test; native Git output normally does not contain header newlines.",
+                  "reason": "The captured plan explicitly forbids proven identity from malformed metadata, and this deterministic counterexample remains despite the passing configured audit."
+                },
+                "risk": "medium",
+                "action": {
+                  "action": "repair"
+                }
+              }
+            ],
+            "next": {
+              "kind": "correct",
+              "goal": "Make parseTreeEntries grant optional objectId only when ls-tree header fields are separated by ASCII spaces (preserve existing space padding and all valid blob/submodule modes, IDs, sizes and raw paths); add LF/CR or Unicode-whitespace malformed-header cases for submodule and blob and verify a valid newline-containing path after the tab still works. Preserve null bytes for submodule entries, including rejected metadata, without changing blob validation or the public optional objectId shape. Reassess the candidate and use the configured audit as check evidence."
+            },
+            "brief": "The repaired candidate closes the specific field-completeness failure and the stale valid-submodule assertion; the supplied configured audit for this exact candidate passes (composed result). One genuine fail-closed gap remains: `/\\s+/` accepts a newline in the metadata header and can certify an invalid submodule (or blob) ID. Tighten only header separator validation, extend the owning regression, and reassess; no protected inputs or audit requirements should change."
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "cf-0001",
+          "standing": "closed",
+          "reason": "fixed-by-check",
+          "verification": {
+            "kind": "check",
+            "producer": "check:audit",
+            "obligation": {
+              "subject": "configured-audit",
+              "revision": 1
+            },
+            "selection": "066e759268e7aed1b9321d96b961b26305ad4518",
+            "required": true
+          },
+          "reports": 1,
+          "decisions": 1,
+          "settledBy": "cfd-0003"
+        },
+        {
+          "id": "cf-0002",
+          "standing": "closed",
+          "reason": "fixed-by-assessment",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 2,
+          "settledBy": "cfd-0004"
+        },
+        {
+          "id": "cf-0003",
+          "standing": "closed",
+          "reason": "fixed-by-assessment",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 2,
+          "settledBy": "cfd-0005"
+        },
+        {
+          "id": "cf-0004",
+          "standing": "open",
+          "reason": "repair-planned",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 1,
+          "settledBy": null
+        }
+      ]
+    },
+    {
+      "candidate": "5c05a6582a242bbc5a85c6be784a909616b613b7",
+      "base": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+      "status": {
+        "id": "as-0003",
+        "status": "completed",
+        "revision": 10,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents",
+          "review-accepted",
+          "review",
+          "reconciliation-accepted",
+          "reconciliation"
+        ]
+      },
+      "result": {
+        "gate": "clear",
+        "summary": "Required assessment completed with no remaining material issue.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [],
+        "evidence": [
+          "assessments/as-0003/stages/audit.json",
+          "assessments/as-0003/stages/protection.json",
+          "assessments/as-0003/stages/documents.json",
+          "assessments/as-0003/stages/review-accepted.json",
+          "assessments/as-0003/stages/review.json",
+          "assessments/as-0003/stages/reconciliation-accepted.json",
+          "assessments/as-0003/stages/reconciliation.json"
+        ]
+      },
+      "elapsedMs": 243205,
+      "calls": [
+        {
+          "name": "iteration_assess",
+          "elapsedMs": 2783,
+          "responseCharacters": 337
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 17802,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 32808,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 47816,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 62825,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 77834,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 92842,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 107860,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 122880,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 137900,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 152918,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 167937,
+          "responseCharacters": 301
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 182956,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 197975,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 212994,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 228012,
+          "responseCharacters": 359
+        },
+        {
+          "name": "assessment_status",
+          "elapsedMs": 243030,
+          "responseCharacters": 455
+        },
+        {
+          "name": "assessment_result",
+          "elapsedMs": 243034,
+          "responseCharacters": 1041
+        },
+        {
+          "name": "assessment_detail",
+          "elapsedMs": 243174,
+          "responseCharacters": 3282518
+        },
+        {
+          "name": "finding_list",
+          "elapsedMs": 243204,
+          "responseCharacters": 36413
+        }
+      ],
+      "stages": [
+        {
+          "name": "audit",
+          "completedAt": "2026-10-18T10:46:08.900Z",
+          "state": "passed",
+          "requestedSourceCommit": "5c05a6582a242bbc5a85c6be784a909616b613b7",
+          "auditedSourceCommit": "5c05a6582a242bbc5a85c6be784a909616b613b7",
+          "detail": "composed pass",
+          "provider": {
+            "reused": true,
+            "reuse": {
+              "auditedCommit": "5c05a6582a242bbc5a85c6be784a909616b613b7",
+              "ignoredChangedPaths": [],
+              "requestedMode": "ramify-partial",
+              "resolution": "defaulted"
+            },
+            "verdict": "pass",
+            "mode": "project-default",
+            "reportCommit": "0a26845c2e20021121557af89bc483992329f7fb",
+            "runRef": "refs/audited/runs/2026-10-18T10-45-33Z-5c05a6582",
+            "treeRef": "refs/audited/by-tree/a0aec961aea0df2b0fe15ae2d09bfa3c56c6f7bd"
+          }
+        },
+        {
+          "name": "protection",
+          "completedAt": "2026-10-18T10:46:09.014Z",
+          "changes": 0,
+          "violations": 0
+        },
+        {
+          "name": "documents",
+          "completedAt": "2026-10-18T10:46:09.282Z",
+          "documents": 9,
+          "gaps": {
+            "missing": [],
+            "unreadablePrinciples": []
+          }
+        },
+        {
+          "name": "review",
+          "completedAt": "2026-10-18T10:49:05.055Z",
+          "status": "submitted",
+          "sessionId": "d3ed20a0-6da8-4fbc-b40e-9035951e1253",
+          "operationId": "as-0003-review-2",
+          "eventCount": 3417,
+          "sourceReads": 15,
+          "inspectedChangedPaths": [
+            "subs/harness/subs/evidence/src/git.ts",
+            "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+            "docs/plans/47-agent-assistance/implementation-results.md",
+            "docs/plans/47-agent-assistance/evidence/committed-audit-repair-2026-10-18.json",
+            "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json"
+          ],
+          "report": {
+            "inspected": [
+              "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json",
+              "docs/plans/47-agent-assistance/evidence/committed-audit-repair-2026-10-18.json",
+              "docs/plans/47-agent-assistance/implementation-results.md",
+              "subs/harness/subs/evidence/src/git.ts",
+              "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+            ],
+            "missing": [],
+            "concerns": [],
+            "codeAssessment": "The shared `treeEntries` reader still invokes `git ls-tree -r -z -l` and returns the same optional `objectId` shape. `parseTreeEntries` now splits header fields on ASCII spaces only: LF, CR and non-ASCII whitespace remain inside a token and fail its mode/type/ID/size checks. The submodule proof additionally requires four fields, mode 160000, type commit, a nonzero lowercase 40- or 64-hex ID, `-` size, a nonempty path and a terminating NUL; `bytes` stays null. The corrected regression covers both digest lengths, blob metadata, padded native headers, raw paths and malformed cases. This addresses cf-0004 without relaxing the pre-existing blob checks. No material code concern found; configured tests and semantic inspection are separate evidence.",
+            "scopeAssessment": "The five changed paths are the common Git reader, its owning regression, two retained historical audit records and Plan 47's qualification narrative. No policy, sealed document, dependency, protection comparison or unrelated implementation was edited. The captured plan is authoritative despite living outside the candidate tree; the previous failure is documented, while the current candidate's audit is established separately by retained as-0003 provider evidence. The implementation record's final-assessment language describes ongoing qualification rather than claiming final plan acceptance.",
+            "design": {
+              "needed": false,
+              "reason": "This is a bounded parser-validation repair to the requested shared reader, not a new interface, ownership or protocol decision. No additional design choice is needed to assess its consumer effects.",
+              "assessment": "Inspected unchanged `subs/harness/src/assistance/protection.ts`: identity compares kind plus exact objectId and admits an exception only when both present entries have non-null IDs. Inspected unchanged `subs/harness/src/run/recovery-admission.ts` and the relevant `subs/harness/src/run/service.ts` search results: recovery rejects entries without exact IDs, then records submodule kind as mode 160000. Inspected `subs/harness/subs/reviews/src/snapshot.ts` (submodule contents remain outside the snapshot), `subs/harness/src/assistance/documents.ts`, `subs/harness/src/run/committing-gate.ts`, the Git integration test, and protection tests. These consumers use the common CandidateSource rather than duplicating parsing; the new valid IDs become exact proof and malformed headers lose that proof. The baseline plan is captured authoritative input with adoption undetermined; the approach and CheckFinding principles are proposed, the harness/prompt documents contain specifically identified normative commitments amid proposed material, and module-architect guidance says active. Their relevant themes\u2014reuse of one rule, independent candidate-specific verification, semantic review beyond a passing audit, and protection of commitments\u2014are respected here; filenames alone are not treated as adoption evidence."
+            },
+            "requirements": [
+              {
+                "ref": "captured-plan",
+                "outcome": "met",
+                "explanation": "The cumulative candidate uses the common Git reader, certifies canonical SHA-1/SHA-256 submodules while preserving blob metadata and optional objectId, refuses malformed metadata including the previously missed header newline, and leaves protection comparisons and project policy intact. The owning regression was corrected. The retained `assessments/as-0003/stages/audit.json` provider evidence for this exact candidate is passed/composed pass; this is check evidence, not a claim that checks alone establish the semantic guarantee. The implementation-results and two committed audit files document earlier qualification stages without substituting their earlier commit for the current audit.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "subs/harness/src/run/recovery-admission.ts",
+                  "subs/harness/subs/reviews/src/snapshot.ts",
+                  "docs/plans/47-agent-assistance/implementation-results.md",
+                  "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json",
+                  "docs/plans/47-agent-assistance/evidence/committed-audit-repair-2026-10-18.json"
+                ]
+              },
+              {
+                "ref": "acceptance-1",
+                "outcome": "met",
+                "explanation": "The submodule predicate returns the supplied exact canonical 40- or 64-digit commit ID for a complete `160000 commit <id> -\\t<path>\\0` record, including native space padding. The owning test asserts both digest lengths and raw submodule paths.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-2",
+                "outcome": "met",
+                "explanation": "Proof requires a four-token header, exact mode/type/digest/size, nonempty path and NUL terminator. Splitting only on ASCII spaces prevents embedded LF, CR or non-ASCII whitespace from acting as separators. The tests cover missing/extra/contradictory fields, bad IDs, empty paths, truncated delimiters and those separator cases for blobs and submodules. Protection and recovery consumers do not turn a missing optional objectId into exact identity.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "subs/harness/src/run/recovery-admission.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-3",
+                "outcome": "met",
+                "explanation": "Blob mode/type/size/digest validation is unchanged apart from rejecting non-native whitespace as separators; ordinary spaces still handle native padding. Raw paths are taken after the first header tab without trimming. Existing real-Git blob tests and unchanged protected-change comparisons retain kind and exact ID matching; protected exceptions still fail closed on unknown identity.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/git.ts",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "subs/harness/subs/evidence/src/tests/git.test.ts",
+                  "subs/harness/src/assistance/protection.ts",
+                  "subs/harness/src/tests/assistance-protection.test.ts",
+                  "subs/harness/src/tests/assistance-protection-authorization.test.ts"
+                ]
+              },
+              {
+                "ref": "acceptance-4",
+                "outcome": "met",
+                "explanation": "The historical initial audit records the tree-metadata assertion failure; the owning assertion now expects the valid submodule ID. Supplied provider evidence `assessments/as-0003/stages/audit.json` for candidate 5c05a6582a242bbc5a85c6be784a909616b613b7 reports `state: passed`, the same requested/audited commit and `composed pass` after the follow-up, with the configured checks passing. No separate Pi rerun is claimed or required.",
+                "evidencePaths": [
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+                  "docs/plans/47-agent-assistance/evidence/committed-audit-initial-2026-10-18.json",
+                  "docs/plans/47-agent-assistance/evidence/committed-audit-repair-2026-10-18.json"
+                ]
+              }
+            ],
+            "coverageGap": null
+          }
+        },
+        {
+          "name": "reconciliation",
+          "completedAt": "2026-10-18T10:49:56.806Z",
+          "status": "submitted",
+          "sessionId": "161e2484-08cd-43bd-b0d4-0c63ad53809b",
+          "operationId": "as-0003-reconciliation-2",
+          "eventCount": 750,
+          "submission": {
+            "relations": [
+              {
+                "from": "cf-0004",
+                "to": "cf-0002",
+                "relation": "related-but-distinct",
+                "shared": "Both concern fail-closed submodule identity proof for malformed ls-tree metadata.",
+                "evidence": [
+                  "subs/harness/subs/evidence/src/git.ts:641-656",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:55-75"
+                ],
+                "rationale": "cf-0002 addressed missing, extra or contradictory submodule fields; cf-0004 concerned LF/CR/non-ASCII whitespace accepted as field separators. The current parser checks four canonical fields and splits only on ASCII spaces, so both failure modes are now blocked, but they were distinct counterexamples with distinct validation changes."
+              },
+              {
+                "from": "cf-0004",
+                "to": "cf-0003",
+                "relation": "related-but-distinct",
+                "shared": "Both involve the owning tree-metadata regression and the same optional submodule objectId field.",
+                "evidence": [
+                  "subs/harness/subs/evidence/src/git.ts:643-656",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:9-27",
+                  "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:55-75",
+                  "assessments/as-0003/stages/audit.json"
+                ],
+                "rationale": "cf-0003 was the incorrect positive assertion and resulting audit failure; cf-0004 was an independent malformed-header false proof. The current tests expect exact IDs for valid SHA-1/SHA-256 submodules while rejecting malformed separators, and the exact-candidate configured audit passes."
+              }
+            ],
+            "dispositions": [
+              {
+                "checkFinding": "cf-0004",
+                "rationale": "The pinned patch replaces /\\s+/ with / +/ in parseTreeEntries. For `160000\\ncommit <sha1> -\\tsrc/a\\0`, the first mode token now contains LF and cannot satisfy mode === '160000'; CR and non-ASCII whitespace likewise remain in tokens instead of separating them. Four-field, exact commit/ID/size, nonempty-path and terminating-NUL checks remain in place. New submodule and blob regressions reject those malformed separators while preserving native space padding and raw path whitespace. Inspected unchanged compareProtection, which requires a non-null exact kind/objectId for exceptions, and captureRecoveryCandidate, which rejects entries without IDs. The supplied as-0003 audit is passed for commit 5c05a6582a242bbc5a85c6be784a909616b613b7 (composed pass); no independent rerun is necessary.",
+                "communication": {
+                  "mode": "quiet"
+                },
+                "action": {
+                  "action": "fixed",
+                  "reassessed": [
+                    "cfr-0004"
+                  ]
+                }
+              }
+            ],
+            "next": {
+              "kind": "complete"
+            },
+            "brief": "cf-0004 is fixed on the pinned candidate: non-native header whitespace no longer produces submodule or blob proof, while valid padded SHA-1/SHA-256 records retain exact IDs and raw paths. The owning tests, unchanged identity consumers, passed exact-candidate configured audit and zero protection conflicts support completion; no source was edited."
+          }
+        }
+      ],
+      "findings": [
+        {
+          "id": "cf-0001",
+          "standing": "closed",
+          "reason": "fixed-by-check",
+          "verification": {
+            "kind": "check",
+            "producer": "check:audit",
+            "obligation": {
+              "subject": "configured-audit",
+              "revision": 1
+            },
+            "selection": "066e759268e7aed1b9321d96b961b26305ad4518",
+            "required": true
+          },
+          "reports": 1,
+          "decisions": 1,
+          "settledBy": "cfd-0003"
+        },
+        {
+          "id": "cf-0002",
+          "standing": "closed",
+          "reason": "fixed-by-assessment",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 2,
+          "settledBy": "cfd-0004"
+        },
+        {
+          "id": "cf-0003",
+          "standing": "closed",
+          "reason": "fixed-by-assessment",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 2,
+          "settledBy": "cfd-0005"
+        },
+        {
+          "id": "cf-0004",
+          "standing": "closed",
+          "reason": "fixed-by-assessment",
+          "verification": {
+            "kind": "assessment"
+          },
+          "reports": 1,
+          "decisions": 2,
+          "settledBy": "cfd-0007"
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "method": "Deduplicated completed assistant responseId values across durable native session payload snapshots; provider-reported usage and cost, not billing verification.",
+    "sessions": [
+      {
+        "providerSessionId": "b84082fa-1ec1-4bf3-9725-8ab7f36f35b4",
+        "model": "gpt-6-sol",
+        "messages": 5,
+        "tokens": {
+          "input": 35751,
+          "output": 2269,
+          "cacheRead": 50176,
+          "cacheWrite": 0,
+          "reasoning": 653,
+          "totalTokens": 88196
+        },
+        "reportedCost": 0.104227
+      },
+      {
+        "providerSessionId": "d3ed20a0-6da8-4fbc-b40e-9035951e1253",
+        "model": "gpt-6-sol",
+        "messages": 8,
+        "tokens": {
+          "input": 75830,
+          "output": 7799,
+          "cacheRead": 336384,
+          "cacheWrite": 0,
+          "reasoning": 3442,
+          "totalTokens": 420013
+        },
+        "reportedCost": 0.296927
+      },
+      {
+        "providerSessionId": "161e2484-08cd-43bd-b0d4-0c63ad53809b",
+        "model": "gpt-6-sol",
+        "messages": 6,
+        "tokens": {
+          "input": 41466,
+          "output": 1837,
+          "cacheRead": 67584,
+          "cacheWrite": 0,
+          "reasoning": 491,
+          "totalTokens": 110887
+        },
+        "reportedCost": 0.114819
+      },
+      {
+        "providerSessionId": "ef0a98a8-ca4b-4e31-9a26-da3c401c0c22",
+        "model": "gpt-6-sol",
+        "messages": 10,
+        "tokens": {
+          "input": 86667,
+          "output": 13345,
+          "cacheRead": 427904,
+          "cacheWrite": 0,
+          "reasoning": 7898,
+          "totalTokens": 527916
+        },
+        "reportedCost": 0.392365
+      },
+      {
+        "providerSessionId": "32b40d18-09ad-47ad-b265-bd006cedcaf2",
+        "model": "gpt-6-sol",
+        "messages": 7,
+        "tokens": {
+          "input": 53743,
+          "output": 6467,
+          "cacheRead": 178688,
+          "cacheWrite": 0,
+          "reasoning": 1489,
+          "totalTokens": 238898
+        },
+        "reportedCost": 0.207894
+      },
+      {
+        "providerSessionId": "ecb5a59e-5b32-4771-99eb-afa003694c3e",
+        "model": "gpt-6-sol",
+        "messages": 9,
+        "tokens": {
+          "input": 40858,
+          "output": 6090,
+          "cacheRead": 163968,
+          "cacheWrite": 0,
+          "reasoning": 2509,
+          "totalTokens": 210916
+        },
+        "reportedCost": 0.17541
+      }
+    ]
+  },
+  "coordinatorInterventions": [
+    "Supplied the actual configured audit failure and a bounded parser/protection repair plan to a native Sol worker.",
+    "Clarified in follow-up briefs that retained provider audit evidence satisfies execution evidence and the captured plan is an authoritative input; a fresh test rerun inside Pi is not required.",
+    "Clarified in the last brief that inspected/missing report changed-path coverage, while unchanged dependency reads are retained independently.",
+    "Delegated the header-separator case found by independent Pi review to the native Sol worker, then committed and audited its correction."
+  ],
+  "limitations": [
+    "A bounded repair pilot in ramify-agent itself, not an efficiency benchmark or a broad project comparison.",
+    "The initial zero-diff review reported a procedural coverage disclaimer as a gap; the follow-up brief clarified required evidence.",
+    "Both early reviews needed one submission correction because inspected accepts changed paths only; contextual source reads are recorded separately.",
+    "Token usage is provider-reported, deduplicated by response ID across native payload snapshots; costs are not verified billing."
+  ]
+}

@@ -1,7 +1,7 @@
 # Plan 47: agent assistance and delegated post-iteration assessment
 
-**Date:** 2026-10-18. **Status:** runtime implementation delivered; final qualification pending.
-See the [implementation record](implementation-results.md) for evidence and remaining acceptance work.
+**Date:** 2026-10-18. **Status:** implemented; committed audit and native repair pilot passed.
+See the [implementation record](implementation-results.md) for evidence, measured behavior and qualification limits.
 **Execution:** sequential iterations, coordinated by an ordinary Codex Astra
 session using native Sol implementation agents. This is an implementation
 schedule for that workflow, not an input to the current full-plan harness.
