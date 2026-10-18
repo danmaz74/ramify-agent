@@ -4,7 +4,7 @@ Design documents for the separate agent harness:
 
 - [Agent assistance over MCP](agent-assistance.md), setup, plan registration,
   candidate assessment and evidence; [Plan 47](plans/47-agent-assistance/main-plan.md)
-  is in implementation, with [qualification still pending](plans/47-agent-assistance/implementation-results.md)
+  is implemented, with [passing audit and pilot evidence](plans/47-agent-assistance/implementation-results.md)
 - [Removing Pi restrictions that violate harness principles](analysis/2026-10-15-removing-restrictions-that-violate-principles.md),
   implemented Batch 1 continuation and correction, with proposed follow-up
   batches, clarified principles and observable acceptance examples
