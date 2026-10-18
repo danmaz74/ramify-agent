@@ -1,0 +1,133 @@
+{
+  "status": "completed",
+  "requestId": "fa4a5d44-7e03-4388-becb-51af1c572a1a",
+  "runId": "52fd6d89-a7a4-49bb-b422-b446144736ad",
+  "refs": {
+    "reportCommit": "15682c59d7cd41ea339ddc1b0ac9b26f346c4703",
+    "runRef": "refs/audited/runs/2026-10-18T10-25-03Z-888d8d315",
+    "treeRef": "refs/audited/by-tree/2e507185e3e5f78e110da3f872b160b010decb3d"
+  },
+  "retrievalCommands": [
+    "git notes --ref=audit show 888d8d3158bdcbd353cd23870cc4e5d98c9b294d",
+    "git show refs/audited/runs/2026-10-18T10-25-03Z-888d8d315:reports/audit/summary.json"
+  ],
+  "composition": {
+    "scoped": true,
+    "chainDepth": 1,
+    "reportCommit": "15682c59d7cd41ea339ddc1b0ac9b26f346c4703",
+    "rootReportCommit": "c8847bd8424d2e0e68147b1976f737a7df269c67",
+    "outstandingFailures": 0,
+    "verdict": "pass"
+  },
+  "summary": {
+    "producer": {
+      "name": "ramify-audit",
+      "version": "0.9.3"
+    },
+    "mode": {
+      "requestedMode": "ramify-partial",
+      "resolution": "defaulted",
+      "executedMode": "ramify-partial"
+    },
+    "overall": "pass",
+    "sourceCommit": "888d8d3158bdcbd353cd23870cc4e5d98c9b294d",
+    "sourceTree": "2e507185e3e5f78e110da3f872b160b010decb3d",
+    "auditedAt": "2026-10-18T10:25:03.938Z",
+    "durationSeconds": 705.658,
+    "coverage": {
+      "selection": {
+        "kind": "scoped",
+        "selectedCheckIds": [
+          "agent-scenarios",
+          "agent-structure",
+          "agent-tests",
+          "agent-typecheck",
+          "agent-web-build",
+          "patch-integrity"
+        ],
+        "omittedCheckIds": [],
+        "selectedTestUnitIds": [
+          "agent-check-self",
+          "agent-cucumber",
+          "agent-typecheck",
+          "agent-vitest",
+          "agent-web-build",
+          "git-diff-check"
+        ],
+        "omittedTestUnitIds": []
+      },
+      "expectedFiles": {
+        "contract": "runner-configured-files/3",
+        "directExecutions": [
+          {
+            "checkId": "agent-tests",
+            "command": "agent-vitest",
+            "project": "node",
+            "path": "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+            "ran": true
+          }
+        ],
+        "source": "partial-answer",
+        "expected": 436,
+        "run": 436,
+        "missing": [],
+        "status": "complete",
+        "runnerConfigFiles": [
+          "vitest.config.ts"
+        ]
+      }
+    },
+    "checks": {
+      "agent-scenarios": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 8.583,
+        "summary": "agent-cucumber: PASS"
+      },
+      "agent-structure": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 25.822,
+        "summary": "agent-check-self: PASS"
+      },
+      "agent-tests": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 607.752,
+        "summary": "agent-vitest: PASS"
+      },
+      "agent-typecheck": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 11.842,
+        "summary": "agent-typecheck: PASS"
+      },
+      "agent-web-build": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 0.589,
+        "summary": "agent-web-build: PASS"
+      },
+      "patch-integrity": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 0.005,
+        "summary": "git-diff-check: PASS"
+      }
+    },
+    "testCounts": {
+      "files": {
+        "failed": 0,
+        "passed": 435,
+        "skipped": 1,
+        "total": 436
+      },
+      "tests": {
+        "failed": 0,
+        "passed": 3455,
+        "skipped": 2,
+        "total": 3457
+      }
+    }
+  }
+}

@@ -640,7 +640,8 @@ export function parseTreeEntries(output: string): TreeEntry[] {
     if (field === '') continue;
     const tab = field.indexOf('\t');
     if (tab < 0) continue;
-    const metadata = field.slice(0, tab).split(/\s+/);
+    // Native ls-tree separates header fields with ASCII spaces; other whitespace belongs to neither proof nor padding.
+    const metadata = field.slice(0, tab).split(/ +/);
     const [mode, type, objectId, size] = metadata;
     const path = field.slice(tab + 1);
     const kind = mode === '120000' ? 'symlink' : mode === '160000' ? 'submodule' : mode === '100755' ? 'executable' : 'file';

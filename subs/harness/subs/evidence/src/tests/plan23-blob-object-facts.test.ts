@@ -41,6 +41,9 @@ describe('Git tree object metadata', () => {
     ['malformed byte count', `100644 blob ${sha1} 1bad\tsrc/a\0`],
     ['negative byte count', `100644 blob ${sha1} -1\tsrc/a\0`],
     ['unsafe byte count', `100644 blob ${sha1} 9007199254740992\tsrc/a\0`],
+    ['line-break separator', `100644\nblob ${sha1} 1\tsrc/a\0`],
+    ['carriage-return separator', `100644 blob\r${sha1} 1\tsrc/a\0`],
+    ['non-ASCII separator', `100644 blob\u00a0${sha1} 1\tsrc/a\0`],
     ['truncated delimiter', `100644 blob ${sha1} 1\tsrc/a`],
   ])('does not manufacture proof from %s', (_reason, output) => {
     const entries = parseTreeEntries(output);
@@ -61,6 +64,9 @@ describe('Git tree object metadata', () => {
     ['numeric size', `160000 commit ${sha1} 1\tsrc/a\0`],
     ['wrong object kind', `160000 blob ${sha1} -\tsrc/a\0`],
     ['wrong mode', `100644 commit ${sha1} -\tsrc/a\0`],
+    ['line-break separator', `160000\ncommit ${sha1} -\tsrc/a\0`],
+    ['carriage-return separator', `160000 commit\r${sha1} -\tsrc/a\0`],
+    ['non-ASCII separator', `160000 commit\u00a0${sha1} -\tsrc/a\0`],
     ['truncated delimiter', `160000 commit ${sha1} -\tsrc/a`],
   ])('does not manufacture submodule proof from %s', (_reason, output) => {
     const entries = parseTreeEntries(output);
