@@ -48,4 +48,21 @@ describe('assisted document capture', () => {
     expect(documents.gaps.missing).toMatchObject([{ target: 'plans/p47/missing.spec.md', judgment: 'unjudged' }]);
     expect(documents.manifest.documents[0]!.revision).toEqual({ commit: null, dirty: null });
   });
+
+  it('retains transitive historical absolute and relative escapes without acquiring their targets', async () => {
+    const read: string[] = [];
+    const context = '# Context\n[history](/archive/result.json) [elsewhere](../../outside.md) [local](missing.md)';
+    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
+      planMarkdown: '[context](../../docs/context.md) [required](../../docs/current.md)',
+      candidates: source({ 'docs/context.md': context, 'docs/current.md': '# Current requirements' }, read) });
+    expect(read).toEqual(['docs/context.md', 'docs/current.md']);
+    expect(documents.documents.map(document => document.path)).toEqual(['plans/p47/plan.md', 'docs/context.md', 'docs/current.md']);
+    expect(documents.gaps.outsideProject).toMatchObject([
+      { from: 'docs/context.md', target: '/archive/result.json', judgment: 'unjudged', reason: expect.stringContaining('escapes the project') },
+      { from: 'docs/context.md', target: '/outside.md', judgment: 'unjudged' },
+    ]);
+    const span = documents.gaps.outsideProject![0]!.source;
+    expect(Buffer.from(context).subarray(span.start, span.end).toString()).toBe('[history](/archive/result.json)');
+    expect(documents.gaps.missing).toMatchObject([{ target: 'docs/missing.md', judgment: 'unjudged' }]);
+  });
 });

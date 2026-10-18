@@ -81,10 +81,14 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const documents = stages<AssistanceDocuments>('documents') ?? await captureAssistanceDocuments({ projectRoot, planId: job.planId,
       planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates: source });
     if (!stages('documents')) await record('documents', documents);
-    gaps.push(...documents.gaps.missing.map(gap => `Captured plan link ${gap.target} is unavailable: ${gap.reason}`),
-      ...documents.gaps.unreadablePrinciples.map(gap => `Principle evidence ${gap.path} is unavailable: ${gap.reason}`));
+    gaps.push(...documents.gaps.unreadablePrinciples.map(gap => `Principle evidence ${gap.path} is unavailable: ${gap.reason}`));
+    const referenceQualifications = [
+      ...documents.gaps.missing.map(gap => ({ ...gap, from: documents.manifest.documents.find(document => document.id === gap.from)?.path ?? gap.from })),
+      ...(documents.gaps.outsideProject ?? []),
+    ];
+    const discoveryContext = referenceQualifications.length === 0 ? '' : `\nUncaptured document references (retained qualifications, not automatically additional obligations):\n${JSON.stringify(referenceQualifications)}\nA link alone does not establish applicability or binding force. Assess whether these references are required for this outcome, using the captured plan and ordinary candidate and retained-evidence tools. Explain unrelated historical references in scopeAssessment. If applicable required evidence remains unavailable, mark the affected requirement uncertain or report a coverageGap; do not claim clear coverage. Outside-project targets were not read and must not be accessed.`;
     const requirements = [
-      { ref: 'captured-plan', text: `${request.kind === 'final' ? 'Assess every outcome of the complete captured plan against the cumulative candidate.' : 'Assess this iteration against the applicable constraints and outcomes of this captured plan; future iterations are not required to be implemented yet.'}\n${context.planMarkdown}` },
+      { ref: 'captured-plan', text: `${request.kind === 'final' ? 'Assess every outcome of the complete captured plan against the cumulative candidate.' : 'Assess this iteration against the applicable constraints and outcomes of this captured plan; future iterations are not required to be implemented yet.'}\n${context.planMarkdown}${discoveryContext}` },
       ...request.acceptance.map((text, index) => ({ ref: `acceptance-${index + 1}`, text })),
     ];
     for (const [index, document] of request.requirementDocuments.entries()) {

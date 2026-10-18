@@ -82,6 +82,18 @@ test('reports missing local links with source offsets and refuses symlink escape
   await expect(discoverDocuments(root, 'p', revision)).rejects.toThrow(/escapes the project/);
 });
 
+test('default discovery rejects lexical escape before accessing an external target', async () => {
+  const root = await fixture();
+  await put(root, 'plans/p/plan.md', '# P\n[external](/archive/evidence.json)\n');
+  const observed: string[] = [];
+  await expect(discoverDocuments(root, 'p', revision, {
+    ...nodeDocumentReader,
+    real: path => { observed.push(path); return nodeDocumentReader.real(path); },
+    read: path => { observed.push(path); return nodeDocumentReader.read(path); },
+  })).rejects.toThrow('escapes the project');
+  expect(observed).not.toContain('/archive/evidence.json');
+});
+
 test('records invalid text and excludes nested independent principles even under a foreign subs directory', async () => {
   const root = await fixture();
   await put(root, 'plans/p/plan.md', '# P\n');

@@ -23,10 +23,10 @@ const outcome = async (service: AssistanceService, jobId: string, assessmentId: 
   return detail.outcome!;
 };
 
-async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<AssessmentDependencies, 'candidates'>) {
+async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<AssessmentDependencies, 'candidates'>, planMarkdown = '# Plan\nThe feature returns 2.\n') {
   const root = await mkdtemp(join(tmpdir(), 'assistance-assessment-')); roots.push(root);
   await mkdir(join(root, 'plans', 'sample'), { recursive: true });
-  await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Plan\nThe feature returns 2.\n');
+  await writeFile(join(root, 'plans', 'sample', 'plan.md'), planMarkdown);
   const candidates = scriptedCandidates(root, commits);
   const service = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
     resolveCommit: async (_root, revision) => revision === 'HEAD' ? baseline : revision, currentHead: async () => baseline, isCleanRepository: async () => true, assessor: createAssessor({ ...deps, candidates }) });
@@ -156,6 +156,64 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(result.outcome.gate).toBe('incomplete');
     expect(result.outcome.gaps.join(' ')).toContain('Required review unavailable');
     expect(result.outcome.repairs.join(' ')).toContain('configured audit failed');
+  });
+
+  it.each([false, true])('retains unavailable linked evidence for semantic applicability (required: %s)', async required => {
+    const baselineSource = { ...source('0', baseline), files: { ...source('0', baseline).files,
+      'docs/context.md': '[Historical evidence](/archive/result.json) [Local history](missing.md)' } };
+    const { service, job, assess, candidates } = await setup({ [baseline]: baselineSource, [first]: source('2', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        expect(input.prepared.message).toContain('/archive/result.json');
+        expect(input.prepared.message).toContain('docs/missing.md');
+        expect(input.prepared.message).toContain('not automatically additional obligations');
+        expect(input.prepared.message).toContain('mark the affected requirement uncertain');
+        expect(input.prepared.message).toContain('Outside-project targets were not read and must not be accessed');
+        const report = reviewReport(input.candidate);
+        const validated = input.prepared.validate({ ...report,
+          scopeAssessment: required ? 'Required supporting evidence is unavailable.' : 'The historical references do not govern this outcome.',
+          requirements: report.requirements.map(answer => answer.ref === 'captured-plan' && required
+            ? { ...answer, outcome: 'uncertain', explanation: 'Applicable required evidence /archive/result.json is unavailable.', evidencePaths: [] } : answer) });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'qualification-review', eventCount: 1 };
+      },
+    }, '# Plan\nThe feature returns 2. [Context](../../docs/context.md)\n');
+    const result = await assess(first, baseline, 'assess-unavailable-reference');
+    expect(result.outcome.gate).toBe(required ? 'incomplete' : 'clear');
+    expect(candidates.calls.some(call => call.includes('/archive/') || call.includes('docs/missing.md'))).toBe(false);
+    if (required) expect(result.outcome.gaps.join(' ')).toContain('Applicable required evidence');
+    const evidence = service.assessmentDetail('sample', job.jobId, result.id).stages.find(stage => stage.name === 'documents')!.evidence;
+    expect(evidence).toMatchObject({ gaps: { outsideProject: [{ target: '/archive/result.json', judgment: 'unjudged' }], missing: [{ target: 'docs/missing.md' }] } });
+  });
+
+  it('keeps an explicitly pinned unreadable document as a required gap despite a submitted review', async () => {
+    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const validated = input.prepared.validate(reviewReport(input.candidate));
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'pinned-document-review', eventCount: 1 };
+      },
+    });
+    const result = await assess(first, baseline, 'assess-pinned', { requirementDocuments: [{ path: 'docs/required.md', revision: baseline }] });
+    expect(result.outcome.gate).toBe('incomplete');
+    expect(result.outcome.gaps.join(' ')).toContain('Required document docs/required.md');
+  });
+
+  it('keeps unreadable principles deterministic even when the review otherwise reports clear', async () => {
+    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files, 'quality.principles.md': '# Quality' } };
+    const { assess, candidates } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const validated = input.prepared.validate(reviewReport(input.candidate));
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'unreadable-principle-review', eventCount: 1 };
+      },
+    });
+    candidates.fail('readBlob', baseline);
+    const result = await assess(first, baseline, 'assess-unreadable-principle');
+    expect(result.outcome.gate).toBe('incomplete');
+    expect(result.outcome.gaps.join(' ')).toContain('Principle evidence quality.principles.md is unavailable');
   });
 
   it('retains twenty material concerns and gates unfinished review coverage as incomplete', async () => {

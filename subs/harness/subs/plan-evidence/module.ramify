@@ -6,4 +6,4 @@ module plan-evidence
 // the only durable writer.
 expose-src * from "interfaces/contracts.ts" to parent
 expose-src * from "interfaces/catalog.ts" to parent
-expose-src discoverDocuments, nodeDocumentReader, DocumentReader, DiscoveredDocuments from "discovery.ts" to parent
+expose-src discoverDocuments, nodeDocumentReader, DocumentReader, DiscoveredDocuments, DocumentDiscoveryOptions, OutsideDocumentReference from "discovery.ts" to parent

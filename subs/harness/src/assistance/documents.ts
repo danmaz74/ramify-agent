@@ -1,6 +1,6 @@
 import { resolve, relative, isAbsolute, sep } from 'node:path';
 import type { Dirent } from 'node:fs';
-import { discoverDocuments, type DocumentReader } from '../../subs/plan-evidence/src/discovery.js';
+import { discoverDocuments, type DocumentReader, type OutsideDocumentReference } from '../../subs/plan-evidence/src/discovery.js';
 import type { DocumentManifest } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { gitCandidateSource, type CandidateSource, type TreeEntry } from '../../subs/evidence/src/git.js';
 import { planIdSchema } from '../interfaces/protocol/ids.js';
@@ -22,6 +22,8 @@ export interface AssistanceDocuments {
   readonly gaps: {
     readonly missing: DocumentManifest['missing'];
     readonly unreadablePrinciples: DocumentManifest['principlesScan']['unreadable'];
+    /** Absent in older retained document stages. Targets were never read. */
+    readonly outsideProject?: readonly OutsideDocumentReference[];
   };
 }
 
@@ -37,7 +39,9 @@ export async function captureAssistanceDocuments(input: {
   const source = input.candidates ?? gitCandidateSource;
   const entries = await source.treeEntries(input.projectRoot, input.baselineCommit);
   const reader = candidateDocumentReader(input.projectRoot, input.planId, input.planMarkdown, input.baselineCommit, entries, source);
-  const captured = await discoverDocuments(input.projectRoot, input.planId, { commit: input.baselineCommit, dirty: false }, reader);
+  const outsideProject: OutsideDocumentReference[] = [];
+  const captured = await discoverDocuments(input.projectRoot, input.planId, { commit: input.baselineCommit, dirty: false }, reader,
+    { onOutsideReference: reference => outsideProject.push(reference) });
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const documents = captured.manifest.documents.map(document => {
     const bytes = captured.bytes.get(document.id);
@@ -46,7 +50,7 @@ export async function captureAssistanceDocuments(input: {
       text: decoder.decode(bytes), adoption: 'undetermined' as const };
   });
   return { baselineCommit: input.baselineCommit, manifest: captured.manifest, documents,
-    gaps: { missing: captured.manifest.missing, unreadablePrinciples: captured.manifest.principlesScan.unreadable } };
+    gaps: { missing: captured.manifest.missing, unreadablePrinciples: captured.manifest.principlesScan.unreadable, outsideProject } };
 }
 
 /** Present a candidate tree to existing document discovery without reading the worktree. */
