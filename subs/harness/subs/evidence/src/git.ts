@@ -594,7 +594,7 @@ export interface TreeEntry {
   readonly kind: 'file' | 'executable' | 'symlink' | 'submodule';
   /** The blob's size in bytes; null for a submodule. */
   readonly bytes: number | null;
-  /** The exact full Git blob object ID, when valid metadata supplies it; absent for submodules or unknown proof. */
+  /** The exact full Git object ID (blob or submodule commit) when valid metadata supplies it. */
   readonly objectId?: string;
 }
 
@@ -650,8 +650,9 @@ export function parseTreeEntries(output: string): TreeEntry[] {
       && objectId !== undefined && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(objectId) && /[1-9a-f]/u.test(objectId)
       && size !== undefined && /^(?:0|[1-9][0-9]*)$/u.test(size) && Number.isSafeInteger(bytes)
       && index < fields.length - 1 && path !== '';
-    const validSubmodule = mode === '160000' && type === 'commit'
-      && objectId !== undefined && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(objectId) && /[1-9a-f]/u.test(objectId);
+    const validSubmodule = metadata.length === 4 && mode === '160000' && type === 'commit'
+      && objectId !== undefined && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u.test(objectId) && /[1-9a-f]/u.test(objectId)
+      && size === '-' && index < fields.length - 1 && path !== '';
     entries.push({ path, kind, bytes: Number.isNaN(bytes) ? null : bytes, ...(validBlob || validSubmodule ? { objectId } : {}) });
   }
   return entries;

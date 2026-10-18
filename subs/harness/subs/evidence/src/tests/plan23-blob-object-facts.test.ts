@@ -5,7 +5,7 @@ import { parseTreeEntries } from '../git.js';
 const sha1 = '0123456789abcdef0123456789abcdef01234567';
 const sha256 = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
-describe('Git tree blob object metadata', () => {
+describe('Git tree object metadata', () => {
   test('retains exact SHA-1 and SHA-256 blob IDs, modes, byte counts and raw NUL-delimited UTF-8 paths', () => {
     const output = `100644 blob ${sha1}      17\tsrc/quoted "é".ts\0`
       + `100755 blob ${sha256} 0\tsrc/tab\tnewline\nfile\0`
@@ -15,7 +15,15 @@ describe('Git tree blob object metadata', () => {
       { path: 'src/quoted "é".ts', kind: 'file', bytes: 17, objectId: sha1 },
       { path: 'src/tab\tnewline\nfile', kind: 'executable', bytes: 0, objectId: sha256 },
       { path: 'src/link', kind: 'symlink', bytes: 12, objectId: sha1 },
-      { path: 'subs/external', kind: 'submodule', bytes: null },
+      { path: 'subs/external', kind: 'submodule', bytes: null, objectId: sha256 },
+    ]);
+  });
+
+  test('retains exact SHA-1 and SHA-256 submodule commit IDs and raw paths', () => {
+    expect(parseTreeEntries(`160000 commit ${sha1} -\tsubs/first\0`
+      + `160000 commit ${sha256} -\tsubs/tab\tnewline\nsecond\0`)).toEqual([
+      { path: 'subs/first', kind: 'submodule', bytes: null, objectId: sha1 },
+      { path: 'subs/tab\tnewline\nsecond', kind: 'submodule', bytes: null, objectId: sha256 },
     ]);
   });
 
@@ -41,9 +49,31 @@ describe('Git tree blob object metadata', () => {
     expect(entries[0]?.path).toBe('src/a');
   });
 
+  test.each([
+    ['short ID', `160000 commit abcd -\tsrc/a\0`],
+    ['unknown digest length', `160000 commit ${'a'.repeat(48)} -\tsrc/a\0`],
+    ['nonhex ID', `160000 commit ${'g'.repeat(40)} -\tsrc/a\0`],
+    ['zero ID', `160000 commit ${'0'.repeat(40)} -\tsrc/a\0`],
+    ['uppercase noncanonical ID', `160000 commit ${'A'.repeat(40)} -\tsrc/a\0`],
+    ['missing ID', '160000 commit -\tsrc/a\0'],
+    ['extra metadata', `160000 commit ${sha1} - extra\tsrc/a\0`],
+    ['missing size', `160000 commit ${sha1}\tsrc/a\0`],
+    ['numeric size', `160000 commit ${sha1} 1\tsrc/a\0`],
+    ['wrong object kind', `160000 blob ${sha1} -\tsrc/a\0`],
+    ['wrong mode', `100644 commit ${sha1} -\tsrc/a\0`],
+    ['truncated delimiter', `160000 commit ${sha1} -\tsrc/a`],
+  ])('does not manufacture submodule proof from %s', (_reason, output) => {
+    const entries = parseTreeEntries(output);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).not.toHaveProperty('objectId');
+    expect(entries[0]?.path).toBe('src/a');
+  });
+
   test('empty, missing-path and header-only responses never fabricate an object ID', () => {
     expect(parseTreeEntries('')).toEqual([]);
     expect(parseTreeEntries(`100644 blob ${sha1} 1\0`)).toEqual([]);
     expect(parseTreeEntries(`100644 blob ${sha1} 1\t\0`)).toEqual([{ path: '', kind: 'file', bytes: 1 }]);
+    expect(parseTreeEntries(`160000 commit ${sha1} -\0`)).toEqual([]);
+    expect(parseTreeEntries(`160000 commit ${sha1} -\t\0`)).toEqual([{ path: '', kind: 'submodule', bytes: null }]);
   });
 });

@@ -1,0 +1,136 @@
+{
+  "status": "completed",
+  "requestId": "6a696e49-5165-4c7b-ae83-d5fd2feb0d8e",
+  "runId": "34102d0b-dfea-407c-88d9-c9331d172c05",
+  "refs": {
+    "reportCommit": "c8847bd8424d2e0e68147b1976f737a7df269c67",
+    "runRef": "refs/audited/runs/2026-10-18T10-10-10Z-e792f3c21",
+    "treeRef": "refs/audited/by-tree/351ba804e0e564cca29e05e3f6647d3f1c037d7b"
+  },
+  "retrievalCommands": [
+    "git notes --ref=audit show e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+    "git show refs/audited/runs/2026-10-18T10-10-10Z-e792f3c21:reports/audit/summary.json"
+  ],
+  "composition": {
+    "verdict": "fail",
+    "scoped": false,
+    "chainDepth": 0,
+    "reportCommit": "c8847bd8424d2e0e68147b1976f737a7df269c67",
+    "outstandingFailures": 1,
+    "reason": "a check of the full audit failed"
+  },
+  "summary": {
+    "producer": {
+      "name": "ramify-audit",
+      "version": "0.9.3"
+    },
+    "mode": {
+      "requestedMode": "ramify-partial",
+      "resolution": "defaulted",
+      "executedMode": "full",
+      "fallbackReason": "preparation-input: package-lock.json, package.json"
+    },
+    "overall": "fail",
+    "sourceCommit": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+    "sourceTree": "351ba804e0e564cca29e05e3f6647d3f1c037d7b",
+    "auditedAt": "2026-10-18T10:10:10.111Z",
+    "durationSeconds": 673.509,
+    "coverage": {
+      "selection": {
+        "kind": "full",
+        "selectedCheckIds": [
+          "agent-scenarios",
+          "agent-structure",
+          "agent-tests",
+          "agent-typecheck",
+          "agent-web-build",
+          "patch-integrity"
+        ],
+        "omittedCheckIds": [],
+        "selectedTestUnitIds": [
+          "agent-check-self",
+          "agent-cucumber",
+          "agent-typecheck",
+          "agent-vitest",
+          "agent-web-build",
+          "git-diff-check"
+        ],
+        "omittedTestUnitIds": []
+      },
+      "expectedFiles": {
+        "contract": "runner-configured-files/3",
+        "source": "ownership-answer",
+        "expected": 470,
+        "run": 470,
+        "missing": [],
+        "status": "complete",
+        "runnerConfigFiles": [
+          "vitest.config.ts"
+        ]
+      }
+    },
+    "checks": {
+      "agent-scenarios": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 9.278,
+        "summary": "agent-cucumber: PASS"
+      },
+      "agent-structure": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 25.369,
+        "summary": "agent-check-self: PASS"
+      },
+      "agent-tests": {
+        "status": "fail",
+        "passed": false,
+        "durationSeconds": 611.272,
+        "summary": "agent-vitest: FAIL"
+      },
+      "agent-typecheck": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 11.583,
+        "summary": "agent-typecheck: PASS"
+      },
+      "agent-web-build": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 0.578,
+        "summary": "agent-web-build: PASS"
+      },
+      "patch-integrity": {
+        "status": "pass",
+        "passed": true,
+        "durationSeconds": 0.016,
+        "summary": "git-diff-check: PASS"
+      }
+    },
+    "testCounts": {
+      "files": {
+        "failed": 1,
+        "passed": 468,
+        "skipped": 1,
+        "total": 470
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 3836,
+        "skipped": 2,
+        "total": 3839
+      }
+    },
+    "failedTests": [
+      {
+        "errorFull": "AssertionError: expected [ { \u2026(4) }, { \u2026(4) }, { \u2026(4) }, \u2026(1) ] to deeply equal [ { \u2026(4) }, { \u2026(4) }, { \u2026(4) }, \u2026(1) ]\n    at /tmp/ramify-audit-worktree-82ilQc/source/subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts:14:38\n    at file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:302:11\n    at file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:26\n    at file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:2326:20\n    at new Promise (<anonymous>)\n    at runWithCancel (file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:2323:10)\n    at file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:2305:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:2272:10)\n    at file:///workspaces/worktrees/agent-assistance/node_modules/@vitest/runner/dist/chunk-artifact.js:2956:64",
+        "errorShort": "expected [ { \u2026(4) }, { \u2026(4) }, { \u2026(4) }, \u2026(1) ] to deeply equal [ { \u2026(4) }, { \u2026(4) }, { \u2026(4) }, \u2026(1) ]",
+        "file": "subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+        "fullName": "Git tree blob object metadata > retains exact SHA-1 and SHA-256 blob IDs, modes, byte counts and raw NUL-delimited UTF-8 paths",
+        "name": "retains exact SHA-1 and SHA-256 blob IDs, modes, byte counts and raw NUL-delimited UTF-8 paths",
+        "runner": "vitest",
+        "suite": "node"
+      }
+    ]
+  }
+}

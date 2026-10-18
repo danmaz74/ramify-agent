@@ -1,6 +1,6 @@
 # Plan 47 implementation record
 
-**Status:** Runtime implementation delivered in the `agent-assistance` worktree; final qualification pending. The user authorized local commits and audits on 2026-10-18; committed-candidate qualification is now proceeding. The feature's committed default audit and a native implementation/repair pilot remain outstanding. This record does not declare plan acceptance.
+**Status:** Runtime implementation delivered in the `agent-assistance` worktree; final qualification pending. Implementation commit `e792f3c21d2d2e3dd45f09aefe35f9740d605865` has completed its first default audit; a native repair iteration and final qualification are in progress. Final passing audit evidence and the native repair pilot result remain outstanding. This record does not declare plan acceptance.
 
 ## Delivered runtime behavior
 
@@ -64,3 +64,9 @@ The local MCP control plane accepts explicit assertions of actual user authority
 Pi can read immutable candidate source and retained audit/document/assessment evidence. Arbitrary scratch diagnostic commands are not exposed in this first implementation; evidence that requires unavailable diagnostics must remain an explicit gap. Principle adoption is not inferred from a filename. Requirement coverage reviews the captured plan and explicit references without creating a persistent acceptance inventory.
 
 Before plan acceptance, commit the implementation, run the project's default configured audit on that clean candidate, and exercise a native implementation/repair iteration plus cumulative assessment through MCP. Record exact candidate identities, returned results, useful findings, coordinator interactions and available timing/context observations. No measured efficiency benefit or complete live correction-cycle qualification is claimed here.
+
+## Committed qualification and native repair pilot
+
+The first [committed audit](evidence/committed-audit-initial-2026-10-18.json) completed in 673.5 seconds. Default mode selected a full audit because the dependency manifests changed. All 470 expected test files ran: 3,836 tests passed, one failed and two existing opt-in fixture tests were skipped. Type checking, all 16 Cucumber scenarios (252 steps), structural checking, production web build and patch integrity passed. The remaining failure was the existing exact tree-metadata assertion, which had not yet been updated for submodule commit IDs.
+
+The real repair pilot uses the implementation worktree as both executor and target, with native Sol implementation and `openai/gpt-6-sol:high` Pi assessment. Job `20261018T101139Z-115fc6`, plan `assistance-tree-entry-qualification`, captured baseline `e792f3c21d2d2e3dd45f09aefe35f9740d605865` before repair, with no protected-input gaps. Its captured plan requires valid submodule identities, refusal of malformed metadata, blob compatibility and a passing audit. The initial MCP assessment reuses the completed audit and inspects the pinned pre-repair source. The coordinator supplied the audit failure and parser invariants to a native Sol worker; no harness records are edited manually. Results and the correction candidate will be recorded here after qualification.
