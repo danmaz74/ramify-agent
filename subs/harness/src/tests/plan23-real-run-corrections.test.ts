@@ -237,7 +237,8 @@ test('optional NFR snapshot tools keep pinned source semantics and point to ordi
   const search = tools.find(tool => tool.name === 'snapshot_search')!;
   expect(await search.execute({ pattern: 'candidate|scope|record|metadata' }, new AbortController().signal)).toMatchObject({ text: expect.stringContaining('src/a.ts') });
   expect(grep).toHaveBeenCalledWith(path, tree, 'candidate|scope|record|metadata', ['src/a.ts'], expect.any(AbortSignal));
-  expect(source.calls.filter(call => call.startsWith('readBlob'))).toEqual([`readBlob ${tree} src/a.ts`]);
+  // The read and the search each validate the pinned source text.
+  expect(source.calls.filter(call => call.startsWith('readBlob'))).toEqual([`readBlob ${tree} src/a.ts`, `readBlob ${tree} src/a.ts`]);
 });
 
 

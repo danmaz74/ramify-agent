@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { openLedger, type Ledger } from '../../subs/ledger/src/ledger.js';
@@ -6,15 +7,18 @@ import { acceptedCommandSchema } from '../interfaces/protocol/jobs.js';
 import { checkFindingEventsField } from '../check-findings/records.js';
 import { commitRecord, recoverCommits } from '../jobs/commit.js';
 import { jobsDirectory } from '../jobs/records.js';
-import { assistedAssessmentSchema, assistedJobSchema, type AssistedAssessment, type AssistedJob } from './contracts.js';
+import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
+import { approvalFinalizationSchema } from './approval.js';
+import { assistedAssessmentSchema, assistedIterationSchema, assistedJobSchema, type AssistedAssessment, type AssistedEvidenceReference, type AssistedIteration, type AssistedJob } from './contracts.js';
 
 export const assistedEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('assisted-started'), command: acceptedCommandSchema }).strict(),
+  z.object({ type: z.literal('iteration-started'), command: acceptedCommandSchema, iteration: assistedIterationSchema }).strict(),
   z.object({ type: z.literal('assessment-requested'), command: acceptedCommandSchema, assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('assessment-transition'), assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('findings-recorded'), assessmentId: z.string(), key: z.string().min(1).optional(), hash: z.string().optional(), checkFindings: checkFindingEventsField }).strict(),
   z.object({ type: z.literal('finding-answer-recorded'), assessmentId: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
-  z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
+  z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField, finalization: approvalFinalizationSchema.nullable().optional() }).strict(),
 ]);
 export type AssistedEvent = z.infer<typeof assistedEventSchema>;
 
@@ -65,6 +69,14 @@ export class AssistedStore {
 
   assessment(id: string): AssistedAssessment | undefined { return this.assessments().find(item => item.id === id); }
 
+  iterations(): AssistedIteration[] {
+    return this.ledger.replay().flatMap(line => line.transaction.event.type === 'iteration-started' ? [line.transaction.event.iteration] : []);
+  }
+
+  async startIteration(event: Extract<AssistedEvent, { type: 'iteration-started' }>): Promise<void> {
+    await commitRecord(this.ledger, { event, records: [{ path: `iterations/${event.iteration.id}.json`, id: event.iteration.id, revision: 1, body: event.iteration }] });
+  }
+
   async record(event: AssistedEvent, assessment?: AssistedAssessment): Promise<void> {
     if (assessment) {
       await commitRecord(this.ledger, { event, records: [
@@ -80,5 +92,27 @@ export class AssistedStore {
     const { createHash } = await import('node:crypto');
     if (createHash('sha256').update(markdown).digest('hex') !== this.job.plan.sha256) throw new Error('Captured plan differs from the registered content identity');
     return markdown;
+  }
+
+  async retainEvidence(evidence: unknown): Promise<AssistedEvidenceReference> {
+    const content = JSON.stringify(evidence);
+    if (content === undefined) throw new TypeError('Assisted evidence has no JSON representation');
+    const bytes = new TextEncoder().encode(content);
+    const sha256 = createHash('sha256').update(bytes).digest('hex');
+    const reference = { path: `evidence/${sha256}.json`, sha256 };
+    await mkdir(join(this.directory, 'evidence'), { recursive: true });
+    const path = join(this.directory, reference.path);
+    await writeFileExclusive(path, bytes);
+    // Re-derived bytes with this identity also repair a missing or corrupted artifact.
+    if (!Buffer.from(await readFile(path)).equals(Buffer.from(bytes))) await writeFileAtomic(path, bytes);
+    await this.readEvidence(reference);
+    return reference;
+  }
+
+  async readEvidence(reference: AssistedEvidenceReference): Promise<unknown> {
+    if (!/^[a-f0-9]{64}$/u.test(reference.sha256) || reference.path !== `evidence/${reference.sha256}.json`) throw new Error('Invalid assisted evidence reference');
+    const bytes = await readFile(join(this.directory, reference.path));
+    if (createHash('sha256').update(bytes).digest('hex') !== reference.sha256) throw new Error('Retained assisted evidence differs from its content identity');
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) as unknown;
   }
 }

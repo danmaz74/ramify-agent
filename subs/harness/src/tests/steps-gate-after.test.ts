@@ -161,7 +161,7 @@ describe('S17: after a completion proposal, with and without its gate', () => {
       previews: [],
     });
     gitAtGate.git.createRunBranch.mockImplementation(async (_root, runId) => ({ branch: `ramify-agent-run/${runId}`, created: false }));
-    const candidates = scriptedCandidates(root, { 'cand-1': { tree, base: 'base-1', files: { [notesSource]: 'export const noteLimit = 500;\n' },
+    const candidates = scriptedCandidates(root, { 'base-1': { tree: 'tree-base-1', base: 'base-1', changes: [], files: { [notesSource]: 'export const noteLimit = 400;\n' } }, 'cand-1': { tree, base: 'base-1', files: { [notesSource]: 'export const noteLimit = 500;\n' },
       changes: [{ status: 'M', path: notesSource }] } });
     const audit = passingAudit();
     const gated = await runStepGate({ run, checkpoint: 'iteration', invocation: engineer, ramify: new FakeRamifyCli(), git: fixtureScratchGit(gitAtGate.git),

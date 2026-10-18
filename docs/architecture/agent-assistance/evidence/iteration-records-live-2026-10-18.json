@@ -1,0 +1,1372 @@
+{
+  "schema": "ramify-agent.iteration-live-witness/1",
+  "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+  "executorCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+  "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+  "planId": "iteration-protocol-witness",
+  "jobId": "20261018T122851Z-df0063",
+  "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+  "observations": [
+    {
+      "observedAt": "2026-10-18T12:28:56.801Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": []
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:28:57.144Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "start",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-start-20261018",
+          "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+          "focus_module": "subs/harness"
+        }
+      },
+      "result": {
+        "schema": "ramify-agent.iteration/1",
+        "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "startedAt": "2026-10-18T12:28:57.140Z",
+        "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+        "focusModule": "subs/harness",
+        "provenance": {
+          "baseSource": "head",
+          "requestedBase": null,
+          "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "cleanliness": "dirty",
+          "cleanlinessError": null
+        }
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:29:10.626Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "start",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-start-20261018",
+          "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+          "focus_module": "subs/harness"
+        }
+      },
+      "result": {
+        "schema": "ramify-agent.iteration/1",
+        "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "startedAt": "2026-10-18T12:28:57.140Z",
+        "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+        "focusModule": "subs/harness",
+        "provenance": {
+          "baseSource": "head",
+          "requestedBase": null,
+          "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "cleanliness": "dirty",
+          "cleanlinessError": null
+        }
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:29:10.716Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "start",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-broad-start-20261018",
+          "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+          "focus_module": null,
+          "base": "c076c60a555bc06718ae51712dce032b22e64672"
+        }
+      },
+      "result": {
+        "schema": "ramify-agent.iteration/1",
+        "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "startedAt": "2026-10-18T12:29:10.709Z",
+        "base": "c076c60a555bc06718ae51712dce032b22e64672",
+        "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+        "focusModule": null,
+        "provenance": {
+          "baseSource": "explicit",
+          "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+          "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "cleanliness": "dirty",
+          "cleanlinessError": null
+        }
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:29:16.967Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": [
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:28:57.140Z",
+            "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+            "focusModule": "subs/harness",
+            "provenance": {
+              "baseSource": "head",
+              "requestedBase": null,
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          },
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:29:10.709Z",
+            "base": "c076c60a555bc06718ae51712dce032b22e64672",
+            "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+            "focusModule": null,
+            "provenance": {
+              "baseSource": "explicit",
+              "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:29:28.133Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "start",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-start-20261018",
+          "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+          "focus_module": "subs/harness"
+        }
+      },
+      "result": {
+        "schema": "ramify-agent.iteration/1",
+        "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "startedAt": "2026-10-18T12:28:57.140Z",
+        "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+        "focusModule": "subs/harness",
+        "provenance": {
+          "baseSource": "head",
+          "requestedBase": null,
+          "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "cleanliness": "dirty",
+          "cleanlinessError": null
+        }
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:29:28.189Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": [
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:28:57.140Z",
+            "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+            "focusModule": "subs/harness",
+            "provenance": {
+              "baseSource": "head",
+              "requestedBase": null,
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          },
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:29:10.709Z",
+            "base": "c076c60a555bc06718ae51712dce032b22e64672",
+            "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+            "focusModule": null,
+            "provenance": {
+              "baseSource": "explicit",
+              "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:41:59.066Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "end",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-end-20261018",
+          "iteration_id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+          "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "acceptance": [
+            "Assess the existing committed implementation of the native iteration interface, not a new source change. Preserve the actual gate and timing from this live assessment; the coordinator reports transport observations separately."
+          ],
+          "additional_context": "Read-only live MCP witness: focused and broader starts both returned immutable records, start replay was exactly equal, both survived a clean server restart, and job_detail reported both started with no assessments before this end. The broader iteration intentionally remains unassessed. These coordinator observations are separate from source and scripted test coverage."
+        }
+      },
+      "result": {
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "assessmentId": "as-0001",
+        "status": "queued"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:42:06.951Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "end",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-end-20261018",
+          "iteration_id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+          "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "acceptance": [
+            "Assess the existing committed implementation of the native iteration interface, not a new source change. Preserve the actual gate and timing from this live assessment; the coordinator reports transport observations separately."
+          ],
+          "additional_context": "Read-only live MCP witness: focused and broader starts both returned immutable records, start replay was exactly equal, both survived a clean server restart, and job_detail reported both started with no assessments before this end. The broader iteration intentionally remains unassessed. These coordinator observations are separate from source and scripted test coverage."
+        }
+      },
+      "result": {
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "assessmentId": "as-0001",
+        "status": "running"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:42:06.988Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": [
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:28:57.140Z",
+            "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+            "focusModule": "subs/harness",
+            "provenance": {
+              "baseSource": "head",
+              "requestedBase": null,
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "submitted",
+            "assessmentIds": [
+              "as-0001"
+            ]
+          },
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:29:10.709Z",
+            "base": "c076c60a555bc06718ae51712dce032b22e64672",
+            "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+            "focusModule": null,
+            "provenance": {
+              "baseSource": "explicit",
+              "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:42:07.027Z",
+      "request": {
+        "name": "assessment_status",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "id": "as-0001",
+        "status": "running",
+        "revision": 5,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents"
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:42:48.998Z",
+      "request": {
+        "name": "assessment_status",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "id": "as-0001",
+        "status": "running",
+        "revision": 5,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents"
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:44:05.061Z",
+      "request": {
+        "name": "assessment_status",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "id": "as-0001",
+        "status": "running",
+        "revision": 5,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents"
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:45:08.602Z",
+      "request": {
+        "name": "assessment_status",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "id": "as-0001",
+        "status": "completed",
+        "revision": 8,
+        "error": null,
+        "stages": [
+          "audit",
+          "protection",
+          "documents",
+          "review-accepted",
+          "review"
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:45:16.071Z",
+      "request": {
+        "name": "assessment_result",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "gate": "incomplete",
+        "summary": "Assessment has required evidence gaps; established issues are retained.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [
+          "Review coverage incomplete: No reviewer-accessible post-submission live MCP result, end-retry/reconnect transcript, final assessment gate or completedAt is supplied. The passed reused audit stage is factual check evidence, not proof of the eventual composed gate; actual timing must come from the completed retained assessment, not from the audit's historical run time.",
+          "captured-plan: The inspected implementation supports the captured plan's start/end, immutable provenance, replay, restart and audit/Pi composition. The supplied coordinator observation reports focused and broader starts, exact start replay and retention after a clean restart before this end; the audit stage confirms a passed reused provider result for this candidate. However, the reviewer tools expose neither the actual live MCP call log nor the later replay of this end, completed assessment_result/detail and post-completion reconnect. Those final witness steps cannot be independently confirmed at this review stage. This is an evidence limit, not an assertion that the interface is unimplemented; the broader iteration should remain unassessed."
+        ],
+        "evidence": [
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json"
+        ],
+        "completedAt": "2026-10-18T12:45:02.758Z"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:45:32.726Z",
+      "request": {
+        "name": "assessment_result",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "gate": "incomplete",
+        "summary": "Assessment has required evidence gaps; established issues are retained.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [
+          "Review coverage incomplete: No reviewer-accessible post-submission live MCP result, end-retry/reconnect transcript, final assessment gate or completedAt is supplied. The passed reused audit stage is factual check evidence, not proof of the eventual composed gate; actual timing must come from the completed retained assessment, not from the audit's historical run time.",
+          "captured-plan: The inspected implementation supports the captured plan's start/end, immutable provenance, replay, restart and audit/Pi composition. The supplied coordinator observation reports focused and broader starts, exact start replay and retention after a clean restart before this end; the audit stage confirms a passed reused provider result for this candidate. However, the reviewer tools expose neither the actual live MCP call log nor the later replay of this end, completed assessment_result/detail and post-completion reconnect. Those final witness steps cannot be independently confirmed at this review stage. This is an evidence limit, not an assertion that the interface is unimplemented; the broader iteration should remain unassessed."
+        ],
+        "evidence": [
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json"
+        ],
+        "completedAt": "2026-10-18T12:45:02.758Z"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:45:47.767Z",
+      "request": {
+        "name": "assessment_result",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "gate": "incomplete",
+        "summary": "Assessment has required evidence gaps; established issues are retained.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [
+          "Review coverage incomplete: No reviewer-accessible post-submission live MCP result, end-retry/reconnect transcript, final assessment gate or completedAt is supplied. The passed reused audit stage is factual check evidence, not proof of the eventual composed gate; actual timing must come from the completed retained assessment, not from the audit's historical run time.",
+          "captured-plan: The inspected implementation supports the captured plan's start/end, immutable provenance, replay, restart and audit/Pi composition. The supplied coordinator observation reports focused and broader starts, exact start replay and retention after a clean restart before this end; the audit stage confirms a passed reused provider result for this candidate. However, the reviewer tools expose neither the actual live MCP call log nor the later replay of this end, completed assessment_result/detail and post-completion reconnect. Those final witness steps cannot be independently confirmed at this review stage. This is an evidence limit, not an assertion that the interface is unimplemented; the broader iteration should remain unassessed."
+        ],
+        "evidence": [
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json"
+        ],
+        "completedAt": "2026-10-18T12:45:02.758Z"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:45:47.834Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "end",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-end-20261018",
+          "iteration_id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+          "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "acceptance": [
+            "Assess the existing committed implementation of the native iteration interface, not a new source change. Preserve the actual gate and timing from this live assessment; the coordinator reports transport observations separately."
+          ],
+          "additional_context": "Read-only live MCP witness: focused and broader starts both returned immutable records, start replay was exactly equal, both survived a clean server restart, and job_detail reported both started with no assessments before this end. The broader iteration intentionally remains unassessed. These coordinator observations are separate from source and scripted test coverage."
+        }
+      },
+      "result": {
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "assessmentId": "as-0001",
+        "status": "completed"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T12:45:47.871Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": [
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:28:57.140Z",
+            "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+            "focusModule": "subs/harness",
+            "provenance": {
+              "baseSource": "head",
+              "requestedBase": null,
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "submitted",
+            "assessmentIds": [
+              "as-0001"
+            ]
+          },
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:29:10.709Z",
+            "base": "c076c60a555bc06718ae51712dce032b22e64672",
+            "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+            "focusModule": null,
+            "provenance": {
+              "baseSource": "explicit",
+              "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T13:18:39.737Z",
+      "request": {
+        "name": "assessment_result",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "gate": "incomplete",
+        "summary": "Assessment has required evidence gaps; established issues are retained.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [
+          "Review coverage incomplete: No reviewer-accessible post-submission live MCP result, end-retry/reconnect transcript, final assessment gate or completedAt is supplied. The passed reused audit stage is factual check evidence, not proof of the eventual composed gate; actual timing must come from the completed retained assessment, not from the audit's historical run time.",
+          "captured-plan: The inspected implementation supports the captured plan's start/end, immutable provenance, replay, restart and audit/Pi composition. The supplied coordinator observation reports focused and broader starts, exact start replay and retention after a clean restart before this end; the audit stage confirms a passed reused provider result for this candidate. However, the reviewer tools expose neither the actual live MCP call log nor the later replay of this end, completed assessment_result/detail and post-completion reconnect. Those final witness steps cannot be independently confirmed at this review stage. This is an evidence limit, not an assertion that the interface is unimplemented; the broader iteration should remain unassessed."
+        ],
+        "evidence": [
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json"
+        ],
+        "completedAt": "2026-10-18T12:45:02.758Z"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T13:18:39.787Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": [
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:28:57.140Z",
+            "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+            "focusModule": "subs/harness",
+            "provenance": {
+              "baseSource": "head",
+              "requestedBase": null,
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "submitted",
+            "assessmentIds": [
+              "as-0001"
+            ]
+          },
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:29:10.709Z",
+            "base": "c076c60a555bc06718ae51712dce032b22e64672",
+            "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+            "focusModule": null,
+            "provenance": {
+              "baseSource": "explicit",
+              "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T13:18:54.847Z",
+      "request": {
+        "name": "assessment_result",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "assessment_id": "as-0001"
+        }
+      },
+      "result": {
+        "gate": "incomplete",
+        "summary": "Assessment has required evidence gaps; established issues are retained.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [
+          "Review coverage incomplete: No reviewer-accessible post-submission live MCP result, end-retry/reconnect transcript, final assessment gate or completedAt is supplied. The passed reused audit stage is factual check evidence, not proof of the eventual composed gate; actual timing must come from the completed retained assessment, not from the audit's historical run time.",
+          "captured-plan: The inspected implementation supports the captured plan's start/end, immutable provenance, replay, restart and audit/Pi composition. The supplied coordinator observation reports focused and broader starts, exact start replay and retention after a clean restart before this end; the audit stage confirms a passed reused provider result for this candidate. However, the reviewer tools expose neither the actual live MCP call log nor the later replay of this end, completed assessment_result/detail and post-completion reconnect. Those final witness steps cannot be independently confirmed at this review stage. This is an evidence limit, not an assertion that the interface is unimplemented; the broader iteration should remain unassessed."
+        ],
+        "evidence": [
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json"
+        ],
+        "completedAt": "2026-10-18T12:45:02.758Z"
+      }
+    },
+    {
+      "observedAt": "2026-10-18T13:18:54.890Z",
+      "request": {
+        "name": "job_detail",
+        "arguments": {
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063"
+        }
+      },
+      "result": {
+        "job": {
+          "schema": "ramify-agent.job/3",
+          "kind": "assisted",
+          "planId": "iteration-protocol-witness",
+          "jobId": "20261018T122851Z-df0063",
+          "createdAt": "2026-10-18T12:28:51.774Z",
+          "projectRoot": "/workspaces/worktrees/assisted-iteration-records-witness",
+          "plan": {
+            "path": "plans/iteration-protocol-witness/plan.md",
+            "storedAt": "input/plan.md",
+            "sha256": "f5945ace6746795d681c43a2f826df01b84ae74dbf074fc104c85f195134f4f7"
+          },
+          "protection": {
+            "baselineCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "rules": {
+              "explicitPaths": [],
+              "excludedPaths": [],
+              "guardedPaths": [
+                "package.json",
+                "package-lock.json",
+                "npm-shrinkwrap.json",
+                ".gitignore",
+                "tsconfig.json",
+                "vitest.config.ts",
+                "vitest.config.js",
+                "vitest.config.mts",
+                "vite.config.ts",
+                "vite.config.js",
+                "vite.config.mts",
+                "cucumber.js",
+                "cucumber.cjs",
+                "cucumber.mjs",
+                "cucumber.json",
+                "cucumber.yaml",
+                "cucumber.yml",
+                "ramify-agent.json",
+                "ramify-audit.json"
+              ],
+              "additions": "protect"
+            },
+            "gaps": [],
+            "unavailable": null
+          }
+        },
+        "planMarkdown": "# Live recorded-iteration interface witness\n\nExercise the implemented assisted iteration MCP interface against the committed assisted-iteration-records feature without modifying source. Register a focused iteration and a broader iteration, retrieve original IDs, full commits, server timestamps and Git cleanliness provenance, replay start, end the focused iteration with the existing candidate, replay end, and retrieve the completed real assessment. Reconnect and retrieve the same retained information. Leave the broader iteration honestly started and not assessed.\n\nAcceptance: requests use the actual official MCP client and runtime; start launches no assessment; end submits the existing committed candidate to the configured audit and Pi; retries preserve IDs and timestamps without extra attempts; the completed assessment has its actual gate and completion time. Preserve original audit provenance and reuse. This is a bounded protocol and persistence witness, not evidence of worker-effort savings or active implementation time. Scripted tests carry repair, overlap, moving HEAD and recovery fault coverage.\n",
+        "iterations": [
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:28:57.140Z",
+            "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+            "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+            "focusModule": "subs/harness",
+            "provenance": {
+              "baseSource": "head",
+              "requestedBase": null,
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "submitted",
+            "assessmentIds": [
+              "as-0001"
+            ]
+          },
+          {
+            "schema": "ramify-agent.iteration/1",
+            "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+            "planId": "iteration-protocol-witness",
+            "jobId": "20261018T122851Z-df0063",
+            "startedAt": "2026-10-18T12:29:10.709Z",
+            "base": "c076c60a555bc06718ae51712dce032b22e64672",
+            "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+            "focusModule": null,
+            "provenance": {
+              "baseSource": "explicit",
+              "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+              "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+              "cleanliness": "dirty",
+              "cleanlinessError": null
+            },
+            "status": "started",
+            "assessmentIds": []
+          }
+        ]
+      }
+    },
+    {
+      "observedAt": "2026-10-18T13:18:54.973Z",
+      "request": {
+        "name": "iteration",
+        "arguments": {
+          "action": "end",
+          "plan_id": "iteration-protocol-witness",
+          "job_id": "20261018T122851Z-df0063",
+          "command_id": "witness-focused-end-20261018",
+          "iteration_id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+          "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+          "acceptance": [
+            "Assess the existing committed implementation of the native iteration interface, not a new source change. Preserve the actual gate and timing from this live assessment; the coordinator reports transport observations separately."
+          ],
+          "additional_context": "Read-only live MCP witness: focused and broader starts both returned immutable records, start replay was exactly equal, both survived a clean server restart, and job_detail reported both started with no assessments before this end. The broader iteration intentionally remains unassessed. These coordinator observations are separate from source and scripted test coverage."
+        }
+      },
+      "result": {
+        "planId": "iteration-protocol-witness",
+        "jobId": "20261018T122851Z-df0063",
+        "assessmentId": "as-0001",
+        "status": "completed"
+      }
+    }
+  ],
+  "retainedIterations": [
+    {
+      "schema": "ramify-agent.iteration/1",
+      "id": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+      "planId": "iteration-protocol-witness",
+      "jobId": "20261018T122851Z-df0063",
+      "startedAt": "2026-10-18T12:28:57.140Z",
+      "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+      "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+      "focusModule": "subs/harness",
+      "provenance": {
+        "baseSource": "head",
+        "requestedBase": null,
+        "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "cleanliness": "dirty",
+        "cleanlinessError": null
+      },
+      "status": "submitted",
+      "assessmentIds": [
+        "as-0001"
+      ]
+    },
+    {
+      "schema": "ramify-agent.iteration/1",
+      "id": "it-58c4ff45-e918-488f-a571-838043cd6ae8",
+      "planId": "iteration-protocol-witness",
+      "jobId": "20261018T122851Z-df0063",
+      "startedAt": "2026-10-18T12:29:10.709Z",
+      "base": "c076c60a555bc06718ae51712dce032b22e64672",
+      "brief": "Retain an independently open broader iteration as started and not assessed, with explicit-base provenance.",
+      "focusModule": null,
+      "provenance": {
+        "baseSource": "explicit",
+        "requestedBase": "c076c60a555bc06718ae51712dce032b22e64672",
+        "checkoutHead": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "checkoutHeadAfter": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "cleanliness": "dirty",
+        "cleanlinessError": null
+      },
+      "status": "started",
+      "assessmentIds": []
+    }
+  ],
+  "assessment": {
+    "id": "as-0001",
+    "requestedAt": "2026-10-18T12:41:59.061Z",
+    "completedAt": "2026-10-18T12:45:02.758Z",
+    "request": {
+      "planId": "iteration-protocol-witness",
+      "jobId": "20261018T122851Z-df0063",
+      "kind": "iteration",
+      "base": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+      "candidate": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+      "brief": "Validate the committed iteration start/end interface through live MCP, configured audit reuse and real Pi assessment; no source implementation changes.",
+      "acceptance": [
+        "Assess the existing committed implementation of the native iteration interface, not a new source change. Preserve the actual gate and timing from this live assessment; the coordinator reports transport observations separately."
+      ],
+      "requirementDocuments": [],
+      "iterationId": "it-1ab2b9fa-c900-4cf8-9c1e-b620f3010535",
+      "focusModule": "subs/harness",
+      "additionalContext": "Read-only live MCP witness: focused and broader starts both returned immutable records, start replay was exactly equal, both survived a clean server restart, and job_detail reported both started with no assessments before this end. The broader iteration intentionally remains unassessed. These coordinator observations are separate from source and scripted test coverage."
+    },
+    "status": "completed",
+    "outcome": {
+      "gate": "incomplete",
+      "summary": "Assessment has required evidence gaps; established issues are retained.",
+      "repairs": [],
+      "decisions": [],
+      "gaps": [
+        "Review coverage incomplete: No reviewer-accessible post-submission live MCP result, end-retry/reconnect transcript, final assessment gate or completedAt is supplied. The passed reused audit stage is factual check evidence, not proof of the eventual composed gate; actual timing must come from the completed retained assessment, not from the audit's historical run time.",
+        "captured-plan: The inspected implementation supports the captured plan's start/end, immutable provenance, replay, restart and audit/Pi composition. The supplied coordinator observation reports focused and broader starts, exact start replay and retention after a clean restart before this end; the audit stage confirms a passed reused provider result for this candidate. However, the reviewer tools expose neither the actual live MCP call log nor the later replay of this end, completed assessment_result/detail and post-completion reconnect. Those final witness steps cannot be independently confirmed at this review stage. This is an evidence limit, not an assertion that the interface is unimplemented; the broader iteration should remain unassessed."
+      ],
+      "evidence": [
+        "assessments/as-0001/stages/audit.json",
+        "assessments/as-0001/stages/protection.json",
+        "assessments/as-0001/stages/documents.json",
+        "assessments/as-0001/stages/review-accepted.json",
+        "assessments/as-0001/stages/review.json"
+      ]
+    }
+  },
+  "audit": {
+    "state": "passed",
+    "requestedSourceCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+    "auditedSourceCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+    "reused": true,
+    "reuse": {
+      "auditedCommit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+      "ignoredChangedPaths": [],
+      "requestedMode": "ramify-partial",
+      "resolution": "defaulted"
+    },
+    "requestedMode": "ramify-partial",
+    "executedMode": "ramify-partial",
+    "reportCommit": "36522ae50fde72812c23952a3ad252d772317922",
+    "runRef": "refs/audited/runs/2026-10-18T12-40-24Z-5e4aab940",
+    "treeRef": "refs/audited/by-tree/30b8559aa1c3f49710277b3fff88d098ef77d2fa",
+    "producer": {
+      "name": "ramify-audit",
+      "version": "0.9.3"
+    },
+    "historicalExecutionDurationSeconds": 719.932,
+    "checks": {
+      "agent-scenarios": {
+        "status": "pass",
+        "commands": {
+          "agent-cucumber": {
+            "status": "pass",
+            "counts": {
+              "scenarios": {
+                "failed": 0,
+                "passed": 16,
+                "skipped": 0,
+                "total": 16
+              },
+              "steps": {
+                "failed": 0,
+                "passed": 252,
+                "skipped": 0,
+                "total": 252,
+                "undefined": 0
+              }
+            },
+            "durationSeconds": 9.13
+          }
+        }
+      },
+      "agent-structure": {
+        "status": "pass",
+        "commands": {
+          "agent-check-self": {
+            "status": "pass",
+            "durationSeconds": 26.16
+          }
+        }
+      },
+      "agent-tests": {
+        "status": "pass",
+        "commands": {
+          "agent-vitest": {
+            "status": "pass",
+            "counts": {
+              "files": {
+                "failed": 0,
+                "passed": 435,
+                "skipped": 1,
+                "total": 436
+              },
+              "tests": {
+                "failed": 0,
+                "passed": 3470,
+                "skipped": 2,
+                "total": 3472
+              }
+            },
+            "durationSeconds": 624.351
+          }
+        }
+      },
+      "agent-typecheck": {
+        "status": "pass",
+        "commands": {
+          "agent-typecheck": {
+            "status": "pass",
+            "durationSeconds": 12.325
+          }
+        }
+      },
+      "agent-web-build": {
+        "status": "pass",
+        "commands": {
+          "agent-web-build": {
+            "status": "pass",
+            "durationSeconds": 0.614
+          }
+        }
+      },
+      "patch-integrity": {
+        "status": "pass",
+        "commands": {
+          "git-diff-check": {
+            "status": "pass",
+            "durationSeconds": 0.006
+          }
+        }
+      }
+    }
+  },
+  "derivedIntervalsSeconds": {
+    "timeToFirstCandidate": 781.921,
+    "assessmentElapsed": 183.697,
+    "timeToClearCandidate": null
+  },
+  "qualifications": [
+    "Read-only protocol witness against already committed source; no active worker effort or performance comparison is measured.",
+    "The untracked witness plan makes the checkout dirty; no snapshot or implementation commit was created by iteration start.",
+    "A second broader iteration remains started and not assessed.",
+    "Exact start replay and both records were verified after a clean server restart before end. Completed result/timestamp and end replay were verified after another clean restart.",
+    "The real assessment gate is incomplete because its reviewer could not inspect post-completion transport evidence before that evidence existed. The exact gap is preserved above.",
+    "Repair, fault recovery, moving HEAD, unknown status and controlled clock cases are scripted test coverage, not claims of this live witness.",
+    "Audit execution duration is historical producer evidence; it is not retrieval cost.",
+    "The earlier clean restarts were coordinator-reported. A further actual post-completion restart is explicitly recorded in lifecycleObservations with process identities, exit, new connection and before/after calls; no earlier lifecycle timestamps were reconstructed."
+  ],
+  "lifecycleObservations": [
+    {
+      "at": "2026-10-18T13:18:39.885948+00:00",
+      "event": "restart-requested",
+      "clientPid": 2639080,
+      "observedChildPids": [
+        2639088
+      ],
+      "signal": "SIGTERM"
+    },
+    {
+      "at": "2026-10-18T13:18:39.936333+00:00",
+      "event": "old-client-exited",
+      "clientPid": 2639080,
+      "observedChildPids": [
+        2639088
+      ],
+      "childProcessPathsExist": [
+        false
+      ]
+    },
+    {
+      "at": "2026-10-18T13:18:43.243Z",
+      "event": "mcp-connected",
+      "clientPid": 2741088,
+      "serverPid": 2741109,
+      "target": "/workspaces/worktrees/assisted-iteration-records-witness",
+      "executor": "/workspaces/worktrees/assisted-iteration-records-witness"
+    },
+    {
+      "at": "2026-10-18T13:18:54.979110+00:00",
+      "event": "post-restart-verification",
+      "identicalAssessmentResult": true,
+      "identicalJobDetail": true,
+      "endReplayAssessmentId": "as-0001"
+    }
+  ]
+}

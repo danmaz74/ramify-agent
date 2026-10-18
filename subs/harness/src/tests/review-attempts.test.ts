@@ -158,7 +158,12 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
     expect(first.results[9]!.text).toContain('// v1');
     expect(first.results[9]!.text).not.toContain('// v3');
     expect(run.source.calls.filter(call => call.startsWith('readBlob')).sort()).toEqual([
-      `readBlob revision-01 ${store}`, `readBlob revision-02 ${limit}`,
+      // Automatic patches validate both endpoints; tool reads validate again.
+      ...Array.from({ length: 3 }, () => `readBlob revision-01 ${store}`),
+      ...Array.from({ length: 3 }, () => `readBlob revision-02 ${limit}`),
+      ...Array.from({ length: 2 }, () => `readBlob revision-02 ${store}`),
+      `readBlob revision-03 ${notesDirectory}/src/index.ts`,
+      ...Array.from({ length: 2 }, () => `readBlob revision-03 ${store}`),
     ]);
 
     // CF04's covered results: a clean review, a concern promoted once, and a partial one.

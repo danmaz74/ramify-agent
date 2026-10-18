@@ -73,6 +73,7 @@ export function compositionCommits(): Record<string, ScriptedCommit> {
   const shortLimit = { [tagLimit]: 'export const tagLimit = (text: string) => text.length <= 50;\n' };
   const longLimit = { [tagLimit]: 'export const tagLimit = (text: string) => text.length <= 500;\n' };
   return {
+    'scenarios-00': { tree: 'tree-scenarios-00', base: 'scenarios-00', changes: [], files: { ...declarations, ...guidance } },
     'revision-01': { tree: 'tree-01', base: 'scenarios-00', changes: [{ status: 'A', path: store }], files: { ...declarations, ...guidance, ...notesStore } },
     'revision-02': { tree: 'tree-02', base: 'revision-01', changes: [{ status: 'A', path: tagStore }], files: { ...declarations, ...guidance, ...notesStore, ...tagSource } },
     'revision-03': { tree: '3'.repeat(40), base: 'revision-02', changes: [{ status: 'A', path: tagLimit }], files: { ...declarations, ...guidance, ...notesStore, ...tagSource, ...shortLimit } },

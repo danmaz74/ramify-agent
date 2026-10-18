@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
+import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import { canonicalJson } from '../../../src/jobs/commands.js';
 import { resolveSnapshotPath, type CandidateSnapshot } from './snapshot.js';
@@ -62,6 +63,7 @@ export function guidancePaths(snapshot: CandidateSnapshot): string[] {
 
 /** The selected guidance, read from the candidate's objects, each with the hash of its bytes. */
 export async function readGuidance(source: CandidateSource, projectRoot: string, snapshot: CandidateSnapshot, signal?: AbortSignal): Promise<CapturedInput[]> {
+  source = verifiedCandidateSource(source, { root: projectRoot, commit: snapshot.commit, entries: snapshot.entries });
   const paths = guidancePaths(snapshot);
   const texts = await Promise.all(paths.map(path => source.readBlob(projectRoot, snapshot.commit, path, signal)));
   return paths.map((path, index) => ({ ref: path, hash: hashOf(texts[index]!), text: texts[index]! }));

@@ -25,6 +25,28 @@ export interface DiscoveredDocuments {
   readonly bytes: ReadonlyMap<string, Uint8Array>;
 }
 
+/** An uncaptured lexical link, retained without inspecting its external target. */
+export interface OutsideDocumentReference {
+  readonly from: string;
+  readonly target: string;
+  readonly source: { readonly start: number; readonly end: number };
+  readonly reason: string;
+  readonly judgment: 'unjudged';
+}
+
+export interface DocumentDiscoveryOptions {
+  /** Assisted assessment retains external links for semantic applicability review. Default discovery still rejects them. */
+  readonly onOutsideReference?: (reference: OutsideDocumentReference) => void;
+  /** Root-plan failure remains fatal. Unreadable companions retain qualifications when requested. */
+  readonly onUnreadableDocument?: (reference: UnreadableDocumentReference) => void;
+}
+
+export interface UnreadableDocumentReference {
+  readonly path: string;
+  readonly reason: string;
+  readonly judgment: 'unjudged';
+}
+
 const binaryExtensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.pdf', '.zip', '.gz', '.wasm', '.mp4', '.mp3', '.woff', '.woff2', '.ttf']);
 const textCandidate = (path: string): boolean => !binaryExtensions.has(extname(path).toLowerCase());
 const excluded = new Set(['.git', '.harness', '.ramify', '.ramify-architect', 'node_modules', 'dist', 'build', 'coverage', '.next']);
@@ -35,7 +57,7 @@ const posixPath = (path: string): string => path.split(sep).join('/');
 /** The link's byte span stays attached to its referring source, including duplicates. */
 interface Link { readonly target: string; readonly start: number; readonly end: number }
 
-function localLinks(text: string): Link[] {
+function localLinks(text: string, includeNonText = false): Link[] {
   const links: Link[] = [];
   const definitions = new Map<string, string>();
   for (const match of text.matchAll(/^ {0,3}\[([^\]]+)\]:\s*(?:<([^>]+)>|(\S+))/gmu)) {
@@ -46,7 +68,7 @@ function localLinks(text: string): Link[] {
     if (!raw || raw.startsWith('#') || /^[a-z][a-z0-9+.-]*:/iu.test(raw) || raw.startsWith('//')) return;
     let target: string;
     try { target = decodeURIComponent(raw.split(/[?#]/u, 1)[0]!); } catch { target = raw.split(/[?#]/u, 1)[0]!; }
-    if (!target || !textCandidate(target)) return;
+    if (!target || !includeNonText && !textCandidate(target)) return;
     links.push({ target, start: Buffer.byteLength(text.slice(0, startIndex), 'utf8'), end: Buffer.byteLength(text.slice(0, endIndex), 'utf8') });
   };
   for (let at = 0; at < text.length; at += 1) {
@@ -93,6 +115,7 @@ export async function discoverDocuments(
   planId: string,
   revision: { readonly commit: string | null; readonly dirty: boolean },
   reader: DocumentReader = nodeDocumentReader,
+  options: DocumentDiscoveryOptions = {},
 ): Promise<DiscoveredDocuments> {
   const root = await reader.real(projectRoot);
   const rootPlan = `plans/${planId}/plan.md`;
@@ -127,14 +150,32 @@ export async function discoverDocuments(
     }
     if (canonicalSeen.has(canonical)) continue;
     canonicalSeen.add(canonical);
-    const bytes = await reader.read(resolve(root, canonical));
+    let bytes: Uint8Array;
     let text: string;
-    try { text = decoder.decode(bytes); } catch { throw new Error(`Document ${canonical} is not valid UTF-8`); }
+    try {
+      bytes = await reader.read(resolve(root, canonical));
+      try { text = decoder.decode(bytes); } catch { throw new Error(`Document ${canonical} is not valid UTF-8`); }
+    } catch (error) {
+      if (index === 0 || !options.onUnreadableDocument) throw error;
+      options.onUnreadableDocument({ path: canonical, reason: error instanceof Error ? error.message : String(error), judgment: 'unjudged' });
+      continue;
+    }
     const storedPath = requested === rootPlan ? rootPlan : canonical;
     found.set(storedPath, { bytes, kind: 'plan' });
-    for (const link of localLinks(text)) {
+    for (const link of localLinks(text, options.onUnreadableDocument !== undefined)) {
       const candidate = resolve(root, dirname(canonical), link.target);
-      const lexical = inProject(root, candidate);
+      let lexical: string;
+      try { lexical = inProject(root, candidate); }
+      catch (error) {
+        if (!options.onOutsideReference) throw error;
+        options.onOutsideReference({ from: storedPath, target: candidate, source: { start: link.start, end: link.end },
+          reason: error instanceof Error ? error.message : String(error), judgment: 'unjudged' });
+        continue;
+      }
+      if (!textCandidate(lexical)) {
+        options.onUnreadableDocument?.({ path: lexical, reason: `Linked evidence ${lexical} is not captured as text`, judgment: 'unjudged' });
+        continue;
+      }
       try {
         const actual = inProject(root, await reader.real(candidate));
         if (!await reader.isFile(resolve(root, actual))) throw new Error('not a regular file');

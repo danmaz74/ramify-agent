@@ -1,3 +1,4 @@
+import { readVerifiedTextBlobBytes, verifiedCandidateSource } from '../../subs/evidence/src/git-text.js';
 import type { SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { inspectAuditSettlement } from './audit-workspaces.js';
 import { localViewInputsOf } from '../work/view-inputs.js';
@@ -80,7 +81,7 @@ import {
 import type { CapturedInput } from '../../subs/reviews/src/inputs.js';
 import { prepareReview, type PreparedReview } from '../../subs/reviews/src/preparation.js';
 import { ReviewQueue } from '../reviews/scheduler.js';
-import { openCandidateSnapshot, resolveSnapshotPath, snapshotTools, type CandidateSnapshot, type SnapshotComparison, type SnapshotTools } from '../../subs/reviews/src/snapshot.js';
+import { verifySnapshotEvidence, openCandidateSnapshot, resolveSnapshotPath, snapshotTools, type CandidateSnapshot, type SnapshotComparison, type SnapshotTools } from '../../subs/reviews/src/snapshot.js';
 import { reviewCoverage, reviewStateOf, unsettledRequests, type ReviewCoverage } from '../reviews/state.js';
 import { orientationToolName } from '../../subs/reviews/src/submission.js';
 import type { AcceptedCommand, Receipt } from '../interfaces/protocol/jobs.js';
@@ -684,7 +685,7 @@ export class RunService {
     void this.runningRuntime.catch(() => undefined);
     this.repairIncidentExport = options.repairIncidentExport === undefined ? undefined : { ...options.repairIncidentExport };
     this.git = options.git ?? gitService;
-    this.candidates = options.candidates ?? gitCandidateSource;
+    this.candidates = verifiedCandidateSource(options.candidates ?? gitCandidateSource);
     this.changeHistory = options.changeHistory ?? cachedChangeHistory(gitChangeHistory);
     this.runner = new InvocationRunner<Run>(this.runnerHost());
     this.gates = new CommittingGates<Run>(this.gateHost());
@@ -1411,6 +1412,13 @@ export class RunService {
     const submission = parsed.data;
     const snapshot = await openCandidateSnapshot(this.candidates, this.projectRoot,
       { commit: request.key.candidate, base: request.base });
+    try {
+      await verifySnapshotEvidence(snapshot, this.candidates, this.projectRoot, [...submission.inspected,
+        ...submission.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path])]);
+    } catch (error) {
+      await this.fail(run, 'recovery-exhausted', `Reviewer ${invocation}'s historical source evidence is unavailable: ${message(error)}`);
+      return false;
+    }
     const read = new Map<string, string>();
     for (const concern of submission.concerns) {
       if (concern.ground === null) continue;
@@ -2111,7 +2119,10 @@ export class RunService {
               return element === undefined || evidence.status !== 'available' ? null : { text: element.text, revision: `sha256:${evidence.catalogHash}` };
             }
             try {
-              return { text: await this.candidates.readBlob(this.projectRoot, basis.source.commit, path), revision: basis.source.commit };
+              const entry = (await this.candidates.treeEntries(this.projectRoot, basis.source.commit)).find(entry => entry.path === path);
+              if (!entry) return null;
+              return { text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+                await readVerifiedTextBlobBytes(this.projectRoot, basis.source.commit, entry, this.candidates)), revision: basis.source.commit };
             } catch {
               return null;
             }

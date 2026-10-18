@@ -420,16 +420,18 @@ async function loadLog<E>(
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { lines: [], completeBytes: 0, completeContent: new Uint8Array() };
     throw error;
   }
-  const buffer = Buffer.from(bytes);
+  const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const end = buffer.lastIndexOf(0x0a) + 1;
   if (end < buffer.byteLength) await fs.truncate(logPath, end);
 
-  const texts = buffer.subarray(0, end).toString('utf8').split('\n');
-  texts.pop();
-
   const lines: Line[] = [];
-  texts.forEach((text, index) => {
-    const number = index + 1;
+  // A ledger can exceed Node's maximum string length even when every
+  // transaction is small. Decode only the next complete line.
+  for (let start = 0; start < end;) {
+    const newline = buffer.indexOf(0x0a, start);
+    const text = buffer.toString('utf8', start, newline);
+    start = newline + 1;
+    const number = lines.length + 1;
     let parsed: unknown;
     try {
       parsed = JSON.parse(text) as unknown;
@@ -456,7 +458,7 @@ async function loadLog<E>(
       throw new LedgerCorruptError(logPath, number, `the event does not match the schema: ${issues(event.error)}`, text);
     }
     lines.push({ ...line, event: event.data });
-  });
+  }
   return { lines, completeBytes: end, completeContent: buffer.subarray(0, end) };
 }
 

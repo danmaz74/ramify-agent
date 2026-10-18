@@ -1,8 +1,8 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { open as openFile, realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { currentHead, resolveCommit as gitResolveCommit } from '../../subs/evidence/src/git.js';
+import { currentHead, isCleanRepository, resolveCommit as gitResolveCommit } from '../../subs/evidence/src/git.js';
 import { replayCheckFindingEvents } from '../../subs/check-findings/src/replay.js';
 import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
 import type { CheckFindingCommand, CheckFindingEntry, CheckFindingState } from '../../subs/check-findings/src/interfaces/check-findings.js';
@@ -15,9 +15,11 @@ import { readPlan } from '../plans/discover.js';
 import { acquireProjectLock, type ProjectLock } from '../store/lock.js';
 import { ensureStateDirectory } from '../store/state-directory.js';
 import { assistedDirectory, AssistedStore, type AssistedEvent } from './store.js';
+import { acceptedProtectionExceptions } from './findings.js';
+import { finalizeApproval, type ApprovalFinalization } from './approval.js';
 import { defaultProtectionRules, inspectProtectedInputs } from './protection.js';
 import {
-  assessmentRequestSchema, assistedOutcomeSchema, type AssessmentRequest, type AssistanceOptions, type AssistedProtection,
+  assessmentRequestSchema, assistedOutcomeSchema, assistedIterationSchema, iterationRequestSchema, type AssistedIteration, type IterationRequest, type AssessmentRequest, type AssistanceOptions, type AssistedProtection,
   type AssistedAssessment, type AssistedJob, type AssistedOutcome, type AssessorContext,
 } from './contracts.js';
 
@@ -105,7 +107,7 @@ export class AssistanceService {
       this.stores.set(this.key(planId, jobId), store);
       for (const line of store.ledger.replay()) {
         const event = line.transaction.event;
-        if (event.type === 'assisted-started' || event.type === 'assessment-requested' || event.type === 'finding-answer-recorded' || event.type === 'protection-accepted') this.commands.remember(event.command);
+        if (event.type === 'assisted-started' || event.type === 'iteration-started' || event.type === 'assessment-requested' || event.type === 'finding-answer-recorded' || event.type === 'protection-accepted') this.commands.remember(event.command);
       }
       for (const assessment of store.assessments()) {
         if (assessment.status === 'queued' || assessment.status === 'running') {
@@ -183,47 +185,105 @@ export class AssistanceService {
   /** Admit and launch an assessment. Transport return does not own its lifetime. */
   async iterationAssess(input: AssessmentRequest): Promise<AssessmentAdmission> {
     const request = assessmentRequestSchema.parse(input);
+    return this.write(() => this.admitAssessment(request, { expectedVersion: 0, type: 'iteration-assess', ...request }));
+  }
+
+  /** Capture native work or submit its candidate without changing assessment policy. */
+  async iteration(input: Extract<IterationRequest, { action: 'start' }>): Promise<AssistedIteration>;
+  async iteration(input: Extract<IterationRequest, { action: 'end' }>): Promise<AssessmentAdmission>;
+  async iteration(input: IterationRequest): Promise<AssistedIteration | AssessmentAdmission>;
+  async iteration(input: IterationRequest): Promise<AssistedIteration | AssessmentAdmission> {
+    const request = iterationRequestSchema.parse(input);
     return this.write(async () => {
       const store = this.requireStore(request.planId, request.jobId);
-      const command = { expectedVersion: 0, type: 'iteration-assess', ...request };
+      const command = { expectedVersion: 0, type: 'iteration', ...request };
+      // Replay before observing Git: a lost response must retain the original facts.
       const admitted = this.commands.admit(command);
+      if (request.action === 'end') {
+        const iteration = store.iterations().find(item => item.id === request.iterationId);
+        if (!iteration) throw new CommandRejection('not-found', `Iteration ${request.iterationId} does not belong to ${request.planId}/${request.jobId}`);
+        return this.admitAssessment({ planId: request.planId, jobId: request.jobId, commandId: request.commandId,
+          kind: 'iteration', base: iteration.base, candidate: request.candidate, brief: iteration.brief,
+          acceptance: request.acceptance, requirementDocuments: request.requirementDocuments,
+          ...(request.previousAssessment === undefined ? {} : { previousAssessment: request.previousAssessment }),
+        }, command, { iterationId: iteration.id, focusModule: iteration.focusModule,
+          ...(request.additionalContext === undefined ? {} : { additionalContext: request.additionalContext }) });
+      }
       if (admitted.kind === 'repeat') {
-        const earlier = store.ledger.replay().find(line => line.transaction.event.type === 'assessment-requested'
-          && line.transaction.event.command.commandId === request.commandId)?.transaction.event;
-        if (!earlier || earlier.type !== 'assessment-requested') throw new CommandRejection('conflict', 'Command ID belongs to another execution');
-        return { planId: request.planId, jobId: request.jobId, assessmentId: earlier.assessment.id, status: store.assessment(earlier.assessment.id)!.status };
+        const original = store.ledger.replay().map(line => line.transaction.event)
+          .find(event => event.type === 'iteration-started' && event.command.commandId === request.commandId);
+        if (original?.type !== 'iteration-started') throw new CommandRejection('conflict', 'Command ID belongs to another execution');
+        return original.iteration;
       }
-      const resolveCommit = this.options.resolveCommit ?? gitResolveCommit;
-      const base = await resolveCommit(this.projectRoot, request.base);
-      const candidate = await resolveCommit(this.projectRoot, request.candidate);
-      const planBaseline = request.planBaseline === undefined ? undefined : await resolveCommit(this.projectRoot, request.planBaseline);
-      const requirementDocuments = await Promise.all(request.requirementDocuments.map(async document => {
-        if (document.path.startsWith('/') || document.path.includes('\\') || document.path.includes('\0')
-          || document.path.split('/').some(part => part === '' || part === '.' || part === '..')) {
-          throw new CommandRejection('invalid-request', `Requirement document path must be project-relative: ${document.path}`);
-        }
-        return { path: document.path, revision: await resolveCommit(this.projectRoot, document.revision) };
-      }));
-      if (request.previousAssessment !== undefined && store.assessment(request.previousAssessment) === undefined) {
-        throw new CommandRejection('invalid-request', `Previous assessment ${request.previousAssessment} does not belong to ${request.planId}/${request.jobId}`);
-      }
-      if (request.kind === 'final' && store.job.protection.baselineCommit !== null && planBaseline !== store.job.protection.baselineCommit) {
-        throw new CommandRejection('invalid-request', `Final plan baseline differs from the registered execution baseline ${store.job.protection.baselineCommit}`);
-      }
-      const id = `as-${String(store.assessments().length + 1).padStart(4, '0')}`;
-      const { commandId: _commandId, ...submitted } = request;
-      const assessment: AssistedAssessment = {
-        schema: 'ramify-agent.assessment/1', id, planId: request.planId, jobId: request.jobId,
-        requestedAt: this.now().toISOString(), request: { ...submitted, base, candidate, requirementDocuments,
-          ...(planBaseline === undefined ? {} : { planBaseline }) },
-        status: 'queued', revision: 1, stages: [], outcome: null, error: null,
+      const head = async () => {
+        try {
+          const value = await (this.options.currentHead ?? currentHead)(this.projectRoot);
+          return /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(value) ? value : null;
+        } catch { return null; }
       };
+      const before = await head();
+      let base: string;
+      try { base = await (this.options.resolveCommit ?? gitResolveCommit)(this.projectRoot, request.base ?? 'HEAD'); }
+      catch (error) { throw new CommandRejection('invalid-request', `Cannot resolve iteration base: ${error instanceof Error ? error.message : String(error)}`); }
+      let cleanliness: 'clean' | 'dirty' | 'unknown' = 'unknown', cleanlinessError: string | null = null;
+      try { cleanliness = await (this.options.isCleanRepository ?? isCleanRepository)(this.projectRoot) ? 'clean' : 'dirty'; }
+      catch (error) { cleanlinessError = error instanceof Error ? error.message : String(error); }
+      const after = await head();
+      if (request.base === undefined && (before === null || before !== after || base !== before)) {
+        throw new CommandRejection('invalid-request', 'Git HEAD is unavailable or changed during iteration start; retry with a stable checkout or an explicit base');
+      }
+      const iteration = assistedIterationSchema.parse({ schema: 'ramify-agent.iteration/1', id: `it-${randomUUID()}`,
+        planId: request.planId, jobId: request.jobId, startedAt: this.now().toISOString(), base, brief: request.brief, focusModule: request.focusModule,
+        provenance: { baseSource: request.base === undefined ? 'head' : 'explicit', requestedBase: request.base ?? null,
+          checkoutHead: before, checkoutHeadAfter: after, cleanliness, cleanlinessError } });
       const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
-      await store.record({ type: 'assessment-requested', command: accepted, assessment }, assessment);
+      await store.startIteration({ type: 'iteration-started', command: accepted, iteration });
       this.commands.remember(accepted);
-      this.launch(store, id);
-      return { planId: request.planId, jobId: request.jobId, assessmentId: id, status: 'queued' };
+      return iteration;
     });
+  }
+
+  /** Shared admission and assessor composition for legacy and recorded iterations. Caller holds the writer. */
+  private async admitAssessment(request: AssessmentRequest, command: { commandId: string; expectedVersion: number; [key: string]: unknown },
+    metadata: Pick<AssistedAssessment['request'], 'iterationId' | 'focusModule' | 'additionalContext'> = {}): Promise<AssessmentAdmission> {
+    const store = this.requireStore(request.planId, request.jobId);
+    const admitted = this.commands.admit(command);
+    if (admitted.kind === 'repeat') {
+      const earlier = store.ledger.replay().find(line => line.transaction.event.type === 'assessment-requested'
+        && line.transaction.event.command.commandId === request.commandId)?.transaction.event;
+      if (!earlier || earlier.type !== 'assessment-requested') throw new CommandRejection('conflict', 'Command ID belongs to another execution');
+      return { planId: request.planId, jobId: request.jobId, assessmentId: earlier.assessment.id, status: store.assessment(earlier.assessment.id)!.status };
+    }
+    const resolveCommit = this.options.resolveCommit ?? gitResolveCommit;
+    const base = await resolveCommit(this.projectRoot, request.base);
+    const candidate = await resolveCommit(this.projectRoot, request.candidate);
+    const planBaseline = request.planBaseline === undefined ? undefined : await resolveCommit(this.projectRoot, request.planBaseline);
+    const requirementDocuments = await Promise.all(request.requirementDocuments.map(async document => {
+      if (document.path.startsWith('/') || document.path.includes('\\') || document.path.includes('\0')
+        || document.path.split('/').some(part => part === '' || part === '.' || part === '..')) {
+        throw new CommandRejection('invalid-request', `Requirement document path must be project-relative: ${document.path}`);
+      }
+      return { path: document.path, revision: await resolveCommit(this.projectRoot, document.revision) };
+    }));
+    if (request.previousAssessment !== undefined && store.assessment(request.previousAssessment) === undefined) {
+      throw new CommandRejection('invalid-request', `Previous assessment ${request.previousAssessment} does not belong to ${request.planId}/${request.jobId}`);
+    }
+    if (request.kind === 'final' && store.job.protection.baselineCommit !== null && planBaseline !== store.job.protection.baselineCommit) {
+      throw new CommandRejection('invalid-request', `Final plan baseline differs from the registered execution baseline ${store.job.protection.baselineCommit}`);
+    }
+    const id = `as-${String(store.assessments().length + 1).padStart(4, '0')}`;
+    const { commandId: _commandId, ...submitted } = request;
+    const assessment: AssistedAssessment = {
+      schema: 'ramify-agent.assessment/1', id, planId: request.planId, jobId: request.jobId,
+      requestedAt: this.now().toISOString(), request: { ...submitted, ...metadata, base, candidate, requirementDocuments,
+        ...(planBaseline === undefined ? {} : { planBaseline }) },
+      status: 'queued', revision: 1, stages: [], outcome: null, error: null,
+    };
+    const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
+    await store.record({ type: 'assessment-requested', command: accepted, assessment }, assessment);
+    this.commands.remember(accepted);
+    this.launch(store, id);
+    return { planId: request.planId, jobId: request.jobId, assessmentId: id, status: 'queued' };
   }
 
   private launch(store: AssistedStore, assessmentId: string): void {
@@ -251,6 +311,8 @@ export class AssistanceService {
             stages: [...assessment.stages.filter(stage => stage.name !== name), { name, evidence, completedAt: this.now().toISOString() }],
           }));
         },
+        retainEvidence: evidence => this.write(async () => { controller.signal.throwIfAborted(); return store.retainEvidence(evidence); }),
+        readEvidence: reference => store.readEvidence(reference),
         stages: () => store.assessment(id)?.stages ?? [],
         assessments: () => store.assessments(),
         findingState: () => this.findingState(store),
@@ -260,7 +322,7 @@ export class AssistanceService {
         gate: 'incomplete' as const, summary: 'Assessment pipeline is unavailable', repairs: [], decisions: [], gaps: ['Required audit and review stages are unavailable'], evidence: [],
       };
       if (controller.signal.aborted) return;
-      await this.transition(store, id, assessment => ({ ...assessment, status: 'completed', outcome, error: null }));
+      await this.transition(store, id, assessment => ({ ...assessment, status: 'completed', outcome, error: null, completedAt: this.now().toISOString() }));
     } catch (error) {
       if (controller.signal.aborted) return;
       await this.transition(store, id, assessment => ({ ...assessment, status: 'interrupted', error: error instanceof Error ? error.message : String(error) })).catch(() => undefined);
@@ -317,12 +379,23 @@ export class AssistanceService {
     return { id: assessment.id, status: assessment.status, revision: assessment.revision, error: assessment.error, stages: assessment.stages.map(stage => stage.name) };
   }
 
-  assessmentResult(planId: string, jobId: string, assessmentId: string): AssistedOutcome | null {
-    return this.requireAssessment(planId, jobId, assessmentId).outcome;
+  assessmentResult(planId: string, jobId: string, assessmentId: string): (AssistedOutcome & { completedAt?: string; finalization?: ApprovalFinalization }) | null {
+    const assessment = this.requireAssessment(planId, jobId, assessmentId);
+    const finalization = this.finalizations(this.requireStore(planId, jobId), assessmentId).at(-1);
+    return assessment.outcome === null ? null : { ...(finalization?.outcome ?? assessment.outcome), ...(finalization === undefined ? {} : { finalization }), ...(assessment.completedAt === undefined ? {} : { completedAt: assessment.completedAt }) };
   }
 
-  assessmentDetail(planId: string, jobId: string, assessmentId: string): AssistedAssessment {
-    return this.requireAssessment(planId, jobId, assessmentId);
+  assessmentDetail(planId: string, jobId: string, assessmentId: string): AssistedAssessment & { finalizations?: ApprovalFinalization[] } {
+    const assessment = this.requireAssessment(planId, jobId, assessmentId);
+    const finalizations = this.finalizations(this.requireStore(planId, jobId), assessmentId);
+    return finalizations.length ? { ...assessment, finalizations } : assessment;
+  }
+
+  private finalizations(store: AssistedStore, assessmentId: string): ApprovalFinalization[] {
+    return store.ledger.replay().flatMap(line => {
+      const event = line.transaction.event;
+      return event.type === 'protection-accepted' && event.assessmentId === assessmentId && event.finalization ? [event.finalization] : [];
+    });
   }
 
   async assessmentCancel(planId: string, jobId: string, assessmentId: string): Promise<AssistedAssessment> {
@@ -344,9 +417,13 @@ export class AssistanceService {
 
   listAssessments(planId: string, jobId: string): AssistedAssessment[] { return this.requireStore(planId, jobId).assessments(); }
   assistedJob(planId: string, jobId: string): AssistedJob { return this.requireStore(planId, jobId).job; }
-  async jobDetail(planId: string, jobId: string): Promise<{ job: AssistedJob; planMarkdown: string }> {
+  async jobDetail(planId: string, jobId: string): Promise<{ job: AssistedJob; planMarkdown: string; iterations: Array<AssistedIteration & { status: 'started' | 'submitted'; assessmentIds: string[] }> }> {
     const store = this.requireStore(planId, jobId);
-    return { job: store.job, planMarkdown: await store.capturedPlan() };
+    const assessments = store.assessments();
+    return { job: store.job, planMarkdown: await store.capturedPlan(), iterations: store.iterations().map(iteration => {
+      const assessmentIds = assessments.filter(assessment => assessment.request.iterationId === iteration.id).map(assessment => assessment.id);
+      return { ...iteration, status: assessmentIds.length === 0 ? 'started' as const : 'submitted' as const, assessmentIds };
+    }) };
   }
   findings(planId: string, jobId: string): CheckFindingEntry[] { return [...this.findingState(this.requireStore(planId, jobId)).findings.values()]; }
 
@@ -395,7 +472,7 @@ export class AssistanceService {
   }
 
   /** Accept one exact retained protected change with an already-authorized user's choice. */
-  async protectionAccept(input: ProtectionAcceptRequest): Promise<{ path: string; checkFinding: string; request: string; option: 'accept-exact-change'; receipt: { commandId: string; jobId: string; sequence: number; acceptedAt: string } }> {
+  async protectionAccept(input: ProtectionAcceptRequest): Promise<{ path: string; checkFinding: string; request: string; option: 'accept-exact-change'; finalization?: ApprovalFinalization; receipt: { commandId: string; jobId: string; sequence: number; acceptedAt: string } }> {
     const request = protectionAcceptSchema.parse(input);
     return this.write(async () => {
       const store = this.requireStore(request.planId, request.jobId);
@@ -408,7 +485,7 @@ export class AssistanceService {
         const choice = earlier.checkFindings.find(event => event.type === 'check-finding-decided' && event.data.decision.decision.action === 'request-user-decision');
         if (choice?.type !== 'check-finding-decided') throw new Error('Accepted protection choice has no request');
         return { path: earlier.path, checkFinding: choice.data.checkFinding, request: choice.data.decision.id,
-          option: 'accept-exact-change' as const, receipt: admitted.receipt };
+          option: 'accept-exact-change' as const, ...(earlier.finalization ? { finalization: earlier.finalization } : {}), receipt: admitted.receipt };
       }
       if (assessment.status !== 'completed') throw new CommandRejection('conflict', `Assessment ${assessment.id} has not completed`);
       const protection = assessment.stages.find(stage => stage.name === 'protection')?.evidence as {
@@ -421,6 +498,10 @@ export class AssistanceService {
       const exact = protection.violations.find(change => change.path === request.path);
       if (!exact) throw new CommandRejection('invalid-request', `Protection stage does not report ${request.path} as an unauthorized change`);
       const state = this.findingState(store);
+      const identities = canonicalJson({ before: exact.before ?? null, after: exact.after ?? null });
+      const alreadyAccepted = acceptedProtectionExceptions(state, store.assessments()).some(exception => exception.path === request.path
+        && canonicalJson({ before: exception.before, after: exception.after }) === identities);
+      if (alreadyAccepted) throw new CommandRejection('conflict', `The exact protected change to ${request.path} is already accepted; retry the original command ID to recover its receipt`);
       const matches = [...state.findings.values()].filter(entry => entry.standing === 'open'
         && entry.verification.kind === 'check' && entry.verification.required
         && entry.verification.producer === 'check:protection' && entry.verification.obligation.subject === `protected:${request.path}`
@@ -455,9 +536,14 @@ export class AssistanceService {
         type: 'protection-accepted', data: { assessmentId: assessment.id, path: request.path, command: accepted, checkFindings: result.events },
       } }) }), carrier => ({ type: 'protection-accepted', ...carrier.data, checkFindings: [...carrier.data.checkFindings] }));
       if (decided.kind !== 'transaction') throw new CommandRejection('conflict', decided.kind === 'refused' ? decided.refusal.message : 'Choice was already recorded');
-      await store.ledger.append(decided.transaction);
+      if (decided.transaction.event.type !== 'protection-accepted') throw new Error('Protection choice produced another event');
+      const priorEvents = store.ledger.replay().flatMap(line => 'checkFindings' in line.transaction.event ? line.transaction.event.checkFindings : []);
+      const prospective = replayCheckFindingEvents([...priorEvents, ...decided.transaction.event.checkFindings]);
+      if (!prospective.ok) throw new Error(prospective.rejection.message);
+      const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: prospective.state, commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt });
+      await store.ledger.append({ ...decided.transaction, event: { ...decided.transaction.event, finalization } });
       this.commands.remember(accepted);
-      return { path: request.path, checkFinding: entry.id, request: requested.data.decision.id, option: 'accept-exact-change', receipt: accepted.receipt };
+      return { ...(finalization ? { finalization } : {}), path: request.path, checkFinding: entry.id, request: requested.data.decision.id, option: 'accept-exact-change', receipt: accepted.receipt };
     });
   }
   listAssistedJobs(): AssistedJob[] { return [...this.stores.values()].map(store => store.job); }

@@ -54,6 +54,7 @@ export async function reviewTarget(cleanups: Array<() => Promise<void>>) {
 export function candidates(): Record<string, ScriptedCommit> {
   const common = { [`${notesDirectory}/src/notes.ts`]: 'export const noteLimit = 500;\n', [escape]: { symlink: '../../../../../../../etc/passwd' } };
   return {
+    [materialized]: { tree: 'tree-scenarios-00', base: materialized, changes: [], files: common },
     'revision-01': { tree: 'tree-01', base: materialized, changes: [{ status: 'A', path: store }],
       files: { ...common, [store]: 'export export const store = new Map(); // v1\n' } },
     'revision-02': { tree: 'tree-02', base: 'revision-01', changes: [{ status: 'A', path: limit }],

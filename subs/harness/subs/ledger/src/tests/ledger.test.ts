@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { nodeFileSystem } from '../fs.js';
 import { LedgerCorruptError, maximumLineBytes } from '../ledger.js';
 import { instrument, record, recordsMatchLog, testLedger, transaction } from './helpers/ledger.js';
 import { temporaryDirectory } from './helpers/temporary.js';
@@ -74,6 +75,50 @@ describe('one line is one transaction', () => {
       Array.from({ length: 3 }, (_unused, index) => index + 1),
     );
     expect(await recordsMatchLog(reopened, recordsOf())).toBe(3);
+  });
+});
+
+describe('bounded log decoding', () => {
+  test('decodes transactions within a per-string budget while retaining exact UTF-8 bytes and torn-tail offsets', async () => {
+    const entries = [1, 2, 3].map(sequence => ({ sequence, at: 'source time', event: { kind: 'é🙂', step: sequence },
+      records: [record('note', sequence, { text: sequence === 2 ? 'replace!' : 'é🙂' })] }));
+    const encoded = entries.map(entry => Buffer.from(`${JSON.stringify(entry)}\r\n`));
+    // Preserve the previous Buffer UTF-8 replacement behavior for malformed bytes.
+    encoded[1]![encoded[1]!.indexOf('!')] = 0xff;
+    const complete = Buffer.concat(encoded);
+    const tail = Buffer.from('{"sequence":4,"note":"é🙂');
+    const log = Buffer.concat([complete, tail]);
+    const padded = Buffer.concat([Buffer.from('prefix'), log, Buffer.from('suffix')]);
+    const view = new Uint8Array(padded.buffer, padded.byteOffset + 6, log.byteLength);
+    const truncated = vi.fn(async () => undefined);
+    const budget = Math.max(...encoded.map(bytes => bytes.byteLength));
+    expect(complete.byteLength).toBeGreaterThan(budget);
+    const nativeToString: Buffer['toString'] = Buffer.prototype.toString;
+    const decodedSizes: number[] = [];
+    const conversion = vi.spyOn(Buffer.prototype, 'toString').mockImplementation(function (this: Buffer, ...args: unknown[]) {
+      const [encoding, start, end] = args as Parameters<Buffer['toString']>;
+      const size = (end ?? this.byteLength) - (start ?? 0);
+      if (encoding === 'utf8') {
+        decodedSizes.push(size);
+        if (size > budget) throw new RangeError('synthetic native string-length limit');
+      }
+      return nativeToString.call(this, encoding, start, end);
+    });
+    let ledger: Awaited<ReturnType<typeof testLedger>>;
+    try {
+      ledger = await testLedger(directory.path, { ...nodeFileSystem, readFile: async () => view, truncate: truncated });
+    } finally { conversion.mockRestore(); }
+    expect(decodedSizes).toHaveLength(3);
+    expect(Math.max(...decodedSizes)).toBeLessThanOrEqual(budget);
+    expect(ledger!.replay().map(entry => entry.transaction.event)).toEqual(entries.map(entry => entry.event));
+    expect(ledger!.replay()[1]!.transaction.records[0]!.body).toEqual({ text: 'replace�' });
+    expect(truncated).toHaveBeenCalledExactlyOnceWith(logOf(), complete.byteLength);
+    expect(ledger!.committedContentHash).toBe(createHash('sha256').update(complete).digest('hex'));
+    expect(ledger!.matchesCommittedContent(complete)).toBe(true);
+    expect(ledger!.matchesCommittedContent(log)).toBe(false);
+    // The ledger retains its own committed bytes after the supplied read view changes.
+    view[0] = 0;
+    expect(ledger!.matchesCommittedContent(complete)).toBe(true);
   });
 });
 

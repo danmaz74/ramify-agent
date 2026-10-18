@@ -17,7 +17,7 @@ async function fixture(assessor?: AssistanceOptions['assessor']) {
   await mkdir(join(root, 'plans', 'sample'), { recursive: true });
   await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Protocol fixture\n');
   const options: AssistanceOptions = { projectRoot: root, registrationProtection: async () => protection,
-    resolveCommit: async (_root, revision) => revision, ...(assessor ? { assessor } : {}) };
+    resolveCommit: async (_root, revision) => revision === 'HEAD' ? baseline : revision, currentHead: async () => baseline, isCleanRepository: async () => true, ...(assessor ? { assessor } : {}) };
   const open = async () => { const service = await AssistanceService.open(options); services.push(service); return service; };
   return { root, open };
 }
@@ -89,6 +89,49 @@ describe('official MCP client over linked transport', () => {
     await vi.waitFor(async () => expect(await call('assessment_status', { plan_id: 'sample', job_id: started.jobId,
       assessment_id: secondAssessment.assessmentId })).toMatchObject({ status: 'completed' }));
     expect(await call('assessment_cancel', { plan_id: 'sample', job_id: started.jobId, assessment_id: firstAssessment.assessmentId })).toMatchObject({ status: 'cancelled' });
+    expect(await call('assessment_detail', { plan_id: 'sample', job_id: started.jobId, assessment_id: firstAssessment.assessmentId })).not.toHaveProperty('completedAt');
     expect(await call('assessment_status', { plan_id: 'sample', job_id: started.jobId, assessment_id: secondAssessment.assessmentId })).toMatchObject({ status: 'completed' });
   });
+  it('starts focused and broader work, ends and repairs through the same tool, and retrieves retained identities', async () => {
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const contexts: Array<Record<string, unknown>> = [];
+    const { open } = await fixture(async context => {
+      contexts.push(context.assessment.request);
+      await held;
+      return { gate: 'clear', summary: 'Candidate verified', repairs: [], decisions: [], gaps: [], evidence: [] };
+    });
+    const service = await open(); const { client, call } = await connect(service);
+    const tool = (await client.listTools()).tools.find(item => item.name === 'iteration');
+    expect(tool).toBeDefined();
+    const job = await call('plan_start', { plan_id: 'sample', command_id: 'register' }) as { jobId: string };
+    const ids = { plan_id: 'sample', job_id: job.jobId };
+    const start = { ...ids, action: 'start', brief: 'Keep the original outcome', focus_module: 'subs/harness', command_id: 'work' };
+    const iteration = await call('iteration', start) as { id: string; startedAt: string; base: string };
+    expect(iteration).toMatchObject({ base: baseline, focusModule: 'subs/harness', brief: 'Keep the original outcome', provenance: { cleanliness: 'clean' } });
+    expect(await call('iteration', start)).toEqual(iteration);
+    const broader = await call('iteration', { ...start, command_id: 'broader', focus_module: null }) as { id: string };
+    expect(broader).toMatchObject({ focusModule: null }); expect(broader.id).not.toBe(iteration.id);
+    expect(contexts).toEqual([]);
+    await expect(call('iteration', { ...start, brief: 'Replaced' })).rejects.toThrow('different command');
+    await expect(call('iteration', { ...ids, action: 'start', brief: 'Missing explicit focus', command_id: 'bad-start' })).rejects.toThrow();
+    const end = { ...ids, action: 'end', iteration_id: iteration.id, candidate, command_id: 'candidate',
+      acceptance: ['scenario-1'], requirement_documents: [{ path: 'docs/spec.md', revision: 'HEAD' }], additional_context: 'Includes another owner' };
+    const first = await call('iteration', end) as { assessmentId: string };
+    expect(await call('iteration', end)).toMatchObject({ assessmentId: first.assessmentId });
+    await vi.waitFor(() => expect(contexts).toHaveLength(1));
+    expect(contexts[0]).toMatchObject({ base: baseline, candidate, brief: start.brief, iterationId: iteration.id, focusModule: 'subs/harness',
+      additionalContext: 'Includes another owner', acceptance: ['scenario-1'], requirementDocuments: [{ path: 'docs/spec.md', revision: baseline }] });
+    expect(await call('assessment_result', { ...ids, assessment_id: first.assessmentId })).toBeNull();
+    await expect(call('iteration', { ...end, command_id: 'overwrite', brief: 'Overwrite original' })).rejects.toThrow();
+    release();
+    await vi.waitFor(async () => expect(await call('assessment_detail', { ...ids, assessment_id: first.assessmentId })).toMatchObject({ status: 'completed', completedAt: expect.any(String) }));
+    const repair = await call('iteration', { ...end, command_id: 'repair', candidate: 'c'.repeat(40), previous_assessment: first.assessmentId }) as { assessmentId: string };
+    expect(repair.assessmentId).not.toBe(first.assessmentId);
+    expect(await call('job_detail', ids)).toMatchObject({ iterations: [
+      { id: iteration.id, status: 'submitted', assessmentIds: [first.assessmentId, repair.assessmentId], startedAt: iteration.startedAt },
+      { id: broader.id, status: 'started', assessmentIds: [] },
+    ] });
+  });
+
 });

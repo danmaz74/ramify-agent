@@ -7,6 +7,29 @@ import type { AssistedAuditOutcome } from './audit.js';
 import type { ProtectionComparison, ProtectedException } from './protection.js';
 import type { AssistedAssessment } from './contracts.js';
 import { createHash } from 'node:crypto';
+import { canonicalJson } from '../jobs/commands.js';
+
+/** Reopen only the agent settlement whose retained proof was rejected.
+ * A later settlement or an actual user decision keeps its own authority.
+ */
+export function unverifiedSemanticClosures(input: {
+  state: CheckFindingState; commands: readonly CheckFindingCommand[]; evidence: CheckFindingEvidence;
+}): Array<{ settlement: string; command: CheckFindingCommand }> {
+  return input.commands.flatMap(command => {
+    if (command.type !== 'dispose' || command.decision.actor.kind !== 'agent'
+      || !['fix-by-assessment', 'supersede'].includes(command.decision.decision.action)) return [];
+    const entry = input.state.findings.get(command.checkFinding);
+    if (!entry || entry.verification.kind !== 'assessment' || entry.standing !== 'closed') return [];
+    const closing = entry.decisions.find(decision => decision.id === entry.settledBy);
+    if (!closing) return [];
+    const { id, considered, ...held } = closing;
+    if (considered !== command.expectedRevision || canonicalJson(held) !== canonicalJson(command.decision)) return [];
+    return [{ settlement: id, command: { type: 'dispose' as const, checkFinding: entry.id, expectedRevision: entry.revision,
+      decision: { actor: { kind: 'harness' as const, reason: `Exact source proof for agent settlement ${id} was rejected` }, source: closing.source,
+        rationale: 'The original settlement is retained, but its candidate evidence cannot be verified. A fresh semantic assessment is required.',
+        evidence: [input.evidence], communication: { mode: 'quiet' as const }, decision: { action: 'reopen' as const, cause: { kind: 'decision' as const } } } } }];
+  });
+}
 
 /** All current findings come from the existing domain projection, never another issue store. */
 export function findingDetails(state: CheckFindingState): CheckFindingDetailView[] {
@@ -50,7 +73,7 @@ export function factualFindingCommands(input: {
     entry.verification.kind === 'check' && entry.verification.producer === 'check:protection'
       ? [entry.verification.obligation.subject.slice('protected:'.length)] : [])]);
   for (const path of protectedPaths) checks.push({ subject: `protected:${path}`, producer: 'check:protection', selection: input.protectionSelection,
-    failed: currentPaths.has(path), passed: !currentPaths.has(path), summary: `Protected file ${path} differs from the execution baseline without an exact authorized exception.`, path });
+    failed: currentPaths.has(path), passed: !currentPaths.has(path) && !input.protection.changes.some(change => change.path === path && change.authorizedBy !== null), summary: `Protected file ${path} differs from the execution baseline without an exact authorized exception.`, path });
   for (const check of checks) {
     const evidence = check.producer === 'check:protection' ? input.protectionEvidence ?? input.evidence : input.evidence;
     const verification: CheckFindingVerification = { kind: 'check', producer: check.producer,
@@ -122,4 +145,11 @@ export function acceptedProtectionExceptions(state: CheckFindingState, assessmen
     }
   }
   return exceptions;
+}
+
+/** Authorization changes the governing condition, not the historical failure on this tree. */
+export function authorizedProtectionFinding(entry: Pick<import('../../subs/check-findings/src/interfaces/check-findings.js').CheckFindingEntry, 'verification'>, protection: ProtectionComparison): boolean {
+  const verification = entry.verification;
+  return verification.kind === 'check' && verification.producer === 'check:protection'
+    && protection.changes.some(change => change.authorizedBy !== null && verification.obligation.subject === `protected:${change.path}`);
 }

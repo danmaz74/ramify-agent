@@ -699,7 +699,7 @@ export async function grepTree(root: string, commit: string, pattern: string, pa
 
 /** The unified diff between two commits, of one path or of all of them. */
 export async function diffPatch(root: string, from: string, to: string, path?: string, signal?: AbortSignal): Promise<string> {
-  const run = await gitOk(root, ['--literal-pathspecs', 'diff', '--no-color', '--no-renames', '--no-ext-diff', '--relative', from, to, '--', ...(path === undefined ? [] : [path])], signal);
+  const run = await gitOk(root, ['--literal-pathspecs', 'diff', '--no-color', '--no-renames', '--no-ext-diff', '--no-textconv', '--relative', from, to, '--', ...(path === undefined ? [] : [path])], signal);
   return run.stdout;
 }
 
