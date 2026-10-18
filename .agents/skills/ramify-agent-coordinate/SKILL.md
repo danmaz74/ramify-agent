@@ -11,6 +11,8 @@ Use Astra for implementation coordination and native Sol subagents for engineeri
 
 Read the target project's instructions and the user's plan. RA reads `plans/<plan-id>/plan.md`; if the agreed plan lives elsewhere, prepare that input from it without changing its requirements. A plain plan with outcomes, constraints and acceptance is sufficient; no harness assignment decomposition or Gherkin conversion is required.
 
+When the plan needs module-impact analysis or a useful iteration breakdown, use the [assisted planning skill](../ramify-agent-assisted-plan/SKILL.md) before registration. Use an existing adequate breakdown directly. During execution, start from its module focus, dependencies and integration obligations, and adapt the sequence when discoveries change the reasons for those boundaries. Preserve captured requirements and the original baseline while revising execution notes.
+
 Use the target project's connected RA MCP tools. For first setup or unfamiliar arguments, read [assistance usage](../../../docs/agent-assistance.md). The server needs an implementation checkout with its dependencies, Pi credentials and the intended target project. If tools are unavailable, identify the missing connection and help set it up; do not claim an assessment or silently substitute a full harness run. One live harness owner holds the project lock.
 
 Before implementation edits, inspect Git HEAD, existing changes and relevant protected inputs. Call `plan_executions` to find an existing assisted execution before starting another. For a new execution, call `plan_start` with `plan_id`, `execution: "assisted"` and a unique `command_id`. Reuse that command ID and arguments if its response is lost. A deliberate new execution needs a new ID.

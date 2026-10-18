@@ -4,7 +4,11 @@ Agent assistance lets a native coordinator and workers implement a real plan whi
 
 ## Prepare and connect
 
-The [coordinator skill](../.agents/skills/ramify-agent-coordinate/SKILL.md) is the starting point for native assisted implementation. The coordinator gives its Sol workers the [module-work skill](../.agents/skills/ramify-agent-module-work/SKILL.md). Both live in this checkout's `.agents/skills/`; when working on another project, load them by their absolute source paths or make them available in your user skill directory. Keep links pointed at a checkout containing this implementation. Loading a skill does not establish an MCP connection.
+Use the [assisted planning skill](../.agents/skills/ramify-agent-assisted-plan/SKILL.md) to create or revise a plan around useful module-specialized iterations. It analyzes affected owners, reuse, contracts and integration, and proposes a revisable breakdown. It needs no MCP connection and does not start an execution. For example:
+
+> Use $ramify-agent-assisted-plan to optimize this plan for module-specialized iterations, preserving its requirements and acceptance.
+
+The [coordinator skill](../.agents/skills/ramify-agent-coordinate/SKILL.md) is the starting point for native assisted implementation. The coordinator gives its Sol workers the [module-work skill](../.agents/skills/ramify-agent-module-work/SKILL.md). These skills live in this checkout's `.agents/skills/`; when working on another project, load them by their absolute source paths or make them available in your user skill directory. Keep links pointed at a checkout containing this implementation. Loading a skill does not establish an MCP connection. The existing `ramify-agent-plan` skill remains for plans executed by the full harness.
 
 Once the MCP server below is connected, a starting request is:
 
