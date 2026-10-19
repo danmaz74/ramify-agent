@@ -616,6 +616,16 @@
         "assistance settles a setsid orphan after active while preserving unrelated execution and persistent history",
         "assistance settles a setsid orphan after provider-exit while preserving unrelated execution and persistent history"
       ]
+    },
+    {
+      "file": "subs/harness/subs/assistance/src/tests/http-bridge.boundary.test.ts",
+      "boundary": "Kernel loopback HTTP streaming and disconnect signals, official SDK HTTP MCP connections and an actual 900000ms assessment observation",
+      "whyFakeCannotProve": "Controlled stream and clock cases cannot establish actual socket flush/disconnect events, official SDK HTTP cancellation or survival of a 15-minute native observation. The real AssistanceService uses explicitly scripted external Git/protection/assessor answers.",
+      "owningCases": [
+        "native HTTP streams headers and body before completion and propagates unfinished response disconnect",
+        "native HTTP waits for kernel response drain before reading the next body chunk",
+        "official HTTP MCP observes an active assessment for 900000ms and reconnects after observation cancellation without cancelling work"
+      ]
     }
   ]
 }
