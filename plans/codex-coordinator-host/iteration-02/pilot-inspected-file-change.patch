@@ -1,0 +1,58 @@
+*** Begin Patch
+*** Update File: /tmp/ramify-coordinate-pilot-lwqu0I/src/elapsed.js
+@@
+-/** Label elapsed whole seconds. */
+-export function formatElapsed(seconds) { return `${seconds}s`; }
++/** Format elapsed whole seconds as HH:MM:SS. */
++export function formatElapsed(seconds) {
++  if (!Number.isFinite(seconds) || seconds < 0) {
++    throw new RangeError("seconds must be a finite, non-negative number");
++  }
++
++  const wholeSeconds = BigInt(Math.floor(seconds));
++  const hours = wholeSeconds / 3600n;
++  const minutes = (wholeSeconds % 3600n) / 60n;
++  const remainingSeconds = wholeSeconds % 60n;
++  const twoDigits = (value) => value.toString().padStart(2, "0");
++
++  return `${twoDigits(hours)}:${twoDigits(minutes)}:${twoDigits(remainingSeconds)}`;
++}
+*** Update File: /tmp/ramify-coordinate-pilot-lwqu0I/src/tests/elapsed.test.js
+@@
+-import {test} from "node:test";
++import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import {formatElapsed} from "../elapsed.js";
+-test("initial seconds label",()=>assert.equal(formatElapsed(30),"30s"));
++import { formatElapsed } from "../elapsed.js";
++
++test("formats zero and elapsed seconds", () => {
++  assert.equal(formatElapsed(0), "00:00:00");
++  assert.equal(formatElapsed(30), "00:00:30");
++  assert.equal(formatElapsed(59), "00:00:59");
++});
++
++test("carries seconds and minutes across boundaries", () => {
++  assert.equal(formatElapsed(60), "00:01:00");
++  assert.equal(formatElapsed(3599), "00:59:59");
++  assert.equal(formatElapsed(3600), "01:00:00");
++  assert.equal(formatElapsed(3661), "01:01:01");
++});
++
++test("retains every hour digit beyond a day", () => {
++  assert.equal(formatElapsed(24 * 3600), "24:00:00");
++  assert.equal(formatElapsed(100 * 3600 + 62), "100:01:02");
++});
++
++test("floors fractional seconds before formatting", () => {
++  assert.equal(formatElapsed(0.999), "00:00:00");
++  assert.equal(formatElapsed(59.999), "00:00:59");
++  assert.equal(formatElapsed(3600.9), "01:00:00");
++});
++
++test("rejects negative and non-finite seconds", () => {
++  for (const seconds of [-1, -0.1, NaN, Infinity, -Infinity]) {
++    assert.throws(() => formatElapsed(seconds), RangeError);
++  }
++});
+*** End Patch

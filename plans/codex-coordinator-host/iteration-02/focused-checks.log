@@ -1,0 +1,13 @@
+
+> ramify-agent@0.0.0 test
+> vitest run subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts subs/harness/subs/assistance/src/tests/coordinator-control.test.ts subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts subs/harness/subs/assistance/src/tests/assistance-service.test.ts src/tests/cli.test.ts subs/harness/subs/assistance/src/tests/coordinator-host.boundary.test.ts subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts src/tests/coordinator-launch.boundary.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/codex-coordinator-host
+
+
+ Test Files  8 passed (8)
+      Tests  152 passed (152)
+   Start at  23:05:41
+   Duration  18.08s (transform 7.01s, setup 840ms, import 11.23s, tests 23.79s, environment 1ms)
+

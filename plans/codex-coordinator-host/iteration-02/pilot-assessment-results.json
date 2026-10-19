@@ -1,0 +1,42 @@
+[
+  {
+    "assessmentId": "as-0001",
+    "result": {
+      "gate": "clear",
+      "summary": "Required assessment completed with no remaining material issue.",
+      "repairs": [],
+      "decisions": [],
+      "gaps": [],
+      "evidence": [
+        "assessments/as-0001/stages/audit.json",
+        "assessments/as-0001/stages/protection.json",
+        "assessments/as-0001/stages/documents.json",
+        "assessments/as-0001/stages/review-policy.json",
+        "assessments/as-0001/stages/review-accepted.json",
+        "assessments/as-0001/stages/review.json",
+        "assessments/as-0001/stages/approval-readiness.json"
+      ],
+      "completedAt": "2026-10-19T23:14:47.370Z"
+    }
+  },
+  {
+    "assessmentId": "as-0002",
+    "result": {
+      "gate": "clear",
+      "summary": "Required assessment completed with no remaining material issue.",
+      "repairs": [],
+      "decisions": [],
+      "gaps": [],
+      "evidence": [
+        "assessments/as-0002/stages/audit.json",
+        "assessments/as-0002/stages/protection.json",
+        "assessments/as-0002/stages/documents.json",
+        "assessments/as-0002/stages/review-policy.json",
+        "assessments/as-0002/stages/review-accepted.json",
+        "assessments/as-0002/stages/review.json",
+        "assessments/as-0002/stages/approval-readiness.json"
+      ],
+      "completedAt": "2026-10-19T23:17:05.111Z"
+    }
+  }
+]

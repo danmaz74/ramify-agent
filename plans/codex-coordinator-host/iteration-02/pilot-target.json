@@ -1,0 +1,10 @@
+{
+  "root": "/tmp/ramify-coordinate-pilot-lwqu0I",
+  "planId": "elapsed-labels",
+  "baseline": "b7e71489ea514ef947202dac109dec9ad9b41afe",
+  "preparedAt": "2026-10-19T22:51:58.874Z",
+  "harnessRoot": "/workspaces/worktrees/codex-coordinator-host",
+  "harnessCommit": "0e3ad1ffa8e8ccf1cea9915ff2bba9cdd250904f",
+  "globalConfigSha256": "14481adfb5b88208f9a4ea1724fe1c904122da8b086620cf1431c9d364910961",
+  "assessmentModel": "openai/gpt-6-astra:high"
+}

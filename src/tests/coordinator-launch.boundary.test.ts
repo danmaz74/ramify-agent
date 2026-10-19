@@ -1,4 +1,5 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { promisify } from 'node:util';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -33,6 +34,13 @@ test('detached CLI host survives its launching command, reconnects without anoth
     const again = await cli(root, 'start', ['--plan', 'sample', '--job', started.record.jobId]) as Snapshot;
     expect(again.record).toMatchObject({ id: started.record.id, generation: started.record.generation, jobId: started.record.jobId, threadId: started.record.threadId });
     const status = await cli(root, 'status', ['--id', started.record.id]) as Snapshot; expect(status.stale).toBe(false);
+    const watch = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), main, 'coordinate', 'watch', '--project', root, '--id', started.record.id, '--json'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    watch.stderr!.resume();
+    try {
+      await once(watch.stdout!, 'data'); watch.stdout!.resume();
+      watch.kill('SIGINT'); expect((await once(watch, 'close'))[0]).toBe(0);
+      expect(() => process.kill(started!.record.owner.pid, 0)).not.toThrow(); expect(() => process.kill(writer!, 0)).not.toThrow();
+    } finally { if (watch.exitCode === null && watch.signalCode === null) { watch.kill('SIGKILL'); await once(watch, 'close'); } }
     const pending = await cli(root, 'interrupt', ['--id', started.record.id, '--command-id', 'interrupt-once']);
     expect(pending).toMatchObject({ state: 'completed', result: { descendants: 'not-established', assessments: 'not-controlled' } });
     expect(() => process.kill(writer!, 0)).not.toThrow();

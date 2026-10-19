@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-19T23:21:06.328Z",
+  "coordinatorId": "coord-bc289a26-6329-4a24-8e03-303821a0a51d",
+  "phase": "stopped",
+  "ownershipReleased": true,
+  "settlement": {
+    "confirmed": true,
+    "descendants": "settled",
+    "supervisorExited": true,
+    "reason": null
+  },
+  "ownedProcesses": [
+    {
+      "role": "host",
+      "pid": 45775,
+      "start": "3111372035",
+      "kernelStartObserved": null,
+      "originalGone": true
+    },
+    {
+      "role": "provider",
+      "pid": 45800,
+      "start": "3111372187",
+      "kernelStartObserved": null,
+      "originalGone": true
+    },
+    {
+      "role": "supervisor",
+      "pid": 45799,
+      "start": "3111372183",
+      "kernelStartObserved": null,
+      "originalGone": true
+    }
+  ],
+  "retainedCredentialScan": {
+    "filesScanned": 40,
+    "matches": 0
+  }
+}

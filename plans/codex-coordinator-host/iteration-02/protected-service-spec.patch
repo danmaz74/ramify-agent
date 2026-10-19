@@ -1,0 +1,28 @@
+diff --git a/docs/architecture/agent-assistance/service.spec.md b/docs/architecture/agent-assistance/service.spec.md
+index f104982b..77d81095 100644
+--- a/docs/architecture/agent-assistance/service.spec.md
++++ b/docs/architecture/agent-assistance/service.spec.md
+@@ -1,5 +1,23 @@
+ # Assisted service contract
+ 
++## Persistent coordinator host
++
++`coordinate start` owns a dedicated host per target checkout. It acquires the existing project lock before registration or provider creation, binds an authenticated loopback HTTP listener and verifies its identity before provider launch. Repeating start for a live matching plan/job observes that host; concurrent launches cannot create competing owners. An existing owner is refused without cancellation. Ambiguous existing execution identities require explicit job selection. A supplied job is verified and reused without recapturing the plan or baseline. A newly registered job remains retained if later provider preparation fails.
++
++One host owns one assistance service and assessor runtime. Official SDK HTTP MCP sessions reuse the existing tool registration and shared service. Session closure and cancelled wait/watch requests release only observation resources. They never close the service or cancel an assessment. Standalone stdio behavior remains supported. The listener accepts only its exact loopback Host and, when supplied, matching Origin. All operations require a private bearer credential. HTTP request, socket, keepalive and observation deadlines accommodate a 900000ms assessment wait with margin; the required provider HTTP MCP tool timeout exceeds 900 seconds.
++
++The provider receives launch-only overrides disabling each explicitly named replaced MCP entry and adding a distinct required HTTP entry. Effective configuration verification rejects an inherited command under that HTTP name, missing tools, enabled replaced entries or insufficient tool timeout. It runs before initial input and for the loaded persistent coordinator. Worker equipment observations report verification or an explicit error. User model selection, instructions, unrelated tools and permission policy remain effective. Persistent thread identity is retained before implementation input. The initial message supplies the exact registered execution; the coordinator verifies it through `job_detail` and does not register it again.
++
++Coordinator observations live under ignored `plans/.harness/coordinators/<id>/`: a small atomic record, private runtime credential and append-only command receipts using the existing ledger. Public observations contain identities, selected models, provider version, host phase, independent turn/worker/assessment state, pending requests and bounded progress with cursors. They exclude credential values, request headers, hidden reasoning and full tool payloads. Provider history remains authoritative conversation storage. Runtime directories are mode 0700 and credential files mode 0600. An unreachable host returns stale observations; a stale timestamp or failed connection never establishes safe replacement authority.
++
++Controls are `send`, `respond`, `interrupt` and `stop`, bound to a retained host generation. Durable command admission precedes provider mutation. Concurrent identical command IDs share one result; changed arguments conflict. Lost replies may be retried only with the same identity and arguments. An uncertain provider delivery or failed receipt persistence is not redelivered. Responses name the exact pending provider request and an offered choice, validated question answers or schema-validated MCP form content. Supported MCP forms have at most 32 declared primitive fields (string, finite number, integer, boolean or string array); accepted content must satisfy the provider's schema and name only declared fields. Decline/cancel submits no content. URL, nested and unsupported form requests remain visible without an invented answer. No observer or host automatically approves a request. Operator response content is hashed for admission and omitted from progress and receipts.
++
++Send refuses busy execution without queueing. Interrupt names a specific turn and reports parent acknowledgement separately from descendant and assessment settlement. Stop prevents later startup admission, settles owned provider processes before closing the service and releasing ownership, and retains ordinary interrupted-assessment records. Unconfirmed descendant settlement retains ownership and an unsettled observation. Provider exit leaves the host and assistance service available for status and explicit controls. CLI timeout or observer disconnect does not stop execution. Watch returns bounded progress, an explicit cursor gap and a current snapshot. Turn completion does not establish final-plan acceptance.
++
++Crash continuation remains a separate operation; this iteration diagnoses `coordinate resume` as unavailable. It does not infer settlement or launch a replacement from stale state.
++
++## Assisted execution operations
++
+ The harness owns assisted execution records under the same `plans/<plan-id>/.harness/jobs/<job-id>/` directory as implementation and manual jobs. An assisted job has kind `assisted`, the existing job schema version and job ID format, a captured `input/plan.md` with its SHA-256, the project identity, and frozen protection rules, Git baseline and setup gaps. `plan_start` reads only `plans/<plan-id>/plan.md`; it does not start the implementation driver.
+ 
+ The MCP stdio command is `ramify-agent mcp --project <root>`. It uses the existing project lock, so it cannot write beside another owner. The service owns all durable state; the MCP adapter validates arguments and forwards operations. Its operations are:

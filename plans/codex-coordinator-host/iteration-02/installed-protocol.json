@@ -1,0 +1,32 @@
+{
+  "cli": "codex-cli 0.161.0",
+  "generationCommand": "codex app-server generate-json-schema --out /tmp/ramify-codex-i2-schemas",
+  "schemas": [
+    {
+      "file": "McpServerElicitationRequestParams.json",
+      "sha256": "5cbeb6bc702d2efa076da4c1dfb00672c970c1bad747031eb880b9ab907815c0"
+    },
+    {
+      "file": "McpServerElicitationRequestResponse.json",
+      "sha256": "792a012fdfe53ac211575a6c37ffbd492be848d15cb313d1bb4b534ade1f54ac"
+    }
+  ],
+  "actualConsent": {
+    "mode": "form",
+    "requestedSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "message": "Allow the <host-specific> MCP server to run tool \"job_detail\"?",
+    "response": {
+      "action": "accept",
+      "content": {}
+    }
+  },
+  "unsupported": [
+    "URL elicitation",
+    "nested/non-primitive form fields",
+    "more than32 declared form fields"
+  ],
+  "validation": "Official installed MCP SDK AjvJsonSchemaValidator; exact declared fields, schema constraints and request identity."
+}

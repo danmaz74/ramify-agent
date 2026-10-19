@@ -1,0 +1,41 @@
+{
+  "at": "2026-10-19T23:09:30.404Z",
+  "request": {
+    "generation": "d756121d-919f-4c69-b425-ce1c77c7b802",
+    "id": "[\"d756121d-919f-4c69-b425-ce1c77c7b802\",\"number\",20,21,\"01a15668-edda-79e1-a248-959e0dd17497\",\"01a15668-ee1c-7410-b27d-0d3ac4389870\"]",
+    "threadId": "01a15668-edda-79e1-a248-959e0dd17497",
+    "turnId": "01a15668-ee1c-7410-b27d-0d3ac4389870",
+    "itemId": "exec-da1ae213-c845-4aa6-a01f-b2edb69f127a",
+    "kind": "file-approval",
+    "reason": null,
+    "writeRoot": null,
+    "choices": [
+      {
+        "id": "0",
+        "label": "Approve once",
+        "effect": "once"
+      },
+      {
+        "id": "1",
+        "label": "Approve for this session",
+        "effect": "session"
+      },
+      {
+        "id": "2",
+        "label": "Decline",
+        "effect": "deny"
+      },
+      {
+        "id": "3",
+        "label": "Cancel",
+        "effect": "cancel"
+      }
+    ]
+  },
+  "paths": [
+    "/tmp/ramify-coordinate-pilot-lwqu0I/src/elapsed.js",
+    "/tmp/ramify-coordinate-pilot-lwqu0I/src/tests/elapsed.test.js"
+  ],
+  "patchSha256": "0db82e04721bcd60f89d739b7494c58bae5e3a3ea7163e74ed204e0bd08ffe17",
+  "authority": "Exact inspected disposable captured-plan implementation and its tests; approve once only."
+}
