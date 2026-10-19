@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { CodexEvent } from '../interfaces/provider.js';
 import { ScriptedCodex, testSession, testThread, testTurn } from './scripted.js';
-import { checkAdmissionOrdering } from './ordering.js';
+import { checkAdmissionOrdering, checkTerminalReplyOrdering } from './ordering.js';
 import { checkStatusOutcome } from './status-outcomes.js';
 
 afterEach(() => vi.useRealTimers());
@@ -732,4 +732,33 @@ test('fresh active history can identify status-only activity before exact matchi
   const next = script.provider.send('thread-1', 'identified work settled');
   script.replyLast({ turn: testTurn('inProgress', 'next') });
   await next;
+});
+
+test('terminal reply then stale same-ID start cannot replace a different live turn in the same batch', async () => {
+  await checkTerminalReplyOrdering(['ack', 'other-start', 'same-start', 'idle'], 'active', 'other');
+});
+
+test('a stale start after a terminal reply cannot identify later status-only activity', async () => {
+  await checkTerminalReplyOrdering(['ack', 'active', 'same-start'], 'active');
+});
+
+test('a stale start after a failed reply cannot claim recovery from a newer provider error', async () => {
+  await checkTerminalReplyOrdering(['ack', 'systemError', 'same-start'], 'systemError', null, true, 'failed');
+});
+
+test('a malformed terminal reply rejects its operation without publishing terminal proof or losing the connection', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'input');
+  script.replyLast({ turn: { ...testTurn('completed', 'submitted'), items: [{ id: 'message', type: 'agentMessage', text: 42 }] } });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'submitted') } });
+  await expect(send).rejects.toMatchObject({ kind: 'uncertain', method: 'turn/start' });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread() });
+  await expect(read).resolves.toMatchObject({ status: 'active', turns: [{ id: 'submitted', status: 'inProgress' }] });
+  const interrupt = script.provider.interrupt('thread-1', 'submitted');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'submitted' });
+  await expect(script.provider.send('thread-1', 'uncertain input must not be replayed')).rejects.toMatchObject({ kind: 'busy' });
+  expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(1);
+  await script.provider.stop();
 });

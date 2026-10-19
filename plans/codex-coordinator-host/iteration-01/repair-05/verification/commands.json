@@ -1,0 +1,44 @@
+[
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "reproduction",
+    "command": "npm run test:quick -- subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts -t 'terminal reply and same-ID start'",
+    "exitCode": 1
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "ordinary",
+    "command": "npm run test:quick -- subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "ordering",
+    "command": "npm run test:stress -- subs/harness/subs/agent/subs/codex/src/tests/provider-ordering.stress.ts subs/harness/subs/agent/subs/codex/src/tests/provider-status.stress.ts",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "native",
+    "command": "npm run test:boundaries -- subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "type-check",
+    "command": "npm run type-check",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "self-check",
+    "command": "npm run check:self",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "name": "diff",
+    "command": "git diff --check",
+    "exitCode": 0
+  }
+]

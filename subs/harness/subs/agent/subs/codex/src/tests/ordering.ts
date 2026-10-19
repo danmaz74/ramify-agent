@@ -58,3 +58,51 @@ export async function checkAdmissionOrdering(order: readonly string[], batch = f
   expect(script.written.filter(frame => frame.method === 'turn/start'), context).toHaveLength(2);
   await script.provider.stop();
 }
+
+/** Terminal replies and notifications share exact-identity precedence. */
+export async function checkTerminalReplyOrdering(order: readonly string[], expected: 'idle' | 'active' | 'systemError' | 'notLoaded', activeTurn: string | null = null, batch = true, terminal: 'completed' | 'interrupted' | 'failed' = 'completed'): Promise<void> {
+  const context = `${terminal}, ${batch ? 'one dispatch batch' : 'interleaved'}: ${order.join(' -> ')}`;
+  const script = new ScriptedCodex();
+  await script.initialize();
+  const start = script.provider.startThread({ cwd: '/target', model: 'gpt-6-astra' });
+  script.replyLast(testSession());
+  await start;
+  const send = script.provider.send('thread-1', 'submitted input');
+  const submission = script.written.at(-1)!.id!;
+  for (const operation of order) {
+    if (operation === 'ack') {
+      script.receive({ id: submission, result: { turn: testTurn(terminal, 'submitted') } });
+      if (!batch) await expect(send, context).resolves.toMatchObject({ id: 'submitted', status: terminal });
+    } else if (operation === 'same-start' || operation === 'other-start' || operation === 'other-complete') {
+      const completed = operation === 'other-complete';
+      script.receive({ method: completed ? 'turn/completed' : 'turn/started', params: { threadId: 'thread-1', turn: testTurn(completed ? 'completed' : 'inProgress', operation === 'same-start' ? 'submitted' : 'other') } });
+    } else if (['idle', 'active', 'systemError', 'notLoaded'].includes(operation)) {
+      script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: operation } } });
+    } else throw new Error(`Unknown operation ${operation}`);
+  }
+  await expect(send, context).resolves.toMatchObject({ id: 'submitted', status: terminal });
+  await expect(script.provider.interrupt('thread-1', 'submitted'), context).rejects.toMatchObject({ kind: 'stale-response' });
+  // Neither empty idle history nor a stale running entry can revive the exact
+  // terminal identity or erase independent newer activity/provider failure.
+  for (const snapshot of [testThread(), testThread({ status: { type: 'active' }, turns: [testTurn('inProgress', 'submitted')] })]) {
+    const read = script.provider.readThread('thread-1');
+    script.replyLast({ thread: snapshot });
+    await expect(read, context).resolves.toMatchObject({ status: expected });
+  }
+  if (activeTurn !== null) {
+    const interrupt = script.provider.interrupt('thread-1', activeTurn);
+    script.replyLast({});
+    await expect(interrupt, context).resolves.toMatchObject({ turnId: activeTurn });
+  }
+  if (expected !== 'idle') {
+    await expect(script.provider.send('thread-1', 'preserve newer activity'), context).rejects.toMatchObject({ kind: expected === 'notLoaded' ? 'unavailable' : 'busy' });
+    expect(script.written.filter(frame => frame.method === 'turn/start'), context).toHaveLength(1);
+    if (activeTurn !== null) script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', activeTurn) } });
+    script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  }
+  const next = script.provider.send('thread-1', 'settled follow-up');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await expect(next, context).resolves.toMatchObject({ id: 'next', status: 'inProgress' });
+  expect(script.written.filter(frame => frame.method === 'turn/start'), context).toHaveLength(2);
+  await script.provider.stop();
+}

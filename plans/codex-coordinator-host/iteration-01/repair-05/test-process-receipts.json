@@ -1,0 +1,123 @@
+[
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/tests/provider-ordering.stress.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 4189277,
+    "startedAt": "2026-10-19T22:11:38.656Z",
+    "finishedAt": "2026-10-19T22:11:42.493Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/tests/provider-status.stress.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 4189278,
+    "startedAt": "2026-10-19T22:11:38.658Z",
+    "finishedAt": "2026-10-19T22:11:39.087Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 4189093,
+    "startedAt": "2026-10-19T22:11:30.436Z",
+    "finishedAt": "2026-10-19T22:11:30.744Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": true,
+    "pid": 4189291,
+    "startedAt": "2026-10-19T22:11:38.829Z",
+    "finishedAt": "2026-10-19T22:11:39.720Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [
+      {
+        "api": "spawn",
+        "argv": [
+          "/usr/local/bin/node",
+          "-e",
+          "setInterval(() => {}, 1000)"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "/usr/local/bin/node",
+          "-e",
+          "setInterval(() => {}, 1000)"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      }
+    ],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 4189094,
+    "startedAt": "2026-10-19T22:11:30.436Z",
+    "finishedAt": "2026-10-19T22:11:30.656Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  }
+]

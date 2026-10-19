@@ -146,3 +146,23 @@ test.each(['idle', 'active'])('prepared consumer preserves status-only activity 
   script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
   await expect(next).resolves.toMatchObject({ id: 'next-turn' });
 });
+
+test.each([false, true])('prepared consumer admits follow-up after terminal reply and same-ID start in one batch (following idle: %s)', async idle => {
+  const script = scriptForPreparation({ turn: (transport, frame) => {
+    if (script.written.filter(entry => entry.method === 'turn/start').length > 1) {
+      transport.receive({ id: frame.id!, result: { turn: testTurn('inProgress', 'next-turn') } });
+      return;
+    }
+    transport.receive({ id: frame.id!, result: { turn: testTurn('completed', 'finished-turn') } });
+    transport.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'finished-turn') } });
+    if (idle) transport.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  } });
+  const prepared = await prepareCoordinatorProvider(inputs(), script.provider);
+  await expect(prepared.provider.send('thread-1', 'first')).resolves.toMatchObject({ id: 'finished-turn', status: 'completed' });
+  await expect(prepared.provider.interrupt('thread-1', 'finished-turn')).rejects.toMatchObject({ kind: 'stale-response' });
+  await expect(prepared.provider.readThread('thread-1')).resolves.toMatchObject({ status: 'idle', turns: [{ id: 'finished-turn', status: 'completed' }] });
+  expect(script.written.some(frame => frame.method === 'turn/interrupt')).toBe(false);
+  await expect(prepared.provider.send('thread-1', 'follow-up')).resolves.toMatchObject({ id: 'next-turn', status: 'inProgress' });
+  expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(2);
+  await prepared.provider.stop();
+});

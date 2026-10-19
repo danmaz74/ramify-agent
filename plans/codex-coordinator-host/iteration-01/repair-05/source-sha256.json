@@ -1,0 +1,7 @@
+{
+  "subs/harness/subs/agent/subs/codex/src/provider.ts": "7b09af571ae1a86b9c6d4d626bdbae1020d1de742068ddefd131f60084865b0f",
+  "subs/harness/subs/agent/subs/codex/src/tests/ordering.ts": "a5bb354c07249808c3e16bf99138cfd34d51ed46d18209c6de06da4888ba99ef",
+  "subs/harness/subs/agent/subs/codex/src/tests/provider-ordering.stress.ts": "05472c3888613be13bbc736051e9cfd1a10f451c162c195c2f2e9aaf8e375ac9",
+  "subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts": "9d79202e9288fd5e913b21371b450a6a1254b1e4902c32c38f85f5c3b8edde51",
+  "subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts": "943c9f5e9edf0ae746ff35bf1c937ee8b8c834af04289cc9051daa27b03aae20"
+}

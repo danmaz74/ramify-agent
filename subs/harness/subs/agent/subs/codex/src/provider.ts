@@ -21,7 +21,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
   let initializing: Promise<CodexReadiness> | undefined;
   let unavailable: CodexProviderError | undefined;
   let stopped = false;
-  const requests = new Map<string | number, { method: string; mutation: boolean; resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout; received?(revision: number): void }>();
+  const requests = new Map<string | number, { method: string; mutation: boolean; resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout; received?(revision: number, result: unknown): void }>();
   const responseDeliveries = new Map<string, { reject(error: Error): void; timer: NodeJS.Timeout }>();
   const pending = new Map<string, { rpcId: string | number; request: CodexPendingRequest; decisions: readonly WireDecision[]; state: 'pending' | 'responding' | 'uncertain' }>();
   type Turn = ReturnType<typeof projectTurn>;
@@ -113,7 +113,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     }
     if (publish) emit({ kind: 'provider-error', message });
   };
-  const call = async (method: string, params: unknown, mutation = false, received?: (revision: number) => void): Promise<unknown> => {
+  const call = async (method: string, params: unknown, mutation = false, received?: (revision: number, result: unknown) => void): Promise<unknown> => {
     if (unavailable !== undefined) throw unavailable;
     if (stopped) throw new CodexProviderError('unavailable', 'Codex provider has been stopped', method);
     const id = ++nextId;
@@ -237,12 +237,18 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       const decodedError = 'error' in frame ? z.object({ code: z.number().int(), message: z.string() }).parse(frame.error) : null;
       requests.delete(id);
       clearTimeout(request.timer);
-      request.received?.(++revision);
+      const receivedAt = ++revision;
       if (decodedError !== null) {
         const error = decodedError;
         request.reject(new CodexProviderError('rpc', error.message, request.method, error.code));
-      } else if ('result' in frame) request.resolve(frame.result);
-      else request.reject(new CodexProviderError(request.mutation ? 'uncertain' : 'protocol', 'Codex response has neither result nor error', request.method));
+      } else if ('result' in frame) {
+        try {
+          // Correlated identity facts must precede the next frame, just like
+          // notification facts. Decode failures still reject this operation.
+          request.received?.(receivedAt, frame.result);
+          request.resolve(frame.result);
+        } catch (error) { request.reject(error instanceof Error ? error : new Error(String(error))); }
+      } else request.reject(new CodexProviderError(request.mutation ? 'uncertain' : 'protocol', 'Codex response has neither result nor error', request.method));
     } catch (error) { fail(`Invalid Codex protocol: ${String(error)}`); }
   };
   const session = (value: unknown, settings: CodexThreadSettings, basis: number, expectedThreadId?: string): CodexThreadSession => {
@@ -345,10 +351,17 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       thread.status = { ...thread.status, revision: generation };
       thread.activeTurn = { ...thread.activeTurn, revision: generation };
       let receivedAt = generation;
+      let acknowledged: Turn | undefined;
       try {
-        const result = z.object({ turn: z.unknown() }).parse(await call('turn/start', { threadId, input: [{ type: 'text', text: message, text_elements: [] }] }, true, at => { receivedAt = at; }));
+        await call('turn/start', { threadId, input: [{ type: 'text', text: message, text_elements: [] }] }, true, (at, result) => {
+          receivedAt = at;
+          acknowledged = projectTurn(z.object({ turn: z.unknown() }).parse(result).turn);
+          // Terminal identity is monotonic. Publish it before a later stale
+          // start can replace another live identity in the same dispatch batch.
+          if (acknowledged.status !== 'inProgress') observeTurn(thread, acknowledged);
+        });
         if (thread.admission?.generation !== admission.generation) throw new CodexProviderError('uncertain', 'Turn reply does not identify the current admission generation', 'turn/start');
-        const observed = observedTurn(thread, projectTurn(result.turn));
+        const observed = observedTurn(thread, acknowledged!);
         admission.turnId = observed.id;
         if (observed.status === 'inProgress' && thread.activeTurn.value !== observed.id &&
           (thread.activeTurn.value !== null || thread.activeTurn.revision > receivedAt)) {
