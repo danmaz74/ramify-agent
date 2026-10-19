@@ -6,7 +6,11 @@ The architecture has actual owners and integrated consumers; **operational benef
 remains unmeasured**. One combined native whole-plan review selected two boundary repairs; both are
 implemented and locally verified in this candidate, without repeat broad review.
 The final configured audit was pending at collection. Its outcome belongs in the
-[execution notes](execution-notes.md), not inferred from these counts.
+[execution notes](execution-notes.md), not inferred from these counts. The later
+`28e5d808` audit repair changes two writer-blocked sentinel comparisons, updates
+source/testing witnesses and adds one test helper and a blocked-writer regression.
+These metrics remain the frozen `409c7de1` snapshot; see the
+[repair delta](iteration-06/results.md) for the subsequent implementation.
 
 The [responsibility map](responsibility-map.md) and
 [implementation results](implementation-results.md) describe the resulting
