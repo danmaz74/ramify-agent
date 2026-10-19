@@ -71,6 +71,7 @@ test('host verifies listener before provider input, keeps shared assessment aliv
     expect(submitted.isError).not.toBe(true); await vi.waitFor(() => expect(assessmentSignal).toBeDefined());
     await one.close(); expect(assessmentSignal!.aborted).toBe(false);
     const status = await host.snapshot(); expect(status.assessments).toMatchObject([{ status: 'running' }]);
+    expect(Object.keys(status.assessments[0]!).sort()).toEqual(['error', 'id', 'revision', 'status']);
     const assessmentId = status.assessments[0]!.id;
     const waiting = two.callTool({ name: 'assessment_wait', arguments: { plan_id: 'sample', job_id: record.jobId, assessment_id: assessmentId, timeout_ms: 900000 } }).catch(error => error);
     await two.close(); await waiting; expect(assessmentSignal!.aborted).toBe(false);

@@ -102,7 +102,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   const snapshot = async (): Promise<CoordinatorSnapshot> => {
     if (store.persistenceError !== undefined && !stopRequested) { record.phase = 'error'; record.error = `Coordinator observation persistence failed: ${describe(store.persistenceError).message}`; }
     let assessments: CoordinatorSnapshot['assessments'] = []; let observationError: string | undefined;
-    try { if (record.jobId !== null) assessments = await service.listAssessments(record.planId, record.jobId); }
+    try { if (record.jobId !== null) assessments = (await service.listAssessments(record.planId, record.jobId)).map(({ id, status, revision, error }) => ({ id, status, revision, error: error === null ? null : String(redact(error)) })); }
     catch (error) { observationError = describe(error).message; }
     return { record: structuredClone(record), stale: false, assessments, ...(observationError === undefined ? {} : { observationError }) };
   };
@@ -120,7 +120,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
         if (!record.settlement.confirmed) { record.phase = 'unsettled'; changed({ kind: 'unsettled', settlement: record.settlement }); await store.flush(); throw new CodexProviderError('uncertain', `Owned execution is not confirmed settled: ${record.settlement.reason}`); }
         await service.close(); await runtime.close();
         record.ownershipReleased = true; record.phase = 'stopped'; record.pending = []; changed({ kind: 'stopped' }); await store.flush();
-        const assessments = record.jobId === null ? [] : await service.listAssessments(record.planId, record.jobId);
+        const assessments = record.jobId === null ? [] : (await service.listAssessments(record.planId, record.jobId)).map(({ id, status, revision, error }) => ({ id, status, revision, error: error === null ? null : String(redact(error)) }));
         // Allow the durable receipt and HTTP response to leave before listener shutdown.
         setTimeout(() => { void finalize().catch(error => { record.phase = 'error'; record.error = describe(error).message; changed({ kind: 'shutdown-error', message: record.error }); }); }, 50);
         return { ...record.settlement, assessments };
