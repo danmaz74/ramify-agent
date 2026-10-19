@@ -785,12 +785,12 @@ describe('CF10 and CF11: a crash between the decisions and the brief', () => {
 });
 
 describe('CF15: a work item waits for actual review settlement', () => {
-  test('a completed reader enters the reconciliation basis and the correction review still runs', async () => {
+  test.each(['complete', 'unavailable'] as const)('a %s reader enters the reconciliation basis and the correction review still runs', async result => {
     const root = await reviewTarget(cleanups);
     const reading = gate();
     const run = await reviewRun(root, cleanups, {
       ...correctionScenario,
-      policy: { concurrency: 2, attemptMs: 60_000, settleMs: 400 },
+      policy: { concurrency: 2, retries: 0, attemptMs: 60_000, settleMs: 400 },
       architect: [
         ...architect().slice(0, 3),
         // The completion request comes while the third reader is running.
@@ -799,22 +799,23 @@ describe('CF15: a work item waits for actual review settlement', () => {
       ],
       reviewers: {
         ...correctionScenario.reviewers,
-        'rq-0003': [{ kind: 'await', until: async () => { reading.open(); } }, ...review(changed[3])],
+        'rq-0003': [{ kind: 'await', until: async () => { reading.open(); } },
+          ...(result === 'complete' ? review(changed[3]) : [{ kind: 'end' as const, message: 'Provider ended without a review' }])],
       },
     });
     const { service, runId, events } = run;
     expect(onlyRun(service, plan).state).toBe('completed');
     const finished = eventsOf(events, 'review-attempt-finished');
-    expect(finished.find(event => event.data.request === 'rq-0003')!.data).toMatchObject({ result: 'complete', reason: null, settles: true });
+    expect(finished.find(event => event.data.request === 'rq-0003')!.data).toMatchObject({ result: result === 'complete' ? 'complete' : 'not-verified', settles: true });
     const started = eventsOf(events, 'review-attempt-started').find(event => event.data.request === 'rq-0003')!;
-    // The reader submitted, and its session is finished.
+    // The actual terminal review outcome is settled and its session is finished.
     const sessions = reduceSessions(events);
     expect(sessions.get(started.data.session)!.state).toBe('finished');
     // The actual review result is in the basis before the correction review runs.
     const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'));
-    expect(basis.requests.find(request => request.request === 'rq-0003')).toEqual({ request: 'rq-0003', attempt: 'rq-0003.a01', result: 'complete' });
+    expect(basis.requests.find(request => request.request === 'rq-0003')).toEqual({ request: 'rq-0003', attempt: 'rq-0003.a01', result: result === 'complete' ? 'complete' : 'not-verified' });
     expect(finished.find(event => event.data.request === 'rq-0004')!.data).toMatchObject({ result: 'complete' });
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 4, complete: 4, partial: 0, notVerified: 0, pending: 0 });
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 4, complete: result === 'complete' ? 4 : 3, partial: 0, notVerified: result === 'complete' ? 0 : 1, pending: 0 });
   }, 60_000);
 });
 

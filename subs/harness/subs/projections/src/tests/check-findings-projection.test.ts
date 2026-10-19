@@ -79,7 +79,7 @@ function request(id: string, workItem: string, iteration: string, kind: 'code' |
 
 type Result = { result: 'complete'; inspected: Array<{ path: string }>; concerns: number }
   | { result: 'partial'; inspected: Array<{ path: string }>; missing: Array<{ path: string; reason: string }>; concerns: number }
-  | { result: 'not-verified'; reason: 'timed-out' | 'invalid-output'; detail: string };
+  | { result: 'not-verified'; reason: 'timed-out' | 'invalid-output' | 'deadline' | 'no-time-before-deadline'; detail: string };
 
 function finished(requestId: string, attempt: string, result: Result, checkFindings: string[] = [], settles = true): Line {
   return {
@@ -325,6 +325,24 @@ describe('CheckFinding detail and reviews', () => {
     expect(factual.attempts[0]).toMatchObject({ kind: 'other', attempt: 'ga-0010', candidate: { tree: 't-02' } });
     expect(factual.decisions.items.at(-1)!.action).toMatchObject({ action: 'fix-by-check', witness: { attempt: 'ga-0012', obligation: 'scenario:sc-004@1' } });
     expect(() => checkFindingDetailOf(view, 'cf-0099')).toThrow(ProjectionError);
+  });
+
+  test('historical elapsed-review reasons remain visible without manufacturing current review outcomes', () => {
+    // Compatibility records only: current review execution never emits elapsed expiry.
+    for (const reason of ['deadline', 'no-time-before-deadline'] as const) {
+      const stream = new Stream()
+        .line(request('rq-0001', 'wi-001', 'wi-001.i01', 'code', 'c-01'))
+        .line(finished('rq-0001', 'rq-0001.a01', { result: 'not-verified', reason, detail: 'Retained historical elapsed-review outcome' }));
+      const before = JSON.stringify(stream.lines);
+      const view = runView(constructedRun(stream.lines, reviewed));
+      const select = { workItem: 'wi-001', after: null, limit: 50 };
+      const first = reviewListResponseSchema.parse(reviewListOf(view, select));
+      expect(first.requests).toEqual([expect.objectContaining({ id: 'rq-0001', result: 'not-verified',
+        attempts: [expect.objectContaining({ id: 'rq-0001.a01', reason })] })]);
+      expect(first.coverage).toMatchObject({ state: 'available', requested: 1, notVerified: 1, pending: 0 });
+      expect(reviewListOf(view, select)).toEqual(first);
+      expect(JSON.stringify(stream.lines)).toBe(before);
+    }
   });
 
   test('reviews list each request with its settling result and attempts, bounded and paged', () => {
