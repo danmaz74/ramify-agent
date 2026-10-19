@@ -239,3 +239,101 @@ test('a stopped provider cannot initialize or launch a replacement transport', a
   await expect(provider.initialize()).rejects.toMatchObject({ kind: 'unavailable' });
   expect(start).not.toHaveBeenCalled();
 });
+
+test.each(['before-admission', 'after-acknowledgement'])('a delayed idle history snapshot cannot erase a live turn: read %s', async timing => {
+  const script = await prepared();
+  let history: Promise<unknown> | undefined;
+  let historyId: string | number | undefined;
+  const read = () => { history = script.provider.readThread('thread-1'); historyId = script.written.at(-1)!.id!; };
+  if (timing === 'before-admission') read();
+  const send = script.provider.send('thread-1', 'first');
+  script.replyLast({ turn: testTurn() });
+  await send;
+  if (timing === 'after-acknowledgement') read();
+  script.receive({ id: historyId!, result: { thread: testThread() } });
+  await history;
+  await expect(script.provider.send('thread-1', 'must stay busy')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'turn-1');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'turn-1' });
+  expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(1);
+});
+
+test.each(['before-completion', 'after-completion'])('a delayed active history snapshot cannot resurrect a completed turn: read %s', async timing => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'first');
+  script.replyLast({ turn: testTurn() });
+  await send;
+  let history: Promise<unknown> | undefined;
+  let historyId: string | number | undefined;
+  const read = () => { history = script.provider.readThread('thread-1'); historyId = script.written.at(-1)!.id!; };
+  if (timing === 'before-completion') read();
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed') } });
+  if (timing === 'after-completion') read();
+  script.receive({ id: historyId!, result: { thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) } });
+  await history;
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'next');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await expect(next).resolves.toMatchObject({ id: 'turn-2' });
+});
+
+test('late history from an old turn cannot replace the current interruption identity', async () => {
+  const script = await prepared();
+  const first = script.provider.send('thread-1', 'first');
+  script.replyLast({ turn: testTurn() });
+  await first;
+  const history = script.provider.readThread('thread-1');
+  const historyId = script.written.at(-1)!.id!;
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed') } });
+  const next = script.provider.send('thread-1', 'next');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await next;
+  script.receive({ id: historyId, result: { thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) } });
+  await history;
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const interrupt = script.provider.interrupt('thread-1', 'turn-2');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'turn-2' });
+});
+
+test('out-of-order history snapshots cannot overwrite the newer adopted observation', async () => {
+  const script = await prepared();
+  const old = script.provider.readThread('thread-1');
+  const oldId = script.written.at(-1)!.id!;
+  const current = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread() });
+  await current;
+  script.receive({ id: oldId, result: { thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) } });
+  await old;
+  const send = script.provider.send('thread-1', 'current input');
+  script.replyLast({ turn: testTurn('inProgress', 'current-turn') });
+  await expect(send).resolves.toMatchObject({ id: 'current-turn' });
+});
+
+test.each(['exit', 'stop', 'timeout', 'write-error'])('response delivery settles as uncertain after %s and a late callback cannot reopen it', async failure => {
+  vi.useFakeTimers();
+  let finishWrite!: () => void;
+  let rejectWrite!: (error: Error) => void;
+  const write = new Promise<void>((resolve, reject) => { finishWrite = resolve; rejectWrite = reject; });
+  const script = await prepared(new ScriptedCodex(frame => frame.result === undefined ? undefined : write));
+  const events: CodexEvent[] = [];
+  script.provider.observe(event => events.push(event));
+  script.receive(approval());
+  const id = script.provider.pendingRequests()[0]!.id;
+  const response = script.provider.respond(id, { kind: 'approval', choiceId: '0' });
+  const rejected = expect(response).rejects.toMatchObject({ kind: 'uncertain', method: 'respond' });
+  await expect(script.provider.respond(id, { kind: 'approval', choiceId: '0' })).rejects.toMatchObject({ kind: 'stale-response' });
+  if (failure === 'exit') script.exit(7);
+  if (failure === 'stop') await script.provider.stop();
+  if (failure === 'timeout') await vi.advanceTimersByTimeAsync(1001);
+  if (failure === 'write-error') rejectWrite(new Error('write failed'));
+  await rejected;
+  finishWrite();
+  await Promise.resolve();
+  await Promise.resolve();
+  await expect(script.provider.respond(id, { kind: 'approval', choiceId: '0' })).rejects.toBeDefined();
+  expect(script.written.filter(frame => frame.id === 7 && frame.result !== undefined)).toHaveLength(1);
+  expect(script.provider.pendingRequests().map(request => request.id)).toContain(id);
+  expect(events.filter(event => event.kind === 'request-resolved')).toHaveLength(0);
+});

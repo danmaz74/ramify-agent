@@ -22,8 +22,15 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
   let unavailable: CodexProviderError | undefined;
   let stopped = false;
   const requests = new Map<string | number, { method: string; mutation: boolean; resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout }>();
+  const responseDeliveries = new Map<string, { reject(error: Error): void; timer: NodeJS.Timeout }>();
   const pending = new Map<string, { rpcId: string | number; request: CodexPendingRequest; decisions: readonly WireDecision[]; state: 'pending' | 'responding' | 'uncertain' }>();
   const threads = new Map<string, { status: CodexThread['status']; activeTurn: string | null; uncertain: boolean }>();
+  const threadRevisions = new Map<string, number>();
+  const liveThreadControl = new Set<string>();
+  const advanceThread = (threadId: string, live = true) => {
+    threadRevisions.set(threadId, (threadRevisions.get(threadId) ?? 0) + 1);
+    if (live) liveThreadControl.add(threadId);
+  };
   // Retain early turn outcomes only while an input acknowledgement is pending.
   const earlyTurns = new Map<string, ReturnType<typeof projectTurn>>();
   const submissions = new Set<string>();
@@ -40,6 +47,13 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       clearTimeout(request.timer);
       request.reject(new CodexProviderError(request.mutation ? 'uncertain' : 'unavailable', message, request.method));
       requests.delete(id);
+    }
+    for (const [id, delivery] of responseDeliveries) {
+      clearTimeout(delivery.timer);
+      responseDeliveries.delete(id);
+      const entry = pending.get(id);
+      if (entry !== undefined) entry.state = 'uncertain';
+      delivery.reject(new CodexProviderError('uncertain', `Response delivery is uncertain: ${message}`, 'respond'));
     }
     if (publish) emit({ kind: 'provider-error', message });
   };
@@ -61,12 +75,17 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     if (unavailable !== undefined) throw unavailable;
     if (stopped) throw new CodexProviderError('unavailable', 'Codex provider has been stopped');
   };
-  const remember = (thread: CodexThread) => {
-    // An observation cannot prove an in-flight/lost mutation was never accepted.
+  const remember = (thread: CodexThread, readRevision?: number) => {
     const old = threads.get(thread.id);
+    // History is inspection once live control exists. It cannot revoke an
+    // admission, erase a running turn or resurrect one already completed.
+    // Concurrent history reads also cannot replace a newer adopted snapshot.
+    if (readRevision !== undefined && (readRevision !== (threadRevisions.get(thread.id) ?? 0) || old !== undefined && liveThreadControl.has(thread.id))) return;
+    // An observation cannot prove an in-flight/lost mutation was never accepted.
     const observed = { status: thread.status, activeTurn: thread.turns.find(t => t.status === 'inProgress')?.id ?? null };
     if (old === undefined) threads.set(thread.id, { ...observed, uncertain: false });
     else Object.assign(old, observed);
+    advanceThread(thread.id, false);
   };
   const resolvePending = (id: string) => { if (pending.delete(id)) emit({ kind: 'request-resolved', id }); };
   const onLine = (line: string) => {
@@ -88,6 +107,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         } else if (frame.method === 'turn/started' || frame.method === 'turn/completed') {
           const threadId = text.parse(p.threadId);
           const turn = projectTurn(p.turn);
+          advanceThread(threadId);
           if (submissions.has(threadId)) earlyTurns.set(`${threadId}:${turn.id}`, turn);
           const old = threads.get(threadId);
           if (old !== undefined) {
@@ -99,6 +119,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         } else if (frame.method === 'thread/status/changed') {
           const threadId = text.parse(p.threadId);
           const status = z.object({ type: z.enum(['idle', 'active', 'notLoaded', 'systemError']) }).parse(p.status).type;
+          advanceThread(threadId);
           const old = threads.get(threadId);
           if (old !== undefined) old.status = status;
           emit({ kind: 'thread-status', threadId, status });
@@ -204,10 +225,11 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     },
     async readThread(threadId) {
       requireReady();
+      const readRevision = threadRevisions.get(threadId) ?? 0;
       const response = z.object({ thread: z.unknown() }).parse(await call('thread/read', { threadId, includeTurns: true }));
       const thread = projectThread(response.thread);
       if (thread.id !== threadId) throw new CodexProviderError('protocol', 'Codex read returned another thread', 'thread/read');
-      remember(thread);
+      remember(thread, readRevision);
       return thread;
     },
     async resumeThread(threadId, settings) {
@@ -226,6 +248,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       const thread = threads.get(threadId);
       if (thread === undefined || thread.status === 'notLoaded') throw new CodexProviderError('unavailable', 'Resume or start this thread before input');
       if (thread.status !== 'idle' || thread.activeTurn !== null || thread.uncertain) throw new CodexProviderError('busy', `Thread ${threadId} is busy or its previous submission is uncertain`);
+      advanceThread(threadId);
       thread.status = 'active';
       thread.uncertain = true;
       submissions.add(threadId);
@@ -233,12 +256,13 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         const result = z.object({ turn: z.unknown() }).parse(await call('turn/start', { threadId, input: [{ type: 'text', text: message, text_elements: [] }] }, true));
         const submitted = projectTurn(result.turn);
         const observed = earlyTurns.get(`${threadId}:${submitted.id}`) ?? submitted;
+        advanceThread(threadId);
         thread.activeTurn = observed.status === 'inProgress' ? observed.id : null;
         thread.status = thread.activeTurn === null ? 'idle' : 'active';
         thread.uncertain = false;
         return observed;
       } catch (error) {
-        if (error instanceof CodexProviderError && error.kind === 'rpc') { thread.status = 'idle'; thread.uncertain = false; }
+        if (error instanceof CodexProviderError && error.kind === 'rpc') { advanceThread(threadId); thread.status = 'idle'; thread.uncertain = false; }
         if (error instanceof CodexProviderError) throw error;
         throw new CodexProviderError('uncertain', `Turn submission was not verified: ${String(error)}`, 'turn/start');
       } finally {
@@ -266,8 +290,23 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       } else throw new CodexProviderError('protocol', request.reason);
       // Reserve synchronously before awaiting transport: two responders cannot settle it.
       entry.state = 'responding';
-      try { await connection.write(JSON.stringify({ id: entry.rpcId, result })); resolvePending(requestId); }
-      catch (error) { entry.state = 'uncertain'; throw new CodexProviderError('uncertain', `Response delivery is uncertain: ${String(error)}`); }
+      await new Promise<void>((resolve, reject) => {
+        const finish = (error?: { reason: unknown }) => {
+          const delivery = responseDeliveries.get(requestId);
+          // Failure/timeout owns settlement even when a write callback arrives later.
+          if (delivery === undefined) return;
+          responseDeliveries.delete(requestId);
+          clearTimeout(delivery.timer);
+          if (error !== undefined) {
+            entry.state = 'uncertain';
+            reject(new CodexProviderError('uncertain', `Response delivery is uncertain: ${String(error.reason)}`, 'respond'));
+          } else { resolvePending(requestId); resolve(); }
+        };
+        const timer = setTimeout(() => finish({ reason: 'delivery timed out; do not replay blindly' }), timeoutMs);
+        responseDeliveries.set(requestId, { reject, timer });
+        try { void connection.write(JSON.stringify({ id: entry.rpcId, result })).then(() => finish(), reason => finish({ reason })); }
+        catch (reason) { finish({ reason }); }
+      });
     },
     async interrupt(threadId, turnId) {
       requireReady();
