@@ -1,0 +1,86 @@
+{
+  "schema": "harness-decomposition.audit-repair/1",
+  "assessmentId": "as-0001",
+  "assessedCandidate": "7e399e6b13ada2214b41a82c6eddfb03636da953",
+  "status": "repair candidate; configured reassessment pending",
+  "reportCommit": "03d8436e3a1d991eb41bb54e6f0b0d0378f69a05",
+  "runRef": "refs/audited/runs/2026-10-19T07-18-04Z-7e399e6b1",
+  "provider": {
+    "name": "ramify-audit",
+    "version": "0.9.3"
+  },
+  "mode": {
+    "requestedMode": "ramify-partial",
+    "resolution": "defaulted",
+    "executedMode": "full",
+    "fallbackReason": "drift-cap: 37 distinct paths selected a module or a direct test-file change since the full audit at 0c4a5159d38434c19b4f35b15289ed256f848e1e (limit 25)"
+  },
+  "overall": "fail",
+  "checks": {
+    "agent-scenarios": {
+      "status": "pass",
+      "passed": true,
+      "summary": "agent-cucumber: PASS"
+    },
+    "agent-structure": {
+      "status": "pass",
+      "passed": true,
+      "summary": "agent-check-self: PASS"
+    },
+    "agent-tests": {
+      "status": "pass",
+      "passed": true,
+      "summary": "agent-vitest: PASS"
+    },
+    "agent-typecheck": {
+      "status": "pass",
+      "passed": true,
+      "summary": "agent-typecheck: PASS"
+    },
+    "agent-web-build": {
+      "status": "pass",
+      "passed": true,
+      "summary": "agent-web-build: PASS"
+    },
+    "patch-integrity": {
+      "status": "fail",
+      "passed": false,
+      "summary": "git-diff-check: FAIL"
+    }
+  },
+  "diagnostic": "### git-diff-check [FAIL]\nplans/harness-decomposition/iteration-01/consumer-regressions.log:13: new blank line at EOF.\nplans/harness-decomposition/iteration-01/focused-tests.log:13: new blank line at EOF.\nplans/harness-decomposition/iteration-01/native-tests.log:13: new blank line at EOF.\nplans/harness-decomposition/iteration-01/type-check.log:4: new blank line at EOF.\n\nCommand failed: git diff --check HEAD^ HEAD",
+  "repair": "Remove exactly one extra EOF newline from each of four command logs. Command content/results and source inventory are unchanged. No production/test/config change.",
+  "changes": [
+    {
+      "path": "plans/harness-decomposition/iteration-01/consumer-regressions.log",
+      "beforeSha256": "f6b367d3642b17b68fe9e374fbdab8d1fba835d00fe2ddf0ea32fa8292e1e51f",
+      "afterSha256": "92212b015900b3fea1b53598d77d7b2be40b6594ab50ff39097948e602ca2bd9",
+      "removedBytes": 1
+    },
+    {
+      "path": "plans/harness-decomposition/iteration-01/focused-tests.log",
+      "beforeSha256": "b4b5bc51d16b7d69f6864074b512259569bc9fc81ff39d06fa26a9e5cf348688",
+      "afterSha256": "df6c21f44f34d2a365aad1ad5b0f077a73ab0b16cc9c2ec437860b892183cef7",
+      "removedBytes": 1
+    },
+    {
+      "path": "plans/harness-decomposition/iteration-01/native-tests.log",
+      "beforeSha256": "d35e0fcdec1799bdb5adc70474c0ce0fbf418475af3734a855a882b07f4b663d",
+      "afterSha256": "cc356b9ba66fde2e3fa150fad76c1fb6e1f50cf85bfa01aba88c115d23ae407f",
+      "removedBytes": 1
+    },
+    {
+      "path": "plans/harness-decomposition/iteration-01/type-check.log",
+      "beforeSha256": "cc20c8cd61ad65bc7bb1f956b6c3edae16121fe0425f7fd5894d9eb76fe49c3c",
+      "afterSha256": "f8d7019181031b2228eaf4495126d9a5fcdbcd0c5da247f6ac0236b10215051a",
+      "removedBytes": 1
+    }
+  ],
+  "localVerification": [
+    "git diff --check",
+    "git diff --check --cached",
+    "git diff --check HEAD^ HEAD (after repair commit)",
+    "git diff --check 85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4 HEAD (after repair commit)"
+  ],
+  "qualification": "The original failed audit remains failed. Its other five checks passed. No duplicate audit or whole-suite run; coordinator submits this new committed candidate in the same iteration."
+}

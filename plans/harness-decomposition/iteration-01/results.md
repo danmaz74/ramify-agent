@@ -149,3 +149,21 @@ ramify-audit.json edits. The native registry addition is the exact new witness
 described above. There is no remaining implementation blocker for iteration 1.
 RA must assess the committed candidate; later iterations and cumulative final-plan
 acceptance remain outstanding.
+
+## First committed assessment and patch repair
+
+RA assessment `as-0001` on `7e399e6b13ada2214b41a82c6eddfb03636da953`
+remains incomplete. Its configured audit widened to full through the provider's
+default drift-cap rule. Scenarios, complete Vitest discovery/execution, structural
+check, TypeScript and web build passed. Patch integrity failed because four
+retained command logs ended with an extra blank line. The repair removes exactly
+one EOF newline from each log; all command content and results remain intact.
+No source, test, boundary registration or configuration changes were required.
+The source/API metrics above therefore remain valid.
+
+[Repair evidence](audit-repair-01.json) retains the failed check diagnostic, exact
+audit/report references and original/repaired log hashes. Local patch checks pass
+against both the preceding candidate and the original execution baseline. No
+duplicate full audit was run. The coordinator handles the separately reported
+assessor model configuration gap and submits this repair through the same
+iteration. A new configured audit and required Pi assessment remain pending.

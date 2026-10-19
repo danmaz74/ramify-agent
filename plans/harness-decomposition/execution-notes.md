@@ -26,6 +26,8 @@ Iteration 1: shared durable session persistence and all real consumers.
 - Focus: `subs/harness/subs/session-store`.
 - Native Sol implementation worker: `/root/session_store`.
 - Independent Sol evaluation worker: `/root/evaluation`, restricted to comparison evidence under `evaluation/`.
-- Candidate and assessment: not submitted yet.
+- Candidate: `7e399e6b13ada2214b41a82c6eddfb03636da953`.
+- Submitted assessment: `as-0001`; awaiting completed compact result.
+- Local verification: 218 ordinary tests, 8 native cases, TypeScript and Ramify structural checks passed. No protected changes reported.
 
-Follow the six ordered outcomes in the captured plan. The implementation worker owns cross-owner integration; the coordinator submits each candidate and observes RA. Independent evaluation does not authorize a dependent extraction before the current gate. Next: finish local checks, commit the session-store candidate, submit iteration end, then retrieve the completed compact assessment result.
+Follow the six ordered outcomes in the captured plan. The implementation worker owns cross-owner integration; the coordinator submits each candidate and observes RA. Independent evaluation does not authorize a dependent extraction before the current gate. Next: retrieve the completed compact result for `as-0001`; repair within the same iteration if required, otherwise start iteration 2 assistance extraction. Worker `/root/session_store` is available for related outcomes; evaluation worker completed its baseline artifacts.
