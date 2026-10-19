@@ -13,7 +13,7 @@ import { findingDetails, reportReviewConcerns } from '../findings.js';
 import { AssistanceService } from '../service.js';
 import { createAssessor, type AssessmentDependencies } from '../assessment.js';
 import type { AssistedProtection } from '../contracts.js';
-import type { AssistanceDocuments } from '../documents.js';
+import { captureAssistanceDocuments, type AssistanceDocuments } from '../documents.js';
 
 const baseline = 'a'.repeat(40), first = 'b'.repeat(40), repaired = 'c'.repeat(40);
 const roots: string[] = [], services: AssistanceService[] = [];
@@ -218,6 +218,45 @@ describe('assisted assessment pipeline with real service records', () => {
     expect((await outcome(reopened, job.jobId, admitted.assessmentId)).gate).toBe('clear');
     expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).requestedAt).toBe(detail.requestedAt);
     expect(JSON.parse(await readFile(join(directory, reference.artifact.path), 'utf8'))).toEqual(artifact);
+  });
+
+  it('restores a missing historical compact document catalog using its original discovery policy', async () => {
+    const planMarkdown = '# Plan\nThe feature returns 2. [Companion](../../docs/companion.md)\n';
+    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files,
+      'docs/companion.md': '# Companion constraint', 'quality.principles.md': '# Relevant quality' } };
+    const { service, job, candidates } = await setup({ [baseline]: initial, [first]: source('2', baseline) },
+      { operations: unusedOperations, audit: async input => audit(input.candidateCommit) }, planMarkdown);
+    await service.close();
+    let original: AssistanceDocuments | undefined;
+    const old = await AssistanceService.open({ projectRoot: service.projectRoot, resolveCommit: async (_root, revision) => revision,
+      assessor: async context => {
+        original = await captureAssistanceDocuments({ projectRoot: context.projectRoot, planId: 'sample',
+          planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates, discoverReferences: true });
+        await context.checkpoint('documents', { schema: 'ramify-agent.assisted-document-reference/1', baselineCommit: baseline,
+          artifact: await context.retainEvidence(original) });
+        throw new Error('Historical executor stopped after compact capture');
+      } }); services.push(old);
+    const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'legacy-compact' });
+    await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    const detail = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    const stage = detail.stages.find(stage => stage.name === 'documents')!.evidence as { artifact: { path: string; sha256: string } };
+    expect(original!.documents.map(document => document.path)).toContain('docs/companion.md');
+    const artifact = join(service.projectRoot, 'plans/sample/.harness/jobs', job.jobId, stage.artifact.path);
+    await old.close();
+    await rm(artifact);
+    const resumed = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit), review: async input => {
+        expect(input.prepared.message).not.toContain('# Companion constraint');
+        const checked = input.prepared.validate(reviewReport(input.candidate));
+        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
+        return { status: 'submitted', value: checked.value, operationId: input.operationId, sessionId: 'legacy-compact-review', eventCount: 1 };
+      } }) }); services.push(resumed);
+    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(detail.revision));
+    expect((await outcome(resumed, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(JSON.parse(await readFile(artifact, 'utf8'))).toEqual(original);
+    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(item => item.name === 'documents')!.evidence).toEqual(stage);
   });
 
   it.each(['valid', 'lossy-principle', 'lossy-companion', 'cached-lossy-companion'] as const)('verifies resumed legacy inline documents without changing their historical records (%s)', async scenario => {

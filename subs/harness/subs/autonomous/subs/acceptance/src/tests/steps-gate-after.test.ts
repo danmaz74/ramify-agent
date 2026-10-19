@@ -244,6 +244,24 @@ describe('S17: after a completion proposal, with and without its gate', () => {
       .toEqual({ status: 'refused', reason: 'review request rq-0001 was already settled by rq-0001.a01' });
     const again = await step(reviewInputs, run, [], git, { candidates });
     expect(again).toMatchObject({ status: 'not-started', exitStatus: 2, reason: expect.stringContaining('already settled') });
+    // A manual design request needs no initial guidance inventory. It uses
+    // the same candidate tools and settles through the ordinary step flow.
+    const design = await reviewInputsFromRequest({ runDirectory: run, request: 'rq-0003', candidates, configuredAudit: passingAudit() });
+    if (design.status !== 'composed') throw new Error(design.reason);
+    expect(design.inputs).toMatchObject({ question: 'design', request: { guidance: [], forkPoint: { kind: 'none' } }, start: { kind: 'fresh' } });
+    const designInputs = join(scratch, 'design-review.json');
+    await writeFile(designInputs, serializeStepInputs(design.inputs));
+    const designReview = await step(designInputs, run, [
+      { kind: 'submit', input: { assessment: 'The change preserves the current design.', concerns: [] } },
+    ], git, { candidates });
+    if (designReview.status !== 'finished') throw new Error(designReview.reason);
+    expect(designReview.exitStatus).toBe(0);
+    expect(designReview.summary).toMatchObject({ role: 'reviewer', variant: 'design', ended: 'submitted' });
+    expect(await json(designReview.summary.records.review!)).toMatchObject({ request: 'rq-0003', settles: true,
+      result: { result: 'complete', assessment: 'The change preserves the current design.', concerns: 0 } });
+    expect(await reviewInputsFromRequest({ runDirectory: run, request: 'rq-0003', candidates, configuredAudit: passingAudit() }))
+      .toEqual({ status: 'refused', reason: 'review request rq-0003 was already settled by rq-0003.a01' });
+
     // A role whose after-handling is not applied is reported as not run, with nothing recorded.
     const unhandled = await after(run, reviewed.summary.invocation, { git, candidates });
     expect(unhandled).toMatchObject({ exitStatus: 0, applied: [] });

@@ -127,8 +127,8 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       }
     }
 
-    const captureDocuments = () => captureAssistanceDocuments({ projectRoot, planId: job.planId,
-      planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates: source });
+    const captureDocuments = (discoverReferences = false) => captureAssistanceDocuments({ projectRoot, planId: job.planId,
+      planMarkdown: context.planMarkdown, baselineCommit: baseline, candidates: source, discoverReferences });
     const savedDocuments = stages<AssistanceDocuments | DocumentsReference>('documents');
     let documents: AssistanceDocuments;
     if (isDocumentsReference(savedDocuments)) {
@@ -138,7 +138,15 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         // Recovery uses the same immutable source and must reproduce the exact committed artifact.
         documents = await captureDocuments();
         const regenerated = await context.retainEvidence(documents);
-        if (regenerated.sha256 !== savedDocuments.artifact.sha256 || regenerated.path !== savedDocuments.artifact.path) throw new Error('Retained document evidence is unavailable and could not be reproduced exactly');
+        if (regenerated.sha256 !== savedDocuments.artifact.sha256 || regenerated.path !== savedDocuments.artifact.path) {
+          // Older compact references captured discovered companions. Only a
+          // missing historical artifact needs their original capture policy.
+          const historical = await captureDocuments(true);
+          const restored = await context.retainEvidence(historical);
+          if (restored.sha256 !== savedDocuments.artifact.sha256 || restored.path !== savedDocuments.artifact.path)
+            throw new Error('Retained document evidence is unavailable and could not be reproduced exactly');
+          documents = historical;
+        }
       }
     } else if (savedDocuments) documents = savedDocuments;
     else {

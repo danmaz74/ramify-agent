@@ -83,7 +83,6 @@ export async function reviewInputsFromRequest(options: ReviewInputsFromRequestOp
   const kind = request.key.kind;
   if (request.inputsUnavailable !== undefined) return refused(`the ${kind} review's inputs were unavailable when it was requested: ${request.inputsUnavailable}`);
   if (request.source !== undefined) return refused(`the ${kind} review cites an assignment package, which a manual run holds no element catalog to deliver`);
-  if (kind === 'design' && request.guidance.length === 0) return refused('the design review selected no design guidance');
 
   const notes: string[] = [];
   const start = reviewStartOf(run, request, notes);
