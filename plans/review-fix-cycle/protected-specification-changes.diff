@@ -1,0 +1,218 @@
+diff --git a/docs/architecture/agent-assistance/service.spec.md b/docs/architecture/agent-assistance/service.spec.md
+index 122f14ae..d21ffa13 100644
+--- a/docs/architecture/agent-assistance/service.spec.md
++++ b/docs/architecture/agent-assistance/service.spec.md
+@@ -45,3 +45,81 @@ Elapsed intervals can be derived from these records: first linked `requestedAt`
+ The result contains the same `id`, `status`, `revision`, `error` and `stages` as `assessment_status`, plus `reason`. Completed, interrupted and cancelled assessments return `settled` immediately. Otherwise, an explicit `after_revision` below the current revision returns `changed`. A deadline returns `timeout` with the current status; it does not imply failure. A zero timeout observes immediately. Settled state takes precedence over revision progress. Callers retrieve the effective gate separately through `assessment_result`; a completed assessment can require decisions or repairs or retain evidence gaps.
+ 
+ Observation subscribes to committed transitions and checks the current state without an intervening asynchronous gap, so a transition preceding subscription is not missed. Multiple observers are independent. Waits write no records and do not restart, resume or cancel assessments. Timers and subscriptions are released on return or request cancellation. Aborting an observation affects only that observation. Service shutdown rejects pending observations and preserves ordinary assessment interruption/recovery. A client deadline must exceed the requested wait; transport expiry is not an assessment outcome.
++
++## Focused assessment preparation
++
++An iteration review initially receives the stored current goal, supplied acceptance
++text, selected requirement-document references, candidate changes and earlier
++findings and decisions. It does not eagerly traverse plan links, qualify transitive
++references or deliver every principles document and the complete plan repeatedly.
++A document's filename alone establishes neither applicability nor adoption. Original
++plan and document bytes remain available on demand through `assessment_evidence`;
++final review receives the complete captured plan and original plan baseline.
++Historical document manifests and inline records remain readable as recorded.
++
++Reviewers choose relevant inspection with snapshot conveniences and ordinary
++`shell`, including compressed or large evidence. Shell commands run in a disposable
++detached checkout of the intended candidate; each call starts at that revision and
++uses the nested project's root when applicable. Reviewers are instructed not to
++edit source. Shell access is not a write sandbox. Owned checkouts are cleaned after
++command settlement, including failed commands.
++
++Accepted reports answer supplied acceptance references with supported conclusions
++and report meaningful limitations. Inspected/missing lists and `coverageGap` remain
++readable for historical compatibility; no exhaustive inventory is required. Unread
++or unavailable supplemental files do not automatically make an assessment
++incomplete or create required repairs. A reviewer may identify an actual required
++obligation as unmet or uncertain; those judgments and failed required checks retain
++their existing outcomes. Full reports and limitations remain in stage evidence.
++
++## Coordinator decisions and iteration follow-up
++
++An iteration defaults to one broad review. Its corrections use the previous
++assessment (explicit `previous_assessment`, or the latest completed assessment of
++the same recorded iteration). Follow-up inspects selected repairs and relevant
++surrounding behavior. If prior acceptance was met and no open findings or protected
++conflicts remain, passing configured checks can finish a correction without another
++semantic invocation. Otherwise the reviewer receives a focused follow-up brief.
++A nonempty `review_reason` explicitly requests another broad review and records why.
++`review-policy` stage evidence records broad, focused-follow-up or not-run work;
++not-run work is never represented as a completed review. The first final assessment
++receives the complete plan, including applicable fixed and nonfunctional requirements.
++A subsequent final request naming that final assessment follows selected repairs and
++relevant surrounding behavior using its existing results; it does not restart the
++complete catalog by default. The original plan remains available on demand, and
++inspection may broaden for concrete changed circumstances. A prior iteration
++assessment does not replace the first complete-plan assessment. All final comparisons
++retain the original registered plan baseline and exact candidate.
++
++A failed configured audit returns its diagnostic evidence after factual finding
++and protection ingestion. It does not invoke semantic review or reconciliation.
++Audit and protection stages and the deliberately unrun review remain visible.
++
++Large audit outcomes are retained intact as verified content-addressed evidence beside the ledger. The compact audit stage records its state and exact requested/audited candidate identities plus the artifact reference. Resume and on-demand `assessment_evidence` reads verify and resolve that reference; historical inline stages remain readable. Readiness binds the recorded stage, without embedding the provider report again or changing the ledger line limit.
++
++`finding_decide(plan_id, job_id, assessment_id, check_finding, action, rationale,
++command_id)` records ordinary coordinator judgment after assessment completion.
++Actions `fix`, `leave` and `defer` use existing repair-intent, waiver and deferral
++records. The actor is the assisted coordinator, never an invented user answer.
++A short rationale suffices. Decisions and command receipts survive reload.
++Required check findings and pending user authority cannot use this command.
++Independent unmet or uncertain acceptance answers remain effective even when a
++discretionary suggestion is left or deferred. An unavailable follow-up retains
++applicable prior acceptance answers and substantive gaps through the existing
++assessment chain until a relevant submitted assessment resolves them. `assessment_result` projects the
++remaining finding actions; original assessment evidence stays unchanged.
++
++Reviewer context includes at most 20 recent findings with bounded titles,
++dispositions and rationales. Reviewers avoid repeating unchanged issues and explain
++meaningful changed circumstances if raising one again. Full existing finding
++records remain authoritative; no additional ledger or issue matcher is introduced.
++
++`review_continue(plan_id, job_id, assessment_id, rationale, command_id)` records the
++coordinator's decision to continue when an advisory review or reconciliation is
++unavailable. It cannot bypass running work, failed configured checks, protected
++changes, substantive unmet requirements or other evidence gaps. Retained stages
++still show the unavailable invocation; the effective result removes only its
++availability gap. When exact user protection authority was recorded first,
++continuation also derives an append-only finalization from retained readiness and
++that authority. Both command orders preserve original receipts and assessment
++records across reload. This is ordinary coordinator authority, not user approval.
+diff --git a/docs/architecture/plan-context-catalog.spec.md b/docs/architecture/plan-context-catalog.spec.md
+index cf1bbbaa..e206b788 100644
+--- a/docs/architecture/plan-context-catalog.spec.md
++++ b/docs/architecture/plan-context-catalog.spec.md
+@@ -210,12 +210,15 @@ in this module. These rules govern that judgement:
+   module engineer, the module engineer working on a contract and the scope reviewer of that iteration
+   receive exactly that subset, rendered by the same function, and a
+   contract iteration inherits its requester's subset.
+-- **Assessment is not selected.** When the functional work is done, the
+-  non-functional coordinator receives every non-functional element of the
+-  catalog, from the plan and from principles alike, and assesses each
+-  against the candidate. Selection is about what a module engineer must keep in
+-  view while working; assessment is about what the plan must satisfy. A
+-  repair module engineer receives the subset the coordinator cites. The coordinator
++- **Initial assessment covers the complete plan.** When functional work is done,
++  the non-functional coordinator receives every applicable non-functional and fixed
++  element and assesses each against the candidate. Subsequent selected repairs
++  use existing results and focus on repaired and unresolved elements and relevant
++  surrounding behavior. The coordinator may broaden for concrete changed
++  circumstances; it need not repeat the catalog or prove every earlier judgment
++  again. Retained satisfied judgments keep their evidence and provenance; actual
++  unmet or undetermined requirements remain explicit until answered. A repair
++  module engineer receives the subset the coordinator cites. The coordinator
+   has ordinary file inspection and shell tools to inspect Git history, run
+   records, audit refs, command logs and generated views. Its context supplies
+   the project root, run directory and candidate identity. Investigation scopes
+diff --git a/docs/harness.spec.md b/docs/harness.spec.md
+index 3a01dad9..c921f65a 100644
+--- a/docs/harness.spec.md
++++ b/docs/harness.spec.md
+@@ -299,7 +299,9 @@ A nonpassing final verification remains evidence in the same run. The plan
+ architect receives the diagnostics and report locations and chooses the module
+ architect and next correction goal. The harness records an ordinary work item
+ with that final gate as its origin, preserving earlier accepted work. After
+-correction, it obtains fresh candidate assessment and final verification.
++correction, it obtains focused candidate assessment of the repair and relevant
++surrounding behavior, followed by final verification. Earlier complete-plan
++results remain available; a concrete changed circumstance can broaden inspection.
+ Neither the failure count nor a former repair allowance ends the run. Accepted
+ correction decisions and created work items are reused after interruption.
+ 
+@@ -700,8 +702,8 @@ architects assess semantic completion.
+ 
+ The harness child `reviews` prepares fixed candidate evidence and validates reviewer
+ submissions; harness retains agent invocation, cancellation, durable records and
+-CheckFinding coordination. Its preparation API binds delivered patches and observed
+-tool answers to one validator.
++CheckFinding coordination. Its preparation API supplies candidate tools and validates
++submission shape and candidate references. Reviewers choose relevant inspection.
+ 
+ Before invoking a code, scope or design reviewer, collect patches through the
+ candidate source between the request's fixed base and audited candidate. Apply
+@@ -713,11 +715,20 @@ needed per-file patches through `snapshot_diff` against the same fixed commits.
+ The complete canonical changed-path list remains supplied separately.
+ 
+ Record the diff payload once as a literal delivered input, including its hash
+-and byte count in the invocation's delivery manifest. A complete patch delivered
+-in the current review message can establish inspection coverage without another
+-tool call. A summary, unavailable patch or omitted patch cannot. Concern grounds
+-still require a file read with `snapshot_read` during that review. Patch collection
+-supplies evidence; it makes no judgment about correctness, scope or design.
++and byte count in the invocation's delivery manifest. Patches supply evidence;
++there is no exhaustive per-file inspection requirement. Snapshot tools are optional
++inspection conveniences. Ordinary shell inspection runs in a disposable detached
++checkout of the request's intended candidate, preserving nested project cwd and
++supporting compressed or large evidence. Reviewers must not edit source. This is
++instructed shell access, not a write sandbox. Each call starts from the candidate
++and its owned checkout is cleaned after settlement.
++
++Submissions contain conclusions, actionable concerns and meaningful limitations.
++Legacy inspected/missing inventories remain readable without governing acceptance.
++An unread supplemental artifact does not automatically make a completed review
++partial or create required work. A concern's source reference must identify a
++candidate file; the harness binds its identity independently of the tool used.
++Unavailable review execution remains distinct from a supported review conclusion.
+ 
+ ### Principles And Specifications Are Captured And Sealed
+ 
+@@ -738,7 +749,51 @@ as plan material. The current credibility classifier downgrades a concern ground
+ in a specification, as the [CheckFinding specification](check-findings.spec.md#credibility-follows-provenance)
+ records. These contracts do not establish runtime support.
+ 
+-Continuing design reviews select principles and relevant READMEs as guidance.
+-They do not receive the whole specification set. Relevant specification obligations
++Continuing design reviews receive affected-owner README context and document
++starting points selected by the assigning architect for this task. A principles
++filename alone does not make a document an initial review obligation. Other
++relevant guidance remains available through candidate inspection. Relevant specification obligations
+ must reach implementation and review through the reviewed plan; this does not
+ require adding every specification to recurring design guidance.
++
++
++### Review Once, Select Useful Repairs
++
++An accepted coherent iteration receives the configured code/scope/design review.
++Its selected corrections use their existing `corrects` identity, configured gate
++and source-backed repair dispositions. They do not automatically repeat those
++broad reviews. The assigning architect may supply `reviewReason` on the correction
++for a concrete additional pass, such as substantial new behavior. The reason stays
++in the captured assignment; retries preserve the original review request keys.
++An accepted correction without that reason records `reviewPolicy.mode: not-run`
++in its iteration result and creates no repeat request. Completion settles only
++actual requests and never waits for deliberately omitted reviews.
++
++The existing architect chooses useful repairs, leaves an understood discretionary
++suggestion through a waiver, or defers it with a short rationale and revisit
++condition. Ordinary decisions need no user approval. They do not waive actual
++unmet requirements, failed required checks or protected changes. Review packets
++include a bounded summary of relevant existing findings, dispositions and
++rationales; reviewers avoid repeating unchanged issues and explain changed
++circumstances when raising an issue again. Unavailable reviews retain their status
++for the architect's completion decision and are never represented as completed.
++A newly unavailable terminal result reaches that architect through ordinary
++reconciliation even when no finding needs attention. The architect records a
++short continuation rationale in its completion brief or selects a correction
++goal for relevant verification. The same recorded result needs no new decision
++after continuation or restart, and this choice schedules no automatic broad
++review.
++
++Failed configured checks return their diagnostics directly to the responsible
++engineer or coordinator. Review requests follow accepted iterations; a concrete
++check failure does not automatically invoke broad review and reconciliation.
++
++The first final assessment covers the complete plan's applicable fixed and
++nonfunctional requirements. Later selected repairs receive a focused follow-up
++of repaired and unresolved elements and relevant surrounding behavior. The agent
++may reassess other elements for concrete changed circumstances. Existing satisfied
++judgments retain their evidence; an assessment's optional `followUp` names the
++prior assessment and IDs actually reviewed. Retained judgments are not fresh review
++of those elements. An unanswered unmet or undetermined requirement cannot become
++satisfied. The original baseline, prepared candidate identities and final
++configured checks remain in force; no separate proof cache is required.

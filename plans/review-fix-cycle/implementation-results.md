@@ -1,6 +1,6 @@
 # Review and fix cycle implementation evidence
 
-Recorded 2026-10-19 before iteration 3 and cumulative assessments. Later gates and
+Recorded 2026-10-19, with continuation evidence below. Cumulative assessment and
 exact protected-change decisions remain in the harness job; this record does not
 assert those pending results.
 
@@ -121,3 +121,29 @@ They replace obsolete strict policy as requested by the plan. They remain subjec
 to exact user protection authority; coordinator finding dispositions do not supply
 it. No principle adoption/status was changed. A separate cumulative assessment
 against the original baseline follows the final iteration assessment.
+
+## Iteration 3 continuation
+
+The initial candidate was independently audited through `as-0008`; its provider
+report remains at `refs/audited/runs/2026-10-19T16-24-35Z-de31504fb`.
+That assessment interrupted before retaining its oversized audit transition; it
+never invoked semantic review. The subsequent implementation uses the existing
+verified evidence artifact facility to retain complete audit diagnostics and
+provenance while keeping the durable stage compact. Historical inline stages and
+readiness bindings remain readable. No ledger limit was increased.
+
+`as-0009` assessed `099b9697dda0241f9f1de9bf1a846a6a5a6c71c7` and passed the
+configured default audit, then performed iteration 3's first semantic review.
+The selected completion repair was committed as
+`d49545133d3bdd62d7e4b88f80946aba33aa8950`: newly unavailable automated review
+results reach the existing architect even when no findings need attention. Its
+ordinary decision and rationale survive crash/reload without another automatic
+review or invented finding. Targeted reviewer/completion compositions, type-check
+and `check:self` passed; focused independent verification follows.
+
+The [exact protected specification patch](protected-specification-changes.diff)
+compares the original registered baseline with these three specification files.
+It contains only the requested review-policy contract changes, including the
+bounded audit retention and unavailable-advisory completion behavior. Exact user
+protection authority remains pending until the cumulative final assessment has
+completed. All other implementation work is locally committed.
