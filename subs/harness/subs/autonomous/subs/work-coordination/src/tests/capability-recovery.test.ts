@@ -884,7 +884,7 @@ test('capability accepted delivery refuses corrupted durable task evidence befor
   const settle = opened.service['runner'].settleSession.bind(opened.service['runner']);
   opened.service['runner'].settleSession = async (...args) => {
     const result = await settle(...args);
-    const invocation = args[0].log.all('invocation-started').find(event => event.data.invocation === args[1]);
+    const invocation = args[0].events().filter(event => event.type === 'invocation-started').find(event => event.data.invocation === args[1]);
     if (invocation?.data.role === 'capability-architect') {
       expect(result.confirmed).toBe(true);
       closed = opened.service.close(); release(); await closing;
@@ -941,7 +941,15 @@ test('capability accepted delivery refuses corrupted durable task evidence befor
     }
     const suppliedEvents = events.map(event => event === end ? ending : event).concat(fault.effect ? [fault.effect] : []);
     let effectVisible = fault.effect === undefined;
+    // Owner observations derive events from committed lines, never a public
+    // events array. Supply the corrupted ledger view at that actual seam.
+    const ledger = new Proxy(run.log.ledger, { get(target, key) {
+      if (key === 'replay') return () => target.replay().map(line => line.transaction.event.sequence === end.sequence
+        ? { ...line, transaction: { ...line.transaction, event: ending } } : line);
+      const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value;
+    } });
     const log = new Proxy(run.log, { get(target, key) {
+      if (key === 'ledger') return ledger;
       if (key === 'events') return effectVisible ? suppliedEvents : events;
       if (key === 'all') return (type: string) => suppliedEvents.filter(event => event.type === type);
       const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value;

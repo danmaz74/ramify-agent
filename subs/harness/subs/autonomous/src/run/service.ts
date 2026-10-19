@@ -1,3 +1,4 @@
+import { consultationOutcome, recordConsultationStart, recordConsultationOutcome, recordConsultationDelivery } from '../../subs/work-coordination/src/consultations/store.js';
 import { taskKindFor } from '../../../task-workflow/src/prompts/tasks.js';
 import { preparedGate } from '../../subs/acceptance/src/committing-gate.js';
 import { Acceptance, type AcceptanceObservation } from '../../subs/acceptance/src/acceptance.js';
@@ -118,7 +119,7 @@ import { recoveryInspectionSchema, restartInspectionSchema, type RestartInspecti
 import type { InterruptionEvidence } from '../../../agent/src/interfaces/port.js';
 import { composeTaskBrief } from '../../../task-workflow/src/task-brief.js';
 
-import { committedBody, invocationRecord, InvocationRunner, type InvocationRequest, type LiveInvocation, type RunnerHost, type RunnerRun } from '../../../task-workflow/src/steps/runner.js';
+import { committedBody, invocationRecord, InvocationRunner, type InvocationRequest, type LiveInvocation, type RunnerHost, type RunnerContext } from '../../../task-workflow/src/steps/runner.js';
 import { finished, kept, type InvocationResult, type SessionKeeping } from '../../../task-execution/src/results.js';
 
 
@@ -309,7 +310,7 @@ const key = (planId: string, runId: string) => `${planId}/${runId}`;
 /** What one contract iteration ended with: its result, and what its registration found. */
 
 
-class Run implements RunnerRun {
+class Run {
   restartImport: RestartImport | undefined;
   recoveryPause: OperationRecovery | undefined;
   recoveryRestart = false;
@@ -447,7 +448,7 @@ export class AutonomousRunService {
     this.git = options.git ?? gitService;
     this.candidates = verifiedCandidateSource(options.candidates ?? gitCandidateSource);
     this.changeHistory = options.changeHistory ?? cachedChangeHistory(gitChangeHistory);
-    this.runner = new InvocationRunner<Run>(this.runnerHost());
+    this.runner = new InvocationRunner(this.runnerHost());
 
   }
 
@@ -558,10 +559,10 @@ export class AutonomousRunService {
       workflow: this.workflow?.version ?? null, options: { ramify: this.options.ramify, rootModule: this.options.rootModule, commandExecution: this.options.commandExecution, provisionalSourceGit: this.options.provisionalSourceGit, skillDirectory: this.options.skillDirectory },
       git: this.git, candidates: this.candidates, repairIncidentExport: this.repairIncidentExport,
     }, {
-      commitFinding: (build, at) => commitCheckFindingChange(run, ({ log, state }) => build({ history: coordinationHistory(log), state }), at),
+      commitFinding: (build, at) => commitCheckFindingChange(run, ({ log, state }) => build({ history: coordinationHistory(log), state: structuredClone(state) }), at),
       acceptance: { dischargeEvidence: (...args) => this.acceptance(run).dischargeEvidence(...args), diagnosticsOf: (...args) => this.acceptance(run).diagnosticsOf(...args), readGate: (...args) => this.acceptance(run).readGate(...args) },
       restoreInvocation: id => { run.restoredInvocations.add(id); },
-      runParallelReview: <T>(agent: AgentPort, request: InvocationRequest<T>) => this.runner.runInvocation(run, agent, request),
+      runParallelReview: <T>(agent: AgentPort, request: InvocationRequest<T>) => this.runner.runInvocation(this.runnerContext(run), agent, request),
       invocationRefusal: () => this.invocationRefusal(run), latestOperationRecovery: () => this.latestOperationRecovery(run),
       renderInvocationTranscript: async (session, invocation) => { await this.transcriptOf(run, session).drain(); const read = await readTranscript(run.path(runLayout.transcript(session))); return renderTranscript(read.entries, invocation, body => readBody(run.directory, run.store, body)); },
       operations: agent => this.operations(agent),
@@ -742,7 +743,7 @@ export class AutonomousRunService {
       },
       previewCandidateTree: () => service.previewCandidateTree(),
       get candidates() { return service.candidates; },
-      refreshIndex: () => service.refreshIndex(run),
+      refreshIndex: async () => structuredClone(await service.refreshIndex(run)),
       ignoring: () => service.ignoring(run),
       recoverGate: (attempt, diagnostic, group, attempts) => service.waitOperationRecovery(run,
         { kind: 'gate', checkpoint: attempt.checkpoint, work: { ...attempt.subject }, candidate: attempt.audited ?? attempt.head },
@@ -767,10 +768,10 @@ export class AutonomousRunService {
   }
 
   /** The invocation runner every role's invocation of every run goes through. */
-  private readonly runner: InvocationRunner<Run>;
+  private readonly runner: InvocationRunner;
 
   /** What only an implementation run knows, which the invocation runner asks of it. */
-  private runnerHost(): RunnerHost<Run> {
+  private runnerHost(): RunnerHost {
     const service = this;
     return {
       authorityCurrent: () => service.options.lock.held(),
@@ -782,21 +783,53 @@ export class AutonomousRunService {
       afterWrite: (write, runId) => service.afterWrite(write, runId),
       operations: agent => service.operations(agent),
       openedOperations: () => service.sessionOperations,
-      ignoring: run => service.ignoring(run),
-      base: run => service.coordination(run).accepted(),
-      resourceInvocation: (run, agent, request) => service.recoverableInvocation(run, agent, request),
-      refusal: run => service.invocationRefusal(run),
-      refused: async (run, reason, reader) => {
-        if (!reader) await service.fail(run, 'limit-exceeded', reason);
-      },
-      taskBrief<T>(run: Run, request: InvocationRequest<T>, spec: SessionSpec, limits: RunPolicy['limits']) {
-        return service.taskBrief(run, request, spec, limits);
-      },
-      async restore<T>(run: Run, agent: AgentPort, request: InvocationRequest<T>) {
-        return run.restoring && request.restore !== false ? service.restoreInvocation(run, agent, request) : null;
-      },
       previewCandidateTree: () => service.previewCandidateTree(),
     };
+  }
+
+  private readonly runnerContexts = new WeakMap<Run, RunnerContext>();
+
+  /** Bound workflow operations; lifecycle authority never leaves this owner. */
+  private runnerContext(run: Run): RunnerContext {
+    const previous = this.runnerContexts.get(run);
+    if (previous) return previous;
+    const service = this;
+    const consultationJournal = () => ({
+      events: structuredClone(run.log.events), records: structuredClone(run.log.ledger.replay().flatMap(line => line.transaction.records)),
+      append: (input: RunEventInput, records: readonly CommitRecord[]) => run.log.ledger.append({ event: run.log.next(input), records: [...records] }),
+    });
+    const context: RunnerContext = {
+      jobId: run.jobId, planId: run.planId, directory: run.directory,
+      get policy() { return structuredClone(run.policy); },
+      get baselineMeasurement() { return structuredClone(run.baselineMeasurement); },
+      get index() { return structuredClone(run.index); }, store: run.store,
+      path: relative => run.path(relative), events: () => structuredClone(run.log.events), record: (path, selection) => {
+        const records = run.log.ledger.replay().flatMap(line => line.transaction.records).filter(record => record.path === path);
+        return structuredClone(selection === 'first' ? records[0] : records.at(-1));
+      },
+      write: (input, records, at) => service.write(run, input, records, at),
+      admit: (prepare, priority) => run.starting.run(prepare, priority),
+      register: (id, role, reader) => {
+        let closed!: () => void;
+        const live: LiveInvocation = { role, reader, session: undefined, done: new Promise<void>(resolve => { closed = resolve; }) };
+        run.live.set(id, live);
+        return { publish: session => { if (run.live.get(id) === live) live.session = session; }, close: () => { if (run.live.get(id) === live) run.live.delete(id); closed(); } };
+      },
+      writerUnsettled: () => run.writer.isUnsettled, writerBlocked: () => run.writer.blocked !== undefined,
+      ownsWriter: id => run.writer.held === id, acquireWriter: id => run.writer.acquire(id),
+      releaseWriter: (id, session) => run.writer.release(id, session), unsettledWriter: (id, reason, session) => run.writer.markUnsettled(id, reason, session),
+      consultation: id => structuredClone(consultationOutcome(consultationJournal(), id)),
+      startConsultation: value => run.mutex.run(async () => structuredClone(await recordConsultationStart(consultationJournal(), value))),
+      finishConsultation: value => run.mutex.run(async () => structuredClone(await recordConsultationOutcome(consultationJournal(), value))),
+      deliverConsultation: (id, result) => run.mutex.run(async () => structuredClone(await recordConsultationDelivery(consultationJournal(), id, result))),
+      ignoring: () => service.ignoring(run), base: () => service.coordination(run).accepted(),
+      resourceInvocation: (agent, request) => service.recoverableInvocation(run, agent, request),
+      refusal: () => service.invocationRefusal(run), refused: async (reason, reader) => { if (!reader) await service.fail(run, 'limit-exceeded', reason); },
+      taskBrief: (request, spec, limits) => service.taskBrief(run, request, spec, limits),
+      restore: (agent, request) => run.restoring && request.restore !== false ? service.restoreInvocation(run, agent, request) : Promise.resolve(null),
+    };
+    this.runnerContexts.set(run, context);
+    return context;
   }
 
   /** Resource observations never refuse invocation admission. Authority and compatibility have their own barriers. */
@@ -865,7 +898,11 @@ export class AutonomousRunService {
 
   /** One run-log write, serialized with every other, as the invocation runner makes it. */
   private write(run: Run, input: RunEventInput, records: readonly CommitRecord[] = [], at?: Date): Promise<'committed' | 'already-committed' | 'ended'> {
-    return this.runner.write(run, input, records, at);
+    return run.mutex.run(async () => {
+      if (run.log.terminal || !await this.options.lock.held()) return 'ended';
+      if (records.length === 0) { await run.log.append(input, at); return 'committed'; }
+      return commitRecord(run.log.ledger, { event: run.log.next(input), records: [...records] });
+    });
   }
 
   /**
@@ -913,19 +950,19 @@ export class AutonomousRunService {
   }
 
   private continuationOf(run: Run, session: SessionId, reason: ContinueReason): ContinueRelation {
-    return this.runner.continuationOf(run, session, reason);
+    return this.runner.continuationOf(this.runnerContext(run), session, reason);
   }
 
   private transcriptOf(run: Run, session: SessionId): TranscriptWriter {
-    return this.runner.transcriptOf(run, session);
+    return this.runner.transcriptOf(this.runnerContext(run), session);
   }
 
   private invocationTranscript(run: Run, session: SessionId, invocation: string, observations?: ObservationLog): InvocationTranscript {
-    return this.runner.invocationTranscript(run, session, invocation, observations);
+    return this.runner.invocationTranscript(this.runnerContext(run), session, invocation, observations);
   }
 
   private sessionsOf(run: Run): RunSessions | undefined {
-    return this.runner.sessionsOf(run);
+    return this.runner.sessionsOf(this.runnerContext(run));
   }
 
   // Reviews
@@ -955,7 +992,7 @@ export class AutonomousRunService {
 
   /** A record body as the log committed it, never the materialized file. */
   private committedBody(run: Run, path: string): unknown {
-    return committedBody(run, path);
+    return committedBody(this.runnerContext(run), path);
   }
 
   /**
@@ -1581,13 +1618,13 @@ export class AutonomousRunService {
   // Queries
 
   listRuns(planId: string): RunSnapshot[] {
-    return this.runsOf(planId).map(run => runSnapshot(run.record, run.log.events));
+    return this.runsOf(planId).map(run => structuredClone(runSnapshot(run.record, run.log.events)));
   }
 
   getRun(planId: string, runId: string): RunSnapshot | undefined {
     this.refuseEarlierPolicy(planId, runId);
     const run = this.runs.get(key(planId, runId));
-    return run && runSnapshot(run.record, run.log.events);
+    return run && structuredClone(runSnapshot(run.record, run.log.events));
   }
 
   /** Current debugger state, independent of the ordinary run snapshot. Inspection invokes no model. */
@@ -1601,13 +1638,13 @@ export class AutonomousRunService {
   /** The run's events, exactly as its log holds them. */
   events(planId: string, runId: string) {
     this.refuseEarlierPolicy(planId, runId);
-    return this.runs.get(key(planId, runId))?.log.events;
+    return structuredClone(this.runs.get(key(planId, runId))?.log.events);
   }
 
   /** The record of one run, for a caller that reads what it was started with. */
   recordOf(planId: string, runId: string): RunRecord | undefined {
     this.refuseEarlierPolicy(planId, runId);
-    return this.runs.get(key(planId, runId))?.record;
+    return structuredClone(this.runs.get(key(planId, runId))?.record);
   }
 
   /**
@@ -1618,7 +1655,7 @@ export class AutonomousRunService {
   committed(planId: string, runId: string) {
     this.refuseEarlierPolicy(planId, runId);
     const run = this.runs.get(key(planId, runId));
-    return run && { record: run.record, directory: run.directory, entries: run.log.ledger.replay() };
+    return run && structuredClone({ record: run.record, directory: run.directory, entries: run.log.ledger.replay() });
   }
 
   /**
@@ -1652,7 +1689,7 @@ export class AutonomousRunService {
   checkFindings(planId: string, runId: string, query: CheckFindingQueryInput): CheckFindingSelection | undefined {
     this.refuseEarlierPolicy(planId, runId);
     const run = this.runs.get(key(planId, runId));
-    return run && selectCheckFindings(checkFindingStateOf(run.log.ledger), query);
+    return run && structuredClone(selectCheckFindings(checkFindingStateOf(run.log.ledger), query));
   }
 
   /**
@@ -1666,7 +1703,7 @@ export class AutonomousRunService {
 
   /** The runs of one plan, newest first, as `committed` answers each. */
   committedRuns(planId: string) {
-    return this.runsOf(planId).map(run => ({ record: run.record, directory: run.directory, entries: run.log.ledger.replay() }));
+    return this.runsOf(planId).map(run => structuredClone({ record: run.record, directory: run.directory, entries: run.log.ledger.replay() }));
   }
 
   /**
@@ -2686,7 +2723,7 @@ export class AutonomousRunService {
       }
       if (request.recoveryReviewRequest) run.recoveryReviewPipelines.delete(request.recoveryReviewRequest);
       if (this.ignoring(run)) return { id: '', ended: 'stopped', value: undefined, ref: '', session: '', kept: false, outcomeKind: 'stopped' };
-      const result = await this.runner.runInvocation(run, agent, current);
+      const result = await this.runner.runInvocation(this.runnerContext(run), agent, current);
       const interruption = taskInterruption({ ended: result.ended, interruption: result.interruption, classification: result.interruptionEvidence?.classification });
       if (this.ignoring(run) || interruption === null) return result;
       const unresolved = await (await this.operations(agent)).unresolvedEffects(run.jobId, result.id);
@@ -2719,7 +2756,7 @@ export class AutonomousRunService {
         : request;
       let held: InvocationResult<T> | undefined;
       run.debugPrepared = {
-        inspect: () => this.runner.preview(run, agent, current),
+        inspect: () => this.runner.preview(this.runnerContext(run), agent, current),
         exchange: async text => {
           const result = await this.recoverableInvocation(run, agent, { ...current, callerText: text, pendingPlainReturn: true });
           if (result.pending) {
@@ -2850,7 +2887,7 @@ export class AutonomousRunService {
 
   /** Latest immutable invocation revision, unlike owning assignment/license lookups. */
   private invocationRecord(run: Run, id: string) {
-    return invocationRecord(run, id);
+    return invocationRecord(this.runnerContext(run), id);
   }
 
   private operations(agent: AgentPort): Promise<HarnessSessionOperations> {
@@ -3234,7 +3271,7 @@ export class AutonomousRunService {
     degraded?: DegradeRelation,
     transcript?: InvocationTranscript,
   ): Promise<void> {
-    return this.runner.endInvocation(run, id, session, keeping, body, degraded, transcript);
+    return this.runner.endInvocation(this.runnerContext(run), id, session, keeping, body, degraded, transcript);
   }
 
   /**

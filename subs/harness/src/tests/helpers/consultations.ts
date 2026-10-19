@@ -54,7 +54,7 @@ export async function consultationFixture(cleanup: Array<() => Promise<void>>, s
   }
   const seeds: Record<string, ConsultationTarget> = {};
   for (const role of ['local-architect', 'global-fork', 'capability-architect'] as const) {
-    const result = await runner.runInvocation(run, agent, request(role, `Seed ${role}`)); expect(result.ended, result.error).toBe('submitted');
+    const result = await runner.runInvocation(run.execution, agent, request(role, `Seed ${role}`)); expect(result.ended, result.error).toBe('submitted');
     seeds[role] = { role, run: { planId: 'P', runId: 'R' }, session: result.session, point: { session: result.session, invocation: result.id }, ref: result.ref,
       ...(role === 'capability-architect' ? { task: 'cap-002' } : {}) };
   }
@@ -63,8 +63,8 @@ export async function consultationFixture(cleanup: Array<() => Promise<void>>, s
   async function caller(role: 'engineer' | 'local-architect', target: ConsultationTarget, global: ConsultationTarget | null = null, extra: Partial<InvocationRequest<Record<string, unknown>>> = {}) {
     let session = '' as ConsultationTarget['session'];
     const base = request(role, 'Caller continues ordinary work');
-    return runner.runInvocation(run, agent, { ...base, ...extra, onStarted: async (_id, started) => { session = started; },
-      equip: context => ({ tools: [consultationTool({ run, runner, agent, packages, target, global, caller: { role, session, work: base.work },
+    return runner.runInvocation(run.execution, agent, { ...base, ...extra, onStarted: async (_id, started) => { session = started; },
+      equip: context => ({ tools: [consultationTool({ run: run.execution, runner, agent, packages, target, global, caller: { role, session, work: base.work },
         projectRoot: directory.path, holdMs: run.policy.limits.invocationAbsoluteMs, now: () => new Date(), views: base.brief!.environment.views }, context)] }) });
   }
   return { directory: directory.path, run, runner, agent, operations, packages, seeds, parents, seen, caller, request, store, bindings };
@@ -77,7 +77,7 @@ export async function retainConsultationExample(fixture: Awaited<ReturnType<type
   const root = process.env['RAMIFY_PLAN33_EVIDENCE_DIR'];
   if (root === undefined) return;
   if (fixture.run.live.size !== 0) throw new Error('Consultation evidence must be retained after settlement');
-  await fixture.runner.drainTranscripts(fixture.run);
+  await fixture.runner.drainTranscripts(fixture.run.directory);
   const target = join(root, name);
   await mkdir(target, { recursive: true });
   for (const artifact of ['events.jsonl', 'invocations', 'transcripts', 'blobs', 'consultations']) {

@@ -83,7 +83,7 @@ export function manualGates(context: ManualHostContext, run: ManualRun): Committ
       try {
         const index = await context.refresh(context.projectRoot);
         if (index !== null) run.index = index;
-        return index;
+        return structuredClone(index);
       } catch (error) {
         context.warn(`Manual run ${run.jobId}: the architect view could not be refreshed: ${message(error)}`);
         return null;

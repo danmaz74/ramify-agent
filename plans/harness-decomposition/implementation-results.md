@@ -25,12 +25,17 @@ records; browser-safe public protocol source stays unchanged.
 The final integration required meaningful splits rather than directory relocation:
 engineer-turn/repair decisions left lifecycle; manual/authored task construction
 received a coherent workflow owner; broad gate hosts became detached reads and
-accepted publication/effect ports; mixed persistence schemas followed their
+accepted publication/effect ports; the shared workflow runner receives bound
+invocation operations instead of mutable run state; mixed persistence schemas followed their
 behavioral authority. Finding assessment keeps its original serialized intent and
 brief effect, and correction close remains one ledger transition. New handback
 verification retains its accepted review/finding/reconciliation basis across
 interruption, with an explicit historical absence path. Nested observation/body
-mutations cannot alter lifecycle authority. Reviews have no elapsed lifetime or
+mutations cannot alter lifecycle authority. Managed/manual workflow runners and
+consultation persistence receive only detached reads and bound publication,
+admission, registration and settlement operations; lifecycle logs, mutexes, live
+maps and writer objects stay with their actual owners. Public history/query reads
+also detach nested record and event bodies. Reviews have no elapsed lifetime or
 silence cancellation; explicit stop/shutdown and non-review watchdogs remain.
 
 The [evaluation method and execution baseline](evaluation/README.md) are separate

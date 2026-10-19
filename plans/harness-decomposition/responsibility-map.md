@@ -36,9 +36,13 @@ framing algorithm have their own defining owners.
 
 `steps/runner.ts` split: [shared execution](../../subs/harness/subs/task-execution/src/execution.ts)
 owns invocation/session binding, recording, tool/submission binding and settlement;
-[the manual adapter](../../subs/harness/subs/task-workflow/src/steps/runner.ts)
-owns manual admission, authored input and durable command transitions. Managed,
-manual and standalone callers use that same runtime. `prompts/tasks.ts` keeps
+[the workflow runner](../../subs/harness/subs/task-workflow/src/steps/runner.ts)
+prepares authored inputs and invocation/session records over a bound
+`RunnerContext`. Managed lifecycle and manual lifecycle supply detached
+observations, serialized admission/publication, live registration and writer
+settlement operations. Their logs, mutexes, live maps and writer objects remain
+private; no complete managed or manual run enters the runner. Managed, manual and
+standalone callers use that same runtime. `prompts/tasks.ts` keeps
 role/task recipe selection and prose in task-workflow; prepared framing, block
 and manifest mechanics are in task-execution. `run/session-operations.ts` puts
 mechanical session operations there while the harness's prompt session adapter

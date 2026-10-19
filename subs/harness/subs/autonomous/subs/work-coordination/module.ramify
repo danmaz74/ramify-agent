@@ -73,4 +73,4 @@ expose-src contingentRepairDelegationSchema, repairDeltaSchema, automaticRepairA
 expose-src auditPreparationPathsOf, defaultWriteScopesOf, assignmentStartingPointsOf, declaredCheckFacts, engineerBoundsFor, knownProjectFactsOf, ownedTestAreasOf, unauthorizedGuardedOf, iterationAssignmentOf, obligationBriefingOf, viewIdentityOf from "project-facts.ts" to parent
 expose-src compactionReviewSchema from "compaction-review.ts" to parent
 expose-src consultationTool, consultationMessageSchema, consultArchitectDeclaration, architectAnswerSchema, ConsultationEquipmentInputs from "consultations/tools.ts" to parent
-expose-src consultationOutcome, recordConsultationDelivery, recordConsultationOutcome, recordConsultationStart from "consultations/store.ts" to parent
+expose-src consultationOutcome, recordConsultationDelivery, recordConsultationOutcome, recordConsultationStart, ConsultationJournal, ConsultationReading from "consultations/store.ts" to parent

@@ -5,7 +5,7 @@ module task-workflow
 expose-src runSessionCommand, SessionCommandOptions, SessionAgentChoice from "sessions/command.ts" to parent
 expose-src SingleSessionResult, SessionSummary, SessionProgress, SessionGateResult, runSingleSession, SingleSessionOptions from "sessions/single.ts" to parent
 expose-src runStepCommand, StepCommandOptions, StepCommandResult, runStepCommandWith from "steps/command.ts" to parent
-expose-src InvocationRequest, committedBody, invocationRecord, InvocationRunner, LiveInvocation, RunnerHost, RunnerRun, RestoredInvocation, RunnerWrite, StartedInvocation from "steps/runner.ts" to parent
+expose-src InvocationRequest, committedBody, invocationRecord, InvocationRunner, LiveInvocation, RunnerHost, RunnerContext, RestoredInvocation, RunnerWrite, StartedInvocation from "steps/runner.ts" to parent
 expose-src TaskKind, deliveredSupportPaths, buildTaskPacket, renderRequiredSlots, stableRoleInstructions, prepareTaskPackage, rejectSingleBracePlaceholders, taskKindFor from "prompts/tasks.ts" to parent
 expose-src constructEngineerStep, engineerStepInputsOf, ConstructedEngineerStep, StepEnvironment, EngineerInputFacts, EngineerStepStart from "steps/engineer.ts" to parent
 expose-src knownFactsInputs, ConstructedStepCommon, StepToolDeclaration, ConstructedStart from "steps/constructed.ts" to parent

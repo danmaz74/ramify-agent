@@ -1,3 +1,4 @@
+import { consultationJournal } from './helpers/consultation-journal.js';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
@@ -49,8 +50,8 @@ describe('Plan 33 awaited consultation workflows', () => {
     const outer = await fixture.caller('engineer', L0, G0);
     expect(outer.ended, outer.error).toBe('submitted');
     const starts = fixture.run.log.all('consultation-started'); expect(starts).toHaveLength(2);
-    const first = consultationOutcome(fixture.run.log, starts[0]!.data.consultation)!;
-    const second = consultationOutcome(fixture.run.log, starts[1]!.data.consultation)!;
+    const first = consultationOutcome(consultationJournal(fixture.run.log), starts[0]!.data.consultation)!;
+    const second = consultationOutcome(consultationJournal(fixture.run.log), starts[1]!.data.consultation)!;
     expect(starts[1]!.data.parent).toBe(first.id);
     expect(first).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Local composed the final answer' } } });
     expect(second).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Global advised the module architect' } } });
@@ -68,7 +69,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     // Ordinary orientation and work turns use the identical global tool factory.
     const direct = await fixture.caller('local-architect', G0);
     expect(direct.ended, direct.error).toBe('submitted');
-    expect(consultationOutcome(fixture.run.log, consultationId(direct.id, 'ask'))).toMatchObject({ status: 'answered' });
+    expect(consultationOutcome(consultationJournal(fixture.run.log), consultationId(direct.id, 'ask'))).toMatchObject({ status: 'answered' });
     await retainConsultationExample(fixture, 'nested-and-direct-global');
   });
   test('C06/C12: normal workflow constructors and actual bindings agree, selector remains without consultation', async () => {
@@ -194,8 +195,8 @@ describe('Plan 33 awaited consultation workflows', () => {
     const caller = await fixture.caller('engineer', fixture.seeds['local-architect']!, fixture.seeds['global-fork']!);
     expect(caller.ended, caller.error).toBe('submitted');
     const starts = fixture.run.log.all('consultation-started');
-    expect(consultationOutcome(fixture.run.log, starts[0]!.data.consultation)).toMatchObject({ status: 'answered' });
-    expect(consultationOutcome(fixture.run.log, starts[1]!.data.consultation)).toMatchObject({ status: 'failed', delivery: 'recorded', error: { code: 'provider-failure' } });
+    expect(consultationOutcome(consultationJournal(fixture.run.log), starts[0]!.data.consultation)).toMatchObject({ status: 'answered' });
+    expect(consultationOutcome(consultationJournal(fixture.run.log), starts[1]!.data.consultation)).toMatchObject({ status: 'failed', delivery: 'recorded', error: { code: 'provider-failure' } });
   });
   test('C10/C11: cancellation during nested wait stops both forks and records unknown delivery without late answer or implicit retry', async () => {
     const reached = deferred(); const wait = deferred(); const controller = new AbortController();
@@ -209,7 +210,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     const caller = await active; wait.resolve();
     expect(caller.ended).toBe('stopped'); expect(fixture.run.live.size).toBe(0);
     const starts = fixture.run.log.all('consultation-started'); expect(starts).toHaveLength(2);
-    for (const start of starts) expect(consultationOutcome(fixture.run.log, start.data.consultation)).toMatchObject({ status: 'cancelled', accepted: null, delivery: 'unknown', result: null });
+    for (const start of starts) expect(consultationOutcome(consultationJournal(fixture.run.log), start.data.consultation)).toMatchObject({ status: 'cancelled', accepted: null, delivery: 'unknown', result: null });
     expect(fixture.seen.filter(input => input.task.submissionTool === 'answer_architect_consultation')).toHaveLength(2);
     const interrupted = await fixture.store.read('R', `operation:${caller.id}`);
     expect(interrupted?.body['effects']).toMatchObject([{ callId: 'ask', phase: 'intent', result: null }]);
@@ -265,7 +266,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     }));
     const active = fixture.caller('engineer', fixture.seeds['local-architect']!, null, { signal: controller.signal });
     await accepted.promise; controller.abort(); const caller = await active; wait.resolve();
-    expect(consultationOutcome(fixture.run.log, consultationId(caller.id, 'accepted'))).toMatchObject({ status: 'answered', accepted: { answer: { text: 'Accepted before transport interruption' } }, delivery: 'unknown', result: null });
+    expect(consultationOutcome(consultationJournal(fixture.run.log), consultationId(caller.id, 'accepted'))).toMatchObject({ status: 'answered', accepted: { answer: { text: 'Accepted before transport interruption' } }, delivery: 'unknown', result: null });
     const effect = await fixture.store.read('R', `operation:${caller.id}`);
     expect(effect?.body['effects']).toMatchObject([{ callId: 'accepted', phase: 'completed', result: { text: 'Accepted before transport interruption' } }]);
     const retried = await fixture.operations.retry({ runId: 'R', operationId: caller.id, bindings: fixture.bindings.get(caller.id)! });
@@ -288,7 +289,7 @@ describe('Plan 33 awaited consultation workflows', () => {
     const active = fixture.caller('engineer', fixture.seeds['local-architect']!, null, { signal: controller.signal });
     await accepted.promise; controller.abort(); const caller = await active;
     expect(caller.ended).toBe('stopped');
-    expect(consultationOutcome(fixture.run.log, consultationId(caller.id, 'ask'))).toMatchObject({ status: 'cancelled',
+    expect(consultationOutcome(consultationJournal(fixture.run.log), consultationId(caller.id, 'ask'))).toMatchObject({ status: 'cancelled',
       accepted: { answer: { text: 'Fork accepted before cancellation' } }, delivery: 'unknown', result: null });
     expect(fixture.run.log.all('consultation-started')).toHaveLength(1);
     await retainConsultationExample(fixture, 'accepted-before-cancellation');
@@ -317,6 +318,6 @@ describe('Plan 33 awaited consultation workflows', () => {
     expect(fixture.run.log.all('consultation-finished')).toHaveLength(2);
     expect(fixture.run.log.all('invocation-started').filter(event => event.data.role === 'local-architect')).toHaveLength(3);
     // This custom transport deliberately emitted no display result: acceptance proves no delivery.
-    for (const id of ['left', 'right']) expect(consultationOutcome(fixture.run.log, consultationId(caller.id, id))).toMatchObject({ status: 'answered', delivery: 'unknown', result: null });
+    for (const id of ['left', 'right']) expect(consultationOutcome(consultationJournal(fixture.run.log), consultationId(caller.id, id))).toMatchObject({ status: 'answered', delivery: 'unknown', result: null });
   });
 });

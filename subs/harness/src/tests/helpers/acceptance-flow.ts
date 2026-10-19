@@ -1,3 +1,4 @@
+import { checkFindingStateOf } from '../../check-findings/state.js';
 import { acceptanceBoundaries } from './acceptance-boundaries.js';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -329,6 +330,45 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         const coordinator = activeService!['coordination'](active);
         if (isolation) {
           const observation = coordinator['ports'].observe();
+          const context = activeService!['runnerContext'](active);
+          for (const name of ['log', 'mutex', 'starting', 'live', 'writer']) expect(name in context).toBe(false);
+          const version = active.log.version;
+          const authority = JSON.stringify(active.log.ledger.replay());
+          const events = context.events();
+          Reflect.set(events.at(-1)!.data, 'task', 'mutated-invocation-observer');
+          Reflect.set(context.record(observation.history.lines.flatMap(line => line.transaction.records)[0]!.path, 'first')!.body as object, 'childMutation', true);
+          const policy = context.policy;
+          Reflect.set(policy.limits, 'writerSettleMs', -1);
+          expect(active.policy.limits.writerSettleMs).not.toBe(-1);
+          const publicEvents = activeService!.events('need', runId)!;
+          Reflect.set(publicEvents.at(-1)!.data, 'task', 'mutated-events-reader');
+          Reflect.set(activeService!.recordOf('need', runId)!.policy.limits, 'writerSettleMs', -1);
+          expect(active.record.policy.limits.writerSettleMs).not.toBe(-1);
+          const source = activeService!.committed('need', runId)!;
+          Reflect.set(source.record.policy.limits, 'writerSettleMs', -1);
+          Reflect.set(source.entries.at(-1)!.transaction.event.data, 'task', 'mutated-projector');
+          Reflect.set(source.entries.flatMap(line => line.transaction.records)[0]!.body as object, 'childMutation', true);
+          const list = activeService!.committedRuns('need');
+          Reflect.set(list[0]!.entries.flatMap(line => line.transaction.records)[0]!.body as object, 'listMutation', true);
+          expect(JSON.stringify(active.log.ledger.replay())).toBe(authority);
+          expect(active.log.version).toBe(version);
+          const counters = structuredClone(checkFindingStateOf(active.log.ledger).counters);
+          const refused = await coordinator['ports'].commitFinding(({ state }) => {
+            Reflect.set(state.counters, 'findings', -1);
+            return { stale: 'mutation isolation witness appends nothing' };
+          });
+          expect(refused.kind).toBe('refused');
+          expect(checkFindingStateOf(active.log.ledger).counters).toEqual(counters);
+          expect(active.log.version).toBe(version);
+          const gateIndex = await activeService!['gateHost'](active).refreshIndex();
+          if (gateIndex !== null) {
+            const before = JSON.stringify(active.index);
+            const nested = [...gateIndex.modules.values()][0];
+            expect(nested).toBeDefined();
+            Reflect.set(nested as object, 'gateMutation', true);
+            expect(JSON.stringify(active.index)).toBe(before);
+          }
+
           const authoritative = JSON.stringify(active.log.ledger.replay());
           const last = observation.history.events.at(-1)!;
           const original = structuredClone(last.data);
@@ -341,7 +381,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
           const refreshed = await coordinator['ports'].refreshIndex();
           if (refreshed !== null) {
             const before = JSON.stringify(active.index);
-            const nested = Object.values(refreshed).find(value => value !== null && typeof value === 'object');
+            const nested = [...refreshed.modules.values()][0];
             expect(nested).toBeDefined();
             Reflect.set(nested as object, 'childMutation', true);
             expect(JSON.stringify(active.index)).toBe(before);
@@ -419,7 +459,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     const settle = opened.service['runner'].settleSession.bind(opened.service['runner']);
     opened.service['runner'].settleSession = async (...args) => {
       const result = await settle(...args);
-      const invocation = args[0].log.all('invocation-started').find(event => event.data.invocation === args[1]);
+      const invocation = args[0].events().filter(event => event.type === 'invocation-started').find(event => event.data.invocation === args[1]);
       if (!coordinatorSettled && planExercised && invocation?.data.role === 'capability-architect') {
         expect(result.confirmed).toBe(true);
         coordinatorSettled = true;

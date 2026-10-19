@@ -406,7 +406,7 @@ function finalPrerequisites(run: ManualRun): void {
 
 /** One committed gate attempt of the manual run, or null where its record cannot be read. */
 export function attemptOf(run: ManualRun, gate: string): GateAttempt | null {
-  const parsed = gateAttemptSchema.safeParse(committedBody(run, runLayout.gate(gate)));
+  const parsed = gateAttemptSchema.safeParse(committedBody(run.execution, runLayout.gate(gate)));
   return parsed.success ? parsed.data : null;
 }
 

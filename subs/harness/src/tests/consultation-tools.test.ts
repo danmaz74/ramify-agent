@@ -1,3 +1,4 @@
+import { consultationJournal } from './helpers/consultation-journal.js';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { architectAnswerSchema, consultationMessageSchema, consultationTool } from '../../subs/autonomous/subs/work-coordination/src/consultations/tools.js';
 import { consultationId, consultationLayout } from '../../subs/autonomous/subs/work-coordination/src/consultations/records.js';
@@ -24,7 +25,7 @@ describe('Plan 33 C05-C12 advisory tools', () => {
       const source = fixture.seeds[role]!;
       const caller = await fixture.caller('engineer', source);
       expect(caller.ended, caller.error).toBe('submitted'); expect(caller.value).toEqual({ ordinary: true });
-      const record = consultationOutcome(fixture.run.log, consultationId(caller.id, 'ask'))!;
+      const record = consultationOutcome(consultationJournal(fixture.run.log), consultationId(caller.id, 'ask'))!;
       expect(record).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: '  Exact answer\nEvidence.  ' } } });
       const start = fixture.run.log.ledger.replay().flatMap(entry => entry.transaction.records).find(record => record.path === consultationLayout.start(record.id) && record.id === consultationId(caller.id, 'ask'))!.body;
       expect(start).toMatchObject({ target: source, message: { text: '  Exact question\nNew facts.  ' }, request: { entry: expect.any(Number) } });
@@ -59,7 +60,7 @@ describe('Plan 33 C05-C12 advisory tools', () => {
       if (scenario === 'missing') fixture.agent.loseSession(readSessionPointReference(source.ref)!.point);
       const caller = await fixture.caller('engineer', source);
       expect(caller.ended, caller.error).toBe('submitted');
-      const record = consultationOutcome(fixture.run.log, consultationId(caller.id, 'ask'))!;
+      const record = consultationOutcome(consultationJournal(fixture.run.log), consultationId(caller.id, 'ask'))!;
       if (scenario === 'missing') {
         expect(record.status).toBe('answered'); expect(record.accepted?.answer).toMatchObject({ text: 'Fresh advice from current task inputs' });
         expect(fixture.seen.filter(input => input.task.submissionTool === 'answer_architect_consultation')).toHaveLength(1);
@@ -77,7 +78,7 @@ describe('Plan 33 C05-C12 advisory tools', () => {
     const fixture = await consultationFixture(cleanup, [{ kind: 'submit', input: {} }]);
     const source = fixture.seeds['local-architect']!;
     fixture.agent.loseSession(readSessionPointReference(source.ref)!.point);
-    const result = await fixture.runner.runInvocation(fixture.run, fixture.agent, { ...fixture.request('local-architect', 'Ordinary fork fallback'), start: { mode: 'fork', from: source.ref }, fork: { from: source.point, reason: 'reconciliation', briefs: [] } });
+    const result = await fixture.runner.runInvocation(fixture.run.execution, fixture.agent, { ...fixture.request('local-architect', 'Ordinary fork fallback'), start: { mode: 'fork', from: source.ref }, fork: { from: source.point, reason: 'reconciliation', briefs: [] } });
     expect(result.ended, result.error).toBe('submitted'); expect(result.actual).toBe('fresh');
     expect(fixture.run.log.all('invocation-started')).toHaveLength(5);
   });
@@ -85,11 +86,11 @@ describe('Plan 33 C05-C12 advisory tools', () => {
     const fixture = await consultationFixture(cleanup, []);
     const abort = new AbortController(); abort.abort();
     const hold = vi.fn(() => vi.fn());
-    const tool = consultationTool({ run: fixture.run, runner: fixture.runner, agent: fixture.agent, packages: fixture.packages, target: fixture.seeds['local-architect']!, global: null,
+    const tool = consultationTool({ run: fixture.run.execution, runner: fixture.runner, agent: fixture.agent, packages: fixture.packages, target: fixture.seeds['local-architect']!, global: null,
       caller: { role: 'engineer', session: 'ses-0001', work: {} }, projectRoot: fixture.directory, holdMs: 500, views: [], now: () => new Date() }, {
       invocation: 'caller', observations: {} as never, callId: () => 'abort', reminders: () => [], hold });
     expect((await tool.execute({ message: 'Question' }, abort.signal, 'abort')).isError).toBe(true);
-    expect(consultationOutcome(fixture.run.log, consultationId('caller', 'abort'))).toMatchObject({ status: 'cancelled', child: null });
+    expect(consultationOutcome(consultationJournal(fixture.run.log), consultationId('caller', 'abort'))).toMatchObject({ status: 'cancelled', child: null });
     expect((await tool.execute({ message: ' ' }, new AbortController().signal, 'blank')).isError).toBe(true);
     expect(hold).not.toHaveBeenCalled(); expect(fixture.run.log.all('invocation-started')).toHaveLength(3);
     expect(consultationMessageSchema.safeParse({ message: '  literal\n' }).success).toBe(true); expect(architectAnswerSchema.safeParse({ answer: '\n' }).success).toBe(false);
@@ -103,7 +104,7 @@ describe('Plan 33 C05-C12 advisory tools', () => {
     const records = fixture.run.log.ledger.replay().flatMap(entry => entry.transaction.records);
     const first = records.find(record => record.path === consultationLayout.outcome(consultationId(caller.id, 'same')))!.body;
     expect(first).toMatchObject({ status: 'answered', accepted: { answer: { text: expect.any(String) } }, delivery: 'unknown', result: null });
-    expect(consultationOutcome(fixture.run.log, consultationId(caller.id, 'same'))).toMatchObject({ delivery: 'recorded' });
+    expect(consultationOutcome(consultationJournal(fixture.run.log), consultationId(caller.id, 'same'))).toMatchObject({ delivery: 'recorded' });
     expect(first).not.toHaveProperty('consumed');
     await retainConsultationExample(fixture, 'completed-replay');
   });

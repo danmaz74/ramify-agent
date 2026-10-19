@@ -1,3 +1,4 @@
+import { consultationOutcome, recordConsultationStart, recordConsultationOutcome, recordConsultationDelivery } from '../../../autonomous/subs/work-coordination/src/consultations/store.js';
 import { mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import type { AgentPort } from '../../../agent/src/interfaces/port.js';
@@ -14,7 +15,7 @@ import { defaultRunPolicy } from '../../../../src/run/policy.js';
 import { recoveryHash } from '../../../autonomous/src/run/recovery-admission.js';
 import { acquireProjectLock, lockPath, ProjectLockError, type ProjectLock } from '../../../../src/store/lock.js';
 import { ensureStateDirectory } from '../../../../src/store/state-directory.js';
-import { RunLog } from '../../../autonomous/src/run/log.js';
+import { RunLog, type RunEventInput } from '../../../autonomous/src/run/log.js';
 import { manualRunRecordSchema, type ManualRunRecord } from './records.js';
 import { operationRecoverySchema, runLayout, type RunPolicy } from '../../../autonomous/src/run/records.js';
 import { runDirectory } from '../../../autonomous/src/run/records.js';
@@ -26,7 +27,7 @@ import { iterationLayout } from '../../../autonomous/subs/work-coordination/src/
 import { integrationScenarioOf, originKindOf, workLayout } from '../../../autonomous/subs/work-coordination/src/work/records.js';
 import { authoredOutlineInvocation } from './authoring.js';
 import type { EngineerStepInputs } from './inputs.js';
-import { committedBody, InvocationRunner, type LiveInvocation, type RunnerRun } from './runner.js';
+import { committedBody, InvocationRunner, type LiveInvocation, type RunnerContext } from './runner.js';
 import { stoppedOutcome, finished } from '../../../task-execution/src/results.js';
 
 /*
@@ -109,7 +110,8 @@ export async function waitManualResourceResult<T>(projectRoot: string, directory
 export const sessionOperationsDirectory = (projectRoot: string): string => join(projectRoot, 'plans', '.harness', 'session-operations');
 
 /** One manual run, opened under the project lock. */
-export class ManualRun implements RunnerRun {
+export class ManualRun {
+  readonly execution: RunnerContext;
   readonly mutex = new Mutex();
   readonly starting = new PriorityMutex();
   readonly live = new Map<string, LiveInvocation>();
@@ -126,6 +128,50 @@ export class ManualRun implements RunnerRun {
 
   constructor(readonly record: ManualRunRecord, readonly directory: string, readonly log: RunLog, readonly writer: WriterOwnership) {
     this.store = new ContentStore(join(directory, runLayout.blobs));
+    const run = this;
+    const consultationJournal = () => ({
+      events: structuredClone(run.log.events), records: structuredClone(run.log.ledger.replay().flatMap(line => line.transaction.records)),
+      append: (input: RunEventInput, records: readonly CommitRecord[]) => run.log.ledger.append({ event: run.log.next(input), records: [...records] }),
+    });
+    this.execution = {
+      jobId: run.jobId, planId: run.planId, directory,
+      get policy() { return structuredClone(run.policy); },
+      baselineMeasurement: null, store: run.store, get index() { return structuredClone(run.index); }, path: relative => run.path(relative),
+      events: () => structuredClone(run.log.events), record: (path, selection) => {
+        const records = run.log.ledger.replay().flatMap(line => line.transaction.records).filter(record => record.path === path);
+        return structuredClone(selection === 'first' ? records[0] : records.at(-1));
+      },
+      write: (input, records = [], at, authorityCurrent) => run.mutex.run(async () => {
+        if (run.log.terminal || authorityCurrent && !await authorityCurrent()) return 'ended';
+        if (records.length === 0) { await run.log.append(input, at); return 'committed'; }
+        return commitRecord(run.log.ledger, { event: run.log.next(input), records: [...records] });
+      }),
+      admit: (prepare, priority) => run.starting.run(prepare, priority),
+      register: (id, role, reader) => {
+        let closed!: () => void;
+        const live: LiveInvocation = { role, reader, session: undefined, done: new Promise<void>(resolve => { closed = resolve; }) };
+        run.live.set(id, live);
+        return { publish: session => { if (run.live.get(id) === live) live.session = session; }, close: () => { if (run.live.get(id) === live) run.live.delete(id); closed(); } };
+      },
+      writerUnsettled: () => run.writer.isUnsettled, writerBlocked: () => run.writer.blocked !== undefined,
+      ownsWriter: id => run.writer.held === id, acquireWriter: id => run.writer.acquire(id),
+      releaseWriter: (id, session) => run.writer.release(id, session), unsettledWriter: (id, reason, session) => run.writer.markUnsettled(id, reason, session),
+      consultation: id => structuredClone(consultationOutcome(consultationJournal(), id)),
+      startConsultation: value => run.mutex.run(async () => structuredClone(await recordConsultationStart(consultationJournal(), value))),
+      finishConsultation: value => run.mutex.run(async () => structuredClone(await recordConsultationOutcome(consultationJournal(), value))),
+      deliverConsultation: (id, result) => run.mutex.run(async () => structuredClone(await recordConsultationDelivery(consultationJournal(), id, result))),
+      ignoring: () => false, base: () => run.invocationBase, refusal: () => null, refused: async () => undefined,
+      taskBrief: async () => { throw new Error("A manual run's invocation brings its own task brief"); },
+      adoptContinuity: async (occurrenceId, authorityCurrent) => {
+        if (run.policy.continuity) return;
+        const defaults = defaultRunPolicy({ projectRoot: run.record.projectRoot });
+        const original = run.policy;
+        const effective: RunPolicy = { ...original, version: 'run-policy/8', continuity: defaults.continuity, context: defaults.context, recovery: defaults.recovery };
+        await run.execution.write({ type: 'continuity-policy-adopted', data: { from: original.version, to: 'run-policy/8', occurrenceId, policy: effective } }, [], undefined, authorityCurrent);
+        run.effectivePolicy = effective;
+      },
+    };
+
   }
 
   get jobId(): string { return this.record.jobId; }
@@ -281,7 +327,7 @@ export async function readManualRun(directory: string): Promise<{ readonly statu
 
 /** The invocation runner over manual runs, and the session operations it starts sessions through. */
 export interface ManualRunner {
-  readonly runner: InvocationRunner<ManualRun>;
+  readonly runner: InvocationRunner;
   /** Closes the session operations; false where a session they started did not settle. */
   close(): Promise<boolean>;
 }
@@ -303,16 +349,8 @@ export function manualRunner(options: {
 }): ManualRunner {
   let operations: Promise<HarnessSessionOperations> | undefined;
   const open = (agent: AgentPort) => operations ??= HarnessSessionOperations.open(sessionOperationsDirectory(options.projectRoot), agent);
-  const runner = new InvocationRunner<ManualRun>({
+  const runner = new InvocationRunner({
     authorityCurrent: options.authorityCurrent,
-    adoptContinuity: async (run, occurrenceId) => {
-      if (run.policy.continuity) return;
-      const defaults = defaultRunPolicy({ projectRoot: options.projectRoot });
-      const original = run.policy;
-      const effective: RunPolicy = { ...original, version: 'run-policy/8', continuity: defaults.continuity, context: defaults.context, recovery: defaults.recovery };
-      await runner.write(run, { type: 'continuity-policy-adopted', data: { from: original.version, to: 'run-policy/8', occurrenceId, policy: effective } });
-      run.effectivePolicy = effective;
-    },
     projectRoot: options.projectRoot,
     git: options.git,
     model: options.model,
@@ -321,11 +359,6 @@ export function manualRunner(options: {
     afterWrite: async () => undefined,
     operations: agent => open(agent),
     openedOperations: () => operations,
-    ignoring: () => false,
-    base: run => run.invocationBase,
-    refusal: () => null,
-    refused: async () => undefined,
-    taskBrief: async () => { throw new Error('A manual run\'s invocation brings its own task brief'); },
     previewCandidateTree: () => options.git.previewCandidateTree(options.projectRoot),
   });
   return {
@@ -335,7 +368,7 @@ export function manualRunner(options: {
 }
 
 /** Settle historical attempts under the project lock before ordinary dispatch. */
-export async function settleManualAttempts(run: ManualRun, runner: InvocationRunner<ManualRun>, agent: AgentPort, projectRoot: string): Promise<string | null> {
+export async function settleManualAttempts(run: ManualRun, runner: InvocationRunner, agent: AgentPort, projectRoot: string): Promise<string | null> {
   if (unsettledWriter(run.log) === null) return null;
   const operations = await HarnessSessionOperations.open(sessionOperationsDirectory(projectRoot), agent);
   try {
@@ -353,7 +386,7 @@ export async function settleManualAttempts(run: ManualRun, runner: InvocationRun
         run.writer.acquire(id);
         for (const group of groups) run.writer.register(id, group.data.pid);
         settled = await run.writer.release(id, { settled: async () => 'settled' });
-        await runner.write(run, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
+        await runner.write(run.execution, { type: 'writer-released', data: { invocation: id, confirmed: settled.confirmed, groupsKilled: settled.groupsKilled } });
       }
       if (!settled.confirmed) return `The previous writer ${id} or its child processes have not settled`;
       await operations.reconcileOwnedEffects(run.jobId, id);
@@ -361,7 +394,7 @@ export async function settleManualAttempts(run: ManualRun, runner: InvocationRun
       if (unresolved.length) return `Consequential operation outcomes for ${id} remain unresolved: ${unresolved.join(', ')}`;
       if (!ended.has(id)) {
         const accepted = await operations.acceptance(run.jobId, id);
-        await runner.endInvocation(run, id, start.data.session, finished('not-kept'), {
+        await runner.endInvocation(run.execution, id, start.data.session, finished('not-kept'), {
           ...stoppedOutcome(), settled,
           ...(accepted ? { ended: 'submitted', disposition: 'applied', submission: { hash: accepted.submissionHash } }
             : { error: 'Execution was interrupted; the task remains pending' }),
@@ -379,14 +412,14 @@ export async function settleManualAttempts(run: ManualRun, runner: InvocationRun
  * with. A record the run already holds unchanged is not written again; one
  * that differs is refused, with nothing written.
  */
-export async function recordAuthoredInputs(runner: InvocationRunner<ManualRun>, run: ManualRun, inputs: EngineerStepInputs): Promise<string | null> {
+export async function recordAuthoredInputs(runner: InvocationRunner, run: ManualRun, inputs: EngineerStepInputs): Promise<string | null> {
   const provenance = inputs.provenance;
   if (provenance === undefined || !('origin' in provenance) || provenance.origin !== 'authored') return null;
   const { workItem: item, outlines } = provenance;
   const { assignment } = inputs;
   const number = Number(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2));
   if (!Number.isInteger(number) || number < 1) return `the assignment ${assignment.id} names no iteration number`;
-  const writes: Array<{ readonly event: Parameters<InvocationRunner<ManualRun>['write']>[1]; readonly record: CommitRecord }> = [
+  const writes: Array<{ readonly event: Parameters<InvocationRunner['write']>[1]; readonly record: CommitRecord }> = [
     {
       event: { type: 'work-item-started', data: { workItem: item.id, module: item.module, origin: originKindOf(item),
         ...(integrationScenarioOf(item) === null ? {} : { scenario: integrationScenarioOf(item)! }) } },
@@ -406,13 +439,13 @@ export async function recordAuthoredInputs(runner: InvocationRunner<ManualRun>, 
   // Every record is compared before any is written, so a refusal writes nothing.
   const pending = [];
   for (const write of writes) {
-    const held = committedBody(run, write.record.path);
+    const held = committedBody(run.execution, write.record.path);
     if (held === undefined) pending.push(write);
     else if (canonicalJson(held) !== canonicalJson(write.record.body)) {
       return `the manual run already holds a different ${write.record.path}; authored records are never replaced`;
     }
   }
-  for (const write of pending) await runner.write(run, write.event, [write.record]);
+  for (const write of pending) await runner.write(run.execution, write.event, [write.record]);
   return null;
 }
 

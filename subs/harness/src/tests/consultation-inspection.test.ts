@@ -62,7 +62,7 @@ test('C13/C14/C15: actual nested exchanges, session descendants, complete per-in
   } }));
   const caller = await f.caller('engineer', f.seeds['local-architect']!, f.seeds['global-fork']!);
   await writeFile(join(f.directory, 'job.json'), JSON.stringify(f.run.record));
-  await f.runner.drainTranscripts(f.run);
+  await f.runner.drainTranscripts(f.run.directory);
   const before = await bytes(f.directory); const seen = f.seen.length;
   const view = await readConsultations({ run: f.directory });
   const outer = view.consultations[0]!; const inner = view.consultations[1]!;

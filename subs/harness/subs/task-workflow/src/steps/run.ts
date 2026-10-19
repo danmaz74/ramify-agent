@@ -301,7 +301,7 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
   const sessionOf = (ref: string, session: string | undefined): string | null => {
     for (const ended of [...run.log.all('invocation-ended')].reverse()) {
       if (session !== undefined && ended.data.session !== session) continue;
-      const outcome = invocationOutcomeSchema.safeParse(committedBody(run, runLayout.outcome(ended.data.invocation)));
+      const outcome = invocationOutcomeSchema.safeParse(committedBody(run.execution, runLayout.outcome(ended.data.invocation)));
       if (outcome.success && outcome.data.session?.ref === ref) return ended.data.session;
     }
     return null;
@@ -340,7 +340,7 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
       reason: taken.reason,
       provenance,
     };
-    const result: InvocationResult<unknown> = await runner.runResourceInvocation(run, agent, {
+    const result: InvocationResult<unknown> = await runner.runResourceInvocation(run.execution, agent, {
       ...prepared.request, consultationPackages: packages,
       recoveryResume: options.recoveryResume,
       startingTree: { dirty: startingChanged.length > 0, changed: [...startingChanged] },
@@ -356,7 +356,7 @@ async function runLocked(options: StepRunOptions, original: StepInputs, location
     // An agent session that could not start is a step that did not start; its invocation's records name why.
     if (result.notStarted === true) return notStarted(result.error ?? 'The agent session could not start', run.directory);
 
-    const outcome = invocationOutcomeSchema.parse(committedBody(run, runLayout.outcome(result.id)));
+    const outcome = invocationOutcomeSchema.parse(committedBody(run.execution, runLayout.outcome(result.id)));
     settlementConfirmed = outcome.settled.confirmed;
     taskPending = result.pending === true;
     // A review of the manual run's own request ends in its terminal attempt record, which settles it.
@@ -434,7 +434,7 @@ interface PrepareContext {
   readonly git: GitService;
   readonly ramify: RamifyCli;
   readonly run: ManualRun;
-  readonly runner: InvocationRunner<ManualRun>;
+  readonly runner: InvocationRunner;
   readonly refresh: () => Promise<ArchitectIndex | null>;
   readonly index: () => ArchitectIndex | null;
   readonly commandExecution: CommandRunner | undefined;
@@ -613,14 +613,14 @@ async function prepareEngineer(original: Extract<StepInputs, { role: 'engineer' 
   if (authored !== null) throw new Refusal(authored);
 
   const authority = ownershipAuthorityFor(assignment, run, async data => {
-    const result = await runner.write(run, { type: 'ownership-evidence-retained', data });
+    const result = await runner.write(run.execution, { type: 'ownership-evidence-retained', data });
     if (result === 'ended') throw new Error('The manual run ended before ownership evidence settled');
   });
   const guarded = await protectedScopeOf(projectRoot, assignment.scope, step.equipment.protectedFiles, ramify, authority);
   const tools = engineerEquipment({
     commandExecution: context.commandExecution,
     registerProcessGroup: async (invocation, pid, identity) => {
-      const committed = await runner.write(run, { type: 'writer-process-registered', data: { invocation, pid, identity } });
+      const committed = await runner.write(run.execution, { type: 'writer-process-registered', data: { invocation, pid, identity } });
       if (committed === 'ended') throw new Error(`Run ${run.jobId} ended before process group ${pid} was registered`);
       run.writer.register(invocation, pid);
     },

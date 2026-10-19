@@ -32,3 +32,5 @@ expose-src commitCapabilityTransition from "run/capability-transition.ts" to des
 expose-src coordinationHistory from "run/coordination-history.ts" to parent
 expose-src RepairExportConfiguration, createRepairExportPayload, exportRepairIncident, repairExportPayloadPath, repairExternalRef, repairProjectKey, RepairExportPayload, RepairExportState from "run/repair-export.ts" to descendants
 expose-src recoveryHash, externalRepairAdmissionSchema from "run/recovery-admission.ts" to descendants
+expose-sub recordConsultationStart, recordConsultationOutcome, ConsultationJournal, ConsultationReading from work-coordination to descendants
+expose-sub ConsultationJournal, ConsultationReading from work-coordination to parent

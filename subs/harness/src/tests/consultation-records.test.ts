@@ -1,3 +1,4 @@
+import { consultationJournal } from './helpers/consultation-journal.js';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { consultationId, consultationLayout, type ConsultationOutcome, type ConsultationStart } from '../../subs/autonomous/subs/work-coordination/src/consultations/records.js';
@@ -27,12 +28,12 @@ async function fixture() {
 describe('Plan 33 C04 durable consultation associations', () => {
   test('start and outcome commit exact content references and completed replay is one exchange', async () => {
     const { log, path, content, start, outcome } = await fixture();
-    expect(await recordConsultationStart(log, start)).toEqual(start);
-    expect(await recordConsultationOutcome(log, outcome)).toEqual(outcome);
+    expect(await recordConsultationStart(consultationJournal(log), start)).toEqual(start);
+    expect(await recordConsultationOutcome(consultationJournal(log), outcome)).toEqual(outcome);
     const reopened = await RunLog.open(path, 'R');
-    expect(await recordConsultationStart(reopened, start)).toEqual(start);
-    expect(await recordConsultationStart(reopened, { ...start, message: { stored: 'inline', text: 'different question', bytes: 18 } })).toEqual(start);
-    expect(await recordConsultationOutcome(reopened, outcome)).toEqual(outcome);
+    expect(await recordConsultationStart(consultationJournal(reopened), start)).toEqual(start);
+    expect(await recordConsultationStart(consultationJournal(reopened), { ...start, message: { stored: 'inline', text: 'different question', bytes: 18 } })).toEqual(start);
+    expect(await recordConsultationOutcome(consultationJournal(reopened), outcome)).toEqual(outcome);
     expect(reopened.all('consultation-started')).toHaveLength(1); expect(reopened.all('consultation-finished')).toHaveLength(1);
     if (start.message.stored !== 'blob') throw new Error('blob expected');
     expect(await content.read(start.message.hash)).toBe('Exact question\nwith useful context.');
@@ -41,11 +42,11 @@ describe('Plan 33 C04 durable consultation associations', () => {
   });
   test('nested start preserves parent/target; interrupted acceptance has unknown result delivery', async () => {
     const { log, path, start, outcome } = await fixture();
-    await recordConsultationStart(log, start);
+    await recordConsultationStart(consultationJournal(log), start);
     const nested: ConsultationStart = { ...start, id: consultationId('inv-2', 'inner'), parent: start.id,
       caller: { invocation: 'inv-2', session: 'ses-0002', role: 'local-architect', toolCall: 'inner', work: { workItem: 'wi-001' } }, target: { ...start.target, role: 'global-fork' } };
-    await recordConsultationStart(log, nested);
-    await recordConsultationOutcome(log, { ...outcome, status: 'incomplete', endedAt: null, delivery: 'unknown', result: null });
+    await recordConsultationStart(consultationJournal(log), nested);
+    await recordConsultationOutcome(consultationJournal(log), { ...outcome, status: 'incomplete', endedAt: null, delivery: 'unknown', result: null });
     const reopened = await RunLog.open(path, 'R');
     expect(reopened.all('consultation-started')[1]?.data.parent).toBe(start.id);
     expect(reopened.all('consultation-finished')).toHaveLength(1);
@@ -57,24 +58,24 @@ describe('Plan 33 C04 durable consultation associations', () => {
     const { log, path, outcome } = await fixture();
     await log.append({ type: 'work-item-started', data: { workItem: 'wi-001', module: 'M', origin: 'entry' } });
     const reopened = await RunLog.open(path, 'R'); expect(reopened.events[0]?.data).not.toHaveProperty('globalTarget');
-    await expect(recordConsultationOutcome(reopened, outcome)).rejects.toThrow('no recorded start');
+    await expect(recordConsultationOutcome(consultationJournal(reopened), outcome)).rejects.toThrow('no recorded start');
   });
   test('answer acceptance and later caller-result observation preserve immutable outcome revisions', async () => {
     const { log, path, start, outcome } = await fixture();
-    await recordConsultationStart(log, start);
+    await recordConsultationStart(consultationJournal(log), start);
     const accepted = { ...outcome, delivery: 'unknown' as const, result: null };
-    await recordConsultationOutcome(log, accepted);
+    await recordConsultationOutcome(consultationJournal(log), accepted);
     const original = log.ledger.replay().at(-1)!.transaction.records[0]!;
-    await expect(recordConsultationDelivery(log, start.id, { session: start.caller.session, entry: null })).rejects.toThrow('observed');
-    await expect(recordConsultationDelivery(log, start.id, { session: 'ses-9999', entry: 8 })).rejects.toThrow('another caller');
+    await expect(recordConsultationDelivery(consultationJournal(log), start.id, { session: start.caller.session, entry: null })).rejects.toThrow('observed');
+    await expect(recordConsultationDelivery(consultationJournal(log), start.id, { session: 'ses-9999', entry: 8 })).rejects.toThrow('another caller');
     const result = { session: start.caller.session, entry: 8 };
-    const delivered = await recordConsultationDelivery(log, start.id, result);
+    const delivered = await recordConsultationDelivery(consultationJournal(log), start.id, result);
     expect(delivered).toEqual(outcome);
     const reopened = await RunLog.open(path, 'R');
-    expect(consultationOutcome(reopened, start.id)).toEqual(outcome);
-    expect(await recordConsultationOutcome(reopened, accepted)).toEqual(outcome);
-    expect(await recordConsultationDelivery(reopened, start.id, result)).toEqual(outcome);
-    await expect(recordConsultationDelivery(reopened, start.id, { ...result, entry: 9 })).rejects.toThrow('immutable');
+    expect(consultationOutcome(consultationJournal(reopened), start.id)).toEqual(outcome);
+    expect(await recordConsultationOutcome(consultationJournal(reopened), accepted)).toEqual(outcome);
+    expect(await recordConsultationDelivery(consultationJournal(reopened), start.id, result)).toEqual(outcome);
+    await expect(recordConsultationDelivery(consultationJournal(reopened), start.id, { ...result, entry: 9 })).rejects.toThrow('immutable');
     expect(reopened.ledger.replay().flatMap(entry => entry.transaction.records).find(record => record.path === original.path)).toEqual(original);
     expect(reopened.all('consultation-started')).toHaveLength(1);
     expect(reopened.all('consultation-finished')).toHaveLength(1);

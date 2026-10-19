@@ -4,7 +4,7 @@ import { taskBriefingRevision } from '../../../task-execution/src/delivery/brief
 import { consultationAvailability } from '../../../autonomous/subs/work-coordination/src/consultations/targets.js';
 import { consultationTool, consultArchitectDeclaration } from '../../../autonomous/subs/work-coordination/src/consultations/tools.js';
 import { consultationId } from '../../../autonomous/subs/work-coordination/src/consultations/records.js';
-import { consultationOutcome, recordConsultationDelivery } from '../../../autonomous/subs/work-coordination/src/consultations/store.js';
+import type { ConsultationStart, ConsultationOutcome } from '../../../autonomous/subs/work-coordination/src/consultations/records.js';
 import { piBuiltinDeclarations } from '../../../agent/subs/pi/src/session-operations.js';
 import { effectiveBlocks } from '../../../task-execution/src/delivery/blocks.js';
 import type { DebugInspection } from '../../../../src/interfaces/protocol/runs.js';
@@ -17,15 +17,14 @@ import { writeFileAtomic } from '../../../ledger/src/atomic.js';
 import type { GuardedScope } from '../../../../src/guard/write-guard.js';
 import type { Role } from '../../../../src/interfaces/protocol/runs.js';
 import { canonicalJson } from '../../../../src/jobs/commands.js';
-import { commitRecord, type RecordRef as CommitRecord } from '../../../../src/jobs/commit.js';
-import type { Mutex, PriorityMutex } from '../../../../src/jobs/mutex.js';
+import type { RecordRef as CommitRecord } from '../../../../src/jobs/commit.js';
 import { invocationReadSize, invocationScopeSize, invocationScopeFailure, type DeclaredScope } from '../../../kpi/src/capture.js';
 import { deliveredManifestScopeInputs as deliveredScopeInputs, invocationScope, declaredRoots } from '../../../kpi/src/measurement/inputs.js';
 import { inputsHash, type LoadedPackage } from '../../../../src/prompts/packages.js';
 import type { TaskEnvironment, TaskPacket } from '../../../task-execution/src/delivery/packet.js';
 import type { TaskKind } from '../prompts/tasks.js';
 
-import type { RunEventInput, RunLog } from '../../../autonomous/src/run/log.js';
+import type { RunEvent, RunEventInput } from '../../../autonomous/src/run/log.js';
 import { recordSettledSnapshot } from '../../../../src/run/mutations.js';
 import { ObservationLog } from '../../../task-execution/src/observations.js';
 import { contextPolicyOf, invocationLimits } from '../../../../src/run/policy.js';
@@ -40,7 +39,7 @@ import { ReusableSessionUnavailableError, operationDeclarations, settleSessionEq
 import { reduceSessions, type RunSessions } from '../../../autonomous/src/run/sessions.js';
 import { type SubmissionValidation } from '../../../task-execution/src/submissions.js';
 import type { CompactionReason } from '../../../agent/src/interfaces/port.js';
-import type { WriterOwnership } from '../../../task-execution/src/writer.js';
+import type { Settlement } from '../../../task-execution/src/writer.js';
 import { InvocationTranscript } from '../../../task-execution/src/transcripts/recorder.js';
 import type { ContentStore } from '../../../task-execution/src/transcripts/store.js';
 import { readTranscript, TranscriptWriter, TranscriptWriters } from '../../../task-execution/src/transcripts/writer.js';
@@ -74,22 +73,40 @@ export interface LiveInvocation {
   readonly done: Promise<void>;
 }
 
-/** The run state an invocation is started in and recorded into. */
-export interface RunnerRun {
+/** Bound invocation observations and operations supplied by the lifecycle owner. */
+export interface RunnerContext {
   readonly jobId: string;
   readonly planId: string;
   /** The run's directory, which its log's records are relative to. */
   readonly directory: string;
-  readonly createdAt: string;
   readonly policy: RunPolicy;
-  readonly originalPolicy?: RunPolicy;
   /** The frozen measurement baseline an invocation's scope is measured against; null where the run has none. */
   readonly baselineMeasurement: RecordRef | null;
-  readonly log: RunLog;
-  readonly mutex: Mutex;
-  readonly starting: PriorityMutex;
-  readonly live: Map<string, LiveInvocation>;
-  readonly writer: WriterOwnership;
+  /** Detached journal observations; callers cannot mutate lifecycle authority. */
+  events(): readonly RunEvent[];
+  record(path: string, selection: 'first' | 'latest'): { readonly revision: number; readonly body: unknown } | undefined;
+  /** Authority check and event sequencing happen inside the owner's serialization. */
+  write(input: RunEventInput, records?: readonly CommitRecord[], at?: Date, authorityCurrent?: () => Promise<boolean>): Promise<'committed' | 'already-committed' | 'ended'>;
+  admit<T>(prepare: () => Promise<T>, priority: 'after' | 'first'): Promise<T>;
+  register(id: string, role: Role, reader: boolean): { publish(session: AgentSession): void; close(): void };
+  writerUnsettled(): boolean;
+  writerBlocked(): boolean;
+  ownsWriter(id: string): boolean;
+  acquireWriter(id: string): void;
+  releaseWriter(id: string, session?: Pick<AgentSession, 'settled'>): Promise<Settlement>;
+  unsettledWriter(id: string, reason: string, session: Pick<AgentSession, 'settled'>): void;
+  consultation(id: string): ConsultationOutcome | null;
+  startConsultation(value: ConsultationStart): Promise<ConsultationStart>;
+  finishConsultation(value: ConsultationOutcome): Promise<ConsultationOutcome>;
+  deliverConsultation(id: string, result: NonNullable<ConsultationOutcome['result']>): Promise<ConsultationOutcome>;
+  ignoring(): boolean;
+  base(): string;
+  refusal(): string | null;
+  refused(reason: string, reader: boolean): Promise<void>;
+  taskBrief<T>(request: InvocationRequest<T>, spec: SessionSpec, limits: RunPolicy['limits']): Promise<HarnessTaskBrief>;
+  restore?<T>(agent: AgentPort, request: InvocationRequest<T>): Promise<RestoredInvocation<T> | null>;
+  adoptContinuity?(occurrenceId: string, authorityCurrent?: () => Promise<boolean>): Promise<void>;
+  resourceInvocation?<T>(agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>>;
   readonly store: ContentStore;
   readonly index: ArchitectIndex | null;
   path(relative: string): string;
@@ -241,6 +258,7 @@ export interface InvocationRequest<T> {
 
 /** An invocation started and not yet run: its identifiers, its observations and its transcript. */
 export interface StartedInvocation {
+  readonly publish?: (session: AgentSession) => void;
   readonly id: string;
   readonly session: SessionId;
   readonly observations: ObservationLog;
@@ -256,10 +274,7 @@ export interface RestoredInvocation<T> {
 }
 
 /** What the runner asks of the run that hosts it. */
-export interface RunnerHost<R extends RunnerRun> {
-  readonly adoptContinuity?: (run: R, occurrenceId: string) => Promise<void>;
-  /** A scheduler owns its recovery hold and successor admission. */
-  readonly resourceInvocation?: <T>(run: R, agent: AgentPort, request: InvocationRequest<T>) => Promise<InvocationResult<T>>;
+export interface RunnerHost {
   readonly authorityCurrent?: () => Promise<boolean>;
   readonly projectRoot: string;
   readonly git: GitService;
@@ -271,32 +286,17 @@ export interface RunnerHost<R extends RunnerRun> {
   operations(agent: AgentPort): Promise<HarnessSessionOperations>;
   /** The session operations once opened, which an invocation's end reads its delivered packet from; undefined before. */
   openedOperations(): Promise<HarnessSessionOperations> | undefined;
-  /** Whether the run accepts nothing more: it is stopping, closing or has ended. */
-  ignoring(run: R): boolean;
-  /** The source boundary an invocation starts from. */
-  base(run: R): string;
-  /** Why the run starts no further invocation, or null where it may. */
-  refusal(run: R): string | null;
-  /** What the run does when its bounds refused an invocation: the writer's refusal fails a run, a reader's does not. */
-  refused(run: R, reason: string, reader: boolean): Promise<void>;
-  /** The task brief of a request that brings none, composed from the run's records. */
-  taskBrief<T>(run: R, request: InvocationRequest<T>, spec: SessionSpec, limits: RunPolicy['limits']): Promise<HarnessTaskBrief>;
-  /** An invocation a restarted run restores instead of starting a new one; null where there is none. */
-  restore?<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<RestoredInvocation<T> | null>;
   previewCandidateTree(): Promise<{ readonly tree: string }>;
 }
 
 /** A record body as the log committed it, never the materialized file. */
-export function committedBody(run: Pick<RunnerRun, 'log'>, path: string): unknown {
-  for (const entry of run.log.ledger.replay()) {
-    for (const record of entry.transaction.records) if (record.path === path) return record.body;
-  }
-  return undefined;
+export function committedBody(run: Pick<RunnerContext, 'record'>, path: string): unknown {
+  return run.record(path, 'first')?.body;
 }
 
 /** Latest immutable invocation revision, unlike owning assignment/license lookups. */
-export function invocationRecord(run: Pick<RunnerRun, 'log'>, id: string): { readonly revision: number; readonly body: Invocation } {
-  const record = run.log.ledger.replay().flatMap(entry => entry.transaction.records).filter(record => record.path === runLayout.invocation(id)).at(-1);
+export function invocationRecord(run: Pick<RunnerContext, 'record'>, id: string): { readonly revision: number; readonly body: Invocation } {
+  const record = run.record(runLayout.invocation(id), 'latest');
   if (!record) throw new Error('Invocation record missing');
   return { revision: record.revision, body: invocationSchema.parse(record.body) };
 }
@@ -321,9 +321,9 @@ function requestedSession<T>(request: InvocationRequest<T>): Invocation['session
 }
 
 /** The shared invocation runner over one host's runs. */
-export class InvocationRunner<R extends RunnerRun> {
+export class InvocationRunner {
   private readonly transcripts = new TranscriptWriters();
-  constructor(private readonly host: RunnerHost<R>) {}
+  constructor(private readonly host: RunnerHost) {}
 
   private get projectRoot(): string {
     return this.host.projectRoot;
@@ -335,21 +335,14 @@ export class InvocationRunner<R extends RunnerRun> {
    * and two writes can never disagree about it. A terminal log accepts
    * nothing more: the event that ends a run is its last write.
    */
-  write(run: R, input: RunEventInput, records: readonly CommitRecord[] = [], at?: Date): Promise<'committed' | 'already-committed' | 'ended'> {
-    return run.mutex.run(async () => {
-      if (run.log.terminal || this.host.authorityCurrent && !await this.host.authorityCurrent()) return 'ended';
-      if (records.length === 0) {
-        await run.log.append(input, at);
-        return 'committed';
-      }
-      return commitRecord(run.log.ledger, { event: run.log.next(input), records: [...records] });
-    });
+  write(run: RunnerContext, input: RunEventInput, records: readonly CommitRecord[] = [], at?: Date): Promise<'committed' | 'already-committed' | 'ended'> {
+    return run.write(input, records, at, this.host.authorityCurrent);
   }
 
   /** The run's sessions as its log derives them, or undefined, with a warning, where the log breaks the lifecycle. */
-  sessionsOf(run: R): RunSessions | undefined {
+  sessionsOf(run: RunnerContext): RunSessions | undefined {
     try {
-      return reduceSessions(run.log.events);
+      return reduceSessions(run.events());
     } catch (error) {
       this.host.warn(`Run ${run.jobId}: its sessions cannot be derived: ${message(error)}`);
       return undefined;
@@ -362,26 +355,26 @@ export class InvocationRunner<R extends RunnerRun> {
    * appended since that invocation ended. An executor's ref is never read
    * for it.
    */
-  continuationOf(run: R, session: SessionId, reason: ContinueReason): ContinueRelation {
+  continuationOf(run: RunnerContext, session: SessionId, reason: ContinueReason): ContinueRelation {
     const point = this.sessionsOf(run)?.get(session)?.point ?? null;
     if (point === null) throw new Error(`Run ${run.jobId}: ${session} has no point to continue from`);
-    const ended = run.log.all('invocation-ended').filter(event => event.data.session === session).at(-1)?.sequence ?? 0;
-    const briefs = run.log.all('brief-appended')
+    const ended = run.events().filter(event => event.type === 'invocation-ended').filter(event => event.data.session === session).at(-1)?.sequence ?? 0;
+    const briefs = run.events().filter(event => event.type === 'brief-appended')
       .filter(event => event.data.session === session && event.sequence > ended)
       .map(event => event.data.decision);
     // A reconciliation's brief is appended to the module architect's own
     // session; the append is the executor's and names no harness point.
-    const reconciled = run.log.all('reconciliation-brief-appended')
+    const reconciled = run.events().filter(event => event.type === 'reconciliation-brief-appended')
       .filter(event => event.data.session === session && event.sequence > ended && (event.data.outcome === 'appended' || event.data.outcome === 'already-present'))
       .map(event => event.data.reconciliation);
     return { from: point, reason, briefs: [...briefs, ...reconciled] };
   }
 
   /** Drain execution-owned writers without exposing their mutable registry. */
-  drainTranscripts(run: Pick<RunnerRun, 'directory'>): Promise<void> { return this.transcripts.drain(run.directory); }
+  drainTranscripts(directory: string): Promise<void> { return this.transcripts.drain(directory); }
 
   /** The transcript of one of the run's sessions. */
-  transcriptOf(run: R, session: SessionId): TranscriptWriter {
+  transcriptOf(run: RunnerContext, session: SessionId): TranscriptWriter {
     return this.transcripts.of({ session, path: run.path(runLayout.transcript(session)), root: run.directory,
       store: run.store, inlineBytes: run.policy.transcript.inlineBodyBytes, now: () => this.host.now() });
   }
@@ -391,7 +384,7 @@ export class InvocationRunner<R extends RunnerRun> {
    * could not be written is a coverage gap in the invocation's own
    * observations, and never fails the invocation.
    */
-  invocationTranscript(run: R, session: SessionId, invocation: string, observations?: ObservationLog): InvocationTranscript {
+  invocationTranscript(run: RunnerContext, session: SessionId, invocation: string, observations?: ObservationLog): InvocationTranscript {
     return new InvocationTranscript(this.transcriptOf(run, session), invocation, async detail => {
       const log = observations ?? await ObservationLog.open(run.path(runLayout.observations(invocation)));
       await log.record({ type: 'coverage-gap', data: { kind: 'transcript-incomplete', detail } });
@@ -405,10 +398,10 @@ export class InvocationRunner<R extends RunnerRun> {
    * the session's settlement is the harness's own observation, and the
    * closing event is the last write of the invocation.
    */
-  async runInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+  async runInvocation<T>(run: RunnerContext, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (request.signal?.aborted === true) return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '' as SessionId, kept: false, notStarted: true, error: 'Stopped by the caller before dispatch' };
     return executeWithContextFallback({ mode: request.start.mode, allowFreshFallback: request.allowFreshFallback !== false, signal: request.signal,
-      blocked: () => run.writer.isUnsettled || this.host.ignoring(run) || request.fenced?.() === true,
+      blocked: () => run.writerUnsettled() || run.ignoring() || request.fenced?.() === true,
       attempt: () => this.invokeOnce(run, agent, request), fresh: (result, reason) => {
         const fresh = request.fallback?.(reason);
         return this.invokeOnce(run, agent, {
@@ -423,9 +416,9 @@ export class InvocationRunner<R extends RunnerRun> {
   }
 
   /** Re-enter the same ordinary task after lifecycle and effect owners settle it. */
-  async runResourceInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
-    if (this.host.resourceInvocation) return this.host.resourceInvocation(run, agent, request);
-    const previous = run.log.all('invocation-started').filter(event => event.data.role === request.role && canonicalJson(event.data.work) === canonicalJson(request.work)).at(-1);
+  async runResourceInvocation<T>(run: RunnerContext, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+    if (run.resourceInvocation) return run.resourceInvocation(agent, request);
+    const previous = run.events().filter(event => event.type === 'invocation-started').filter(event => event.data.role === request.role && canonicalJson(event.data.work) === canonicalJson(request.work)).at(-1);
     if (previous) {
       if (request.recoveryResume) {
         const original = await (await this.host.operations(agent)).originalOperation(run.jobId, previous.data.invocation);
@@ -452,18 +445,18 @@ export class InvocationRunner<R extends RunnerRun> {
         await operations.reconcileOwnedEffects(run.jobId, previous.data.invocation);
         const accepted = await operations.acceptance(run.jobId, previous.data.invocation);
         if (!accepted || accepted.schema !== request.submissionSchema || accepted.submissionHash !== outcome.data.submission?.hash) throw new Error(`Accepted result for ${previous.data.invocation} is unavailable`);
-        const decision = decideTaskReentry({ authorized: !this.host.ignoring(run) && request.fenced?.() !== true,
-          stopped: request.signal?.aborted === true, settled: (run.log.all('writer-released').filter(event => event.data.invocation === previous.data.invocation).at(-1)?.data.confirmed ?? outcome.data.settled.confirmed) && run.writer.blocked === undefined,
+        const decision = decideTaskReentry({ authorized: !run.ignoring() && request.fenced?.() !== true,
+          stopped: request.signal?.aborted === true, settled: (run.events().filter(event => event.type === 'writer-released').filter(event => event.data.invocation === previous.data.invocation).at(-1)?.data.confirmed ?? outcome.data.settled.confirmed) && !run.writerBlocked(),
           unresolved: await operations.unresolvedEffects(run.jobId, previous.data.invocation),
           accepted: { value: accepted.value as T } });
         if (decision.action === 'wait') throw new Error(decision.reason);
         if (decision.action === 'deliver') return { id: previous.data.invocation, session: previous.data.session,
           ended: 'submitted', outcomeKind: 'submitted', value: decision.value, ref: outcome.data.session?.ref ?? '',
-          kept: previous.data.session !== undefined && run.log.all('invocation-ended').find(event => event.data.invocation === previous.data.invocation)?.data.kept === true,
+          kept: previous.data.session !== undefined && run.events().filter(event => event.type === 'invocation-ended').find(event => event.data.invocation === previous.data.invocation)?.data.kept === true,
           settlementConfirmed: true };
       }
     }
-    await this.host.adoptContinuity?.(run, `manual-invocation-${run.log.count('invocation-started') + 1}`);
+    await run.adoptContinuity?.(`manual-invocation-${run.events().filter(event => event.type === 'invocation-started').length + 1}`, this.host.authorityCurrent);
     let current = previous && request.recoveryResume
       ? this.restartTaskRequest(request, previous.data.invocation, 'Continuing the pending standalone task') : request;
     let retries = 0;
@@ -474,9 +467,9 @@ export class InvocationRunner<R extends RunnerRun> {
       const operations = await this.host.operations(agent);
       await operations.reconcileOwnedEffects(run.jobId, result.id);
       const decision = decideTaskReentry({
-        authorized: !this.host.ignoring(run) && request.fenced?.() !== true,
+        authorized: !run.ignoring() && request.fenced?.() !== true,
         stopped: request.signal?.aborted === true,
-        settled: result.settlementConfirmed === true && run.writer.blocked === undefined,
+        settled: result.settlementConfirmed === true && !run.writerBlocked(),
         unresolved: await operations.unresolvedEffects(run.jobId, result.id),
       });
       if (decision.action === 'wait') return { ...result, pending: true, resourceReason: decision.reason };
@@ -505,7 +498,7 @@ export class InvocationRunner<R extends RunnerRun> {
   }
 
   /** Present the effective ordinary input; preview owns no operation, tool or writer. */
-  async preview<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<DebugInspection['input']> {
+  async preview<T>(run: RunnerContext, agent: AgentPort, request: InvocationRequest<T>): Promise<DebugInspection['input']> {
     const source = request.start.mode === 'fresh' ? null : request.start.mode === 'continue' ? request.start.ref : request.start.from;
     let prior: PointContext | null = null;
     let continuityReason: string | null = null;
@@ -527,8 +520,8 @@ export class InvocationRunner<R extends RunnerRun> {
       prompt: current.prompt, session: current.start, context: current.context ?? contextPolicyOf(run.policy, current.role),
       builtinTools: equipment.builtinTools, tools: [], onEvent: () => undefined, submission: { name: current.toolName, description: current.description,
         inputSchema: current.inputSchema, accept: async () => { throw new Error('Inspection cannot submit'); } } };
-    const brief = current.brief ?? await this.host.taskBrief(run, current, spec, limits);
-    const { packet } = composeOperationPacket({ runId: run.jobId, operationId: invocationId(run.log.count('invocation-started') + 1), loaded: current.loaded, brief,
+    const brief = current.brief ?? await run.taskBrief(current, spec, limits);
+    const { packet } = composeOperationPacket({ runId: run.jobId, operationId: invocationId(run.events().filter(event => event.type === 'invocation-started').length + 1), loaded: current.loaded, brief,
       role: current.role, mode: prior === null ? 'fresh' : current.start.mode, workingDirectory, builtinDeclarations,
       tools, submissionName: current.toolName, source: prior?.point ?? null, prior,
       ...(current.callerText === undefined ? {} : { callerText: current.callerText }) });
@@ -542,18 +535,18 @@ export class InvocationRunner<R extends RunnerRun> {
       scope: { ...current.scope, guarded: current.guarded === undefined ? null : { revision: current.guarded.revision, projectRoot: current.guarded.projectRoot, roots: current.guarded.roots, files: current.guarded.files, excluded: current.guarded.excluded ?? [], denied: current.guarded.denied ?? [], guarded: current.guarded.guarded ?? [] }, workingDirectory }, bounds: { ...limits, context: spec.context } };
   }
 
-  private async invokeOnce<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+  private async invokeOnce<T>(run: RunnerContext, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     // The start is serialized with every other start, since the identifiers
     // are counted from the log; the session itself runs outside it, so a
     // reader and the writer run at once.
-    const restored = (await this.host.restore?.(run, agent, request)) ?? null;
+    const restored = (await run.restore?.(agent, request)) ?? null;
     if (restored?.result) return restored.result;
-    const started = restored?.started ?? await run.starting.run(() => this.startInvocation(run, agent, request), request.reader === true ? 'after' : 'first');
+    const started = restored?.started ?? await run.admit(() => this.startInvocation(run, agent, request), request.reader === true ? 'after' : 'first');
     if ('refused' in started) {
       // A run that has spent its bounds starts nothing more. The writer's
       // path fails the run with the counter as evidence; a reader is only
       // refused, and the next writer invocation meets the same bound.
-      await this.host.refused(run, started.refused, request.reader === true);
+      await run.refused(started.refused, request.reader === true);
       return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '', kept: false };
     }
     try {
@@ -575,7 +568,7 @@ export class InvocationRunner<R extends RunnerRun> {
   }
 
   /** The actual delivered packet and execution identity, committed as the invocation's next revision before its events. */
-  private async prepareInvocation<T>(run: R, id: string,
+  private async prepareInvocation<T>(run: RunnerContext, id: string,
     supplied?: { packet: TaskPacket; request: InvocationRequest<T> },
     identity?: import('../../../agent/src/interfaces/session-operations.js').SessionExecutionIdentity): Promise<void> {
     const prior = invocationRecord(run, id);
@@ -614,16 +607,16 @@ export class InvocationRunner<R extends RunnerRun> {
   }
 
   /**
-   * Everything before an invocation's session starts, under `run.starting`:
+   * Everything before an invocation's session starts, under its owner's admission:
    * the run-wide bounds, the identifiers, the events that license it, its
    * transcript's start and, for the writer, the writer's acquisition.
    */
-  private async startInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<{ readonly refused: string } | StartedInvocation> {
+  private async startInvocation<T>(run: RunnerContext, agent: AgentPort, request: InvocationRequest<T>): Promise<{ readonly refused: string } | StartedInvocation> {
     // The run-wide bounds are read before an invocation is started, so a run
     // that has spent them starts nothing more.
-    const refusal = this.host.refusal(run);
+    const refusal = run.refusal();
     if (refusal !== null) return { refused: refusal };
-    const id = invocationId(run.log.count('invocation-started') + 1);
+    const id = invocationId(run.events().filter(event => event.type === 'invocation-started').length + 1);
     // A fresh or forked start opens a session; a continued one joins the
     // session the caller kept. The executor's ref stays the caller's.
     const opens = request.start.mode !== 'continue';
@@ -631,7 +624,7 @@ export class InvocationRunner<R extends RunnerRun> {
     // Every start that is not fresh names its harness point and its reason.
     if (!opens && request.continuing === undefined) throw new Error(`The ${request.role} invocation ${id} continues a session without a reason`);
     if (request.start.mode === 'fork' && request.fork === undefined) throw new Error(`The ${request.role} invocation ${id} forks without naming its point`);
-    const session = opens ? sessionId(run.log.count('session-opened') + 1) : request.session!;
+    const session = opens ? sessionId(run.events().filter(event => event.type === 'session-opened').length + 1) : request.session!;
     const continues = opens ? undefined : this.continuationOf(run, session, request.continuing!);
     const invocation = invocationSchema.parse({
       schema: 'ramify-agent.invocation/1',
@@ -647,7 +640,7 @@ export class InvocationRunner<R extends RunnerRun> {
       writer: request.writer === true,
       ...(request.recoveryPredecessor === undefined ? {} : { recoveryPredecessor: request.recoveryPredecessor }),
       ...(request.candidateBefore === undefined ? {} : { candidateBefore: request.candidateBefore }),
-      base: this.host.base(run),
+      base: run.base(),
       ...(request.startingTree === undefined ? {} : { startingTree: request.startingTree }),
       startedAt: this.host.now().toISOString(),
     } satisfies Invocation);
@@ -656,12 +649,8 @@ export class InvocationRunner<R extends RunnerRun> {
 
     // Registered before any event, so a stop that arrives between the
     // invocation's start and its session's applies to a known invocation.
-    let closed = () => undefined as void;
-    run.live.set(id, { role: request.role, reader: request.reader === true, session: undefined, done: new Promise<void>(resolve => { closed = () => resolve(); }) });
-    const release = () => {
-      run.live.delete(id);
-      closed();
-    };
+    const registration = run.register(id, request.role, request.reader === true);
+    const release = () => registration.close();
     try {
       if (opens) {
         await this.write(run, {
@@ -697,19 +686,19 @@ export class InvocationRunner<R extends RunnerRun> {
       if (request.writer === true) {
         // The writer is acquired before the session starts, so a stop that
         // arrives between them applies to a writer the log already names.
-        run.writer.acquire(id);
+        run.acquireWriter(id);
         await this.write(run, { type: 'writer-acquired', data: { invocation: id, scopeRevision: request.scope.write } });
         await this.host.afterWrite('writer-acquired', run.jobId);
       }
       await request.onStarted?.(id, session);
-      return { id, session, observations, transcript, closed: release };
+      return { id, session, observations, transcript, closed: release, publish: session => registration.publish(session) };
     } catch (error) {
       release();
       throw error;
     }
   }
 
-  private async runSession<T>(run: R, agent: AgentPort, started: StartedInvocation, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
+  private async runSession<T>(run: RunnerContext, agent: AgentPort, started: StartedInvocation, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     const { id, session } = started;
     const limits = invocationLimits(run.policy.limits, request);
     return executePreparedTask({ ...started, agent, runId: run.jobId, projectRoot: this.projectRoot,
@@ -728,19 +717,19 @@ export class InvocationRunner<R extends RunnerRun> {
       destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) },
       directory: run.directory, transcriptPath: run.path(runLayout.transcript(session)), content: run.store,
     }, {
-      now: () => this.host.now(), warn: text => this.host.warn(text), closed: () => this.host.ignoring(run),
+      now: () => this.host.now(), warn: text => this.host.warn(text), closed: () => run.ignoring(),
       authorityCurrent: async () => !this.host.authorityCurrent || await this.host.authorityCurrent(),
       afterStarted: () => this.host.afterWrite('invocation-started', run.jobId),
       writeSubmission: content => writeFileAtomic(run.path(runLayout.submission(id)), content), readSubmission: () => readIfExists(run.path(runLayout.submission(id))),
       start: async (spec, hooks) => (await this.host.operations(agent)).start({ runId: run.jobId, operationId: id, session, loaded: request.loaded,
-        brief: request.brief ?? await this.host.taskBrief(run, request, spec, limits), spec, restore: request.restore,
+        brief: request.brief ?? await run.taskBrief(request, spec, limits), spec, restore: request.restore,
         ...(request.callerText === undefined ? {} : { callerText: request.callerText }),
         authority: { scope: request.guarded === undefined ? null : { revision: request.guarded.revision, projectRoot: request.guarded.projectRoot, roots: request.guarded.roots, files: request.guarded.files, excluded: request.guarded.excluded ?? [], denied: request.guarded.denied ?? [], guarded: request.guarded.guarded ?? [] }, writer: request.writer === true, work: request.work },
         validator: { name: request.toolName, schema: request.inputSchema, submissionSchema: request.submissionSchema, bound: limits.rejectedSubmissionsPerTurn },
         destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) }, ...hooks }),
       acceptance: async () => (await this.host.operations(agent)).acceptance(run.jobId, id),
       prepared: (packet, identity) => this.prepareInvocation(run, id, packet ? { packet, request } : undefined, identity),
-      publish: agentSession => { const live = run.live.get(id); if (live) live.session = agentSession; },
+      publish: agentSession => started.publish?.(agentSession),
       equipment: (context, base) => {
         const consultation = consultationAvailability(request.stepInputs !== undefined && 'consultation' in request.stepInputs ? request.stepInputs.consultation ?? undefined : undefined, request.role);
         const tool = consultation.target === null ? null : consultationTool({ run, runner: this, agent, packages: request.consultationPackages ?? new Map(),
@@ -749,24 +738,24 @@ export class InvocationRunner<R extends RunnerRun> {
         return tool === null ? base : { ...base, tools: [...base.tools ?? [], tool] };
       },
       preflightSettlement: async (settle, boundMs) => {
-        if (run.writer.held !== id) return stoppedOutcome().settled;
+        if (!run.ownsWriter(id)) return stoppedOutcome().settled;
         const toolsSettled = await settleSessionEquipment(settle, boundMs).catch(() => false);
-        const released = await run.writer.release(id, toolsSettled ? undefined : { settled: async () => 'timed-out' });
+        const released = await run.releaseWriter(id, toolsSettled ? undefined : { settled: async () => 'timed-out' });
         await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: released.confirmed, groupsKilled: released.groupsKilled } });
         await this.host.afterWrite('writer-released', run.jobId); return released;
       },
       settle: (agentSession, reader) => this.settleSession(run, id, agentSession, reader),
       afterTools: async transcript => {
-        if (!run.log.all('consultation-started').some(event => event.data.caller === id)) return;
+        if (!run.events().filter(event => event.type === 'consultation-started').some(event => event.data.caller === id)) return;
         await transcript.drain();
         const results = await readTranscript(run.path(runLayout.transcript(session))).catch(error => { this.host.warn(`Run ${run.jobId}: consultation caller transcript unavailable: ${message(error)}`); return { entries: [] }; });
         for (const entry of results.entries) {
           if (entry.invocation !== id || entry.type !== 'message' || entry.role !== 'tool-result' || entry.tool !== 'consult_architect') continue;
           const consultation = consultationId(id, entry.callId);
-          if (consultationOutcome(run.log, consultation)?.delivery !== 'recorded' && consultationOutcome(run.log, consultation) !== null) await run.mutex.run(() => recordConsultationDelivery(run.log, consultation, { session, entry: entry.n }));
+          if (run.consultation(consultation)?.delivery !== 'recorded' && run.consultation(consultation) !== null) await run.deliverConsultation(consultation, { session, entry: entry.n });
         }
       },
-      snapshot: observations => recordSettledSnapshot({ projectRoot: this.projectRoot, changed: () => this.host.git.changedPaths(this.projectRoot, this.host.base(run)), scope: request.guarded }, observations),
+      snapshot: observations => recordSettledSnapshot({ projectRoot: this.projectRoot, changed: () => this.host.git.changedPaths(this.projectRoot, run.base()), scope: request.guarded }, observations),
       candidateAfter: async () => {
         if (request.candidateBefore === undefined) return undefined;
         const safety = await scratchSafetyRule(this.projectRoot, await declaredModuleDirectories(this.projectRoot), this.host.git);
@@ -781,9 +770,9 @@ export class InvocationRunner<R extends RunnerRun> {
    * session idle, and every process group it registered killed and gone.
    * Neither `stop()` resolving nor the agent's word is evidence.
    */
-  async settleSession(run: R, id: string, session: Pick<AgentSession, 'settled'>, reader = false) {
-    if (run.writer.held === id) {
-      const released = await run.writer.release(id, session);
+  async settleSession(run: RunnerContext, id: string, session: Pick<AgentSession, 'settled'>, reader = false) {
+    if (run.ownsWriter(id)) {
+      const released = await run.releaseWriter(id, session);
       // The release is in the log before anything else may write or check:
       // an unconfirmed one blocks every writer and every gate that follows.
       await this.write(run, {
@@ -800,7 +789,7 @@ export class InvocationRunner<R extends RunnerRun> {
     // found it; it is recorded on its outcome and blocks no writer. Its
     // session stays the run's to stop at a stop or a shutdown.
     if (!settled.confirmed && !reader) {
-      run.writer.markUnsettled(id, 'its session did not become idle within the implementation\'s bound', session);
+      run.unsettledWriter(id, 'its session did not become idle within the implementation\'s bound', session);
     }
     return settled;
   }
@@ -810,7 +799,7 @@ export class InvocationRunner<R extends RunnerRun> {
    * transition, with whether the harness keeps its session.
    */
   async endInvocation(
-    run: R,
+    run: RunnerContext,
     id: string,
     session: SessionId,
     keeping: SessionKeeping,
@@ -818,7 +807,7 @@ export class InvocationRunner<R extends RunnerRun> {
     degraded?: DegradeRelation,
     transcript?: InvocationTranscript,
   ): Promise<void> {
-    if (run.log.all('invocation-ended').some(event => event.data.invocation === id)) return;
+    if (run.events().filter(event => event.type === 'invocation-ended').some(event => event.data.invocation === id)) return;
     const outcome = invocationOutcomeSchema.parse({ schema: 'ramify-agent.invocation-outcome/1', invocation: id, ...body });
     const ended = {
       invocation: id, ended: outcome.ended, submission: outcome.submission?.hash ?? null, session,

@@ -72,7 +72,7 @@ export async function reviewInputsFromRequest(options: ReviewInputsFromRequestOp
   const { run, projectRoot } = opened;
   const policy = run.record.policy.reviews;
   if (policy === undefined) return refused('the manual run records no review policy');
-  const parsed = reviewRequestSchema.safeParse(committedBody(run, reviewLayout.request(options.request)));
+  const parsed = reviewRequestSchema.safeParse(committedBody(run.execution, reviewLayout.request(options.request)));
   if (!parsed.success) return refused(`the manual run ${run.directory} records no review request ${options.request}`);
   const request = parsed.data;
   const state = reviewStateOf(run.log.events).get(request.id);
@@ -95,7 +95,7 @@ export async function reviewInputsFromRequest(options: ReviewInputsFromRequestOp
   if (snapshot.tree !== request.tree) return refused(`the audited candidate ${request.key.candidate} has tree ${snapshot.tree}, not the ${request.tree} the request bound`);
 
   const pendingBindings = await pendingBindingsOf({ ...manualAcceptanceJournal(run).observe(), planId: run.planId, jobId: run.jobId, directory: run.directory }, request, snapshot, { candidates, projectRoot });
-  const assignment = iterationAssignmentSchema.safeParse(committedBody(run, request.assignment));
+  const assignment = iterationAssignmentSchema.safeParse(committedBody(run.execution, request.assignment));
   const intent = assignment.success ? {
     goal: assignment.data.goal, approach: assignment.data.approach, completionEvidence: assignment.data.completionEvidence,
     scopeRationale: assignment.data.scope.rationale,
@@ -174,7 +174,7 @@ function reviewStartOf(run: ManualRun, request: ReviewRequest, notes: string[]):
     return { kind: 'fork', session: point.session, invocation, point: point.ref, reason: 'scope-review', briefs: briefsBefore(point.session, invocation) };
   }
   const recorded = run.log.all('review-orientation-recorded').find(event => event.data.key === point.key);
-  const body = recorded === undefined ? undefined : committedBody(run, reviewLayout.orientation(point.key)) as
+  const body = recorded === undefined ? undefined : committedBody(run.execution, reviewLayout.orientation(point.key)) as
     { outcome?: unknown; session?: unknown; invocation?: unknown; ref?: unknown } | undefined;
   if (body?.outcome !== 'oriented' || typeof body.session !== 'string' || typeof body.invocation !== 'string' || typeof body.ref !== 'string') {
     return fresh('the manual run records no design orientation of this guidance selection; a run makes one before its first design review');
@@ -211,7 +211,7 @@ export async function prepareManualReview(inputs: ReviewStepInputs, context: {
   const { projectRoot, run, candidates } = context;
   const step = constructReviewStep(inputs, { projectRoot, packages: context.packages });
   const request = inputs.request;
-  const held = committedBody(run, reviewLayout.request(request.id));
+  const held = committedBody(run.execution, reviewLayout.request(request.id));
   if (held !== undefined && !sameBody(held, request)) throw new ReviewRefusal(`the manual run records a different review request ${request.id} than the inputs carry`);
   const recorded = held !== undefined;
   const stateOf = () => reviewStateOf(run.log.events).get(request.id);
@@ -273,7 +273,7 @@ export async function prepareManualReview(inputs: ReviewStepInputs, context: {
           while (!seen.has(current)) {
             if (current === started!.invocation) return event.data.invocation !== started!.invocation;
             seen.add(current);
-            const record = invocationSchema.safeParse(committedBody(run, runLayout.invocation(current)));
+            const record = invocationSchema.safeParse(committedBody(run.execution, runLayout.invocation(current)));
             if (!record.success || !record.data.recoveryPredecessor) return false;
             current = record.data.recoveryPredecessor;
           }

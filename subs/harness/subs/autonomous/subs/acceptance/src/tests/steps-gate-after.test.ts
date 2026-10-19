@@ -1,3 +1,4 @@
+import { consultationJournal } from '../../../../../../src/tests/helpers/consultation-journal.js';
 import { consultationOutcome } from '../../../work-coordination/src/consultations/store.js';
 import { readTranscript } from '../../../../../task-execution/src/transcripts/writer.js';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -510,7 +511,7 @@ describe('S16: after a local architect\'s turn, and the inputs of its next turn'
       const manualLog = await RunLog.open(join(run, runLayout.events), 'm-arch');
       const consultation = manualLog.all('consultation-started').find(event => event.data.caller === engineer)!;
       expect(consultation).toBeDefined();
-      const answered = consultationOutcome(manualLog, consultation.data.consultation)!;
+      const answered = consultationOutcome(consultationJournal(manualLog), consultation.data.consultation)!;
       expect(answered).toMatchObject({ status: 'answered', delivery: 'recorded', accepted: { answer: { text: 'Manual assigning architect advice' } } });
       const startedEngineer = manualLog.all('invocation-started').find(event => event.data.invocation === engineer)!;
       const transcript = await readTranscript(join(run, runLayout.transcript(startedEngineer.data.session)));

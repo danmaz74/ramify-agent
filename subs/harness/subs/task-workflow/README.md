@@ -12,3 +12,9 @@ supported acceptance operations with detached reads and explicit accepted writes
 They never access an autonomous service's private state. Public command schemas
 remain browser-safe harness contracts; common project configuration, commands,
 locks and guards remain harness support.
+
+The shared workflow runner receives a bound invocation context: detached events,
+record/index/policy reads, serialized admission/publication, live registration and
+writer settlement operations. Managed lifecycle binds these in autonomous; manual
+lifecycle binds them here. Neither passes a whole run, journal, mutex, live map or
+writer object into the shared runner or consultation equipment.

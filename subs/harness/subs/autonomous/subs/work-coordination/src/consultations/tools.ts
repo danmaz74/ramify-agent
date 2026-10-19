@@ -8,20 +8,19 @@ import { runLayout } from '../../../../src/run/records.js';
 import { invocationOutcomeSchema, type Invocation, type SessionId } from '../../../../../task-execution/src/records.js';
 import { validateAgainst } from '../../../../../task-execution/src/submissions.js';
 import { composeTaskBrief } from '../../../../../task-workflow/src/task-brief.js';
-import { committedBody, type InvocationRunner, type RunnerRun } from '../../../../../task-workflow/src/steps/runner.js';
+import { committedBody, type InvocationRunner, type RunnerContext } from '../../../../../task-workflow/src/steps/runner.js';
 import { finished } from '../../../../../task-execution/src/results.js';
 import { readBody, readTranscript } from '../../../../../task-execution/src/transcripts/writer.js';
 import type { EquipContext } from '../../../../../task-execution/src/equipment.js';
 import { consultationId, type ConsultationOutcome } from './records.js';
-import { consultationOutcome, recordConsultationOutcome, recordConsultationStart } from './store.js';
 import { consultationTargetSchema, type ConsultationTarget } from './targets.js';
 
 import { consultArchitectName, architectAnswerName, consultationMessageSchema, architectAnswerSchema, architectAnswerJsonSchema, consultArchitectDeclaration } from './submissions.js';
 export { consultArchitectName, architectAnswerName, consultationMessageSchema, architectAnswerSchema, architectAnswerJsonSchema, consultArchitectDeclaration } from './submissions.js';
 
-export interface ConsultationEquipmentInputs<R extends RunnerRun> {
-  readonly run: R;
-  readonly runner: InvocationRunner<R>;
+export interface ConsultationEquipmentInputs {
+  readonly run: RunnerContext;
+  readonly runner: InvocationRunner;
   readonly agent: AgentPort;
   readonly packages: ReadonlyMap<string, LoadedPackage>;
   readonly target: ConsultationTarget;
@@ -35,7 +34,7 @@ export interface ConsultationEquipmentInputs<R extends RunnerRun> {
 }
 
 /** The same ordinary awaited tool equips a module engineer, a local turn and a local consultation fork. */
-export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipmentInputs<R>, context: EquipContext): ToolDefinition {
+export function consultationTool(inputs: ConsultationEquipmentInputs, context: EquipContext): ToolDefinition {
   return { ...consultArchitectDeclaration, action: () => ({ kind: 'harness' }), execute: async (raw, signal, actualCallId) => {
     const parsed = consultationMessageSchema.safeParse(raw);
     if (!parsed.success) return { text: parsed.error.message, isError: true };
@@ -43,12 +42,12 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
     if (!callId) return { text: 'Consultation tool call identity is unavailable', isError: true };
     const id = consultationId(context.invocation, callId);
     const { run } = inputs;
-    const previous = consultationOutcome(run.log, id);
+    const previous = run.consultation(id);
     if (previous !== null) {
       if (previous.status === 'answered' && previous.accepted !== null) return { text: await bodyText(run, previous.accepted.answer) };
       return { text: previous.error === null ? 'Consultation completion is unknown; it will not be retried implicitly.' : await bodyText(run, previous.error.message), isError: true };
     }
-    if (run.log.all('consultation-started').some(event => event.data.consultation === id)) return { text: 'Consultation completion is unknown; it will not be retried implicitly.', isError: true };
+    if (run.events().filter(event => event.type === 'consultation-started').some(event => event.data.consultation === id)) return { text: 'Consultation completion is unknown; it will not be retried implicitly.', isError: true };
     await inputs.runner.transcriptOf(run, inputs.caller.session).drain();
     const transcript = await readTranscript(run.path(runLayout.transcript(inputs.caller.session))).catch(() => ({ entries: [] }));
     const request = transcript.entries.find(entry => entry.invocation === context.invocation && entry.type === 'message' && entry.role === 'assistant' && entry.blocks.some(block => block.type === 'tool-call' && block.callId === callId));
@@ -57,19 +56,19 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
     // the recorded assigning target owns the exact task when that request has
     // no separate capabilityTask field.
     const task = work.capabilityTask ?? (inputs.target.role === 'capability-architect' ? inputs.target.task : undefined);
-    await run.mutex.run(() => recordConsultationStart(run.log, {
+    await run.startConsultation({
       schema: 'ramify-agent.consultation-start/1', id,
       caller: { invocation: context.invocation, toolCall: callId, session: inputs.caller.session, role: inputs.caller.role,
         work: { ...(work.workItem === undefined ? {} : { workItem: work.workItem }), ...(work.iteration === undefined ? {} : { iteration: work.iteration }), ...(task === undefined ? {} : { task }) } },
       parent: inputs.parent ?? null, target: inputs.target, globalTarget: inputs.target.role === 'local-architect' ? inputs.global : null,
       startedAt: inputs.now().toISOString(), message: inline(parsed.data.message), request: { session: inputs.caller.session, entry: request?.n ?? null },
-    }));
+    });
     let child: ConsultationOutcome['child'] = null;
     let accepted: ConsultationOutcome['accepted'] = null;
     const outcome = async (status: ConsultationOutcome['status'], code: string | null, message: string | null): Promise<ToolResult> => {
-      await run.mutex.run(() => recordConsultationOutcome(run.log, { schema: 'ramify-agent.consultation-outcome/1', id, status,
+      await run.finishConsultation({ schema: 'ramify-agent.consultation-outcome/1', id, status,
         endedAt: status === 'incomplete' ? null : inputs.now().toISOString(), child, accepted, error: code === null ? null : { code, message: inline(message ?? code) },
-        delivery: 'unknown', result: null }));
+        delivery: 'unknown', result: null });
       return status === 'answered' && accepted !== null ? { text: await bodyText(run, accepted.answer) } : { text: message ?? code ?? 'Consultation incomplete', isError: true };
     };
     if (signal.aborted) return outcome('cancelled', 'cancelled', 'Consultation cancelled before dispatch');
@@ -128,7 +127,7 @@ export function consultationTool<R extends RunnerRun>(inputs: ConsultationEquipm
 }
 function inline(text: string): TranscriptBody { return { stored: 'inline', text, bytes: Buffer.byteLength(text) }; }
 
-async function bodyText(run: RunnerRun, body: TranscriptBody): Promise<string> {
+async function bodyText(run: RunnerContext, body: TranscriptBody): Promise<string> {
   const text = await readBody(run.directory, run.store, body);
   if (text === null) throw new Error("Retained consultation content is unavailable");
   return text;

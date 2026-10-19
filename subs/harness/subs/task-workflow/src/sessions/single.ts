@@ -399,13 +399,13 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   const shown = scopePaths(projectRoot, scope);
 
   const authority = ownershipAuthorityFor(assignment, run, async data => {
-    const result = await runner.write(run, { type: 'ownership-evidence-retained', data });
+    const result = await runner.write(run.execution, { type: 'ownership-evidence-retained', data });
     if (result === 'ended') throw new Error('The session ended before ownership evidence settled');
   });
   const guarded: GuardedScope = guardedScopeOf(scope, await deniedFiles(projectRoot, guardedFiles.map(file => file.path)), ramify, undefined, authority);
   const tools = engineerEquipment({
     registerProcessGroup: async (invocation, pid, identity) => {
-      await runner.write(run, { type: 'writer-process-registered', data: { invocation, pid, identity } });
+      await runner.write(run.execution, { type: 'writer-process-registered', data: { invocation, pid, identity } });
       run.writer.register(invocation, pid);
     },
     commandExecution: options.commandExecution,
@@ -432,7 +432,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
   // One invocation through the runner a run uses: its records, transcript,
   // equipment, bounds and outcome are a run's. Nothing follows its
   // submission, so the session is not kept.
-  const result = await runner.runResourceInvocation<EngineerSubmission>(run, agent, {
+  const result = await runner.runResourceInvocation<EngineerSubmission>(run.execution, agent, {
     recoveryResume: options.recoveryResume,
     role: 'engineer',
     work: {},
@@ -479,7 +479,7 @@ async function runLocked(options: SingleSessionOptions, retainProjectLock: () =>
     scratchSettled = true;
     return notStarted(result.error ?? 'The agent session could not start', records);
   }
-  const outcome = invocationOutcomeSchema.parse(committedBody(run, runLayout.outcome(result.id)));
+  const outcome = invocationOutcomeSchema.parse(committedBody(run.execution, runLayout.outcome(result.id)));
   settlementConfirmed = outcome.settled.confirmed;
   taskPending = result.pending === true;
   if (!settlementConfirmed) retainProjectLock();

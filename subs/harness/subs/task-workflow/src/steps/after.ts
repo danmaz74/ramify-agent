@@ -224,7 +224,7 @@ async function recordTurnRecords(handling: Handling, inputs: WorkTurnStepInputs)
   ];
   const pending = [];
   for (const write of writes) {
-    const held = committedBody(run, write.record.path);
+    const held = committedBody(run.execution, write.record.path);
     if (held === undefined) pending.push(write);
     else if (!sameBody(held, write.record.body)) throw new Refused(`the manual run already holds a different ${write.record.path} than the turn of ${handling.invocation} was given`);
   }
@@ -263,7 +263,7 @@ async function refreshedIndex(handling: Handling): Promise<ArchitectIndex | null
 function architectRefOf(run: ManualRun, invocation: string): ArchitectRef | null {
   const ended = run.log.all('invocation-ended').find(event => event.data.invocation === invocation);
   if (ended === undefined || !ended.data.kept) return null;
-  const outcome = invocationOutcomeSchema.safeParse(committedBody(run, runLayout.outcome(invocation)));
+  const outcome = invocationOutcomeSchema.safeParse(committedBody(run.execution, runLayout.outcome(invocation)));
   const ref = outcome.success ? outcome.data.session?.ref : undefined;
   return ref === undefined || ref === '' ? null : { session: ended.data.session, ref };
 }

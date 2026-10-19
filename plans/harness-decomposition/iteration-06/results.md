@@ -60,3 +60,39 @@ the coordinator owns the combined whole-plan native review and final configured
 audit. Structural and API measurements are descriptors, not demonstrated
 productivity gains. No comparable operational task pair, exclusive active-time
 measurement or complete native token telemetry exists.
+
+The combined native review selected two final repairs. The shared workflow runner
+now accepts `RunnerContext`, containing detached observations and bound admission,
+publication, live-registration and settlement operations. Managed and manual
+lifecycle owners retain their actual log, mutexes, maps and writer; managed,
+manual, standalone and consultation callers pass only that context. Consultation
+persistence likewise receives detached records/events and a sequenced append
+operation, with serialization retained by the lifecycle owner.
+
+The coordination finding callback, managed/manual refreshed gate indexes and
+public committed/history/record/snapshot/query readings now detach nested values.
+Real managed handback/restart and manual ledger/gate witnesses mutate received
+nested events, records, maps and policy, proving authoritative bytes and versions
+stay unchanged. The existing corruption table now supplies its faulty ended-event
+through the actual committed-history observation seam; every original refusal,
+no-dispatch and no-write assertion remains.
+
+Repair verification includes 240 passing workflow/gate/settlement/watchdog tests,
+27 passing consultation/manual-boundary tests, 74 passing managed lifecycle/
+capability recovery/query tests (with the repaired 16-case recovery file rerun),
+and 36 passing registered native/discovery tests (four actual native cases and
+32 registry/discovery cases). Root type-check, structural and patch checks pass;
+the repaired structure has 24 owners, 1,051 source files and 97 resources, with
+zero errors/warnings and 775 explicit analysis limits. Native checks retain the
+existing exact registrations and process guards. Final structural counts are refreshed in the
+compact independent evaluation; the initial 1,049-source count above precedes the
+two added test/helper sources. These repairs introduce no protected changes and
+no additional review or audit gate.
+
+All consumer ordinary/testing catalogs were refreshed again and the actual
+`RunnerContext` and `ConsultationJournal` entries inspected. RunnerContext's
+rendered signature has an explicit truncation marker; defining source and passing
+structural checking establish the complete contract. This refresh's architect
+view reports dependency coverage unavailable (`resource-limit`), including a
+separate architect-only refresh. That producer limitation remains explicit in
+final collection rather than being reported as measured dependency coverage.
