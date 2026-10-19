@@ -571,7 +571,7 @@ describe('assisted assessment pipeline with real service records', () => {
     const iteration = await service.iteration({ ...ids, action: 'start', brief: 'Implement the feature.', focusModule: null, commandId: 'begin' });
     const end = async (candidate: string, commandId: string, previousAssessment?: string) => {
       const admitted = await service.iteration({ ...ids, action: 'end', iterationId: iteration.id, candidate,
-        acceptance: ['The feature returns 2.'], commandId, ...(previousAssessment ? { previousAssessment } : {}) });
+        acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId, ...(previousAssessment ? { previousAssessment } : {}) });
       await outcome(service, job.jobId, admitted.assessmentId);
       return admitted.assessmentId;
     };
