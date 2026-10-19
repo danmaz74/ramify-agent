@@ -1,0 +1,3294 @@
+{
+  "schema": "harness-decomposition-study/1",
+  "sourceCommit": "3cf06e52cbb2996a8d4db7a6f7cf9527dcd611ac",
+  "sourceInventoryHash": "87abcc4adf7ae61a9956218f5e06f823b1b775ca7c711af8d855ec8f4eb4edd4",
+  "providerPins": {
+    "ramify-audit": "0.9.3",
+    "ramify.ts": "0.5.2"
+  },
+  "method": {
+    "allocation": "Whole-file move-only seed; no extracted methods, new adapters, or future API sizes estimated.",
+    "filePairs": "Distinct directed production source-file pairs from Ramify application accesses; includes type dependencies, excludes npm/builtins.",
+    "originals": "Distinct resolved original identities imported outside each proposed group; not a proposed API or required exposure count.",
+    "tests": "Distinct testing source files with direct imports into a group; helpers count, transitive test reach does not.",
+    "history": "Latest 40 non-merge commits touching current harness-owned production files, drawn from 160 path commits; includes refactors, excludes deleted/moved-away files.",
+    "lines": "Physical splitlines including blank lines and comments; bytes are UTF-8 file bytes.",
+    "identity": "Batch and resident input IDs are retained separately. Every check inventory source/resource hash matches disk and every file byte count matches measure; architect, measure and affected share a resident revision."
+  },
+  "inputs": {
+    "checkSchema": "ramify.analysis/3",
+    "checkInputId": "input/1:5153d4fd087f456fdfe332014415324176049e717265d425c0ea921e88e729e6",
+    "checkSha256": "6872b63634b4c7bd525764f4cc88a419fe96c552cdaa56b7e0c13246a0a35b5f",
+    "checkOutcome": {
+      "execution": "completed",
+      "check": "passed",
+      "coverage": "partial"
+    },
+    "checkSummary": {
+      "complete": true,
+      "owners": 16,
+      "sourceFiles": 1002,
+      "resources": 97,
+      "originals": 4038,
+      "accesses": 19105,
+      "allowed": 14069,
+      "denied": 0,
+      "errors": 0,
+      "warnings": 3,
+      "coverageNotes": 458,
+      "external": 5030
+    },
+    "coverageCodes": {
+      "namespace-escape": 9,
+      "signature-inferred": 438,
+      "nonliteral-target": 6,
+      "shared-global": 5
+    },
+    "measureSchema": "ramify.measure/2",
+    "measureRevision": "rev/1:42cc728e-760d-48c4-b548-b8da22747864:2",
+    "measureSha256": "d8e9b43584cf229e92a6f80fc2db2ffbdb3721b036ffa66431c54881690d7379",
+    "architectMeta": {
+      "schema": "ramify.architect-view/3",
+      "revision": "rev/1:42cc728e-760d-48c4-b548-b8da22747864:2",
+      "input": "input/1:860c8a31ef6a7939be307e06357eda74a9e3388ef6b866324fbffd7bba7f33bd",
+      "modules": 16,
+      "dependencies": "measured",
+      "dependencyScope": "production",
+      "testReferences": "measured",
+      "metrics": "measured",
+      "cut": 1550,
+      "detailsUnavailable": 21,
+      "dynamicTitles": 35,
+      "coverage": 5
+    },
+    "ordinaryApiMeta": {
+      "schema": "ramify.api-view/1",
+      "module": "ramify-agent/harness",
+      "area": "ordinary",
+      "revision": "rev/1:42cc728e-760d-48c4-b548-b8da22747864:2",
+      "coverage": 1,
+      "truncated": 4
+    }
+  },
+  "currentHarness": {
+    "measurement": {
+      "id": "ramify-agent/harness",
+      "dir": "subs/harness",
+      "parent": "ramify-agent",
+      "exact": {
+        "production": {
+          "sourceFiles": 223,
+          "sourceBytes": 3490588,
+          "resourceFiles": 39,
+          "resourceBytes": 194999
+        },
+        "tests": {
+          "sourceFiles": 424,
+          "sourceBytes": 5542743,
+          "resourceFiles": 27,
+          "resourceBytes": 248389
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 143601
+        },
+        "views": {
+          "ordinaryBytes": 220310,
+          "testsBytes": 223871
+        }
+      },
+      "subtree": {
+        "production": {
+          "sourceFiles": 314,
+          "sourceBytes": 4681322,
+          "resourceFiles": 40,
+          "resourceBytes": 196604
+        },
+        "tests": {
+          "sourceFiles": 571,
+          "sourceBytes": 6868319,
+          "resourceFiles": 48,
+          "resourceBytes": 354388
+        },
+        "documentation": {
+          "files": 28,
+          "bytes": 229137
+        },
+        "views": {
+          "ordinaryBytes": 4084110,
+          "testsBytes": 4270698
+        }
+      }
+    },
+    "children": [
+      "ramify-agent/harness/agent",
+      "ramify-agent/harness/audit",
+      "ramify-agent/harness/check-findings",
+      "ramify-agent/harness/evidence",
+      "ramify-agent/harness/kpi",
+      "ramify-agent/harness/ledger",
+      "ramify-agent/harness/nonfunctional",
+      "ramify-agent/harness/plan-evidence",
+      "ramify-agent/harness/projections",
+      "ramify-agent/harness/recovery",
+      "ramify-agent/harness/reviews",
+      "ramify-agent/harness/scenarios"
+    ],
+    "uses": [
+      {
+        "module": "ramify-agent/harness/evidence",
+        "behavioral": 36,
+        "nonBehavioral": 22
+      },
+      {
+        "module": "ramify-agent/harness/reviews",
+        "behavioral": 12,
+        "nonBehavioral": 21
+      },
+      {
+        "module": "ramify-agent/harness/scenarios",
+        "behavioral": 12,
+        "nonBehavioral": 19
+      },
+      {
+        "module": "ramify-agent/harness/kpi",
+        "behavioral": 12,
+        "nonBehavioral": 5
+      },
+      {
+        "module": "ramify-agent/harness/plan-evidence",
+        "behavioral": 8,
+        "nonBehavioral": 17
+      },
+      {
+        "module": "ramify-agent/harness/ledger",
+        "behavioral": 8,
+        "nonBehavioral": 7
+      },
+      {
+        "module": "ramify-agent/harness/projections",
+        "behavioral": 7,
+        "nonBehavioral": 1
+      },
+      {
+        "module": "ramify-agent/harness/check-findings",
+        "behavioral": 5,
+        "nonBehavioral": 38
+      },
+      {
+        "module": "ramify-agent/harness/audit",
+        "behavioral": 5,
+        "nonBehavioral": 9
+      },
+      {
+        "module": "ramify-agent/harness/recovery",
+        "behavioral": 5,
+        "nonBehavioral": 0
+      },
+      {
+        "module": "ramify-agent/harness/agent",
+        "behavioral": 4,
+        "nonBehavioral": 41
+      },
+      {
+        "module": "ramify-agent/harness/agent/pi",
+        "behavioral": 4,
+        "nonBehavioral": 0
+      },
+      {
+        "module": "ramify-agent/harness/nonfunctional",
+        "behavioral": 3,
+        "nonBehavioral": 9
+      }
+    ],
+    "usedBy": [
+      {
+        "module": "ramify-agent/harness/projections",
+        "behavioral": 42,
+        "nonBehavioral": 185
+      },
+      {
+        "module": "ramify-agent",
+        "behavioral": 11,
+        "nonBehavioral": 32
+      },
+      {
+        "module": "ramify-agent/web",
+        "behavioral": 2,
+        "nonBehavioral": 152
+      },
+      {
+        "module": "ramify-agent/harness/reviews",
+        "behavioral": 2,
+        "nonBehavioral": 2
+      },
+      {
+        "module": "ramify-agent/harness/kpi",
+        "behavioral": 1,
+        "nonBehavioral": 20
+      },
+      {
+        "module": "ramify-agent/harness/audit",
+        "behavioral": 0,
+        "nonBehavioral": 3
+      }
+    ],
+    "symbols": {
+      "exposed": 90,
+      "internal": 1004,
+      "supporting": 1739,
+      "unknown": 0
+    }
+  },
+  "affectedWitness": {
+    "sha256": "c5dbcce92d5167408eb106d28bc29ec21709412f1ec7d759b894229b85ecdc69",
+    "schema": "ramify.affected-cli/4",
+    "revision": {
+      "sequence": 2,
+      "inputId": "input/1:860c8a31ef6a7939be307e06357eda74a9e3388ef6b866324fbffd7bba7f33bd"
+    },
+    "paths": [
+      {
+        "path": "subs/harness/src/assistance/service.ts",
+        "status": "owned",
+        "module": "ramify-agent/harness",
+        "basis": "inventory",
+        "exclusion": null,
+        "kind": "source-area",
+        "selects": [
+          "ramify-agent/harness"
+        ]
+      }
+    ],
+    "changedModules": [
+      {
+        "id": "ramify-agent/harness",
+        "directory": "subs/harness"
+      }
+    ],
+    "affectedModules": [
+      {
+        "id": "ramify-agent",
+        "directory": "."
+      },
+      {
+        "id": "ramify-agent/harness/agent/pi",
+        "directory": "subs/harness/subs/agent/subs/pi"
+      },
+      {
+        "id": "ramify-agent/harness/audit",
+        "directory": "subs/harness/subs/audit"
+      },
+      {
+        "id": "ramify-agent/harness/evidence",
+        "directory": "subs/harness/subs/evidence"
+      },
+      {
+        "id": "ramify-agent/harness/kpi",
+        "directory": "subs/harness/subs/kpi"
+      },
+      {
+        "id": "ramify-agent/harness/projections",
+        "directory": "subs/harness/subs/projections"
+      },
+      {
+        "id": "ramify-agent/harness/reviews",
+        "directory": "subs/harness/subs/reviews"
+      },
+      {
+        "id": "ramify-agent/web",
+        "directory": "subs/web"
+      }
+    ],
+    "testModules": [
+      {
+        "id": "ramify-agent",
+        "directory": "."
+      },
+      {
+        "id": "ramify-agent/harness",
+        "directory": "subs/harness"
+      },
+      {
+        "id": "ramify-agent/harness/agent",
+        "directory": "subs/harness/subs/agent"
+      },
+      {
+        "id": "ramify-agent/harness/agent/pi",
+        "directory": "subs/harness/subs/agent/subs/pi"
+      },
+      {
+        "id": "ramify-agent/harness/audit",
+        "directory": "subs/harness/subs/audit"
+      },
+      {
+        "id": "ramify-agent/harness/check-findings",
+        "directory": "subs/harness/subs/check-findings"
+      },
+      {
+        "id": "ramify-agent/harness/evidence",
+        "directory": "subs/harness/subs/evidence"
+      },
+      {
+        "id": "ramify-agent/harness/kpi",
+        "directory": "subs/harness/subs/kpi"
+      },
+      {
+        "id": "ramify-agent/harness/ledger",
+        "directory": "subs/harness/subs/ledger"
+      },
+      {
+        "id": "ramify-agent/harness/nonfunctional",
+        "directory": "subs/harness/subs/nonfunctional"
+      },
+      {
+        "id": "ramify-agent/harness/plan-evidence",
+        "directory": "subs/harness/subs/plan-evidence"
+      },
+      {
+        "id": "ramify-agent/harness/projections",
+        "directory": "subs/harness/subs/projections"
+      },
+      {
+        "id": "ramify-agent/harness/recovery",
+        "directory": "subs/harness/subs/recovery"
+      },
+      {
+        "id": "ramify-agent/harness/reviews",
+        "directory": "subs/harness/subs/reviews"
+      },
+      {
+        "id": "ramify-agent/harness/scenarios",
+        "directory": "subs/harness/subs/scenarios"
+      },
+      {
+        "id": "ramify-agent/web",
+        "directory": "subs/web"
+      }
+    ],
+    "selection": "all-modules",
+    "widening": [
+      "partial-coverage"
+    ]
+  },
+  "allocationRules": [
+    [
+      "assistance",
+      [
+        "assistance/"
+      ]
+    ],
+    [
+      "session-store",
+      [
+        "run/session-store.ts"
+      ]
+    ],
+    [
+      "task-execution-seed",
+      [
+        "steps/runner.ts",
+        "run/session-operations.ts",
+        "run/sessions.ts",
+        "run/port-events.ts",
+        "run/writer.ts",
+        "run/observations.ts",
+        "run/excursions.ts",
+        "run/submissions.ts",
+        "run/pausable-deadline.ts",
+        "transcripts/",
+        "prompts/blocks.ts",
+        "prompts/briefings.ts",
+        "prompts/delivered-manifest.ts"
+      ]
+    ],
+    [
+      "autonomous/planning",
+      [
+        "analysis/"
+      ]
+    ],
+    [
+      "autonomous/work-coordination",
+      [
+        "architecture/",
+        "capability/",
+        "contracts/",
+        "work/"
+      ]
+    ],
+    [
+      "autonomous/acceptance",
+      [
+        "checks/",
+        "reviews/",
+        "check-findings/",
+        "deviations/",
+        "nonfunctional/",
+        "run/committing-gate.ts",
+        "run/gates.ts",
+        "run/after-handling.ts",
+        "run/review-finish.ts",
+        "run/merge-readiness.ts",
+        "run/nonfunctional-phase.ts",
+        "run/nonfunctional-records.ts",
+        "run/final-correction.ts"
+      ]
+    ],
+    [
+      "harness-facade",
+      [
+        "http/",
+        "interfaces/",
+        "jobs/",
+        "store/",
+        "plans/"
+      ]
+    ]
+  ],
+  "groups": {
+    "assistance": {
+      "sourceFiles": 13,
+      "bytes": 158935,
+      "lines": 2230,
+      "outboundFilePairs": 60,
+      "outboundValueOrSideEffectFilePairs": 44,
+      "externalDependencyFiles": 37,
+      "dependencyGroups": [
+        "autonomous-remainder",
+        "autonomous/acceptance",
+        "autonomous/work-coordination",
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/agent/pi",
+        "ramify-agent/harness/audit",
+        "ramify-agent/harness/check-findings",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/reviews",
+        "session-store",
+        "task-execution-seed"
+      ],
+      "resolvedImportedOriginals": 89,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 1,
+      "externalConsumerFiles": 1,
+      "directTestSourceFiles": 9,
+      "directTestSourceFilesTouchingOtherGroups": 2
+    },
+    "autonomous-remainder": {
+      "sourceFiles": 77,
+      "bytes": 1764767,
+      "lines": 28503,
+      "outboundFilePairs": 548,
+      "outboundValueOrSideEffectFilePairs": 415,
+      "externalDependencyFiles": 156,
+      "dependencyGroups": [
+        "autonomous/acceptance",
+        "autonomous/planning",
+        "autonomous/work-coordination",
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/agent/pi",
+        "ramify-agent/harness/audit",
+        "ramify-agent/harness/check-findings",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/kpi",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/nonfunctional",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/projections",
+        "ramify-agent/harness/recovery",
+        "ramify-agent/harness/reviews",
+        "ramify-agent/harness/scenarios",
+        "session-store",
+        "task-execution-seed"
+      ],
+      "resolvedImportedOriginals": 739,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 162,
+      "externalConsumerFiles": 85,
+      "directTestSourceFiles": 267,
+      "directTestSourceFilesTouchingOtherGroups": 205
+    },
+    "autonomous/acceptance": {
+      "sourceFiles": 36,
+      "bytes": 392093,
+      "lines": 7301,
+      "outboundFilePairs": 157,
+      "outboundValueOrSideEffectFilePairs": 95,
+      "externalDependencyFiles": 67,
+      "dependencyGroups": [
+        "autonomous-remainder",
+        "autonomous/work-coordination",
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/audit",
+        "ramify-agent/harness/check-findings",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/nonfunctional",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/recovery",
+        "ramify-agent/harness/reviews",
+        "ramify-agent/harness/scenarios",
+        "task-execution-seed"
+      ],
+      "resolvedImportedOriginals": 225,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 119,
+      "externalConsumerFiles": 43,
+      "directTestSourceFiles": 105,
+      "directTestSourceFilesTouchingOtherGroups": 84
+    },
+    "autonomous/planning": {
+      "sourceFiles": 6,
+      "bytes": 62272,
+      "lines": 1133,
+      "outboundFilePairs": 33,
+      "outboundValueOrSideEffectFilePairs": 21,
+      "externalDependencyFiles": 15,
+      "dependencyGroups": [
+        "autonomous-remainder",
+        "autonomous/work-coordination",
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/scenarios",
+        "task-execution-seed"
+      ],
+      "resolvedImportedOriginals": 52,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 36,
+      "externalConsumerFiles": 28,
+      "directTestSourceFiles": 40,
+      "directTestSourceFilesTouchingOtherGroups": 38
+    },
+    "autonomous/work-coordination": {
+      "sourceFiles": 49,
+      "bytes": 570892,
+      "lines": 10788,
+      "outboundFilePairs": 155,
+      "outboundValueOrSideEffectFilePairs": 84,
+      "externalDependencyFiles": 49,
+      "dependencyGroups": [
+        "autonomous-remainder",
+        "autonomous/acceptance",
+        "autonomous/planning",
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/reviews",
+        "ramify-agent/harness/scenarios",
+        "task-execution-seed"
+      ],
+      "resolvedImportedOriginals": 147,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 218,
+      "externalConsumerFiles": 46,
+      "directTestSourceFiles": 119,
+      "directTestSourceFilesTouchingOtherGroups": 103
+    },
+    "harness-facade": {
+      "sourceFiles": 25,
+      "bytes": 270020,
+      "lines": 5418,
+      "outboundFilePairs": 23,
+      "outboundValueOrSideEffectFilePairs": 15,
+      "externalDependencyFiles": 19,
+      "dependencyGroups": [
+        "autonomous-remainder",
+        "autonomous/planning",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/agent/pi",
+        "ramify-agent/harness/audit",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/projections"
+      ],
+      "resolvedImportedOriginals": 33,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 253,
+      "externalConsumerFiles": 148,
+      "directTestSourceFiles": 154,
+      "directTestSourceFilesTouchingOtherGroups": 92
+    },
+    "session-store": {
+      "sourceFiles": 1,
+      "bytes": 22651,
+      "lines": 406,
+      "outboundFilePairs": 4,
+      "outboundValueOrSideEffectFilePairs": 4,
+      "externalDependencyFiles": 4,
+      "dependencyGroups": [
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/ledger"
+      ],
+      "resolvedImportedOriginals": 10,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 4,
+      "externalConsumerFiles": 4,
+      "directTestSourceFiles": 11,
+      "directTestSourceFilesTouchingOtherGroups": 5
+    },
+    "task-execution-seed": {
+      "sourceFiles": 16,
+      "bytes": 248958,
+      "lines": 4458,
+      "outboundFilePairs": 65,
+      "outboundValueOrSideEffectFilePairs": 36,
+      "externalDependencyFiles": 38,
+      "dependencyGroups": [
+        "autonomous-remainder",
+        "autonomous/work-coordination",
+        "harness-facade",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/agent/pi",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/kpi",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/recovery",
+        "session-store"
+      ],
+      "resolvedImportedOriginals": 124,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 85,
+      "externalConsumerFiles": 56,
+      "directTestSourceFiles": 95,
+      "directTestSourceFilesTouchingOtherGroups": 85
+    }
+  },
+  "groupEdges": [
+    {
+      "from": "assistance",
+      "to": "autonomous-remainder",
+      "filePairs": 1
+    },
+    {
+      "from": "assistance",
+      "to": "autonomous/acceptance",
+      "filePairs": 9
+    },
+    {
+      "from": "assistance",
+      "to": "autonomous/work-coordination",
+      "filePairs": 1
+    },
+    {
+      "from": "assistance",
+      "to": "harness-facade",
+      "filePairs": 15
+    },
+    {
+      "from": "assistance",
+      "to": "session-store",
+      "filePairs": 1
+    },
+    {
+      "from": "assistance",
+      "to": "task-execution-seed",
+      "filePairs": 1
+    },
+    {
+      "from": "autonomous-remainder",
+      "to": "autonomous/acceptance",
+      "filePairs": 74
+    },
+    {
+      "from": "autonomous-remainder",
+      "to": "autonomous/planning",
+      "filePairs": 13
+    },
+    {
+      "from": "autonomous-remainder",
+      "to": "autonomous/work-coordination",
+      "filePairs": 175
+    },
+    {
+      "from": "autonomous-remainder",
+      "to": "harness-facade",
+      "filePairs": 58
+    },
+    {
+      "from": "autonomous-remainder",
+      "to": "session-store",
+      "filePairs": 2
+    },
+    {
+      "from": "autonomous-remainder",
+      "to": "task-execution-seed",
+      "filePairs": 46
+    },
+    {
+      "from": "autonomous/acceptance",
+      "to": "autonomous-remainder",
+      "filePairs": 39
+    },
+    {
+      "from": "autonomous/acceptance",
+      "to": "autonomous/work-coordination",
+      "filePairs": 22
+    },
+    {
+      "from": "autonomous/acceptance",
+      "to": "harness-facade",
+      "filePairs": 20
+    },
+    {
+      "from": "autonomous/acceptance",
+      "to": "task-execution-seed",
+      "filePairs": 7
+    },
+    {
+      "from": "autonomous/planning",
+      "to": "autonomous-remainder",
+      "filePairs": 7
+    },
+    {
+      "from": "autonomous/planning",
+      "to": "autonomous/work-coordination",
+      "filePairs": 1
+    },
+    {
+      "from": "autonomous/planning",
+      "to": "harness-facade",
+      "filePairs": 3
+    },
+    {
+      "from": "autonomous/planning",
+      "to": "task-execution-seed",
+      "filePairs": 2
+    },
+    {
+      "from": "autonomous/work-coordination",
+      "to": "autonomous-remainder",
+      "filePairs": 40
+    },
+    {
+      "from": "autonomous/work-coordination",
+      "to": "autonomous/acceptance",
+      "filePairs": 8
+    },
+    {
+      "from": "autonomous/work-coordination",
+      "to": "autonomous/planning",
+      "filePairs": 15
+    },
+    {
+      "from": "autonomous/work-coordination",
+      "to": "harness-facade",
+      "filePairs": 27
+    },
+    {
+      "from": "autonomous/work-coordination",
+      "to": "task-execution-seed",
+      "filePairs": 15
+    },
+    {
+      "from": "harness-facade",
+      "to": "autonomous-remainder",
+      "filePairs": 5
+    },
+    {
+      "from": "harness-facade",
+      "to": "autonomous/planning",
+      "filePairs": 2
+    },
+    {
+      "from": "session-store",
+      "to": "harness-facade",
+      "filePairs": 1
+    },
+    {
+      "from": "task-execution-seed",
+      "to": "autonomous-remainder",
+      "filePairs": 26
+    },
+    {
+      "from": "task-execution-seed",
+      "to": "autonomous/work-coordination",
+      "filePairs": 3
+    },
+    {
+      "from": "task-execution-seed",
+      "to": "harness-facade",
+      "filePairs": 12
+    },
+    {
+      "from": "task-execution-seed",
+      "to": "session-store",
+      "filePairs": 1
+    }
+  ],
+  "cyclicGroups": [
+    [
+      "autonomous-remainder",
+      "autonomous/acceptance",
+      "autonomous/planning",
+      "autonomous/work-coordination",
+      "harness-facade",
+      "session-store",
+      "task-execution-seed"
+    ]
+  ],
+  "largestFiles": [
+    {
+      "path": "subs/harness/src/run/service.ts",
+      "group": "autonomous-remainder",
+      "bytes": 791608,
+      "lines": 12450,
+      "sha256": "fda6d342ca0946907adb9be192bdb408a41fcfcc3db27a42162c658ab78fbe7b"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/runs.ts",
+      "group": "harness-facade",
+      "bytes": 87304,
+      "lines": 1719,
+      "sha256": "63536c2fd884ecdbaeb7fedecacf2f4ad783dd4beb29febf889a4d736ed6e715"
+    },
+    {
+      "path": "subs/harness/src/steps/runner.ts",
+      "group": "task-execution-seed",
+      "bytes": 80761,
+      "lines": 1244,
+      "sha256": "c6a16d2e983ff9714754b73f76db2e573d12e39f83a248702f51aa37daaccee9"
+    },
+    {
+      "path": "subs/harness/src/run/records.ts",
+      "group": "autonomous-remainder",
+      "bytes": 59074,
+      "lines": 1129,
+      "sha256": "aee2dd3ac920e36890f747318308fc7f7d2e6ed3fe3ac2fe18f65fc2aaa361de"
+    },
+    {
+      "path": "subs/harness/src/run/committing-gate.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 60589,
+      "lines": 1023,
+      "sha256": "360e8a1edfcd048221e9003d284e655c0b34088b574f31e9b270e54dfd5f4421"
+    },
+    {
+      "path": "subs/harness/src/run/log.ts",
+      "group": "autonomous-remainder",
+      "bytes": 51256,
+      "lines": 953,
+      "sha256": "7b053e8561df6eadb86f15a7f4713318a5ece2cb6d0c7890735256974b295e7b"
+    },
+    {
+      "path": "subs/harness/src/work/session.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 50615,
+      "lines": 819,
+      "sha256": "a35d614afbeacdf7d8b3db437e6641e0ce749f99c673879316d7b54f7d5a26c0"
+    },
+    {
+      "path": "subs/harness/src/hooks/post-write.ts",
+      "group": "autonomous-remainder",
+      "bytes": 43101,
+      "lines": 808,
+      "sha256": "22b08dc5891d1f522c69877a39bc67a2aa621e943ffe387a1b248ef8e1610e1a"
+    },
+    {
+      "path": "subs/harness/src/work/scope.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 47683,
+      "lines": 803,
+      "sha256": "2cdab349ed1ba4a9c46327210fd5a1c2b501a9a746d14a10f02d62b8ef2325eb"
+    },
+    {
+      "path": "subs/harness/src/architecture/submission.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 31101,
+      "lines": 724,
+      "sha256": "fd515fd336c2d73ae6d46572f755a374160b62b64311f7aaff12f86ee620c036"
+    },
+    {
+      "path": "subs/harness/src/work/obligations.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 33999,
+      "lines": 707,
+      "sha256": "03baaa8341a7578e90036098eff5b69e7195d8e9d3deac0fad91777cdcb89872"
+    },
+    {
+      "path": "subs/harness/src/steps/run.ts",
+      "group": "autonomous-remainder",
+      "bytes": 42258,
+      "lines": 705,
+      "sha256": "4ac40d85a83fdf074cdd57a3116ebf7081a0efcce67bcf3df1b0a09decc20853"
+    }
+  ],
+  "history": {
+    "sampleSize": 40,
+    "singleGroupCommits": 21,
+    "byGroup": {
+      "assistance": {
+        "commits": 13,
+        "singleGroupCommits": 10,
+        "singleGroupWithoutOtherCurrentProductionCommits": 7
+      },
+      "autonomous-remainder": {
+        "commits": 25,
+        "singleGroupCommits": 8,
+        "singleGroupWithoutOtherCurrentProductionCommits": 6
+      },
+      "autonomous/acceptance": {
+        "commits": 10,
+        "singleGroupCommits": 0,
+        "singleGroupWithoutOtherCurrentProductionCommits": 0
+      },
+      "autonomous/planning": {
+        "commits": 0,
+        "singleGroupCommits": 0,
+        "singleGroupWithoutOtherCurrentProductionCommits": 0
+      },
+      "autonomous/work-coordination": {
+        "commits": 5,
+        "singleGroupCommits": 0,
+        "singleGroupWithoutOtherCurrentProductionCommits": 0
+      },
+      "harness-facade": {
+        "commits": 8,
+        "singleGroupCommits": 1,
+        "singleGroupWithoutOtherCurrentProductionCommits": 1
+      },
+      "session-store": {
+        "commits": 1,
+        "singleGroupCommits": 0,
+        "singleGroupWithoutOtherCurrentProductionCommits": 0
+      },
+      "task-execution-seed": {
+        "commits": 11,
+        "singleGroupCommits": 2,
+        "singleGroupWithoutOtherCurrentProductionCommits": 1
+      }
+    },
+    "commits": [
+      {
+        "commit": "3cf06e52cbb2996a8d4db7a6f7cf9527dcd611ac",
+        "committedAt": "2026-10-19T05:37:36+00:00",
+        "subject": "Prefer settled assessment state at the observation deadline",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "c061ded221fdd9b88428dce5a003c282248301f2",
+        "committedAt": "2026-10-19T05:32:55+00:00",
+        "subject": "Wait quietly for assisted assessments and native workers",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/mcp.ts",
+          "subs/harness/src/assistance/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "db31e72f2b600207fbe44ec18ceee3a97d5798ed",
+        "committedAt": "2026-10-18T20:14:01+00:00",
+        "subject": "Reject duplicate exact protection approvals under new commands",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "4361b58c671dd08a54dc2052e7c492df37173664",
+        "committedAt": "2026-10-18T19:50:58+00:00",
+        "subject": "Finalize reviewed candidates when exact protection approval is recorded",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/approval.ts",
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/findings.ts",
+          "subs/harness/src/assistance/mcp.ts",
+          "subs/harness/src/assistance/protection.ts",
+          "subs/harness/src/assistance/service.ts",
+          "subs/harness/src/assistance/store.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/reviews/src/assisted.ts"
+        ]
+      },
+      {
+        "commit": "4b924668783395cca3a3b3b5704d9b4640dc59fa",
+        "committedAt": "2026-10-18T14:59:38+00:00",
+        "subject": "Reopen agent closures whose retained source proof is rejected",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/findings.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "c2df9445cfc6d3f6c5bc748409c0903ddbbd0d07",
+        "committedAt": "2026-10-18T14:22:33+00:00",
+        "subject": "Verify all candidate text projections and retained judgments",
+        "groups": [
+          "assistance",
+          "autonomous-remainder",
+          "autonomous/acceptance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/reviews/signals.ts",
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/evidence/src/git-text.ts",
+          "subs/harness/subs/evidence/src/git.ts",
+          "subs/harness/subs/reviews/src/diff-payload.ts",
+          "subs/harness/subs/reviews/src/inputs.ts",
+          "subs/harness/subs/reviews/src/snapshot.ts"
+        ]
+      },
+      {
+        "commit": "1badd7fc7a81422cb2b5dacccafbb5cade844d86",
+        "committedAt": "2026-10-18T13:38:19+00:00",
+        "subject": "Verify legacy inline documents before resumed assessment evidence",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/documents.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "198800c660317bc87343d245f5dc8bb196fd03a5",
+        "committedAt": "2026-10-18T13:24:25+00:00",
+        "subject": "Verify exact Git text before recording inspection or conflict authority",
+        "groups": [
+          "assistance",
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/documents.ts",
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/evidence/src/git-text.ts",
+          "subs/harness/subs/reviews/src/snapshot.ts"
+        ]
+      },
+      {
+        "commit": "eb6ea34da4029b587f29d8b8640f33426e12c219",
+        "committedAt": "2026-10-18T13:05:38+00:00",
+        "subject": "Checkpoint compact document evidence and read immutable text on demand",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/contracts.ts",
+          "subs/harness/src/assistance/documents.ts",
+          "subs/harness/src/assistance/service.ts",
+          "subs/harness/src/assistance/store.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "ea55905613d2940707c3ac1471390f88c52da0e0",
+        "committedAt": "2026-10-18T12:53:00+00:00",
+        "subject": "Qualify unreadable linked evidence without fabricating document text",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/documents.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/plan-evidence/src/discovery.ts"
+        ]
+      },
+      {
+        "commit": "8ba4c157b67e6d1fcb00b61092a62a67e50aa6fb",
+        "committedAt": "2026-10-18T12:45:57+00:00",
+        "subject": "Retain uncaptured historical links for assisted relevance assessment",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/documents.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/plan-evidence/src/discovery.ts"
+        ]
+      },
+      {
+        "commit": "5e4aab94041b32fdf7bbfcf6a8cdea1d63b39645",
+        "committedAt": "2026-10-18T12:28:01+00:00",
+        "subject": "Record native assisted iterations and candidate timing through MCP",
+        "groups": [
+          "assistance"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/contracts.ts",
+          "subs/harness/src/assistance/mcp.ts",
+          "subs/harness/src/assistance/service.ts",
+          "subs/harness/src/assistance/store.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "e792f3c21d2d2e3dd45f09aefe35f9740d605865",
+        "committedAt": "2026-10-18T09:58:52+00:00",
+        "subject": "Add MCP assisted plan assessment with shared Pi review facilities",
+        "groups": [
+          "assistance",
+          "autonomous/acceptance",
+          "harness-facade"
+        ],
+        "paths": [
+          "subs/harness/src/assistance/assessment.ts",
+          "subs/harness/src/assistance/audit.ts",
+          "subs/harness/src/assistance/contracts.ts",
+          "subs/harness/src/assistance/documents.ts",
+          "subs/harness/src/assistance/findings.ts",
+          "subs/harness/src/assistance/mcp.ts",
+          "subs/harness/src/assistance/pi-evidence.ts",
+          "subs/harness/src/assistance/pi.ts",
+          "subs/harness/src/assistance/protection.ts",
+          "subs/harness/src/assistance/runtime.ts",
+          "subs/harness/src/assistance/service.ts",
+          "subs/harness/src/assistance/store.ts",
+          "subs/harness/src/check-findings/transition.ts",
+          "subs/harness/src/jobs/records.ts",
+          "subs/harness/src/reviews/reconciliation-message.ts",
+          "subs/harness/src/reviews/reconciliation.ts",
+          "subs/harness/src/run/review-finish.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "src/cli.ts",
+          "src/main.ts",
+          "subs/harness/subs/evidence/src/git.ts",
+          "subs/harness/subs/reviews/src/assisted.ts",
+          "subs/harness/subs/reviews/src/preparation.ts"
+        ]
+      },
+      {
+        "commit": "6b489c650d2b6bb6cc8c4edbed538e8a1d8736b4",
+        "committedAt": "2026-10-18T07:56:02+00:00",
+        "subject": "Preserve accepted task ownership across ordinary continuation",
+        "groups": [
+          "autonomous-remainder",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/run/session-operations.ts",
+          "subs/harness/src/steps/manual.ts",
+          "subs/harness/src/steps/review-step.ts",
+          "subs/harness/src/steps/run.ts",
+          "subs/harness/src/steps/runner.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "4b1a2c5d9ab878bf03d2401c83492db1ea68cb73",
+        "committedAt": "2026-10-18T07:30:45+00:00",
+        "subject": "Simplify recovery around ordinary task reentry",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance",
+          "harness-facade",
+          "session-store",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/consultations/tools.ts",
+          "subs/harness/src/interfaces/protocol/runs.ts",
+          "subs/harness/src/run/beads-sessions.ts",
+          "subs/harness/src/run/candidate-attribution.ts",
+          "subs/harness/src/run/committing-gate.ts",
+          "subs/harness/src/run/log.ts",
+          "subs/harness/src/run/nonfunctional-phase.ts",
+          "subs/harness/src/run/readiness-commit.ts",
+          "subs/harness/src/run/readiness.ts",
+          "subs/harness/src/run/records.ts",
+          "subs/harness/src/run/recovery-admission.ts",
+          "subs/harness/src/run/recovery-gate.ts",
+          "subs/harness/src/run/restart-import.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/run/session-operations.ts",
+          "subs/harness/src/run/session-store.ts",
+          "subs/harness/src/run/snapshot.ts",
+          "subs/harness/src/sessions/command.ts",
+          "subs/harness/src/sessions/single.ts",
+          "subs/harness/src/steps/command.ts",
+          "subs/harness/src/steps/manual.ts",
+          "subs/harness/src/steps/run.ts",
+          "subs/harness/src/steps/runner.ts",
+          "subs/harness/src/tools/shell-tests.ts",
+          "subs/harness/src/tools/shell.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "src/cli.ts",
+          "src/recovery-client.ts",
+          "src/restart-client.ts",
+          "subs/harness/subs/agent/src/interfaces/port.ts",
+          "subs/harness/subs/agent/src/interfaces/session-operations.ts",
+          "subs/harness/subs/agent/src/session-operations.ts",
+          "subs/harness/subs/projections/src/capability-tasks.ts",
+          "subs/harness/subs/projections/src/events.ts",
+          "subs/harness/subs/projections/src/execution-map.ts",
+          "subs/harness/subs/projections/src/execution-modules.ts",
+          "subs/harness/subs/projections/src/inputs.ts",
+          "subs/harness/subs/projections/src/repairs.ts",
+          "subs/harness/subs/recovery/src/reentry.ts",
+          "subs/web/src/recovery.tsx",
+          "subs/web/src/restart.tsx"
+        ]
+      },
+      {
+        "commit": "091ca382d8b514bdc6b83f0e98f00f5e395b56f1",
+        "committedAt": "2026-10-16T09:33:05+00:00",
+        "subject": "Optimize architect iteration planning and organize prompt principles",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/prompts/packages.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "d0d9515852ed99b25908bec5698dc4fbaace9929",
+        "committedAt": "2026-10-16T08:30:49+00:00",
+        "subject": "Preserve legacy session tools when enabling role-specific delegation",
+        "groups": [
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/run/session-operations.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "0cc92a4f5b9981009850cb30e873f85e26be2ea3",
+        "committedAt": "2026-10-16T08:14:39+00:00",
+        "subject": "Enable Pi subagents and exact Codex context notices",
+        "groups": [
+          "autonomous-remainder",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/prompts/packages.ts",
+          "subs/harness/src/run/session-operations.ts",
+          "subs/harness/src/steps/render.ts",
+          "subs/harness/src/steps/runner.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/agent/src/interfaces/port.ts",
+          "subs/harness/subs/agent/subs/pi/src/context-information.ts",
+          "subs/harness/subs/agent/subs/pi/src/preservation.ts",
+          "subs/harness/subs/agent/subs/pi/src/session-operations.ts",
+          "subs/harness/subs/agent/subs/pi/src/subagents.ts"
+        ]
+      },
+      {
+        "commit": "ce817036f135373827e8605266b337eed1f02e90",
+        "committedAt": "2026-10-15T19:55:03+00:00",
+        "subject": "Upgrade Pi to 1.3.0 and preserve existing session records",
+        "groups": [
+          "harness-facade",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/interfaces/protocol/runs.ts",
+          "subs/harness/src/run/observations.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/agent/src/interfaces/port.ts",
+          "subs/harness/subs/agent/subs/pi/src/pi-agent.ts",
+          "subs/harness/subs/agent/subs/pi/src/preservation.ts",
+          "subs/harness/subs/agent/subs/pi/src/session-operations.ts"
+        ]
+      },
+      {
+        "commit": "2028cffd4e49a2a5663b200dd97aaeac26bd8e94",
+        "committedAt": "2026-10-15T13:27:59+00:00",
+        "subject": "Use default audit scope for initial readiness",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance"
+        ],
+        "paths": [
+          "subs/harness/src/checks/checkpoint.ts",
+          "subs/harness/src/run/readiness.ts",
+          "subs/harness/src/run/records.ts",
+          "subs/harness/src/steps/gate.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/audit/src/check-execution.ts"
+        ]
+      },
+      {
+        "commit": "9319956c3cc7c904bbe694e169b8dca767688fe6",
+        "committedAt": "2026-10-15T09:47:55+00:00",
+        "subject": "Reverify repaired candidates and align continuation regression fixtures",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "d9154e68b99a95031650417b07a8f890dd819a9e",
+        "committedAt": "2026-10-15T09:11:02+00:00",
+        "subject": "Let architects continue correction without artificial count limits",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance",
+          "autonomous/work-coordination",
+          "harness-facade",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/capability/ledger.ts",
+          "subs/harness/src/capability/policy.ts",
+          "subs/harness/src/capability/state.ts",
+          "subs/harness/src/checks/gate.ts",
+          "subs/harness/src/interfaces/protocol/check-findings.ts",
+          "subs/harness/src/interfaces/protocol/runs.ts",
+          "subs/harness/src/interfaces/protocol/transcripts.ts",
+          "subs/harness/src/nonfunctional/prompts.ts",
+          "subs/harness/src/prompts/tasks.ts",
+          "subs/harness/src/reviews/reconciliation-message.ts",
+          "subs/harness/src/reviews/reconciliation.ts",
+          "subs/harness/src/run/compaction-review.ts",
+          "subs/harness/src/run/final-correction.ts",
+          "subs/harness/src/run/log.ts",
+          "subs/harness/src/run/nonfunctional-phase.ts",
+          "subs/harness/src/run/policy.ts",
+          "subs/harness/src/run/port-events.ts",
+          "subs/harness/src/run/records.ts",
+          "subs/harness/src/run/review-finish.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/run/session-operations.ts",
+          "subs/harness/src/run/submissions.ts",
+          "subs/harness/src/steps/after.ts",
+          "subs/harness/src/steps/authoring.ts",
+          "subs/harness/src/steps/runner.ts",
+          "subs/harness/src/work/engineer-equipment.ts",
+          "subs/harness/src/work/records.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/agent/src/interfaces/port.ts",
+          "subs/harness/subs/agent/src/interfaces/session-operations.ts",
+          "subs/harness/subs/agent/src/scripted.ts",
+          "subs/harness/subs/agent/src/session-operations.ts",
+          "subs/harness/subs/agent/subs/pi/src/session-operations.ts",
+          "subs/harness/subs/nonfunctional/src/rounds.ts",
+          "subs/harness/subs/projections/src/events.ts",
+          "subs/harness/subs/projections/src/session-queries.ts",
+          "subs/harness/subs/projections/src/standalone-records.ts",
+          "subs/harness/subs/projections/src/work.ts",
+          "subs/web/src/check-findings.tsx"
+        ]
+      },
+      {
+        "commit": "f1c9400da2ddb185fed4da83f2f3d8b105f2829b",
+        "committedAt": "2026-10-15T07:06:29+00:00",
+        "subject": "Preserve reviewer retries while equipping new evidence inspections",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "880b26b0716016b544fa20f8fcad79e4615d2561",
+        "committedAt": "2026-10-15T06:52:26+00:00",
+        "subject": "Settle coordinator shell processes through invocation ownership",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "d276e9eae370de7be6584c408e0a05d01b5fc18f",
+        "committedAt": "2026-10-15T06:47:46+00:00",
+        "subject": "Give nonfunctional coordinators ordinary evidence inspection tools",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance"
+        ],
+        "paths": [
+          "subs/harness/src/nonfunctional/equipment.ts",
+          "subs/harness/src/nonfunctional/prompts.ts",
+          "subs/harness/src/nonfunctional/submissions.ts",
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "f8e8aa724dd5e7c78b1bca9301b8295b2fab3951",
+        "committedAt": "2026-10-14T21:46:50+00:00",
+        "subject": "Move invocation scope qualification into KPI child",
+        "groups": [
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/steps/runner.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/kpi/src/capture.ts"
+        ]
+      },
+      {
+        "commit": "4395cbd950562f9eabd2d8952c043fbde506a454",
+        "committedAt": "2026-10-14T19:40:46+00:00",
+        "subject": "Keep audit reports out of administrative prompts and gate responses",
+        "groups": [
+          "autonomous-remainder",
+          "harness-facade"
+        ],
+        "paths": [
+          "subs/harness/src/interfaces/protocol/runs.ts",
+          "subs/harness/src/run/beads-sessions.ts",
+          "subs/harness/src/run/beads-storage.ts",
+          "subs/harness/src/run/beads-tools.ts",
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/projections/src/work.ts",
+          "subs/web/src/run-page.tsx"
+        ]
+      },
+      {
+        "commit": "fee24260593681beedc65ae018410ef7f49634b7",
+        "committedAt": "2026-10-14T19:40:46+00:00",
+        "subject": "Keep engineer completion scoped to assigned work",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/work-coordination"
+        ],
+        "paths": [
+          "subs/harness/src/steps/engineer.ts",
+          "subs/harness/src/work/engineer.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "e99a3ae8f39dabdef0fbb7ec777c1d9b657a7cf2",
+        "committedAt": "2026-10-14T17:17:49+00:00",
+        "subject": "cap-001.i14: Restore the accidentally replaced projections KPI query test suite exactly, then obtain passing focused and gate evidence for the retained composed candidate.",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/qualification/trial-report.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "scripts/trial-attribution.ts",
+          "subs/harness/subs/projections/src/lineage.ts",
+          "subs/harness/subs/projections/src/metrics.ts"
+        ]
+      },
+      {
+        "commit": "2383b8601009795acb5dae55a994c85d82a02e12",
+        "committedAt": "2026-10-14T15:11:59+00:00",
+        "subject": "cap-001.i08: Integrate actual run/step scope and snapshot collection plus invocation charge observations with the real KPI provider through execution-owned fact adapters.",
+        "groups": [
+          "autonomous-remainder",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/measurement/inputs.ts",
+          "subs/harness/src/run/port-events.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/steps/runner.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "4839baa35960d3b8ffe582a41eb00d061f3c323c",
+        "committedAt": "2026-10-14T14:30:13+00:00",
+        "subject": "cap-001.i07: Compose real KPI per-invocation line measurement into harness collection while retaining general path-owner lookup as harness utility; retire old parent lines.ts without forwarders.",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance",
+          "autonomous/work-coordination",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/measurement/owners.ts",
+          "subs/harness/src/reviews/signals.ts",
+          "subs/harness/src/run/excursions.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/work/engineer-equipment.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/kpi/src/lines.ts"
+        ]
+      },
+      {
+        "commit": "139981f435c8cf74bb3ff8a3d3d293bfbc86398e",
+        "committedAt": "2026-10-14T01:11:29+00:00",
+        "subject": "cap-001.i06: Integrate actual harness HTTP/consultation consumers with the real projections child and verify all original example behaviors, including shared repair presentation/admission separation.",
+        "groups": [
+          "autonomous-remainder",
+          "harness-facade"
+        ],
+        "paths": [
+          "subs/harness/src/consultations/command.ts",
+          "subs/harness/src/http/app.ts",
+          "subs/harness/src/http/query-source.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "eaafa09c36649f57c2ea6901e631f76db1373e74",
+        "committedAt": "2026-10-13T23:14:00+00:00",
+        "subject": "cap-001.i01: Prepare harness-owned selected reading dependencies for the approved projections extraction, including genuinely reading-only transcript content access, without creating the child or migrating callers/query bodies.",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance",
+          "autonomous/work-coordination",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/capability/state.ts",
+          "subs/harness/src/run/committed-history.ts",
+          "subs/harness/src/run/merge-readiness.ts",
+          "subs/harness/src/run/records.ts",
+          "subs/harness/src/run/sessions.ts",
+          "subs/harness/src/run/snapshot.ts",
+          "subs/harness/src/transcripts/store.ts",
+          "subs/harness/src/transcripts/writer.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "bfce1039705665501dfa1918569d469a98f34496",
+        "committedAt": "2026-10-13T22:31:35+00:00",
+        "subject": "wi-001.i02: Finish the retained HTTP reading-boundary preparation by reconciling baseline provenance from supplied architect evidence and verifying the existing partial candidate without expanding implementation.",
+        "groups": [
+          "harness-facade"
+        ],
+        "paths": [
+          "subs/harness/src/http/app.ts",
+          "subs/harness/src/http/query-source.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "1c023ce1621bf9b3b79a334c2881b31c3934c6ca",
+        "committedAt": "2026-10-13T21:12:16+00:00",
+        "subject": "Retain unaccepted repair-history work from projections run",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/run/committed-history.ts",
+          "subs/harness/src/run/repair-export-command.ts",
+          "subs/harness/src/run/repair-history.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "68160188338dd8ee118625d97ff9e2733f720387",
+        "committedAt": "2026-10-13T18:57:06+00:00",
+        "subject": "Restore unpublished capture reporting and qualify restart inventories",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": []
+      },
+      {
+        "commit": "32a18569f09c8602aa27ba2e7f16c19f19422059",
+        "committedAt": "2026-10-13T18:35:55+00:00",
+        "subject": "Implement authenticated linked restart after terminal failure",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance",
+          "harness-facade"
+        ],
+        "paths": [
+          "subs/harness/src/check-findings/state.ts",
+          "subs/harness/src/http/app.ts",
+          "subs/harness/src/interfaces/protocol/execution-map.ts",
+          "subs/harness/src/interfaces/protocol/paths.ts",
+          "subs/harness/src/interfaces/protocol/runs.ts",
+          "subs/harness/src/run/audit-workspaces.ts",
+          "subs/harness/src/run/beads-sessions.ts",
+          "subs/harness/src/run/committing-gate.ts",
+          "subs/harness/src/run/log.ts",
+          "subs/harness/src/run/records.ts",
+          "subs/harness/src/run/recovery-admission.ts",
+          "subs/harness/src/run/recovery-gate.ts",
+          "subs/harness/src/run/restart-import.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/run/snapshot.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "src/cli.ts",
+          "src/main.ts",
+          "src/restart-client.ts",
+          "subs/harness/subs/evidence/src/git.ts",
+          "subs/web/src/client.ts",
+          "subs/web/src/execution-map.tsx",
+          "subs/web/src/plan-page.tsx",
+          "subs/web/src/recovery.tsx",
+          "subs/web/src/restart.tsx",
+          "subs/web/src/run-page.tsx"
+        ]
+      },
+      {
+        "commit": "1aa8645a3e452d418f43d206e9438ba54800e8b3",
+        "committedAt": "2026-10-13T07:42:08+00:00",
+        "subject": "Fix retained task restoration and recovery admission",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/acceptance",
+          "task-execution-seed"
+        ],
+        "paths": [
+          "subs/harness/src/checks/gate.ts",
+          "subs/harness/src/run/recovery-checks.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/steps/runner.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/agent/src/session-operations.ts"
+        ]
+      },
+      {
+        "commit": "ce19aee90a39cde86666dd1eafeb739d176919c9",
+        "committedAt": "2026-10-13T07:06:26+00:00",
+        "subject": "Add optional Beads issue administration through forked sessions",
+        "groups": [
+          "autonomous-remainder"
+        ],
+        "paths": [
+          "subs/harness/src/run/beads-sessions.ts",
+          "subs/harness/src/run/beads-storage.ts",
+          "subs/harness/src/run/beads-tools.ts",
+          "subs/harness/src/run/project-config.ts",
+          "subs/harness/src/run/records.ts",
+          "subs/harness/src/run/service.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/evidence/src/git.ts"
+        ]
+      },
+      {
+        "commit": "bb729c500a55b32f2469821cfc385232e2d9b833",
+        "committedAt": "2026-10-13T07:05:46+00:00",
+        "subject": "Correct prompt evidence delivery and bound coverage summaries",
+        "groups": [
+          "autonomous-remainder",
+          "autonomous/work-coordination"
+        ],
+        "paths": [
+          "subs/harness/src/prompts/tasks.ts",
+          "subs/harness/src/run/service.ts",
+          "subs/harness/src/steps/engineer.ts",
+          "subs/harness/src/work/engineer.ts",
+          "subs/harness/src/work/session.ts",
+          "subs/harness/src/work/view-inputs.ts"
+        ],
+        "otherCurrentProductionPaths": [
+          "subs/harness/subs/evidence/src/views.ts"
+        ]
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "subs/harness/src/analysis/accept.ts",
+      "group": "autonomous/planning",
+      "bytes": 7984,
+      "lines": 168,
+      "sha256": "775f23c75a1914a2ec274a6c7f1de0bf1bca761a3a6341f100c7b69e29647f13"
+    },
+    {
+      "path": "subs/harness/src/analysis/evidence-contracts.ts",
+      "group": "autonomous/planning",
+      "bytes": 920,
+      "lines": 25,
+      "sha256": "621cf5b9f64e6f4c14f2d8797bd7641df2de14835b34bdf84ee0410bcb4e2561"
+    },
+    {
+      "path": "subs/harness/src/analysis/evidence.ts",
+      "group": "autonomous/planning",
+      "bytes": 2888,
+      "lines": 42,
+      "sha256": "723436edd5efa9917aff49fa55e083bd20c07e7c53d508362d4412a2499fa014"
+    },
+    {
+      "path": "subs/harness/src/analysis/extraction.ts",
+      "group": "autonomous/planning",
+      "bytes": 21192,
+      "lines": 319,
+      "sha256": "24ff53251e6b7bdd11533b048231fc66ba11dd65a6629a6ccefabd35efb2e385"
+    },
+    {
+      "path": "subs/harness/src/analysis/records.ts",
+      "group": "autonomous/planning",
+      "bytes": 6543,
+      "lines": 139,
+      "sha256": "0e8287980cd21c62ac62c621057f62e40dd927b5f7458ebc0052db30dc4c696d"
+    },
+    {
+      "path": "subs/harness/src/analysis/submission.ts",
+      "group": "autonomous/planning",
+      "bytes": 22745,
+      "lines": 440,
+      "sha256": "1c53ee1676eb51f7da46c2a31ed0500b6530b869112b5479d2fee3bb76366423"
+    },
+    {
+      "path": "subs/harness/src/architecture/accept.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 6660,
+      "lines": 131,
+      "sha256": "52cc48986f997dffdbced2651ff286531a02fdd9261d53c7108e41310ffd6f94"
+    },
+    {
+      "path": "subs/harness/src/architecture/context.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 6943,
+      "lines": 137,
+      "sha256": "41eef192a4a2635292fff988bedd9a56d2635918d8887211a5225545ae146c99"
+    },
+    {
+      "path": "subs/harness/src/architecture/records.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 6721,
+      "lines": 142,
+      "sha256": "ab9fdc61ca007ef95ac66563ccb187584981dfceaa6ccb8ec0e3cfc6178c1106"
+    },
+    {
+      "path": "subs/harness/src/architecture/session.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 11331,
+      "lines": 187,
+      "sha256": "f9571c696cef0f0b2ae9b055d51b97272139a2acb54966e63fedd93265181dd5"
+    },
+    {
+      "path": "subs/harness/src/architecture/submission.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 31101,
+      "lines": 724,
+      "sha256": "fd515fd336c2d73ae6d46572f755a374160b62b64311f7aaff12f86ee620c036"
+    },
+    {
+      "path": "subs/harness/src/assistance/approval.ts",
+      "group": "assistance",
+      "bytes": 6875,
+      "lines": 82,
+      "sha256": "39e34e3b2f16b5cdd7b1ec81bf4426740cb88250bd860c56f00a8c5bd9dcb33f"
+    },
+    {
+      "path": "subs/harness/src/assistance/assessment.ts",
+      "group": "assistance",
+      "bytes": 34979,
+      "lines": 407,
+      "sha256": "48fb91f882382ddac9945c7659ec766e5b16c14d0317b9e1211fa2383954a3a6"
+    },
+    {
+      "path": "subs/harness/src/assistance/audit.ts",
+      "group": "assistance",
+      "bytes": 2883,
+      "lines": 61,
+      "sha256": "9b1640d5466ad2e5a19a9879b68bc3d8d6eb3cec0916efb1c41541878bca5d39"
+    },
+    {
+      "path": "subs/harness/src/assistance/contracts.ts",
+      "group": "assistance",
+      "bytes": 7683,
+      "lines": 140,
+      "sha256": "44dd20d794815885e9f6ee116cb188db2e7b5e8d912709102d2ab8782d3094ff"
+    },
+    {
+      "path": "subs/harness/src/assistance/documents.ts",
+      "group": "assistance",
+      "bytes": 9192,
+      "lines": 157,
+      "sha256": "7be3a5677066298d4eddaae70524cf558b7f59a6583ba8f2de915c4407d9af94"
+    },
+    {
+      "path": "subs/harness/src/assistance/findings.ts",
+      "group": "assistance",
+      "bytes": 11592,
+      "lines": 155,
+      "sha256": "5d91c794652ef06d8a73715202d8ec355fcc39bb15271fce66b8ccae5a4ad9fe"
+    },
+    {
+      "path": "subs/harness/src/assistance/mcp.ts",
+      "group": "assistance",
+      "bytes": 9331,
+      "lines": 95,
+      "sha256": "ab1b27cec256e76f9aa1b9d2b74014b54cf9d17a7b3cbf11f294fcd36b692c6b"
+    },
+    {
+      "path": "subs/harness/src/assistance/pi-evidence.ts",
+      "group": "assistance",
+      "bytes": 3553,
+      "lines": 59,
+      "sha256": "8bf4eef391901542cc5616b0aca78ab346d3f03dabe3367cc5b6f048118edb62"
+    },
+    {
+      "path": "subs/harness/src/assistance/pi.ts",
+      "group": "assistance",
+      "bytes": 8880,
+      "lines": 127,
+      "sha256": "50d36f0c7eaf8bc638c4e65e900aa6118acfafc2b2c11da8ba85b0a65206e854"
+    },
+    {
+      "path": "subs/harness/src/assistance/protection.ts",
+      "group": "assistance",
+      "bytes": 7649,
+      "lines": 163,
+      "sha256": "5c3a67403caf02ba085c3b9df11f10fc4e0a4560ad9c1f0681308fed80a2a774"
+    },
+    {
+      "path": "subs/harness/src/assistance/runtime.ts",
+      "group": "assistance",
+      "bytes": 2066,
+      "lines": 39,
+      "sha256": "f4a6804c82e504fdc0887b4c7b9301ca86f949d37b224e4c8e59f2e09761f73e"
+    },
+    {
+      "path": "subs/harness/src/assistance/service.ts",
+      "group": "assistance",
+      "bytes": 46672,
+      "lines": 627,
+      "sha256": "40305393211cc48c1fdc8d42264a61bf20a91f805d46690312a8348071dade4f"
+    },
+    {
+      "path": "subs/harness/src/assistance/store.ts",
+      "group": "assistance",
+      "bytes": 7580,
+      "lines": 118,
+      "sha256": "c4dea64285162b220a4ea922cf22742444c581e5c638b5e5c03057ab07ba5df0"
+    },
+    {
+      "path": "subs/harness/src/capability/authorization.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 991,
+      "lines": 16,
+      "sha256": "4bf930a2cfe96848b1f2fcd8bd03694a2e09bde0fb0628e23c54170415104be5"
+    },
+    {
+      "path": "subs/harness/src/capability/delivery.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 5149,
+      "lines": 71,
+      "sha256": "7f4ede3209384b460d007881b01dabd82f6d31f5a9b66303b4a574abaa546ef1"
+    },
+    {
+      "path": "subs/harness/src/capability/ledger.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 8181,
+      "lines": 115,
+      "sha256": "622788aade6ee9b3db06dc4a726e22961eb3f38b4a92caa6e5d71657714f2dcc"
+    },
+    {
+      "path": "subs/harness/src/capability/policy.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 1950,
+      "lines": 44,
+      "sha256": "a9d7e1dfa9acc28b13d6296eb7a58e429bced0b134f4ac10be9c55a3bcb7e9f7"
+    },
+    {
+      "path": "subs/harness/src/capability/records.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 10089,
+      "lines": 196,
+      "sha256": "5e3fcb6561e71782d6a2c0ef5fd3bac213d20269e38b43442a2538de8601cda2"
+    },
+    {
+      "path": "subs/harness/src/capability/source.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 7503,
+      "lines": 139,
+      "sha256": "f63c6ec2fbd13ca460e8f3dd8b818ebb2d81e61cb5cfc12f54fa915424958995"
+    },
+    {
+      "path": "subs/harness/src/capability/state.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 12426,
+      "lines": 242,
+      "sha256": "2a51e98a50c7de669e2a8a395aaf907cc068f15d2b3acc97eb6049dfdbacbeff"
+    },
+    {
+      "path": "subs/harness/src/capability/submission.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 10100,
+      "lines": 157,
+      "sha256": "66a2e6ef0b70c91d38b238ae0e0bde000cabc01c3b625a3144939cb01b3edadf"
+    },
+    {
+      "path": "subs/harness/src/capability/workflow.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 363,
+      "lines": 9,
+      "sha256": "5f2c8602a5dbf741fdec5e708b68fdc197a2f9f390d29d5a2a4ca378d521a438"
+    },
+    {
+      "path": "subs/harness/src/check-findings/records.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 5408,
+      "lines": 104,
+      "sha256": "dd254ea102ca5929a021fc4dcfe5cf1f34494afcd9aedf041391aa22d435395d"
+    },
+    {
+      "path": "subs/harness/src/check-findings/report.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 1508,
+      "lines": 28,
+      "sha256": "02b4e22de9fb146959b677b687366a7cc93a44f12e8dc3ce53c2232473df560a"
+    },
+    {
+      "path": "subs/harness/src/check-findings/state.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 2907,
+      "lines": 60,
+      "sha256": "efa05e12d8f27c9e4e6d569b6afa7d93a124afb2749a649dfd8f7afa09648111"
+    },
+    {
+      "path": "subs/harness/src/check-findings/transition.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 10956,
+      "lines": 217,
+      "sha256": "6bde9afcddce5907be4b2e088f6f2a0fbfa57503c8307e389ca40f7507086b3b"
+    },
+    {
+      "path": "subs/harness/src/check-findings/user-commands.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 8636,
+      "lines": 165,
+      "sha256": "60af261a23a6311f7b146aa20d2c855f67be3d85123362aecfedc27074bc2b2a"
+    },
+    {
+      "path": "subs/harness/src/checks/accepted.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 2515,
+      "lines": 55,
+      "sha256": "f2dcb8ae1b7f243d65f125ff1322dcd2cd3b01d63381a908ef85265cbf942a08"
+    },
+    {
+      "path": "subs/harness/src/checks/checkpoint.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 6069,
+      "lines": 134,
+      "sha256": "4736003fdc5b2e406cf94acc26cf80dd75fe5e537ca4b8ea5108b59a0535590a"
+    },
+    {
+      "path": "subs/harness/src/checks/diagnostics.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 22622,
+      "lines": 423,
+      "sha256": "83b84a01a2d375534a3267e345326de2db217f149071cbb29bfd61376594999d"
+    },
+    {
+      "path": "subs/harness/src/checks/execution.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 7594,
+      "lines": 168,
+      "sha256": "987b0a16ae40f991755cc59a52b2553ca0d91254b72c242f241a281a17fe05ae"
+    },
+    {
+      "path": "subs/harness/src/checks/gate.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 26240,
+      "lines": 501,
+      "sha256": "ba74af4fd2b3d39e096bd18613ccc0c1a4199da5ca0297be1d6b7783362a1008"
+    },
+    {
+      "path": "subs/harness/src/checks/records.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 14780,
+      "lines": 324,
+      "sha256": "72213a9010c0c79fe8029fa5be425ceaa9787b1983b30e89df466de93da2ad82"
+    },
+    {
+      "path": "subs/harness/src/checks/scenario-results.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 6205,
+      "lines": 122,
+      "sha256": "69e30fa64062adfd57a1577ea822c632ab46561ff5574181f655aec7692e73c8"
+    },
+    {
+      "path": "subs/harness/src/checks/verify.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 2877,
+      "lines": 75,
+      "sha256": "b54ba0f26d87bf706a61d4978f3f904e5455eae9f7d7d1bf175daace9b1cd719"
+    },
+    {
+      "path": "subs/harness/src/consultations/command.ts",
+      "group": "autonomous-remainder",
+      "bytes": 1294,
+      "lines": 20,
+      "sha256": "93959e519bea1621e493b24c1a2fba0617ab5d3a4f45044084f94225a45a2e39"
+    },
+    {
+      "path": "subs/harness/src/consultations/records.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2223,
+      "lines": 30,
+      "sha256": "141c31287e496f16f72e2edd2a9c790daa74ad0cb2ab80c464cf9b26a3d7f512"
+    },
+    {
+      "path": "subs/harness/src/consultations/store.ts",
+      "group": "autonomous-remainder",
+      "bytes": 3736,
+      "lines": 46,
+      "sha256": "e65379abcce6af7b1b4fad4fb8fdd24104c6cd7c3973d34ab997a96d33b3c573"
+    },
+    {
+      "path": "subs/harness/src/consultations/submissions.ts",
+      "group": "autonomous-remainder",
+      "bytes": 916,
+      "lines": 13,
+      "sha256": "e63d27f1e40bd3cc95a99de1d306ec62ea9b6f28f6bba3317a752abd7be34988"
+    },
+    {
+      "path": "subs/harness/src/consultations/targets.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5923,
+      "lines": 75,
+      "sha256": "1246c500928ec94aed2d54a6137b9c8264e79b1b6c3a8190bafdbfe8a7fb6399"
+    },
+    {
+      "path": "subs/harness/src/consultations/tools.ts",
+      "group": "autonomous-remainder",
+      "bytes": 11674,
+      "lines": 133,
+      "sha256": "8092f0d52f32f0fc922a695e8c6f9055a6f54ff8da4e707125cb961323cc4e22"
+    },
+    {
+      "path": "subs/harness/src/context-selection/contracts.ts",
+      "group": "autonomous-remainder",
+      "bytes": 1245,
+      "lines": 30,
+      "sha256": "8a93f7b62cd30046fd4af2e3644c5f48b43834dcdd7b063e9bdf64bd8abfcb30"
+    },
+    {
+      "path": "subs/harness/src/context-selection/delivery.ts",
+      "group": "autonomous-remainder",
+      "bytes": 1907,
+      "lines": 27,
+      "sha256": "8ae9752b474911f3f23511aec2f45229c92f95d8fa23d68eb80f66d453ac37d6"
+    },
+    {
+      "path": "subs/harness/src/context-selection/prompts.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2881,
+      "lines": 33,
+      "sha256": "283842248ff97755e6f2d1381290ad62159529ab7abff3ed66c90b6c5e011bb4"
+    },
+    {
+      "path": "subs/harness/src/context-selection/recorded.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2081,
+      "lines": 35,
+      "sha256": "ab2e39a522e6f6de8f339cc3177e27d7f083d8626ec1a7e7e473c7472d4acf67"
+    },
+    {
+      "path": "subs/harness/src/context-selection/submissions.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5744,
+      "lines": 106,
+      "sha256": "558ec344b94e7d40d2c31266cca666dfaf9f75d499d81f327a35ed6f709956c0"
+    },
+    {
+      "path": "subs/harness/src/contracts/accept.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 8804,
+      "lines": 201,
+      "sha256": "91f9feca030048a7cdffcad14497731eb4a0c81e88ad38d8a7f9884014f0eb58"
+    },
+    {
+      "path": "subs/harness/src/contracts/graph.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 3270,
+      "lines": 86,
+      "sha256": "def2d5dc748fb9109fdb0767314a18b7b8174c1a128a2531fcfe8e4c5c69b3dd"
+    },
+    {
+      "path": "subs/harness/src/contracts/naming.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 6514,
+      "lines": 166,
+      "sha256": "fa5a43144a66bfa50ff0b6cf0c78f269a97b5948461a151bacac16abca4a7519"
+    },
+    {
+      "path": "subs/harness/src/contracts/parity.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 15703,
+      "lines": 340,
+      "sha256": "ec99603c27571b8efa311a7400ba0fbe9786bd7a5f2a829f0bd0c09e5c970b1a"
+    },
+    {
+      "path": "subs/harness/src/contracts/records.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 7883,
+      "lines": 176,
+      "sha256": "090692136deb3f8bf1645a1ee3006b960c14b0f558e7c404e59f9ee2426a6458"
+    },
+    {
+      "path": "subs/harness/src/contracts/revision.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 7292,
+      "lines": 170,
+      "sha256": "bc425b60a8fbfb326858a3a3257210b27ac7623d37340c73b448754a69472608"
+    },
+    {
+      "path": "subs/harness/src/contracts/schedule.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 7713,
+      "lines": 169,
+      "sha256": "33a0417f558e2a108bec49d3fa7933893ea9955989c36908eeba12a8b3a5bdc3"
+    },
+    {
+      "path": "subs/harness/src/contracts/session.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 9977,
+      "lines": 191,
+      "sha256": "a604f18fd9c81fab013c8601bbdb4ac7935e0b6f7309e829ae85d5fb590cbdd1"
+    },
+    {
+      "path": "subs/harness/src/contracts/submission.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 13931,
+      "lines": 285,
+      "sha256": "481502dc150ca7bdc903a804920ef71d7cdcc4f72ad156cd1ec19862d9404332"
+    },
+    {
+      "path": "subs/harness/src/contracts/verification.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 2515,
+      "lines": 66,
+      "sha256": "9cb79f651989294491dcb6376f03928a7c4e837a733fae1d0a1ae64a01feb6ba"
+    },
+    {
+      "path": "subs/harness/src/deviations/environment.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 5102,
+      "lines": 116,
+      "sha256": "7a04ae8ab05a28a3466d31f90870992fb943d0af2afb658ac2ad22ceeaa840ad"
+    },
+    {
+      "path": "subs/harness/src/deviations/finding.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 5111,
+      "lines": 119,
+      "sha256": "01d29417fde5fb77639f68ddafcfd139baf1fcf03156f98bf9819918b81d0e96"
+    },
+    {
+      "path": "subs/harness/src/deviations/nonfunctional.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 7184,
+      "lines": 116,
+      "sha256": "1ee3ef954cf147fbece147a62251ad0c70ef87f1121e22af5674736c4de3feef"
+    },
+    {
+      "path": "subs/harness/src/deviations/readiness-decision.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 2818,
+      "lines": 55,
+      "sha256": "51ef9fe11da74d91aaf07dfea50392b50c84867d7c56bcd8daa9c4bf05669c0f"
+    },
+    {
+      "path": "subs/harness/src/deviations/records.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 9183,
+      "lines": 195,
+      "sha256": "f4442270fdfd928c5bad321e3babfbfbf731ec59b9692526cdefd893c0948fcd"
+    },
+    {
+      "path": "subs/harness/src/guard/resolve-contained-path.ts",
+      "group": "autonomous-remainder",
+      "bytes": 4446,
+      "lines": 89,
+      "sha256": "2a8b5935c87cd731dad0f905b6c9d6a4160e7c47c1f4220bad7686cc5152a998"
+    },
+    {
+      "path": "subs/harness/src/guard/write-guard.ts",
+      "group": "autonomous-remainder",
+      "bytes": 17378,
+      "lines": 270,
+      "sha256": "4e7725091796feaa9240f25ba5d076899624c9963eef7727b84c73fc800aa8cc"
+    },
+    {
+      "path": "subs/harness/src/hooks/mutation-order.ts",
+      "group": "autonomous-remainder",
+      "bytes": 4449,
+      "lines": 120,
+      "sha256": "c55017b993d7015409608d33e5b3cd623d03d046d74160e1b5ae042b05b4cb44"
+    },
+    {
+      "path": "subs/harness/src/hooks/post-write.ts",
+      "group": "autonomous-remainder",
+      "bytes": 43101,
+      "lines": 808,
+      "sha256": "22b08dc5891d1f522c69877a39bc67a2aa621e943ffe387a1b248ef8e1610e1a"
+    },
+    {
+      "path": "subs/harness/src/http/app.ts",
+      "group": "harness-facade",
+      "bytes": 29634,
+      "lines": 512,
+      "sha256": "1d4cf79143a927d0dfb0272292792da5cbd7f3d809fdd4edc580d50e6d9b2896"
+    },
+    {
+      "path": "subs/harness/src/http/query-source.ts",
+      "group": "harness-facade",
+      "bytes": 678,
+      "lines": 14,
+      "sha256": "f94985901b2ead52f36cb0cd0ca734baed65058584255b1173f3c2012d84247a"
+    },
+    {
+      "path": "subs/harness/src/http/server.ts",
+      "group": "harness-facade",
+      "bytes": 10856,
+      "lines": 246,
+      "sha256": "00d3851fd62427e1484c71673e350ddf2c269dd05fef9dbfc59f21ff86025d1e"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/capability-tasks.ts",
+      "group": "harness-facade",
+      "bytes": 4922,
+      "lines": 70,
+      "sha256": "22348367249a0f8095f79cefacbf804e099bd1727bd8736424643d0216a65d66"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/check-findings.ts",
+      "group": "harness-facade",
+      "bytes": 25400,
+      "lines": 527,
+      "sha256": "90c03380089b3451b96b78ecd4d19dce74e8683769701530f3682dc0c6a4fc7d"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/errors.ts",
+      "group": "harness-facade",
+      "bytes": 2024,
+      "lines": 58,
+      "sha256": "76ff2924e3a20fef8533c081540c01ac69121084e6f51502767baeba0a85b865"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/evidence.ts",
+      "group": "harness-facade",
+      "bytes": 4360,
+      "lines": 105,
+      "sha256": "b25ddc34ee5573953fbe7c33831d8a931b84ee37a26c2f0145bfe849adaf5ce5"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/execution-map.ts",
+      "group": "harness-facade",
+      "bytes": 20742,
+      "lines": 357,
+      "sha256": "0f1ba77372a04d1be85f12b6ca9db59067f1ff97416a55441eacc55595b143a6"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/ids.ts",
+      "group": "harness-facade",
+      "bytes": 523,
+      "lines": 9,
+      "sha256": "2826383a46ec8aac4769fb96161e17115e361ac9023a5bd8f760c4d977bed7a2"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/jobs.ts",
+      "group": "harness-facade",
+      "bytes": 4489,
+      "lines": 98,
+      "sha256": "9b51e9b3a09b677fdd197f9923e9d41956e3e16e5790a544d257e29ee14bda95"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/paths.ts",
+      "group": "harness-facade",
+      "bytes": 8502,
+      "lines": 110,
+      "sha256": "3fb869192445b1fcb7a642da305718196bb8f4811d48e1756df6048ff98df2a0"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/queries.ts",
+      "group": "harness-facade",
+      "bytes": 3101,
+      "lines": 78,
+      "sha256": "d85c91eb35fe37c906e033786be4d67d360b0ff1f08f21ecd9f1769ffbdfe5f9"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/repairs.ts",
+      "group": "harness-facade",
+      "bytes": 4229,
+      "lines": 93,
+      "sha256": "cf16001e80b37b96ceca50e912ac5c09450f77fec03b3404401aa271ef5a9091"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/runs.ts",
+      "group": "harness-facade",
+      "bytes": 87304,
+      "lines": 1719,
+      "sha256": "63536c2fd884ecdbaeb7fedecacf2f4ad783dd4beb29febf889a4d736ed6e715"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/sessions.ts",
+      "group": "harness-facade",
+      "bytes": 16470,
+      "lines": 350,
+      "sha256": "6330308207cfcf43f872a690a091d573ebed533c9c935551db595cc3dd6e0cbc"
+    },
+    {
+      "path": "subs/harness/src/interfaces/protocol/transcripts.ts",
+      "group": "harness-facade",
+      "bytes": 16916,
+      "lines": 341,
+      "sha256": "219fbd7ca1e5f6b6c83b44e34bbe4359a7589fd91c652515380ed71b36625366"
+    },
+    {
+      "path": "subs/harness/src/jobs/activity.ts",
+      "group": "harness-facade",
+      "bytes": 2741,
+      "lines": 57,
+      "sha256": "796e33a2d222f2c2c1501b53927282ece8b43e5126bad13abcb0e3e0d6edecaa"
+    },
+    {
+      "path": "subs/harness/src/jobs/commands.ts",
+      "group": "harness-facade",
+      "bytes": 4447,
+      "lines": 103,
+      "sha256": "58f37ace4e4e255d33cc293569c7037b31876e40a97a3e1ed079dd790e52783d"
+    },
+    {
+      "path": "subs/harness/src/jobs/commit.ts",
+      "group": "harness-facade",
+      "bytes": 5380,
+      "lines": 126,
+      "sha256": "52546e58401d6bb6fdacf994f4362d995fb10abc9cd24f1c3514511dbdf20956"
+    },
+    {
+      "path": "subs/harness/src/jobs/mutex.ts",
+      "group": "harness-facade",
+      "bytes": 1191,
+      "lines": 34,
+      "sha256": "005d9bfe7880a785c09bda3c3cd93782ecc7ea4c6000d98b99c00da7e5f78d93"
+    },
+    {
+      "path": "subs/harness/src/jobs/records.ts",
+      "group": "harness-facade",
+      "bytes": 3866,
+      "lines": 100,
+      "sha256": "8cdadd420f334674b0e9943b9d00320eaf6c550ee069364d33fdd27bfa6d053e"
+    },
+    {
+      "path": "subs/harness/src/measurement/inputs.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6277,
+      "lines": 111,
+      "sha256": "bb748d08659440d3d0cf599994410d22adab8b6b74f3fe390e34285daa1a813d"
+    },
+    {
+      "path": "subs/harness/src/measurement/owners.ts",
+      "group": "autonomous-remainder",
+      "bytes": 1585,
+      "lines": 33,
+      "sha256": "8ed1e0dc790bc97c216ef545445ccae34b3e7a80e948232cc2fc1d8c26afd3e5"
+    },
+    {
+      "path": "subs/harness/src/nonfunctional/equipment.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 2440,
+      "lines": 46,
+      "sha256": "feef689039a4b9293f9130e111a595ed0384c03cef7506d6e31c04b5bcb4e70d"
+    },
+    {
+      "path": "subs/harness/src/nonfunctional/prompts.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 5574,
+      "lines": 61,
+      "sha256": "d26bfd66bf3e8ee21d5f80b45466bceb14f600ba6e2548dc2009881a6e7622f0"
+    },
+    {
+      "path": "subs/harness/src/nonfunctional/submissions.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 13718,
+      "lines": 210,
+      "sha256": "832aad2824ff3e3cdb05a94d605f7e019776448c97c22a7ab15cd1aafadd48c8"
+    },
+    {
+      "path": "subs/harness/src/plans/discover.ts",
+      "group": "harness-facade",
+      "bytes": 3044,
+      "lines": 77,
+      "sha256": "99753d02ce64bf98a4b6f292b4b6ae8980440aa726c70d2d9300db44a2eb8f35"
+    },
+    {
+      "path": "subs/harness/src/plans/title.ts",
+      "group": "harness-facade",
+      "bytes": 860,
+      "lines": 25,
+      "sha256": "84597d297e09cda3097c426ca603440aefcaa778520840bedf85f592b251e1f7"
+    },
+    {
+      "path": "subs/harness/src/prompts/blocks.ts",
+      "group": "task-execution-seed",
+      "bytes": 3774,
+      "lines": 88,
+      "sha256": "a49e02d33169fedaf87cf1c446e11f4590615aa4cc96ed30be8dbe20b5cda5f7"
+    },
+    {
+      "path": "subs/harness/src/prompts/briefings.ts",
+      "group": "task-execution-seed",
+      "bytes": 6463,
+      "lines": 95,
+      "sha256": "6fa03f303d35ca47cd7d5855caa9f85a6076c53ff0c3a50c691a76f42b2dcb82"
+    },
+    {
+      "path": "subs/harness/src/prompts/delivered-manifest.ts",
+      "group": "task-execution-seed",
+      "bytes": 3213,
+      "lines": 60,
+      "sha256": "34fb4d29e4d027f64cb53e4e77d7ea6a46a689e0d277f6d74859f77ba46657c5"
+    },
+    {
+      "path": "subs/harness/src/prompts/packages.ts",
+      "group": "autonomous-remainder",
+      "bytes": 36472,
+      "lines": 622,
+      "sha256": "cc9822ff2511cc60b243587eed604cddd3c584606994bb839f62bc0acebb95a9"
+    },
+    {
+      "path": "subs/harness/src/prompts/tasks.ts",
+      "group": "autonomous-remainder",
+      "bytes": 33083,
+      "lines": 409,
+      "sha256": "18e60a6186a6c201749448135d8410df24ec42dc1bd537146b772aec453be4bf"
+    },
+    {
+      "path": "subs/harness/src/qualification/live-session.ts",
+      "group": "autonomous-remainder",
+      "bytes": 21370,
+      "lines": 134,
+      "sha256": "a65cb7ff782cff23d4657d394b5d6b73063e13731789c48872238afa8c74a873"
+    },
+    {
+      "path": "subs/harness/src/qualification/trial-report.ts",
+      "group": "autonomous-remainder",
+      "bytes": 1205,
+      "lines": 18,
+      "sha256": "a54f18986d3ca604c30ce4491c381eee2d676265831ec8c6aa43e08edb89b2fb"
+    },
+    {
+      "path": "subs/harness/src/reviews/binding-evidence.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 1447,
+      "lines": 18,
+      "sha256": "9e67e1fa65b23299025b296e2708035def6620be0263b3859b499cfd14e93d31"
+    },
+    {
+      "path": "subs/harness/src/reviews/reconciliation-message.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 10146,
+      "lines": 167,
+      "sha256": "b8bf0cce1c3a218c0712675871aa811d3a1be4fc65bbda7396bb970c7fd95d38"
+    },
+    {
+      "path": "subs/harness/src/reviews/reconciliation.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 29302,
+      "lines": 552,
+      "sha256": "a66ff9860c1867145a9bd6e234fe9928e409338b6e5131f2b499dc1df2dfd414"
+    },
+    {
+      "path": "subs/harness/src/reviews/records.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 10354,
+      "lines": 215,
+      "sha256": "15cef398e674c7cbbfde85254b6275115f48695fae5c8afce50628e5d3a68299"
+    },
+    {
+      "path": "subs/harness/src/reviews/scheduler.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 12107,
+      "lines": 258,
+      "sha256": "df5847dbac53ccf1c434745a71ffd74fbef84ee07455a3180c585c29c0469de7"
+    },
+    {
+      "path": "subs/harness/src/reviews/signals.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 4977,
+      "lines": 86,
+      "sha256": "ea62c60624a80538896ec9604bc4acea90dc5679bd503176a84444e81f1f51dd"
+    },
+    {
+      "path": "subs/harness/src/reviews/state.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 5116,
+      "lines": 116,
+      "sha256": "60af4fe30c434236b37a4083e8238f2405853fb48382185b39b9bbff251fcacd"
+    },
+    {
+      "path": "subs/harness/src/run/after-handling.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 38300,
+      "lines": 661,
+      "sha256": "e427f0fd423e0f6dfcc2e9f0a332d1b88108494c2d1470a983d84d7b1b4ee936"
+    },
+    {
+      "path": "subs/harness/src/run/audit-workspaces.ts",
+      "group": "autonomous-remainder",
+      "bytes": 12147,
+      "lines": 248,
+      "sha256": "6607631925b7dd50d978b3a0b57f8b7ef9ad6085b27163d67a9a5e3d2e9303e5"
+    },
+    {
+      "path": "subs/harness/src/run/beads-sessions.ts",
+      "group": "autonomous-remainder",
+      "bytes": 17539,
+      "lines": 223,
+      "sha256": "c21e9e7a1e47ce715ac60125651e241c53b4061d3fcf09e26f349c55ffd445f0"
+    },
+    {
+      "path": "subs/harness/src/run/beads-storage.ts",
+      "group": "autonomous-remainder",
+      "bytes": 4656,
+      "lines": 67,
+      "sha256": "d2c38101f8b8943857e9ff86fe8f8cdc8921d5af28d961da557c3314dbb2ca03"
+    },
+    {
+      "path": "subs/harness/src/run/beads-tools.ts",
+      "group": "autonomous-remainder",
+      "bytes": 13211,
+      "lines": 154,
+      "sha256": "caa6aee75f4a2b8078c46e7998114546778572c97575d5f0ab9c2f2783f3ede8"
+    },
+    {
+      "path": "subs/harness/src/run/candidate-attribution.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2999,
+      "lines": 47,
+      "sha256": "b3135377b39b7c1b06aaeb3d835711ac9323a0f3eefa55a833964cb1ea2a5eec"
+    },
+    {
+      "path": "subs/harness/src/run/committed-history.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5134,
+      "lines": 86,
+      "sha256": "420aefb811aea3f19b9f525780b4b3c043cff5ea4ce5ea8ba593f686505f46ac"
+    },
+    {
+      "path": "subs/harness/src/run/committing-gate.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 60589,
+      "lines": 1023,
+      "sha256": "360e8a1edfcd048221e9003d284e655c0b34088b574f31e9b270e54dfd5f4421"
+    },
+    {
+      "path": "subs/harness/src/run/compaction-review.ts",
+      "group": "autonomous-remainder",
+      "bytes": 246,
+      "lines": 7,
+      "sha256": "4dbe1a9fc021fac5f0a2fca5cf44b435a6c5912b137601f11b4cfd84fa66b719"
+    },
+    {
+      "path": "subs/harness/src/run/document-inputs.ts",
+      "group": "autonomous-remainder",
+      "bytes": 4074,
+      "lines": 56,
+      "sha256": "2a38a7f61a5b110329a8e4d4c481b397a56f9ea6d1635c6336973bbe11efc5a9"
+    },
+    {
+      "path": "subs/harness/src/run/excursions.ts",
+      "group": "task-execution-seed",
+      "bytes": 3978,
+      "lines": 94,
+      "sha256": "7c2cb8912956a62af4842e68105eec80bd3d5e17c52c79508a9cd85369ce6ec1"
+    },
+    {
+      "path": "subs/harness/src/run/feature-files.ts",
+      "group": "autonomous-remainder",
+      "bytes": 12760,
+      "lines": 280,
+      "sha256": "e0532e611890ab0ea9b3adf88d7c9dfd8ea4b1ef311fba164030d4f88aebec9e"
+    },
+    {
+      "path": "subs/harness/src/run/final-correction.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 404,
+      "lines": 10,
+      "sha256": "023f6cad9187806599ee342dd68c11e37d787f94d0a3fdf39f354815e818e842"
+    },
+    {
+      "path": "subs/harness/src/run/gates.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 10567,
+      "lines": 202,
+      "sha256": "1a4c0640dad26b3afd17d223b5e8de031d6a4b1df33c40c08420f0f3fa0f4eb6"
+    },
+    {
+      "path": "subs/harness/src/run/inputs.ts",
+      "group": "autonomous-remainder",
+      "bytes": 7380,
+      "lines": 160,
+      "sha256": "99bcd24d4bb2a6e56aacf2ffadf999618da4ecb961a2dcc38a45b252d4c666b5"
+    },
+    {
+      "path": "subs/harness/src/run/log.ts",
+      "group": "autonomous-remainder",
+      "bytes": 51256,
+      "lines": 953,
+      "sha256": "7b053e8561df6eadb86f15a7f4713318a5ece2cb6d0c7890735256974b295e7b"
+    },
+    {
+      "path": "subs/harness/src/run/merge-readiness.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 8010,
+      "lines": 149,
+      "sha256": "f946e03b2359644d25068c1e7f79256b405fd2778f28ac331778ae80f359ccbe"
+    },
+    {
+      "path": "subs/harness/src/run/module-header.ts",
+      "group": "autonomous-remainder",
+      "bytes": 617,
+      "lines": 18,
+      "sha256": "b5eb2a36126b7cecb6146c96494612c1676ef9e71913ddc5df87cf90045a301f"
+    },
+    {
+      "path": "subs/harness/src/run/mutations.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6399,
+      "lines": 128,
+      "sha256": "8951c3ceea70c4a33d5ae49aaf13b13a36c307c83193f01990e7432b01041057"
+    },
+    {
+      "path": "subs/harness/src/run/nonfunctional-phase.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 16539,
+      "lines": 266,
+      "sha256": "4275db00953b044a95c646b9eb034f4ea12e435eef0edcf41fccb436ac853366"
+    },
+    {
+      "path": "subs/harness/src/run/nonfunctional-records.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 2604,
+      "lines": 51,
+      "sha256": "cd362b5d59c7e83dfb52af6c561d08132e270ecd15b4a829ba5635acfbf74c4c"
+    },
+    {
+      "path": "subs/harness/src/run/observations.ts",
+      "group": "task-execution-seed",
+      "bytes": 12321,
+      "lines": 250,
+      "sha256": "807d2cb07345a3fc424c8f3704a52d366358a280ebe84fb0888d1012e782908f"
+    },
+    {
+      "path": "subs/harness/src/run/pausable-deadline.ts",
+      "group": "task-execution-seed",
+      "bytes": 1669,
+      "lines": 54,
+      "sha256": "52c640d5806ad3028f4ea2ccbbc5aef7ff9bc7d8e60af05de4d53fef7a904a45"
+    },
+    {
+      "path": "subs/harness/src/run/policy.ts",
+      "group": "autonomous-remainder",
+      "bytes": 9878,
+      "lines": 231,
+      "sha256": "6269ae94e20d31e40bc70c71461e0aebac4daa4c38055ff266af359fb049aaf7"
+    },
+    {
+      "path": "subs/harness/src/run/port-events.ts",
+      "group": "task-execution-seed",
+      "bytes": 23978,
+      "lines": 430,
+      "sha256": "b52a1105881c687941b17b87539edb419b86732f388a7b17962fa30efe08d7b0"
+    },
+    {
+      "path": "subs/harness/src/run/project-config.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6848,
+      "lines": 156,
+      "sha256": "bf06d04d474bc6b951053d5d43176f923ce70e4f9e966c80d42aa1bc8f4751e0"
+    },
+    {
+      "path": "subs/harness/src/run/project-facts.ts",
+      "group": "autonomous-remainder",
+      "bytes": 13560,
+      "lines": 217,
+      "sha256": "63e7ff722be3580516f4858efd82928b573d4475eac2a337cd8429aa95cd9fb9"
+    },
+    {
+      "path": "subs/harness/src/run/readiness-commit.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6032,
+      "lines": 66,
+      "sha256": "d930d655ae258de1501c35dc182ab5c69ae0be94a37564f52323d0f8286fc054"
+    },
+    {
+      "path": "subs/harness/src/run/readiness.ts",
+      "group": "autonomous-remainder",
+      "bytes": 34627,
+      "lines": 601,
+      "sha256": "a9c878521e4e772d3878d9670815c98ce65578e71841e7a1bdb2932ae3bfbaf4"
+    },
+    {
+      "path": "subs/harness/src/run/records.ts",
+      "group": "autonomous-remainder",
+      "bytes": 59074,
+      "lines": 1129,
+      "sha256": "aee2dd3ac920e36890f747318308fc7f7d2e6ed3fe3ac2fe18f65fc2aaa361de"
+    },
+    {
+      "path": "subs/harness/src/run/recovery-admission.ts",
+      "group": "autonomous-remainder",
+      "bytes": 4433,
+      "lines": 61,
+      "sha256": "eba4b6d3f9f07f3a1ad7bb8388f12405d41349207f7e4f7a993dd95df48d8f33"
+    },
+    {
+      "path": "subs/harness/src/run/recovery-checks.ts",
+      "group": "autonomous-remainder",
+      "bytes": 4793,
+      "lines": 61,
+      "sha256": "ee423b3cc5e5cf0a28d9c199631213824cd6fc6b5f9db14043523fa9a6a661ae"
+    },
+    {
+      "path": "subs/harness/src/run/recovery-gate.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2474,
+      "lines": 29,
+      "sha256": "9cc73aba636bf65c7df55c9c29f2c6a661289d9dceb709594b196649b57672cf"
+    },
+    {
+      "path": "subs/harness/src/run/repair-export-command.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6005,
+      "lines": 84,
+      "sha256": "d8949d6874dadcb1201910fad57b5421351b15fd929660f26864c99cc93e45b2"
+    },
+    {
+      "path": "subs/harness/src/run/repair-export.ts",
+      "group": "autonomous-remainder",
+      "bytes": 9198,
+      "lines": 150,
+      "sha256": "d132c4a45a787820f9f66b00220f45540cc7b57c4eb6d644b77369e3e083b9e3"
+    },
+    {
+      "path": "subs/harness/src/run/repair-gate.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5641,
+      "lines": 76,
+      "sha256": "776533062fba3cce3882ad58a7ee9c1d1d50ca228140bd011c745ee029241c98"
+    },
+    {
+      "path": "subs/harness/src/run/repair-history.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6121,
+      "lines": 89,
+      "sha256": "dc7058b2adc3a00b61888fd9daf30a3e5c7db4bb4405448718dc7a436403ee8a"
+    },
+    {
+      "path": "subs/harness/src/run/repair-preparation.ts",
+      "group": "autonomous-remainder",
+      "bytes": 6776,
+      "lines": 103,
+      "sha256": "36f90569fc5e518d5ae51958dd71a7ee3dd3b959e60f3a88b619f8ef1a030d5d"
+    },
+    {
+      "path": "subs/harness/src/run/repair-records.ts",
+      "group": "autonomous-remainder",
+      "bytes": 495,
+      "lines": 7,
+      "sha256": "a92442b9f198db1464c72983670954c940a8aea528a005f3558c6d55431cc355"
+    },
+    {
+      "path": "subs/harness/src/run/restart-import.ts",
+      "group": "autonomous-remainder",
+      "bytes": 11046,
+      "lines": 132,
+      "sha256": "4a2f9f83eb215c39a4e601592d8398050fe76ba74d745f27ebf1e765077ec05a"
+    },
+    {
+      "path": "subs/harness/src/run/review-finish.ts",
+      "group": "autonomous/acceptance",
+      "bytes": 12184,
+      "lines": 233,
+      "sha256": "ffa7962c12bc94e357de71dae8e4bf759470c72c1c97fa144846141d87b55d22"
+    },
+    {
+      "path": "subs/harness/src/run/service.ts",
+      "group": "autonomous-remainder",
+      "bytes": 791608,
+      "lines": 12450,
+      "sha256": "fda6d342ca0946907adb9be192bdb408a41fcfcc3db27a42162c658ab78fbe7b"
+    },
+    {
+      "path": "subs/harness/src/run/session-operations.ts",
+      "group": "task-execution-seed",
+      "bytes": 46821,
+      "lines": 590,
+      "sha256": "d7ebfcf5c991d43d2474811c25124bd369821aac0140eea6748dc34e57b14bef"
+    },
+    {
+      "path": "subs/harness/src/run/session-store.ts",
+      "group": "session-store",
+      "bytes": 22651,
+      "lines": 406,
+      "sha256": "3fe434c609c50f76333525186dc40965b49fe41a6e80bf020d1b0df67c236ed1"
+    },
+    {
+      "path": "subs/harness/src/run/sessions.ts",
+      "group": "task-execution-seed",
+      "bytes": 12060,
+      "lines": 248,
+      "sha256": "323c08c1343fae3c08097121abf9c4fa7531df93a2b03a5ebb569fd9efc86289"
+    },
+    {
+      "path": "subs/harness/src/run/snapshot.ts",
+      "group": "autonomous-remainder",
+      "bytes": 11866,
+      "lines": 293,
+      "sha256": "6ad009ef2a31d8e4bbcd5a476b9e95941ad50e78d33151e5b3e283a9634b0cbd"
+    },
+    {
+      "path": "subs/harness/src/run/submissions.ts",
+      "group": "task-execution-seed",
+      "bytes": 7606,
+      "lines": 196,
+      "sha256": "1dfddc52093a210dcad4f77e536e7df876c0d1e5949a8d2d7b633d92253d21db"
+    },
+    {
+      "path": "subs/harness/src/run/task-brief.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5635,
+      "lines": 89,
+      "sha256": "60804990c343fc2b25373c05d487fdef01c2dca10c3e24bad8770966448136f5"
+    },
+    {
+      "path": "subs/harness/src/run/writer.ts",
+      "group": "task-execution-seed",
+      "bytes": 9967,
+      "lines": 222,
+      "sha256": "6e3365deb570f750f00ed06d98d9a7280101be5928fadf4e9ac73d56635c3ec4"
+    },
+    {
+      "path": "subs/harness/src/sessions/command.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2674,
+      "lines": 58,
+      "sha256": "8143bd7696f780214090a1d08785d2a1352f663033149d1731fca22ba1a12275"
+    },
+    {
+      "path": "subs/harness/src/sessions/single.ts",
+      "group": "autonomous-remainder",
+      "bytes": 36037,
+      "lines": 606,
+      "sha256": "8fbd5943dbced573a0e680f8f921b443f85556b38b697c1310cac56cf8fdd01a"
+    },
+    {
+      "path": "subs/harness/src/steps/after.ts",
+      "group": "autonomous-remainder",
+      "bytes": 34468,
+      "lines": 559,
+      "sha256": "e12bf6de6f81bd27cf4adcb87189531d93b57fe62ac8006f873d34f3d9e0a12b"
+    },
+    {
+      "path": "subs/harness/src/steps/agent.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2543,
+      "lines": 46,
+      "sha256": "8910b9c04249bd0fe0c456eb38022edcef0f7d6059c84be8a37cc2f4eeb104d6"
+    },
+    {
+      "path": "subs/harness/src/steps/assigned.ts",
+      "group": "autonomous-remainder",
+      "bytes": 13172,
+      "lines": 187,
+      "sha256": "f7473c32c2b39894741d105a4f3422fa3bad63834d167e676a2cf238ca50309e"
+    },
+    {
+      "path": "subs/harness/src/steps/authored.ts",
+      "group": "autonomous-remainder",
+      "bytes": 16925,
+      "lines": 266,
+      "sha256": "121facd7ca49668acdcf7f80e92e86281b3060552695bc6ff918ec9be3ff5d06"
+    },
+    {
+      "path": "subs/harness/src/steps/authoring.ts",
+      "group": "autonomous-remainder",
+      "bytes": 20908,
+      "lines": 327,
+      "sha256": "7ac8c49647dbf64fffa83cef0f1c9c04b126fa52fe445f352732b921dd6a8b2f"
+    },
+    {
+      "path": "subs/harness/src/steps/command.ts",
+      "group": "autonomous-remainder",
+      "bytes": 15885,
+      "lines": 261,
+      "sha256": "1c126cb97e0ae34789be8709c3469787f81efae0b493603eb4acfff830409af5"
+    },
+    {
+      "path": "subs/harness/src/steps/construct.ts",
+      "group": "autonomous-remainder",
+      "bytes": 2264,
+      "lines": 34,
+      "sha256": "520f55cf2dfea3ee714eebce5789d7a3fd9c03661aeb7106e8d6b7b00ba91df8"
+    },
+    {
+      "path": "subs/harness/src/steps/constructed.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5848,
+      "lines": 103,
+      "sha256": "802bffbefcdf3e6451f3b671ea8999dd22cb4caec9750568912c6c6929fa74a6"
+    },
+    {
+      "path": "subs/harness/src/steps/engineer.ts",
+      "group": "autonomous-remainder",
+      "bytes": 20627,
+      "lines": 323,
+      "sha256": "2c80d1fe19bd15398b5e564242d502afe549ea70c6e1698dae811448e0e89ff5"
+    },
+    {
+      "path": "subs/harness/src/steps/from-run.ts",
+      "group": "autonomous-remainder",
+      "bytes": 13757,
+      "lines": 204,
+      "sha256": "7961cb5d7b2f744a7f88882fd643b1e8a6e9b6903e9b12bd5bb0d7e33ead1e08"
+    },
+    {
+      "path": "subs/harness/src/steps/gate.ts",
+      "group": "autonomous-remainder",
+      "bytes": 27606,
+      "lines": 413,
+      "sha256": "eaceaba959cd7fd15eb5e3a07be5dfb4e557a21b1b12602ee2c1a0287f770633"
+    },
+    {
+      "path": "subs/harness/src/steps/inputs.ts",
+      "group": "autonomous-remainder",
+      "bytes": 31205,
+      "lines": 568,
+      "sha256": "2e22914ebb02c97a6fb48ebe9ccbb99de1fbe92cd01b7841c282830719b6e26e"
+    },
+    {
+      "path": "subs/harness/src/steps/local-architect.ts",
+      "group": "autonomous-remainder",
+      "bytes": 23695,
+      "lines": 345,
+      "sha256": "8bf0b6bb4af1ddaa8aabeecc688238e62a2ceaedbddcc70cd027109ca2ca63eb"
+    },
+    {
+      "path": "subs/harness/src/steps/manual-hosts.ts",
+      "group": "autonomous-remainder",
+      "bytes": 7911,
+      "lines": 153,
+      "sha256": "155fa905779baad0d4c185af479c25f6968e6819587859c8dcd40ad4df4e7333"
+    },
+    {
+      "path": "subs/harness/src/steps/manual.ts",
+      "group": "autonomous-remainder",
+      "bytes": 30921,
+      "lines": 514,
+      "sha256": "9e255b1e6c533272eac9f6829adfa40d7c907f2d1a78878e855eb205e24abfd2"
+    },
+    {
+      "path": "subs/harness/src/steps/render.ts",
+      "group": "autonomous-remainder",
+      "bytes": 7210,
+      "lines": 120,
+      "sha256": "e5a7a0b00d801839246d93ac3a9ce0ff8d46d7f57aac0bd870528724ec370434"
+    },
+    {
+      "path": "subs/harness/src/steps/review-step.ts",
+      "group": "autonomous-remainder",
+      "bytes": 19432,
+      "lines": 284,
+      "sha256": "8c36e63dbd32533939ff59387d512fb02e1db45931593a8bd2ac07e0eba62a1e"
+    },
+    {
+      "path": "subs/harness/src/steps/reviewer.ts",
+      "group": "autonomous-remainder",
+      "bytes": 9243,
+      "lines": 138,
+      "sha256": "ad36ef7e281719b187df9bce6a9200ef69e6dbda1871c5b4b9ff1c603b12d57d"
+    },
+    {
+      "path": "subs/harness/src/steps/run-text.ts",
+      "group": "autonomous-remainder",
+      "bytes": 5683,
+      "lines": 100,
+      "sha256": "4c344ff721da9285a856d5b4c498cf63e1f91fa9ab2516bf5a63b16ac815be70"
+    },
+    {
+      "path": "subs/harness/src/steps/run.ts",
+      "group": "autonomous-remainder",
+      "bytes": 42258,
+      "lines": 705,
+      "sha256": "4ac40d85a83fdf074cdd57a3116ebf7081a0efcce67bcf3df1b0a09decc20853"
+    },
+    {
+      "path": "subs/harness/src/steps/runner.ts",
+      "group": "task-execution-seed",
+      "bytes": 80761,
+      "lines": 1244,
+      "sha256": "c6a16d2e983ff9714754b73f76db2e573d12e39f83a248702f51aa37daaccee9"
+    },
+    {
+      "path": "subs/harness/src/store/lock.ts",
+      "group": "harness-facade",
+      "bytes": 6025,
+      "lines": 159,
+      "sha256": "66ec83741a1645341c65777ca415f6e6af78fbd7dfcf7c1859e890720acb004d"
+    },
+    {
+      "path": "subs/harness/src/store/state-directory.ts",
+      "group": "harness-facade",
+      "bytes": 2316,
+      "lines": 50,
+      "sha256": "d1faddad14f5abd32d4c09aad4d3428eb465d922f170f5a3ced0ffa12e8c9855"
+    },
+    {
+      "path": "subs/harness/src/tools/shell-tests.ts",
+      "group": "autonomous-remainder",
+      "bytes": 11156,
+      "lines": 198,
+      "sha256": "3b5ba44fa1dc599287a60e4a7fbbc9befb268f8e8c59a5264bcbfa31f8f77cb1"
+    },
+    {
+      "path": "subs/harness/src/tools/shell.ts",
+      "group": "autonomous-remainder",
+      "bytes": 19821,
+      "lines": 378,
+      "sha256": "9738daa4bdc72ce146bbd27a74aed6fea07a6c5e84f4e1abfb8629480d717ec7"
+    },
+    {
+      "path": "subs/harness/src/transcripts/pages.ts",
+      "group": "task-execution-seed",
+      "bytes": 6671,
+      "lines": 177,
+      "sha256": "60d08139c8a62c1fa71a57d19871f37a4673921509bd850f87ef6d9e469bf812"
+    },
+    {
+      "path": "subs/harness/src/transcripts/recorder.ts",
+      "group": "task-execution-seed",
+      "bytes": 14996,
+      "lines": 350,
+      "sha256": "47568de4f7d71d1251673e3feaa9fcaa51b8123c5efbcece39360310ccc98741"
+    },
+    {
+      "path": "subs/harness/src/transcripts/store.ts",
+      "group": "task-execution-seed",
+      "bytes": 2518,
+      "lines": 67,
+      "sha256": "fb73167313bb816dfb3430fdb7d59deea7f45bb8594ca8f15b1f249f38f63d04"
+    },
+    {
+      "path": "subs/harness/src/transcripts/writer.ts",
+      "group": "task-execution-seed",
+      "bytes": 12162,
+      "lines": 293,
+      "sha256": "bd19bed885864cc6d2dddbe2122a964efd367af66671f07b46af79dc60251cf7"
+    },
+    {
+      "path": "subs/harness/src/work/assignment.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 27834,
+      "lines": 541,
+      "sha256": "d4222ab0fad2a8d7877cc9ee2541a4d2f1a62e641e26f700ba682da7726479b8"
+    },
+    {
+      "path": "subs/harness/src/work/committed.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 12320,
+      "lines": 261,
+      "sha256": "91a6ecf82b0dfb848f3b196524e776d58f9d08659132db6ddce4f57d52e46f82"
+    },
+    {
+      "path": "subs/harness/src/work/engineer-directory.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 4912,
+      "lines": 77,
+      "sha256": "e4e50d82a78c73378478833d356bd18e0250ad07c2e8e04512779f14c95a2320"
+    },
+    {
+      "path": "subs/harness/src/work/engineer-equipment.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 31589,
+      "lines": 531,
+      "sha256": "384928b99e18ea076bab072ae38bf1e35f327440c7664ebacbf09f5ccf8b5f37"
+    },
+    {
+      "path": "subs/harness/src/work/engineer.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 33897,
+      "lines": 578,
+      "sha256": "1c1844e664b6ee2f993a82c0fe67f68a6106a1019022fb036d25b91f37fdaa8b"
+    },
+    {
+      "path": "subs/harness/src/work/failure.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 19366,
+      "lines": 384,
+      "sha256": "13c004d1fa9826376e8c33a4640f1766ae028e0fddc0aec1122e82972cb3abab"
+    },
+    {
+      "path": "subs/harness/src/work/feature-selection.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 2626,
+      "lines": 31,
+      "sha256": "24a759eec54f1328899081edafe9b69520e7933585a435579155c932749511d4"
+    },
+    {
+      "path": "subs/harness/src/work/focused-scenarios.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 3349,
+      "lines": 35,
+      "sha256": "0a81da840b25805f85057655658b1875876ee91d5e97bfca307105b30662aa7a"
+    },
+    {
+      "path": "subs/harness/src/work/frontier.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 2299,
+      "lines": 51,
+      "sha256": "0f5578e30c6bd0373438809cb535ba6d11615e03c313b2e6accbea99b1c5e98f"
+    },
+    {
+      "path": "subs/harness/src/work/git-inspection.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 1438,
+      "lines": 27,
+      "sha256": "3b5f7aad522f2d0b15b55c96d2c36bde2f23a6c3498404cda5658ca490306d96"
+    },
+    {
+      "path": "subs/harness/src/work/inherited-scope.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 4553,
+      "lines": 47,
+      "sha256": "39395e25e2fb83b0320cd1ede5f47133b2d3161136b61d22c956068f3f5c8423"
+    },
+    {
+      "path": "subs/harness/src/work/integration.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 6977,
+      "lines": 153,
+      "sha256": "d206458e16aa63cbf6f4d7f2e458abdca46bd25f97b85b0ab69d47d091475aea"
+    },
+    {
+      "path": "subs/harness/src/work/iterations.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 11362,
+      "lines": 243,
+      "sha256": "0aed57e22ff3101826f4a53555bb466b403430457becbd6ac0a85bfab8287415"
+    },
+    {
+      "path": "subs/harness/src/work/obligations.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 33999,
+      "lines": 707,
+      "sha256": "03baaa8341a7578e90036098eff5b69e7195d8e9d3deac0fad91777cdcb89872"
+    },
+    {
+      "path": "subs/harness/src/work/ownership-authority.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 11522,
+      "lines": 180,
+      "sha256": "248aeee8c0e6bd38bf7303fb32c045bd210e8caf419ae3f2c528e5bdb8b1a4f0"
+    },
+    {
+      "path": "subs/harness/src/work/records.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 5090,
+      "lines": 120,
+      "sha256": "0a77b5a8284012dc8da7e022b1b8b103fe4112609793187693dbfe5da9037b7f"
+    },
+    {
+      "path": "subs/harness/src/work/scenario-briefing.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 11611,
+      "lines": 210,
+      "sha256": "cf454f9faf07b1b3aa35422c687ce4f1ef246cf1baadc92bc52e3588ad6df00a"
+    },
+    {
+      "path": "subs/harness/src/work/scope.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 47683,
+      "lines": 803,
+      "sha256": "2cdab349ed1ba4a9c46327210fd5a1c2b501a9a746d14a10f02d62b8ef2325eb"
+    },
+    {
+      "path": "subs/harness/src/work/scratch.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 9727,
+      "lines": 199,
+      "sha256": "f94bd541bdd1ddc7c768600d5c1fc9900daa2c2df3403be216bb77e1ff37340f"
+    },
+    {
+      "path": "subs/harness/src/work/session.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 50615,
+      "lines": 819,
+      "sha256": "a35d614afbeacdf7d8b3db437e6641e0ce749f99c673879316d7b54f7d5a26c0"
+    },
+    {
+      "path": "subs/harness/src/work/starting-inputs.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 6683,
+      "lines": 104,
+      "sha256": "eef668af9848e12fecd26ede9d406d73ec0fda9455dad69f98a9ca2288452408"
+    },
+    {
+      "path": "subs/harness/src/work/starting-points.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 933,
+      "lines": 16,
+      "sha256": "4f6c928fc6517552b60a1d0e5ac98d15d213d5367acac7c7b33bcb1d76af2118"
+    },
+    {
+      "path": "subs/harness/src/work/submission.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 21864,
+      "lines": 430,
+      "sha256": "4fc51c6b7d1d44ed978b4a6b3ae20b540660810e96634d7c8a35fbee658010a7"
+    },
+    {
+      "path": "subs/harness/src/work/task-support.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 2773,
+      "lines": 50,
+      "sha256": "af22ca2c2497759c4dd02b6d2fbdfccc4b06dd50a93579cecff9a5c0538e01d9"
+    },
+    {
+      "path": "subs/harness/src/work/view-inputs.ts",
+      "group": "autonomous/work-coordination",
+      "bytes": 2760,
+      "lines": 31,
+      "sha256": "74a1488178afc44ee8e86fd966750c8d78e1a51bb4c5afb6b7bbeda54d6c99e7"
+    }
+  ]
+}
