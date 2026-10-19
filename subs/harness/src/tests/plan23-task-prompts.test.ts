@@ -9,11 +9,11 @@ import { buildTaskPacket, deliveredSupportPaths, renderRequiredSlots, stableRole
 import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
 import { briefingAdditionKey, buildBriefingDelivery, taskBriefingRevision, type BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
-import { boundsErrors } from '../work/assignment.js';
+import { boundsErrors } from '../../subs/autonomous/src/work/assignment.js';
 import { buildDeliveredManifest, exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
-import { workOrientationMessage } from '../context-selection/prompts.js';
-import { repairPrompt } from '../nonfunctional/prompts.js';
-import { qualificationActionSchema } from '../capability/submission.js';
+import { workOrientationMessage } from '../../subs/autonomous/src/context-selection/prompts.js';
+import { repairPrompt } from '../../subs/autonomous/src/nonfunctional/prompts.js';
+import { qualificationActionSchema } from '../../subs/autonomous/src/capability/submission.js';
 import { engineerDeliveries, stepDeliveries } from './helpers/step-equality.js';
 import { repairContinuationRun } from './helpers/repair-run.js';
 

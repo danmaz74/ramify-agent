@@ -16,7 +16,7 @@ import { ProjectionError, runView, type CommittedRun } from '../inputs.js';
 import { RunQueries } from '../queries.js';
 import { snapshotOf } from '../snapshot.js';
 import { defaultReviewPolicy } from '../../../../src/run/policy.js';
-import { reviewPolicyVersion, type RunPolicy } from '../../../../src/run/records.js';
+import { reviewPolicyVersion, type RunPolicy } from '../../../autonomous/src/run/records.js';
 import { concern, decision, dispose, failure, producerCause, report } from '../../../../src/tests/helpers/check-findings.js';
 import { constructedRecord, constructedRun, runId, type Line } from '../../../../src/tests/helpers/constructed.js';
 

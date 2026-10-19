@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import type { Script } from '../../subs/agent/src/scripted.js';
-import { readAcceptedEvidence } from '../analysis/evidence.js';
-import type { CapabilityRequest } from '../capability/records.js';
-import { readRecordedContextSelection } from '../context-selection/recorded.js';
-import { runLayout, runRecordSchema, type InvocationOutcome } from '../run/records.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
+import type { CapabilityRequest } from '../../subs/autonomous/src/capability/records.js';
+import { readRecordedContextSelection } from '../../subs/autonomous/src/context-selection/recorded.js';
+import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/records.js';
+import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
@@ -136,7 +137,7 @@ test.each([
 
   const directory = runPath(fixture.root, 'need', receipt.jobId, '');
   const run = runRecordSchema.parse(JSON.parse(await readFile(runPath(fixture.root, 'need', receipt.jobId, runLayout.record), 'utf8')));
-  const evidence = await readAcceptedEvidence(directory, run, events);
+  const evidence = await readAcceptedEvidence(directory, run.manifest, acceptedAnalysisReferences(events));
   if (evidence.status !== 'available') throw new Error(evidence.reason);
   const selection = events.find(event => event.type === 'context-selection-recorded');
   if (selection?.type !== 'context-selection-recorded') throw new Error('Parent package was not selected');

@@ -6,7 +6,7 @@ import { guardedScopeOf, type WriteScope } from '../work/scope.js';
 import { decideWrite } from '../guard/write-guard.js';
 import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownership-authority.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
-import { RunLog } from '../run/log.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { decodeOwnershipEvidenceAnswer, OwnershipUnavailableError, type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 vi.unmock('../../subs/ledger/src/session-store.js');

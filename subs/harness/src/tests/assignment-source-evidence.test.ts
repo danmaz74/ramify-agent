@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { contractMessage } from '../contracts/session.js';
-import { assignmentErrors } from '../work/assignment.js';
-import { iterationMessage } from '../work/engineer.js';
-import type { IterationAssignment } from '../work/iterations.js';
-import { validateLocalArchitect } from '../work/submission.js';
+import { contractMessage } from '../../subs/autonomous/src/contracts/session.js';
+import { assignmentErrors } from '../../subs/autonomous/src/work/assignment.js';
+import { iterationMessage } from '../../subs/autonomous/src/work/engineer.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { validateLocalArchitect } from '../../subs/autonomous/src/work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 
 const assignment = {

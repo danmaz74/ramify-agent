@@ -1,9 +1,9 @@
-import { localArchitectToolName } from '../work/submission.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { MaterializeResult } from '../../subs/evidence/src/ramify-cli.js';
 import type { Script } from '../../subs/agent/src/scripted.js';
 import { copyFixture } from './helpers/fixture.js';

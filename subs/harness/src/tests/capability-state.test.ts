@@ -1,13 +1,13 @@
 import { defaultRunPolicy } from '../run/policy.js';
 import { describe, expect, it } from 'vitest';
-import { runEvent, type RunEventInput } from '../run/log.js';
+import { runEvent, type RunEventInput } from '../../subs/autonomous/src/run/log.js';
 import {
   canAssignCapabilityTask, capabilityHandbackReadiness, isCapabilityEvent, replayCapabilityState,
   transitionCapabilityState, type CapabilityEvent,
-} from '../capability/state.js';
+} from '../../subs/autonomous/src/capability/state.js';
 import { fixturePlan, fixtureRequest, fixtureTask } from './helpers/capability.js';
-import { canStartInvocation, capabilityPolicyFrom, captureCapabilityLimits } from '../capability/policy.js';
-import type { RunPolicy } from '../run/records.js';
+import { canStartInvocation, capabilityPolicyFrom, captureCapabilityLimits } from '../../subs/autonomous/src/capability/policy.js';
+import type { RunPolicy } from '../../subs/autonomous/src/run/records.js';
 
 const event = (sequence: number, input: RunEventInput): CapabilityEvent => {
   const built = runEvent('job-001', sequence, input, new Date('2026-09-28T00:00:00.000Z'));

@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { candidateModuleIndex } from '../../subs/reviews/src/signals.js';
-import { parseModuleHeader } from '../run/module-header.js';
+import { parseModuleHeader } from '../../subs/autonomous/src/run/module-header.js';
 import { moduleTestAreas } from '../run/project-config.js';
 import { openCandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import { scriptedCandidates } from './helpers/candidates.js';

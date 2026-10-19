@@ -5,15 +5,15 @@ import type { Script, ScriptStep, ScriptedAgent } from '../../subs/agent/src/scr
 import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { createPackage, type SubmittedElement } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import { readAcceptedEvidence } from '../analysis/evidence.js';
-import { intakeToolName } from '../analysis/extraction.js';
-import { contextSelectorToolName, workOrientationToolName } from '../context-selection/submissions.js';
-import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
-import type { RunEvent, RunEventOf } from '../run/log.js';
-import { readRecordedContextSelection } from '../context-selection/recorded.js';
-import { withSelectionReasons } from '../run/service.js';
-import { runLayout, runRecordSchema } from '../run/records.js';
-import { iterationAssignmentSchema, iterationLayout } from '../work/iterations.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
+import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/src/context-selection/submissions.js';
+import { coordinatorAssessmentToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import type { RunEvent, RunEventOf } from '../../subs/autonomous/src/run/log.js';
+import { readRecordedContextSelection } from '../../subs/autonomous/src/context-selection/recorded.js';
+import { withSelectionReasons } from '../../subs/autonomous/src/run/service.js';
+import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/records.js';
+import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
@@ -59,7 +59,7 @@ function selectingAfterLoss(agent: () => ScriptedAgent, ids: readonly string[], 
 async function assignmentPackage(root: string, jobId: string, events: readonly RunEvent[], workItem: string, sequence: number) {
   const directory = runPath(root, 'revision-diff', jobId, '');
   const run = runRecordSchema.parse(JSON.parse(await readFile(runPath(root, 'revision-diff', jobId, runLayout.record), 'utf8')));
-  const evidence = await readAcceptedEvidence(directory, run, events);
+  const evidence = await readAcceptedEvidence(directory, run.manifest, acceptedAnalysisReferences(events));
   if (evidence.status !== 'available') throw new Error(evidence.reason);
   const assignment = iterationAssignmentSchema.parse(JSON.parse(await readFile(join(directory, iterationLayout.assignment(workItem, sequence)), 'utf8')));
   const rendered = createPackage({ catalog: evidence.catalog, planDeviations: [], elements: assignment.source!.elements, deviations: assignment.source!.deviations });

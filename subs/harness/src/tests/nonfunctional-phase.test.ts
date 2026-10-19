@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { LedgerEntry, RecordBody } from '../../subs/ledger/src/ledger.js';
-import type { RunEvent } from '../run/log.js';
-import { runEventSchema } from '../run/log.js';
-import { runLayout } from '../run/records.js';
-import { replayNonfunctionalPhase } from '../run/nonfunctional-phase.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { runEventSchema } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { replayNonfunctionalPhase } from '../../subs/autonomous/src/run/nonfunctional-phase.js';
 import { decideNonfunctionalRound } from '../../subs/nonfunctional/src/rounds.js';
-import { workLayout } from '../work/records.js';
+import { workLayout } from '../../subs/autonomous/src/work/records.js';
 
 const oid = (character: string) => character.repeat(40);
 const hash = 'e'.repeat(64);

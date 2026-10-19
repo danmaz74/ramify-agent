@@ -7,11 +7,11 @@ import type { RunFailureReason } from '../interfaces/protocol/runs.js';
 import { canonicalJson } from '../jobs/commands.js';
 import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js';
 import { sha256 } from '../prompts/packages.js';
-import { AfterHandling } from '../run/after-handling.js';
-import { CommittingGates } from '../run/committing-gate.js';
-import { trackedScenarios } from '../run/feature-files.js';
-import type { RunEvent, RunEventInput, RunLog } from '../run/log.js';
-import { runLayout } from '../run/records.js';
+import { AfterHandling } from '../../subs/autonomous/src/run/after-handling.js';
+import { CommittingGates } from '../../subs/autonomous/src/run/committing-gate.js';
+import { trackedScenarios } from '../../subs/autonomous/src/run/feature-files.js';
+import type { RunEvent, RunEventInput, RunLog } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { ManualRun } from './manual.js';
 
 /*

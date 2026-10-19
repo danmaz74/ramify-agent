@@ -1,5 +1,5 @@
 import type { LineageMetric, Role } from '../../../src/interfaces/protocol/runs.js';
-import { replaceReasonSchema, type ContinueReason, type DegradeRelation, type ReplaceRelation } from '../../../src/run/records.js';
+import { replaceReasonSchema, type ContinueReason, type DegradeRelation, type ReplaceRelation } from '../../task-execution/src/records.js';
 
 export const lineagePolicyVersion: 'lineage/2' = 'lineage/2';
 export type StartKind = 'fresh' | 'continue' | 'fork';

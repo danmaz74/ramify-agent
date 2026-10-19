@@ -10,21 +10,14 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
-import { moduleTreeResponseSchema } from '../interfaces/protocol/evidence.js';
+
 import { commandResponseSchema } from '../interfaces/protocol/jobs.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
-import {
-  analysisResponseSchema, capabilityListResponseSchema, decisionListResponseSchema, gateResponseSchema,
-  metricsResponseSchema, moduleCapabilityComparisonResponseSchema, runEventPageSchema, runListResponseSchema, runQueryLimits, runResponseSchema,
-  workItemListResponseSchema, workItemResponseSchema,
-  type ProjectedRunEvent, type RunSnapshot,
-} from '../interfaces/protocol/runs.js';
+import { analysisResponseSchema, capabilityListResponseSchema, decisionListResponseSchema, gateResponseSchema, metricsResponseSchema, runEventPageSchema, runListResponseSchema, runResponseSchema, workItemListResponseSchema, workItemResponseSchema, type ProjectedRunEvent, type RunSnapshot } from '../interfaces/protocol/runs.js';
 import { startServerWith, type RunningServer } from '../http/server.js';
-import { terminalRunEvents } from '../run/log.js';
+import { terminalRunEvents } from '../../subs/autonomous/src/run/log.js';
 import { treeInputs } from './helpers/iterations.js';
-import {
-  draftsDirectory, drafts, fileHashes, notes, outsidePath, protocolPolicy, protocolScript, protocolTarget,
-} from './helpers/protocol.js';
+import { draftsDirectory, drafts, notes, outsidePath, protocolPolicy, protocolScript, protocolTarget } from './helpers/protocol.js';
 import {
   emptyAnalysis, installTestRunner, openRuns as openRealRuns, runEventsOnDisk, runPath, startRun, testPolicy, unscriptedChangeHistory, until,
 } from './helpers/runs.js';
@@ -32,7 +25,7 @@ import { copyFixture } from './helpers/fixture.js';
 import { fixtureScratchGit } from './helpers/mock-git.js';
 import { acquireProjectLock } from '../store/lock.js';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 
 /*

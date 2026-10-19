@@ -1,5 +1,5 @@
-import { runRecordSchema } from '../../../../../src/run/records.js';
-import { runEventSchema } from '../../../../../src/run/log.js';
+import { runRecordSchema } from '../../../../autonomous/src/run/records.js';
+import { runEventSchema } from '../../../../autonomous/src/run/log.js';
 import type { CommittedRun } from '../../inputs.js';
 import type { RunSource } from '../../queries.js';
 

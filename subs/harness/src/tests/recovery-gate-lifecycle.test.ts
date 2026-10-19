@@ -11,7 +11,7 @@ import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { commandResult } from './helpers/command-result.js';
 import { gateDiagnostics } from '../checks/diagnostics.js';
-import { gateAttemptSchema, runLayout } from '../run/records.js';
+import { gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });

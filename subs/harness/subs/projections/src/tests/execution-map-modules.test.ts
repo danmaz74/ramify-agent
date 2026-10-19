@@ -6,8 +6,9 @@ import type { ModuleTree } from '../../../../src/interfaces/protocol/evidence.js
 import { executionModuleMapSchema } from '../../../../src/interfaces/protocol/execution-map.js';
 import { capturedLinesOf, executionModuleMapOf } from '../execution-modules.js';
 import { currentLifecycleEvents, runView } from '../inputs.js';
-import { invocationSchema, lineEventSummarySchema, runLayout } from '../../../../src/run/records.js';
-import { iterationAssignmentSchema } from '../../../../src/work/iterations.js';
+import { lineEventSummarySchema, runLayout } from '../../../autonomous/src/run/records.js';
+import { invocationSchema } from '../../../task-execution/src/records.js';
+import { iterationAssignmentSchema } from '../../../autonomous/src/work/iterations.js';
 import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 import { executionMapFixtureNodes, executionMapFixturePage } from './helpers/execution-map-fixture.js';
 

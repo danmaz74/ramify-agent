@@ -6,7 +6,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { dirname, join, relative, sep } from 'node:path';
 import { classifyShellTestRun, isInspectableShellCheck, shellTestDirectories, type FocusedCucumberSelection } from './shell-tests.js';
-import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type MutationOrder, type MutationSnapshot } from '../hooks/mutation-order.js';
+import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type MutationOrder, type HookMutationSnapshot as MutationSnapshot } from '../hooks/mutation-order.js';
 
 /*
  * The module engineer's shell.

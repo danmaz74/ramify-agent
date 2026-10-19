@@ -6,13 +6,13 @@ import type { SessionExecutionBindings, SessionStore, SessionOperationDriver, Se
 import { loadPromptPackages } from '../../prompts/packages.js';
 import { createSessionOperations } from '../../../subs/agent/src/session-operations.js';
 import { defaultRunPolicy } from '../../run/policy.js';
-import { RunLog } from '../../run/log.js';
+import { RunLog } from '../../../subs/autonomous/src/run/log.js';
 import { readSessionPointReference } from '../../../subs/task-execution/src/session-operations.js';
 import { WriterOwnership } from '../../../subs/task-execution/src/writer.js';
 import { ManualRun, manualRunner } from '../../steps/manual.js';
 import { kept } from '../../../subs/task-execution/src/results.js';
 import { type InvocationRequest } from '../../steps/runner.js';
-import { composeTaskBrief } from '../../run/task-brief.js';
+import { composeTaskBrief } from '../../../subs/autonomous/src/run/task-brief.js';
 import { consultationTool } from '../../consultations/tools.js';
 import type { TaskEnvironment } from '../../../subs/task-execution/src/delivery/packet.js';
 import type { ConsultationTarget } from '../../consultations/targets.js';

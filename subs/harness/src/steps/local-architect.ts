@@ -1,35 +1,36 @@
 import { join } from 'node:path';
 import { consultArchitectDeclaration } from '../consultations/submissions.js';
 import { consultationAvailability, consultationContext } from '../consultations/targets.js';
-import { contextSelectorMessage, workOrientationMessage } from '../context-selection/prompts.js';
+import { contextSelectorMessage, workOrientationMessage } from '../../subs/autonomous/src/context-selection/prompts.js';
 import {
   contextSelectorJsonSchema, contextSelectorSubmissionSchema, contextSelectorToolName, prepareContextSelection, workOrientationJsonSchema,
   workOrientationSubmissionSchema, workOrientationToolName, type ContextSelectorSubmission, type SelectionIdentity, type SelectionSource,
   type WorkOrientationSubmission,
-} from '../context-selection/submissions.js';
+} from '../../subs/autonomous/src/context-selection/submissions.js';
 import { findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { deliveredSupportPaths, type TaskKind } from '../prompts/tasks.js';
 import { renderContextSelectorPrompt, renderLocalArchitectPrompt, renderWorkOrientationPrompt } from '../prompts/packages.js';
 import { invocationLimits } from '../run/policy.js';
-import { runDirectory, runLayout, type ContinueReason, type ForkRelation } from '../run/records.js';
+import { runDirectory, runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type ContinueReason, type ForkRelation } from '../../subs/task-execution/src/records.js';
 import { validateAgainst, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
-import { composeTaskBrief } from '../run/task-brief.js';
-import { creationAuthority, type AssignmentBody } from '../work/assignment.js';
-import { refOf } from '../work/committed.js';
-import { createGitInspectionTool } from '../work/git-inspection.js';
-import type { Hypothesis, RegistryEntry } from '../analysis/records.js';
-import type { PlacementDecision } from '../architecture/records.js';
-import type { Obligation } from '../work/obligations.js';
+import { composeTaskBrief } from '../../subs/autonomous/src/run/task-brief.js';
+import { creationAuthority, type AssignmentBody } from '../../subs/autonomous/src/work/assignment.js';
+import { refOf } from '../../subs/autonomous/src/work/committed.js';
+import { createGitInspectionTool } from '../../subs/autonomous/src/work/git-inspection.js';
+import type { Hypothesis, RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
+import type { PlacementDecision } from '../../subs/autonomous/src/architecture/records.js';
+import type { Obligation } from '../../subs/autonomous/src/work/obligations.js';
 import { type WriteScope } from '../work/scope.js';
-import { checkContinuationScope } from '../work/inherited-scope.js';
-import type { IterationAssignment } from '../work/iterations.js';
-import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../work/session.js';
-import type { StartingPointGroup } from '../work/starting-inputs.js';
+import { checkContinuationScope } from '../../subs/autonomous/src/work/inherited-scope.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../../subs/autonomous/src/work/session.js';
+import type { StartingPointGroup } from '../../subs/autonomous/src/work/starting-inputs.js';
 import {
   capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unreportedByCompletion, validateLocalArchitect,
   type LocalArchitectSubmission, type WorkEvidence,
-} from '../work/submission.js';
+} from '../../subs/autonomous/src/work/submission.js';
 import { architectViews, knownFacts, loadedPackage, projectLocation, runLocation, type ConstructedStepCommon } from './constructed.js';
 import type { StepEnvironment } from './engineer.js';
 import {

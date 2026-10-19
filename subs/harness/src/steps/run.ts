@@ -12,21 +12,22 @@ import { readCommittedAuditConfiguration } from '../../subs/audit/src/check-exec
 import { isContained } from '../guard/resolve-contained-path.js';
 import { canonicalJson } from '../jobs/commands.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { architectRunInputs } from '../run/inputs.js';
+import { architectRunInputs } from '../../subs/autonomous/src/run/inputs.js';
 import { defaultRunPolicy, withProjectTimeouts } from '../run/policy.js';
 import { captureProjectConfig, declaredModuleDirectories } from '../run/project-config.js';
-import { invocationOutcomeSchema, runLayout, type InvocationOutcome } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { invocationOutcomeSchema, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
-import { committedRecords } from '../work/committed.js';
-import { iterationAcceptance, validateEngineerWithOwnership, type EngineerSubmission } from '../work/engineer.js';
-import { engineerEquipment } from '../work/engineer-equipment.js';
-import { engineerWorkingDirectory } from '../work/engineer-directory.js';
-import { createGitInspectionTool } from '../work/git-inspection.js';
+import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
+import { iterationAcceptance, validateEngineerWithOwnership, type EngineerSubmission } from '../../subs/autonomous/src/work/engineer.js';
+import { engineerEquipment } from '../../subs/autonomous/src/work/engineer-equipment.js';
+import { engineerWorkingDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
+import { createGitInspectionTool } from '../../subs/autonomous/src/work/git-inspection.js';
 import { protectedScopeOf } from '../work/scope.js';
-import { ensureScratchRule, removeScratchDirectories, trackedScratchPaths } from '../work/scratch.js';
-import { prepareAssignedCucumber } from '../work/session.js';
+import { ensureScratchRule, removeScratchDirectories, trackedScratchPaths } from '../../subs/autonomous/src/work/scratch.js';
+import { prepareAssignedCucumber } from '../../subs/autonomous/src/work/session.js';
 import { constructStep, freshFallback } from './construct.js';
 import { constructEngineerStep } from './engineer.js';
 import { parseStepInputs, StepInputsError, validateStepInputs, type StepInputs } from './inputs.js';
@@ -35,7 +36,7 @@ import { manualRunLocationOf, manualRunner, openManualRun, recordAuthoredInputs,
 import { constructDesignOrientationStep } from './reviewer.js';
 import { prepareManualReview, ReviewRefusal, type ManualReview } from './review-step.js';
 import { committedBody, type InvocationRequest, type InvocationRunner } from './runner.js';
-import { finished, kept, type InvocationProgress, type InvocationResult } from '../../subs/task-execution/src/results.js';
+import { finished, kept, type InvocationResult } from '../../subs/task-execution/src/results.js';
 
 /*
  * `step run`: one invocation of one role, built from its step inputs by the

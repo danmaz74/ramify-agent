@@ -15,8 +15,8 @@ import {
   type RunSessionView, type SessionCursor, type SessionRef,
 } from '../interfaces/protocol/sessions.js';
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
-import { runLayout } from '../run/records.js';
-import { reduceSessions } from '../run/sessions.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
 import { historicalSessionLayout } from '../../subs/projections/src/tests/helpers/historical-session-layout.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';

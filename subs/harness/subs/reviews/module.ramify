@@ -18,3 +18,7 @@ expose-src ReviewQueue, ReviewQueueOptions from "scheduler.ts" to parent
 expose-src PacketRequest, ReconciliationFacts, ReconciliationFactsContent, reconciliationFactsMessage from "reconciliation-message.ts" to parent
 expose-src AttentionEntry, BoundReconciliation, ExecutionReconciliationContext, ReconciliationAction, ReconciliationNext, ReconciliationSubmission, boundReconciliationConflictsSchema, needsDisposition, nextOf, reconciliationActionSchema, reconciliationJsonSchema, reconciliationSubmissionDescription, reconciliationSubmissionSchema, reconciliationToolName, validateReconciliationForExecution from "reconciliation.ts" to parent
 expose-src GroundProvenance, candidateModuleIndex, concernModules, groundCredibility from "signals.ts" to parent
+expose-src ReviewSubmission from "interfaces/submissions.ts" to parent
+expose-src reviewSubmissionSchema from "interfaces/submissions.ts" to parent
+expose-src OrientationSubmission from "interfaces/submissions.ts" to parent
+expose-src orientationSubmissionSchema from "interfaces/submissions.ts" to parent

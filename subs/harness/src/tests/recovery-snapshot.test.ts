@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { runSnapshotSchema } from '../interfaces/protocol/runs.js';
-import { runSnapshot } from '../run/snapshot.js';
+import { runSnapshot } from '../../subs/autonomous/src/run/snapshot.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import type { CommittedRun } from '../../subs/projections/src/inputs.js';
 import { constructedRecord, constructedRun, type Line } from './helpers/constructed.js';

@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import { checkFindingIdSchema } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import { sha256Schema } from '../interfaces/protocol/evidence.js';
-import { reviewKindSchema, reviewPolicyVersion, sessionIdSchema } from '../run/records.js';
+import { reviewKindSchema, reviewPolicyVersion } from '../../subs/autonomous/src/run/records.js';
+import { sessionIdSchema } from '../../subs/task-execution/src/records.js';
 import { packageCitationSchema } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 
 export { reviewGroundSchema, reviewConcernSchema, reviewSubmissionSchema, orientationSubmissionSchema } from '../../subs/reviews/src/interfaces/submissions.js';

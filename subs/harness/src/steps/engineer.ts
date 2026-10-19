@@ -1,4 +1,4 @@
-import { featureSelectionErrors } from '../work/feature-selection.js';
+import { featureSelectionErrors } from '../../subs/autonomous/src/work/feature-selection.js';
 import { consultArchitectDeclaration } from '../consultations/submissions.js';
 import { consultationAvailability, consultationContext, type ConsultationInputs } from '../consultations/targets.js';
 import { join } from 'node:path';
@@ -6,27 +6,27 @@ import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import type { HookSubmissionPolicy } from '../hooks/post-write.js';
 import { deliveredSupportPaths } from '../prompts/tasks.js';
 import { renderEngineerPrompt, type LoadedPackage } from '../prompts/packages.js';
-import type { RunPolicy } from '../run/records.js';
+import type { RunPolicy } from '../../subs/autonomous/src/run/records.js';
 import { invocationLimits } from '../run/policy.js';
 import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
-import { composeTaskBrief, type KnownProjectFacts } from '../run/task-brief.js';
+import { composeTaskBrief, type KnownProjectFacts } from '../../subs/autonomous/src/run/task-brief.js';
 import { shellToolDeclaration } from '../tools/shell.js';
 import {
   capabilityEngineerJsonSchema, engineerJsonSchema, engineerSubmissionDescription, engineerToolName, focusedCommandPendingNote, iterationMessage,
   type EngineerEvidence, type IterationApiViews,
-} from '../work/engineer.js';
-import { engineerBuiltinTools } from '../work/engineer-equipment.js';
-import { focusedScenarioFacts } from '../work/session.js';
-import type { StartingPointGroup } from '../work/starting-inputs.js';
+} from '../../subs/autonomous/src/work/engineer.js';
+import { engineerBuiltinTools } from '../../subs/autonomous/src/work/engineer-equipment.js';
+import { focusedScenarioFacts } from '../../subs/autonomous/src/work/session.js';
+import type { StartingPointGroup } from '../../subs/autonomous/src/work/starting-inputs.js';
 import { knownFacts, knownFactsInputs } from './constructed.js';
 import { projectPath, validateEngineerInputs, validateStepInputs, type EngineerStepInputs, type ProjectPath } from './inputs.js';
 import type { EngineerBounds } from '../run/policy.js';
 import type { TestArea } from '../run/project-config.js';
-import type { AssignedObligation } from '../work/engineer.js';
-import type { IterationAssignment } from '../work/iterations.js';
-import type { WorkItem } from '../work/records.js';
-import type { EngineerScenarios } from '../work/scenario-briefing.js';
-import type { prepareAssignedCucumber } from '../work/session.js';
+import type { AssignedObligation } from '../../subs/autonomous/src/work/engineer.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
+import type { EngineerScenarios } from '../../subs/autonomous/src/work/scenario-briefing.js';
+import type { prepareAssignedCucumber } from '../../subs/autonomous/src/work/session.js';
 
 /*
  * The module engineer step: one engineer invocation of an iteration, built from its

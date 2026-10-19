@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -12,14 +12,14 @@ import { copyFixture, temporaryDirectory } from './helpers/fixture.js';
 import {
   assign, byRole, failureAnalystFake, outline, partialReport, shell, submit, treeInputs, type Turn,
 } from './helpers/iterations.js';
-import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy } from './helpers/runs.js';
+import { installTestRunner, onlyRun, runPath, startRun, testPolicy } from './helpers/runs.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unchanged-run.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import { runLayout, type RunPolicy } from '../run/records.js';
+import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { type RunPolicy } from '../../subs/autonomous/src/run/records.js';
 import { engineerBoundsOf } from '../run/policy.js';
 import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
-import { validateLocalArchitect, type LocalArchitectSubmission } from '../work/submission.js';
+import { validateLocalArchitect, type LocalArchitectSubmission } from '../../subs/autonomous/src/work/submission.js';
 import { createShellTool, shellToolName } from '../tools/shell.js';
 
 /*

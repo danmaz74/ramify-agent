@@ -1,14 +1,15 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { mkdir, readdir, readFile } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AgentEvent, AgentPort } from '../../subs/agent/src/interfaces/port.js';
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { observationSchema } from '../../subs/task-execution/src/observations.js';
-import { runLayout, invocationSchema, type InvocationOutcome } from '../run/records.js';
-import { reduceSessions } from '../run/sessions.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { invocationSchema, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
+import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { readBody, readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { copyFixture } from './helpers/fixture.js';

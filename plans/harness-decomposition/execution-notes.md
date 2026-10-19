@@ -24,11 +24,11 @@ Iteration 1 (session-store) is accepted for continuing under this user-authorize
 
 Iteration 2 is accepted at `0297b979be5378faca81834655ef02a4aaf77e94`: 180 focused tests, type-check, structural and patch checks passed; one native source review by `/root/review_assistance` found no substantive issues. No RA assessment was launched for this outcome. Its start record is `it-704ef82c-6861-430e-837e-edfa0e931af5` (base `8ad6fe1d`, clean).
 
-Iteration 3: shared task-execution runtime. Start record `it-7d0f5bcf-ab1e-4fe4-a5fc-2dfa4226058a`, base `0297b979be5378faca81834655ef02a4aaf77e94`, started `2026-10-19T09:44:48.280Z` (UTC); dirty provenance reflects coordinator notes only. `/root/session_store` owns implementation and consumer integration. `/root/evaluation` is doing read-only preparation for the next autonomous lifecycle/planning outcome.
+Iteration 3 is accepted at `a4e0a85b36b14d4984547a881d4197c204794058`. Focused guarded checks, three native writer cases, type-check, structure and patch checks passed; native reviewer `/root/review_task_execution` found no material issues. No RA assessment was launched. Its start record is `it-7d0f5bcf-ab1e-4fe4-a5fc-2dfa4226058a`, base `0297b979`.
 
-Implement shared managed/manual/standalone invocation mechanics using prepared tasks and narrow authority/recording contracts; keep workflow policies outside the runtime and preserve no-review-deadline behavior. One native review follows the committed candidate. The coordinator owns these notes.
+Iteration 4: autonomous lifecycle and planning. Start record `it-ee290e1c-c2a5-4f0c-8473-813a9d77f133`, base `a4e0a85b36b14d4984547a881d4197c204794058`, started `2026-10-19T10:09:03.812Z` (UTC), clean. `/root/session_store` owns implementation and all consumer integration. `/root/evaluation` is doing read-only preparation for work-coordination/acceptance seams.
 
-Remaining outcomes: autonomous lifecycle/planning, work coordination, acceptance/final integration. Retain the full scope; adapt grouping only when actual interface discovery warrants it.
+Preserve atomic accepted analysis and restart semantics, shared runtime independence, narrow child contracts and read-only public consumers. One native review follows the committed candidate. The coordinator owns these notes. Remaining outcomes after this: work coordination and acceptance/final integration, with grouping adapted to actual interface discovery.
 
 ## RA connection if needed
 

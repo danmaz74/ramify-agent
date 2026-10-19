@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { captureProvisionalSource } from '../capability/source.js';
+import { captureProvisionalSource } from '../../subs/autonomous/src/capability/source.js';
 import { copyCapabilityFixture } from './helpers/capability.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';

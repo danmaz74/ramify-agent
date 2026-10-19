@@ -1,7 +1,7 @@
 import type { CheckFindingEvent } from '../../../subs/check-findings/src/interfaces/check-findings.js';
 import { replayCheckFindingEvents } from '../../../subs/check-findings/src/replay.js';
-import { carriedCheckFindings, type RunEvent } from '../../run/log.js';
-import type { RunPolicy } from '../../run/records.js';
+import { carriedCheckFindings, type RunEvent } from '../../../subs/autonomous/src/run/log.js';
+import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
 
 /*
  * The measurements Plan 12 asks of a CheckFinding run, computed from its

@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { afterEach, expect, test } from 'vitest';
-import { localArchitectInputSchema } from '../work/submission.js';
+import { localArchitectInputSchema } from '../../subs/autonomous/src/work/submission.js';
 import { judgeWorkTurn } from '../steps/local-architect.js';
 import type { WorkTurnStepInputs } from '../steps/inputs.js';
-import { RunLog } from '../run/log.js';
-import { runLayout } from '../run/records.js';
-import { committedRecords } from '../work/committed.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';

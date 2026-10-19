@@ -1,20 +1,19 @@
+import { planningRecords } from '../../autonomous/subs/planning/src/committed.js';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { z } from 'zod';
-import { hypothesisSchema, type Hypothesis } from '../../../src/analysis/records.js';
+import { hypothesisSchema, type Hypothesis } from '../../autonomous/subs/planning/src/records.js';
 import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.js';
 import { jobSchemaVersion, jobsDirectory } from '../../../src/jobs/records.js';
 import { runPolicyVersion } from '../../../src/run/policy.js';
-import type { RunEvent } from '../../../src/run/log.js';
-import {
-  entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema, runLayout, runRecordSchema,
-  type EntryAssignments, type RunRecord,
-} from '../../../src/run/records.js';
-import { committedRecords, type CommittedRecords } from '../../../src/work/committed.js';
-import { validateCommittedHistory, CommittedHistoryError, unsupportedCommittedVersion } from '../../../src/run/committed-history.js';
-import { workItemOutlineSchema, type WorkItemOutline } from '../../../src/work/records.js';
-import { contractRecordSchema, type ContractRecord } from '../../../src/contracts/records.js';
-import { iterationAssignmentSchema, type IterationAssignment } from '../../../src/work/iterations.js';
+import type { RunEvent } from '../../autonomous/src/run/log.js';
+import { gateAttemptSchema, gateAuditOutcomeSchema, runLayout, runRecordSchema, type RunRecord } from '../../autonomous/src/run/records.js';
+import { type EntryAssignments } from '../../autonomous/subs/planning/src/records.js';
+import { committedRecords, type CommittedRecords } from '../../autonomous/src/work/committed.js';
+import { validateCommittedHistory, CommittedHistoryError, unsupportedCommittedVersion } from '../../autonomous/src/run/committed-history.js';
+import { workItemOutlineSchema, type WorkItemOutline } from '../../autonomous/src/work/records.js';
+import { contractRecordSchema, type ContractRecord } from '../../autonomous/src/contracts/records.js';
+import { iterationAssignmentSchema, type IterationAssignment } from '../../autonomous/src/work/iterations.js';
 
 /*
  * What every projection of a run is computed from: the run's `job.json`, the
@@ -107,7 +106,7 @@ export function runView(run: CommittedRun): RunView {
   const outlines: CommittedBody<WorkItemOutline>[] = [];
   const assignments: CommittedBody<IterationAssignment>[] = [];
   const contracts: CommittedBody<ContractRecord>[] = [];
-  let entryAssignments: EntryAssignments | null = null;
+  const { entries: entryAssignments } = planningRecords(run.entries);
 
   for (const line of run.entries) {
     for (const record of line.transaction.records) {
@@ -136,9 +135,6 @@ export function runView(run: CommittedRun): RunView {
           break;
         case 'ramify-agent.contract/2':
           contracts.push({ body: parse(contractRecordSchema, record.body, run, record.path), ...at });
-          break;
-        case 'ramify-agent.entry-assignments/1':
-          entryAssignments = parse(entryAssignmentsSchema, record.body, run, record.path);
           break;
         default:
           break;

@@ -1,8 +1,8 @@
 import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { coordinatorActionToolName, coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
-import { intakeToolName } from '../analysis/extraction.js';
+import { coordinatorActionToolName, coordinatorAssessmentToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import type { CheckFindingUserCommand } from '../interfaces/protocol/check-findings.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { CommandRejection } from '../jobs/commands.js';

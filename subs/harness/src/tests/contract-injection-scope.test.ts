@@ -12,11 +12,11 @@ import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
-import { validateEngineer } from '../work/engineer.js';
-import { validateContract } from '../contracts/submission.js';
-import { contractsLayout, type ConsumerRequirement } from '../contracts/records.js';
-import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
-import { runLayout } from '../run/records.js';
+import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
+import { validateContract } from '../../subs/autonomous/src/contracts/submission.js';
+import { contractsLayout, type ConsumerRequirement } from '../../subs/autonomous/src/contracts/records.js';
+import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
 
 /*

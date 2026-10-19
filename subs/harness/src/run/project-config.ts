@@ -2,11 +2,11 @@ import { readdir, readFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { readProjectConfiguration } from '../../subs/evidence/src/project-configuration.js';
 import { isTestingModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
-import { parseModuleHeader } from './module-header.js';
+import { parseModuleHeader } from '../../subs/autonomous/src/run/module-header.js';
 import {
   capturedProjectConfigSchema, projectConfigSchema,
   type BeadsProjectConfig, type CapturedProjectConfig, type ProjectConfig,
-} from './records.js';
+} from '../../subs/autonomous/src/run/records.js';
 
 /*
  * The project's configuration, `ramify-agent.json`: read at `start-run`,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { sessionMetrics, type SessionEntry } from '../sessions.js';
-import type { LineEventSummary } from '../../../../src/run/records.js';
+import type { LineEventSummary } from '../../../autonomous/src/run/records.js';
 
 describe('M5: every session counts, whatever ended it', () => {
   test('failed, stopped, repaired, context-limited and no-change sessions are all in the session set', () => {

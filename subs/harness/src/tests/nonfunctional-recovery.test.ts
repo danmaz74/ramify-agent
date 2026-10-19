@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { copyFixture } from './helpers/fixture.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
-import { intakeToolName } from '../analysis/extraction.js';
+import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { withDefaultTurns } from './helpers/declarations.js';
 import { analysis } from './helpers/analysis.js';
 import { submit, write } from './helpers/iterations.js';
@@ -12,8 +12,9 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { emptyAnalysis, freeze, onlyRun, openRuns,
   runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, until } from './helpers/runs.js';
-import { runLayout, type Invocation } from '../run/records.js';
-import type { RunWrite } from '../run/service.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type Invocation } from '../../subs/task-execution/src/records.js';
+import type { RunWrite } from '../../subs/autonomous/src/run/service.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';

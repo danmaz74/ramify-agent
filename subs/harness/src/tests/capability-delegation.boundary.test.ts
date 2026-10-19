@@ -4,7 +4,7 @@ import { afterEach, expect, test } from 'vitest';
 import { gitService } from '../../subs/evidence/src/git.js';
 import { copyCapabilityFixture } from './helpers/capability.js';
 import { git, initRepository } from './helpers/runs.js';
-import { captureProvisionalSource } from '../capability/source.js';
+import { captureProvisionalSource } from '../../subs/autonomous/src/capability/source.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });

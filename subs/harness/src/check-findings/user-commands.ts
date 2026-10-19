@@ -4,8 +4,8 @@ import type {
 import type { CheckFindingUserCommand } from '../interfaces/protocol/check-findings.js';
 import type { ErrorCode } from '../interfaces/protocol/errors.js';
 import { withinModule } from '../reviews/reconciliation.js';
-import { isPlanDeviation, planDeviationOptions } from '../deviations/finding.js';
-import { environmentOptions, isEnvironmentProblem } from '../deviations/environment.js';
+import { isPlanDeviation, planDeviationOptions } from '../../subs/autonomous/src/deviations/finding.js';
+import { environmentOptions, isEnvironmentProblem } from '../../subs/autonomous/src/deviations/environment.js';
 
 /*
  * A person's CheckFinding commands (appendix §8), and the authority rules

@@ -1,6 +1,6 @@
 import { constructedRun, registered, hash, type Line } from './constructed.js';
 import { fixturePlan, fixtureRequest, fixtureTask } from './capability.js';
-import { invocationSchema } from '../../run/records.js';
+import { invocationSchema } from '../../../subs/task-execution/src/records.js';
 import type { GateAttempt } from '../../checks/records.js';
 import type { CommittedRun } from '../../../subs/projections/src/inputs.js';
 

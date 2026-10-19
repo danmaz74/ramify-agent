@@ -1,5 +1,5 @@
 import type { InterruptionEvidence } from '../../agent/src/interfaces/port.js';
-import type { InvocationOutcome, SessionFinishReason, SessionId } from '../../../src/run/records.js';
+import type { InvocationOutcome, SessionFinishReason, SessionId } from './records.js';
 import type { CallInFlight } from './port-events.js';
 
 /** What one invocation ended with. `value` is present only for an accepted submission. */

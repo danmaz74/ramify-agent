@@ -1,14 +1,14 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
-import { RunLog } from '../run/log.js';
-import { verifiedRepairDeltas } from '../run/repair-gate.js';
-import { runLayout } from '../run/records.js';
-import { localArchitectToolName } from '../work/submission.js';
-import { iterationLayout } from '../work/iterations.js';
-import { repairDeltaSchema } from '../run/repair-preparation.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
+import { verifiedRepairDeltas } from '../../subs/autonomous/src/run/repair-gate.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+import { iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
+import { repairDeltaSchema } from '../../subs/autonomous/src/run/repair-preparation.js';
 import { cleanups, scenario, incidents, legacy, renamed, content } from './helpers/automatic-project-repair.js';
-import { onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, testPolicy, until } from './helpers/runs.js';
+import { onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, until } from './helpers/runs.js';
 import { treeInputs } from './helpers/iterations.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 

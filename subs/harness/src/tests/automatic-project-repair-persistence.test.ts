@@ -1,8 +1,8 @@
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
-import { repairDeltaSchema } from '../run/repair-preparation.js';
-import { runLayout } from '../run/records.js';
+import { repairDeltaSchema } from '../../subs/autonomous/src/run/repair-preparation.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { cleanups, scenario, content, legacy, renamed } from './helpers/automatic-project-repair.js';
 import { onlyRun, runEventsOnDisk, runPath, staleCrashLock } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';

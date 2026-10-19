@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { parseStepInputs, serializeStepInputs, StepInputsError, stepInputsSchemaId, validateStepInputs, type EngineerStepInputs, type StepInputs } from '../steps/inputs.js';
 import { repairContinuationRun } from './helpers/repair-run.js';
 import { runEventsOnDisk, runPath } from './helpers/runs.js';

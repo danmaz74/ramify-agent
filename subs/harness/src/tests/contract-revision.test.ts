@@ -12,15 +12,12 @@ import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
-import {
-  consumerAgainstFake, consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites,
-  established, paths, providerWrites, type Seam,
-} from './helpers/contracts.js';
-import { reopenEvidence } from '../contracts/revision.js';
-import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../contracts/records.js';
-import { workLayout, type WorkItem } from '../work/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import type { RunEvent } from '../run/log.js';
+import { consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, providerWrites, type Seam } from './helpers/contracts.js';
+import { reopenEvidence } from '../../subs/autonomous/src/contracts/revision.js';
+import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../../subs/autonomous/src/contracts/records.js';
+import { type WorkItem } from '../../subs/autonomous/src/work/records.js';
+import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 
 /*
  * P3 and P4: what a contract revision reschedules, and how a provider that

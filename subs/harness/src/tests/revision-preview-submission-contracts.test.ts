@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
-import { capabilityNeedInputSchema } from '../capability/records.js';
-import { capabilityActionSchema, validateCapabilityAction } from '../capability/submission.js';
-import { assignmentBodySchema, assignmentErrors } from '../work/assignment.js';
-import { validateEngineer } from '../work/engineer.js';
-import { capabilityLocalArchitectJsonSchema } from '../work/submission.js';
+import { capabilityNeedInputSchema } from '../../subs/autonomous/src/capability/records.js';
+import { capabilityActionSchema, validateCapabilityAction } from '../../subs/autonomous/src/capability/submission.js';
+import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/src/work/assignment.js';
+import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
+import { capabilityLocalArchitectJsonSchema } from '../../subs/autonomous/src/work/submission.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import { assign, outline } from './helpers/iterations.js';
-import type { RegistryEntry } from '../analysis/records.js';
+import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
 import type { OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 
 const reviews = 'collection-review/workspace/reviews';

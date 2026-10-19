@@ -7,8 +7,8 @@ import { scenarioResultsOf } from '../checks/scenario-results.js';
 import { scenarioListResponseSchema } from '../interfaces/protocol/runs.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import type { RunEvent } from '../run/log.js';
-import { runLayout, type ReadinessAttempt } from '../run/records.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { runLayout, type ReadinessAttempt } from '../../subs/autonomous/src/run/records.js';
 import { requestCompletion } from './helpers/analysis.js';
 import {
   badgeAnalysis, badgeFeature, badgeImplementation, badgePlan, badgeStepFile, badgeSteps, sharedUi,

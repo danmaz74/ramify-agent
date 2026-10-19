@@ -2,10 +2,11 @@ import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { guardingReport } from '../../subs/kpi/src/guarding.js';
-import { runLayout, type InvocationOutcome, type LineEventSummary } from '../run/records.js';
+import { runLayout, type LineEventSummary } from '../../subs/autonomous/src/run/records.js';
+import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import type { Observation } from '../../subs/task-execution/src/observations.js';
-import type { IterationResult } from '../work/iterations.js';
-import { iterationLayout } from '../work/iterations.js';
+import type { IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import {

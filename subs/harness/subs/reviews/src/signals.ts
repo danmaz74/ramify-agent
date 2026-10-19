@@ -5,7 +5,7 @@ import type { CandidateSource } from '../../evidence/src/git.js';
 import type { ArchitectIndex, ModuleEntry } from '../../evidence/src/views.js';
 import { ownerOf } from '../../../src/measurement/owners.js';
 import type { CandidateSnapshot } from './snapshot.js';
-import { parseModuleHeader } from '../../../src/run/module-header.js';
+import { parseModuleHeader } from '../../autonomous/src/run/module-header.js';
 
 /*
  * What the harness binds to a reviewer's concern besides its words: the

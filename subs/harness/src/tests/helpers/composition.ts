@@ -3,12 +3,13 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { expect } from 'vitest';
-import { createScriptedAgent, type Script, type ScriptedAgent } from '../../../subs/agent/src/scripted.js';
+import { createScriptedAgent, type Script } from '../../../subs/agent/src/scripted.js';
 import { declaringScenarios } from './declarations.js';
-import type { RunEvent } from '../../run/log.js';
-import type { RunService, RunWrite } from '../../run/service.js';
+import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
+import type { RunWrite } from '../../../subs/autonomous/src/run/service.js';
+import type { RunService } from '../../run/lifecycle.js';
 import type { CommandRunner } from '../../../subs/evidence/src/run-command.js';
-import type { RunInputs } from '../../run/inputs.js';
+import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import {
   consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, providerWrites,
@@ -19,7 +20,7 @@ import {
   addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, partialReport, read, shell, submit, treeInputs,
   write, type Turn,
 } from './iterations.js';
-import { decision as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from './placement.js';
+import { placementDecisionFixture as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from './placement.js';
 import { commandResult } from './command-result.js';
 import { deleted, modified, scenarioGit, untracked, type GitResponses, type ScenarioGit } from './recovery-git.js';
 import { scriptedCandidates, type ScriptedCommit } from './candidates.js';

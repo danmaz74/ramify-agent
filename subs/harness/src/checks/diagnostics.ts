@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { externalRepairAdmissionSchema } from '../run/recovery-admission.js';
+import { externalRepairAdmissionSchema } from '../../subs/autonomous/src/run/recovery-admission.js';
 import { findingsOf, sentenceOf, type HookFinding } from '../hooks/post-write.js';
 import type { GateAttempt, GateCommandRecord } from './records.js';
 import { scenarioResultsOf, untrackedScenarioCounts, type ScenarioResult } from './scenario-results.js';

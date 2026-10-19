@@ -1,8 +1,8 @@
 import { expect, test, vi } from 'vitest';
-import { CommittingGates, type GateHost, type GateRun } from '../run/committing-gate.js';
+import { CommittingGates, type GateHost, type GateRun } from '../../subs/autonomous/src/run/committing-gate.js';
 import type { GateAttempt } from '../checks/records.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import type { CheckpointRequest } from '../run/gates.js';
+import type { CheckpointRequest } from '../../subs/autonomous/src/run/gates.js';
 
 test.each([true, false])('a peer recovery barrier admits no gate effects before release (continue=%s)', async proceed => {
   let reached!: () => void, release!: (value: boolean) => void;

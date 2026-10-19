@@ -8,9 +8,9 @@ import { checkCommand } from '../checks/records.js';
 import {
   commitForMaterialization, contentHash, expectedFeatureFiles, expectedFeatureHashes, materializationMessage, rerenderFeatureFiles,
   trackedScenarios,
-} from '../run/feature-files.js';
-import { runLayout } from '../run/records.js';
-import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
+} from '../../subs/autonomous/src/run/feature-files.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
 import { auditPreparationPaths, captureGuardedFiles } from '../work/scope.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { initialScenarioStates } from '../../subs/scenarios/src/states.js';

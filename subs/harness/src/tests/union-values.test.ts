@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import { openLedger } from '../../subs/ledger/src/ledger.js';
 import { readCommitted } from '../jobs/commit.js';
-import { runEventSchema, terminalRunEvents, type RunEvent } from '../run/log.js';
+import { runEventSchema, terminalRunEvents, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { ObservationLog, observationSchema, type ObservationInput } from '../../subs/task-execution/src/observations.js';
 import {
   capabilityStateSchema, decisionViewSchema, hypothesisStandingSchema, metricSchema, metricStateSchema,
@@ -13,29 +13,24 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import type { CommittedRun } from '../../subs/projections/src/inputs.js';
 import { createQuerySource } from '../http/query-source.js';
 import { constructedRun, constructedRecord } from './helpers/constructed.js';
-import {
-  infrastructureRecoverySchema, invocationOutcomeSchema, measurementSnapshotSchema, readinessSteps,
-  gateRuleSchema, runLayout, runSchemas, sessionModeSchema,
-  continueReasonSchema, degradeRelationSchema, forkReasonSchema, replaceReasonSchema, requestReasonSchema, sessionPointSchema,
-} from '../run/records.js';
+import { infrastructureRecoverySchema, measurementSnapshotSchema, readinessSteps, gateRuleSchema, runLayout, runSchemas } from '../../subs/autonomous/src/run/records.js';
+import { invocationOutcomeSchema, sessionModeSchema, continueReasonSchema, degradeRelationSchema, forkReasonSchema, replaceReasonSchema, requestReasonSchema, sessionPointSchema } from '../../subs/task-execution/src/records.js';
 import { defaultContextPolicies } from '../run/policy.js';
-import { analysisLayout, analysisSchemas, hypothesisChangeSchema, hypothesisSchema, registryEntrySchema } from '../analysis/records.js';
-import { contractAuthoritySchema, contractModeSchema, contractSchemas, contractsLayout, obligationId } from '../contracts/records.js';
-import { contractSubmissionKinds, contractSubmissionSchema } from '../contracts/submission.js';
-import { decompositionSchema, workLayout, workSchemas } from '../work/records.js';
+import { analysisLayout, analysisSchemas, hypothesisChangeSchema, hypothesisSchema, registryEntrySchema } from '../../subs/autonomous/subs/planning/src/records.js';
+import { contractAuthoritySchema, contractModeSchema, contractSchemas, contractsLayout, obligationId } from '../../subs/autonomous/src/contracts/records.js';
+import { contractSubmissionKinds, contractSubmissionSchema } from '../../subs/autonomous/src/contracts/submission.js';
+import { decompositionSchema, workLayout, workSchemas } from '../../subs/autonomous/src/work/records.js';
 import {
   architectureLayout, architectureSchemas, decisionAuthoritySchema,
   hypothesisStanceSchema, placementOutcomeSchema,
-} from '../architecture/records.js';
-import { forkSubmissionKinds, forkSubmissionSchema } from '../architecture/submission.js';
-import { deviationLayout, deviationSchemas } from '../deviations/records.js';
-import { localArchitectSubmissionSchema, localArchitectSubmissionKinds } from '../work/submission.js';
-import { engineerSubmissionSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, unsuitableReasonSchema } from '../work/engineer.js';
-import { assignableKindSchema, assignmentBodySchema } from '../work/assignment.js';
-import {
-  extraPurposeSchema, iterationAssignmentSchema, iterationKindSchema, iterationLayout,
-  iterationResultSchema, iterationSchemas, moduleNoticeSchema,
-} from '../work/iterations.js';
+} from '../../subs/autonomous/src/architecture/records.js';
+import { forkSubmissionKinds, forkSubmissionSchema } from '../../subs/autonomous/src/architecture/submission.js';
+import { deviationLayout, deviationSchemas } from '../../subs/autonomous/src/deviations/records.js';
+import { localArchitectSubmissionSchema, localArchitectSubmissionKinds } from '../../subs/autonomous/src/work/submission.js';
+import { engineerSubmissionSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, unsuitableReasonSchema } from '../../subs/autonomous/src/work/engineer.js';
+import { assignableKindSchema, assignmentBodySchema } from '../../subs/autonomous/src/work/assignment.js';
+import { extraPurposeSchema } from '../work/scope.js';
+import { iterationAssignmentSchema, iterationKindSchema, iterationLayout, iterationResultSchema, iterationSchemas, moduleNoticeSchema } from '../../subs/autonomous/src/work/iterations.js';
 import { shellInputSchema, shellJsonSchema } from '../tools/shell.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 

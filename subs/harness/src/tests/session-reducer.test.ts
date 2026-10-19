@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { runEvent, type RunEvent, type RunEventInput } from '../run/log.js';
-import { sessionId, sessionIdSchema, type ContinueRelation, type ForkRelation, type ReplaceRelation, type RequestRelation } from '../run/records.js';
+import { runEvent, type RunEvent, type RunEventInput } from '../../subs/autonomous/src/run/log.js';
+import { sessionId } from '../../subs/autonomous/src/run/records.js';
+import { sessionIdSchema, type ContinueRelation, type ForkRelation, type ReplaceRelation, type RequestRelation } from '../../subs/task-execution/src/records.js';
 import {
   applySessionEvent, InvalidSessionTransitionError, invocationSessions, reduceSessions, sessionsIn, type RunSessions, type SessionState,
-} from '../run/sessions.js';
+} from '../../subs/autonomous/src/run/sessions.js';
 
 /*
  * The session reducer: a pure function of the run log with a closed set of

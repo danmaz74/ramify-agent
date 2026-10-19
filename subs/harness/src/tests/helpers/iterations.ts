@@ -5,19 +5,19 @@ import type { ScriptStep, Script } from '../../../subs/agent/src/scripted.js';
 import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
 import type { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import type { ArchitectIndex, ModuleEntry } from '../../../subs/evidence/src/views.js';
-import { architectRunInputs, type RunInputs } from '../../run/inputs.js';
-import { parseModuleHeader } from '../../run/module-header.js';
-import type { AssignmentBody } from '../../work/assignment.js';
+import { architectRunInputs, type RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
+import { parseModuleHeader } from '../../../subs/autonomous/src/run/module-header.js';
+import type { AssignmentBody } from '../../../subs/autonomous/src/work/assignment.js';
 import type { z } from 'zod';
-import type { engineerSubmissionSchema } from '../../work/engineer.js';
-import type { LocalArchitectSubmission, LocalArchitectSubmissionInput } from '../../work/submission.js';
+import type { engineerSubmissionSchema } from '../../../subs/autonomous/src/work/engineer.js';
+import type { LocalArchitectSubmission, LocalArchitectSubmissionInput } from '../../../subs/autonomous/src/work/submission.js';
 import { defaultTurn } from './declarations.js';
 import type { FailureCause } from '../../interfaces/protocol/runs.js';
-import type { FailureAnalysisSubmission } from '../../work/failure.js';
+import type { FailureAnalysisSubmission } from '../../../subs/autonomous/src/work/failure.js';
 import { installScriptedCucumber } from './project-config.js';
 
 /** A module engineer submission as an agent sends it: a declaration's `scenarios` may be left out. */
-type EngineerSubmission = z.input<typeof engineerSubmissionSchema>;
+export type EngineerSubmission = z.input<typeof engineerSubmissionSchema>;
 
 /*
  * What a test needs to drive an iteration: the submissions a module architect
@@ -356,3 +356,5 @@ export async function readDeclaredTree(projectRoot: string): Promise<ArchitectIn
 function within(path: string, directory: string): boolean {
   return directory === '' || path === directory || path.startsWith(`${directory}/`);
 }
+
+export type { EngineerSubmission as FixtureEngineerSubmission };

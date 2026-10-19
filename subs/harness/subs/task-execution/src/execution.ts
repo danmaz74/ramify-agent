@@ -2,7 +2,7 @@ import type { AgentPort, AgentSession, ContextPolicy, SessionSpec, SessionStart,
 import { interruptionEvidence } from '../../agent/src/interfaces/port.js';
 import type { SessionExecutionIdentity } from '../../agent/src/interfaces/session-operations.js';
 import type { ArchitectIndex } from '../../evidence/src/views.js';
-import type { Invocation, InvocationOutcome, DegradeRelation, ContinueRelation, ForkRelation, ReplaceRelation, RequestRelation } from '../../../src/run/records.js';
+import type { Invocation, InvocationOutcome, DegradeRelation, ContinueRelation, ForkRelation, ReplaceRelation, RequestRelation } from './records.js';
 import type { GuardedScope } from '../../../src/guard/write-guard.js';
 import { canonicalJson } from '../../../src/jobs/commands.js';
 import { createHash } from 'node:crypto';

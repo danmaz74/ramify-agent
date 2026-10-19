@@ -13,7 +13,7 @@ import type {
 } from '../../subs/audit/src/check-execution.js';
 import { listJobDirectories } from '../jobs/records.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
-import { runDirectory, runLayout } from './records.js';
+import { runDirectory, runLayout } from '../../subs/autonomous/src/run/records.js';
 
 const exec = promisify(execFile);
 const workspaceSchema = z.object({

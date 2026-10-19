@@ -8,9 +8,9 @@ import type { OrientationSubmission } from '../../subs/reviews/src/interfaces/su
 import { deliveredSupportPaths } from '../prompts/tasks.js';
 import { renderOrientationPrompt, renderReviewerPrompt } from '../prompts/packages.js';
 import { invocationLimits } from '../run/policy.js';
-import type { ForkRelation } from '../run/records.js';
+import type { ForkRelation } from '../../subs/task-execution/src/records.js';
 import type { SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
-import { composeTaskBrief } from '../run/task-brief.js';
+import { composeTaskBrief } from '../../subs/autonomous/src/run/task-brief.js';
 import { architectViews, loadedPackage, runLocation, type ConstructedStepCommon } from './constructed.js';
 import type { StepEnvironment } from './engineer.js';
 import { validateStepInputs, type DesignOrientationStepInputs, type ReviewStepInputs } from './inputs.js';

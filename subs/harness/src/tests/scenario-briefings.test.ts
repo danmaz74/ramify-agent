@@ -3,15 +3,15 @@ import { scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/sr
 import type { ScenarioState } from '../../subs/scenarios/src/states.js';
 import { gateDiagnostics, passedScenarioLines } from '../checks/diagnostics.js';
 import type { GateAttempt } from '../checks/records.js';
-import { assignmentErrors, type AssignmentBody } from '../work/assignment.js';
-import { iterationMessage } from '../work/engineer.js';
-import type { IntegrationBriefing } from '../work/integration.js';
-import type { IterationAssignment } from '../work/iterations.js';
-import { obligationsOf } from '../work/obligations.js';
-import type { WorkItem } from '../work/records.js';
-import { entryScenariosOf } from '../work/scenario-briefing.js';
-import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../work/session.js';
-import { validateLocalArchitect } from '../work/submission.js';
+import { assignmentErrors, type AssignmentBody } from '../../subs/autonomous/src/work/assignment.js';
+import { iterationMessage } from '../../subs/autonomous/src/work/engineer.js';
+import type { IntegrationBriefing } from '../../subs/autonomous/src/work/integration.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { obligationsOf } from '../../subs/autonomous/src/work/obligations.js';
+import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
+import { entryScenariosOf } from '../../subs/autonomous/src/work/scenario-briefing.js';
+import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../../subs/autonomous/src/work/session.js';
+import { validateLocalArchitect } from '../../subs/autonomous/src/work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 
 /*

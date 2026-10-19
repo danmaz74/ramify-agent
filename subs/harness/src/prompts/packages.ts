@@ -4,21 +4,19 @@ import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { Role } from '../interfaces/protocol/runs.js';
-import { initialAnalysisJsonSchema, initialAnalysisToolName } from '../analysis/submission.js';
-import { capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectSubmissionKinds, localArchitectToolName } from '../work/submission.js';
-import { capabilityEngineerJsonSchema, engineerJsonSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, engineerToolName } from '../work/engineer.js';
-import { capabilityActionSchema } from '../capability/submission.js';
-import { forkJsonSchema, forkSubmissionKinds, forkToolName } from '../architecture/submission.js';
-import { contractJsonSchema, contractSubmissionKinds, contractToolName } from '../contracts/submission.js';
+import { initialAnalysisJsonSchema } from '../../subs/autonomous/subs/planning/src/submission.js';
+import { capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectSubmissionKinds, localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+import { capabilityEngineerJsonSchema, engineerJsonSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, engineerToolName } from '../../subs/autonomous/src/work/engineer.js';
+import { capabilityActionSchema } from '../../subs/autonomous/src/capability/submission.js';
+import { forkJsonSchema, forkSubmissionKinds, forkToolName } from '../../subs/autonomous/src/architecture/submission.js';
+import { contractJsonSchema, contractSubmissionKinds, contractToolName } from '../../subs/autonomous/src/contracts/submission.js';
 import { orientationJsonSchema, orientationToolName, reviewJsonSchema, reviewToolName } from '../../subs/reviews/src/submission.js';
 import { reconciliationJsonSchema, reconciliationToolName } from '../../subs/reviews/src/reconciliation.js';
-import { failureAnalysisJsonSchema, failureAnalysisToolName } from '../work/failure.js';
-import { contextSelectorJsonSchema, contextSelectorToolName, workOrientationJsonSchema, workOrientationToolName } from '../context-selection/submissions.js';
-import {
-  checkJsonSchema, checkToolName, intakeJsonSchema, intakeToolName, principleJsonSchema, principleToolName,
-} from '../analysis/extraction.js';
-import { coordinatorAssessmentJsonSchema, coordinatorAssessmentToolName, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
-import { promptPackageManifestSchema, type PromptPackageManifest, type ReviewKind } from '../run/records.js';
+import { failureAnalysisJsonSchema, failureAnalysisToolName } from '../../subs/autonomous/src/work/failure.js';
+import { contextSelectorJsonSchema, contextSelectorToolName, workOrientationJsonSchema, workOrientationToolName } from '../../subs/autonomous/src/context-selection/submissions.js';
+import { checkJsonSchema, intakeJsonSchema, principleJsonSchema } from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { coordinatorAssessmentJsonSchema, coordinatorAssessmentToolName, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { promptPackageManifestSchema, type PromptPackageManifest, type ReviewKind } from '../../subs/autonomous/src/run/records.js';
 import { shellMaxTimeoutMs } from '../tools/shell.js';
 import { rejectSingleBracePlaceholders, renderRequiredSlots, stableRoleInstructions } from './tasks.js';
 
@@ -504,19 +502,6 @@ function withoutVersionComment(text: string): string {
   return first.startsWith('<!--') ? text.slice(first.length + 1) : text;
 }
 
-/** The rendered system prompt of the plan architect. It is never stored: it holds file contents. */
-export function renderInitialArchitectPrompt(loaded: LoadedPackage, projectRoot: string): string {
-  return render(loaded, projectRoot, initialAnalysisToolName);
-}
-
-/** The rendered system prompt of one catalog extractor turn. It is never stored either. */
-export function renderExtractionPrompt(loaded: LoadedPackage, projectRoot: string, turn: ExtractionTurn): string {
-  const extraction = loaded.extraction?.[turn];
-  if (extraction === undefined) throw new Error(`The ${loaded.package} package has no ${turn} procedure`);
-  const tool = { intake: intakeToolName, principles: principleToolName, check: checkToolName }[turn];
-  return render({ ...loaded, procedure: extraction.procedure, submissionSchema: extraction.submissionSchema }, projectRoot, tool);
-}
-
 /** The rendered system prompt of one placement fork. It is never stored either. */
 export function renderGlobalForkPrompt(loaded: LoadedPackage, projectRoot: string): string {
   return render(loaded, projectRoot, forkToolName);
@@ -620,3 +605,5 @@ function fill(template: string, values: Readonly<Record<string, string>>): strin
   rejectSingleBracePlaceholders(template, Object.keys(values));
   return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) => values[name] ?? match);
 }
+
+export { render as renderPackagePrompt };

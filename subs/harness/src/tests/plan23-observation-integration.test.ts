@@ -12,7 +12,7 @@ import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.j
 import { HarnessSessionOperations } from '../prompts/session-adapter.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { recordPlan23Stimulus, plan23Time as t, type Plan23Stimulus } from './helpers/plan23-recorded.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';

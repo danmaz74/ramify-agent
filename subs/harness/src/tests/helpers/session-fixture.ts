@@ -6,8 +6,8 @@ import { createScriptedAgent, type ScriptedAgent, type ScriptStep } from '../../
 import { protocolPaths } from '../../interfaces/protocol/paths.js';
 import { commandResponseSchema } from '../../interfaces/protocol/jobs.js';
 import { runSessionsResponseSchema, type RunSessionView } from '../../interfaces/protocol/sessions.js';
-import type { RunServiceOptions } from '../../run/service.js';
-import { runLayout } from '../../run/records.js';
+import type { RunServiceOptions } from '../../run/lifecycle.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { readTranscript } from '../../../subs/task-execution/src/transcripts/writer.js';
 import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import { openRunsWithoutProcesses } from './external-tools.js';

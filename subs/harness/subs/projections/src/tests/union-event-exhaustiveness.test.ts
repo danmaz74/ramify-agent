@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { runEventSchema, type RunEvent } from '../../../../src/run/log.js';
+import { runEventSchema, type RunEvent } from '../../../autonomous/src/run/log.js';
 import { projectEvent } from '../events.js';
 
   test('every event type of the run log has a projection that names its transition', () => {

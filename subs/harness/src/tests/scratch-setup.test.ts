@@ -13,7 +13,7 @@ import { mockGit, type ScratchGitScript } from './helpers/mock-git.js';
 import { scriptedGit, type ScriptedGit } from './helpers/scripted-git.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
 import { emptyAnalysis, freeze, installTestRunner, onlyRun, openRuns, runEventsOnDisk, staleCrashLock, startRun, testPolicy, until } from './helpers/runs.js';
-import type { RunWrite } from '../run/service.js';
+import type { RunWrite } from '../../subs/autonomous/src/run/service.js';
 
 const plan = 'review-notes';
 const source = 'source-before-setup';

@@ -1,7 +1,7 @@
 import { emptyCheckFindingState, replayCheckFindingEvents } from '../../subs/check-findings/src/replay.js';
 import type { CheckFindingState } from '../../subs/check-findings/src/interfaces/check-findings.js';
 import type { LedgerEntry } from '../../subs/ledger/src/ledger.js';
-import { carriedCheckFindings, type RunEvent } from '../run/log.js';
+import { carriedCheckFindings, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 
 /*
  * The CheckFinding state of a run, replayed from the carriers of its log

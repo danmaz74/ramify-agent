@@ -1,27 +1,22 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { gateDiagnostics } from '../checks/diagnostics.js';
-import type { GateAttempt } from '../checks/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import { runLayout } from '../run/records.js';
-import { workLayout } from '../work/records.js';
-import { localArchitectToolName } from '../work/submission.js';
-import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry } from './helpers/analysis.js';
-import {
-  addModule, assign, byRole, completionProposed, installMiniRunner, read,
-  shell, submit, treeInputs, write, type Turn,
-} from './helpers/iterations.js';
-import {
-  onlyRun, openRuns, runEventsOnDisk, runPath, startRun,
-} from './helpers/runs.js';
-import { localCommandAudit } from './helpers/direct-check-execution.js';
-import { gateGit, scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
 
-import { cleanups, plan, attribution, core, views, pure, dirA, dirC, dirV, dirP, base, materialized, scenarios, unchanged, revision, broadRationale, NARROWED_CONFIG, WIDENED_CONFIG, target, run, projectAudit, readGate, gates, readAssignment, readResult, sources, stagedOutline, broadScope, coreV0, coreTestV0, adaptersV0, adaptersTestV0, panelV0, panelTestV0, pureV0, pureTestV0, coreV1, coreTestV1, coreV2, coreTestV2, adaptersV2, adaptersTestV2, panelV2, panelTestV2, pureV2, pureTestV2, coreV3, coreTestV3, adaptersV3, adaptersTestV3 } from './breaking-work-fixture.js';
+
+
+import { workLayout } from '../../subs/autonomous/src/work/records.js';
+
+
+import { analysis, entry } from './helpers/analysis.js';
+import { assign, completionProposed, read, shell, submit, write } from './helpers/iterations.js';
+import { onlyRun, runEventsOnDisk, runPath } from './helpers/runs.js';
+
+
+
+
+import { plan, attribution, core, views, pure, dirA, dirC, dirV, dirP, base, materialized, scenarios, unchanged, revision, NARROWED_CONFIG, WIDENED_CONFIG, target, run, projectAudit, gates, readAssignment, readResult, sources, stagedOutline, broadScope, coreV1, coreTestV1, coreV2, coreTestV2, adaptersV2, adaptersTestV2, panelV2, panelTestV2, pureV2, pureTestV2, coreV3, coreTestV3, adaptersV3, adaptersTestV3 } from './breaking-work-fixture.js';
 
 describe('K7: a breaking feature is isolated into iterations that are green at every accepted boundary', () => {
   test('the reviewer-identity run stages the break, and every accepted boundary passes the breaking-iteration gate', async () => {

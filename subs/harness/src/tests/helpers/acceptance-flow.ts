@@ -14,7 +14,7 @@ import { analysis, entry, requestCompletion } from './analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './capability.js';
 import { assign, edit, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';
 import { rootDescription } from './root-description.js';
-import { runLayout } from '../../run/records.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { testReviewPolicy } from './candidates.js';
 import { freeze, initRepository, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './runs.js';
 

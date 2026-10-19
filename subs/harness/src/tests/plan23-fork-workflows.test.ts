@@ -9,8 +9,8 @@ import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { orientationKey } from '../../subs/reviews/src/inputs.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
-import { runLayout } from '../run/records.js';
-import { architectureLayout, placementRequestSchema } from '../architecture/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { architectureLayout, placementRequestSchema } from '../../subs/autonomous/src/architecture/records.js';
 import { readFile } from 'node:fs/promises';
 vi.mock('node:child_process', async original => (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 const cleanup: Array<() => Promise<void>> = [];

@@ -1,5 +1,5 @@
 import { execFile, spawn } from 'node:child_process';
-import { access, chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,13 +14,13 @@ import { privateRamify, RamifyCli, ramifyExecutable } from '../../../subs/eviden
 import type { CapturedInputManifest } from '../../interfaces/protocol/evidence.js';
 import type { RunCommand } from '../../interfaces/protocol/runs.js';
 import { sha256 } from '../../prompts/packages.js';
-import type { RunEvent } from '../../run/log.js';
+import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import { defaultContextPolicies, defaultRunPolicy } from '../../run/policy.js';
-import type { RunPolicy } from '../../run/records.js';
-import type { RunInputs } from '../../run/inputs.js';
-import { RunService, type RunServiceOptions } from '../../run/service.js';
+import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
+import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
+import { RunService, type RunServiceOptions } from '../../run/lifecycle.js';
 import type { ConfiguredAuditPort } from '../../../subs/audit/src/check-execution.js';
-import type { CapabilityWorkflow } from '../../capability/workflow.js';
+import type { CapabilityWorkflow } from '../../../subs/autonomous/src/capability/workflow.js';
 import { acquireProjectLock, lockPath } from '../../store/lock.js';
 import { FakeRamifyCli } from './fake-ramify.js';
 import { fixtureScratchGit } from './scratch-git.js';

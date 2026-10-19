@@ -1,5 +1,5 @@
 import type { Metric } from '../../interfaces/protocol/runs.js';
-import type { ScopeSize } from '../../run/records.js';
+import type { ScopeSize } from '../../../subs/task-execution/src/records.js';
 
 /** Shared recorded values for calculation and focused projection witnesses. */
 export function size(bytes: number | null, missing?: string): ScopeSize {

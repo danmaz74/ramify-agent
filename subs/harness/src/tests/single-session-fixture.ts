@@ -5,7 +5,7 @@ import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.
 import type { RamifyCheckResult } from '../../subs/evidence/src/ramify-cli.js';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { observationSchema, type Observation } from '../../subs/task-execution/src/observations.js';
-import { invocationOutcomeSchema, type InvocationOutcome } from '../run/records.js';
+import { invocationOutcomeSchema, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { runSingleSession, type SessionProgress, type SingleSessionOptions, type SingleSessionResult } from '../sessions/single.js';
 import { completionCheckDeadlineMs } from '../hooks/post-write.js';
 import { copyFixture } from './helpers/fixture.js';

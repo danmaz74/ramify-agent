@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { runView } from '../inputs.js';
 import { reachOf } from '../sessions.js';
-import type { RunSession } from '../../../../src/run/sessions.js';
+import type { RunSession } from '../../../autonomous/src/run/sessions.js';
 import { constructedRun } from '../../../../src/tests/helpers/constructed.js';
 import { capabilityProjectionLines as lines, capabilityContractRun } from '../../../../src/tests/helpers/capability-projection.js';
 

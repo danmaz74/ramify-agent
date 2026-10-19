@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
-import { observeExternalCandidate, externalCandidateSchema } from '../run/candidate-attribution.js';
-import { recordedExternalChanges } from '../run/recovery-gate.js';
-import type { RunLog } from '../run/log.js';
+import { observeExternalCandidate, externalCandidateSchema } from '../../subs/autonomous/src/run/candidate-attribution.js';
+import { recordedExternalChanges } from '../../subs/autonomous/src/run/recovery-gate.js';
+import type { RunLog } from '../../subs/autonomous/src/run/log.js';
 import type { CandidateSource } from '../../subs/evidence/src/git.js';
 
 test('quiescent candidate observations preserve partial work separately from subsequent external edits', async () => {

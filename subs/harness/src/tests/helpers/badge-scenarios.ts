@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { InitialAnalysisSubmission } from '../../analysis/submission.js';
+import type { InitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/submission.js';
 import { extractPlanScenarios } from '../../../subs/scenarios/src/extraction.js';
 import { analysis, entry } from './analysis.js';
 import { fixtureRoot } from './fixture.js';

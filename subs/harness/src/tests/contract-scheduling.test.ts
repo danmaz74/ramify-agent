@@ -15,7 +15,7 @@ import {
   consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, providerWrites,
   type Seam,
 } from './helpers/contracts.js';
-import type { RunEvent } from '../run/log.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 
 /*
  * P5: how the harness schedules a delegation when an obligation is shared,

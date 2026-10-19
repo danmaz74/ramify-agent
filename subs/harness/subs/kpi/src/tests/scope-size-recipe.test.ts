@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { baselineScope, deliveredScopeInputs, projectOnlySize, scopeSize, invocationReadSize, invocationScopeSize, invocationScopeFailure, type DeclaredScope, type DeliveredSupportEntry } from '../capture.js';
-import type { MeasurementSnapshot, ScopeComponent } from '../../../../src/run/records.js';
+import type { MeasurementSnapshot } from '../../../autonomous/src/run/records.js';
+import type { ScopeComponent } from '../../../task-execution/src/records.js';
 
 const bucket = (bytes: number, tests = 0, documentation = 0, views = 0) => ({
   production: { sourceFiles: 1, sourceBytes: bytes, resourceFiles: 0, resourceBytes: 0 },

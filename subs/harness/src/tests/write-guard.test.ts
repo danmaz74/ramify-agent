@@ -11,7 +11,7 @@ import { resolveContainedPath, resolveRealTarget } from '../guard/resolve-contai
 import type { ToolAction } from '../../subs/agent/src/interfaces/port.js';
 import { blockExplanation, decideWrite, type GuardedScope } from '../guard/write-guard.js';
 import { deniedFiles, guardedScopeOf, resolveWriteScope } from '../work/scope.js';
-import type { WriteScope } from '../work/iterations.js';
+import type { WriteScope } from '../work/scope.js';
 import { architectIndex } from './helpers/views.js';
 
 /*

@@ -1,5 +1,5 @@
 import type { ChangeHistory, LineCommit } from '../../evidence/src/git.js';
-import type { LineEventSummary } from '../../../src/run/records.js';
+import type { LineEventSummary } from '../../autonomous/src/run/records.js';
 
 /** Direct BASE-to-accepted-FINAL attribution; intermediate rewrites carry no extra weight. */
 export interface DeliveredChangeRequest {

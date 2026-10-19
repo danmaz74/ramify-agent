@@ -2,10 +2,10 @@ import { join } from 'node:path';
 import type {
   RunSessionView, SessionAppend, SessionInvocation, SessionReach, SessionListEntry, SessionSuspension, ShownSessionState,
 } from '../../../src/interfaces/protocol/sessions.js';
-import { terminalRunEvents } from '../../../src/run/log.js';
+import { terminalRunEvents } from '../../autonomous/src/run/log.js';
 import { operationIdentitySchema } from '../../../src/interfaces/protocol/runs.js';
-import type { SessionId } from '../../../src/run/records.js';
-import { InvalidSessionTransitionError, reduceSessions, type RunSession } from '../../../src/run/sessions.js';
+import type { SessionId } from '../../task-execution/src/records.js';
+import { InvalidSessionTransitionError, reduceSessions, type RunSession } from '../../autonomous/src/run/sessions.js';
 import { standaloneSessionState, type SessionOutcomeRecord, type SessionRecord } from './standalone-records.js';
 import { ProjectionError, type RunView } from './inputs.js';
 import { capabilityOfItem } from './work.js';

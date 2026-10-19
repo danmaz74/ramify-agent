@@ -3,7 +3,7 @@ import { invocationEvaluationSchema } from '../../../../src/interfaces/protocol/
 import { transcriptEntrySchema } from '../../../../src/interfaces/protocol/transcripts.js';
 import { evaluationOf } from '../metrics.js';
 import { observationSchema } from '../../../task-execution/src/observations.js';
-import { invocationSchema } from '../../../../src/run/records.js';
+import { invocationSchema } from '../../../task-execution/src/records.js';
 const at = '2026-10-13T06:00:00.000Z';
 const nativeSettings = { source: 'pi@0.87.1:SettingsManager' as const, compaction: { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 },
   occupancy: 'current' as const, projectedTokens: null, coverage: ['Projected request size unavailable'] };

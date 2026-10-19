@@ -15,11 +15,11 @@ import {
 } from '../../../src/interfaces/protocol/check-findings.js';
 import { reviewAttemptSchema, reviewRequestSchema, type ReviewAttempt, type ReviewRequest } from '../../../src/reviews/records.js';
 import { reviewCoverage, reviewStateOf } from '../../../src/reviews/state.js';
-import { terminalRunEvents, type RunEvent } from '../../../src/run/log.js';
+import { terminalRunEvents, type RunEvent } from '../../autonomous/src/run/log.js';
 import { ProjectionError, type RunView } from './inputs.js';
-import { planDeviationSchema, type PlanDeviation } from '../../../src/deviations/records.js';
-import { currentDeviationDecision } from '../../../src/deviations/readiness-decision.js';
-import { nonfunctionalDeviationSchema } from '../../../src/run/nonfunctional-records.js';
+import { planDeviationSchema, type PlanDeviation } from '../../autonomous/src/deviations/records.js';
+import { currentDeviationDecision } from '../../autonomous/src/deviations/readiness-decision.js';
+import { nonfunctionalDeviationSchema } from '../../autonomous/src/run/nonfunctional-records.js';
 
 type DeviationRecord = PlanDeviation | ReturnType<typeof nonfunctionalDeviationSchema.parse>;
 

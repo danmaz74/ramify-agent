@@ -5,7 +5,7 @@ import { afterEach, expect, test } from 'vitest';
 import { invocationEvaluationSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { evaluationOf, outsideScopeEvidenceOf, readObservationLog } from '../metrics.js';
 import type { Observation } from '../../../task-execution/src/observations.js';
-import { invocationOutcomeSchema, invocationSchema } from '../../../../src/run/records.js';
+import { invocationOutcomeSchema, invocationSchema } from '../../../task-execution/src/records.js';
 import { hash } from '../../../../src/tests/helpers/constructed.js';
 
 const paths = ['subs/validation/README.md', 'subs/validation/module.ramify'];

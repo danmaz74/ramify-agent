@@ -7,7 +7,7 @@ vi.mock('node:child_process', async importOriginal => guardedChildProcess(await 
 import type { AffectedDocument } from 'ramify.ts/cli';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { historicalScopeDecisions, missingHistoricalAuthority, checkWriteScope, defaultWriteScopeOf, type ScopeCapture } from '../work/scope.js';
-import { defaultWriteScopeSection } from '../work/session.js';
+import { defaultWriteScopeSection } from '../../subs/autonomous/src/work/session.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 

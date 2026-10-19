@@ -1,5 +1,5 @@
 import { consultationLayout, consultationOutcomeSchema, consultationStartSchema, type ConsultationOutcome, type ConsultationStart } from './records.js';
-import type { RunLog } from '../run/log.js';
+import type { RunLog } from '../../subs/autonomous/src/run/log.js';
 /** Caller holds its run mutex; existing ledger transactions make replay one exchange. */
 export async function recordConsultationStart(log: RunLog, value: ConsultationStart): Promise<ConsultationStart> {
   const record = consultationStartSchema.parse(value);

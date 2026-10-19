@@ -5,10 +5,11 @@ import * as provider from '../../../subs/kpi/src/capture.js';
 import type { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import { architectViewDirectory } from '../../../subs/evidence/src/views.js';
 import { baselineScope, captureSnapshot, scopeSize } from '../../../subs/kpi/src/capture.js';
-import { runLayout, type Invocation, type MeasurementSnapshot, type RunRecord } from '../../run/records.js';
+import { runLayout, type MeasurementSnapshot, type RunRecord } from '../../../subs/autonomous/src/run/records.js';
+import { type Invocation } from '../../../subs/task-execution/src/records.js';
 import { RunQueries } from '../../../subs/projections/src/queries.js';
 import { createQuerySource } from '../../http/query-source.js';
-import type { RunInputs } from '../../run/inputs.js';
+import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 import { temporaryDirectory } from './fixture.js';
 import { emptyAnalysis, onlyRun, runPath, startRun, type OpenRunsOptions, type openRuns } from './runs.js';
 

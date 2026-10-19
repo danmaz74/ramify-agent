@@ -8,7 +8,7 @@ import { checkFindingContentHash, reportCommand } from '../check-findings/report
 import { checkFindingStateOf, replayCheckFindingState } from '../check-findings/state.js';
 import { commitCheckFindingChange, type CheckFindingBuild, type CheckFindingCommit } from '../check-findings/transition.js';
 import { readCommitted } from '../jobs/commit.js';
-import { CorruptRunLogError, RunLog } from '../run/log.js';
+import { CorruptRunLogError, RunLog } from '../../subs/autonomous/src/run/log.js';
 import {
   checkFindingTarget, concern, decision, dispose, failure, faulting, InjectedFault, recorded, report, runId, started,
 } from './helpers/check-findings.js';

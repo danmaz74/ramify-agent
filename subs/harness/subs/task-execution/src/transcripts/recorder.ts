@@ -7,7 +7,7 @@ import type {
 import type { Role } from '../../../../src/interfaces/protocol/runs.js';
 import type {
   ContinueRelation, ForkRelation, InvocationOutcome, InvocationWork, ReplaceRelation, RequestRelation,
-} from '../../../../src/run/records.js';
+} from '../records.js';
 import type { TranscriptBodies, TranscriptEntryInput, TranscriptWriter } from './writer.js';
 
 /*

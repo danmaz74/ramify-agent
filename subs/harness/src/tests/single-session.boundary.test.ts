@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, test, vi } from 'vitest';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
-import { gateAttemptSchema } from '../run/records.js';
+import { gateAttemptSchema } from '../../subs/autonomous/src/run/records.js';
 import { completionProposed, shell } from './helpers/iterations.js';
 import { commandResult } from './helpers/command-result.js';
 import { notesSource, project, session, checked, passingGate, finished } from './single-session-fixture.js';

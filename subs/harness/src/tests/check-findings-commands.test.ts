@@ -9,7 +9,7 @@ import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { commandResponseSchema } from '../interfaces/protocol/jobs.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { CommandRejection } from '../jobs/commands.js';
-import type { RunService } from '../run/service.js';
+import type { RunService } from '../run/lifecycle.js';
 import { concern, decision, dispose, failure, report } from './helpers/check-findings.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';

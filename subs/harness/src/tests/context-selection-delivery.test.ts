@@ -7,11 +7,11 @@ import {
   acceptElements, createPackage, openElementCatalog, type PackageDeviation, type SubmittedElement,
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
-import type { ContextSelection } from '../context-selection/contracts.js';
-import { citePackage, deliverPackage } from '../context-selection/delivery.js';
-import { readRecordedContextSelection } from '../context-selection/recorded.js';
-import type { RunEventOf } from '../run/log.js';
-import { runLayout } from '../run/records.js';
+import type { ContextSelection } from '../../subs/autonomous/src/context-selection/contracts.js';
+import { citePackage, deliverPackage } from '../../subs/autonomous/src/context-selection/delivery.js';
+import { readRecordedContextSelection } from '../../subs/autonomous/src/context-selection/recorded.js';
+import type { RunEventOf } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 
 const hash = 'a'.repeat(64);
 const manifest = documentManifestSchema.parse({

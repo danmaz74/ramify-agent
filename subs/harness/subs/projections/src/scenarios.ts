@@ -6,10 +6,10 @@ import {
 } from '../../../src/interfaces/protocol/runs.js';
 import type { GateAttempt } from '../../../src/checks/records.js';
 import { scenarioResultsOf } from '../../../src/checks/scenario-results.js';
-import { trackedScenarios, type TrackedScenarios } from '../../../src/run/feature-files.js';
-import { capabilityOf } from '../../../src/work/frontier.js';
-import { integrationScenarioOf } from '../../../src/work/records.js';
-import { obligationsOf } from '../../../src/work/obligations.js';
+import { trackedScenarios, type TrackedScenarios } from '../../autonomous/src/run/feature-files.js';
+import { capabilityOf } from '../../autonomous/src/work/frontier.js';
+import { integrationScenarioOf } from '../../autonomous/src/work/records.js';
+import { obligationsOf } from '../../autonomous/src/work/obligations.js';
 import { publicSequence, type RunView } from './inputs.js';
 
 /*

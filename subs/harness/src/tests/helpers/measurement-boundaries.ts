@@ -8,7 +8,7 @@ import { mockGit } from './mock-git.js';
 import { scriptedCandidates } from './candidates.js';
 import { mappedAudit } from './direct-check-execution.js';
 import { shapeOnlyInputs } from './runs.js';
-import type { RunInputs } from '../../run/inputs.js';
+import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 
 const head = 'a'.repeat(40), tree = '1'.repeat(40);
 const exact = {

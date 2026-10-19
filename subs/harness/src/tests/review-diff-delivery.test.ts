@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptStep } from '../../subs/agent/src/scripted.js';
 import { exactInputHash, type DeliveredManifest } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { reviewToolName } from '../../subs/reviews/src/submission.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';

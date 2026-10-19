@@ -6,7 +6,7 @@ import { runGate } from '../checks/gate.js';
 import { setupChecks } from '../checks/checkpoint.js';
 import { checkCommand, checkCommandEnvironment, type GateAttempt } from '../checks/records.js';
 import type { PlannedCheck } from '../checks/verify.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { copyFixture, temporaryDirectory } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, submit, treeInputs } from './helpers/iterations.js';

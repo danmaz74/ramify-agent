@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { runEventSchema } from '../../../../src/run/log.js';
+import { runEventSchema } from '../../../autonomous/src/run/log.js';
 import { projectEvent } from '../events.js';
 
 test('the materialization summaries agree in number with their feature files', () => {

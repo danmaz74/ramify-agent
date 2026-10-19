@@ -1,5 +1,5 @@
 import type { Metric } from '../../../../src/interfaces/protocol/runs.js';
-import type { ScopeSize } from '../../../../src/run/records.js';
+import type { ScopeSize } from '../../../task-execution/src/records.js';
 
 export function size(bytes: number | null, missing?: string): ScopeSize {
   const components: ScopeSize['components'] = [

@@ -7,11 +7,9 @@ import { runView } from '../inputs.js';
 import { metricsOf } from '../metrics.js';
 import { runSessionEntry, runSessionViews } from '../sessions.js';
 import { snapshotOf } from '../snapshot.js';
-import { reduceSessions } from '../../../../src/run/sessions.js';
-import {
-  invocationOutcomeSchema, invocationSchema, runLayout,
-  type ContinueRelation, type DegradeRelation, type ForkRelation, type ReplaceRelation,
-} from '../../../../src/run/records.js';
+import { reduceSessions } from '../../../autonomous/src/run/sessions.js';
+import { runLayout } from '../../../autonomous/src/run/records.js';
+import { invocationOutcomeSchema, invocationSchema, type ContinueRelation, type DegradeRelation, type ForkRelation, type ReplaceRelation } from '../../../task-execution/src/records.js';
 import { constructedRun, hash, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 /*

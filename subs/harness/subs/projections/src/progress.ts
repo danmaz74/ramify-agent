@@ -1,5 +1,5 @@
 import type { CapabilityProgress } from '../../../src/interfaces/protocol/runs.js';
-import type { WorkItem } from '../../../src/work/records.js';
+import type { WorkItem } from '../../autonomous/src/work/records.js';
 import type { RunView } from './inputs.js';
 import { entryScenarioCounts } from './scenarios.js';
 import { capabilityOfItem } from './work.js';

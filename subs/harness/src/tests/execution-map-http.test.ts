@@ -8,8 +8,8 @@ import { createApp } from '../http/app.js';
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { executionCapabilityDetailSchema, executionMapPageSchema, executionScenarioDetailSchema } from '../interfaces/protocol/execution-map.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
-import { entryAssignmentsSchema } from '../run/records.js';
-import type { RunService } from '../run/service.js';
+import { entryAssignmentsSchema } from '../../subs/autonomous/subs/planning/src/records.js';
+import type { RunService } from '../run/lifecycle.js';
 import { at, constructedRun, constructedRecord, item, registered, reviews, runId } from './helpers/constructed.js';
 
 const source = ['Scenario: The full block', '  Given recorded state', '  When requested', '  Then the full block is returned'];

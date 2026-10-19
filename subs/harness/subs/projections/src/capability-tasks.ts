@@ -1,6 +1,6 @@
 import { currentLifecycleEvents } from './inputs.js';
 import type { CapabilityTasksResponse, CapabilityTaskView } from '../../../src/interfaces/protocol/capability-tasks.js';
-import { replayCapabilityState } from '../../../src/capability/state.js';
+import { replayCapabilityState } from '../../autonomous/src/capability/state.js';
 import { reviewStateOf } from '../../../src/reviews/state.js';
 import { obligationViewsOf } from './scenarios.js';
 import { ProjectionError, type RunView } from './inputs.js';

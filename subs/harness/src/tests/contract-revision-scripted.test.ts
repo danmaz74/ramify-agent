@@ -13,12 +13,12 @@ import {
   consumerAgainstFake, consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites,
   established, paths, providerWrites, type Seam,
 } from './helpers/contracts.js';
-import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../contracts/records.js';
-import { runLayout } from '../run/records.js';
+import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../../subs/autonomous/src/contracts/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
-import { workLayout, type WorkItem } from '../work/records.js';
-import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
-import type { RunEvent } from '../run/log.js';
+import { workLayout, type WorkItem } from '../../subs/autonomous/src/work/records.js';
+import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 
 /*
  * P3, scripted: what a contract revision reschedules, with no external tool.

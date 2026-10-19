@@ -1,9 +1,10 @@
 import { join } from 'node:path';
 import { z } from 'zod';
 import { modulePathSchema, sha256Schema } from '../../../src/interfaces/protocol/evidence.js';
-import { invocationOutcomeSchema, invocationSchema, scopeSizeSchema } from '../../../src/run/records.js';
-import { capabilityEngineerSubmissionKinds, engineerSubmissionKinds, engineerSubmissionSchema } from '../../../src/work/engineer.js';
-import { writeScopeSchema, testSelectionPolicySchema } from '../../../src/work/iterations.js';
+import { invocationOutcomeSchema, invocationSchema, scopeSizeSchema } from '../../task-execution/src/records.js';
+import { capabilityEngineerSubmissionKinds, engineerSubmissionKinds, engineerSubmissionSchema } from '../../autonomous/src/work/engineer.js';
+import { writeScopeSchema } from '../../../src/work/scope.js';
+import { testSelectionPolicySchema } from '../../autonomous/src/work/iterations.js';
 
 /*
  * The records an earlier `session` command left under

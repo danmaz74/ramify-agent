@@ -3,14 +3,14 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type ScriptStep } from '../../subs/agent/src/scripted.js';
-import { coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
-import { intakeToolName, principleToolName } from '../analysis/extraction.js';
+import { coordinatorAssessmentToolName, coordinatorActionToolName, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { intakeToolName, principleToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { copyFixture } from './helpers/fixture.js';
 import { withDefaultTurns } from './helpers/declarations.js';
 import { analysis } from './helpers/analysis.js';
 import { submit, write } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';

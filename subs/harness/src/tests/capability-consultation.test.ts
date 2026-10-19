@@ -9,7 +9,7 @@ import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.
 import { assign, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { HarnessSessionOperations } from '../prompts/session-adapter.js';
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 
 vi.mock('node:child_process', async importOriginal => {

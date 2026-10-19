@@ -7,13 +7,13 @@ import { checkFindingListResponseSchema, type CheckFindingUserCommand } from '..
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { runResponseSchema } from '../interfaces/protocol/runs.js';
 import { CommandRejection } from '../jobs/commands.js';
-import type { RunEvent } from '../run/log.js';
-import type { RunService } from '../run/service.js';
-import { deviationLayout, packageDeviation, type PlanDeviation } from '../deviations/records.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import type { RunService } from '../run/lifecycle.js';
+import { deviationLayout, packageDeviation, type PlanDeviation } from '../../subs/autonomous/src/deviations/records.js';
 import { createPackage } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import { readAcceptedEvidence } from '../analysis/evidence.js';
-import { runLayout, runRecordSchema } from '../run/records.js';
-import { iterationAssignmentSchema, iterationLayout } from '../work/iterations.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
+import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/records.js';
+import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
@@ -323,7 +323,7 @@ describe('a scope review under a plan deviation', () => {
     // Each assignment pins the deviations recorded when it was assigned: the first none, the later ones pd-001.
     const directory = runPath(root, reviewPlan, run.runId, '');
     const record = runRecordSchema.parse(JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, runLayout.record), 'utf8')));
-    const evidence = await readAcceptedEvidence(directory, record, run.events);
+    const evidence = await readAcceptedEvidence(directory, record.manifest, acceptedAnalysisReferences(run.events));
     if (evidence.status !== 'available') throw new Error(evidence.reason);
     const deviation = JSON.parse(await readFile(runPath(root, reviewPlan, run.runId, deviationLayout.deviation('pd-001')), 'utf8')) as PlanDeviation;
     const planDeviations = [packageDeviation(deviation)];
@@ -420,7 +420,7 @@ describe('an unresolved request answered otherwise', () => {
   }, 120_000);
 
   test('a placement request is never answered with a deviation', async () => {
-    const { validateFork } = await import('../architecture/submission.js');
+    const { validateFork } = await import('../../subs/autonomous/src/architecture/submission.js');
     const evidence = { index: null, registry: new Map(), hypotheses: new Map(), decisions: new Map(), workItems: new Set<string>() };
     expect(validateFork(forkDeviation(), evidence)).toMatchObject({ ok: false, errors: [{ path: 'kind' }] });
     const question = { kind: 'unresolved' as const, elements: new Set(['fr-001', 'fr-002']), workItems: new Set(['wi-001']), scenarios: new Map([['sc-001', 'done']]) };

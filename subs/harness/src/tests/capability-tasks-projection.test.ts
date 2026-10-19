@@ -4,20 +4,20 @@ import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { afterEach, expect, test } from 'vitest';
 import { capabilityTasksResponseSchema } from '../interfaces/protocol/capability-tasks.js';
-import { capabilityLayout } from '../capability/records.js';
-import { commitCapabilityTransition } from '../capability/ledger.js';
+import { capabilityLayout } from '../../subs/autonomous/src/capability/records.js';
+import { commitCapabilityTransition } from '../../subs/autonomous/src/capability/ledger.js';
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { createApp } from '../http/app.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import type { CommittedRun } from '../../subs/projections/src/inputs.js';
-import type { RunService } from '../run/service.js';
-import { RunLog } from '../run/log.js';
+import type { RunService } from '../run/lifecycle.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { constructedRun, constructedRecord, runId, hash } from './helpers/constructed.js';
 import { fixturePlan, fixtureRequest, fixtureTask } from './helpers/capability.js';
-import { recordHash } from '../work/committed.js';
-import { iterationAssignmentSchema, iterationResultSchema } from '../work/iterations.js';
+import { recordHash } from '../../subs/autonomous/src/work/committed.js';
+import { iterationAssignmentSchema, iterationResultSchema } from '../../subs/autonomous/src/work/iterations.js';
 
 import { capabilityProjectionLines as lines, capabilityContractRun } from './helpers/capability-projection.js';
 

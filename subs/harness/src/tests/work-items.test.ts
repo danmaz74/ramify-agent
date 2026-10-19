@@ -1,4 +1,4 @@
-import { localArchitectToolName } from '../work/submission.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
 import { openUnchangedRuns as openRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
@@ -7,15 +7,13 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
-import { analysisLayout } from '../analysis/records.js';
-import { workLayout } from '../work/records.js';
-import { runLayout } from '../run/records.js';
+import { analysisLayout } from '../../subs/autonomous/subs/planning/src/records.js';
+import { workLayout } from '../../subs/autonomous/src/work/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, hypothesis, requestCompletion, unresolved } from './helpers/analysis.js';
 import { treeInputs } from './helpers/iterations.js';
-import {
-  installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy,
-} from './helpers/runs.js';
+import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 
 /*
  * A run whose work items need no change: the initial analysis produces entry

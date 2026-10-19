@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import type { CommandRequest, CommandRunner } from '../../subs/evidence/src/run-command.js';
-import { exportRepairIncident, repairExportPayloadSchema } from '../run/repair-export.js';
+import { exportRepairIncident, repairExportPayloadSchema } from '../../subs/autonomous/src/run/repair-export.js';
 import { commandResult } from './helpers/command-result.js';
 import type { DirectCheckStep } from './helpers/direct-check-execution.js';
 import { repairExportFixture } from './helpers/repair-export-fixture.js';

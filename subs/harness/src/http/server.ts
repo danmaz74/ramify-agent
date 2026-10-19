@@ -5,17 +5,18 @@ import type { AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/por
 import { createScriptedAgent, type ScriptStep } from '../../subs/agent/src/scripted.js';
 import { createPiAgent, piReadiness } from '../../subs/agent/subs/pi/src/pi-agent.js';
 import { privateRamify, type RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import type { InitialAnalysisSubmission } from '../analysis/submission.js';
+import type { InitialAnalysisSubmission } from '../../subs/autonomous/subs/planning/src/submission.js';
 import {
   checkToolName, intakeToolName, principleToolName, type CheckSubmission, type IntakeSubmission, type PrincipleSubmission,
-} from '../analysis/extraction.js';
-import { architectRunInputs } from '../run/inputs.js';
+} from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { architectRunInputs } from '../../subs/autonomous/src/run/inputs.js';
 import { createConfiguredAudit } from '../../subs/audit/src/check-execution.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
-import { RunService, type RunRecoveryReport, type RunServiceOptions } from '../run/service.js';
+import { type RunRecoveryReport } from '../../subs/autonomous/src/run/service.js';
+import { RunService, type RunServiceOptions } from '../run/lifecycle.js';
 import { acquireProjectLock } from '../store/lock.js';
 import { createApp } from './app.js';
-import type { RepairExportConfiguration } from '../run/repair-export.js';
+import type { RepairExportConfiguration } from '../../subs/autonomous/src/run/repair-export.js';
 
 /**
  * The agent a run is started with. `pi` is pi with the person's own login.

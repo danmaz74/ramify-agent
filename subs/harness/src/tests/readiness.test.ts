@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { type CommittedAuditConfiguration, type ConfiguredAuditInput, type ConfiguredAuditPort, type ConfiguredFullAuditResult } from '../../subs/audit/src/check-execution.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { committedAuditConfigurationSchema, runLayout, type CommittedAuditConfigurationRecord, type InfrastructureRecovery, type ReadinessAttempt } from '../run/records.js';
-import { failingStep, performRecovery, recoveryFor, runReadiness, type ReadinessRequest } from '../run/readiness.js';
+import { committedAuditConfigurationSchema, runLayout, type CommittedAuditConfigurationRecord, type InfrastructureRecovery, type ReadinessAttempt } from '../../subs/autonomous/src/run/records.js';
+import { failingStep, performRecovery, recoveryFor, runReadiness, type ReadinessRequest } from '../../subs/autonomous/src/run/readiness.js';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 

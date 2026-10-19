@@ -1,6 +1,6 @@
 import { readdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { runLayout } from '../../run/records.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { runEventsOnDisk } from './runs.js';
 
 /*

@@ -22,7 +22,7 @@ import {
   type CheckFindingRejection,
   type CheckFindingSource,
 } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import { architectRefSchema, sessionIdSchema } from '../run/records.js';
+import { architectRefSchema, sessionIdSchema } from '../../subs/task-execution/src/records.js';
 import { type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import { forkPointSchema, reviewAttemptIdSchema, reviewRequestIdSchema } from './records.js';
 

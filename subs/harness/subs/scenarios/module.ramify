@@ -28,3 +28,4 @@ expose-src reduceScenarioStates, countScenarioStates, carriesPendingTag from "st
 
 expose-src renderFeatureFiles, FeatureRenderingRun, RenderedFeatureFile from "rendering.ts" to parent
 expose-src pendingTag, identityTagOf, scenarioIdOfTag from "rendering.ts" to parent
+expose-src ScenarioFormWarningKind from "form.ts" to parent

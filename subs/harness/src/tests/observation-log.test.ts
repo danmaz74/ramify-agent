@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { temporaryDirectory, copyFixture } from './helpers/fixture.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
 import { emptyAnalysis, installTestRunner, runPath, startRun } from './helpers/runs.js';

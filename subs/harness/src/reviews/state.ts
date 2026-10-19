@@ -1,5 +1,5 @@
-import type { RunEvent } from '../run/log.js';
-import type { ReviewKind, RunPolicy } from '../run/records.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import type { ReviewKind, RunPolicy } from '../../subs/autonomous/src/run/records.js';
 import type { NotVerifiedReason } from './records.js';
 
 /*

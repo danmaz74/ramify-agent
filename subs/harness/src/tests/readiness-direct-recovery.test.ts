@@ -2,12 +2,12 @@ import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { performRecovery } from '../run/readiness.js';
+import { performRecovery } from '../../subs/autonomous/src/run/readiness.js';
 import { commandResult } from './helpers/command-result.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { testPolicy } from './helpers/runs.js';
-import type { RunRecord } from '../run/records.js';
+import type { RunRecord } from '../../subs/autonomous/src/run/records.js';
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

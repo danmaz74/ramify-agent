@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
   ScratchIgnoreConflictError, createScratchDirectory, ensureScratchRule,
   releasableScratchModules, removeScratchDirectories, scratchIgnoreConflicts, scratchPath, trackedScratchPaths,
-} from '../work/scratch.js';
+} from '../../subs/autonomous/src/work/scratch.js';
 import { mockGit } from './helpers/mock-git.js';
 
 let root: string;

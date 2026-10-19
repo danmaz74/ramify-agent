@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createPackage, elementCatalogSchema } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import type { Candidate } from '../../subs/nonfunctional/src/interfaces/contracts.js';
-import { coordinatorActionPrompt, coordinatorAssessmentPrompt, repairPrompt } from '../nonfunctional/prompts.js';
+import { coordinatorActionPrompt, coordinatorAssessmentPrompt, repairPrompt } from '../../subs/autonomous/src/nonfunctional/prompts.js';
 import {
   bindCoordinatorAssessment, validateCoordinatorAction, validateCoordinatorInvestigation,
   nonfunctionalRepairSubmissionSchema, type ActionContext,
-} from '../nonfunctional/submissions.js';
+} from '../../subs/autonomous/src/nonfunctional/submissions.js';
 
 const candidate: Candidate = { tree: 'a'.repeat(40), head: 'b'.repeat(40), preparedAt: '2026-09-25T00:00:00.000Z' };
 const quote = 'Latency stays low.';

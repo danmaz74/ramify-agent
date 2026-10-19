@@ -14,12 +14,12 @@ import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 import type { ArchitectIndex, ModuleEntry, SymbolRecord } from '../../subs/evidence/src/views.js';
-import { fakeExposureParity, type StandIn } from '../contracts/parity.js';
-import { validateContract } from '../contracts/submission.js';
-import { registerContract } from '../contracts/accept.js';
-import { runLayout } from '../run/records.js';
+import { fakeExposureParity, type StandIn } from '../../subs/autonomous/src/contracts/parity.js';
+import { validateContract } from '../../subs/autonomous/src/contracts/submission.js';
+import { registerContract } from '../../subs/autonomous/src/contracts/accept.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
-import type { RunInputs } from '../run/inputs.js';
+import type { RunInputs } from '../../subs/autonomous/src/run/inputs.js';
 
 /*
  * A fake is exactly as importable as the real export it stands for.

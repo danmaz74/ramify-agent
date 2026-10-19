@@ -1,9 +1,9 @@
 import { rootDescription } from './root-description.js';
 import type { ScriptStep } from '../../../subs/agent/src/scripted.js';
 import type { CheckFindingSummary } from '../../../subs/check-findings/src/interfaces/check-findings.js';
-import type { RunEvent } from '../../run/log.js';
-import type { RunPolicy } from '../../run/records.js';
-import type { RunService } from '../../run/service.js';
+import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
+import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
+import type { RunService } from '../../run/lifecycle.js';
 import { snapshotToolNames } from '../../../subs/reviews/src/snapshot.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
 import type { ScriptedCommit } from './candidates.js';

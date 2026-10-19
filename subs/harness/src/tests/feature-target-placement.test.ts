@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
-import { CommittingGates, type GateHost, type GateRun } from '../run/committing-gate.js';
+import { CommittingGates, type GateHost, type GateRun } from '../../subs/autonomous/src/run/committing-gate.js';
 import { MutationPlacementUnavailableError } from '../run/mutations.js';
 import type { OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { temporaryDirectory } from './helpers/fixture.js';

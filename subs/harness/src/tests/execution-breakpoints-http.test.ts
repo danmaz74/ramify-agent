@@ -7,7 +7,7 @@ import {
   debugStateResponseSchema, debugExchangeResponseSchema, debugInspectionResponseSchema, runEventPageSchema, runListResponseSchema, runResponseSchema, runSnapshotSchema,
   startRunCommandSchema, type ProjectedRunEvent,
 } from '../interfaces/protocol/runs.js';
-import { runSnapshot } from '../run/snapshot.js';
+import { runSnapshot } from '../../subs/autonomous/src/run/snapshot.js';
 import { constructedRecord } from './helpers/constructed.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';

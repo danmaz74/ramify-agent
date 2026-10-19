@@ -1,7 +1,7 @@
 import { replayCheckFindingState } from '../../../src/check-findings/state.js';
 import type { RunDecisionRequests, RunEnvironmentProblem, RunNotice, RunPlanDeviations, RunSnapshot } from '../../../src/interfaces/protocol/runs.js';
-import { environmentProblemSchema } from '../../../src/deviations/records.js';
-import { runSnapshot } from '../../../src/run/snapshot.js';
+import { environmentProblemSchema } from '../../autonomous/src/deviations/records.js';
+import { runSnapshot } from '../../autonomous/src/run/snapshot.js';
 import { publicSequence, type CommittedLine, type RunView } from './inputs.js';
 import { automaticRepairsOf } from './repairs.js';
 

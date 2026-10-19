@@ -1,14 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { iterationLayout, type IterationResult } from '../work/iterations.js';
-import { runLayout } from '../run/records.js';
+import { iterationLayout, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { forkDecision, registryChange, requestPlacement } from './helpers/placement.js';
-import { architectureLayout, type PlacementDecision } from '../architecture/records.js';
-import { analysisLayout, type RegistryEntry } from '../analysis/records.js';
+import { architectureLayout, type PlacementDecision } from '../../subs/autonomous/src/architecture/records.js';
+import { analysisLayout, type RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
 import { gateGit, scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';

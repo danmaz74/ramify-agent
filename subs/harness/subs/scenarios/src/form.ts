@@ -415,3 +415,5 @@ function namesFile(text: string, file: string): boolean {
   const base = file.split('/').at(-1)!;
   return /\.[A-Za-z0-9]+$/.test(base) && new RegExp(`(^|[^\\w./-])${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w/-])`).test(text);
 }
+
+export type { ScenarioWarningKind as ScenarioFormWarningKind };

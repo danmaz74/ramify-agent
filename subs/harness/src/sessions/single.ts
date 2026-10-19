@@ -1,8 +1,8 @@
 import { classifyMutations } from '../run/mutations.js';
 import { OwnershipUnavailableError, OwnershipCancelledError } from '../../subs/evidence/src/ownership-evidence.js';
 import { ownershipAuthorityFor } from '../work/ownership-authority.js';
-import { taskSupportSections } from '../work/task-support.js';
-import { declaredCheckInputs, moduleInputPointers } from '../work/starting-inputs.js';
+import { taskSupportSections } from '../../subs/autonomous/src/work/task-support.js';
+import { declaredCheckInputs, moduleInputPointers } from '../../subs/autonomous/src/work/starting-inputs.js';
 import { randomBytes } from 'node:crypto';
 import { mkdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
@@ -20,26 +20,27 @@ import type { HookFinding } from '../hooks/post-write.js';
 import { loadPromptPackages, renderEngineerPrompt, sha256 } from '../prompts/packages.js';
 import { deliveredSupportPaths } from '../prompts/tasks.js';
 import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
-import { runCheckpoint } from '../run/gates.js';
+import { runCheckpoint } from '../../subs/autonomous/src/run/gates.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { readCommittedAuditConfiguration } from '../../subs/audit/src/check-execution.js';
 import { declaredModuleDirectories, moduleTestAreas } from '../run/project-config.js';
-import { architectRunInputs } from '../run/inputs.js';
+import { architectRunInputs } from '../../subs/autonomous/src/run/inputs.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { gateAttemptId, gateAttemptSchema, invocationOutcomeSchema, runLayout, type InvocationOutcome, type RunPolicy } from '../run/records.js';
+import { gateAttemptId, gateAttemptSchema, runLayout, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
+import { invocationOutcomeSchema, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
-import { engineerBuiltinTools, engineerEquipment } from '../work/engineer-equipment.js';
+import { engineerBuiltinTools, engineerEquipment } from '../../subs/autonomous/src/work/engineer-equipment.js';
 import { shellToolName } from '../tools/shell.js';
 import { manualRunner, openManualRun, settleManualAttempts, recordManualResourceIntent, readManualResourceResult, recordManualResourceResult, waitManualResourceResult } from '../steps/manual.js';
 import { committedBody } from '../steps/runner.js';
 import { finished } from '../../subs/task-execution/src/results.js';
-import { engineerWorkingDirectory } from '../work/engineer-directory.js';
-import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../work/scratch.js';
-import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../work/engineer.js';
-import { committedRecords } from '../work/committed.js';
-import type { IterationAssignment } from '../work/iterations.js';
+import { engineerWorkingDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
+import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../../subs/autonomous/src/work/scratch.js';
+import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../../subs/autonomous/src/work/engineer.js';
+import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
 import { auditPreparationPaths, scopeConfigurationPaths, captureGuardedFiles, deniedFiles, guardedScopeOf, resolveWriteScope, scopePaths, testPolicyOf } from '../work/scope.js';
-import { iterationApiViews } from '../work/session.js';
+import { iterationApiViews } from '../../subs/autonomous/src/work/session.js';
 
 /*
  * One engineer session on one module, from a prompt a person writes.

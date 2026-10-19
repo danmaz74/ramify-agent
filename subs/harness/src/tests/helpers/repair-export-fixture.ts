@@ -2,12 +2,12 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { commitRecord } from '../../jobs/commit.js';
-import { RunLog } from '../../run/log.js';
-import { runLayout } from '../../run/records.js';
-import { repairExportPayloadPath } from '../../run/repair-export.js';
+import { RunLog } from '../../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
+import { repairExportPayloadPath } from '../../../subs/autonomous/src/run/repair-export.js';
 import { constructedRecord, runId } from './constructed.js';
-import { repairIncidentRecordSchema, type RepairIncidentRecord } from '../../run/repair-records.js';
-import { createRepairExportPayload, repairExternalRef, repairProjectKey, type RepairExportPayload } from '../../run/repair-export.js';
+import { repairIncidentRecordSchema, type RepairIncidentRecord } from '../../interfaces/protocol/repairs.js';
+import { createRepairExportPayload, repairExternalRef, repairProjectKey, type RepairExportPayload } from '../../../subs/autonomous/src/run/repair-export.js';
 
 export function repairExportFixture(projectRoot: string, runId = 'run-1', extra: Partial<RepairIncidentRecord> = {}): RepairExportPayload {
   const incidentId = 'apr-0001';

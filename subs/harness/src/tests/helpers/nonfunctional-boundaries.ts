@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import type { AffectedDocument } from 'ramify.ts/cli';
 import type { ProvisionalSourceGit } from '../../../subs/evidence/src/provisional-git.js';
-import type { RunInputs } from '../../run/inputs.js';
+import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 import { mockGit } from './mock-git.js';
 import { scriptedCandidates } from './candidates.js';
 import { mappedAudit } from './direct-check-execution.js';

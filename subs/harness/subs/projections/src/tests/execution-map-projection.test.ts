@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { scenarioRecordSchema, scenarioSourceHash } from '../../../scenarios/src/records.js';
-import { entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema } from '../../../../src/run/records.js';
-import { iterationAssignmentSchema, iterationResultSchema } from '../../../../src/work/iterations.js';
+import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../../autonomous/src/run/records.js';
+import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';
+import { iterationAssignmentSchema, iterationResultSchema } from '../../../autonomous/src/work/iterations.js';
 import { executionCapabilityDetailSchema, executionNodeSchema, executionScenarioDetailSchema } from '../../../../src/interfaces/protocol/execution-map.js';
 import { executionCapabilityDetailOf, executionCoreOf, executionScenarioDetailOf } from '../execution-map.js';
 import { eventPage } from '../events.js';
 import { snapshotOf } from '../snapshot.js';
 import { runSnapshotSchema, scenarioListResponseSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { scenarioListOf } from '../scenarios.js';
-import type { RunEvent } from '../../../../src/run/log.js';
+import type { RunEvent } from '../../../autonomous/src/run/log.js';
 import { runView } from '../inputs.js';
 import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 

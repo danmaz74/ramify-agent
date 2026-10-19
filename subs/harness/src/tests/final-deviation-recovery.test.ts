@@ -10,7 +10,7 @@ import { declaringScenarios } from './helpers/declarations.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { gateDiagnostics } from '../checks/diagnostics.js';
-import { gateAttemptSchema, runLayout } from '../run/records.js';
+import { gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 

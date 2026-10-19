@@ -3,10 +3,10 @@ import {
   acceptElements, createPackage, openElementCatalog, type SubmittedElement,
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
-import { contextSelectorMessage, workOrientationMessage } from '../context-selection/prompts.js';
+import { contextSelectorMessage, workOrientationMessage } from '../../subs/autonomous/src/context-selection/prompts.js';
 import {
   contextSelectorSubmissionSchema, orientationPacket, workOrientationSubmissionSchema,
-} from '../context-selection/submissions.js';
+} from '../../subs/autonomous/src/context-selection/submissions.js';
 
 const hash = 'a'.repeat(64);
 const document = (id: string, path: string, kind: 'plan' | 'principle') => ({

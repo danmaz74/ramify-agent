@@ -5,8 +5,8 @@ import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/pac
 import { buildBriefingDelivery, taskBriefingRevision, type BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import { effectiveBlocks, renderBlockRemoval, renderBlockSet } from '../../subs/task-execution/src/delivery/blocks.js';
 import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
-import { composeTaskBrief } from '../run/task-brief.js';
-import { capturedPlanBlock, planScenariosSection } from '../run/service.js';
+import { composeTaskBrief } from '../../subs/autonomous/src/run/task-brief.js';
+import { capturedPlanBlock, planScenariosSection } from '../../subs/autonomous/subs/planning/src/messages.js';
 import { extractDocumentScenarios } from '../../subs/scenarios/src/extraction.js';
 
 let loaded: LoadedPackage;

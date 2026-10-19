@@ -1,9 +1,9 @@
 import {
   capabilityExampleId, capabilityRequestId, capabilityTaskId,
   type CapabilityPlan, type CapabilityRequest, type CapabilityTask,
-} from '../../capability/records.js';
-import { capabilityPolicyFrom } from '../../capability/policy.js';
-import { createCapabilityWorkflow } from '../../capability/workflow.js';
+} from '../../../subs/autonomous/src/capability/records.js';
+import { capabilityPolicyFrom } from '../../../subs/autonomous/src/capability/policy.js';
+import { createCapabilityWorkflow } from '../../../subs/autonomous/src/capability/workflow.js';
 import { openRuns, testPolicy, type OpenRunsOptions } from './runs.js';
 import { cp, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';

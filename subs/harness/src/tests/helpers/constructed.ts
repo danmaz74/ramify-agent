@@ -1,9 +1,9 @@
-import { hypothesisSchema, registryEntrySchema, type Hypothesis, type RegistryEntry } from '../../analysis/records.js';
-import { consumerRequirementSchema, providerObligationSchema, type ConsumerRequirement, type ProviderObligation } from '../../contracts/records.js';
+import { hypothesisSchema, registryEntrySchema, type Hypothesis, type RegistryEntry } from '../../../subs/autonomous/subs/planning/src/records.js';
+import { consumerRequirementSchema, providerObligationSchema, type ConsumerRequirement, type ProviderObligation } from '../../../subs/autonomous/src/contracts/records.js';
 import type { CommittedLine, CommittedRun } from '../../../subs/projections/src/inputs.js';
-import type { RunEvent } from '../../run/log.js';
-import type { RunRecord } from '../../run/records.js';
-import { workItemSchema, type WorkItem } from '../../work/records.js';
+import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
+import type { RunRecord } from '../../../subs/autonomous/src/run/records.js';
+import { workItemSchema, type WorkItem } from '../../../subs/autonomous/src/work/records.js';
 import { defaultRunPolicy } from '../../run/policy.js';
 import { minimalProjectConfig } from './project-config.js';
 

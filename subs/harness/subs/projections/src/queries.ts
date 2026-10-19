@@ -6,12 +6,12 @@ import {
 } from '../../../src/interfaces/protocol/runs.js';
 import type { CandidateSource, ChangeHistory } from '../../evidence/src/git.js';
 import type { PlanDecisionWait } from '../../../src/interfaces/protocol/queries.js';
-import type { RunEvent } from '../../../src/run/log.js';
-import { runLayout } from '../../../src/run/records.js';
-import { runSnapshot } from '../../../src/run/snapshot.js';
+import type { RunEvent } from '../../autonomous/src/run/log.js';
+import { runLayout } from '../../autonomous/src/run/records.js';
+import { runSnapshot } from '../../autonomous/src/run/snapshot.js';
 import type { CheckFindingDetail, CheckFindingListResponse, CheckFindingModuleCounts, ReviewListResponse } from '../../../src/interfaces/protocol/check-findings.js';
 import { analysisOf, decisionsOf } from './analysis.js';
-import { readAcceptedEvidence } from '../../../src/analysis/evidence.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../autonomous/subs/planning/src/evidence.js';
 import { mergeReadinessOf } from './merge-readiness.js';
 import {
   checkFindingDetailOf, checkFindingListOf, checkFindingModulesOf, reviewListOf, runVersionOf, type CheckFindingListQuery,
@@ -104,7 +104,7 @@ export class RunQueries {
   /** A versioned verdict from one committed view, with no writable effect. */
   async mergeReadiness(planId: string, runId: string, version: number): Promise<MergeReadinessResponse> {
     const view = await this.versioned(planId, runId, version);
-    const evidence = await readAcceptedEvidence(view.directory, view.record, view.events);
+    const evidence = await readAcceptedEvidence(view.directory, view.record.manifest, acceptedAnalysisReferences(view.events));
     const currentVersion = this.source.committed(planId, runId)?.entries.at(-1)?.sequence ?? 0;
     if (currentVersion !== version) {
       throw new ProjectionError('stale-version', `Run ${runId} moved while merge readiness was read`, [], currentVersion);

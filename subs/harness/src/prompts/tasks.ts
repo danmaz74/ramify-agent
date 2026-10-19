@@ -1,24 +1,24 @@
 import { buildPreparedTaskPacket, type PreparedTaskPackage, type TaskEnvironment, type TaskPacket, type EnvironmentField } from '../../subs/task-execution/src/delivery/packet.js';
 import { architectAnswerName, architectAnswerJsonSchema } from '../consultations/submissions.js';
 import type { LoadedPackage, ExtractionTurn, PackageFile } from './packages.js';
-import type { ReviewKind } from '../run/records.js';
+import type { ReviewKind } from '../../subs/autonomous/src/run/records.js';
 import { z } from 'zod';
-import { repairResultSchema } from '../run/repair-records.js';
-import { compactionReviewSchema } from '../run/compaction-review.js';
-import { finalCorrectionSchema } from '../run/final-correction.js';
-import { qualificationActionSchema } from '../capability/submission.js';
-import { initialAnalysisToolName } from '../analysis/submission.js';
-import { intakeToolName, principleToolName, checkToolName } from '../analysis/extraction.js';
-import { localArchitectToolName } from '../work/submission.js';
-import { engineerToolName } from '../work/engineer.js';
-import { forkToolName } from '../architecture/submission.js';
-import { contractToolName } from '../contracts/submission.js';
+import { repairResultSchema } from '../interfaces/protocol/repairs.js';
+import { compactionReviewSchema } from '../../subs/autonomous/src/run/compaction-review.js';
+import { finalCorrectionSchema } from '../../subs/autonomous/src/run/final-correction.js';
+import { qualificationActionSchema } from '../../subs/autonomous/src/capability/submission.js';
+import { initialAnalysisToolName } from '../../subs/autonomous/subs/planning/src/submission.js';
+import { intakeToolName, principleToolName, checkToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+import { engineerToolName } from '../../subs/autonomous/src/work/engineer.js';
+import { forkToolName } from '../../subs/autonomous/src/architecture/submission.js';
+import { contractToolName } from '../../subs/autonomous/src/contracts/submission.js';
 import { reviewToolName, orientationToolName } from '../../subs/reviews/src/submission.js';
 import { reconciliationToolName } from '../../subs/reviews/src/reconciliation.js';
-import { failureAnalysisToolName } from '../work/failure.js';
-import { workOrientationToolName, contextSelectorToolName } from '../context-selection/submissions.js';
+import { failureAnalysisToolName } from '../../subs/autonomous/src/work/failure.js';
+import { workOrientationToolName, contextSelectorToolName } from '../../subs/autonomous/src/context-selection/submissions.js';
 import { coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorAssessmentToolName,
-  coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
+  coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
 import { type DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 
 import { type BriefingDelivery } from '../../subs/task-execution/src/delivery/briefings.js';

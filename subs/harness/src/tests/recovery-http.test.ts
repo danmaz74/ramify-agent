@@ -4,7 +4,7 @@ import { createApp } from '../http/app.js';
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { commandResponseSchema } from '../interfaces/protocol/jobs.js';
 import { recoveryInspectionSchema, restartInspectionSchema } from '../interfaces/protocol/runs.js';
-import type { RunService } from '../run/service.js';
+import type { RunService } from '../run/lifecycle.js';
 import { CommandRejection } from '../jobs/commands.js';
 import { constructedRecord, constructedRun, runId } from './helpers/constructed.js';
 

@@ -9,10 +9,10 @@ import { analysis, entry } from './helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
-import type { IterationAssignment } from '../work/iterations.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
 import { parseStepInputs } from '../steps/inputs.js';
-import { runLayout } from '../run/records.js';
-import { decision, forkDecision } from './helpers/placement.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { placementDecisionFixture as decision, forkDecision } from './helpers/placement.js';
 
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('./helpers/process-guard.js');

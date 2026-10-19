@@ -1,17 +1,18 @@
-import { readFile, writeFile, rm, readdir } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { readFile, rm, readdir } from 'node:fs/promises';
+
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { AgentPort } from '../../subs/agent/src/interfaces/port.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { analysis, entry } from './helpers/analysis.js';
-import { RunLog, type RunEvent } from '../run/log.js';
-import { measurementSnapshotSchema, runLayout, snapshotId, type InvocationOutcome } from '../run/records.js';
-import { committedRecords } from '../work/committed.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
+import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
-import { assign, edit, outline, submit, treeInputs } from './helpers/iterations.js';
-import { freeze, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
+import { assign, outline, submit, treeInputs } from './helpers/iterations.js';
+import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 
 import { recoveryBoundaries } from './helpers/recovery-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';

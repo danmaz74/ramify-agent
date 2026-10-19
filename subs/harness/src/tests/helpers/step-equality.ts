@@ -4,7 +4,7 @@ import type { SessionToolDeclaration } from '../../../subs/agent/src/interfaces/
 import { piBuiltinDeclarations } from '../../../subs/agent/subs/pi/src/session-operations.js';
 import { loadPromptPackages } from '../../prompts/packages.js';
 import type { TaskPacket } from '../../../subs/task-execution/src/delivery/packet.js';
-import { runLayout } from '../../run/records.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { readRecordedOperation } from '../../../subs/task-execution/src/session-operations.js';
 import { constructEngineerStep } from '../../steps/engineer.js';
 import { constructStep } from '../../steps/construct.js';

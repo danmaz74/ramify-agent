@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import { outline, readDeclaredTree } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
-import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, validateContract } from '../contracts/submission.js';
-import { fakeNamingViolations, isFakeFile } from '../contracts/naming.js';
-import { registrationNeeded } from '../contracts/accept.js';
-import { cycleClosedBy, cycleIdentity } from '../contracts/graph.js';
-import { depthOf, nextWorkItem } from '../contracts/schedule.js';
-import { validateEngineer } from '../work/engineer.js';
-import { validateLocalArchitect } from '../work/submission.js';
-import type { WorkItem } from '../work/records.js';
+import { contractJsonSchema, contractSubmissionKinds, contractSubmissionSchema, validateContract } from '../../subs/autonomous/src/contracts/submission.js';
+import { fakeNamingViolations, isFakeFile } from '../../subs/autonomous/src/contracts/naming.js';
+import { registrationNeeded } from '../../subs/autonomous/src/contracts/accept.js';
+import { cycleClosedBy, cycleIdentity } from '../../subs/autonomous/src/contracts/graph.js';
+import { depthOf, nextWorkItem } from '../../subs/autonomous/src/contracts/schedule.js';
+import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
+import { validateLocalArchitect } from '../../subs/autonomous/src/work/submission.js';
+import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
 
 /*
  * The contract submission, the need that asks for one, the yield that waits

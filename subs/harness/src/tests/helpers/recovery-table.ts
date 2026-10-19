@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect } from 'vitest';
-import type { RunEvent } from '../../run/log.js';
-import type { RunWrite } from '../../run/service.js';
-import { reduceSessions } from '../../run/sessions.js';
+import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
+import type { RunWrite } from '../../../subs/autonomous/src/run/service.js';
+import { reduceSessions } from '../../../subs/autonomous/src/run/sessions.js';
 import {
   crashAt, committedGates, compositionCandidates, fileHashes, identityOf, logLines, materialized, plan, recordText, recoveryCompletions, removeRecordFiles,
   runDirectory, scenarios, source, statedCommands, committedRecords, type CrashPoint, type LogLine, type ScenarioName,
@@ -14,11 +14,11 @@ import { scenariosCommitName, type GitResponses } from './recovery-git.js';
 import { onlyRun, openRuns } from './runs.js';
 import { HarnessSessionOperations } from '../../prompts/session-adapter.js';
 import { readSessionPointReference } from '../../../subs/task-execution/src/session-operations.js';
-import { readAcceptedEvidence } from '../../analysis/evidence.js';
-import { runRecordSchema } from '../../run/records.js';
-import { readRecordedContextSelection } from '../../context-selection/recorded.js';
-import { architectureLayout, placementDecisionSchema } from '../../architecture/records.js';
-import { briefText } from '../../architecture/context.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../../subs/autonomous/subs/planning/src/evidence.js';
+import { runRecordSchema } from '../../../subs/autonomous/src/run/records.js';
+import { readRecordedContextSelection } from '../../../subs/autonomous/src/context-selection/recorded.js';
+import { architectureLayout, placementDecisionSchema } from '../../../subs/autonomous/src/architecture/records.js';
+import { briefText } from '../../../subs/autonomous/src/architecture/context.js';
 
 /*
  * The recovery tables of the ten state machines, composed into one table
@@ -600,7 +600,7 @@ export async function verifyAvailableAppend(name: 'context-package-append-reques
       if (request?.type !== 'context-package-append-requested' || selected?.type !== 'context-selection-recorded'
         || orientation?.type !== 'work-orientation-recorded' || orientation.data.point === null) throw new Error('Missing original context append bindings');
       const record = runRecordSchema.parse(JSON.parse(await readFile(join(directory, 'job.json'), 'utf8')));
-      const evidence = await readAcceptedEvidence(directory, record, frozen.map(line => line.event));
+      const evidence = await readAcceptedEvidence(directory, record.manifest, acceptedAnalysisReferences(frozen.map(line => line.event)));
       if (evidence.status !== 'available') throw new Error(evidence.reason);
       const package_ = await readRecordedContextSelection(directory, selected, evidence.catalog, []);
       if (package_.status !== 'available') throw new Error(package_.reason);

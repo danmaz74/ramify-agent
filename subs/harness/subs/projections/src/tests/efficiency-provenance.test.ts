@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from 'vitest';
-import { invocationSchema } from '../../../../src/run/records.js';
+import { invocationSchema } from '../../../task-execution/src/records.js';
 import { evaluationOf } from '../metrics.js';
 
 // Split from parent composition: the same recorded input, with no run coordination.

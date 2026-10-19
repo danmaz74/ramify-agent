@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { auditCheckFacts, hasAssertionFailure } from '../run/recovery-checks.js';
+import { auditCheckFacts, hasAssertionFailure } from '../../subs/autonomous/src/run/recovery-checks.js';
 import { guardedFilesHash } from '../../subs/evidence/src/guarded-files.js';
 import type { CommandRun } from '../../subs/evidence/src/run-command.js';
 import { checkOutputPath } from './execution.js';

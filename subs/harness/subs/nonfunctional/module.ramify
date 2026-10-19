@@ -4,3 +4,11 @@ module nonfunctional
 // Pure assessment and candidate rules. The parent owns all effects.
 expose-src * from "interfaces/contracts.ts" to parent
 expose-src decideNonfunctionalRound, requireRepairPermitted, RoundDecisionInput, RoundDecision, ClosedRound, Phase, Outcome from "rounds.ts" to parent
+expose-src Assessment from "interfaces/contracts.ts" to parent
+expose-src Candidate from "interfaces/contracts.ts" to parent
+expose-src assessmentSchema from "interfaces/contracts.ts" to parent
+expose-src roundSchema from "interfaces/contracts.ts" to parent
+expose-src candidateSchema from "interfaces/contracts.ts" to parent
+expose-src assessmentCoverage from "interfaces/contracts.ts" to parent
+expose-src assessedCandidateMatches from "interfaces/contracts.ts" to parent
+expose-src assessmentResultSchema from "interfaces/contracts.ts" to parent

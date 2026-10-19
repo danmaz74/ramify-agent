@@ -1,11 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
 import { join } from 'node:path';
-import { CommittingGates, type GateHost, type GateRun } from '../run/committing-gate.js';
-import { checkExecutionObstruction } from '../run/recovery-checks.js';
+import { CommittingGates, type GateHost, type GateRun } from '../../subs/autonomous/src/run/committing-gate.js';
+import { checkExecutionObstruction } from '../../subs/autonomous/src/run/recovery-checks.js';
 import type { GateAttempt } from '../checks/records.js';
-import type { RunLog } from '../run/log.js';
+import type { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { gateAttemptSchema, runLayout } from '../run/records.js';
+import { gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 
 function attempt(checkpoint: GateAttempt['checkpoint'], id: string, infrastructureAttempt = 0, verdict: GateAttempt['verdict'] = 'not-verified'): GateAttempt {
   return { schema: 'ramify-agent.gate-attempt/3', id, checkpoint, subject: {}, proposedBy: 'accepted-producer', repairRound: 0, infrastructureAttempt,

@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { recordedProjectionConsumers, captureProjectionFiles } from './projection-consumers.js';
 import { runId } from './constructed.js';
-import { runLayout } from '../../run/records.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { protocolPaths } from '../../interfaces/protocol/paths.js';
 
 export async function reopenedKpiFixture() {

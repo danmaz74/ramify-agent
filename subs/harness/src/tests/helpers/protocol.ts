@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { checkCommand } from '../../checks/records.js';
-import type { RunPolicy } from '../../run/records.js';
+
+import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
 import { copyFixture } from './fixture.js';
 import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import {

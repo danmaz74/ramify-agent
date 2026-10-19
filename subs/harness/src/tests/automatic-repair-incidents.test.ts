@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest';
 import { join } from 'node:path';
-import { RunLog } from '../run/log.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 
 const cleanups: Array<() => Promise<void>> = [];

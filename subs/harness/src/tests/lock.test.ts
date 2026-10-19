@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import { acquireProjectLock, lockPath, ProjectLockError } from '../store/lock.js';
+import { acquireProjectLock, lockPath } from '../store/lock.js';
 import { temporaryDirectory } from './helpers/fixture.js';
-import { deadPid } from './helpers/runs.js';
+
 
 let directory: Awaited<ReturnType<typeof temporaryDirectory>>;
 beforeEach(async () => { directory = await temporaryDirectory(); });

@@ -4,7 +4,7 @@ import { moduleCapabilityComparisonResponseSchema, runQueryLimits, type ModuleCa
 import { runView } from '../inputs.js';
 import { moduleCapabilityComparisonOf, type AnalysisCoverageLimits } from '../module-capabilities.js';
 import { capabilityProgressOf } from '../progress.js';
-import { entryAssignmentsSchema } from '../../../../src/run/records.js';
+import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';
 import { at, constructedRun, forecast, hash, item, obligation, registered, requirement, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 const root = 'collection-review';

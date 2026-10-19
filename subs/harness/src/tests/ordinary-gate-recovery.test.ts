@@ -7,7 +7,7 @@ import { declaringScenarios } from './helpers/declarations.js';
 import { announcingAudit } from './helpers/direct-check-execution.js';
 import { scenarioGit } from './helpers/recovery-git.js';
 import { openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
-import { operationRecoverySchema, runLayout } from '../run/records.js';
+import { operationRecoverySchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });

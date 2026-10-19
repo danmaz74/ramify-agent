@@ -11,7 +11,7 @@ import { assign, byRole, completionProposed, outline, submit, treeInputs, write 
 import { installTestRunner, openRuns, startRun, stopRun, testPolicy, until, runEventsOnDisk, emptyAnalysis, freeze, staleCrashLock } from './helpers/runs.js';
 import { reviewRun, reviewTarget, gate, store, tool, candidates as reviewCandidates, notesDirectory } from './helpers/reviews.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
-import { AfterHandling } from '../run/after-handling.js';
+import { AfterHandling } from '../../subs/autonomous/src/run/after-handling.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { openUnchangedRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
 
@@ -296,7 +296,7 @@ test('B02: unavailable frozen review setup remains actionable and restored evide
   const root = await reviewTarget(cleanups);
   let available = false;
   const bindings = AfterHandling.prototype.reviewPendingBindings;
-  const setup = vi.spyOn(AfterHandling.prototype, 'reviewPendingBindings').mockImplementation(async function (this: AfterHandling<import('../run/committing-gate.js').GateRun>, run, request, snapshot) {
+  const setup = vi.spyOn(AfterHandling.prototype, 'reviewPendingBindings').mockImplementation(async function (this: AfterHandling<import('../../subs/autonomous/src/run/committing-gate.js').GateRun>, run, request, snapshot) {
     if (request.id === 'rq-0001' && !available) throw new Error('The exact frozen pending-binding evidence store is temporarily unavailable');
     return bindings.call(this, run, request, snapshot);
   });

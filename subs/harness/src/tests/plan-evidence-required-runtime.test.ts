@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { copyFixture } from './helpers/fixture.js';
-import { intakeToolName } from '../analysis/extraction.js';
+import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { submit } from './helpers/iterations.js';
 import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, startRun } from './helpers/runs.js';
 import { unchangedGit } from './helpers/unchanged-run.js';

@@ -1,7 +1,8 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import { runLayout, type InvocationOutcome } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';

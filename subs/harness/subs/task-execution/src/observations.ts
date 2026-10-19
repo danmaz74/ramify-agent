@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import { appendJsonLine, discardPartialLine } from '../../ledger/src/jsonl.js';
 import { explorationObservationSchema, recordedChargeSchema } from '../../../src/interfaces/protocol/runs.js';
-import { invocationUsageSchema as usageSchema } from '../../../src/run/records.js';
+import { invocationUsageSchema as usageSchema } from './records.js';
 
 /*
  * The observation log of one invocation, `invocations/<id>/observations.jsonl`.

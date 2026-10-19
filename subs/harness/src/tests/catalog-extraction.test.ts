@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { openElementCatalog, type ElementCatalog, type SubmittedElement } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import { acceptIntake, acceptPrinciples, applyCheck, correctionSchema, type CheckState, type CheckSubmission, type IntakeSubmission } from '../analysis/extraction.js';
-import { acceptArchitectElements, validateInitialAnalysis, type AnalysisEvidence } from '../analysis/submission.js';
+import { acceptIntake, acceptPrinciples, applyCheck, correctionSchema, type CheckState, type CheckSubmission, type IntakeSubmission } from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { acceptArchitectElements, validateInitialAnalysis, type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
 import { analysis, entry } from './helpers/analysis.js';
-import { entryAssignmentsSchema } from '../run/records.js';
+import { entryAssignmentsSchema } from '../../subs/autonomous/subs/planning/src/records.js';
 
 /*
  * The catalog extractor's turns, as pure acceptances: the intake adds the

@@ -2,9 +2,9 @@ import { readdir, readFile, rm } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptStep } from '../../subs/agent/src/scripted.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
-import type { RunEvent } from '../run/log.js';
-import { runLayout } from '../run/records.js';
-import { reduceSessions } from '../run/sessions.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { reviewLayout } from '../reviews/records.js';

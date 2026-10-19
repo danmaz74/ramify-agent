@@ -1,7 +1,7 @@
 import { roleDisplayName, runQueryLimits, type ProjectedRunEvent, type RunEventPage, type RunEventRefKind } from '../../../src/interfaces/protocol/runs.js';
-import type { RunEvent, RunEventOf } from '../../../src/run/log.js';
-import type { SessionPoint } from '../../../src/run/records.js';
-import { pointLabel } from '../../../src/run/sessions.js';
+import type { RunEvent, RunEventOf } from '../../autonomous/src/run/log.js';
+import type { SessionPoint } from '../../task-execution/src/records.js';
+import { pointLabel } from '../../autonomous/src/run/sessions.js';
 import type { RunView } from './inputs.js';
 import { snapshotOf } from './snapshot.js';
 

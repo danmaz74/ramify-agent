@@ -10,12 +10,13 @@ import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.
 import { recoveryBoundaries } from './helpers/recovery-boundaries.js';
 import { assign, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { freeze, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
-import { capabilityPolicyFrom } from '../capability/policy.js';
-import { decision, forkDecision } from './helpers/placement.js';
-import type { CapabilityRequest, CapabilityTask } from '../capability/records.js';
-import { runLayout, type Invocation, type InvocationOutcome } from '../run/records.js';
+
+import { placementDecisionFixture as decision, forkDecision } from './helpers/placement.js';
+import type { CapabilityRequest, CapabilityTask } from '../../subs/autonomous/src/capability/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type Invocation, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { z } from 'zod';
-import { capabilityActionSchema } from '../capability/submission.js';
+import { capabilityActionSchema } from '../../subs/autonomous/src/capability/submission.js';
 import { readPointContext, readRecordedOperation } from '../../subs/task-execution/src/session-operations.js';
 import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';

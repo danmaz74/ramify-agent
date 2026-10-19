@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
-import { contextSelectorToolName, workOrientationToolName } from '../context-selection/submissions.js';
-import { localArchitectToolName } from '../work/submission.js';
-import { runLayout, type InvocationOutcome } from '../run/records.js';
+import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/src/context-selection/submissions.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { announcingAudit } from './helpers/direct-check-execution.js';
 import { declaringScenarios, withDefaultTurns } from './helpers/declarations.js';
 import {
@@ -20,8 +21,8 @@ import { assign, byRole, completionProposed, edit, outline, submit, treeInputs, 
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
-import { intakeToolName } from '../analysis/extraction.js';
-import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
+import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
 import { reviewScript, reviewTarget, candidates as reviewCandidates, revisionGates, base as reviewBase,
   materialized as reviewMaterialized, store, notes, attemptRecord } from './helpers/reviews.js';
 import { gateGit, scenariosCommit as gateScenariosCommit } from './helpers/gate-git.js';

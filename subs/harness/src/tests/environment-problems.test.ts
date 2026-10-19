@@ -1,4 +1,4 @@
-import { localArchitectToolName } from '../work/submission.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
 import type { AddressInfo } from 'node:net';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -8,16 +8,16 @@ import { checkFindingListResponseSchema, type CheckFindingUserCommand } from '..
 import { protocolPaths } from '../interfaces/protocol/paths.js';
 import { runResponseSchema } from '../interfaces/protocol/runs.js';
 import { CommandRejection } from '../jobs/commands.js';
-import type { RunEvent } from '../run/log.js';
-import type { RunService } from '../run/service.js';
-import { validateFork, type ForkSubmission } from '../architecture/submission.js';
-import { deviationLayout, type EnvironmentProblem } from '../deviations/records.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import type { RunService } from '../run/lifecycle.js';
+import { validateFork, type ForkSubmission } from '../../subs/autonomous/src/architecture/submission.js';
+import { deviationLayout, type EnvironmentProblem } from '../../subs/autonomous/src/deviations/records.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
-import { decision, forkDecision, forkEnvironment, registryChange, unresolved } from './helpers/placement.js';
+import { placementDecisionFixture as decision, forkDecision, forkEnvironment, registryChange, unresolved } from './helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
 import { byRole, submit, treeInputs } from './helpers/iterations.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unchanged-run.js';

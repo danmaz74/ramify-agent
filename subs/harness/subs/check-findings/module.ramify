@@ -11,3 +11,13 @@ expose-src * from "interfaces/check-findings.ts" to parent
 expose-src decideCheckFindingChange from "decide.ts" to parent
 expose-src applyCheckFindingEvent, replayCheckFindingEvents, emptyCheckFindingState from "replay.ts" to parent
 expose-src selectCheckFindings from "queries.ts" to parent
+expose-src CheckFindingCommand from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingEntry from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingState from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingDecision from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingAt from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingId from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingQueryInput from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingSelection from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingSummary from "interfaces/check-findings.ts" to parent
+expose-src CheckFindingEvent from "interfaces/check-findings.ts" to parent

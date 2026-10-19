@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import type { ScriptedAgent, ScriptedAgentOptions, ScriptStep } from '../../../subs/agent/src/scripted.js';
 import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
-import type { RunEvent } from '../../run/log.js';
-import type { ReviewPolicy, RunPolicy } from '../../run/records.js';
-import type { RunWrite } from '../../run/service.js';
+import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
+import type { ReviewPolicy, RunPolicy } from '../../../subs/autonomous/src/run/records.js';
+import type { RunWrite } from '../../../subs/autonomous/src/run/service.js';
 import type { ConfiguredAuditPort } from '../../../subs/audit/src/check-execution.js';
 import { reviewLayout, type ReviewAttempt } from '../../reviews/records.js';
 import { analysis, entry, requestCompletion } from './analysis.js';

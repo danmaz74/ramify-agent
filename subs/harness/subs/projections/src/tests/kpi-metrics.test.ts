@@ -10,7 +10,8 @@ import type { CandidateSource, ChangeHistory, LineCommit } from '../../../eviden
 import { metricSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { runView } from '../inputs.js';
 import { metricsOf } from '../metrics.js';
-import { invocationOutcomeSchema, invocationSchema, runLayout, type ContinueRelation } from '../../../../src/run/records.js';
+import { runLayout } from '../../../autonomous/src/run/records.js';
+import { invocationOutcomeSchema, invocationSchema, type ContinueRelation } from '../../../task-execution/src/records.js';
 import { constructedRecord, constructedRun, hash, type Line } from '../../../../src/tests/helpers/constructed.js';
 import { size, usage, find } from '../../../../src/tests/helpers/metric-fixtures.js';
 

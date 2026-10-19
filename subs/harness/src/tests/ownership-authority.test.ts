@@ -6,7 +6,7 @@ import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownersh
 import { decodeOwnershipEvidenceAnswer, type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { guardedScopeOf, resolveWriteScope } from '../work/scope.js';
-import { RunLog } from '../run/log.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 
 vi.unmock('../../subs/ledger/src/session-store.js');

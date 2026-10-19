@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { verifySetupLineIdentities, type RecordedSetupDelta, type SetupAddedLineFact, type SetupCandidatePartition, type SetupDeletedLineFact, type SetupLineMappingFacts } from '../../kpi/src/setup-attribution.js';
-import { scratchIgnoreRule } from '../../../src/work/scratch.js';
+import { scratchIgnoreRule } from '../../autonomous/src/work/scratch.js';
 import type { CandidateSource, ChangeHistory, LineCommit } from '../../evidence/src/git.js';
 import { acceptedCommit } from '../../../src/checks/accepted.js';
 import { deliveredManifestViewSchema, operationIdentitySchema, scopeSizeViewSchema, recordedChargeSchema, type InvocationEvaluation, type InvocationEfficiency, type MetricsResponse, type Role, type SearchCountsView } from '../../../src/interfaces/protocol/runs.js';
@@ -13,12 +13,10 @@ import { comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicy
 import { explorationDetails, type SearchCount, type SearchCounts } from '../../kpi/src/exploration.js';
 import { invocationTiming } from '../../kpi/src/efficiency.js';
 import { observationSchema, type Observation } from '../../task-execution/src/observations.js';
-import { invocationSessions } from '../../../src/run/sessions.js';
-import type { RunEvent } from '../../../src/run/log.js';
-import {
-  lineEventSummarySchema, measurementSnapshotSchema, runLayout,
-  type Invocation, type InvocationOutcome, type LineEventSummary, type MeasurementSnapshot,
-} from '../../../src/run/records.js';
+import { invocationSessions } from '../../autonomous/src/run/sessions.js';
+import type { RunEvent } from '../../autonomous/src/run/log.js';
+import { lineEventSummarySchema, measurementSnapshotSchema, runLayout, type LineEventSummary, type MeasurementSnapshot } from '../../autonomous/src/run/records.js';
+import { type Invocation, type InvocationOutcome } from '../../task-execution/src/records.js';
 import { readRunFile, unsupportedVersion, type RunView } from './inputs.js';
 import { lineageInputsOf, modelHistories } from './lineage.js';
 

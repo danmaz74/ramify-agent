@@ -5,11 +5,11 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptedAgent, ScriptStep } from '../../subs/agent/src/scripted.js';
 import { reviewLayout, type ReviewRequest } from '../reviews/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
-import { runLayout, runRecordSchema } from '../run/records.js';
-import type { RunEvent } from '../run/log.js';
+import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/records.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { createPackage } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import { readAcceptedEvidence } from '../analysis/evidence.js';
-import { iterationAssignmentSchema, iterationLayout } from '../work/iterations.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
+import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
 import type { ScriptedCommit } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';
@@ -105,7 +105,7 @@ const citingArchitect: ReadonlyArray<readonly ScriptStep[]> = [
 async function assignmentPackage(root: string, runId: string, events: readonly RunEvent[], n: number) {
   const directory = runPath(root, plan, runId, '');
   const run = runRecordSchema.parse(JSON.parse(await readFile(runPath(root, plan, runId, runLayout.record), 'utf8')));
-  const evidence = await readAcceptedEvidence(directory, run, events);
+  const evidence = await readAcceptedEvidence(directory, run.manifest, acceptedAnalysisReferences(events));
   if (evidence.status !== 'available') throw new Error(evidence.reason);
   const assignment = iterationAssignmentSchema.parse(JSON.parse(await readFile(join(directory, iterationLayout.assignment('wi-001', n)), 'utf8')));
   const rendered = createPackage({ catalog: evidence.catalog, planDeviations: [], elements: assignment.source!.elements, deviations: assignment.source!.deviations });

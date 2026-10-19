@@ -25,17 +25,18 @@ import { inputsHash, type LoadedPackage } from '../prompts/packages.js';
 import type { TaskEnvironment, TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
 import type { TaskKind } from '../prompts/tasks.js';
 
-import type { RunEventInput, RunLog } from '../run/log.js';
+import type { RunEventInput, RunLog } from '../../subs/autonomous/src/run/log.js';
 import { recordSettledSnapshot } from '../run/mutations.js';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { contextPolicyOf, invocationLimits } from '../run/policy.js';
 import { decideTaskReentry, mayRetryTask, taskInterruption, taskRetryDelay, waitForTaskRetry } from '../../subs/recovery/src/reentry.js';
 
 import { declaredModuleDirectories } from '../run/project-config.js';
-import { invocationId, invocationOutcomeSchema, invocationSchema, measurementSnapshotSchema, runLayout, sessionId, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type Invocation, type InvocationOutcome, type MeasurementSnapshot, type RecordRef, type ReplaceRelation, type RequestRelation, type RunPolicy, type SessionId } from '../run/records.js';
+import { invocationId, measurementSnapshotSchema, runLayout, sessionId, type MeasurementSnapshot, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
+import { invocationOutcomeSchema, invocationSchema, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type Invocation, type InvocationOutcome, type DurableRecordRef as RecordRef, type ReplaceRelation, type RequestRelation, type SessionId } from '../../subs/task-execution/src/records.js';
 import { HarnessSessionOperations, composeWorkflowOperationPacket as composeOperationPacket } from '../prompts/session-adapter.js';
 import { ReusableSessionUnavailableError, operationDeclarations, settleSessionEquipment, type HarnessTaskBrief, type PointContext } from '../../subs/task-execution/src/session-operations.js';
-import { reduceSessions, type RunSessions } from '../run/sessions.js';
+import { reduceSessions, type RunSessions } from '../../subs/autonomous/src/run/sessions.js';
 import { type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import type { CompactionReason } from '../../subs/agent/src/interfaces/port.js';
 import type { WriterOwnership } from '../../subs/task-execution/src/writer.js';
@@ -43,8 +44,8 @@ import { InvocationTranscript } from '../../subs/task-execution/src/transcripts/
 import type { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { readTranscript, TranscriptWriter, TranscriptWriters } from '../../subs/task-execution/src/transcripts/writer.js';
 import type { EquipContext, Equipment } from '../../subs/task-execution/src/equipment.js';
-import type { StartingPointGroup } from '../work/starting-inputs.js';
-import { scratchSafetyRule } from '../work/scratch.js';
+import type { StartingPointGroup } from '../../subs/autonomous/src/work/starting-inputs.js';
+import { scratchSafetyRule } from '../../subs/autonomous/src/work/scratch.js';
 import { serializeStepInputs, type StepInputs } from './inputs.js';
 
 /*

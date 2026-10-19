@@ -1,27 +1,24 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
-import { gateDiagnostics } from '../checks/diagnostics.js';
-import type { GateAttempt } from '../checks/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import { runLayout } from '../run/records.js';
-import { workLayout } from '../work/records.js';
-import { localArchitectToolName } from '../work/submission.js';
-import { copyFixture } from './helpers/fixture.js';
+import { describe, expect, test } from 'vitest';
+
+
+import { iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
+
+import { workLayout } from '../../subs/autonomous/src/work/records.js';
+import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+
 import { analysis, entry } from './helpers/analysis.js';
-import {
-  addModule, assign, byRole, completionProposed, installMiniRunner, read,
-  shell, submit, treeInputs, write, type Turn,
-} from './helpers/iterations.js';
+import { assign, byRole, completionProposed, read, submit, treeInputs, write } from './helpers/iterations.js';
 import {
   onlyRun, openRuns, runEventsOnDisk, runPath, startRun,
 } from './helpers/runs.js';
-import { localCommandAudit } from './helpers/direct-check-execution.js';
-import { gateGit, scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
 
-import { cleanups, plan, attribution, core, views, pure, dirA, dirC, dirV, dirP, base, materialized, scenarios, unchanged, revision, broadRationale, NARROWED_CONFIG, WIDENED_CONFIG, target, run, projectAudit, readGate, gates, readAssignment, readResult, sources, stagedOutline, broadScope, coreV0, coreTestV0, adaptersV0, adaptersTestV0, panelV0, panelTestV0, pureV0, pureTestV0, coreV1, coreTestV1, coreV2, coreTestV2, adaptersV2, adaptersTestV2, panelV2, panelTestV2, pureV2, pureTestV2, coreV3, coreTestV3, adaptersV3, adaptersTestV3 } from './breaking-work-fixture.js';
+import { gateGit } from './helpers/gate-git.js';
+
+
+import { cleanups, plan, attribution, core, views, dirA, dirC, dirV, dirP, base, materialized, scenarios, unchanged, revision, broadRationale, target, run, gates, readAssignment, readResult, stagedOutline, broadScope, coreV2, coreTestV2, adaptersV2, adaptersTestV2, panelV2, panelTestV2, pureV2, pureTestV2 } from './breaking-work-fixture.js';
 
 describe('the broad scope is a planned exception', () => {
   test('a broad scope with no rationale is returned with its path, and the corrected one is accepted', async () => {

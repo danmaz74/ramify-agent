@@ -1,10 +1,10 @@
 import { join } from 'node:path';
 import type { BuiltinTool, JsonSchema, WriteTool } from '../../subs/agent/src/interfaces/port.js';
 import type { LoadedPackage } from '../prompts/packages.js';
-import type { RunPolicy } from '../run/records.js';
-import { runDirectory } from '../run/records.js';
+import type { RunPolicy } from '../../subs/autonomous/src/run/records.js';
+import { runDirectory } from '../../subs/autonomous/src/run/records.js';
 import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
-import type { KnownProjectFacts } from '../run/task-brief.js';
+import type { KnownProjectFacts } from '../../subs/autonomous/src/run/task-brief.js';
 import type { StepEnvironment } from './engineer.js';
 import { projectPath, type KnownFactsInputs, type ProjectPath, type RunPath, type StepInputs } from './inputs.js';
 

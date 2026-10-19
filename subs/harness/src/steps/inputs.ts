@@ -7,11 +7,12 @@ import { scenarioRecordSchema } from '../../subs/scenarios/src/records.js';
 import { apiViewEvidenceSchema } from '../interfaces/protocol/jobs.js';
 import { reviewRequestSchema } from '../reviews/records.js';
 import { viewIdentitySchema } from '../interfaces/protocol/evidence.js';
-import { continueReasonSchema, contextPolicySchema, runPolicySchema, sessionIdSchema } from '../run/records.js';
+import { contextPolicySchema, runPolicySchema } from '../../subs/autonomous/src/run/records.js';
+import { continueReasonSchema, sessionIdSchema } from '../../subs/task-execution/src/records.js';
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
-import { iterationAssignmentSchema } from '../work/iterations.js';
-import { workItemOutlineSchema, workItemSchema } from '../work/records.js';
-import { startingPointSchema } from '../work/starting-points.js';
+import { iterationAssignmentSchema } from '../../subs/autonomous/src/work/iterations.js';
+import { workItemOutlineSchema, workItemSchema } from '../../subs/autonomous/src/work/records.js';
+import { startingPointSchema } from '../../subs/autonomous/src/work/starting-points.js';
 
 /*
  * The inputs of one harness step: everything a role's invocation is built
@@ -302,7 +303,7 @@ const orientationFields = {
 };
 
 /** The module architect's orientation: always a fresh start, before any assignment. */
-const orientationSchema = z.object({ ...orientationFields, start: z.object({ kind: z.literal('fresh') }).strict() }).strict();
+export const orientationSchema = z.object({ ...orientationFields, start: z.object({ kind: z.literal('fresh') }).strict() }).strict();
 
 const selectorFields = {
   ...commonFields,
@@ -328,9 +329,9 @@ const selectorFields = {
   architectView: z.array(environmentViewSchema),
 };
 
-const selectorFreshSchema = z.object({ ...selectorFields,
+export const selectorFreshSchema = z.object({ ...selectorFields,
   start: z.object({ kind: z.literal('fresh'), degraded: z.object({ requested: z.literal('fork'), reason: text }).strict().optional() }).strict() }).strict();
-const selectorForkSchema = z.object({ ...selectorFields,
+export const selectorForkSchema = z.object({ ...selectorFields,
   start: z.object({ kind: z.literal('fork'), session: sessionIdSchema, invocation: text, point: pointReferenceSchema }).strict() }).strict();
 
 const workTurnFields = {
@@ -384,11 +385,11 @@ const workTurnFields = {
   }).strict(),
 };
 
-const workTurnFreshSchema = z.object({ ...workTurnFields, start: z.object({ kind: z.literal('fresh'),
+export const workTurnFreshSchema = z.object({ ...workTurnFields, start: z.object({ kind: z.literal('fresh'),
   /** Why the turn was to continue a session the run no longer holds; the task kind follows it. */
   continuing: continueReasonSchema.optional(),
   degraded: z.object({ requested: z.literal('continued'), reason: text }).strict().optional() }).strict() }).strict();
-const workTurnContinuedSchema = z.object({ ...workTurnFields,
+export const workTurnContinuedSchema = z.object({ ...workTurnFields,
   start: z.object({ kind: z.literal('continued'), point: pointReferenceSchema,
     /** The session the run holds the point in, where its log names one. */
     session: sessionIdSchema.optional(),
@@ -427,14 +428,14 @@ const reviewFields = {
   bounds: z.object({ absoluteMs: z.int().positive() }).strict(),
 };
 
-const reviewFreshSchema = z.object({ ...reviewFields,
+export const reviewFreshSchema = z.object({ ...reviewFields,
   start: z.object({ kind: z.literal('fresh'), degraded: z.object({ requested: z.literal('fork'), reason: text }).strict().optional() }).strict() }).strict();
-const reviewForkSchema = z.object({ ...reviewFields,
+export const reviewForkSchema = z.object({ ...reviewFields,
   start: z.object({ kind: z.literal('fork'), session: sessionIdSchema, invocation: text, point: pointReferenceSchema,
     reason: z.enum(['scope-review', 'design-orientation']), briefs: z.array(text) }).strict() }).strict();
 
 /** The design orientation: a reviewer that reads one guidance selection, kept so the design reviews of its key fork it. */
-const designOrientationSchema = z.object({
+export const designOrientationSchema = z.object({
   ...commonFields,
   role: z.literal('reviewer'),
   question: z.literal('design-orientation'),

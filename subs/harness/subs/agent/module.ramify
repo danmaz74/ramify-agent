@@ -13,3 +13,40 @@ expose-sub * from pi to parent
 
 expose-src * from "interfaces/session-operations.ts" to parent, descendants
 expose-src createSessionOperations from "session-operations.ts" to parent, descendants
+expose-src BuiltinTool from "interfaces/port.ts" to parent
+expose-src WriteTool from "interfaces/port.ts" to parent
+expose-src ToolDefinition from "interfaces/port.ts" to parent
+expose-src GuardedCall from "interfaces/port.ts" to parent
+expose-src GuardDecision from "interfaces/port.ts" to parent
+expose-src SettledMutation from "interfaces/port.ts" to parent
+expose-src AgentPort from "interfaces/port.ts" to parent
+expose-src AgentSession from "interfaces/port.ts" to parent
+expose-src ContextPolicy from "interfaces/port.ts" to parent
+expose-src SessionSpec from "interfaces/port.ts" to parent
+expose-src SessionStart from "interfaces/port.ts" to parent
+expose-src JsonSchema from "interfaces/port.ts" to parent
+expose-src CompactionReason from "interfaces/port.ts" to parent
+expose-src interruptionEvidence from "interfaces/port.ts" to parent
+expose-src SessionExecutionIdentity from "interfaces/session-operations.ts" to parent
+expose-src AgentEvent from "interfaces/port.ts" to parent
+expose-src SessionOutcome from "interfaces/port.ts" to parent
+expose-src InterruptionEvidence from "interfaces/port.ts" to parent
+expose-src AppendOutcome from "interfaces/port.ts" to parent
+expose-src AppendSessionContextInput from "interfaces/session-operations.ts" to parent
+expose-src AgentSessionPoint from "interfaces/session-operations.ts" to parent
+expose-src SessionEffectOwnerReceipt from "interfaces/session-operations.ts" to parent
+expose-src SessionEffectRecord from "interfaces/session-operations.ts" to parent
+expose-src SessionExecutionBindings from "interfaces/session-operations.ts" to parent
+expose-src SessionExecutionPolicy from "interfaces/session-operations.ts" to parent
+expose-src SessionOperations from "interfaces/session-operations.ts" to parent
+expose-src SessionTaskInput from "interfaces/session-operations.ts" to parent
+expose-src SessionToolDeclaration from "interfaces/session-operations.ts" to parent
+expose-sub piBuiltinDeclarations from pi to parent
+expose-src SubmissionVerdict from "interfaces/port.ts" to parent
+expose-src noMessageDetail from "interfaces/port.ts" to parent
+expose-src assistantText from "interfaces/port.ts" to parent
+expose-src AssistantBlock from "interfaces/port.ts" to parent
+expose-src ContentBlock from "interfaces/port.ts" to parent
+expose-src MessageEvent from "interfaces/port.ts" to parent
+expose-src SessionMode from "interfaces/port.ts" to parent
+expose-src ToolAction from "interfaces/port.ts" to parent

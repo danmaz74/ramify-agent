@@ -3,9 +3,10 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { runPath } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
-import type { RunEvent } from '../run/log.js';
-import { runLayout, type Invocation, type InvocationOutcome } from '../run/records.js';
-import { applySessionEvent, pointLabel, reduceSessions, sessionEventTypes, type RunSessions } from '../run/sessions.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type Invocation, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
+import { applySessionEvent, pointLabel, reduceSessions, sessionEventTypes, type RunSessions } from '../../subs/autonomous/src/run/sessions.js';
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

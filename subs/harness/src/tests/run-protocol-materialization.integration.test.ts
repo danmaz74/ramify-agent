@@ -1,30 +1,21 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { errorResponseSchema } from '../interfaces/protocol/errors.js';
+import { afterEach, describe, expect, test } from 'vitest';
+
+
 import { moduleTreeResponseSchema } from '../interfaces/protocol/evidence.js';
-import { commandResponseSchema } from '../interfaces/protocol/jobs.js';
+
 import { protocolPaths } from '../interfaces/protocol/paths.js';
-import {
-  analysisResponseSchema, capabilityListResponseSchema, decisionListResponseSchema, gateResponseSchema,
-  metricsResponseSchema, moduleCapabilityComparisonResponseSchema, runEventPageSchema, runListResponseSchema, runQueryLimits, runResponseSchema,
-  workItemListResponseSchema, workItemResponseSchema,
-  type ProjectedRunEvent, type RunSnapshot,
-} from '../interfaces/protocol/runs.js';
+import { moduleCapabilityComparisonResponseSchema, runEventPageSchema, type ProjectedRunEvent, type RunSnapshot } from '../interfaces/protocol/runs.js';
 import { startServerWith, type RunningServer } from '../http/server.js';
-import { terminalRunEvents } from '../run/log.js';
+
 import { treeInputs } from './helpers/iterations.js';
-import {
-  draftsDirectory, drafts, fileHashes, notes, outsidePath, protocolPolicy, protocolScript, protocolTarget,
-} from './helpers/protocol.js';
-import {
-  emptyAnalysis, git, initRepository, installTestRunner, openRuns, realRamify, runEventsOnDisk, runPath, startRun, stubRamify, testPolicy, until,
-} from './helpers/runs.js';
-import { copyFixture } from './helpers/fixture.js';
-import { acquireProjectLock } from '../store/lock.js';
-import { ObservationLog } from '../../subs/task-execution/src/observations.js';
-import { runLayout } from '../run/records.js';
+import { drafts, fileHashes, notes, protocolPolicy, protocolScript, protocolTarget } from './helpers/protocol.js';
+import { git, openRuns, realRamify, runEventsOnDisk, runPath, startRun, stubRamify } from './helpers/runs.js';
+
+
+
+
 import { gitService } from '../../subs/evidence/src/git.js';
 
 /*

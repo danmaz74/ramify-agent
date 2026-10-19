@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { CandidateSource, TreeEntry } from '../../../subs/evidence/src/git.js';
-import { reviewPolicyVersion, type ReviewPolicy } from '../../run/records.js';
+import { reviewPolicyVersion, type ReviewPolicy } from '../../../subs/autonomous/src/run/records.js';
 
 /*
  * The answers Git gives a review about its frozen candidates.

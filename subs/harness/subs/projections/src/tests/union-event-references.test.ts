@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { runEventSchema, type RunEvent } from '../../../../src/run/log.js';
+import { runEventSchema, type RunEvent } from '../../../autonomous/src/run/log.js';
 import { runEventRefKindSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { projectEvent } from '../events.js';
 

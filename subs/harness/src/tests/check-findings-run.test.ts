@@ -1,7 +1,7 @@
 import { readFile, rm } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { checkFindingLayout } from '../check-findings/records.js';
-import type { RunService } from '../run/service.js';
+import type { RunService } from '../run/lifecycle.js';
 import { concern, decision, dispose, failure, report } from './helpers/check-findings.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';

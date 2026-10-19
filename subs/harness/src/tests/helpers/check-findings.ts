@@ -7,7 +7,7 @@ import type { CheckFindingCause } from '../../check-findings/records.js';
 import { reportCommand, type BoundReport } from '../../check-findings/report.js';
 import type { CheckFindingBuild, CheckFindingTarget } from '../../check-findings/transition.js';
 import { Mutex } from '../../jobs/mutex.js';
-import { RunLog } from '../../run/log.js';
+import { RunLog } from '../../../subs/autonomous/src/run/log.js';
 
 /*
  * CheckFinding reports and decisions as a trusted producer integration binds

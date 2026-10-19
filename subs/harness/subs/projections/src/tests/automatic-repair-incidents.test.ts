@@ -4,7 +4,7 @@ import { repairIncidentRecordSchema, runSnapshotSchema, type RepairIncidentRecor
 import { eventPage } from '../events.js';
 import { ProjectionError, runView, type CommittedLine } from '../inputs.js';
 import { snapshotOf } from '../snapshot.js';
-import { runLayout } from '../../../../src/run/records.js';
+import { runLayout } from '../../../autonomous/src/run/records.js';
 import { constructedRun } from '../../../../src/tests/helpers/constructed.js';
 
 const createdAt = '2026-09-21T08:00:00.000Z';

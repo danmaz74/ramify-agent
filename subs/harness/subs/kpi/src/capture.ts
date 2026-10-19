@@ -5,7 +5,8 @@ import { architectViewDirectory } from '../../evidence/src/views.js';
 import { readMeasurement, type MeasurementDocument, type ModuleMeasurement } from '../../evidence/src/measure.js';
 import type { RamifyCli } from '../../evidence/src/ramify-cli.js';
 import type { ViewIdentity } from '../../../src/interfaces/protocol/evidence.js';
-import { measurementSnapshotSchema, scopeSizeSchema, type MeasurementSnapshot, type ScopeComponent, type ScopeSize, type SnapshotId } from '../../../src/run/records.js';
+import { measurementSnapshotSchema, type MeasurementSnapshot, type SnapshotId } from '../../autonomous/src/run/records.js';
+import { scopeSizeSchema, type ScopeComponent, type ScopeSize } from '../../task-execution/src/records.js';
 
 export const scopeSizePolicy = 'scope-size/2' as const;
 

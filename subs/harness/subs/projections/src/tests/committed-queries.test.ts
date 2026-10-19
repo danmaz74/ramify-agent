@@ -6,8 +6,8 @@ import { RunQueries } from '../queries.js';
 import { SessionQueries } from '../session-queries.js';
 import { ProjectionError, runView } from '../inputs.js';
 import { currentModuleTree } from '../tree.js';
-import { authenticateRepairHistory } from '../../../../src/run/repair-history.js';
-import { runEventSchema } from '../../../../src/run/log.js';
+import { authenticateRepairHistory } from '../../../autonomous/src/run/repair-history.js';
+import { runEventSchema } from '../../../autonomous/src/run/log.js';
 import { committedRun, FakeCommittedSource } from './helpers/committed.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 

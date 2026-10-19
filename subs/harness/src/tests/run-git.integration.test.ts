@@ -3,17 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { copyFixture } from './helpers/fixture.js';
-import {
-  crashLock, emptyAnalysis, freeze, git, initRepository, installTestRunner, onlyRun, openRuns,
-  runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
-import { runLayout } from '../run/records.js';
+import { crashLock, emptyAnalysis, freeze, git, initRepository, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
 import { gitService } from '../../subs/evidence/src/git.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { sha256 } from '../prompts/packages.js';
 
-import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../nonfunctional/submissions.js';
-import { intakeToolName } from '../analysis/extraction.js';
+import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { analysis } from './helpers/analysis.js';
 import { submit, treeInputs, write } from './helpers/iterations.js';
 

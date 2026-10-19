@@ -1,5 +1,5 @@
-import type { DecisionBody, ForkSubmission, LocalDecisionBody, PlacementRequestBody, RegistryChange } from '../../architecture/submission.js';
-import type { LocalArchitectSubmission, LocalArchitectSubmissionInput } from '../../work/submission.js';
+import type { DecisionBody, ForkSubmission, LocalDecisionBody, PlacementRequestBody, RegistryChange } from '../../../subs/autonomous/src/architecture/submission.js';
+import type { LocalArchitectSubmissionInput } from '../../../subs/autonomous/src/work/submission.js';
 
 /*
  * The submissions of the placement chain, as a test writes them. Nothing
@@ -111,3 +111,5 @@ export function forkEnvironment(
 ): ForkSubmission {
   return { kind: 'environment', diagnosis, suggestion };
 }
+
+export { decision as placementDecisionFixture };

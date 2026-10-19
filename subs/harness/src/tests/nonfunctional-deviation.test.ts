@@ -5,8 +5,8 @@ import { applyCheckFindingEvent, emptyCheckFindingState } from '../../subs/check
 import type { Assessment, Candidate } from '../../subs/nonfunctional/src/interfaces/contracts.js';
 import type { CatalogElement } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import type { DocumentManifest } from '../../subs/plan-evidence/src/interfaces/contracts.js';
-import { isPlanDeviation } from '../deviations/finding.js';
-import { nonfunctionalDeviationCommands, prepareNonfunctionalDeviation } from '../deviations/nonfunctional.js';
+import { isPlanDeviation } from '../../subs/autonomous/src/deviations/finding.js';
+import { nonfunctionalDeviationCommands, prepareNonfunctionalDeviation } from '../../subs/autonomous/src/deviations/nonfunctional.js';
 
 const source = Buffer.from('# Request\n\nThe service must preserve a 30 second timeout.\n');
 const sha256 = createHash('sha256').update(source).digest('hex');

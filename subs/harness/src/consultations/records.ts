@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { transcriptBodySchema } from '../interfaces/protocol/transcripts.js';
 import { roleSchema } from '../interfaces/protocol/runs.js';
-import { sessionIdSchema } from '../run/records.js';
+import { sessionIdSchema } from '../../subs/task-execution/src/records.js';
 import { consultationTargetSchema } from './targets.js';
 const text = z.string().min(1);
 export const consultationId = (invocation: string, toolCall: string): string => `consult-${encodeURIComponent(invocation)}:${encodeURIComponent(toolCall)}`;

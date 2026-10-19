@@ -5,9 +5,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { replayCheckFindingEvents } from '../../subs/check-findings/src/replay.js';
 import { selectCheckFindings } from '../../subs/check-findings/src/queries.js';
-import { carriedCheckFindings, type RunEvent } from '../run/log.js';
+import { carriedCheckFindings, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 import type { ReconciliationBasis } from '../reviews/reconciliation.js';
-import { runLayout, type RunPolicy } from '../run/records.js';
+import { runLayout, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
 import { reconciliationLayout } from '../reviews/reconciliation.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import {

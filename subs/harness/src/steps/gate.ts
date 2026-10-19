@@ -5,28 +5,28 @@ import { gitCandidateSource, gitService, type CandidateSource, type GitService }
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { selectCheckFindings } from '../../subs/check-findings/src/queries.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
-import { capabilityRunPolicyVersion } from '../capability/policy.js';
+import { capabilityRunPolicyVersion } from '../../subs/autonomous/src/capability/policy.js';
 import { checkFindingStateOf } from '../check-findings/state.js';
 import { inPlaceCheckExecution, type CheckExecutionPort } from '../checks/execution.js';
 import type { GateAttempt } from '../checks/records.js';
-import { verificationKey } from '../contracts/schedule.js';
-import { completionBlockers, verifiedRequirements } from '../run/after-handling.js';
+import { verificationKey } from '../../subs/autonomous/src/contracts/schedule.js';
+import { completionBlockers, verifiedRequirements } from '../../subs/autonomous/src/run/after-handling.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
-import { readinessAuditOutcome, writeScopePaths } from '../run/committing-gate.js';
-import { incompleteScenarios, trackedScenarios } from '../run/feature-files.js';
-import { runCheckpoint } from '../run/gates.js';
-import { architectRunInputs } from '../run/inputs.js';
+import { readinessAuditOutcome, writeScopePaths } from '../../subs/autonomous/src/run/committing-gate.js';
+import { incompleteScenarios, trackedScenarios } from '../../subs/autonomous/src/run/feature-files.js';
+import { runCheckpoint } from '../../subs/autonomous/src/run/gates.js';
+import { architectRunInputs } from '../../subs/autonomous/src/run/inputs.js';
 import { captureProjectConfig } from '../run/project-config.js';
-import { runReadiness } from '../run/readiness.js';
-import { committedAuditConfigurationSchema, gateAttemptId, gateAttemptSchema, runLayout } from '../run/records.js';
+import { runReadiness } from '../../subs/autonomous/src/run/readiness.js';
+import { committedAuditConfigurationSchema, gateAttemptId, gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { unsettledRequests } from '../reviews/state.js';
-import { committedRecords } from '../work/committed.js';
-import { engineerSubmissionSchema } from '../work/engineer.js';
-import type { IterationAssignment } from '../work/iterations.js';
-import { localArchitectSubmissionSchema } from '../work/submission.js';
-import type { WorkItem } from '../work/records.js';
-import { scratchSafetyRule } from '../work/scratch.js';
+import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
+import { engineerSubmissionSchema } from '../../subs/autonomous/src/work/engineer.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { localArchitectSubmissionSchema } from '../../subs/autonomous/src/work/submission.js';
+import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
+import { scratchSafetyRule } from '../../subs/autonomous/src/work/scratch.js';
 import { declaredModuleDirectories } from '../run/project-config.js';
 import { openLockedManualRun, type ManualRun } from './manual.js';
 import { committedBody } from './runner.js';
@@ -99,7 +99,7 @@ interface Subject {
   readonly invocation: string | null;
   readonly summary?: string | undefined;
   /** The module engineer's proposal's bindings, applied before an iteration's audit. */
-  readonly bindings?: readonly import('../work/obligations.js').ObligationBinding[] | undefined;
+  readonly bindings?: readonly import('../../subs/autonomous/src/work/obligations.js').ObligationBinding[] | undefined;
 }
 
 class Refused extends Error {}
@@ -199,7 +199,7 @@ async function readiness(run: ManualRun, context: ManualHostContext, gates: numb
   const gateId = gateAttemptId(gates + 1);
   const head = await git.currentHead(projectRoot);
   // A manual run captured no audit definition at its start; the committed one at the baseline is the one readiness compares.
-  let auditConfiguration: { readonly config: import('../run/records.js').CommittedAuditConfigurationRecord } | { readonly invalid: string };
+  let auditConfiguration: { readonly config: import('../../subs/autonomous/src/run/records.js').CommittedAuditConfigurationRecord } | { readonly invalid: string };
   try { auditConfiguration = { config: committedAuditConfigurationSchema.parse(await context.configuredAudit.read(projectRoot, head)) }; }
   catch (error) { auditConfiguration = { invalid: `The committed audit configuration at ${head} cannot be read: ${message(error)}` }; }
   const manualGates_ = manualGates(context);

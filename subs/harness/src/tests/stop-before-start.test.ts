@@ -4,7 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
-import { runLayout, type InvocationOutcome } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 
 /*
  * A stop that arrives between `invocation-started` and the session's start

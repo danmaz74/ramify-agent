@@ -7,7 +7,7 @@ import { activityOf } from '../../../src/jobs/activity.js';
 import type { InvocationTranscript } from './transcripts/recorder.js';
 import type { ExcursionWatcher } from './excursions.js';
 import type { ObservationLog } from './observations.js';
-import type { InvocationOutcome } from '../../../src/run/records.js';
+import type { InvocationOutcome } from './records.js';
 
 /*
  * What one session's port events leave in its observation log and its

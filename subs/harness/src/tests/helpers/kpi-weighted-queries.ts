@@ -8,7 +8,8 @@ import type { CandidateSource, ChangeHistory, LineRange } from '../../../subs/ev
 import { createQuerySource } from '../../http/query-source.js';
 import { observationSchema } from '../../../subs/task-execution/src/observations.js';
 import { metricsResponseSchema } from '../../interfaces/protocol/runs.js';
-import { invocationSchema, invocationOutcomeSchema, measurementSnapshotSchema, lineEventSummarySchema, gateAttemptSchema, runLayout } from '../../run/records.js';
+import { measurementSnapshotSchema, lineEventSummarySchema, gateAttemptSchema, runLayout } from '../../../subs/autonomous/src/run/records.js';
+import { invocationSchema, invocationOutcomeSchema } from '../../../subs/task-execution/src/records.js';
 import { constructedRecord, constructedRun, hash, runId, type Line } from './constructed.js';
 import { size, usage, find } from './metric-fixtures.js';
 

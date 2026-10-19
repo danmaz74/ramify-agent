@@ -1,9 +1,10 @@
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import { interruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
-import { runLayout, invocationOutcomeSchema } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { invocationOutcomeSchema } from '../../subs/task-execution/src/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { byRole, submit } from './helpers/iterations.js';
 import { mockGit, fixtureScratchGit } from './helpers/mock-git.js';

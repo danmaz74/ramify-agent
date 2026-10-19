@@ -7,11 +7,11 @@ import {
   serializeElementCatalog, type ElementCatalog,
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { extractDocumentScenarios, type PlanScenario } from '../../subs/scenarios/src/extraction.js';
-import { applyCheck, checkMessage, type CheckState, type CheckSubmission, type ExtractionInputs } from '../analysis/extraction.js';
-import { acceptArchitectElements, initialAnalysisSubmissionSchema, validateInitialAnalysis, type AnalysisEvidence } from '../analysis/submission.js';
-import { acceptAnalysis } from '../analysis/accept.js';
-import { briefed, engineerScenarioSection } from '../work/scenario-briefing.js';
-import { architectScenarioSections } from '../work/session.js';
+import { applyCheck, checkMessage, type CheckState, type CheckSubmission, type ExtractionInputs } from '../../subs/autonomous/subs/planning/src/extraction.js';
+import { acceptArchitectElements, initialAnalysisSubmissionSchema, validateInitialAnalysis, type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
+import { acceptAnalysis } from '../../subs/autonomous/subs/planning/src/accept.js';
+import { briefed, engineerScenarioSection } from '../../subs/autonomous/src/work/scenario-briefing.js';
+import { architectScenarioSections } from '../../subs/autonomous/src/work/session.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
 import { stableRoleInstructions } from '../prompts/tasks.js';
 import type { Role } from '../interfaces/protocol/runs.js';

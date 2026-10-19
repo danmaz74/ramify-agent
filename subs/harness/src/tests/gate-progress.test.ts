@@ -7,7 +7,7 @@ import { runGate } from '../checks/gate.js';
 import { checkCommand } from '../checks/records.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import type { RunEvent } from '../run/log.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { inPlaceReplies } from './helpers/in-place-replies.js';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, onlyRun, runEventsOnDisk, startRun } from './helpers/runs.js';

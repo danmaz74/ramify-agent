@@ -12,9 +12,9 @@ import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
-import { remainingInjections } from '../contracts/verification.js';
-import type { ContractRecord } from '../contracts/records.js';
-import { runLayout } from '../run/records.js';
+import { remainingInjections } from '../../subs/autonomous/src/contracts/verification.js';
+import type { ContractRecord } from '../../subs/autonomous/src/contracts/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
 
 /*

@@ -1,18 +1,18 @@
 import { chmod, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
-import { CommittingGates, type GateHost, type GateRun } from '../run/committing-gate.js';
-import { type RunLog } from '../run/log.js';
-import { runLayout } from '../run/records.js';
-import { automaticRepairAssignmentSchema, captureRepairFiles, repairChanges, repairDeltaSchema } from '../run/repair-preparation.js';
-import { verifiedRepairDeltas } from '../run/repair-gate.js';
-import { iterationAssignmentSchema } from '../work/iterations.js';
+import { CommittingGates, type GateHost, type GateRun } from '../../subs/autonomous/src/run/committing-gate.js';
+import { type RunLog } from '../../subs/autonomous/src/run/log.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { automaticRepairAssignmentSchema, captureRepairFiles, repairChanges, repairDeltaSchema } from '../../subs/autonomous/src/run/repair-preparation.js';
+import { verifiedRepairDeltas } from '../../subs/autonomous/src/run/repair-gate.js';
+import { iterationAssignmentSchema } from '../../subs/autonomous/src/work/iterations.js';
 import { type WriteScope } from '../work/scope.js';
 import { type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { mockGit } from './helpers/mock-git.js';
 import { repairExportFixture } from './helpers/repair-export-fixture.js';
-import { externalCandidatePath } from '../run/candidate-attribution.js';
+import { externalCandidatePath } from '../../subs/autonomous/src/run/candidate-attribution.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });

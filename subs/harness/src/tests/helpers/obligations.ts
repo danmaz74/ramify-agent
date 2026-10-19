@@ -1,8 +1,8 @@
 import { scenarioSourceHash, type ScenarioRecord } from '../../../subs/scenarios/src/records.js';
-import type { WorkItem } from '../../work/records.js';
+import type { WorkItem } from '../../../subs/autonomous/src/work/records.js';
 import {
   obligationsOf, type ObligationContext, type ObligationEventLine, type ObligationRegisteredData, type ObligationReportedData,
-} from '../../work/obligations.js';
+} from '../../../subs/autonomous/src/work/obligations.js';
 
 /*
  * The smallest run an obligation projection is judged against: two entry

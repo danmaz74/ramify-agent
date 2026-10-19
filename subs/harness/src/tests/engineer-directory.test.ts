@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import type { ArchitectIndex, ModuleEntry } from '../../subs/evidence/src/views.js';
-import { engineerWorkingDirectory } from '../work/engineer-directory.js';
+import { engineerWorkingDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
-import type { WriteScope } from '../work/iterations.js';
+import type { WriteScope } from '../work/scope.js';
 
 const roots: string[] = [];
 const git = fixtureScratchGit(mockGit());

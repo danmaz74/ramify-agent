@@ -3,7 +3,7 @@ import {
   acceptElements, createPackage, openElementCatalog, type ElementCatalog, type PackageDeviation, type SubmittedElement,
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
-import { prepareContextSelection } from '../context-selection/submissions.js';
+import { prepareContextSelection } from '../../subs/autonomous/src/context-selection/submissions.js';
 
 const hash = 'a'.repeat(64);
 const document = (id: string, path: string, kind: 'plan' | 'principle') => ({

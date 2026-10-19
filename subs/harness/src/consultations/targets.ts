@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import type { GlobalContext } from '../architecture/context.js';
-import type { RunEvent } from '../run/log.js';
-import { sessionIdSchema, sessionPointSchema } from '../run/records.js';
+import type { GlobalContext } from '../../subs/autonomous/src/architecture/context.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { sessionIdSchema, sessionPointSchema } from '../../subs/task-execution/src/records.js';
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 
 const text = z.string().min(1);

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { InjectedFault, record, recordsMatchLog, testLedger, transaction, instrument, type FaultPoint } from './helpers/ledger.js';

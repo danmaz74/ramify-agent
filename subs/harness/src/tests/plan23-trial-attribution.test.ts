@@ -1,8 +1,8 @@
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { engineerWorkingDirectory } from '../work/engineer-directory.js';
-import type { WriteScope } from '../work/iterations.js';
+import { engineerWorkingDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
+import type { WriteScope } from '../work/scope.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
 import { expect, it } from 'vitest';
 

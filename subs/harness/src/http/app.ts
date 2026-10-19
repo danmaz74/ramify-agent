@@ -35,7 +35,7 @@ import { ExecutionPageError } from '../../subs/projections/src/execution-pages.j
 import { currentModuleTree } from '../../subs/projections/src/tree.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { SessionQueries } from '../../subs/projections/src/session-queries.js';
-import type { RunService } from '../run/service.js';
+import type { RunService } from '../run/lifecycle.js';
 import { createQuerySource } from './query-source.js';
 
 export interface AppOptions {

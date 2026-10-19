@@ -8,7 +8,7 @@ import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.j
 import { composeWorkflowOperationPacket as composeOperationPacket } from '../prompts/session-adapter.js';
 import { type PointContext } from '../../subs/task-execution/src/session-operations.js';
 import { loadPromptPackages } from '../prompts/packages.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { runStepCommand } from '../steps/command.js';
 import { constructStep } from '../steps/construct.js';
 import { constructEngineerStep } from '../steps/engineer.js';

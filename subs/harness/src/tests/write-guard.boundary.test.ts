@@ -1,17 +1,17 @@
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { placementDecisions } from '../guard/write-guard.js';
 import { outsideScope } from '../run/mutations.js';
-import { scopeBodySchema } from '../work/assignment.js';
+import { scopeBodySchema } from '../../subs/autonomous/src/work/assignment.js';
 import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import type { ToolAction } from '../../subs/agent/src/interfaces/port.js';
-import { decideWrite, type GuardedScope } from '../guard/write-guard.js';
+import { decideWrite } from '../guard/write-guard.js';
 import { runGate } from '../checks/gate.js';
 import { checkCommand } from '../checks/records.js';
 import { createPassingCheckExecution } from './helpers/direct-check-execution.js';
 import { scopeConfigurationPaths, captureGuardedFiles, deniedFiles, guardedScopeOf, resolveWriteScope } from '../work/scope.js';
-import type { WriteScope } from '../work/iterations.js';
+import type { WriteScope } from '../work/scope.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 
 import { writeGuardProject } from './helpers/write-guard-fixture.js';

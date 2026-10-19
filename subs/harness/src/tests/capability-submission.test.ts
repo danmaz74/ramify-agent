@@ -3,20 +3,20 @@ import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildCapabilityPlanRevision, unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type CapabilityActionBasis,
-} from '../capability/submission.js';
+} from '../../subs/autonomous/src/capability/submission.js';
 import { copyCapabilityFixture, fixturePlan, openCapabilityRuns } from './helpers/capability.js';
-import { capabilityPlanSchema } from '../capability/records.js';
+import { capabilityPlanSchema } from '../../subs/autonomous/src/capability/records.js';
 import type { Script } from '../../subs/agent/src/scripted.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { assign, edit, outline, submit, treeInputs } from './helpers/iterations.js';
 import { runEventsOnDisk, startRun, until } from './helpers/runs.js';
 import { capabilityContext, line, registered, reported, submissionHash } from './helpers/obligations.js';
-import { validateEngineer } from '../work/engineer.js';
-import { obligationEventsToRecord, outstandingReports } from '../work/obligations.js';
-import type { RunEvent } from '../run/log.js';
+import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
+import { obligationEventsToRecord, outstandingReports } from '../../subs/autonomous/src/work/obligations.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { runPath } from './helpers/runs.js';
 
 vi.mock('node:child_process', async importOriginal => {

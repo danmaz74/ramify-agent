@@ -118,3 +118,5 @@ export class MutationOrder {
 
 /** Default process-local order; integrations may inject one with their run lifetime. */
 export const sharedMutationOrder = new MutationOrder();
+
+export type { MutationSnapshot as HookMutationSnapshot };

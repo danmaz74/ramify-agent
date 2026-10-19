@@ -1,9 +1,9 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { vi } from 'vitest';
-import * as projectFacts from '../../run/project-facts.js';
-import { runLayout } from '../../run/records.js';
-import { repairIncidentRecordSchema } from '../../run/repair-records.js';
+import * as projectFacts from '../../../subs/autonomous/src/run/project-facts.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
+import { repairIncidentRecordSchema } from '../../interfaces/protocol/repairs.js';
 import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
 import { assign, outline, partialReport, submit, treeInputs, write } from './iterations.js';

@@ -3,7 +3,7 @@ import {
   runQueryLimits,
   type InitialAssociation, type ModuleCapabilities, type ModuleCapabilityComparisonResponse, type ModuleCapabilityRow,
 } from '../../../src/interfaces/protocol/runs.js';
-import type { ModuleProposal } from '../../../src/run/records.js';
+import type { ModuleProposal } from '../../autonomous/subs/planning/src/records.js';
 import type { RunView } from './inputs.js';
 import { capabilityProgressOf } from './progress.js';
 

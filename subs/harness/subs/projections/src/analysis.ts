@@ -1,10 +1,10 @@
-import type { Hypothesis } from '../../../src/analysis/records.js';
+import type { Hypothesis } from '../../autonomous/subs/planning/src/records.js';
 import { runQueryLimits, type AnalysisResponse, type DecisionView, type HypothesisView } from '../../../src/interfaces/protocol/runs.js';
-import { runLayout } from '../../../src/run/records.js';
-import { capabilityOf } from '../../../src/work/frontier.js';
+import { runLayout } from '../../autonomous/src/run/records.js';
+import { capabilityOf } from '../../autonomous/src/work/frontier.js';
 import { publicSequence, readRunFile, type RunView } from './inputs.js';
 import { analysisScenariosOf } from './scenarios.js';
-import { readAcceptedEvidence } from '../../../src/analysis/evidence.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../autonomous/subs/planning/src/evidence.js';
 import { elementKinds } from '../../plan-evidence/src/interfaces/catalog.js';
 
 /*
@@ -65,7 +65,7 @@ export async function analysisOf(view: RunView): Promise<AnalysisResponse> {
 }
 
 async function evidenceOf(view: RunView): Promise<NonNullable<Extract<AnalysisResponse['analysis'], { status: 'accepted' }>['planEvidence']>> {
-  const evidence = await readAcceptedEvidence(view.directory, view.record, view.events);
+  const evidence = await readAcceptedEvidence(view.directory, view.record.manifest, acceptedAnalysisReferences(view.events));
   if (evidence.status === 'unavailable') return evidence;
   try {
     const paths = new Map(evidence.manifest.documents.map(document => [document.id, document.path]));

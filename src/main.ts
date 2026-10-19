@@ -35,7 +35,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     return -1;
   }
   if (commandLine.command === 'consultations' || commandLine.command === 'repair-export') {
-    const result = commandLine.command === 'consultations' ? await runConsultationsCommand(commandLine) : await (await import('../subs/harness/src/run/repair-export-command.js')).runRepairExportCommand(commandLine);
+    const result = commandLine.command === 'consultations' ? await runConsultationsCommand(commandLine) : await (await import('../subs/harness/subs/autonomous/src/run/repair-export-command.js')).runRepairExportCommand(commandLine);
     if (result.stdout !== '') process.stdout.write(result.stdout);
     if (result.stderr !== '') process.stderr.write(result.stderr);
     return result.exitStatus;

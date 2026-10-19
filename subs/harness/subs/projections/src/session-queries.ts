@@ -8,7 +8,7 @@ import {
   type SessionRef, type SessionListEntry, type SessionTranscriptResponse, type SessionUpdatesResponse, type StandaloneSessionResponse,
   type TranscriptPage, type UnservedSessionSource,
 } from '../../../src/interfaces/protocol/sessions.js';
-import { runLayout } from '../../../src/run/records.js';
+import { runLayout } from '../../autonomous/src/run/records.js';
 import {
   sessionLayout, sessionOutcomeSchema, sessionRecordSchema, sessionsDirectory,
   type SessionOutcomeRecord, type SessionRecord,

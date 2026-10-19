@@ -6,17 +6,15 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { scriptedCandidates } from './helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
-import {
-  addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs, write,
-} from './helpers/iterations.js';
+import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import type { RunEvent } from '../run/log.js';
-import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../contracts/records.js';
-import { workLayout, type WorkItem } from '../work/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import { runLayout } from '../run/records.js';
+import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
+import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../../subs/autonomous/src/contracts/records.js';
+import { workLayout, type WorkItem } from '../../subs/autonomous/src/work/records.js';
+import { iterationLayout, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
 
 vi.mock('node:child_process', async original =>

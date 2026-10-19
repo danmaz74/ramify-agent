@@ -4,17 +4,17 @@ import {
   type GateAuditView, type GateView, type WorkItemResponse, type WorkItemSummary,
 } from '../../../src/interfaces/protocol/runs.js';
 import type { GateAttempt } from '../../../src/checks/records.js';
-import { digestLines } from '../../../src/work/failure.js';
-import { originKindOf, type WorkItem } from '../../../src/work/records.js';
-import type { IterationAssignment } from '../../../src/work/iterations.js';
-import { readAcceptedEvidence, type AcceptedEvidence } from '../../../src/analysis/evidence.js';
-import { deliverPackage } from '../../../src/context-selection/delivery.js';
-import { packageDeviation, planDeviationSchema } from '../../../src/deviations/records.js';
+import { digestLines } from '../../autonomous/src/work/failure.js';
+import { originKindOf, type WorkItem } from '../../autonomous/src/work/records.js';
+import type { IterationAssignment } from '../../autonomous/src/work/iterations.js';
+import { readAcceptedEvidence, acceptedAnalysisReferences, type AcceptedEvidence } from '../../autonomous/subs/planning/src/evidence.js';
+import { deliverPackage } from '../../autonomous/src/context-selection/delivery.js';
+import { packageDeviation, planDeviationSchema } from '../../autonomous/src/deviations/records.js';
 import type { PackageDeviation } from '../../plan-evidence/src/interfaces/catalog.js';
 import { ProjectionError, type RunView } from './inputs.js';
 import { gateScenarioViewsOf } from './scenarios.js';
 import { outsideScopeEvidenceOf, readObservationLog } from './metrics.js';
-import { runLayout } from '../../../src/run/records.js';
+import { runLayout } from '../../autonomous/src/run/records.js';
 
 /*
  * Work items, their iterations and their gates, as a client reads them.
@@ -158,7 +158,7 @@ export async function workItemOf(view: RunView, id: string): Promise<WorkItemRes
   const assignments = [...view.records.assignments.values()].filter(assignment => assignment.workItem === id);
   const iterationIds = new Set(assignments.map(assignment => assignment.id));
   const evidence = assignments.some(assignment => assignment.source !== undefined)
-    ? await readAcceptedEvidence(view.directory, view.record, view.events)
+    ? await readAcceptedEvidence(view.directory, view.record.manifest, acceptedAnalysisReferences(view.events))
     : { status: 'unavailable' as const, reason: 'No assignment cites a package' };
   const planDeviations = planDeviationsOf(view);
   const scopeEvidence = new Map(await Promise.all([...view.records.invocations.values()]

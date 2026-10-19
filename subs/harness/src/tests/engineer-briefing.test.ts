@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { loadPromptPackages, renderEngineerPrompt } from '../prompts/packages.js';
-import { iterationMessage } from '../work/engineer.js';
+import { iterationMessage } from '../../subs/autonomous/src/work/engineer.js';
 import { buildTaskPacket } from '../prompts/tasks.js';
 import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
 import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
-import type { IterationAssignment } from '../work/iterations.js';
-import { declaredCheckInputs, moduleInputPointers } from '../work/starting-inputs.js';
+import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { declaredCheckInputs, moduleInputPointers } from '../../subs/autonomous/src/work/starting-inputs.js';
 
 /** Only what the message reads of an assignment. */
 function assignment(): IterationAssignment {

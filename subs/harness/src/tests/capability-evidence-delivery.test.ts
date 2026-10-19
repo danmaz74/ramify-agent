@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
-import { capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../capability/delivery.js';
+import { capabilityRecordSection, capabilitySourceSection, capabilityViewInputs } from '../../subs/autonomous/src/capability/delivery.js';
 import { fixtureRequest } from './helpers/capability.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { runAcceptedHandback } from './helpers/acceptance-flow.js';

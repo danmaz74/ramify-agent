@@ -15,7 +15,7 @@ import { readSessionPointReference } from '../../subs/task-execution/src/session
 import { consultationId } from '../consultations/records.js';
 import { consultationOutcome } from '../consultations/store.js';
 import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
-import { runLayout } from '../run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { answer, ask, consultationFixture, retainConsultationExample } from './helpers/consultations.js';
 const cleanup: Array<() => Promise<void>> = [];

@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { consultationId, consultationLayout, type ConsultationOutcome, type ConsultationStart } from '../consultations/records.js';
 import { consultationOutcome, recordConsultationDelivery, recordConsultationOutcome, recordConsultationStart } from '../consultations/store.js';
-import { RunLog } from '../run/log.js';
+import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { sessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { temporaryDirectory } from './helpers/fixture.js';

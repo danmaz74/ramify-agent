@@ -4,7 +4,7 @@ import type { CheckFindingCommand, CheckFindingState } from '../../subs/check-fi
 import type { Transaction } from '../../subs/ledger/src/ledger.js';
 import type { RecordRef as CommitRecord } from '../jobs/commit.js';
 import type { Mutex } from '../jobs/mutex.js';
-import type { CheckFindingCarrierType, RunEvent, RunEventInput, RunLog } from '../run/log.js';
+import type { CheckFindingCarrierType, RunEvent, RunEventInput, RunLog } from '../../subs/autonomous/src/run/log.js';
 
 import { checkFindingStateOf } from './state.js';
 

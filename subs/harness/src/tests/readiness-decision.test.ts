@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { CheckFindingEntry } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import { currentDeviationDecision } from '../deviations/readiness-decision.js';
+import { currentDeviationDecision } from '../../subs/autonomous/src/deviations/readiness-decision.js';
 
 const source = { kind: 'document' as const, id: 'plans/example/plan.md@revision-a' };
 const request = {

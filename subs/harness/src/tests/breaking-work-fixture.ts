@@ -1,22 +1,17 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { readFile, readdir } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { afterEach, describe, expect, test } from 'vitest';
-import { gateDiagnostics } from '../checks/diagnostics.js';
+import { afterEach, expect, test } from 'vitest';
+
 import type { GateAttempt } from '../checks/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
-import { runLayout } from '../run/records.js';
-import { workLayout } from '../work/records.js';
-import { localArchitectToolName } from '../work/submission.js';
+import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+
+
 import { copyFixture } from './helpers/fixture.js';
-import { analysis, entry } from './helpers/analysis.js';
-import {
-  addModule, assign, byRole, completionProposed, installMiniRunner, read,
-  shell, submit, treeInputs, write, type Turn,
-} from './helpers/iterations.js';
-import {
-  onlyRun, openRuns, runEventsOnDisk, runPath, startRun,
-} from './helpers/runs.js';
+
+import { addModule, byRole, installMiniRunner, read, shell, treeInputs, write } from './helpers/iterations.js';
+import { openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { localCommandAudit } from './helpers/direct-check-execution.js';
 import { gateGit, scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
