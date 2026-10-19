@@ -104,7 +104,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   const source = scriptedCandidates(project, { [A]: { tree: A, files: {}, base: A, changes: [] },
     [B]: { tree: C, files: bFiles, base: A, changes },
     [C]: { tree: C, files: bFiles, base: B, changes: [], comparisons: { [A]: { changes, patches: { [store]: 'historical accepted badge patch' } } } },
-    [repairedTree]: { tree: repairedTree, files: { ...bFiles, [store]: 'export const store = new Map(); // repaired\n' }, base: B, changes: [{ status: 'M', path: store }], comparisons: { [A]: { changes } } },
+    [repairedTree]: { tree: repairedTree, files: { ...bFiles, [store]: 'export const store = new Map(); // repaired\n' }, base: B, changes: [{ status: 'M', path: store }], comparisons: { [A]: { changes }, [C]: { changes: [{ status: 'M', path: store }] } } },
     [repairedCommit]: { tree: repairedTree, files: bFiles, base: B, changes: [{ status: 'M', path: store }] },
   });
   const git = gateGit(project, { head: A, commits: [scenariosCommit('review-notes', 'scenarios-00', A), { commit: B, changes: [{ status: 'A', path: store }] }, { commit: null }, { commit: null }, { commit: null }, { commit: repair ? repairedCommit : null, changes: repair ? [{ status: 'M', path: store }] : [] }], previews: Array.from({ length: repair ? 8 : 5 }, (_, index) => ({ repositoryRoot: project, head: repair && index === 7 ? repairedCommit : B, tree: repair && index >= 3 ? repairedTree : C })) });
@@ -216,7 +216,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   expect(sourceBrief.defaultComparison).toBe('run-start');
   for (const value of [nfr, fixed, 'when tone is omitted', 'Omitted-tone caller', 'Badge source', 'Owned omitted-tone test', 'Second work item caller', 'Second accepted result caller', 'assigned module/source/test locations', '"workItem":"wi-001"', '"workItem":"wi-002"']) expect(text).toContain(value);
   for (const value of ['excluded view', 'excluded run', 'absent optional hint', project]) expect(packet.additions.find(item => item.key === 'brief:support:starting-points')!.text).not.toContain(value);
-  expect(text).toContain('Make your own semantic judgment for every element'); expect(text).toContain('Explore beyond stale or unhelpful hints.');
+  expect(text).toContain('Make your own semantic judgment for each selected element'); expect(text).toContain('Explore beyond stale or unhelpful hints.');
   expect(text).toContain('no pathless diff is required'); expect(text).toContain('Dirty original capture excludes uncommitted starting bytes');
   const session = active.agent!.sessions.find(session => session.spec.submission.name === coordinatorAssessmentToolName)!;
   expect(session.results.find(result => result.tool === 'snapshot_diff' && result.text.includes('historical accepted badge patch'))).toBeDefined();
@@ -241,7 +241,9 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
     expect(finalSession.spec.prompt).toContain(`pinned candidate ${repairedTree}`);
     expect(finalSession.spec.prompt).not.toContain(`pinned candidate ${C}`);
     expect(finalSession.spec.prompt).toContain(`"boundary":"${B}"`);
-    expect(finalSession.spec.prompt).toContain(nfr); expect(finalSession.spec.prompt).toContain(fixed);
+    expect(finalSession.spec.prompt).toContain(nfr); expect(finalSession.spec.prompt).not.toContain(fixed);
+    expect(finalSession.spec.prompt).toContain('Do not restart the complete catalog by default.');
+    expect(finalSession.spec.prompt).toContain('Prior complete assessment');
     const finalDiff = finalSession.results.find(result => result.tool === 'snapshot_diff' && result.text.includes('Comparison accepted-boundary'))!;
     expect(finalDiff.text).toContain(`base ${B}; target ${repairedTree}`); expect(finalDiff.text).toContain(`M\t${store}`);
   }

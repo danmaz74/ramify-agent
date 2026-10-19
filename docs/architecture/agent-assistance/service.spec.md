@@ -95,6 +95,8 @@ A failed configured audit returns its diagnostic evidence after factual finding
 and protection ingestion. It does not invoke semantic review or reconciliation.
 Audit and protection stages and the deliberately unrun review remain visible.
 
+Large audit outcomes are retained intact as verified content-addressed evidence beside the ledger. The compact audit stage records its state and exact requested/audited candidate identities plus the artifact reference. Resume and on-demand `assessment_evidence` reads verify and resolve that reference; historical inline stages remain readable. Readiness binds the recorded stage, without embedding the provider report again or changing the ledger line limit.
+
 `finding_decide(plan_id, job_id, assessment_id, check_finding, action, rationale,
 command_id)` records ordinary coordinator judgment after assessment completion.
 Actions `fix`, `leave` and `defer` use existing repair-intent, waiver and deferral

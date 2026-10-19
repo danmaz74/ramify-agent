@@ -12,7 +12,7 @@ import { ReviewQueue } from '../../reviews/src/scheduler.js';
 import { reconciliationFactsMessage } from '../../reviews/src/reconciliation-message.js';
 import { reconciliationSubmissionSchema, validateReconciliationForExecution, type AttentionEntry, type BoundReconciliation } from '../../reviews/src/reconciliation.js';
 import type { Assessor, AssistedEvidenceReference, AssistedOutcome, AssistedAssessment, AssistedJob } from './contracts.js';
-import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
+import { auditAssistedCandidate, isAuditEvidenceReference, readAuditEvidence, type AuditEvidenceReference } from './audit.js';
 import { approvalReadiness } from './approval.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
 import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
@@ -90,11 +90,19 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const base = request.kind === 'final' ? baseline : request.base;
     const snapshot = await openCandidateSnapshot(source, projectRoot, { commit: request.candidate, base });
     signal.throwIfAborted();
-    const auditPrevious = stages<AssistedAuditOutcome>('audit');
+    const auditPrevious = await readAuditEvidence(stages('audit'), context.readEvidence);
     const audit = auditPrevious?.state === 'passed' || auditPrevious?.state === 'failed' ? auditPrevious
       : await (dependencies.audit ?? auditAssistedCandidate)({ projectRoot, baselineCommit: baseline, candidateCommit: snapshot.commit,
         jobId: job.jobId, attemptId: `${assessment.id}-audit`, signal });
-    if (audit !== auditPrevious) await record('audit', audit);
+    if (audit !== auditPrevious) {
+      // A stage is copied into its transition, revision record and stage record.
+      // Keep a large provider result once, rather than multiplying it in each line.
+      const retained = Buffer.byteLength(JSON.stringify(audit)) > 128 * 1024
+        ? { schema: 'ramify-agent.assisted-audit-reference/1', state: audit.state,
+          requestedSourceCommit: audit.requestedSourceCommit, auditedSourceCommit: audit.auditedSourceCommit,
+          artifact: await context.retainEvidence(audit) } satisfies AuditEvidenceReference : audit;
+      await record('audit', retained);
+    }
     if (audit.state === 'unavailable') gaps.push(`Audit evidence unavailable: ${audit.detail}`);
 
     const protection = stages<ProtectionComparison>('protection') ?? await (dependencies.protection ?? compareProtection)({
@@ -102,7 +110,10 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       exceptions: acceptedProtectionExceptions(context.findingState(), context.assessments()),
     });
     if (!stages('protection')) await record('protection', protection);
-    const factualEvidence = { kind: 'assisted-checks', ref: `assessments/${assessment.id}/stages/audit.json`, hash: digest(audit) };
+    const auditStage = stages('audit');
+    const factualEvidence = { kind: 'assisted-checks',
+      ref: isAuditEvidenceReference(auditStage) ? auditStage.artifact.path : `assessments/${assessment.id}/stages/audit.json`,
+      hash: isAuditEvidenceReference(auditStage) ? `sha256:${auditStage.artifact.sha256}` : digest(audit) };
     // Pure domain ingestion is already idempotent; keying the transaction also covers decisions after a restart.
     const factual = factualFindingCommands({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree, audit, protection,
       protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
@@ -224,6 +235,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         if (ref.startsWith('baseline:')) return source.readBlob(projectRoot, baseline, ref.slice('baseline:'.length), signal);
         for (const item of context.assessments()) for (const stage of item.stages)
           if (`assessments/${item.id}/stages/${stage.name}.json` === ref) {
+            if (stage.name === 'audit') return readAuditEvidence(stage.evidence, context.readEvidence);
             if (stage.name !== 'documents') return stage.evidence;
             return isDocumentsReference(stage.evidence) ? context.readEvidence(stage.evidence.artifact) : stage.evidence;
           }

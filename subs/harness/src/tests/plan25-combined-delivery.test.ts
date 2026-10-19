@@ -176,7 +176,7 @@ for (const mode of ['retained', 'fresh-fallback', 'legacy-records'] as const) te
   const comparisons = JSON.parse(comparisonText.slice(comparisonText.indexOf('{')));
   expect(comparisons.comparisons).toEqual([{ name: 'run-start', base: A, target: C, changedPaths: changes }, { name: 'accepted-boundary', base: B, target: C, changedPaths: [] }]);
   expect(comparisons.defaultComparison).toBe('run-start'); expect(nfrPacket.message).toContain(nfr);
-  expect(nfrPacket.message).toContain('Make your own semantic judgment for every element');
+  expect(nfrPacket.message).toContain('Make your own semantic judgment for each selected element');
   const assessed = agent.sessions.find(session => session.spec.submission.name === coordinatorAssessmentToolName)!;
   expect(assessed.results.find(result => result.tool === 'snapshot_diff' && result.text.includes('original-to-candidate note-store patch'))).toBeDefined();
   expect(assessed.results.find(result => result.tool === 'snapshot_diff' && result.text === `Comparison accepted-boundary: base ${B}; target ${C}\nThe candidate changed nothing`)).toBeDefined();

@@ -35,7 +35,7 @@ test.each(['target', 'configuration'] as const)('a final %s repair retains earli
     recoveryStatus: async () => ({ index: 'index', staged: [], unstaged: changed && head === 'base' && area === 'configuration' ? [path] : [], untracked: changed && head === 'base' && area === 'target' ? [path] : [] }),
   }));
   const sourceCandidates = scriptedCandidates(copy.root, { base: { tree, base: 'base', files: originalFiles, changes: [] }, [tree]: { tree, base: 'base', files: originalFiles, changes: [] },
-    [repairedTree]: { tree: repairedTree, base: 'base', files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] },
+    [repairedTree]: { tree: repairedTree, base: 'base', comparisons: { [tree]: { changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] } }, files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] },
     'corrected-head': { tree: repairedTree, base: 'base', files: { [path]: repairedBytes }, changes: [{ status: area === 'configuration' ? 'M' : 'A', path }] } });
   const candidates = { ...sourceCandidates, treeEntries: async (root: string, commit: string) => (await sourceCandidates.treeEntries(root, commit)).map(entry => ({ ...entry, objectId: (commit === repairedTree || commit === 'corrected-head' ? 'd' : 'c').repeat(40) })) };
   const agent = createScriptedAgent(declaringScenarios(spec => {

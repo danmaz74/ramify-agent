@@ -11,6 +11,8 @@ import { validateReconciliationForExecution } from '../../../reviews/src/reconci
 import type { AssistedReviewSubmission } from '../../../reviews/src/assisted.js';
 import { findingDetails, reportReviewConcerns } from '../findings.js';
 import { AssistanceService } from '../service.js';
+import { finalizeApproval } from '../approval.js';
+import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
 import { createAssessor, type AssessmentDependencies } from '../assessment.js';
 import type { AssistedProtection } from '../contracts.js';
 import { captureAssistanceDocuments, type AssistanceDocuments } from '../documents.js';
@@ -103,6 +105,53 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(b.outcome.gate).toBe('clear');
     expect(visits).toEqual([first, repaired]);
     expect(service.assessmentDetail('sample', job.jobId, a.id).outcome?.gate).toBe('action-required');
+  });
+
+  it('retains a large complete audit beside the bounded ledger and resumes it after reload without rerunning the provider', async () => {
+    const diagnostics = 'diagnostic evidence\n'.repeat(Math.ceil(3 * 1024 * 1024 / 20));
+    const auditResult = { ...audit(first), result: { definition: { path: 'ramify-audit.json', blob: 'fixed-selection' },
+      diagnostics, reportRef: 'refs/audited/runs/original', provenance: { requested: first, original: baseline, tail: 'complete-provider-tail' } } as unknown as ConfiguredAuditResult };
+    const runAudit = vi.fn(async () => auditResult);
+    let reviews = 0;
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = { operations: unusedOperations, audit: runAudit,
+      review: async input => {
+        if (++reviews === 1) throw new Error('Interrupt after retained audit checkpoint');
+        const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
+        const firstChunk = JSON.parse((await tool.execute({ ref: 'assessments/as-0001/stages/audit.json' }, new AbortController().signal)).text);
+        expect(firstChunk.totalChars).toBe(JSON.stringify(auditResult).length);
+        expect(firstChunk.nextOffset).toBeGreaterThan(0);
+        const tail = JSON.parse((await tool.execute({ ref: 'assessments/as-0001/stages/audit.json', offset: firstChunk.totalChars - 160 }, new AbortController().signal)).text);
+        expect(tail.content).toContain('complete-provider-tail');
+        return { status: 'submitted', value: reviewReport(first), operationId: input.operationId, sessionId: 'large-audit-review', eventCount: 1 };
+      } };
+    const { service, job, candidates } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, dependencies);
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'large-audit' });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    const stage = service.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'audit')!;
+    expect(stage.evidence).toMatchObject({ schema: 'ramify-agent.assisted-audit-reference/1', state: 'passed', requestedSourceCommit: first });
+    const reference = stage.evidence as { artifact: { path: string; sha256: string } };
+    const directory = join(service.projectRoot, 'plans/sample/.harness/jobs', job.jobId);
+    const bytes = await readFile(join(directory, reference.artifact.path));
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(reference.artifact.sha256);
+    expect(JSON.parse(bytes.toString())).toEqual(auditResult);
+    const log = await readFile(join(directory, 'events.jsonl'), 'utf8');
+    expect(log).not.toContain('complete-provider-tail');
+    expect(Math.max(...log.trim().split('\n').map(line => Buffer.byteLength(line)))).toBeLessThan(128 * 1024);
+    await service.close();
+    await rm(join(directory, 'assessments/as-0001/stages/audit.json'));
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(JSON.parse(await readFile(join(directory, 'assessments/as-0001/stages/audit.json'), 'utf8'))).toEqual(stage.evidence);
+    await reopened.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(reviews).toBe(2));
+    expect((await outcome(reopened, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(runAudit).toHaveBeenCalledTimes(1);
+    expect(reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.some(stage => stage.name === 'approval-readiness')).toBe(true);
+    const completed = reopened.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    expect(finalizeApproval({ assessment: completed, assessments: [completed], job: reopened.assistedJob('sample', job.jobId),
+      state: emptyCheckFindingState(), commandId: 'retained-audit-readiness', finalizedAt: new Date().toISOString() }))
+      .toMatchObject({ outcome: { gate: 'clear' } });
   });
 
   it('passes stored outcome, advisory focus and supplemental context through the real recorded-iteration composition', async () => {

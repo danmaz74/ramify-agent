@@ -1,3 +1,4 @@
+import type { AssistedEvidenceReference } from './contracts.js';
 import {
   createConfiguredAudit,
   type AuditWorkspaceOwnershipRecorder,
@@ -58,4 +59,25 @@ export async function auditAssistedCandidate(input: {
     return { state: 'unavailable', requestedSourceCommit: input.candidateCommit, auditedSourceCommit: null,
       result: null, detail: error instanceof Error ? error.message : String(error) };
   }
+}
+
+/** Large provider evidence stays intact beside the log; identities remain visible inline. */
+export interface AuditEvidenceReference {
+  readonly schema: 'ramify-agent.assisted-audit-reference/1';
+  readonly state: AssistedAuditOutcome['state'];
+  readonly requestedSourceCommit: string;
+  readonly auditedSourceCommit: string | null;
+  readonly artifact: AssistedEvidenceReference;
+}
+export const isAuditEvidenceReference = (value: unknown): value is AuditEvidenceReference =>
+  typeof value === 'object' && value !== null && 'schema' in value
+    && value.schema === 'ramify-agent.assisted-audit-reference/1';
+
+/** Historical inline audit stages remain readable without a migration. */
+export async function readAuditEvidence(value: unknown, read: (reference: AssistedEvidenceReference) => Promise<unknown>): Promise<AssistedAuditOutcome | undefined> {
+  if (!isAuditEvidenceReference(value)) return value as AssistedAuditOutcome | undefined;
+  const audit = await read(value.artifact) as AssistedAuditOutcome;
+  if (audit.state !== value.state || audit.requestedSourceCommit !== value.requestedSourceCommit
+    || audit.auditedSourceCommit !== value.auditedSourceCommit) throw new Error('Retained audit evidence differs from its recorded candidate or outcome');
+  return audit;
 }

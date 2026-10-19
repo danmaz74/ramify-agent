@@ -63,7 +63,7 @@ describe('the composed CheckFinding path over a real repository', () => {
         submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'Add the note store.' }, outline())),
         submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'State the note limit.' })),
         submit(requestCompletion()),
-        submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'Make the note limit 500 characters.', kind: 'repair' })),
+        submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'Make the note limit 500 characters.', kind: 'repair', reviewReason: 'Inspect the changed character-limit implementation against its principle on the real corrected Git candidate.' })),
         submit(requestCompletion()),
       ],
       reviewers: {

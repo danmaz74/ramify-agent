@@ -187,6 +187,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       const basis = { task, planRevision: Number(revision), invocation };
       const assignOwner = (owner: string, purpose: string) => submit({ ...basis, kind: 'assign', assignment: assign(owner, {
         goal: purpose, approach: purpose, completionEvidence: 'Real source and tests',
+        ...(purpose.startsWith('Repair') && (mode === 'review-restart' || mode === 'review-submission-restart')
+          ? { reviewReason: 'Verify the changed independent oracle through an explicit additional review before the recovery boundary.' } : {}),
       }).assignment });
       if (current.includes('requires a correction assignment')) {
         correctionAssigned = true;

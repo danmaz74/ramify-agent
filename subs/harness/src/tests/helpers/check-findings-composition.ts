@@ -185,7 +185,7 @@ export function compositionScenario(root: string, policy: Partial<NonNullable<Ru
         submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Add the tag store.' }, outline())),
         submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Limit a tag to the plan\'s length.' })),
         submit(requestCompletion()),
-        submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Make the tag limit 500 characters, as the plan asks.', kind: 'repair' })),
+        submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Make the tag limit 500 characters, as the plan asks.', kind: 'repair', reviewReason: 'Inspect the changed tag-limit behavior and its principle guidance after the selected repair.' })),
         submit(requestCompletion()),
       ],
       'engineer:wi-002': [
