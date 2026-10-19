@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import type { LedgerSessionStore } from '../../run/session-store.js';
-import type { SessionStoreCommit, SessionStoreRecord } from '../../../subs/agent/src/interfaces/session-operations.js';
+import type { LedgerSessionStore } from '../../session-store.js';
+import type { SessionStoreCommit, SessionStoreRecord } from '../../../../agent/src/interfaces/session-operations.js';
 
 // A directory identifies one test repository across service close/reopen.
 // Values cross a JSON/byte-copy boundary, without repeated filesystem work.

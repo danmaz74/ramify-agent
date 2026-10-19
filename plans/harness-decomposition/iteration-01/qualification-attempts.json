@@ -1,0 +1,61 @@
+{
+  "schema": "harness-decomposition.qualification-attempts/1",
+  "scope": "Local implementation qualification. Final full command logs are retained; earlier failed command output was inspected through the native tool transcript and summarized here, not retained as raw log files. No failed attempt is treated as passed.",
+  "attempts": [
+    {
+      "kind": "focused tests",
+      "start": "2026-10-19T06:58:56Z",
+      "status": "failed",
+      "filesPassed": 7,
+      "filesFailed": 1,
+      "testsPassed": 122,
+      "testsFailed": 3,
+      "cause": "Moved cache tests had three physical .harness lock path literals incorrectly rebased by the move script.",
+      "correction": "Restored the unchanged physical .harness path; owner-local cases then passed."
+    },
+    {
+      "kind": "focused tests",
+      "start": "2026-10-19T06:59:50Z",
+      "status": "failed",
+      "filesPassed": 7,
+      "filesFailed": 1,
+      "testsPassed": 124,
+      "testsFailed": 1,
+      "cause": "Existing live qualification test assumed actual filesystem admission finished before its 20 ms wall timeout; dispatch count was zero.",
+      "correction": "Observe dispatch and advance a controlled timeout; same behavioral assertions pass."
+    },
+    {
+      "kind": "check:self",
+      "status": "failed",
+      "errors": 5,
+      "cause": "Initial declarations omitted ledger signature companions and syncDirectory required by actual-module cache mocks.",
+      "correction": "Expose supported ledger operations with named signature companions."
+    },
+    {
+      "kind": "check:self",
+      "status": "failed",
+      "errors": 5,
+      "cause": "Transitive Ledger and OpenLedgerOptions signature companions were not all exposed.",
+      "correction": "Completed named companions, preserving ledger implementation and interfaces."
+    },
+    {
+      "kind": "API materialization",
+      "status": "superseded",
+      "exitCode": 2,
+      "cause": "An implementation edit replaced the requested resident revision before refresh completed.",
+      "correction": "Refresh all API/architect views on stable source; revision 6 completed."
+    },
+    {
+      "kind": "final focused/native/consumer/type/Ramify qualification",
+      "status": "passed",
+      "evidence": [
+        "focused-tests.log",
+        "consumer-regressions.log",
+        "native-tests.log",
+        "type-check.log",
+        "check-self.log",
+        "after-api.log"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "capturedAt": "2026-10-19T06:57:51.514620+00:00",
+  "head": "85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4",
+  "sourceBaseline": "3cf06e52cbb2996a8d4db7a6f7cf9527dcd611ac",
+  "store": "subs/harness/src/run/session-store.ts",
+  "productionCallers": [
+    "assistance/runtime.ts",
+    "run/session-operations.ts",
+    "run/beads-storage.ts",
+    "qualification/live-session.ts"
+  ],
+  "taskObservations": {
+    "engineeringModel": "Sol inherited from coordinator",
+    "preChangeComparableAcceptedTask": null,
+    "nativeTokenUsage": null,
+    "providerCacheUsage": null,
+    "activeEffortSeconds": null,
+    "reason": "Native session does not expose token/cache accounting or a comparable accepted persistence task. Structural evidence is not productivity evidence."
+  },
+  "preChangeApi": {
+    "ordinary": "subs/harness/src/.ramify/_meta.json",
+    "testing": "subs/harness/src/tests/.ramify/_meta.json",
+    "note": "Inspected SessionStore and ledger API catalogs before edits; requester views report coverage 1 and truncation 4."
+  }
+}

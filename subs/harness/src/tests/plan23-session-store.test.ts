@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-vi.unmock('../run/session-store.js');
-import { openSessionStore, type LedgerSessionStore } from '../run/session-store.js';
+vi.unmock('../../subs/session-store/src/session-store.js');
+import { openSessionStore, type LedgerSessionStore } from '../../subs/session-store/src/session-store.js';
 import { HarnessSessionOperations, readSessionPointReference, type HarnessOperationInput } from '../run/session-operations.js';
 import { createSessionOperations } from '../../subs/agent/src/session-operations.js';
 import { createScriptedAgent, createScriptedSessionDriver } from '../../subs/agent/src/scripted.js';
@@ -68,33 +68,6 @@ describe('Plan 23 ledger session store', () => {
     await adapter.close();
   });
 
-  it('immutable exact payload bytes and atomic multi-record CAS survive fresh adapters and missing materialized copies', async () => {
-    const { path, store } = await setup(); const bytes = new Uint8Array([0, 255, 1, 10]); const id = await store.putPayload(bytes);
-    expect(id).toMatch(/^[a-f0-9]{64}$/); expect(await store.putPayload(bytes)).toBe(id);
-    const first: SessionStoreRecord = { runId: 'A', id: 'session:s', revision: 1, schema: 'ramify-agent.session/1', body: { refs: [id] } };
-    const operation: SessionStoreRecord = { ...first, id: 'operation:o', schema: 'ramify-agent.session-operation/1', body: { outcome: 'completed' } };
-    expect(await store.commit({ runId: 'A', expected: [{ id: first.id, revision: null }, { id: operation.id, revision: null }], records: [first, operation], payloads: [id] })).toEqual({ kind: 'committed' });
-    const before = await readFile(join(path, 'session-ledger.jsonl'), 'utf8');
-    expect((await store.commit({ runId: 'A', expected: [{ id: first.id, revision: 1 }, { id: operation.id, revision: null }], records: [{ ...first, revision: 2 }], payloads: [id] })).kind).toBe('conflict');
-    expect(await readFile(join(path, 'session-ledger.jsonl'), 'utf8')).toBe(before);
-    await rm(join(path, 'records'), { recursive: true }); await store.close();
-    const reopened = (await setup(path)).store;
-    expect(await reopened.read('A', first.id)).toEqual(first); expect(await reopened.read('A', operation.id)).toEqual(operation); expect(await reopened.getPayload(id)).toEqual(bytes);
-    expect(await reopened.read('other-run', first.id)).toBeNull();
-  });
-  it('two store instances atomically allocate one operation key and do not accept missing/corrupt payloads', async () => {
-    const { path, store } = await setup(); const second = (await setup(path)).store;
-    const record: SessionStoreRecord = { runId: 'A', id: 'operation:new', revision: 1, schema: 'ramify-agent.session-operation/1', body: {} };
-    const transaction = { runId: 'A', expected: [{ id: record.id, revision: null }], records: [record], payloads: [] };
-    expect((await Promise.all([store.commit(transaction), second.commit(transaction)])).map(item => item.kind).sort()).toEqual(['committed', 'conflict']);
-    const missing = 'a'.repeat(64);
-    await expect(store.commit({ runId: 'A', expected: [{ id: 's', revision: null }], records: [{ ...record, id: 's' }], payloads: [missing] })).rejects.toThrow(/Missing committed payload/);
-    await expect(store.getPayload('../escape')).rejects.toThrow(/Invalid transcript/);
-    const id = await store.putPayload(new TextEncoder().encode('correct'));
-    await writeFile(join(path, 'payloads', id), 'incorrect'); await expect(store.getPayload(id)).rejects.toThrow(/Corrupt transcript/);
-    expect(await store.putPayload(new TextEncoder().encode('correct'))).toBe(id);
-    expect(new TextDecoder().decode((await store.getPayload(id))!)).toBe('correct');
-  });
   it('treats a corrupt optional session snapshot as unavailable while fresh tasks remain executable', async () => {
     const { path, store } = await setup();
     const operations = createSessionOperations({ sessionStore: store, driver: createScriptedSessionDriver([]) });

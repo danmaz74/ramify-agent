@@ -1,0 +1,9 @@
+ramify 1
+module session-store
+
+// Durable session records and immutable payloads through the authoritative ledger.
+// The parent composes workflow callers; this child decides no workflow outcome.
+expose-src openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from "session-store.ts" to parent
+
+// Workflow tests replace only persistence, retaining real session/workflow logic.
+expose-test openMemorySessionStore, forgetMemorySessionStores from "helpers/memory-session-store.ts" to parent

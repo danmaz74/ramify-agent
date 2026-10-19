@@ -1,0 +1,18 @@
+{
+  "affected-assistance.json": {
+    "sha256": "f130882f5c3b1aeefc8278fb02e5e1fab9f20800970f1df4edaba52938ed7ea4",
+    "bytes": 193237
+  },
+  "affected-session-store.json": {
+    "sha256": "e850ad4c117f81ae24a4f80f4a3830f65742ee6ef2c3eb35aa0712ceab76068e",
+    "bytes": 193236
+  },
+  "check.json.gz": {
+    "sha256": "4e228a613aa8b91723ab0e8d77aa49654e110de8bea304d2374513d5011ff1df",
+    "bytes": 5158111
+  },
+  "measure.json": {
+    "sha256": "d2855df507a88cd09d9e5f5acb95f179ef06c1a7dde59e48abba4a36ac16dacb",
+    "bytes": 170374
+  }
+}

@@ -1,0 +1,13 @@
+
+> ramify-agent@0.0.0 test:boundaries
+> vitest run --project boundaries subs/harness/subs/session-store/src/tests/writer-exclusion.boundary.test.ts subs/harness/src/tests/lock.boundary.test.ts subs/harness/subs/agent/subs/pi/src/tests/plan23-transport.boundary.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+
+ Test Files  3 passed (3)
+      Tests  8 passed (8)
+   Start at  06:59:28
+   Duration  3.73s (transform 2.32s, setup 127ms, import 4.40s, tests 3.78s, environment 0ms)
+

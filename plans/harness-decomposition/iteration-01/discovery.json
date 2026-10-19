@@ -1,0 +1,1902 @@
+[
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/session-command.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/test-boundaries.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/audit-check-execution.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/audit-workspace-recovery.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/breaking-work.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-acceptance.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-delegation.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-dependencies.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-recovery.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/check-findings-composition.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-delegation-integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/engineer-api-preparation.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints-process.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/fixture-check.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/fixture-trials.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/hook-checks.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/integration-scenarios-integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/iteration-gate-integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/iterations-integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/late-writes.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/lock.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/measurement.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/module-creation-integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-run.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan21-workflows.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-cucumber.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-trial-attribution.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/project-boundary-audit.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/readiness.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recorded-environment.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/requirement-architect-view.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/restart-git.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-snapshot.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-git.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-protocol-materialization.integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/shell-tool.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/single-session-integration.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/single-session.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/test-lock-gate.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/unguarded-write.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/write-guard.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/writer-settlement.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/audit/src/tests/audit-conformance.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/audit/src/tests/test-lock.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/audit/src/tests/workspace-preparation.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/candidate-tree.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/git.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/ownership-recovery.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/project-boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/provisional-git.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/run-command.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/scratch-git.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/killed-writer.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/writer-exclusion.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/execution-breakpoints-native.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/plan23-transport.boundary.test.ts",
+    "projectName": "boundaries"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/app.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/capability-graph.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/capability-module-tree.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/capability-tasks.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/check-findings.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/client.test.ts",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/continuity-observations.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/debugger.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/execution-map-client.test.ts",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/execution-map.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/execution-modules.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/plan-page.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/plan23-session-metrics.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/plan36-evaluation-attribution.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/plans-page.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/recovery.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/restart.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/run-page.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/session-marks.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/session-page.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/session-timeline.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/sessions-page.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/web/src/tests/transcript-workspace.test.tsx",
+    "projectName": "web"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/cli.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/debug-client.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/plan23-trial-collector.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/recovery-client.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/restart-client.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/root-qualification.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/src/tests/test-process-guard.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/acceptance-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/acceptance-trial.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/accepted-boundary.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/accepted-commit.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/analysis-plan-evidence.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/analysis-scenarios.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/analysis-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assignment-source-evidence.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-assessment.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-audit.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-documents.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-mcp.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-pi-evidence.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-protection-authorization.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-protection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-reconciliation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-service.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assisted-pi.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/audit-check-execution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/automatic-project-repair.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/automatic-repair-gate.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/automatic-repair-incidents.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/beads-lifecycle.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/beads-project-config.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/beads-sessions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/breaking-work.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/brief-assembly.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/candidate-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-acceptance.integration.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-accepted-context-loss.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-assignments.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-citation-reproduction.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-consultation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-delegation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-dependencies.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-evidence-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-flow-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-gate-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-historical-resume.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-records.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-state.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-tasks-projection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/catalog-extraction.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/check-findings-authority.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/check-findings-commands.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/check-findings-composition.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/check-findings-ledger.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/check-findings-run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/commit-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/commit.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/compaction-checkpoint.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/compaction.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/composition-recovery-chains.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/composition-recovery-delegation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/composition-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/composition.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/consultation-inspection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/consultation-records.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/consultation-targets.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/consultation-tools.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/consultation-workflows.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/context-selection-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/context-selection-runtime.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/context-selection-submissions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/context-selection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-delegation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-injection-scope.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-revision-scripted.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-revision.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-scheduling.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/contract-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/coverage-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/decision-correction-guidance.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/decision-correction-workflow.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/dependency-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/direct-check-execution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/empty-mutations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/engineer-api-preparation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/engineer-briefing.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/engineer-directory.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/engineer-failures.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/engineer-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/environment-problems.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints-capability.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints-conversation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints-http.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints-workflow.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-map-contract.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-map-durable.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-map-http.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-observations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-watchdog.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/external-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/fake-exposure-parity.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/feature-target-placement.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/final-deviation-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/final-gate-task-reentry.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/fork-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/gate-diagnostics.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/gate-not-verified.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/gate-progress.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/gate-recovery-admission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/gate-repair-routing.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/hook-checks.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/hook-run-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/http-query-source.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/http.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/inherited-scope.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/integration-scenarios.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/iteration-gate.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/iteration-source-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/iterations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/kpi-history-usage.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/kpi-mixed-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/kpi-run-collection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/kpi-scope-collection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/kpi-weighted-queries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/line-events.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/local-architect-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/local-authority.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/lock.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/materialization.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/measurement-inputs.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/measurement.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/merge-readiness.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/module-creation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/module-header.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/neutral-actions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/no-rewind.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-deviation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-phase.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-repair.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/nonfunctional-submissions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/observation-log.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/operation-recovery-callers.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/operation-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/ordinary-gate-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/owners.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/ownership-authority.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/ownership-mutation-classification.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/ownership-repair-equipment.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/ownership-repair-guard.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/ownership-repair-ledger.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/placement.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan-deviations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan-evidence-compatibility.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan-evidence-required-runtime.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan-evidence-review-unavailable.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan13-composed-functional.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-continuing-work.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-exploration-metrics.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-focused-scenarios.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-fork-workflows.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-live-session.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-mutation-order.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-observation-integration.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-real-run-corrections.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-session-store.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-task-prompts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-trial-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-block-sessions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-blocks.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-combined-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-discovery-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-discovery-records.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-nfr-context.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan25-task-packets.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan36-architect-guidance.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan36-catalog-selector.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan36-mutation-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan38-copied-acceptance.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan38-feature-selection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan38-retained-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plans.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/preparation-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/progress-fixture.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/progress.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/project-config.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/project-facts-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projection-authority.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projection-compatibility.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projection-consumers.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projection-paging.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projection-repair-history.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projection-surface.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/projections-pure.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/protocol-contract.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/provisional-source.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/read-excursions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/readiness-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/readiness-decision.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/readiness-direct-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/readiness.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/reconciliation-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/reconciliation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/record-reader.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recorded-environment.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-admission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-checks.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-configuration-lifecycle.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-gate-lifecycle.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-http.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-readiness-source.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/recovery-snapshot.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/registry-submission-run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/registry-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/repair-export-command.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/repair-export.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/requirement-verification.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/restart-audit-settlement.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/restart-gate.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/restart-import.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/restart-service.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-attempts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-diff-delivery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-lifecycle.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-questions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-queue.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-scheduling.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-signals.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/review-stop.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/revision-preview-submission-contracts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-bounds.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-closing-order.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-commands.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-event-reader.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-policy.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-protocol.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run-recovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scenario-briefings.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scenario-projections.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scenario-states.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scope-size-recipe.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scratch-setup.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scratch.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/scripted-transports.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/session-fixture.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/session-lifecycle.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/session-queries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/session-reducer.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/settlement-boundaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/setup-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/shell-tests.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/shell-tool.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/single-session.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/steps-authored.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/steps-from-run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/steps-gate-after.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/steps-inputs.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/steps-run-load.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/steps-run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/stop-before-start.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/submission-corrections.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/test-lock-bounds.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/transcript-pages.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/transcript-reader.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/transcript-run.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/transcript-writer.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/tree-identity.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/union-values.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/work-item-api-views.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/work-items.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/write-guard-ownership.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/write-guard.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/write-scope-submission.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/writer-settlement.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/helpers/preview-git.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/src/tests/plan23-session-operations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/src/tests/port-additions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/src/tests/port-observations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/src/tests/scripted.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/src/tests/tool-actions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/src/tests/transcript-content.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/audit/src/tests/completed-audit.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/audit/src/tests/test-lock.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/audit/src/tests/workspace-preparation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/decide.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/deviations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/identity.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/purity.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/queries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/relations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/check-findings/src/tests/stream.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/command-progress.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/cucumber-configuration.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/git-common-directory.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/guarded-files.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/measure.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/ownership-evidence.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/plan23-blob-object-facts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/plan23-line-origin-facts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/project-configuration.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/ramify-cli.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/recovery-status.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/run-command.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/scripted-cli.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/evidence/src/tests/views.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/delivered-change.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/efficiency.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/exploration.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/guarding.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/lineage.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/lines.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/measurement.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/metrics.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/scope-size-recipe.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/sessions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/kpi/src/tests/setup-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/corrupt-log.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/effects.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/fault-injection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/jsonl-appender.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/ledger.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/materialize.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/record-read.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/store.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/ledger/src/tests/torn-line.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/nonfunctional/src/tests/contracts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/nonfunctional/src/tests/rounds.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/plan-evidence/src/tests/catalog.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/plan-evidence/src/tests/contracts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/plan-evidence/src/tests/discovery.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/plan-evidence/src/tests/plan23-catalog-contracts.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/automatic-repair-incidents.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/capability-private-witnesses.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/check-findings-projection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/committed-queries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/consultation-reading.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/continuity-projections.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/execution-map-causal.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/execution-map-modules.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/execution-map-pages.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/execution-map-projection.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/kpi-metrics.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/kpi-usage-search-query.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/lineage-metrics.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/plan23-observation-presentation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/plan23-setup-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/plan36-mutation-attribution.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/progress.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/repair-reading.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/run-projections.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/scenario-projections.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/session-reading.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/standalone-session-state.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/union-event-exhaustiveness.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/union-event-references.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/projections/src/tests/union-event-summaries.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/recovery/src/tests/reentry.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/reviews/src/tests/assisted-review.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/reviews/src/tests/review-diff-payload.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/reviews/src/tests/review-tools.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/scenarios/src/tests/extraction.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/scenarios/src/tests/form.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/scenarios/src/tests/records.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/scenarios/src/tests/rendering.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/scenarios/src/tests/states.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/plan23-session-store-cache.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/plan23-session-store.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/workflow-session-store.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/all-role-continuity.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/compaction-policy.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/consultation-nesting.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/context-budget.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/context-information.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/coverage-detail-read.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/fork-isolation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/guard-installed.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/guarded-writes.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/model-choice.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/native-continuity.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/pi-agent.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/plan23-event-observations.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/plan23-native-request-artifact.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/plan23-prefix-preservation.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/session-modes.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/subagents.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/tool-actions.test.ts",
+    "projectName": "node"
+  },
+  {
+    "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/transcript-content.test.ts",
+    "projectName": "node"
+  }
+]

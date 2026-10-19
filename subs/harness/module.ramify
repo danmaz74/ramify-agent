@@ -189,7 +189,7 @@ expose-src trialReportDestination from "qualification/trial-report.ts" to parent
 
 // Production ledger reopening belongs to the descendant Pi native witness.
 // Only the store contract and its signature companions cross this boundary.
-expose-src openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from "run/session-store.ts" to descendants
+expose-sub openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from session-store to descendants
 expose-sub SessionStore, SessionStoreRecord, SessionStoreCommit, SessionStoreExpected, TranscriptPayloadId from agent to descendants
 
 // Fixed live qualification owns its runtime; root receives plain options/results.
@@ -231,3 +231,9 @@ expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23R
 expose-src startAssistanceServer, AssistanceServerOptions, AssistanceServer from "assistance/runtime.ts" to parent
 
 expose-sub verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from evidence to descendants
+
+// Session persistence consumes the existing lock and ledger mechanisms through
+// their supported contracts; workflow completion remains with workflow owners.
+expose-src acquireSessionStoreLock, SessionStoreLock from "store/lock.ts" to descendants
+expose-sub SessionRecordUnavailableError, SessionDriverUnavailableError from agent to descendants
+expose-sub openLedger, Ledger, OpenLedgerOptions, RecordSchema, RecordRead, EffectSpec, PendingEffect, LedgerFileSystem, LedgerFileHandle, LedgerOpenFlags, writeFileAtomic, writeFileExclusive, ExclusiveWrite, syncDirectory from ledger to descendants

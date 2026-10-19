@@ -1,0 +1,13 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/subs/session-store/src/tests/plan23-session-store.test.ts subs/harness/subs/session-store/src/tests/plan23-session-store-cache.test.ts subs/harness/subs/session-store/src/tests/workflow-session-store.test.ts subs/harness/src/tests/plan23-session-store.test.ts subs/harness/src/tests/beads-sessions.test.ts subs/harness/src/tests/assistance-service.test.ts subs/harness/src/tests/assistance-mcp.test.ts subs/harness/src/tests/plan23-live-session.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+
+ Test Files  8 passed (8)
+      Tests  125 passed (125)
+   Start at  07:00:42
+   Duration  3.33s (transform 2.84s, setup 627ms, import 8.85s, tests 4.22s, environment 1ms)
+

@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createSessionOperations } from '../../subs/agent/src/session-operations.js';
 import type { SessionExecutionPolicy, SessionExecutionBindings, SessionTaskInput } from '../../subs/agent/src/interfaces/session-operations.js';
-import { openSessionStore } from '../run/session-store.js';
+import { openSessionStore } from '../../subs/session-store/src/session-store.js';
 import { settleSessionEquipment } from '../run/session-operations.js';
 import { ObservationLog } from '../run/observations.js';
 import { engineerEquipment, projectMutationSnapshot } from '../work/engineer-equipment.js';

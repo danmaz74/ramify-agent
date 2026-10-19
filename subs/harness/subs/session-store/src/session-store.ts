@@ -3,11 +3,11 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { readFileSync, statSync, type BigIntStats } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
-import { acquireProjectLock, type ProjectLock } from '../store/lock.js';
-import { SessionRecordUnavailableError, SessionDriverUnavailableError } from '../../subs/agent/src/interfaces/session-operations.js';
-import type { SessionStore, SessionStoreCommit, SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
-import { openLedger } from '../../subs/ledger/src/ledger.js';
-import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
+import { acquireSessionStoreLock, type SessionStoreLock } from '../../../src/store/lock.js';
+import { SessionRecordUnavailableError, SessionDriverUnavailableError } from '../../agent/src/interfaces/session-operations.js';
+import type { SessionStore, SessionStoreCommit, SessionStoreRecord } from '../../agent/src/interfaces/session-operations.js';
+import { openLedger } from '../../ledger/src/ledger.js';
+import { writeFileAtomic, writeFileExclusive } from '../../ledger/src/atomic.js';
 
 /** Session adapters share this writer domain; ledger still rejects an unrelated concurrent process writer. */
 const queues = new Map<string, Promise<unknown>>();
@@ -64,7 +64,7 @@ interface ValidatedState {
   log: Fingerprint | null;
 }
 interface WriterDomain {
-  readonly lock: ProjectLock;
+  readonly lock: SessionStoreLock;
   references: number;
   state: ValidatedState | null;
   unavailable: string | null;
@@ -92,7 +92,7 @@ export async function openSessionStore(options: LedgerSessionStoreOptions): Prom
   const writer = await serialized(directory, async () => {
     const prior = writers.get(directory);
     if (prior) { prior.references++; return prior; }
-    const created: WriterDomain = { lock: await acquireProjectLock(directory), references: 1, state: null, unavailable: null };
+    const created: WriterDomain = { lock: await acquireSessionStoreLock(directory), references: 1, state: null, unavailable: null };
     writers.set(directory, created); return created;
   });
   let closed = false;

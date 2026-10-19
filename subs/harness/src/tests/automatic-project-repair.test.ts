@@ -18,7 +18,7 @@ import { scriptedCandidates } from './helpers/candidates.js';
 import { freeze, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
-vi.unmock('../run/session-store.js');
+vi.unmock('../../subs/session-store/src/session-store.js');
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {

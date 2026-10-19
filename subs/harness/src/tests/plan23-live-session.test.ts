@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createSessionOperations } from '../../subs/agent/src/session-operations.js';
 import type { SessionOperationDriver } from '../../subs/agent/src/interfaces/session-operations.js';
-import { openSessionStore } from '../run/session-store.js';
+import { openSessionStore } from '../../subs/session-store/src/session-store.js';
 import { runPlan23LiveSessionOn, type Plan23LiveSessionOptions } from '../qualification/live-session.js';
 // The qualification helper reads the persisted journal as its evidence.
-vi.unmock('../run/session-store.js');
+vi.unmock('../../subs/session-store/src/session-store.js');
 const directories: string[] = [];
 afterEach(async () => { for (const path of directories.splice(0)) await rm(path, { recursive: true, force: true }); });
 async function fixture(driver?: SessionOperationDriver) {
@@ -48,6 +48,8 @@ it('live helper refuses same-process restore and retains failed evidence without
 });
 it('live helper stops and drains a timed-out admitted operation without reporting successful recovery', async () => {
   let calls = 0;
-  const f = await fixture({ async dispatch(_input, runtime) { calls++; await new Promise<void>(resolve => runtime.signal.addEventListener('abort', () => resolve(), { once: true })); return { kind: 'failed', error: 'aborted' }; } });
-  try { const result = await runPlan23LiveSessionOn({ ...f.options, operationTimeoutMs: 20 }, f); expect(result.status).toBe('failed'); expect(result.reason).toContain('Operation timed out'); expect(calls).toBe(1); const snapshot = await f.operations.inspect(f.options.runId, (await f.operations.operationIdentity(f.options.runId, 'first-task'))!.sessionId); expect(snapshot).toBeNull(); } finally { await f.store.close(); }
+  let entered!: () => void; const dispatched = new Promise<void>(resolve => { entered = resolve; });
+  const f = await fixture({ async dispatch(_input, runtime) { calls++; entered(); await new Promise<void>(resolve => runtime.signal.addEventListener('abort', () => resolve(), { once: true })); return { kind: 'failed', error: 'aborted' }; } });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try { const pending = runPlan23LiveSessionOn({ ...f.options, operationTimeoutMs: 20 }, f); await dispatched; await vi.advanceTimersByTimeAsync(20); const result = await pending; expect(result.status).toBe('failed'); expect(result.reason).toContain('Operation timed out'); expect(calls).toBe(1); const snapshot = await f.operations.inspect(f.options.runId, (await f.operations.operationIdentity(f.options.runId, 'first-task'))!.sessionId); expect(snapshot).toBeNull(); } finally { vi.useRealTimers(); await f.store.close(); }
 });

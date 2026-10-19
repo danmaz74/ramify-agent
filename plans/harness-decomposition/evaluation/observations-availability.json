@@ -1,0 +1,23 @@
+{
+  "schema": "harness-decomposition-observation-availability/1",
+  "method": "Read native session metadata and count user-message references to session-store/session store/session persistence. No prompt bodies or tool outputs retained. Matching is discovery only, not task comparability or acceptance. Active sessions may continue to grow.",
+  "nativeSessionsScanned": 160,
+  "matchingSessions": [
+    {
+      "file": "rollout-2026-10-19T05-43-53-01a152b0-139e-7350-ba15-e580a19ccebc.jsonl",
+      "sha256": "a709c928dc53cc1f93d19c08468238ad7cf96b928f1dbf738e14554139b034e9",
+      "bytes": 1394559,
+      "userMessageMatches": 1,
+      "matchingMessageTimes": [
+        "2026-10-19T06:34:52.373Z"
+      ],
+      "cliVersion": "0.162.0-alpha.17.2",
+      "source": "vscode"
+    }
+  ],
+  "currentPlanInvocationRecords": 0,
+  "currentPlanOutcomeRecords": 0,
+  "historicalHarnessPlanDirectoriesInMainCheckout": 0,
+  "comparison": "No accepted comparable pre/post task pair established. No operational effect computed. Native metrics are separate from Pi.",
+  "coverage": "Session metadata cwd points at main checkout even when tool commands use worktrees; do not use it as source identity. Session hashes identify inspected bytes, not immutable task outcomes."
+}

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { openSessionStore, type LedgerSessionStore } from '../run/session-store.js';
+import { openSessionStore, type LedgerSessionStore } from '../session-store.js';
 const stores: LedgerSessionStore[] = []; const directories: string[] = [];
 afterEach(async () => { for (const store of stores.splice(0)) await store.close(); for (const path of directories.splice(0)) await rm(path, { recursive: true, force: true }); });
 async function setup(path: string) { const store = await openSessionStore({ directory: path }); stores.push(store); return { store }; }

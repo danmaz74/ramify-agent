@@ -7,7 +7,7 @@ import { SessionDriverUnavailableError } from '../../subs/agent/src/interfaces/s
 import type { SessionOperationDriver } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { CommandRunner, CommandRequest } from '../../subs/evidence/src/run-command.js';
 import { noMessageDetail } from '../../subs/agent/src/interfaces/port.js';
-import { openSessionStore } from '../run/session-store.js';
+import { openSessionStore } from '../../subs/session-store/src/session-store.js';
 import { BeadsSessions, type BeadsStageInput } from '../run/beads-sessions.js';
 import { BeadsStateStore } from '../run/beads-storage.js';
 import { createBeadsTools } from '../run/beads-tools.js';

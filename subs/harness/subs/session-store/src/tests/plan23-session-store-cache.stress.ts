@@ -4,10 +4,10 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-vi.unmock('../run/session-store.js');
-import { openSessionStore, type LedgerSessionStore } from '../run/session-store.js';
-import type { SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
-import type { openLedger as PublicOpenLedger } from '../../subs/ledger/src/ledger.js';
+vi.unmock('../session-store.js');
+import { openSessionStore, type LedgerSessionStore } from '../session-store.js';
+import type { SessionStoreRecord } from '../../../agent/src/interfaces/session-operations.js';
+import type { openLedger as PublicOpenLedger } from '../../../ledger/src/ledger.js';
 
 const observed = vi.hoisted(() => ({ opens: 0, replays: 0, journalReads: [] as string[], bodyReads: [] as string[], payloadReads: [] as string[], metadataChecks: [] as string[], failAppend: null as 'before' | 'after' | null, failBodyWrite: false, frozenLog: null as { path: string; metadata: BigIntStats } | null, duringAppend: null as (() => Promise<void>) | null, afterOpen: null as (() => Promise<void>) | null }));
 vi.mock('node:fs/promises', async original => {
@@ -36,14 +36,14 @@ vi.mock('node:fs', async original => {
     return fs.statSync(...args);
   } };
 });
-vi.mock('../../subs/ledger/src/atomic.js', async original => {
-  const module = await original<typeof import('../../subs/ledger/src/atomic.js')>();
+vi.mock('../../../ledger/src/atomic.js', async original => {
+  const module = await original<typeof import('../../../ledger/src/atomic.js')>();
   return { ...module, async writeFileExclusive(...args: Parameters<typeof module.writeFileExclusive>) {
     if (String(args[0]).includes('/record-bodies/') && observed.failBodyWrite) { observed.failBodyWrite = false; throw new Error('injected immutable body write failure'); }
     return module.writeFileExclusive(...args);
   } };
 });
-vi.mock('../../subs/ledger/src/ledger.js', async original => {
+vi.mock('../../../ledger/src/ledger.js', async original => {
   const module = await original<{ openLedger: typeof PublicOpenLedger }>();
   return { openLedger: async (...args: Parameters<typeof module.openLedger>) => {
     observed.opens++;

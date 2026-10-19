@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { zstdDecompressSync } from 'node:zlib';
 import { afterEach, expect, it } from 'vitest';
-import { openSessionStore } from '../../../../../../src/run/session-store.js';
+import { openSessionStore } from '../../../../../session-store/src/session-store.js';
 import type { AgentSessionPoint, AgentSessionSnapshot, SessionExecutionBindings, SessionExecutionPolicy, SessionOperationReceipt, SessionTaskInput } from '../../../../src/interfaces/session-operations.js';
 import { createPiAgentOn } from '../pi-agent.js';
 import { decodePreservedTranscript, installedPiPublicExport, readPiNativeRequestArtifact, serializeNativePrefix, type PiTranscriptMessage, type PreservedPiTranscript } from '../preservation.js';

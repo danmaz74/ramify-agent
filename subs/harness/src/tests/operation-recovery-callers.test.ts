@@ -33,7 +33,7 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { scenarioGit } from './helpers/recovery-git.js';
 
-vi.unmock('../run/session-store.js');
+vi.unmock('../../subs/session-store/src/session-store.js');
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

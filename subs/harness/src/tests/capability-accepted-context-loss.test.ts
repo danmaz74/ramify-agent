@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 // This proof owns optional provider persistence rather than the usual in-memory fixture.
-vi.unmock('../run/session-store.js');
+vi.unmock('../../subs/session-store/src/session-store.js');
 
 for (const boundary of ['accepted-no-point'] as const) {
   test(`CA05 CA20: restart after ${boundary} keeps one consumer question and answer`, async () => {

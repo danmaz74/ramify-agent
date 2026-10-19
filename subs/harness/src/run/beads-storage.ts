@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { SessionOperationReceipt } from '../../subs/agent/src/interfaces/session-operations.js';
-import { openSessionStore, type LedgerSessionStore } from './session-store.js';
+import { openSessionStore, type LedgerSessionStore } from '../../subs/session-store/src/session-store.js';
 
 export const beadsStageInputSchema = z.object({
   runId: z.string().min(1), sourceRef: z.string().nullable(), context: z.string(), workspace: z.string().min(1),

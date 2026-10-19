@@ -1,0 +1,13 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/src/tests/operation-recovery-callers.test.ts subs/harness/src/tests/single-session.test.ts subs/harness/src/tests/automatic-project-repair.test.ts subs/harness/src/tests/capability-accepted-context-loss.test.ts subs/harness/src/tests/execution-breakpoints-conversation.test.ts subs/harness/src/tests/plan23-real-run-corrections.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+
+ Test Files  6 passed (6)
+      Tests  93 passed (93)
+   Start at  07:01:23
+   Duration  71.73s (transform 9.67s, setup 461ms, import 22.05s, tests 133.52s, environment 1ms)
+

@@ -157,3 +157,15 @@ async function processStartTicks(pid: number): Promise<string | null> {
     return null;
   }
 }
+
+/** Session persistence receives ownership checks and release without project-lock metadata. */
+export interface SessionStoreLock {
+  held(): Promise<boolean>;
+  release(): Promise<void>;
+}
+
+/** Uses the existing project exclusion mechanism for one session-store directory. */
+export async function acquireSessionStoreLock(directory: string): Promise<SessionStoreLock> {
+  const lock = await acquireProjectLock(directory);
+  return { held: () => lock.held(), release: () => lock.release() };
+}

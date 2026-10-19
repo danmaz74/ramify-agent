@@ -6,7 +6,7 @@ import type { AgentPort, AgentSession, AppendOutcome, SessionSpec } from '../../
 import type { AppendSessionContextInput, AgentSessionPoint, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
 import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
-import { openSessionStore, type LedgerSessionStore } from './session-store.js';
+import { openSessionStore, type LedgerSessionStore } from '../../subs/session-store/src/session-store.js';
 import { buildTaskPacket, type TaskEnvironment, type TaskKind, type TaskPacket } from '../prompts/tasks.js';
 import { buildBriefingDelivery, createBriefingOccurrence, taskBriefingRevision, type BriefingRevision } from '../prompts/briefings.js';
 import { deliveredBefore, renderBlockSet, setsBody } from '../prompts/blocks.js';

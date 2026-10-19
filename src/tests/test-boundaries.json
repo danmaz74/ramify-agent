@@ -591,6 +591,14 @@
       "owningCases": [
         "same-run continuation preserves native source refs index and dirty files"
       ]
+    },
+    {
+      "file": "subs/harness/subs/session-store/src/tests/writer-exclusion.boundary.test.ts",
+      "boundary": "Session-store writer exclusion across actual processes and final local adapter release",
+      "whyFakeCannotProve": "Only a separate process using the real store and kernel owner liveness can establish that local reference sharing retains exclusion until the last adapter closes.",
+      "owningCases": [
+        "shared local adapters exclude another process until the last writer closes and then reopen retained records"
+      ]
     }
   ]
 }

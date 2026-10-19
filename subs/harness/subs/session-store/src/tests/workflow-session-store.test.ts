@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
-import { openSessionStore } from '../run/session-store.js';
+import { openSessionStore } from '../session-store.js';
 import { forgetMemorySessionStores } from './helpers/memory-session-store.js';
-import type { SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
+import type { SessionStoreRecord } from '../../../agent/src/interfaces/session-operations.js';
 
 afterEach(forgetMemorySessionStores);
 const record = (id: string, revision: number, body: Record<string, unknown>): SessionStoreRecord => ({

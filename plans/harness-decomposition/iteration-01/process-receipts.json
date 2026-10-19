@@ -1,0 +1,288 @@
+{
+  "schema": "harness-decomposition.iteration-process-evidence/1",
+  "projectRoot": "/workspaces/worktrees/harness-decomposition",
+  "selection": "Final focused/native/consumer runs identified by cwd and startedAt windows from retained logs. 18 receipts cover 17 files: Pi restoration records a second process. Counts are API observations, not successful child-process counts.",
+  "receipts": [
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/writer-exclusion.boundary.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": true,
+      "pid": 3166375,
+      "startedAt": "2026-10-19T06:59:28.824Z",
+      "finishedAt": "2026-10-19T06:59:30.182Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [
+        {
+          "api": "execFile",
+          "argv": [
+            "/usr/local/bin/node",
+            "--import",
+            "tsx",
+            "--input-type=module",
+            "--eval",
+            "\n      const { openSessionStore } = await import(process.argv[2]);\n      try {\n        const store = await openSessionStore({ directory: process.argv[1] });\n        try { console.log(JSON.stringify({ record: await store.read('run', 'session:s') })); }\n        finally { await store.close(); }\n      } catch (error) {\n        if (error.name !== 'ProjectLockError') throw error;\n        console.log(JSON.stringify({ refused: error.name }));\n      }\n    ",
+            "/tmp/session-writer-jOCCas",
+            "file:///workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/session-store.ts"
+          ]
+        },
+        {
+          "api": "execFile",
+          "argv": [
+            "/usr/local/bin/node",
+            "--import",
+            "tsx",
+            "--input-type=module",
+            "--eval",
+            "\n      const { openSessionStore } = await import(process.argv[2]);\n      try {\n        const store = await openSessionStore({ directory: process.argv[1] });\n        try { console.log(JSON.stringify({ record: await store.read('run', 'session:s') })); }\n        finally { await store.close(); }\n      } catch (error) {\n        if (error.name !== 'ProjectLockError') throw error;\n        console.log(JSON.stringify({ refused: error.name }));\n      }\n    ",
+            "/tmp/session-writer-jOCCas",
+            "file:///workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/session-store.ts"
+          ]
+        },
+        {
+          "api": "execFile",
+          "argv": [
+            "/usr/local/bin/node",
+            "--import",
+            "tsx",
+            "--input-type=module",
+            "--eval",
+            "\n      const { openSessionStore } = await import(process.argv[2]);\n      try {\n        const store = await openSessionStore({ directory: process.argv[1] });\n        try { console.log(JSON.stringify({ record: await store.read('run', 'session:s') })); }\n        finally { await store.close(); }\n      } catch (error) {\n        if (error.name !== 'ProjectLockError') throw error;\n        console.log(JSON.stringify({ refused: error.name }));\n      }\n    ",
+            "/tmp/session-writer-jOCCas",
+            "file:///workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/session-store.ts"
+          ]
+        }
+      ],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/plan23-transport.boundary.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": true,
+      "pid": 3166374,
+      "startedAt": "2026-10-19T06:59:28.825Z",
+      "finishedAt": "2026-10-19T06:59:32.373Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [
+        {
+          "api": "execFile",
+          "argv": [
+            "/usr/local/bin/node",
+            "/workspaces/worktrees/harness-decomposition/node_modules/vitest/vitest.mjs",
+            "run",
+            "--project",
+            "boundaries",
+            "subs/harness/subs/agent/subs/pi/src/tests/plan23-transport.boundary.test.ts",
+            "-t",
+            "installed Pi retains full terminal tool outputs across Continue siblings new tools and production ledger process restore",
+            "--maxWorkers",
+            "1"
+          ]
+        }
+      ],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/lock.boundary.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": true,
+      "pid": 3166377,
+      "startedAt": "2026-10-19T06:59:28.827Z",
+      "finishedAt": "2026-10-19T06:59:32.124Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [
+        {
+          "api": "spawn",
+          "argv": [
+            "/usr/local/bin/node",
+            "-e",
+            ""
+          ]
+        }
+      ],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/agent/subs/pi/src/tests/plan23-transport.boundary.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": true,
+      "pid": 3166495,
+      "startedAt": "2026-10-19T06:59:31.002Z",
+      "finishedAt": "2026-10-19T06:59:32.048Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-live-session.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167107,
+      "startedAt": "2026-10-19T07:00:42.533Z",
+      "finishedAt": "2026-10-19T07:00:44.356Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-session-store.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167108,
+      "startedAt": "2026-10-19T07:00:42.533Z",
+      "finishedAt": "2026-10-19T07:00:45.271Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-service.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167114,
+      "startedAt": "2026-10-19T07:00:42.536Z",
+      "finishedAt": "2026-10-19T07:00:45.663Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/beads-sessions.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167129,
+      "startedAt": "2026-10-19T07:00:42.536Z",
+      "finishedAt": "2026-10-19T07:00:44.439Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/plan23-session-store-cache.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167115,
+      "startedAt": "2026-10-19T07:00:42.536Z",
+      "finishedAt": "2026-10-19T07:00:43.564Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/plan23-session-store.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167133,
+      "startedAt": "2026-10-19T07:00:42.547Z",
+      "finishedAt": "2026-10-19T07:00:42.948Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/assistance-mcp.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167126,
+      "startedAt": "2026-10-19T07:00:42.560Z",
+      "finishedAt": "2026-10-19T07:00:44.799Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/subs/session-store/src/tests/workflow-session-store.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167145,
+      "startedAt": "2026-10-19T07:00:42.562Z",
+      "finishedAt": "2026-10-19T07:00:42.762Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/automatic-project-repair.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167521,
+      "startedAt": "2026-10-19T07:01:23.788Z",
+      "finishedAt": "2026-10-19T07:01:58.956Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/capability-accepted-context-loss.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167527,
+      "startedAt": "2026-10-19T07:01:23.789Z",
+      "finishedAt": "2026-10-19T07:01:32.932Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/execution-breakpoints-conversation.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167515,
+      "startedAt": "2026-10-19T07:01:23.789Z",
+      "finishedAt": "2026-10-19T07:01:42.767Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/operation-recovery-callers.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167514,
+      "startedAt": "2026-10-19T07:01:23.789Z",
+      "finishedAt": "2026-10-19T07:02:35.287Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/plan23-real-run-corrections.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167508,
+      "startedAt": "2026-10-19T07:01:23.789Z",
+      "finishedAt": "2026-10-19T07:01:30.182Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/single-session.test.ts",
+      "projectRoot": "/workspaces/worktrees/harness-decomposition",
+      "native": false,
+      "pid": 3167507,
+      "startedAt": "2026-10-19T07:01:23.789Z",
+      "finishedAt": "2026-10-19T07:01:38.334Z",
+      "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+      "registrySha256": "c4ce377cf923cc0b697984343168f741d4974828ac5e0516d6713fee0139d89f",
+      "allowed": [],
+      "refused": []
+    }
+  ]
+}

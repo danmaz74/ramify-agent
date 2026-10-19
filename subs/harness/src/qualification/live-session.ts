@@ -5,7 +5,7 @@ import { createPiAgent } from '../../subs/agent/subs/pi/src/pi-agent.js';
 import { readPiNativeRequestArtifact } from '../../subs/agent/subs/pi/src/preservation.js';
 import type { AgentSessionPoint, AgentSessionSnapshot, SessionExecutionBindings, SessionExecutionPolicy, SessionOperationHandle, SessionOperationReceipt, SessionOperations, SessionStore, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { ToolDefinition } from '../../subs/agent/src/interfaces/port.js';
-import { openSessionStore } from '../run/session-store.js';
+import { openSessionStore } from '../../subs/session-store/src/session-store.js';
 
 export interface Plan23LiveSessionOptions {
   readonly phase: 'initial' | 'restore'; readonly runId: string; readonly sourceCandidate: string;

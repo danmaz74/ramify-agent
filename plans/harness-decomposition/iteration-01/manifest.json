@@ -1,0 +1,52 @@
+{
+  "schema": "harness-decomposition.iteration-inputs/1",
+  "capturedAt": "2026-10-19T07:03:56.743276+00:00",
+  "sourceIdentity": "after-summary.json records baseline HEAD, tracked changes and authenticated full inventory hashes; the candidate commit is reported at handoff. Captured producer commands ran with production source stable.",
+  "cwd": "/workspaces/worktrees/harness-decomposition",
+  "producerPins": {
+    "ramify.ts": "0.5.2",
+    "ramify-audit": "0.9.3"
+  },
+  "inputs": {
+    "before-check.json.gz": {
+      "sha256": "fa9eff4dfb0bfe30e62826512760e67d6fd4793f60b62d97773173423e919704",
+      "bytes": 5343063,
+      "command": "node_modules/.bin/ramify check --batch --format json (then gzip)"
+    },
+    "before-measure.json": {
+      "sha256": "ad2d0472bc29cf6089c1ca9944b4e9bd5bf720e566c65c4a70f4675b540ffd0b",
+      "bytes": 170354,
+      "command": "node_modules/.bin/ramify measure --format json"
+    },
+    "before-affected.json": {
+      "sha256": "3ec52b2c603046c7da8c71d31070ea63730fa37dd9a894bb2a1502276aa8f3f0",
+      "bytes": 193156,
+      "command": "node_modules/.bin/ramify affected --path subs/harness/src/run/session-store.ts --batch --format json"
+    },
+    "after-check.json.gz": {
+      "sha256": "1731e926357e1601c7af44722ed82a7b7f4cf9873b873ec47076a4ec39b86cb8",
+      "bytes": 5350982,
+      "command": "node_modules/.bin/ramify check --batch --format json | gzip"
+    },
+    "after-measure.json": {
+      "sha256": "877784b3f457087e437c02654bb1a05849077c6497cb9f48cbe4903ef62b2ac4",
+      "bytes": 171875,
+      "command": "node_modules/.bin/ramify measure --format json"
+    },
+    "after-affected.json": {
+      "sha256": "32e0cbaacc258a8fddbc0f2a0081628600868b5407f61469d5b534054c9d4d3b",
+      "bytes": 193701,
+      "command": "node_modules/.bin/ramify affected --path subs/harness/subs/session-store/src/session-store.ts --batch --format json"
+    },
+    "after-api.log": {
+      "sha256": "7511f8aee0a3fdcccd6d0bf4383bca6da66fc6377d2b3d349a75cda9f4108334",
+      "bytes": 224,
+      "command": "node_modules/.bin/ramify materialize --view api --view architect --all"
+    },
+    "discovery.json": {
+      "sha256": "baddf6f2a098f4598b184c0cd0de326c3817115faaa8218fc01c144139d656da",
+      "bytes": 70661,
+      "command": "node_modules/.bin/vitest list --filesOnly --json"
+    }
+  }
+}

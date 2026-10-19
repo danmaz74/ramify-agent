@@ -19,7 +19,7 @@ import { commandResult } from './helpers/command-result.js';
 import { testPolicy } from './helpers/runs.js';
 
 // This file includes the physical session-store persistence witness.
-vi.unmock('../run/session-store.js');
+vi.unmock('../../subs/session-store/src/session-store.js');
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

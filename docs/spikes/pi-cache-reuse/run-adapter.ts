@@ -7,7 +7,7 @@ import { zstdDecompressSync } from 'node:zlib';
 import { getAgentDir, ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { createPiAgentOn } from '../../../subs/harness/subs/agent/subs/pi/src/pi-agent.js';
 import { decodePreservedTranscript } from '../../../subs/harness/subs/agent/subs/pi/src/preservation.js';
-import { openSessionStore } from '../../../subs/harness/src/run/session-store.js';
+import { openSessionStore } from '../../../subs/harness/subs/session-store/src/session-store.js';
 import type { SessionExecutionBindings, SessionExecutionPolicy, SessionOperationReceipt } from '../../../subs/harness/subs/agent/src/interfaces/session-operations.js';
 
 // Explicit live witness outside automatic discovery: real production adapter,
