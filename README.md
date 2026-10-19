@@ -1,5 +1,10 @@
 # ramify-agent
 
+Persistent native assisted coordination is available through `coordinate start`,
+`status`, `watch`, `send`, `respond`, `interrupt` and `stop`. See the
+[launcher and controls](docs/agent-assistance.md#prepare-and-connect) for model
+selection, MCP replacement, detached ownership and qualification limits.
+
 An agent harness for Ramify projects: it plans a feature against the project's
 module architecture and runs implementation sessions scoped to modules or
 subtrees, measuring where agents worked.

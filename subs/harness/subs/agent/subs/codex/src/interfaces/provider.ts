@@ -58,6 +58,8 @@ export interface CodexEquipment {
   readonly configuredModel: string | null;
   readonly approvalPolicy: string | null;
   readonly sandbox: string | null;
+  /** Effective MCP metadata only. Credentials, headers and URLs are never projected. */
+  readonly mcpConfiguration?: readonly { readonly name: string; readonly enabled: boolean; readonly transport: 'stdio' | 'http' | 'ambiguous' | 'other'; readonly required: boolean; readonly toolTimeoutSeconds: number | null; readonly bearerTokenEnvVar: string | null }[];
 }
 export interface CodexApprovalChoice {
   readonly id: string;
@@ -78,11 +80,13 @@ export type CodexPendingRequest = CodexRequestIdentity & (
   | { readonly kind: 'command-approval'; readonly reason: string | null; readonly command: string | null; readonly cwd: string | null; readonly choices: readonly CodexApprovalChoice[] }
   | { readonly kind: 'file-approval'; readonly reason: string | null; readonly writeRoot: string | null; readonly choices: readonly CodexApprovalChoice[] }
   | { readonly kind: 'user-input'; readonly blocking: boolean; readonly questions: readonly { readonly id: string; readonly header: string; readonly question: string; readonly secret: boolean; readonly allowOther: boolean; readonly options: readonly { readonly label: string; readonly description: string }[] | null }[] }
+  | { readonly kind: 'mcp-elicitation'; readonly serverName: string; readonly message: string; readonly mode: 'form' | 'openai/form' | 'openaiForm'; readonly schema: Readonly<Record<string, unknown>> }
   | { readonly kind: 'unsupported'; readonly method: string; readonly reason: string }
 );
 export type CodexResponse =
   | { readonly kind: 'approval'; readonly choiceId: string }
-  | { readonly kind: 'user-input'; readonly answers: Readonly<Record<string, readonly string[]>> };
+  | { readonly kind: 'user-input'; readonly answers: Readonly<Record<string, readonly string[]>> }
+  | { readonly kind: 'mcp-elicitation'; readonly action: 'accept' | 'decline' | 'cancel'; readonly content?: Readonly<Record<string, string | number | boolean | readonly string[]>> };
 export type CodexEvent =
   | { readonly kind: 'worker-thread'; readonly threadId: string; readonly parentThreadId: string; readonly model: string | null; readonly ephemeral: boolean }
   | { readonly kind: 'turn'; readonly threadId: string; readonly turn: CodexTurn }

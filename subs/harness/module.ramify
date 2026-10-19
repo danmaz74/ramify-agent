@@ -153,6 +153,7 @@ expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23R
 
 // Executable composition of assisted Pi assessment; the root owns process lifetime.
 expose-sub startAssistanceServer, AssistanceServerOptions, AssistanceServer from assistance to parent
+expose-sub parseCoordinateOptions, CoordinateOptions, runCoordinateCommand from assistance to parent
 
 // Session persistence consumes the existing lock and ledger mechanisms through
 // their supported contracts; workflow completion remains with workflow owners.

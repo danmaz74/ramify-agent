@@ -8,6 +8,7 @@ export interface CoordinatorProviderPreparation {
   readonly workerModel: string;
   readonly requiredMcp?: { readonly server: string; readonly tools: readonly string[] };
   readonly resumeThreadId?: string;
+  readonly verifyEquipment?: (equipment: CodexEquipment) => void;
   /** The host durably records verified thread identity before receiving input authority. */
   readonly retain: (session: CodexThreadSession, readiness: CodexReadiness) => Promise<void>;
 }
@@ -27,6 +28,7 @@ export async function prepareCoordinatorProvider(input: CoordinatorProviderPrepa
   try {
     const readiness = await provider.initialize();
     const equipment = await provider.inspectEquipment(input.thread.cwd);
+    input.verifyEquipment?.(equipment);
     if (!equipment.features.some(feature => feature.name === 'multi_agent' && feature.enabled)) throw new CodexProviderError('unavailable', 'Native multi-agent equipment is disabled or unavailable');
     const coordinator = equipment.models.find(model => model.id === input.thread.model);
     if (coordinator === undefined || coordinator.nativeWorkers !== 'v2') throw new CodexProviderError('unavailable', `Coordinator model ${input.thread.model} does not declare native v2 workers`);
@@ -41,6 +43,7 @@ export async function prepareCoordinatorProvider(input: CoordinatorProviderPrepa
     await input.retain(session, readiness);
     // Query the loaded thread as well: project-local equipment can differ.
     const loadedEquipment = await provider.inspectEquipment(input.thread.cwd, session.thread.id);
+    input.verifyEquipment?.(loadedEquipment);
     if (!loadedEquipment.features.some(feature => feature.name === 'multi_agent' && feature.enabled)) throw new CodexProviderError('unavailable', 'Loaded thread has no enabled native multi-agent equipment');
     if (required !== undefined) {
       const server = loadedEquipment.mcp.find(server => server.name === required.server);

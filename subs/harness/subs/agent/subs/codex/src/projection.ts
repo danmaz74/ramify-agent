@@ -1,9 +1,12 @@
 import { z } from 'zod';
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/server/validators/ajv';
+import type { JsonSchemaValidator, JsonSchemaType } from '@modelcontextprotocol/server';
 import type { CodexApprovalChoice, CodexPendingRequest, CodexThread, CodexTurn, CodexWorkItem } from './interfaces/provider.js';
 
 export const object = z.record(z.string(), z.unknown());
 export const text = z.string().min(1);
 export const rpcId = z.union([z.string(), z.number().int()]);
+export const mcpFormValidator = (schema: Readonly<Record<string, unknown>>): JsonSchemaValidator<unknown> => new AjvJsonSchemaValidator().getValidator(schema as JsonSchemaType);
 export const status = z.enum(['inProgress', 'completed', 'interrupted', 'failed']);
 const item = z.object({ id: text, type: text }).passthrough();
 const turn = z.object({ id: text, status, error: z.object({ message: z.string() }).nullable(), items: z.array(item) }).passthrough();
@@ -77,6 +80,15 @@ export function pendingRequest(generation: string, method: string, id: string | 
       if (new Set(p.questions.map(q => q.id)).size !== p.questions.length) throw new Error('Duplicate question identity');
       return { request: { ...base, kind: 'user-input', blocking: p.isBlocking,
         questions: p.questions.map(q => ({ id: q.id, header: q.header, question: q.question, secret: q.isSecret, allowOther: q.isOther, options: q.options })) }, decisions: [] };
+    }
+    if (method === 'mcpServer/elicitation/request') {
+      const p = z.object({ threadId: text, turnId: text.nullish(), serverName: text, message: text, mode: z.enum(['form', 'openai/form', 'openaiForm']), requestedSchema: object }).parse(params);
+      // Support finite primitive forms. URL/browser flows and nested or opaque
+      // schemas remain visible unsupported requests rather than blind approvals.
+      const shape = z.object({ type: z.literal('object'), properties: z.record(z.string(), object) }).passthrough().parse(p.requestedSchema);
+      if (Object.keys(shape.properties).length > 32 || Object.values(shape.properties).some(field => !['string', 'number', 'integer', 'boolean', 'array'].includes(String(field.type)) || field.type === 'array' && (field.items as Record<string, unknown> | undefined)?.type !== 'string')) throw new Error('MCP form needs unsupported nested or non-primitive content');
+      mcpFormValidator(shape);
+      return { request: { ...base, kind: 'mcp-elicitation', serverName: p.serverName, message: p.message, mode: p.mode, schema: shape }, decisions: [] };
     }
     throw new Error(`Unsupported provider request ${method}`);
   } catch (failure) {

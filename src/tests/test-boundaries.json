@@ -635,7 +635,8 @@
       "owningCases": [
         "host verifies listener before provider input, keeps shared assessment alive across HTTP session cancellation and retains private generation-bound controls",
         "a live project owner and concurrent host start are refused before provider construction or duplicate registration",
-        "stop during registration prevents later provider construction and retains settled ownership"
+        "stop during registration prevents later provider construction and retains settled ownership",
+        "lost HTTP control reply retains one effect while activity-only worker discovery and bounded watch gaps remain observable"
       ]
     },
     {

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { CodexProviderError, type CodexEquipment, type CodexEvent, type CodexPendingRequest, type CodexProvider, type CodexProviderOptions, type CodexReadiness, type CodexResponse, type CodexThread, type CodexThreadSession, type CodexThreadSettings } from './interfaces/provider.js';
 import { nativeCodexConnection, type CodexConnection } from './connection.js';
-import { object, pendingRequest, projectThread, projectTurn, rpcId, text, workItem, type WireDecision } from './projection.js';
+import { object, pendingRequest, projectThread, projectTurn, rpcId, text, workItem, mcpFormValidator, type WireDecision } from './projection.js';
 
 export function createCodexProvider(options: CodexProviderOptions): CodexProvider {
   for (const bound of [options.requestTimeoutMs, options.settlementTimeoutMs]) {
@@ -306,6 +306,11 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         configuredModel: typeof config.model === 'string' ? config.model : null,
         approvalPolicy: typeof config.approval_policy === 'string' ? config.approval_policy : config.approval_policy == null ? null : JSON.stringify(config.approval_policy),
         sandbox: typeof config.sandbox_mode === 'string' ? config.sandbox_mode : null,
+        mcpConfiguration: Object.entries(config.mcp_servers !== null && typeof config.mcp_servers === 'object' && !Array.isArray(config.mcp_servers) ? config.mcp_servers as Record<string, unknown> : {}).map(([name, value]) => {
+          const entry = value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+          const command = typeof entry.command === 'string'; const url = typeof entry.url === 'string';
+          return { name, enabled: entry.enabled !== false, transport: command && url ? 'ambiguous' as const : command ? 'stdio' as const : url ? 'http' as const : 'other' as const, required: entry.required === true, toolTimeoutSeconds: typeof entry.tool_timeout_sec === 'number' ? entry.tool_timeout_sec : null, bearerTokenEnvVar: typeof entry.bearer_token_env_var === 'string' ? entry.bearer_token_env_var : null };
+        }),
       } satisfies CodexEquipment;
     },
     async startThread(settings) {
@@ -402,6 +407,15 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         if (Object.keys(parsed.answers).length !== request.questions.length || request.questions.some(q => !Object.hasOwn(parsed.answers, q.id))) throw new CodexProviderError('protocol', 'Answer every provider question exactly once');
         for (const question of request.questions) if (question.options !== null && !question.allowOther && parsed.answers[question.id]!.some(answer => !question.options!.some(option => option.label === answer))) throw new CodexProviderError('protocol', 'Answer is not one of the offered choices');
         result = { answers: Object.fromEntries(Object.entries(parsed.answers).map(([id, answers]) => [id, { answers }])) };
+      } else if (request.kind === 'mcp-elicitation') {
+        const parsed = z.object({ kind: z.literal('mcp-elicitation'), action: z.enum(['accept', 'decline', 'cancel']), content: z.record(z.string(), z.union([z.string(), z.number().finite(), z.boolean(), z.array(z.string())])).optional() }).strict().parse(response);
+        if (parsed.action === 'accept') {
+          const properties = request.schema.properties as Record<string, unknown>;
+          if (parsed.content === undefined || Object.keys(parsed.content).some(key => !Object.hasOwn(properties, key))) throw new CodexProviderError('protocol', 'MCP form content must name only declared fields');
+          const validation = mcpFormValidator(request.schema)(parsed.content);
+          if (!validation.valid) throw new CodexProviderError('protocol', `MCP form response does not satisfy its schema: ${validation.errorMessage}`);
+          result = { action: parsed.action, content: parsed.content };
+        } else { if (parsed.content !== undefined) throw new CodexProviderError('protocol', 'Declined/cancelled MCP forms cannot submit content'); result = { action: parsed.action }; }
       } else throw new CodexProviderError('protocol', request.reason);
       // Reserve synchronously before awaiting transport: two responders cannot settle it.
       entry.state = 'responding';

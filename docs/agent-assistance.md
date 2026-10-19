@@ -4,6 +4,24 @@ Agent assistance lets a native coordinator and workers implement a real plan whi
 
 ## Prepare and connect
 
+For a persistent coordinator on the supported Linux devcontainer, run from this harness checkout:
+
+```sh
+node --import tsx src/main.ts coordinate start --project /absolute/target --plan my-plan --replace-mcp ramify-agent --json
+node --import tsx src/main.ts coordinate status --project /absolute/target --json
+node --import tsx src/main.ts coordinate watch --project /absolute/target --id coord-UUID --after 0 --json
+```
+
+Name each existing standalone RA MCP entry with repeatable `--replace-mcp`; inspect your effective configuration for their exact names. The host disables those entries only in its dedicated Codex process, adds a separate authenticated loopback HTTP entry, and verifies its effective configuration and tool set before input. It preserves global configuration, unrelated MCP entries, instructions and permissions. Python 3 and Linux `/proc` are required for owned descendant settlement. Choose `--model` (default `gpt-6-astra`), `--worker-model` (default `gpt-6-sol`) and optional `--assessment-model` using available credentials. `--skill` selects an existing coordinator skill; `--message-file` adds task directions without placing them in process arguments.
+
+The detached host owns one project lock, one assistance service and a persistent provider. Terminal and observer disconnects leave execution running. Repeating start for the same live plan/job returns its identity; `--job` selects an existing registration. Ambiguous registrations are reported for selection. An existing live standalone owner is left running. Start returns after the initial turn acknowledges; startup errors retain any registered job and thread for inspection. A launch timeout leaves the host running and reports uncertainty. Status reports unreachable retained observations as stale; staleness does not authorize replacement. Crash continuation is a later iteration and `coordinate resume` currently diagnoses its unavailability.
+
+Use `send --id <id> --message-file <path> --command-id <stable-id>` for an idle turn. Use `respond --id <id> --request <pending-id> --response-file <path> --command-id <stable-id>` for a specific provider request. Response JSON is `{"kind":"approval","choiceId":"<offered-choice-id>"}`, `{"kind":"user-input","answers":{"<question-id>":["answer"]}}` or `{"kind":"mcp-elicitation","action":"accept","content":{}}` for an inspected empty consent form. Other supported primitive forms require content satisfying their displayed schema; `decline` and `cancel` omit content. The provider validates offered choices, questions and form content, including generation and turn identity; URL and unsupported requests remain visible. The host never answers automatically. Retry the same command ID and exact arguments after a lost reply. An uncertain delivery is retained and is never blindly redelivered.
+
+`interrupt --id <id> [--turn <turn-id>]` requests coordinator-turn interruption; its receipt does not establish descendant or assessment settlement. `stop --id <id>` settles owned provider execution before closing assessments and releasing project ownership. Unconfirmed settlement leaves the host and lock available for inspection. Both accept optional stable `--command-id`. All commands also require `--project` and support `--json` and `--timeout-ms`; a control timeout does not cancel execution. Ctrl-C during watch cancels observation only. Watch cursors outside retained bounded progress return a gap and current snapshot. Status reports host, turn, worker equipment and assessment state independently; an idle thread is not plan acceptance.
+
+Runtime credentials are held in a private `runtime.json` beneath a mode-0700 coordinator directory. Public records, command receipts and bounded progress exclude credentials and full provider conversation history. Private launch requests and independent diagnostics live in a mode-0700 temporary directory. Protect access to the local account and these files. No remote listener or browser UI is provided.
+
 Use the [assisted planning skill](../.agents/skills/ramify-agent-assisted-plan/SKILL.md) to create or revise a plan around useful module-specialized iterations. It analyzes affected owners, reuse, contracts and integration, and proposes a revisable breakdown. It needs no MCP connection and does not start an execution. For example:
 
 > Use $ramify-agent-assisted-plan to optimize this plan for module-specialized iterations, preserving its requirements and acceptance.

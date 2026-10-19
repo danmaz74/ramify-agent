@@ -75,6 +75,12 @@ export class AssistanceService {
 
   async close(): Promise<void> { this.closing ??= this.shutdown(); await this.closing; }
 
+  /** Public ownership observation excludes the lock's release authority. */
+  ownerProcess(): { pid: number; startedAt: string; processStart: string | null } {
+    const { pid, startedAt, processStart } = this.lock.record;
+    return { pid, startedAt, processStart };
+  }
+
   private async shutdown(): Promise<void> {
     this.closed = true;
     this.observationController.abort(new Error('Assistance service closed'));

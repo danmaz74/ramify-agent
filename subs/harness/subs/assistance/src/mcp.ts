@@ -69,7 +69,7 @@ export function createAssistanceMcpServer(service: AssistanceService): McpServer
     inputSchema: z.object({ ...assessmentId, timeout_ms: assessmentWaitOptionsSchema.shape.timeoutMs,
       after_revision: assessmentWaitOptionsSchema.shape.afterRevision }).strict() },
   (args, context) => answer(() => service.assessmentWait(args.plan_id, args.job_id, args.assessment_id,
-    { timeoutMs: args.timeout_ms, ...(args.after_revision === undefined ? {} : { afterRevision: args.after_revision }) }, context.mcpReq.signal)));
+    { timeoutMs: args.timeout_ms, ...(args.after_revision === undefined ? {} : { afterRevision: args.after_revision }) }, context.http?.req?.signal === undefined ? context.mcpReq.signal : AbortSignal.any([context.mcpReq.signal, context.http.req.signal]))));
   server.registerTool('assessment_result', { description: 'Read the effective compact gate result and any retained approval finalization when assessment completed.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentResult(args.plan_id, args.job_id, args.assessment_id)));
   server.registerTool('assessment_detail', { description: 'Read the original retained assessment and any append-only approval finalizations on demand.', inputSchema: z.object(assessmentId) },

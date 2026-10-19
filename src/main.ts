@@ -20,6 +20,10 @@ export async function main(argv: readonly string[]): Promise<number> {
     console.log(usage);
     return 0;
   }
+  if (commandLine.command === 'coordinate') {
+    const { runCoordinateCommand } = await import('../subs/harness/subs/assistance/src/coordinator-client.js');
+    return runCoordinateCommand(commandLine.coordinate);
+  }
   if (commandLine.command === 'mcp') {
     const { startAssistanceServer } = await import('../subs/harness/subs/assistance/src/runtime.js');
     const server = await startAssistanceServer({ projectRoot: commandLine.projectRoot, model: commandLine.model });
@@ -234,8 +238,9 @@ function summaryText(summary: SessionSummary): string {
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main(process.argv.slice(2)).then(code => {
   if (code >= 0) process.exitCode = code;
 }, (error: unknown) => {
-  if (['debug', 'recovery', 'restart'].some(command => process.argv.includes(command)) && process.argv.includes('--json')) {
-    printControlResult({ exitStatus: 2, output: { kind: 'error', error: { code: 'invalid-request', message: error instanceof Error ? error.message : String(error) }, summary: 'Command was refused before execution.' } }, true);
+  if (['debug', 'recovery', 'restart', 'coordinate'].some(command => process.argv.includes(command)) && process.argv.includes('--json')) {
+    const coordinate = process.argv.includes('coordinate');
+    printControlResult({ exitStatus: 2, output: { kind: 'error', error: { code: coordinate ? 'coordinate-failed' : 'invalid-request', message: error instanceof Error ? error.message : String(error) }, summary: coordinate ? 'Coordinate operation failed; inspect retained status and preserve any reported delivery uncertainty.' : 'Command was refused before execution.' } }, true);
     process.exitCode = 2;
     return;
   }

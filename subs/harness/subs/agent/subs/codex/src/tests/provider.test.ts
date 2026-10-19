@@ -16,6 +16,43 @@ async function prepared(script = new ScriptedCodex()) {
 const approval = (id: string | number = 7, params: Record<string, unknown> = {}) => ({ id, method: 'item/commandExecution/requestApproval', params: { threadId: 'thread-1', turnId: 'turn-1', itemId: 'item-1', command: 'ls', cwd: '/target', ...params } });
 
 describe('dedicated Codex protocol', () => {
+  test('MCP form consent validates exact schema choices and generation-bound single delivery; unsupported forms stay visible', async () => {
+    const script = await prepared();
+    const params = { threadId: 'thread-1', turnId: 'turn-1', serverName: 'private-ra', mode: 'form', message: 'Approve job_detail once?', requestedSchema: { type: 'object', properties: { choice: { type: 'string', enum: ['once', 'decline'] } }, required: ['choice'], additionalProperties: false } };
+    script.receive({ id: 81, method: 'mcpServer/elicitation/request', params });
+    const request = script.provider.pendingRequests()[0]!;
+    expect(request).toMatchObject({ kind: 'mcp-elicitation', serverName: 'private-ra', mode: 'form', schema: params.requestedSchema });
+    await expect(script.provider.respond(request.id, { kind: 'mcp-elicitation', action: 'accept', content: { choice: 'always' } })).rejects.toBeDefined();
+    await expect(script.provider.respond(request.id, { kind: 'mcp-elicitation', action: 'accept', content: { choice: 'once', extra: true } })).rejects.toBeDefined();
+    const response = { kind: 'mcp-elicitation' as const, action: 'accept' as const, content: { choice: 'once' } };
+    const first = script.provider.respond(request.id, response);
+    await expect(script.provider.respond(request.id, response)).rejects.toMatchObject({ kind: 'stale-response' }); await first;
+    expect(script.written.filter(frame => frame.id === 81)).toEqual([{ id: 81, result: { action: 'accept', content: { choice: 'once' } } }]);
+    await expect(script.provider.respond(`old:${request.id}`, response)).rejects.toMatchObject({ kind: 'stale-response' });
+    script.receive({ id: 82, method: 'mcpServer/elicitation/request', params: { ...params, mode: 'url', url: 'https://example.invalid', elicitationId: 'flow' } });
+    script.receive({ id: 83, method: 'mcpServer/elicitation/request', params: { ...params, requestedSchema: { type: 'object', properties: { nested: { type: 'object' } } } } });
+    expect(script.provider.pendingRequests()).toMatchObject([{ kind: 'unsupported', method: 'mcpServer/elicitation/request' }, { kind: 'unsupported', method: 'mcpServer/elicitation/request' }]);
+  });
+
+  test('equipment exposes effective MCP transport conflicts and deadlines while excluding URLs, headers and literal credentials', async () => {
+    const script = new ScriptedCodex(frame => {
+      const values: Record<string, unknown> = {
+        'model/list': { data: [], nextCursor: null }, 'experimentalFeature/list': { data: [], nextCursor: null }, 'mcpServerStatus/list': { data: [], nextCursor: null },
+        'config/read': { config: { model: 'chosen-model', approval_policy: 'on-request', sandbox_mode: 'workspace-write', mcp_servers: {
+          collision: { command: 'inherited', url: 'http://127.0.0.1/?token=literal-secret', http_headers: { authorization: 'literal-secret' }, bearer_token: 'literal-secret', bearer_token_env_var: 'PRIVATE_ENV_NAME', required: true, tool_timeout_sec: 960 },
+          replaced: { command: 'preserved', enabled: false },
+        } } },
+      };
+      if (frame.method !== 'initialize' && frame.id !== undefined) script.receive({ id: frame.id, result: values[frame.method!] });
+    });
+    await script.initialize();
+    const equipment = await script.provider.inspectEquipment('/target');
+    expect(equipment).toMatchObject({ configuredModel: 'chosen-model', approvalPolicy: 'on-request', sandbox: 'workspace-write', mcpConfiguration: [
+      { name: 'collision', transport: 'ambiguous', required: true, toolTimeoutSeconds: 960, bearerTokenEnvVar: 'PRIVATE_ENV_NAME' }, { name: 'replaced', enabled: false, transport: 'stdio' },
+    ] });
+    expect(JSON.stringify(equipment)).not.toMatch(/literal-secret|authorization|127\.0\.0\.1|inherited|preserved/);
+  });
+
   test('initializes once and correlates simultaneous out-of-order observations', async () => {
     const script = await prepared();
     const a = script.provider.readThread('a');

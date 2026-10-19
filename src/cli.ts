@@ -1,4 +1,5 @@
 import { isAbsolute } from 'node:path';
+import { parseCoordinateOptions, type CoordinateOptions } from '../subs/harness/subs/assistance/src/coordinator-options.js';
 
 /** The default port of `serve`. */
 export const defaultPort = 4180;
@@ -25,6 +26,7 @@ export type SessionAgent =
   | { readonly name: 'fake'; readonly script: string };
 
 export type CommandLine =
+  | { readonly command: 'coordinate'; readonly coordinate: CoordinateOptions }
   | { readonly command: 'mcp'; readonly projectRoot: string; readonly model: string | undefined }
   | { readonly command: 'repair-export'; readonly run: string; readonly executable: string; readonly workspace: string; readonly incident?: string; readonly json: boolean }
   | { readonly command: 'consultations'; readonly run: string; readonly session: string | undefined; readonly id: string | undefined; readonly format: 'text' | 'json' }
@@ -70,6 +72,11 @@ export class UsageError extends Error {
 
 export const usage = [
   'Usage:',
+  '  ramify-agent coordinate start --project <root> --plan <id> [--job <id>] [--replace-mcp <name>]... [--json]',
+  '                       Detached persistent Codex coordinator; --model, --worker-model and --assessment-model select models.',
+  '  ramify-agent coordinate <status|watch|send|respond|interrupt|stop> --project <root> [--id <id>] [--json]',
+  '                       send: --message-file <file> --command-id <id>; respond: --request <id> --response-file <file> --command-id <id>.',
+  '                       watch: [--after <cursor>]; interrupt: [--turn <id>]; controls require --id. Disconnect leaves execution running.',
   '  ramify-agent mcp --project <root> [--model <provider/model>]',
   '                       Serves assisted plan registration and assessment over MCP stdio.',
   '  ramify-agent consultations --run <run-directory> [--session <session-id>] [--format text|json]',
@@ -148,6 +155,10 @@ function agentName(name: string): AgentName {
 
 /** Parses the arguments after the executable and script. */
 export function parseCommandLine(argv: readonly string[]): CommandLine {
+  if (argv[0] === 'coordinate') {
+    try { return { command: 'coordinate', coordinate: parseCoordinateOptions(argv.slice(1)) }; }
+    catch (error) { throw new UsageError(error instanceof Error ? error.message : String(error)); }
+  }
   const [command, ...rest] = argv;
   if (command === undefined || command === 'help' || command === '--help' || command === '-h') return { command: 'help' };
   if (command === 'consultations') return parseConsultations(rest);

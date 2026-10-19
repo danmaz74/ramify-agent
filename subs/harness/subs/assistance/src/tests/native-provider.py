@@ -4,11 +4,20 @@ import json
 import os
 import sys
 import time
+import tomllib
 from pathlib import Path
 
 root = Path.cwd()
 history = root / 'history.json'
 thread = None
+configuration = {}
+for index, argument in enumerate(sys.argv):
+    if argument == '-c':
+        override = tomllib.loads(sys.argv[index + 1])
+        for name, entry in override.get('mcp_servers', {}).items():
+            configuration.setdefault(name, {}).update(entry)
+host_mode = bool(configuration)
+turn_number = 0
 
 def output(value):
     print(json.dumps(value), flush=True)
@@ -52,9 +61,10 @@ for line in sys.stdin:
     elif method == 'experimentalFeature/list':
         result = {'data': [{'name': 'multi_agent', 'enabled': True}], 'nextCursor': None}
     elif method == 'mcpServerStatus/list':
-        result = {'data': [], 'nextCursor': None}
+        tools = {name: {} for name in ('plan_executions', 'job_detail', 'iteration', 'iteration_assess', 'assessment_wait', 'assessment_result')}
+        result = {'data': [{'name': name, 'tools': tools, 'toolsError': None} for name, entry in configuration.items() if entry.get('enabled', True) and 'url' in entry], 'nextCursor': None}
     elif method == 'config/read':
-        result = {'config': {'model': 'gpt-6-astra', 'approval_policy': 'on-request', 'sandbox_mode': 'workspace-write'}}
+        result = {'config': {'model': 'gpt-6-astra', 'approval_policy': 'on-request', 'sandbox_mode': 'workspace-write', 'mcp_servers': configuration}}
     elif method in ('thread/start', 'thread/resume'):
         if method == 'thread/start':
             thread = {'id': 'persistent-native-thread', 'parentThreadId': None, 'ephemeral': params['ephemeral'], 'cwd': params['cwd'], 'model': params['model'],
@@ -67,8 +77,10 @@ for line in sys.stdin:
         result = {'thread': json.loads(history.read_text())}
     elif method == 'turn/start':
         message = params['input'][0]['text']
-        orphan()
-        turn = {'id': 'native-turn', 'status': 'inProgress', 'error': None, 'items': [{'id': 'input', 'type': 'userMessage', 'content': params['input']}]}
+        if turn_number == 0:
+            orphan()
+        turn_number += 1
+        turn = {'id': 'native-turn-' + str(turn_number) if host_mode else 'native-turn', 'status': 'inProgress', 'error': None, 'items': [{'id': 'input', 'type': 'userMessage', 'content': params['input']}]}
         thread['turns'] = [turn]
         thread['status'] = {'type': 'active'}
         history.write_text(json.dumps(thread))
