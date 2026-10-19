@@ -77,6 +77,23 @@ test('native HTTP waits for kernel response drain before reading the next body c
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });
 
+test('native HTTP closes a failed response stream without an unhandled server error', async () => {
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  const server = createServer(nodeFetchHandler(async () => new Response(new ReadableStream({ start(controller) {
+    stream = controller; controller.enqueue(Buffer.from('first bytes'));
+  } }))));
+  configureLongWaitHttpServer(server);
+  server.listen(0, '127.0.0.1'); await once(server, 'listening');
+  try {
+    const response = await fetch(`http://127.0.0.1:${(server.address() as { port: number }).port}`);
+    const reader = response.body!.getReader();
+    expect(Buffer.from((await reader.read()).value!).toString()).toBe('first bytes');
+    stream.error(new Error('Response producer failed'));
+    await expect(reader.read()).rejects.toThrow();
+    reader.releaseLock();
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
 test('official HTTP MCP observes an active assessment for 900000ms and reconnects after observation cancellation without cancelling work', async () => {
   const root = await mkdtemp(join(tmpdir(), 'ramify-http-wait-'));
   const baseline = 'a'.repeat(40), candidate = 'b'.repeat(40);
@@ -99,16 +116,13 @@ test('official HTTP MCP observes an active assessment for 900000ms and reconnect
   const mcpServers: Array<ReturnType<typeof createAssistanceMcpServer>> = [];
   const clients: Client[] = [];
   const listener = createServer(nodeFetchHandler(async request => {
-    console.info('MCP native request', request.method, request.headers.get('mcp-session-id'));
     let transport = sessions.get(request.headers.get('mcp-session-id') ?? '');
     if (!transport) {
       transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: randomUUID,
         onsessioninitialized: session => { sessions.set(session, transport!); } });
       const server = createAssistanceMcpServer(service); mcpServers.push(server); await server.connect(transport);
     }
-    const response = await transport.handleRequest(request);
-    console.info('MCP native response', response.status);
-    return response;
+    return transport.handleRequest(request);
   }));
   configureLongWaitHttpServer(listener);
   listener.listen(0, '127.0.0.1'); await once(listener, 'listening');
@@ -128,29 +142,23 @@ test('official HTTP MCP observes an active assessment for 900000ms and reconnect
   vi.spyOn(service, 'assessmentWait').mockImplementation((...args) => { observed.push(args[4]!); return originalWait(...args); });
   try {
     const first = await connect();
-    console.info('Native HTTP MCP first client connected');
     const job = await call(first, 'plan_start', { plan_id: 'sample', command_id: 'register' }) as { jobId: string };
     const assessment = await call(first, 'iteration_assess', { plan_id: 'sample', job_id: job.jobId, base: baseline, candidate,
       brief: 'Held scripted assessor', command_id: 'assess', kind: 'iteration' }) as { assessmentId: string };
     await assessorReady;
-    console.info('Native HTTP MCP scripted assessor active');
     const ids = { plan_id: 'sample', job_id: job.jobId, assessment_id: assessment.assessmentId };
     const disconnected = call(first, 'assessment_wait', { ...ids, timeout_ms: 900_000 }).catch(error => error);
     await vi.waitFor(() => expect(observed).toHaveLength(1));
-    console.info('Native HTTP MCP first observation active; disconnecting');
     await first.close(); await disconnected;
     await vi.waitFor(() => expect(observed[0]!.aborted).toBe(true));
-    console.info('Native HTTP MCP disconnected observation released');
     expect(assessmentSignal.aborted).toBe(false);
 
     const second = await connect();
-    console.info('Native HTTP MCP second client connected');
     expect(await call(second, 'assessment_status', ids)).toMatchObject({ status: 'running' });
     const cancellation = new AbortController();
     const cancelled = call(second, 'assessment_wait', { ...ids, timeout_ms: 900_000 }, cancellation.signal).catch(error => error);
     await vi.waitFor(() => expect(observed).toHaveLength(2));
     cancellation.abort(new Error('Cancel observation only')); await cancelled;
-    console.info('Native HTTP MCP explicit cancellation returned');
     await vi.waitFor(() => expect(observed[1]!.aborted).toBe(true));
     expect(assessmentSignal.aborted).toBe(false);
     await second.close();

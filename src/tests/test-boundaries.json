@@ -624,7 +624,26 @@
       "owningCases": [
         "native HTTP streams headers and body before completion and propagates unfinished response disconnect",
         "native HTTP waits for kernel response drain before reading the next body chunk",
+        "native HTTP closes a failed response stream without an unhandled server error",
         "official HTTP MCP observes an active assessment for 900000ms and reconnects after observation cancellation without cancelling work"
+      ]
+    },
+    {
+      "file": "subs/harness/subs/assistance/src/tests/coordinator-host.boundary.test.ts",
+      "boundary": "Actual loopback host authentication, official SDK session disconnects, shared assistance service and project ownership",
+      "whyFakeCannotProve": "Scripted streams cannot prove native HTTP connection cancellation isolation, the actual listener/authentication boundary or project lock racing. Git, protection, provider protocol and assessor answers are explicitly scripted without model inference.",
+      "owningCases": [
+        "host verifies listener before provider input, keeps shared assessment alive across HTTP session cancellation and retains private generation-bound controls",
+        "a live project owner and concurrent host start are refused before provider construction or duplicate registration",
+        "stop during registration prevents later provider construction and retains settled ownership"
+      ]
+    },
+    {
+      "file": "src/tests/coordinator-launch.boundary.test.ts",
+      "boundary": "Native Git baseline registration, detached Node CLI/host with independent stdio, real dedicated Python supervisor and setsid orphan settlement, and loopback control reconnect",
+      "whyFakeCannotProve": "The launching process must exit and its streams close while the actual host, provider and orphan stay live; kernel identities must disappear on explicit stop. The app-server protocol is explicitly scripted by native-provider.py without model inference.",
+      "owningCases": [
+        "detached CLI host survives its launching command, reconnects without another registration and settles actual provider orphan descendants on stop"
       ]
     }
   ]

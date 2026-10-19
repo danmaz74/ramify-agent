@@ -65,7 +65,7 @@ export function nodeFetchHandler(handler: (request: Request) => Promise<Response
       } catch (error) {
         await reader?.cancel(error).catch(() => undefined);
         if (outgoing.destroyed) return;
-        if (outgoing.headersSent) outgoing.destroy(error instanceof Error ? error : undefined);
+        if (outgoing.headersSent) outgoing.destroy();
         else { outgoing.statusCode = 500; outgoing.end('HTTP handler failed'); }
       } finally {
         controller.signal.removeEventListener('abort', cancelBody);

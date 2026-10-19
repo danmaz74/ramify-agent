@@ -1,0 +1,13 @@
+
+> ramify-agent@0.0.0 test:boundaries
+> vitest run --project boundaries subs/harness/subs/assistance/src/tests/http-bridge.boundary.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/codex-coordinator-host
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  22:37:53
+   Duration  901.05s (transform 317ms, setup 45ms, import 487ms, tests 900.41s, environment 0ms)
+
