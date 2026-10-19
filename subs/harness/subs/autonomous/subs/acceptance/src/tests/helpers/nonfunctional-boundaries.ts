@@ -191,19 +191,21 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
     async worktreePatch(project, base = 'HEAD') { expect(project).toBe(root); pending(base); throw new Error('NFR fixture explicitly declares patch measurements unavailable'); },
     async findCommitByTrailers(project, trailers) { expect(project).toBe(root); expect(trailers).toEqual([{ key: 'Ramify-Run', value: runId }, { key: 'Ramify-Gate', value: 'ga-0002' }]); const count = consumed.get('lookup') ?? 0; expect(count, 'exhausted lookup answer').toBeLessThan(script.lookups ?? 1); consumed.set('lookup', count + 1); calls.push('lookup'); return null; },
     async commitAccepted(project, message) { expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${runId}`); expect(message).toContain('Ramify-Gate: ga-0002'); expect(consumed.get('lookup')).toBeGreaterThan(0); const count = consumed.get('commit') ?? 0; expect(count, 'exhausted commit answer').toBeLessThan(script.commits ?? (final ? 1 : 0)); consumed.set('commit', count + 1); calls.push('commit'); head = finalHead; return script.repair ? committed : null; },
-    async diffNameStatus(project, from, to) { expect(project).toBe(root); expect(from).toBe(initial); expect([initial, committed, ...Object.values(trees)]).toContain(to); return to === trees.drift ? [{ path: driftPath!, status: 'A' }] : to === trees.repairedDrift || to === committed && stage === 'repairedDrift' ? [...edits, { path: driftPath!, status: 'A' }] : to === committed || to === trees.repaired ? edits : []; },
+    async diffNameStatus(project, from, to) { expect(project).toBe(root); expect([initial, ...Object.values(trees)]).toContain(from); expect([initial, committed, ...Object.values(trees)]).toContain(to); return to === trees.drift ? [{ path: driftPath!, status: 'A' }] : to === trees.repairedDrift || to === committed && stage === 'repairedDrift' ? [...edits, { path: driftPath!, status: 'A' }] : to === committed || to === trees.repaired ? edits : []; },
   });
   const candidates = retain(scriptedCandidates(root, {
     [initial]: { tree: trees.initial, files: {}, base: initial, changes: [] },
     [trees.initial]: { tree: trees.initial, files: {}, base: initial, changes: [] },
-    [trees.repaired]: { tree: trees.repaired, files: repairedFiles, base: initial, changes: edits },
+    [trees.repaired]: { tree: trees.repaired, files: repairedFiles, base: initial, changes: edits, comparisons: { [trees.initial]: { changes: edits } } },
     [committed]: { get tree() { return stage === 'repairedDrift' ? trees.repairedDrift : trees.repaired; },
       get files() { return stage === 'repairedDrift' ? { ...repairedFiles, [driftPath!]: 'export const changed = true;\n' } : repairedFiles; }, base: initial,
       get changes() { return stage === 'repairedDrift' ? [...edits, { path: driftPath!, status: 'A' }] : edits; } },
     [trees.repairedDrift]: { tree: trees.repairedDrift, base: initial,
+      get comparisons() { return { [trees.initial]: { changes: [...edits, { path: driftPath!, status: 'A' }] }, [trees.repaired]: { changes: [{ path: driftPath!, status: 'A' }] } }; },
       get files() { return { ...repairedFiles, [driftPath!]: 'export const changed = true;\n' }; },
       get changes() { return [...edits, { path: driftPath!, status: 'A' }]; } },
     [trees.drift]: { tree: trees.drift, base: initial,
+      get comparisons() { return { [trees.initial]: { changes: driftPath === null ? [] : [{ path: driftPath!, status: 'A' }] } }; },
       get files() { return driftPath === null ? {} : { [driftPath!]: 'export const changed = true;\n' }; },
       get changes() { return driftPath === null ? [] : [{ status: 'A', path: driftPath! }]; } },
   }));

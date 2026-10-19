@@ -124,7 +124,7 @@ const diffInput = z.object({ path: z.string().optional() }).strict();
 
 /** A caller-captured comparison; tools never accept arbitrary Git references. */
 export interface SnapshotComparison {
-  readonly name: 'run-start' | 'accepted-boundary';
+  readonly name: 'run-start' | 'accepted-boundary' | 'previous-assessment';
   readonly base: string;
   readonly target: string;
   readonly changes: readonly CandidateChange[];

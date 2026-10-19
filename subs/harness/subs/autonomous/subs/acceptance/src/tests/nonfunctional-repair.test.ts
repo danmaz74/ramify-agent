@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, { debug: false, noResult: true }])
-('one authorized repair edits two modules from the chosen src, then reassesses every NFR (%j)', async ({ debug, noResult }) => {
+('one authorized repair edits two modules from the chosen src, then verifies repaired/unresolved NFRs with retained satisfied judgments (%j)', async ({ debug, noResult }) => {
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'two-modules' });
@@ -89,8 +89,8 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
         uncertainty: assessments === 1 ? 'Need an intermediate trace' : '' },
       { nfr: 'nfr-002', result: assessments === 1 ? 'not-satisfied' : 'satisfied',
         inspectedScope: ['subs/workspace/subs/catalog/src'], evidence: ['Catalog source inspected'], uncertainty: '' },
-      { nfr: 'fix-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'],
-        evidence: ['Author is recorded'], uncertainty: '' }] });
+      ...(assessments === 1 ? [{ nfr: 'fix-001', result: 'satisfied', inspectedScope: ['subs/workspace/subs/reviews/subs/core/src'],
+        evidence: ['Author is recorded'], uncertainty: '' }] : [])] });
     }
     if (spec.submission.name === coordinatorActionToolName) return ++actions === 1
       ? submit({ kind: 'investigate', nfrs: ['nfr-001'], question: 'Inspect the intermediate audit trace', scope: ['.git', 'plans/review-notes/.harness', '/external/evidence'] })
@@ -182,11 +182,15 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
     .toMatchObject({ isError: false, text: expect.stringContaining('prerequisite ancestry and captured run plan hash inspected') });
   const coordinator = agent.sessions.filter(session => session.spec.submission.name === coordinatorAssessmentToolName);
   expect(coordinator).toHaveLength(2);
+  expect(coordinator[0]!.spec.prompt).toMatch(/^Elements: nfr-001, nfr-002, fix-001$/mu);
+  expect(coordinator[0]!.spec.prompt).toContain(`> ${fixed}`);
+  expect(coordinator[0]!.spec.prompt).toContain('- stated: for every audit record');
+  expect(coordinator[1]!.spec.prompt).toMatch(/^Elements: nfr-001, nfr-002$/mu);
+  expect(coordinator[1]!.spec.prompt).not.toContain(`> ${fixed}`);
+  expect(coordinator[1]!.spec.prompt).toContain('Do not restart the complete catalog by default.');
+  expect(coordinator[1]!.spec.prompt).toContain('Author is recorded');
   for (const session of coordinator) {
-    expect(session.spec.prompt).toMatch(/^Elements: nfr-001, nfr-002, fix-001$/mu);
-    for (const text of [obligation, otherObligation, fixed]) expect(session.spec.prompt).toContain(`> ${text}`);
-    expect(session.spec.prompt).toContain('### fix-001: fixed requirement from audit.principles.md');
-    expect(session.spec.prompt).toContain('- stated: for every audit record');
+    for (const text of [obligation, otherObligation]) expect(session.spec.prompt).toContain(`> ${text}`);
     expect(session.spec.prompt).not.toContain('rec-001');
     expect(session.spec.prompt).not.toContain(advice);
     expect(session.spec.prompt).toContain('\"name\":\"run-start\"');
@@ -202,6 +206,10 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
     catalog: { context: 0, functional: 0, nonFunctional: 2, fixed: 1, recommendation: 1 } });
   const assessmentsOnDisk = events.filter(event => event.type === 'nonfunctional-assessed');
   expect(assessmentsOnDisk).toHaveLength(2);
+  const focusedAssessment = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', receipt.jobId,
+    runLayout.assessment(assessmentsOnDisk[1]!.data.assessment)), 'utf8'));
+  expect(focusedAssessment.followUp).toEqual({ assessment: assessmentsOnDisk[0]!.data.assessment, reviewed: ['nfr-001', 'nfr-002'] });
+  expect(focusedAssessment.results).toContainEqual(expect.objectContaining({ nfr: 'fix-001', result: 'satisfied', evidence: ['Author is recorded'] }));
   expect(events.filter(event => event.type === 'nonfunctional-investigated')).toMatchObject([{ data: { nfrs: ['nfr-001'] } }]);
   expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
   const assigned = events.find(event => event.type === 'nonfunctional-repair-assigned')!;

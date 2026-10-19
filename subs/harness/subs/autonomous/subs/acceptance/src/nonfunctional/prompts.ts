@@ -1,14 +1,22 @@
 import type { Assessment, Candidate } from '../../../../../nonfunctional/src/interfaces/contracts.js';
 
 /** The assessment package: every non-functional and fixed element, whole, rendered by the package creator. */
-export function coordinatorAssessmentPrompt(assessmentPackage: string, candidate: Candidate, round: number, phase: 'initial' | 'after-repair'): string {
+export function coordinatorAssessmentPrompt(assessmentPackage: string, candidate: Candidate, round: number, phase: 'initial' | 'after-repair', followUp?: { previous: Assessment; selected: readonly string[]; repair: unknown }): string {
   return [
     `Assess the prepared source tree ${candidate.tree} in round ${round} (${phase}).`,
-    'The package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Judge each as worded, under its stated or inferred conditions.',
-    'Submit exactly one result for every element ID of the package.',
+    ...(followUp === undefined ? [
+      'The package below holds every non-functional requirement of the plan and every fixed requirement, with the plan deviations recorded in this run. Judge each as worded, under its stated or inferred conditions.',
+      'Submit exactly one result for every element ID of the package.',
+    ] : [
+      'Follow up on the selected repair and relevant surrounding behavior. Do not restart the complete catalog by default. The package below selects repaired and unresolved elements from the existing complete-plan assessment.',
+      `Submit one result for each selected element: ${JSON.stringify(followUp.selected)}. You may also reassess any other catalog element when the repair or concrete new evidence warrants it; explain that reason in its evidence or uncertainty. Inspect the complete original plan with ordinary tools when useful.`,
+      `Prior complete assessment, including retained satisfied judgments and their original evidence: ${JSON.stringify(followUp.previous)}`,
+      `Selected repair: ${JSON.stringify(followUp.repair)}`,
+      'Omitted satisfied judgments retain their original provenance; they are not reported as freshly reviewed. Omitted unmet or undetermined judgments cannot become satisfied.',
+    ]),
     'For each result, name inspected scope, evidence, and uncertainty. Source analysis can establish implementation properties; inspect Git history, run records and command or audit evidence for historical and execution claims. Follow available evidence before choosing undetermined.',
     'Start from supplied implementation and evidence locations. Use ordinary read/search tools and shell to follow relevant references, including Git history, generated views and run records. The snapshot_list/read/search/diff tools are optional conveniences for the pinned candidate. Use a relevant named comparison when needed; no pathless diff is required before inspection. Explore beyond stale or unhelpful hints.',
-    'Prepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for every element, including unchanged callers. Bind evidence to the candidate or historical revision it describes; live files and generated views may describe another revision.',
+    'Prepared candidate source is authoritative. Pointer notes, earlier completion claims and green audits do not establish fixed/NFR satisfaction. Make your own semantic judgment for each selected element and relevant unchanged callers. Bind evidence to the candidate or historical revision it describes; live files and generated views may describe another revision.',
     'Do not use capability progress or scenario coverage as a substitute for this assessment. Do not edit source or harness records.',
     'Submit your assessment using `submit_nonfunctional_assessment`.',
     '',

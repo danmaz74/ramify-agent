@@ -99,6 +99,7 @@ export type ReviewCoverage =
     readonly partial: number;
     readonly notVerified: number;
     readonly pending: number;
+    readonly notRun?: number;
   }
   | { readonly state: 'unavailable'; readonly reason: 'no-review-policy' };
 
@@ -106,8 +107,11 @@ export function reviewCoverage(policy: RunPolicy, events: readonly RunEvent[], w
   if (policy.reviews === undefined) return { state: 'unavailable', reason: 'no-review-policy' };
   const requests = [...reviewStateOf(events).values()].filter(request => workItem === undefined || request.workItem === workItem);
   const settled = requests.map(request => request.attempts.find(entry => entry.id === request.settledBy)?.finished?.result ?? null);
+  const notRun = events.filter(event => event.type === 'iteration-closed' && event.data.reviewPolicy?.mode === 'not-run'
+    && (workItem === undefined || event.data.workItem === workItem)).length;
   return {
     state: 'available',
+    ...(notRun === 0 ? {} : { notRun }),
     requested: requests.length,
     complete: settled.filter(result => result === 'complete').length,
     partial: settled.filter(result => result === 'partial').length,

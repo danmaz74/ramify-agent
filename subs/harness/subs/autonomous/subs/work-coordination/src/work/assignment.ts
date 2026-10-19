@@ -143,6 +143,8 @@ export const assignmentBodySchema = z.object({
     + 'regardless of order. The owner must match the resulting registry entry.',
   ),
   completionEvidence: text,
+  /** Concrete coordinator reason for another broad review of a correction. */
+  reviewReason: z.string().trim().min(1).optional(),
   /**
    * Guarded paths this iteration is allowed to change, each with the reason
    * the request establishes. The harness names the record that authorizes

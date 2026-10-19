@@ -210,12 +210,15 @@ in this module. These rules govern that judgement:
   module engineer, the module engineer working on a contract and the scope reviewer of that iteration
   receive exactly that subset, rendered by the same function, and a
   contract iteration inherits its requester's subset.
-- **Assessment is not selected.** When the functional work is done, the
-  non-functional coordinator receives every non-functional element of the
-  catalog, from the plan and from principles alike, and assesses each
-  against the candidate. Selection is about what a module engineer must keep in
-  view while working; assessment is about what the plan must satisfy. A
-  repair module engineer receives the subset the coordinator cites. The coordinator
+- **Initial assessment covers the complete plan.** When functional work is done,
+  the non-functional coordinator receives every applicable non-functional and fixed
+  element and assesses each against the candidate. Subsequent selected repairs
+  use existing results and focus on repaired and unresolved elements and relevant
+  surrounding behavior. The coordinator may broaden for concrete changed
+  circumstances; it need not repeat the catalog or prove every earlier judgment
+  again. Retained satisfied judgments keep their evidence and provenance; actual
+  unmet or undetermined requirements remain explicit until answered. A repair
+  module engineer receives the subset the coordinator cites. The coordinator
   has ordinary file inspection and shell tools to inspect Git history, run
   records, audit refs, command logs and generated views. Its context supplies
   the project root, run directory and candidate identity. Investigation scopes

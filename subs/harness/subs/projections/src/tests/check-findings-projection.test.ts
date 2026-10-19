@@ -174,6 +174,15 @@ function byId(items: readonly CheckFindingSummaryView[]): Record<string, CheckFi
 }
 
 describe('CheckFinding lists', () => {
+  test('a deliberately omitted correction remains visible without a fabricated completed review or pending request', () => {
+    const view = runView(constructedRun([{ type: 'iteration-closed', data: { workItem: 'wi-001', iteration: 'wi-001.i02',
+      outcome: 'accepted', gate: 'ga-0002', commit: 'c-02', notices: [],
+      reviewPolicy: { mode: 'not-run', reason: 'Selected correction verified through its configured gate.' } } }], reviewed));
+    const result = reviewListResponseSchema.parse(reviewListOf(view, { workItem: 'wi-001', after: null, limit: 50 }));
+    expect(result.requests).toEqual([]);
+    expect(result.coverage).toEqual({ state: 'available', requested: 0, complete: 0, partial: 0, notVerified: 0, pending: 0, notRun: 1 });
+  });
+
   test('lists order by risk, then credibility, then recency; standings, settlements, decision requests and material choices are separate fields', () => {
     const stream = fullRun();
     const list = checkFindingListResponseSchema.parse(checkFindingListOf(runView(constructedRun(stream.lines, reviewed)), query()));

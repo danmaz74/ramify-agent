@@ -112,9 +112,9 @@ export function coverageText(coverage: ReviewCoverageView): string {
       ? 'Review coverage unavailable: this run\'s policy requested no reviews, so no CheckFinding here means nothing was reviewed, not a clean review.'
       : 'Review coverage unavailable: the run\'s review records could not be read.';
   }
-  const counts = `${coverage.complete} complete, ${coverage.partial} partial, ${coverage.notVerified} not verified, ${coverage.pending} pending, of ${coverage.requested} requested`;
+  const counts = `${coverage.complete} complete, ${coverage.partial} partial, ${coverage.notVerified} not verified, ${coverage.pending} pending, of ${coverage.requested} requested${coverage.notRun ? `; broad review deliberately not run for ${coverage.notRun} selected correction(s)` : ''}`;
   switch (coverageState(coverage)) {
-    case 'none': return 'Review coverage: no review requested yet.';
+    case 'none': return coverage.notRun ? `Review coverage: broad review deliberately not run for ${coverage.notRun} selected correction(s).` : 'Review coverage: no review requested yet.';
     case 'complete': return `Review coverage complete: ${counts}.`;
     case 'pending': return `Review coverage pending: ${counts}.`;
     default: return `Review coverage partial: ${counts}.`;

@@ -648,7 +648,7 @@ function reconciliationSection(reconciliation: ReconciliationBriefing): string[]
     lines.push('It chose a correction. The CheckFindings planned for repair:', '');
     for (const repair of reconciliation.repairs) lines.push(`- \`${repair.checkFinding}\`: ${repair.title}`);
     lines.push('', `The correction's goal: ${reconciliation.goal ?? 'as the brief states it'}`, '');
-    lines.push('Assign one iteration that makes this correction. It goes through the ordinary gate and reviews; request completion again when it is done.', '');
+    lines.push('Assign one iteration that makes this correction. Its configured gate and relevant source inspection verify the selected repair; broad code/scope/design review is not automatically repeated. If the repair introduces substantial new behavior or another concrete reason warrants a further broad pass, set reviewReason on the assignment and explain why. Request completion again when it is done.', '');
   }
   return lines;
 }

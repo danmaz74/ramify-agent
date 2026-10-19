@@ -6,7 +6,7 @@ import {
   type CheckFindingListResponse, type CheckFindingSummaryView, type ReviewCoverageView, type ReviewListResponse,
 } from '../../../harness/src/interfaces/protocol/check-findings.js';
 import { runSnapshotSchema } from '../../../harness/src/interfaces/protocol/runs.js';
-import { CheckFindingList, ModuleCheckFindings, PlanDeviations, WorkItemCheckFindings } from '../check-findings.js';
+import { coverageText, CheckFindingList, ModuleCheckFindings, PlanDeviations, WorkItemCheckFindings } from '../check-findings.js';
 import { ClientError } from '../client.js';
 import { checkFindingKey, StubClient } from './helpers/stub-client.js';
 
@@ -356,4 +356,12 @@ test('a non-functional deviation shows the exact captured requirement and assess
   expect(body.textContent).toContain('Measured 87 milliseconds');
   expect(body.textContent).toContain('The production load is unknown');
   expect(body.textContent).not.toContain('wi-');
+});
+
+
+test('deliberately omitted broad correction review is distinct from completed and unavailable work', () => {
+  expect(coverageText({ state: 'available', requested: 1, complete: 1, partial: 0, notVerified: 0, pending: 0, notRun: 1 }))
+    .toContain('broad review deliberately not run for 1 selected correction');
+  expect(coverageText({ state: 'available', requested: 0, complete: 0, partial: 0, notVerified: 0, pending: 0, notRun: 1 }))
+    .toBe('Review coverage: broad review deliberately not run for 1 selected correction(s).');
 });

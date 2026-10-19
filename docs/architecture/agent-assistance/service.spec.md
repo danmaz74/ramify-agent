@@ -82,8 +82,14 @@ conflicts remain, passing configured checks can finish a correction without anot
 semantic invocation. Otherwise the reviewer receives a focused follow-up brief.
 A nonempty `review_reason` explicitly requests another broad review and records why.
 `review-policy` stage evidence records broad, focused-follow-up or not-run work;
-not-run work is never represented as a completed review. Final assessment retains
-its complete-plan question.
+not-run work is never represented as a completed review. The first final assessment
+receives the complete plan, including applicable fixed and nonfunctional requirements.
+A subsequent final request naming that final assessment follows selected repairs and
+relevant surrounding behavior using its existing results; it does not restart the
+complete catalog by default. The original plan remains available on demand, and
+inspection may broaden for concrete changed circumstances. A prior iteration
+assessment does not replace the first complete-plan assessment. All final comparisons
+retain the original registered plan baseline and exact candidate.
 
 A failed configured audit returns its diagnostic evidence after factual finding
 and protection ingestion. It does not invoke semantic review or reconciliation.

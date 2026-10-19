@@ -8,6 +8,7 @@ import { CommandRejection } from '../jobs/commands.js';
 
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
+import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { reconciliationLayout, type ReconciliationAssessment, type ReconciliationBasis } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { requestCompletion } from './helpers/analysis.js';
@@ -91,12 +92,12 @@ function correctedCandidates(): Record<string, ScriptedCommit> {
 const correctionGates = [...revisionGates, { commit: 'revision-04', changes: [{ status: 'M', path: limit }] }, unchanged, unchanged];
 
 /** The three assignments, the completion request, a correction and a second completion request. */
-const architect = (correction = true): ReadonlyArray<readonly ScriptStep[]> => [
+const architect = (correction = true, reviewReason: string | null = 'Inspect the substantial new behavior introduced by this correction.'): ReadonlyArray<readonly ScriptStep[]> => [
   submit(assign(notes, { goal: 'Add the note store.' }, outline())),
   submit(assign(notes, { goal: 'State the note limit.' })),
   submit(assign(notes, { goal: 'Export the store.' })),
   submit(requestCompletion()),
-  ...(correction ? [submit(assign(notes, { goal: 'Correct the note limit to 500 characters.', kind: 'repair' })), submit(requestCompletion())] : []),
+  ...(correction ? [submit(assign(notes, { goal: 'Correct the note limit to 500 characters.', kind: 'repair', ...(reviewReason === null ? {} : { reviewReason }) })), submit(requestCompletion())] : []),
 ];
 
 function listOf(service: Awaited<ReturnType<typeof reviewRun>>['service'], runId: string): CheckFindingSummary[] {
@@ -261,13 +262,13 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
 });
 
 describe('CF11 and CF15: correction rounds', () => {
-  test('a repair is planned with its intent, the architect assigns the correction, and the next round assesses every signal', async () => {
+  test.each([false, true])('selected correction completes with purposeful extra broad review = %s', async broad => {
     const root = await reviewTarget(cleanups);
     const run = await reviewRun(root, cleanups, {
       policy: { concurrency: 1 },
       commits: correctedCandidates(),
       gates: correctionGates,
-      architect: architect(),
+      architect: architect(true, broad ? 'Inspect substantial new correction behavior.' : null),
       engineer: [...engineers.slice(0, 3), submit(completionProposed('Corrected the limit.'),
         write('tmp/correction.txt', 'correction evidence\n'),
         write(limit, 'export const limit = (text: string) => text.length <= 500;\n'))],
@@ -286,8 +287,8 @@ describe('CF11 and CF15: correction rounds', () => {
         'wi-001.rc02': reconcile(
           submission([
             disposition('cf-0001', { action: 'fixed', reassessed: ['cfr-0001'] }),
-            disposition('cf-0003', { action: 'leave' }),
-          ], { kind: 'unresolved' }),
+            ...(broad ? [disposition('cf-0003', { action: 'leave' })] : []),
+          ], { kind: broad ? 'unresolved' : 'complete' }),
         ),
       },
     });
@@ -322,24 +323,33 @@ describe('CF11 and CF15: correction rounds', () => {
       type: 'check-finding-decided',
       data: expect.objectContaining({ checkFinding: 'cf-0001', decision: expect.objectContaining({ decision: { action: 'claim-repair', candidate: { kind: 'tree', id: correctedTree }, change: 'wi-001.i04' } }) }),
     })]);
-    expect(eventsOf(events, 'review-request-recorded').map(event => event.data.iteration)).toEqual(['wi-001.i01', 'wi-001.i02', 'wi-001.i03', 'wi-001.i04']);
+    expect(eventsOf(events, 'review-request-recorded').map(event => event.data.iteration)).toEqual(['wi-001.i01', 'wi-001.i02', 'wi-001.i03', ...(broad ? ['wi-001.i04'] : [])]);
+    const retained = await committed<{ reviewPolicy?: { mode: string; reason: string } }>(root, runId, iterationLayout.result('wi-001', 4));
+    expect(retained.reviewPolicy?.mode).toBe(broad ? undefined : 'not-run');
+    if (broad) {
+      const extraReview = agent!.sessions.find(session => session.spec.role === 'reviewer' && session.spec.prompt.includes('Code review rq-0004'))!;
+      expect(extraReview.spec.prompt).toContain('decision: waive');
+      expect(extraReview.spec.prompt).toContain('The assessment of cf-0002 against the current source.');
+      expect(extraReview.spec.prompt).toContain('Avoid repeating unchanged issues.');
+    }
 
     // Round 2 can correct any risk; the architect explicitly leaves one open.
     const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc02'));
     expect(basis).toMatchObject({ round: 2, floor: 'any', source: { commit: 'revision-04', tree: correctedTree } });
-    expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0001', 'cf-0003']);
+    expect(basis.checkFindings.map(entry => entry.checkFinding)).toEqual(['cf-0001', ...(broad ? ['cf-0003'] : [])]);
     const [, refork] = reconcilerSessions(agent!);
     expect(refork!.spec.session).toEqual({ mode: 'fork', from: JSON.stringify(JSON.parse(eventsOf(events, 'outline-revised').filter(event => event.data.architectRef !== undefined)[1]!.data.architectRef!.ref).point) });
     expect(refork!.spec.prompt).toContain('A correction may be planned for any signal');
     expect(refork!.verdicts[0]).toMatchObject({ accepted: true });
-    expect(second!.data).toMatchObject({ reconciliation: 'wi-001.rc02', next: 'unresolved' });
+    expect(second!.data).toMatchObject({ reconciliation: 'wi-001.rc02', next: broad ? 'unresolved' : 'complete' });
 
     const summaries = new Map(listOf(service, runId).map(summary => [summary.id, summary]));
     expect(summaries.get('cf-0001')).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment' });
     expect(summaries.get('cf-0002')).toMatchObject({ standing: 'closed', reason: 'waived' });
-    expect(summaries.get('cf-0003')).toMatchObject({ standing: 'open', reason: 'new', risk: 'low' });
+    if (broad) expect(summaries.get('cf-0003')).toMatchObject({ standing: 'open', reason: 'new', risk: 'low' });
+    else expect(summaries.has('cf-0003')).toBe(false);
     // The work item completed through its gate, naming what it left open.
-    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual([{ checkFinding: 'cf-0003', reason: 'left-open' }]);
+    expect(eventsOf(events, 'work-item-completed')[0]!.data.unresolved).toEqual(broad ? [{ checkFinding: 'cf-0003', reason: 'left-open' }] : undefined);
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
     run.git.assertComplete();
   }, 60_000);

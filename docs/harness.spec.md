@@ -299,7 +299,9 @@ A nonpassing final verification remains evidence in the same run. The plan
 architect receives the diagnostics and report locations and chooses the module
 architect and next correction goal. The harness records an ordinary work item
 with that final gate as its origin, preserving earlier accepted work. After
-correction, it obtains fresh candidate assessment and final verification.
+correction, it obtains focused candidate assessment of the repair and relevant
+surrounding behavior, followed by final verification. Earlier complete-plan
+results remain available; a concrete changed circumstance can broaden inspection.
 Neither the failure count nor a former repair allowance ends the run. Accepted
 correction decisions and created work items are reused after interruption.
 
@@ -753,3 +755,39 @@ filename alone does not make a document an initial review obligation. Other
 relevant guidance remains available through candidate inspection. Relevant specification obligations
 must reach implementation and review through the reviewed plan; this does not
 require adding every specification to recurring design guidance.
+
+
+### Review Once, Select Useful Repairs
+
+An accepted coherent iteration receives the configured code/scope/design review.
+Its selected corrections use their existing `corrects` identity, configured gate
+and source-backed repair dispositions. They do not automatically repeat those
+broad reviews. The assigning architect may supply `reviewReason` on the correction
+for a concrete additional pass, such as substantial new behavior. The reason stays
+in the captured assignment; retries preserve the original review request keys.
+An accepted correction without that reason records `reviewPolicy.mode: not-run`
+in its iteration result and creates no repeat request. Completion settles only
+actual requests and never waits for deliberately omitted reviews.
+
+The existing architect chooses useful repairs, leaves an understood discretionary
+suggestion through a waiver, or defers it with a short rationale and revisit
+condition. Ordinary decisions need no user approval. They do not waive actual
+unmet requirements, failed required checks or protected changes. Review packets
+include a bounded summary of relevant existing findings, dispositions and
+rationales; reviewers avoid repeating unchanged issues and explain changed
+circumstances when raising an issue again. Unavailable reviews retain their status
+for the architect's completion decision and are never represented as completed.
+
+Failed configured checks return their diagnostics directly to the responsible
+engineer or coordinator. Review requests follow accepted iterations; a concrete
+check failure does not automatically invoke broad review and reconciliation.
+
+The first final assessment covers the complete plan's applicable fixed and
+nonfunctional requirements. Later selected repairs receive a focused follow-up
+of repaired and unresolved elements and relevant surrounding behavior. The agent
+may reassess other elements for concrete changed circumstances. Existing satisfied
+judgments retain their evidence; an assessment's optional `followUp` names the
+prior assessment and IDs actually reviewed. Retained judgments are not fresh review
+of those elements. An unanswered unmet or undetermined requirement cannot become
+satisfied. The original baseline, prepared candidate identities and final
+configured checks remain in force; no separate proof cache is required.

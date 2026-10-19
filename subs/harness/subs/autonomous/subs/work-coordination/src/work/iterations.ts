@@ -102,6 +102,8 @@ export const iterationAssignmentSchema = z.object({
     contract: recordRefSchema.optional(),
   }).strict()),
   completionEvidence: text,
+  /** Concrete coordinator reason for another broad review of a correction. */
+  reviewReason: z.string().trim().min(1).optional(),
   /** Registered evidence this iteration must satisfy, owned anywhere. */
   evidenceObligations: z.array(z.object({
     obligation: recordRefSchema.optional(),
@@ -219,6 +221,8 @@ export const iterationResultSchema = z.object({
   changedAssumptions: z.array(z.string()),
   startingPoints: startingPointsSchema,
   recommendation: z.string().optional(),
+  /** Deliberately omitted broad review; no review request or completed review is fabricated. */
+  reviewPolicy: z.object({ mode: z.literal('not-run'), reason: text }).strict().optional(),
   artifacts: z.array(z.string()),
   /**
    * Where a module engineer ended without a result: the harness's digest, then the

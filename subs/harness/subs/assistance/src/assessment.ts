@@ -167,14 +167,27 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         artifact: await context.retainEvidence(documents) } satisfies DocumentsReference);
     }
     if (documents.baselineCommit !== baseline) throw new Error('Retained documents name another baseline');
+    const previous = predecessorAssessment(assessment, context.assessments());
+    let reviewBasis = previous;
+    const seen = new Set<string>();
+    while (reviewBasis && reviewBasis.request.kind === request.kind && !seen.has(reviewBasis.id)) {
+      seen.add(reviewBasis.id);
+      const retained = (reviewBasis.stages.find(stage => stage.name === 'review-accepted') ?? reviewBasis.stages.find(stage => stage.name === 'review'))?.evidence as ReviewEvidence | undefined;
+      if (retained?.result.status === 'submitted') break;
+      reviewBasis = predecessorAssessment(reviewBasis, context.assessments());
+    }
+    const focused = previous !== undefined && reviewBasis?.request.kind === request.kind
+      && request.reviewReason === undefined && Boolean(reviewBasis?.stages.some(stage =>
+        (stage.name === 'review-accepted' || stage.name === 'review') && (stage.evidence as ReviewEvidence).result?.status === 'submitted'));
     const requirements = [
-      ...(request.kind === 'final' ? [{ ref: 'captured-plan', text: `Assess every outcome of the complete captured plan against the cumulative candidate.\n${context.planMarkdown}` }]
+      ...(request.kind === 'final' ? [{ ref: 'captured-plan', text: focused
+        ? 'Follow up on the selected repairs and relevant surrounding behavior using the retained complete-plan assessment. Verify previously unmet requirements; broaden inspection when the repair or new evidence warrants it. Do not restart the whole catalog by default. The complete original plan remains available with assessment_evidence ref captured-plan.'
+        : `Assess every outcome of the complete captured plan against the cumulative candidate.\n${context.planMarkdown}` }]
         : [{ ref: 'captured-plan', text: 'Assess the current iteration goal and supplied acceptance against applicable plan constraints; future iterations are not due. The complete original plan is available on demand with assessment_evidence ref captured-plan.' }]),
       ...request.acceptance.map((text, index) => ({ ref: `acceptance-${index + 1}`, text })),
       ...request.requirementDocuments.map((document, index) => ({ ref: `requirement-document-${index + 1}`,
         text: `Selected guidance: ${document.path} at ${document.revision}. Read exact original on demand with assessment_evidence ref requirement-document-${index + 1}; determine its applicability and adoption status.` })),
     ];
-    const previous = predecessorAssessment(assessment, context.assessments());
     const priorReview = previous?.stages.find(stage => stage.name === 'review-accepted') ?? previous?.stages.find(stage => stage.name === 'review');
     const prior = priorReview?.evidence as ReviewEvidence | undefined;
     if (request.kind === 'iteration' && previous && !request.reviewReason && prior?.result.status === 'submitted'
@@ -184,13 +197,12 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       return compactOutcome({ gate: 'clear', summary: 'Repair candidate verified; broad review deliberately not repeated.',
         repairs: [], decisions: [], gaps: [], evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`) });
     }
-    const focused = request.kind === 'iteration' && previous !== undefined && request.reviewReason === undefined;
     if (!stages('review-policy')) await record('review-policy', { mode: focused ? 'focused-follow-up' : 'broad',
       reason: request.reviewReason ?? (focused ? 'Verify selected repairs and relevant surrounding behavior.' : 'Initial assessment.'), previousAssessment: previous?.id ?? null });
     const intendedOutcome = request.brief
       + (request.focusModule === undefined ? '' : `\nDeclared module focus: ${request.focusModule ?? 'broader assignment'}. Focus is advisory; cross-module changes are allowed.`)
       + (request.additionalContext === undefined ? '' : `\nAdditional context:\n${request.additionalContext}`);
-    const followUp = previous === undefined ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Previous inspection is not evidence for this candidate.`;
+    const followUp = previous === undefined ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nRetained requirement judgments: ${JSON.stringify(retainedRequirementAnswers(previous, context.assessments()))}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Previous inspection is not evidence for this candidate.`;
     // The immutable candidate makes both unchanged dependencies and changed files inspectable.
     const principles = request.requirementDocuments.map(document => ({ path: document.path, note: `Selected by the coordinator at ${document.revision}; filename alone does not establish adoption.` }));
     const baselineEntries = await source.treeEntries(projectRoot, baseline);
@@ -280,7 +292,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const message = reconciliationFactsMessage({ id, owner: 'assisted execution', round: 1, source: { commit: snapshot.commit, tree: snapshot.tree },
         introduction: `Reconcile concerns for assisted job ${job.jobId}, assessment ${assessment.id}. Investigate uncertain claims using the candidate tools. Deduplicate by the same behavior or obligation, never just location. Do not edit source.`,
         authority: 'You may plan repairs, replace disproved judgments, or verify semantic fixes after inspection. You cannot waive or defer obligations, change protected commitments, or dismiss factual required failures. Leave unresolved material decisions for the coordinator. Do not promote stylistic nits or speculative optional work.',
-        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\n${request.kind === 'final' ? `Captured plan:\n${context.planMarkdown}\n` : 'Original plan available with assessment_evidence ref captured-plan.\n'}Iteration: ${intendedOutcome}`,
+        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\n${request.kind === 'final' && !focused ? `Captured plan:\n${context.planMarkdown}\n` : 'Original plan available with assessment_evidence ref captured-plan.\n'}Iteration: ${intendedOutcome}`,
         requests: [{ request: assessment.id, kind: 'code/scope/design', iteration: assessment.id, candidate: snapshot.commit,
           attempt: reviewed.result.operationId, result: reviewed.result.status === 'submitted' ? (gaps.length ? 'partial; see assessment gaps' : 'complete') : `not verified: ${reviewed.result.reason}` }],
         attention, others: details.filter(detail => !entries.has(detail.summary.id)).map(detail => detail.summary),

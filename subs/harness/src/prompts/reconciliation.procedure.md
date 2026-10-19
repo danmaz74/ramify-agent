@@ -42,7 +42,7 @@ and a credibility the harness derived from what grounds it: a principles
 document or the plan weighs more than an agent's own test or documentation,
 and an ungrounded concern least. The message orders the signals by risk,
 then credibility. Spend on each in proportion: a low-risk, low-credibility
-signal earns a one-line waiver, and a high-risk, credible one a repair. You
+signal can receive a one-line waiver. Choose repair, waiver or deferral by useful work and applicable requirements; a reviewer finding is not by itself a mandatory engineering assignment. Actual unmet requirements, failed required checks and protected changes retain their independent obligations. You
 may correct a signal's risk level with its disposition (`risk`), and say why
 in its rationale.
 

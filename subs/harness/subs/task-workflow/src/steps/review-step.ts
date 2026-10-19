@@ -3,7 +3,7 @@ import { coordinationHistory } from '../../../autonomous/src/run/coordination-hi
 import { mkdir } from 'node:fs/promises';
 import { dirname, join, posix } from 'node:path';
 import { createConfiguredAudit, type ConfiguredAuditPort } from '../../../audit/src/check-execution.js';
-import { selectCheckFindings } from '../../../check-findings/src/queries.js';
+import { knownFindingSummary } from '../../../check-findings/src/queries.js';
 import { gitCandidateSource, type CandidateSource } from '../../../evidence/src/git.js';
 import { prepareReview, type PreparedReview } from '../../../reviews/src/preparation.js';
 import { openCandidateSnapshot, type CandidateSnapshot } from '../../../reviews/src/snapshot.js';
@@ -102,8 +102,8 @@ export async function reviewInputsFromRequest(options: ReviewInputsFromRequestOp
       || assignment.data.gate.tests.subtrees.some(owner => module.id === owner || module.id.startsWith(`${owner}/`)))
       .map(module => posix.join(module.directory, 'src/tests')),
   } : null;
-  const held = selectCheckFindings(checkFindingStateOf(run.log.ledger), { kind: 'list', owner: { kind: 'work-item', workItem: request.workItem }, select: 'all', limit: 100 });
-  const checkFindings = held.ok && 'items' in held.view ? held.view.items.map(item => ({ id: item.id, standing: item.standing, title: item.title })) : [];
+  const findingState = checkFindingStateOf(run.log.ledger);
+  const checkFindings = knownFindingSummary({ ...findingState, findings: new Map([...findingState.findings].filter(([, entry]) => entry.owner.kind === 'work-item' && entry.owner.workItem === request.workItem)) });
   let setup: string | undefined;
   if (kind !== 'design') {
     // A manual run captured no audit configuration; the audited candidate's committed one is read.

@@ -33,7 +33,7 @@ import type { RamifyCli } from '../../../../evidence/src/ramify-cli.js';
 import { type ArchitectIndex } from '../../../../evidence/src/views.js';
 import type { ConfiguredAuditPort } from '../../../../audit/src/check-execution.js';
 
-import { selectCheckFindings } from '../../../../check-findings/src/queries.js';
+import { knownFindingSummary, selectCheckFindings } from '../../../../check-findings/src/queries.js';
 
 
 
@@ -472,7 +472,7 @@ export class Acceptance {
         reviewedResult?.gate === request.gate && reviewedResult.commit === request.key.candidate ? reviewedResult : undefined,
         request.gate, request.key.candidate),
     ], { projectRoot: this.projectRoot, snapshot, allows: path => nonfunctionalSourceAllows(path, ['.']) }) : undefined;
-    const held = selectCheckFindings(this.observe().findings, { kind: 'list', owner: { kind: 'work-item', workItem: request.workItem }, select: 'all', limit: 100 });
+
     // Binding reads may yield while this request is stopped or settled. Do
     // not register preparation after its cancellation sweep has already run.
     if (this.ports.ignoring() || this.reviews?.accepting !== true || reviewStateOf(this.observe().history.events).get(id)?.settledBy !== null) return false;
@@ -484,7 +484,7 @@ export class Acceptance {
         || assignment.data.gate.tests.subtrees.some(owner => module.id === owner || module.id.startsWith(`${owner}/`)))
         .map(module => posix.join(module.directory, 'src/tests')),
     } : null;
-    const checkFindings = held.ok && 'items' in held.view ? held.view.items.map(item => ({ id: item.id, standing: item.standing, title: item.title })) : [];
+    const checkFindings = knownFindingSummary({ ...this.observe().findings, findings: new Map([...this.observe().findings.findings].filter(([, entry]) => sameWorkItem(entry.owner, request.workItem))) });
     const setup = kind === 'design' ? undefined : await this.ports.coordination.checkInputSection(snapshot);
     const planDocument = snapshot.entries.get(planPath(this.input.record.planId))?.kind === 'file' ? planPath(this.input.record.planId) : null;
     let prepared: PreparedReview;
@@ -1767,11 +1767,11 @@ export class Acceptance {
     ]);
   }
 
-  private async nonfunctionalSourceInputs(candidate: Candidate, scope: readonly string[] = ['.'], workspace = false) {
+  private async nonfunctionalSourceInputs(candidate: Candidate, scope: readonly string[] = ['.'], workspace = false, previous?: Assessment) {
     const base = this.ports.coordination.accepted();
     const runStart = this.ports.recordedRunBase();
     const comparisons: SnapshotComparison[] = [];
-    for (const [name, boundary] of [['run-start', runStart], ['accepted-boundary', base]] as const) {
+    for (const [name, boundary] of [['run-start', runStart], ['accepted-boundary', base], ['previous-assessment', previous?.candidate.tree]] as const) {
       if (boundary === undefined) continue;
       const diff = await this.candidates.diffNameStatus(this.projectRoot, boundary, candidate.tree);
       const changes = [...new Map(diff.filter(change => nonfunctionalSourceAllows(change.path, scope)).map(change => [`${change.status}\0${change.path}`, change])).values()]
@@ -1854,11 +1854,11 @@ export class Acceptance {
 
     const sourceInputs = await this.nonfunctionalSourceInputs(candidate, ['.'], false);
     const result = await this.ports.runInvocation<CoordinatorAction>(agent, {
-      role: 'nonfunctional-coordinator', task: { goal: `Assess the requirements of candidate ${candidate.tree}`, requirements: [this.ports.coordination.planPackage(catalog)], candidate: candidate.tree, snapshot: candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-action:${assessment.id}:${decision.action}` },
+      role: 'nonfunctional-coordinator', task: { goal: `Assess the requirements of candidate ${candidate.tree}`, requirements: [this.ports.coordination.planPackage(catalog, unresolved)], candidate: candidate.tree, snapshot: candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-action:${assessment.id}:${decision.action}` },
       attempt: this.events('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
       loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot, coordinatorActionToolName),
       prompt: [coordinatorActionPrompt(candidate, unresolved, investigatedNfrs,
-        { assessment, allowedAction: decision.action, investigationPaths }), this.ports.coordination.planPackage(catalog)].join('\n\n'),
+        { assessment, allowedAction: decision.action, investigationPaths }), this.ports.coordination.planPackage(catalog, unresolved)].join('\n\n'),
       start: { mode: 'fresh' }, toolName: coordinatorActionToolName,
       description: 'Choose a bounded non-functional investigation, repair, or closure.',
       inputSchema: coordinatorActionJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-action/1',
@@ -2083,6 +2083,21 @@ export class Acceptance {
     prepared: { id: string; candidate: Candidate }, round: number, phase: Assessment['phase'],
   ): Promise<Assessment | null> {
     const nfrIds = assessedElements(catalog.catalog);
+    const last = this.events('nonfunctional-assessed').at(-1);
+    const previous = last === undefined ? undefined : assessmentSchema.parse(this.ports.committedBody(runLayout.assessment(last.data.assessment)));
+    const repairEvent = this.events('nonfunctional-repair-assigned').at(-1);
+    const repair = repairEvent === undefined ? undefined
+      : nonfunctionalRepairAssignmentSchema.parse(this.ports.committedBody(runLayout.nonfunctionalRepairAssignment(repairEvent.data.assignment)));
+    const selected = previous === undefined ? nfrIds : [...new Set([
+      ...previous.results.filter(result => result.result !== 'satisfied').map(result => result.nfr),
+      ...(repair?.nfrs ?? []),
+    ])];
+    const correction = this.events('final-correction-planned').at(-1);
+    const correctionTask = correction === undefined ? undefined
+      : committedRecords(this.observe().history.lines).workItems.find(item => item.id === correction.data.workItem);
+    const followUp = previous === undefined ? undefined : { previous, selected,
+      repair: phase === 'after-repair' ? repair : { correction: correctionTask, comparison: 'previous-assessment', previousCandidate: previous.candidate } };
+    const assessmentPackage = this.ports.coordination.planPackage(catalog.catalog, selected);
     const id = `nfa-${String(this.events('nonfunctional-assessed').length + 1).padStart(3, '0')}`;
     let assessment: Assessment;
     if (nfrIds.length === 0) {
@@ -2096,20 +2111,20 @@ export class Acceptance {
         return null;
       }
 
-      const sourceInputs = await this.nonfunctionalSourceInputs(prepared.candidate, ['.'], false);
+      const sourceInputs = await this.nonfunctionalSourceInputs(prepared.candidate, ['.'], false, previous);
       const result = await this.ports.runInvocation<CoordinatorAssessmentSubmission>(agent, {
-        role: 'nonfunctional-coordinator', task: { goal: `Assess the complete NFR catalog for ${prepared.candidate.tree}`, requirements: [this.ports.coordination.planPackage(catalog.catalog)], candidate: prepared.candidate.tree, snapshot: prepared.candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-assessment:${prepared.id}:${round}:${phase}` },
+        role: 'nonfunctional-coordinator', task: { goal: `${previous === undefined ? 'Assess the complete NFR catalog' : 'Verify selected final repairs and relevant surrounding behavior'} for ${prepared.candidate.tree}`, requirements: [assessmentPackage], candidate: prepared.candidate.tree, snapshot: prepared.candidate.tree, literalSections: sourceInputs.sections }, work: { task: `nfr-assessment:${prepared.id}:${round}:${phase}` },
         attempt: this.events('invocation-started').filter(event => event.data.role === 'nonfunctional-coordinator').length + 1,
         loaded, systemPrompt: renderNonfunctionalCoordinatorPrompt(loaded, this.projectRoot),
-        prompt: coordinatorAssessmentPrompt(this.ports.coordination.planPackage(catalog.catalog), prepared.candidate, round, phase),
+        prompt: coordinatorAssessmentPrompt(assessmentPackage, prepared.candidate, round, phase, followUp),
         start: { mode: 'fresh' }, toolName: coordinatorAssessmentToolName,
-        description: 'Submit one evidence-grounded result for every non-functional and fixed requirement.',
+        description: previous === undefined ? 'Submit one evidence-grounded result for every non-functional and fixed requirement.' : 'Verify selected repairs and unresolved requirements; optionally broaden for concrete changed circumstances.',
         inputSchema: coordinatorAssessmentJsonSchema, submissionSchema: 'ramify-agent.nonfunctional-assessment-submission/1',
         validate: input => {
           const checked = bindCoordinatorAssessment(input, { catalog: catalog.catalog, candidate: prepared.candidate,
-            observedTree: prepared.candidate.tree, id, round, phase, coordinatorInvocation: 'pending' });
+            observedTree: prepared.candidate.tree, id, round, phase, coordinatorInvocation: 'pending', previous, selected });
           return checked.ok
-            ? { ok: true, value: { kind: 'assessment' as const, results: checked.value.results } }
+            ? { ok: true, value: { kind: 'assessment' as const, results: (input as CoordinatorAssessmentSubmission).results } }
             : checked;
         },
         keep: () => finished('work-closed'), scope: { write: null, measurement: null, size: null },
@@ -2121,7 +2136,7 @@ export class Acceptance {
       }
       const late = await this.ports.previewCandidateTree();
       const bound = bindCoordinatorAssessment(result.value, { catalog: catalog.catalog, candidate: prepared.candidate,
-        observedTree: late.tree, id, round, phase, coordinatorInvocation: result.id });
+        observedTree: late.tree, id, round, phase, coordinatorInvocation: result.id, previous, selected });
       if (!bound.ok) {
         await this.ports.fail('inputs-changed', `The non-functional assessment could not bind to the prepared tree: ${bound.errors.map(error => error.message).join('; ')}`);
         return null;

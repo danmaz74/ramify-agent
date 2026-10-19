@@ -109,6 +109,16 @@ export class AfterHandling {
   async requestReviews(closed: { readonly workItem: string; readonly iteration: string; readonly gate: string; readonly commit: string }): Promise<string[]> {
     const policy = this.observe().policy.reviews;
     if (policy === undefined) return [];
+    const assigned = this.events('iteration-assigned').find(event => event.data.iteration === closed.iteration)
+      ?? this.events('capability-assigned').find(event => event.data.assignment === closed.iteration);
+    const number = Number.parseInt(closed.iteration.slice(closed.iteration.lastIndexOf('.i') + 2), 10);
+    const assignmentPath = iterationLayout.assignment(closed.workItem, number);
+    const captured = iterationAssignmentSchema.safeParse(bodyAt(this.observe(), assignmentPath));
+    // A correction verifies selected repairs through its gate and source-backed
+    // repair dispositions. A new broad pass needs the architect's concrete reason.
+    const finalCorrection = committedRecords(this.observe().history.lines).workItems.find(item => item.id === closed.workItem)?.origin;
+    if ((assigned?.data.corrects !== undefined || finalCorrection !== undefined && 'finalVerification' in finalCorrection)
+      && captured.success && captured.data.reviewReason === undefined) return [];
     let tree: string;
     try {
       tree = await this.host.candidates.commitTree(this.host.projectRoot, closed.commit);
@@ -118,7 +128,6 @@ export class AfterHandling {
       this.host.warn(`Run ${this.host.identity.jobId}: no review of ${closed.iteration} was requested; the tree of ${closed.commit} could not be read: ${message(error)}`);
       return [];
     }
-    const number = Number.parseInt(closed.iteration.slice(closed.iteration.lastIndexOf('.i') + 2), 10);
     const base = this.host.gates.acceptedBefore(closed.gate);
     const assignment = iterationLayout.assignment(closed.workItem, number);
     // Each question's captured inputs are read before the mutex, as the tree is.
@@ -247,6 +256,9 @@ export class AfterHandling {
       ? engineerSubmissionSchema.safeParse((({ schema: _schema, ...value }) => value)(rawSubmission)) : null;
     const startingPoints = submitted?.success && ['completion-proposed', 'partial'].includes(submitted.data.kind)
       && 'startingPoints' in submitted.data ? submitted.data.startingPoints : undefined;
+    const corrects = assignment.coordination?.kind === 'capability-task'
+      ? this.events('capability-assigned').find(event => event.data.assignment === assignment.id)?.data.corrects
+      : this.events('iteration-assigned').find(event => event.data.iteration === assignment.id)?.data.corrects;
     const result = iterationResultSchema.parse({
       schema: 'ramify-agent.iteration-result/1',
       iteration: assignment.id,
@@ -257,18 +269,17 @@ export class AfterHandling {
       commit: body.commit,
       findings: [...body.findings],
       changedAssumptions: [],
+      ...(this.observe().policy.reviews !== undefined && (corrects !== undefined || 'finalVerification' in item.origin) && assignment.reviewReason === undefined && body.outcome === 'accepted'
+        ? { reviewPolicy: { mode: 'not-run', reason: `Selected correction of ${corrects ?? ('finalVerification' in item.origin ? item.origin.finalVerification : item.id)}; configured gate and relevant repair verification replace another broad review.` } } : {}),
       ...(startingPoints === undefined ? {} : { startingPoints }),
       ...(body.recommendation === undefined ? {} : { recommendation: body.recommendation }),
       artifacts: [],
       ...(body.failure === undefined ? {} : { failure: body.failure }),
     } satisfies IterationResult);
 
-    const data = { workItem: item.id, iteration: assignment.id, outcome: result.outcome, gate: result.gate, commit: result.commit, notices };
+    const data = { workItem: item.id, iteration: assignment.id, outcome: result.outcome, gate: result.gate, commit: result.commit, notices, ...(result.reviewPolicy === undefined ? {} : { reviewPolicy: result.reviewPolicy }) };
     const recordOwner = assignment.coordination?.kind === 'capability-task' ? assignment.coordination.id : item.id;
     const record = { path: iterationLayout.result(recordOwner, number), id: assignment.id, revision: 1, body: result };
-    const corrects = assignment.coordination?.kind === 'capability-task'
-      ? this.events('capability-assigned').find(event => event.data.assignment === assignment.id)?.data.corrects
-      : this.events('iteration-assigned').find(event => event.data.iteration === assignment.id)?.data.corrects;
     if (result.outcome === 'accepted' && result.gate !== null && result.commit !== null && corrects !== undefined) {
       await this.host.closeCorrection(recordOwner, { data, record, corrects, gate: result.gate, commit: result.commit, invocation: body.invocations.at(-1) ?? null });
     } else {

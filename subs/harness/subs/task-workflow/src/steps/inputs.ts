@@ -414,7 +414,7 @@ const reviewFields = {
    */
   briefing: z.object({
     assignment: z.object({ goal: z.string(), approach: z.string(), completionEvidence: z.string(), scopeRationale: z.string(), testAreas: z.array(text) }).strict().nullable(),
-    checkFindings: z.array(z.object({ id: text, standing: text, title: z.string() }).strict()),
+    checkFindings: z.array(z.object({ id: text, standing: text, title: z.string(), decision: z.string().optional(), rationale: z.string().optional() }).strict()),
     package: z.string().optional(),
     planDocument: text.nullable().optional(),
     pendingBindings: z.array(z.object({ path: text, sha256: text, scenario: text, invocation: text, submission: text }).strict()).optional(),

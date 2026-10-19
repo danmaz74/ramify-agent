@@ -58,6 +58,19 @@ describe('non-functional coordinator submissions', () => {
     expect(bindCoordinatorAssessment({ kind: 'assessment', results: [] }, { ...binding, catalog: empty }).ok).toBe(true);
   });
 
+  it('retains satisfied judgments with provenance, requires unresolved follow-up and permits a concrete broader result', () => {
+    const initial = bindCoordinatorAssessment({ kind: 'assessment', results: [results[0], { ...results[1]!, result: 'satisfied' }] }, binding);
+    if (!initial.ok) throw new Error(JSON.stringify(initial.errors));
+    const followUp = { ...binding, previous: initial.value, selected: ['nfr-001'], id: 'nfa-002', phase: 'after-repair' as const };
+    expect(bindCoordinatorAssessment({ kind: 'assessment', results: [] }, followUp).ok).toBe(false);
+    const repaired = { ...results[0]!, result: 'satisfied' };
+    expect(bindCoordinatorAssessment({ kind: 'assessment', results: [repaired] }, followUp)).toMatchObject({ ok: true, value: {
+      followUp: { assessment: 'nfa-001', reviewed: ['nfr-001'] }, results: [repaired, expect.objectContaining({ nfr: 'fix-001', result: 'satisfied' })],
+    } });
+    expect(bindCoordinatorAssessment({ kind: 'assessment', results: [repaired, { ...results[1]!, evidence: ['Repair changed the retry caller.'] }] }, followUp))
+      .toMatchObject({ ok: true, value: { results: [repaired, expect.objectContaining({ nfr: 'fix-001', result: 'not-satisfied' })] } });
+  });
+
   it('permits sequential investigation of unresolved IDs after the first investigation', () => {
     const investigate = { kind: 'investigate', nfrs: ['fix-001'], question: 'Inspect the retry path', scope: ['src/retry.ts'] };
     expect(validateCoordinatorAction(investigate, actionContext({ investigatedNfrs: ['nfr-001'] })).ok).toBe(true);

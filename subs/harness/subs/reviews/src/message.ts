@@ -41,7 +41,7 @@ export interface ReviewBriefing {
   /** The iteration's normalized intent, or null where its record could not be read. */
   readonly assignment: ReviewIntent | null;
   /** The CheckFindings of the work item, open or not, each with its title. */
-  readonly checkFindings: ReadonlyArray<{ readonly id: string; readonly standing: string; readonly title: string }>;
+  readonly checkFindings: ReadonlyArray<{ readonly id: string; readonly standing: string; readonly title: string; readonly decision?: string; readonly rationale?: string }>;
   /** Code and scope: the assignment package the request cites, rendered by the package creator. */
   readonly package?: string | undefined;
   /** Scope: the run's plan document as the candidate holds it, which a concern can name as its ground; null when it holds none. */
@@ -140,7 +140,8 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
   for (const binding of briefing.pendingBindings ?? []) lines.push(`Harness pending-tag binding: ${binding.scenario} in ${binding.path}, exact candidate sha256 ${binding.sha256}, accepted producer ${binding.invocation}, submission ${binding.submission}. This attribution supplies provenance; review the actual audited patch.`, '');
   if (briefing.checkFindings.length > 0) {
     lines.push('## CheckFindings this work item already holds', '');
-    for (const entry of briefing.checkFindings) lines.push(`- ${entry.id} (${entry.standing}): ${entry.title}`);
+    lines.push('Avoid repeating unchanged issues. Explain meaningful changed circumstances when raising an existing issue again. This bounded summary retains dispositions and rationales; full records remain available on demand.', '');
+    for (const entry of briefing.checkFindings) lines.push(`- ${entry.id} (${entry.standing}): ${entry.title}; decision: ${entry.decision ?? 'undecided'}; rationale: ${entry.rationale ?? 'none'}`);
     lines.push('');
   }
   lines.push('Choose relevant inspection using snapshot tools or shell on the pinned candidate. Do not edit source. Submit conclusions and meaningful limitations; unread files do not automatically block a supported assessment. No exhaustive inspected/missing inventory is required.');

@@ -49,6 +49,8 @@ export const reviewCoverageSchema = z.discriminatedUnion('state', [
     partial: count,
     notVerified: count,
     pending: count,
+    /** Accepted corrections whose broad review was deliberately omitted. */
+    notRun: count.optional(),
   }).strict(),
   z.object({ state: z.literal('unavailable'), reason: z.enum(['no-review-policy', 'records-unreadable']) }).strict(),
 ]);

@@ -30,6 +30,9 @@ export interface AssessmentBinding {
   readonly round: number;
   readonly phase: Assessment['phase'];
   readonly coordinatorInvocation: string;
+  /** A focused follow-up retains earlier satisfied judgments; unresolved elements must be answered. */
+  readonly previous?: Assessment;
+  readonly selected?: readonly string[];
 }
 
 /** The elements assessment covers: every non-functional requirement of the plan and every fixed requirement, never a recommendation. */
@@ -48,10 +51,21 @@ export function bindCoordinatorAssessment(input: unknown, binding: AssessmentBin
   const record = assessmentSchema.safeParse({
     schema: 'ramify-agent.nonfunctional-assessment/1', id: binding.id, candidate: binding.candidate,
     round: binding.round, phase: binding.phase, coordinatorInvocation: binding.coordinatorInvocation,
-    results: shape.value.results,
+    results: binding.previous === undefined ? shape.value.results : [
+      ...binding.previous.results.filter(result => result.result === 'satisfied'
+        && !shape.value.results.some(answer => answer.nfr === result.nfr)),
+      ...shape.value.results,
+    ].sort((left, right) => assessedElements(binding.catalog).indexOf(left.nfr) - assessedElements(binding.catalog).indexOf(right.nfr)),
+    ...(binding.previous === undefined ? {} : { followUp: { assessment: binding.previous.id,
+      reviewed: shape.value.results.map(result => result.nfr) } }),
   });
   if (!record.success) {
     errors.push(...record.error.issues.map(issue => ({ path: issue.path.map(String).join('.') || '(root)', message: issue.message })));
+  }
+  if (binding.previous !== undefined) {
+    const required = new Set([...(binding.selected ?? []), ...binding.previous.results.filter(result => result.result !== 'satisfied').map(result => result.nfr)]);
+    for (const nfr of required) if (!shape.value.results.some(result => result.nfr === nfr))
+      errors.push({ path: 'results', message: `missing follow-up ${nfr}` });
   }
   if (record.success) {
     errors.push(...assessmentCoverage(record.data, assessedElements(binding.catalog)).map(message => ({ path: 'results', message })));

@@ -472,6 +472,7 @@ export const runEventSchema = z.discriminatedUnion('type', [
     gate: z.string().nullable(),
     commit: z.string().nullable(),
     notices: z.array(moduleNoticeSchema),
+    reviewPolicy: z.object({ mode: z.literal('not-run'), reason: text }).strict().optional(),
     checkFindings: checkFindingEventsField.optional(),
   }).strict()),
   /** Cleanup follows durable closure; recovery repeats it if interrupted. */

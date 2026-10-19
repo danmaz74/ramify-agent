@@ -161,6 +161,7 @@ export async function iterationAssignmentOf(projectRoot: string, input: {
     ...(source === undefined ? {} : { source }),
     externalCapabilities: externalCapabilities ?? body.externalCapabilities,
     completionEvidence: body.completionEvidence, evidenceObligations,
+    ...(body.reviewReason === undefined ? {} : { reviewReason: body.reviewReason }),
     gate: { checkpoint: checkpointOf(body.kind), tests: testPolicyOf(body.kind, scope.base, evidenceObligations, scope.extra, scope.resolved.included) },
     guarded: await captureGuardedFiles(projectRoot, guardedPaths, guarding.scenarioFiles, [...guarding.preparationPaths, ...scopeConfigurationPaths(scope)]),
     authorizations,

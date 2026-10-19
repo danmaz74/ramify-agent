@@ -780,6 +780,42 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(result.outcome.repairs.join(' ')).toContain('Material behavior 20 is incorrect');
   });
 
+  it('finishes final repair through focused follow-up while retaining the complete plan on demand', async () => {
+    const messages: string[] = [];
+    const plan = '# Plan\nThe feature returns 2.\nKeep the unchanged dependency.\n';
+    const { service, job } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        messages.push(input.prepared.message);
+        const report = reviewReport(input.candidate);
+        if (input.candidate === first) report.requirements = report.requirements.map(answer => ({ ...answer,
+          outcome: 'unmet', explanation: 'The feature still returns 1.' }));
+        else {
+          const retained = await input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!.execute({ ref: 'captured-plan' }, new AbortController().signal);
+          expect(JSON.parse(retained.text).content).toContain(plan.trim());
+        }
+        return { status: 'submitted', value: report, operationId: input.operationId, sessionId: 'final-review', eventCount: 1 };
+      },
+    }, plan);
+    const final = async (candidate: string, commandId: string, previousAssessment?: string) => {
+      const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: first, candidate,
+        kind: 'final', brief: 'Complete the plan.', acceptance: ['The feature returns 2.'], requirementDocuments: [],
+        planBaseline: baseline, commandId, ...(previousAssessment === undefined ? {} : { previousAssessment }) });
+      return { id: admitted.assessmentId, result: await outcome(service, job.jobId, admitted.assessmentId) };
+    };
+    const initial = await final(first, 'final-initial');
+    expect(initial.result.gate).toBe('action-required');
+    const repairedFinal = await final(repaired, 'final-repair', initial.id);
+    expect(repairedFinal.result.gate).toBe('clear');
+    expect(messages[0]).toContain(plan.trim());
+    expect(messages[1]).not.toContain(plan.trim());
+    expect(messages[1]).toContain('Do not restart the whole catalog by default.');
+    expect(messages[1]).toContain('The feature still returns 1.');
+    expect(service.assessmentDetail('sample', job.jobId, repairedFinal.id).stages.find(stage => stage.name === 'review-policy')?.evidence)
+      .toMatchObject({ mode: 'focused-follow-up', previousAssessment: initial.id });
+  });
+
   it('uses the original plan baseline for final diff and freshly reads an unchanged dependency', async () => {
     const reviewBases: string[] = [], dependencyReads: string[] = [];
     const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),

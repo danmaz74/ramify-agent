@@ -29,6 +29,8 @@ export const assessmentSchema = z.object({
   phase: z.enum(['initial', 'after-repair']),
   coordinatorInvocation: text,
   results: z.array(assessmentResultSchema),
+  /** Results omitted from reviewed retain the named assessment's judgment and evidence. */
+  followUp: z.object({ assessment: text, reviewed: z.array(nfrId) }).strict().optional(),
 }).strict();
 export type Assessment = z.infer<typeof assessmentSchema>;
 
