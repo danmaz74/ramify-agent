@@ -410,13 +410,14 @@ export class AssistanceService {
         cleanup();
         resolveWait({ ...status, reason });
       };
-      const observe = () => {
+      const observe = (deadline = false) => {
         const status = this.assessmentStatus(planId, jobId, assessmentId);
         if (status.status !== 'queued' && status.status !== 'running') finish('settled', status);
         else if (afterRevision !== undefined && status.revision > afterRevision) finish('changed', status);
+        else if (deadline) finish('timeout', status);
       };
       const abort = () => { cleanup(); reject(observationSignal.reason); };
-      const timer = setTimeout(() => finish('timeout', this.assessmentStatus(planId, jobId, assessmentId)), timeoutMs);
+      const timer = setTimeout(() => observe(true), timeoutMs);
       this.assessmentObservers.set(key, observers);
       observers.add(observe);
       observationSignal.addEventListener('abort', abort, { once: true });

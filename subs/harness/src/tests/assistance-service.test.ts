@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AssistanceService } from '../assistance/service.js';
+import { AssistedStore } from '../assistance/store.js';
 import { assistedAssessmentSchema, type AssistanceOptions, type AssistedProtection, type Assessor } from '../assistance/contracts.js';
 import { reportCommand } from '../check-findings/report.js';
 import { concern } from './helpers/check-findings.js';
@@ -486,6 +487,28 @@ describe('blocking assessment observation', () => {
     await expect(service.assessmentWait(...ids, {}, controller.signal)).rejects.toThrow('Stop observing');
     release();
     expect(await other).toMatchObject({ reason: 'settled', status: 'completed' });
+  });
+
+  it('prefers committed completion when the deadline precedes its notification', async () => {
+    const { service, ids, release } = await waitingAssessment();
+    let committed!: () => void;
+    const completionCommitted = new Promise<void>(resolve => { committed = resolve; });
+    let notify!: () => void;
+    const notification = new Promise<void>(resolve => { notify = resolve; });
+    const record = AssistedStore.prototype.record;
+    const delayed = vi.spyOn(AssistedStore.prototype, 'record').mockImplementation(async function (this: AssistedStore, ...args) {
+      await record.apply(this, args);
+      if (args[1]?.status === 'completed') { committed(); await notification; }
+    });
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      const waiting = service.assessmentWait(...ids);
+      release();
+      await completionCommitted;
+      await vi.advanceTimersByTimeAsync(900_000);
+      expect(await waiting).toMatchObject({ reason: 'settled', status: 'completed' });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { notify(); delayed.mockRestore(); vi.useRealTimers(); }
   });
 
   it('wakes on explicit assessment cancellation', async () => {
