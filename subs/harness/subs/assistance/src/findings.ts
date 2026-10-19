@@ -153,3 +153,5 @@ export function authorizedProtectionFinding(entry: Pick<import('../../check-find
   return verification.kind === 'check' && verification.producer === 'check:protection'
     && protection.changes.some(change => change.authorizedBy !== null && verification.obligation.subject === `protected:${change.path}`);
 }
+
+export { knownFindingSummary } from '../../check-findings/src/queries.js';

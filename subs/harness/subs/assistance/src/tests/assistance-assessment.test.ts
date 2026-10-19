@@ -554,6 +554,69 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(service.findings('sample', job.jobId)[0]?.pendingUserDecision).toBeNull();
   });
 
+  it('lets the coordinator continue unavailable advisory review while preserving its stage', async () => {
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => ({ status: 'incomplete', reason: 'Provider unavailable', operationId: input.operationId, eventCount: 1 }),
+    });
+    const initial = await assess(first, baseline, 'unavailable');
+    expect(initial.outcome.gate).toBe('incomplete');
+    await service.reviewContinue({ planId: 'sample', jobId: job.jobId, assessmentId: initial.id,
+      rationale: 'Configured checks and engineer evidence suffice for this advisory assessment.', commandId: 'continue-advisory' });
+    expect(service.assessmentResult('sample', job.jobId, initial.id)?.gate).toBe('clear');
+    expect(service.assessmentDetail('sample', job.jobId, initial.id).stages.find(stage => stage.name === 'review')?.evidence).toMatchObject({ result: { status: 'incomplete' } });
+    expect(service.assessmentDetail('sample', job.jobId, initial.id).coordinatorDecisions).toEqual([{ commandId: 'continue-advisory', rationale: 'Configured checks and engineer evidence suffice for this advisory assessment.' }]);
+  });
+
+  it('retains actual unmet acceptance when a coordinator leaves a discretionary concern', async () => {
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => ({ status: 'submitted', value: reviewReport(input.candidate, true), operationId: input.operationId, sessionId: 'script', eventCount: 1 }),
+      reconcile: async input => ({ status: 'incomplete', reason: 'Unavailable advisory reconciliation', operationId: input.operationId, eventCount: 1 }),
+    });
+    const initial = await assess(first, baseline, 'unmet');
+    await service.findingDecide({ planId: 'sample', jobId: job.jobId, assessmentId: initial.id, checkFinding: 'cf-0001', action: 'leave', rationale: 'Do not pursue suggestion.', commandId: 'leave-suggestion' });
+    await service.reviewContinue({ planId: 'sample', jobId: job.jobId, assessmentId: initial.id, rationale: 'Coordinator selects remaining acceptance repair.', commandId: 'continue-reconciliation' });
+    const effective = service.assessmentResult('sample', job.jobId, initial.id)!;
+    expect(effective.gate).toBe('action-required');
+    expect(effective.repairs.join(' ')).toContain('acceptance-1');
+  });
+
+  it.each(['leave', 'defer'] as const)('records coordinator %s and verifies a correction without repeating broad review', async action => {
+    const review = vi.fn(async (input: Parameters<NonNullable<AssessmentDependencies['review']>>[0]) => {
+      const value = input.prepared.message.includes('Optional readability work is outside useful scope.') ? reviewReport(input.candidate) : { ...reviewReport(input.candidate), concerns: [{ ...reviewReport(input.candidate, true).concerns[0]!,
+        summary: 'Optional improvement', consequence: 'Could improve readability' }] };
+      return { status: 'submitted' as const, value, operationId: input.operationId, sessionId: 'script', eventCount: 1 };
+    });
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, { operations: unusedOperations, audit: async input => audit(input.candidateCommit), review,
+      reconcile: async input => {
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0001', rationale: 'Coordinator can select useful work.',
+          communication: { mode: 'quiet' }, action: { action: 'repair' } }], next: { kind: 'correct', goal: 'Consider suggestion.' }, brief: 'Suggestion retained.' });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'script', eventCount: 1 };
+      } });
+    const initial = await assess(first, baseline, 'initial');
+    expect(initial.outcome.gate).toBe('action-required');
+    const request = { planId: 'sample', jobId: job.jobId, assessmentId: initial.id, checkFinding: 'cf-0001', action,
+      rationale: 'Optional readability work is outside useful scope.', commandId: 'ordinary-decision' };
+    const receipt = await service.findingDecide(request);
+    expect(await service.findingDecide(request)).toEqual(receipt);
+    expect(service.assessmentResult('sample', job.jobId, initial.id)?.gate).toBe('clear');
+    expect(service.findings('sample', job.jobId)[0]!.decisions.at(-1)?.actor.kind).toBe('agent');
+    const verified = await assess(repaired, first, 'verify', { previousAssessment: initial.id });
+    expect(verified.outcome.gate).toBe('clear');
+    expect(review).toHaveBeenCalledTimes(1);
+    expect(service.assessmentDetail('sample', job.jobId, verified.id).stages.find(stage => stage.name === 'review-policy')?.evidence).toMatchObject({ mode: 'not-run' });
+    const extra = await assess(repaired, first, 'purposeful', { previousAssessment: verified.id, reviewReason: 'Inspect substantial new behavior.' });
+    expect(review).toHaveBeenCalledTimes(2);
+    expect(service.assessmentDetail('sample', job.jobId, extra.id).stages.find(stage => stage.name === 'review-policy')?.evidence).toMatchObject({ mode: 'broad', reason: 'Inspect substantial new behavior.' });
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot }); services.push(reopened);
+    expect(await reopened.findingDecide(request)).toEqual(receipt);
+    expect(reopened.findings('sample', job.jobId)[0]!.decisions.some(decision => decision.rationale === request.rationale)).toBe(true);
+  });
+
   it('keeps an audit failure and original-baseline protected edit actionable across a later candidate', async () => {
     const contract = 'docs/contract.spec.md';
     const changed = { ...source('1', baseline), files: { ...source('1', baseline).files, [contract]: 'weakened\n' },
@@ -580,14 +643,15 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(b.outcome.repairs.join(' ')).not.toContain('configured audit failed');
   });
 
-  it('returns incomplete with a required review gap while retaining a material audit repair', async () => {
+  it('returns failed configured checks directly without semantic review or reconciliation', async () => {
     const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit, 'failed'),
-      review: async input => ({ status: 'incomplete', reason: 'Pi stopped before a valid report', operationId: input.operationId, eventCount: 1 }),
+      review: async () => { throw new Error('Semantic review must not run after failed audit'); },
+      reconcile: async () => { throw new Error('Reconciliation must not run after failed audit'); },
     });
     const result = await assess(first, baseline, 'assess-missing');
-    expect(result.outcome.gate).toBe('incomplete');
-    expect(result.outcome.gaps.join(' ')).toContain('Required review unavailable');
+    expect(result.outcome.gate).toBe('action-required');
+    expect(result.outcome.gaps).toEqual([]);
     expect(result.outcome.repairs.join(' ')).toContain('configured audit failed');
   });
 

@@ -71,3 +71,42 @@ or unavailable supplemental files do not automatically make an assessment
 incomplete or create required repairs. A reviewer may identify an actual required
 obligation as unmet or uncertain; those judgments and failed required checks retain
 their existing outcomes. Full reports and limitations remain in stage evidence.
+
+## Coordinator decisions and iteration follow-up
+
+An iteration defaults to one broad review. Its corrections use the previous
+assessment (explicit `previous_assessment`, or the latest completed assessment of
+the same recorded iteration). Follow-up inspects selected repairs and relevant
+surrounding behavior. If prior acceptance was met and no open findings or protected
+conflicts remain, passing configured checks can finish a correction without another
+semantic invocation. Otherwise the reviewer receives a focused follow-up brief.
+A nonempty `review_reason` explicitly requests another broad review and records why.
+`review-policy` stage evidence records broad, focused-follow-up or not-run work;
+not-run work is never represented as a completed review. Final assessment retains
+its complete-plan question.
+
+A failed configured audit returns its diagnostic evidence after factual finding
+and protection ingestion. It does not invoke semantic review or reconciliation.
+Audit and protection stages and the deliberately unrun review remain visible.
+
+`finding_decide(plan_id, job_id, assessment_id, check_finding, action, rationale,
+command_id)` records ordinary coordinator judgment after assessment completion.
+Actions `fix`, `leave` and `defer` use existing repair-intent, waiver and deferral
+records. The actor is the assisted coordinator, never an invented user answer.
+A short rationale suffices. Decisions and command receipts survive reload.
+Required check findings and pending user authority cannot use this command.
+Independent unmet or uncertain acceptance answers remain effective even when a
+discretionary suggestion is left or deferred. `assessment_result` projects the
+remaining finding actions; original assessment evidence stays unchanged.
+
+Reviewer context includes at most 20 recent findings with bounded titles,
+dispositions and rationales. Reviewers avoid repeating unchanged issues and explain
+meaningful changed circumstances if raising one again. Full existing finding
+records remain authoritative; no additional ledger or issue matcher is introduced.
+
+`review_continue(plan_id, job_id, assessment_id, rationale, command_id)` records the
+coordinator's decision to continue when an advisory review or reconciliation is
+unavailable. It cannot bypass running work, failed configured checks, protected
+changes, substantive unmet requirements or other evidence gaps. Retained stages
+still show the unavailable invocation; the effective result removes only its
+availability gap. This is ordinary coordinator authority, not user approval.

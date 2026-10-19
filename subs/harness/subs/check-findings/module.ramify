@@ -10,4 +10,4 @@ module check-findings
 expose-src * from "interfaces/check-findings.ts" to parent
 expose-src decideCheckFindingChange from "decide.ts" to parent
 expose-src applyCheckFindingEvent, replayCheckFindingEvents, emptyCheckFindingState from "replay.ts" to parent
-expose-src selectCheckFindings from "queries.ts" to parent
+expose-src selectCheckFindings, knownFindingSummary from "queries.ts" to parent

@@ -17,6 +17,7 @@ export const assistedEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('assessment-requested'), command: acceptedCommandSchema, assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('assessment-transition'), assessment: assistedAssessmentSchema }).strict(),
   z.object({ type: z.literal('findings-recorded'), assessmentId: z.string(), key: z.string().min(1).optional(), hash: z.string().optional(), checkFindings: checkFindingEventsField }).strict(),
+  z.object({ type: z.literal('coordinator-decision-recorded'), assessmentId: z.string(), reviewRationale: z.string().optional(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
   z.object({ type: z.literal('finding-answer-recorded'), assessmentId: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField }).strict(),
   z.object({ type: z.literal('protection-accepted'), assessmentId: z.string(), path: z.string(), command: acceptedCommandSchema, checkFindings: checkFindingEventsField, finalization: approvalFinalizationSchema.nullable().optional() }).strict(),
 ]);

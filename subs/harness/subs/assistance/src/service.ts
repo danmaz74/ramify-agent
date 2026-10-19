@@ -116,7 +116,7 @@ export class AssistanceService {
       this.stores.set(this.key(planId, jobId), store);
       for (const line of store.ledger.replay()) {
         const event = line.transaction.event;
-        if (event.type === 'assisted-started' || event.type === 'iteration-started' || event.type === 'assessment-requested' || event.type === 'finding-answer-recorded' || event.type === 'protection-accepted') this.commands.remember(event.command);
+        if (event.type === 'assisted-started' || event.type === 'iteration-started' || event.type === 'assessment-requested' || event.type === 'finding-answer-recorded' || event.type === 'coordinator-decision-recorded' || event.type === 'protection-accepted') this.commands.remember(event.command);
       }
       for (const assessment of store.assessments()) {
         if (assessment.status === 'queued' || assessment.status === 'running') {
@@ -215,6 +215,7 @@ export class AssistanceService {
           kind: 'iteration', base: iteration.base, candidate: request.candidate, brief: iteration.brief,
           acceptance: request.acceptance, requirementDocuments: request.requirementDocuments,
           ...(request.previousAssessment === undefined ? {} : { previousAssessment: request.previousAssessment }),
+          ...(request.reviewReason === undefined ? {} : { reviewReason: request.reviewReason }),
         }, command, { iterationId: iteration.id, focusModule: iteration.focusModule,
           ...(request.additionalContext === undefined ? {} : { additionalContext: request.additionalContext }) });
       }
@@ -350,7 +351,7 @@ export class AssistanceService {
   }
 
   private findingState(store: AssistedStore): CheckFindingState {
-    const events = store.ledger.replay().flatMap(line => line.transaction.event.type === 'findings-recorded' || line.transaction.event.type === 'finding-answer-recorded' || line.transaction.event.type === 'protection-accepted'
+    const events = store.ledger.replay().flatMap(line => line.transaction.event.type === 'coordinator-decision-recorded' || line.transaction.event.type === 'findings-recorded' || line.transaction.event.type === 'finding-answer-recorded' || line.transaction.event.type === 'protection-accepted'
       ? line.transaction.event.checkFindings : []);
     const replayed = replayCheckFindingEvents(events);
     if (!replayed.ok) throw new Error(`Assisted findings do not replay: ${replayed.rejection.message}`);
@@ -429,13 +430,45 @@ export class AssistanceService {
   assessmentResult(planId: string, jobId: string, assessmentId: string): (AssistedOutcome & { completedAt?: string; finalization?: ApprovalFinalization }) | null {
     const assessment = this.requireAssessment(planId, jobId, assessmentId);
     const finalization = this.finalizations(this.requireStore(planId, jobId), assessmentId).at(-1);
-    return assessment.outcome === null ? null : { ...(finalization?.outcome ?? assessment.outcome), ...(finalization === undefined ? {} : { finalization }), ...(assessment.completedAt === undefined ? {} : { completedAt: assessment.completedAt }) };
+    const held = finalization?.outcome ?? assessment.outcome;
+    const store = this.requireStore(planId, jobId);
+    const decisions = store.ledger.replay().some(line => line.transaction.event.type === 'coordinator-decision-recorded' && line.transaction.event.assessmentId === assessmentId);
+    let effective = held;
+    if (held && decisions) {
+      const state = this.findingState(store);
+      // Reproject only these retained briefs. Later candidates cannot erase a
+      // failed required check or introduce new issues into this historical result.
+      const selectedAway = (text: string) => {
+        const prefix = text.slice(0, text.indexOf(':'));
+        const ids = prefix.split(', ');
+        return ids.length > 0 && ids.every(id => {
+          const entry = state.findings.get(id);
+          const decision = entry?.decisions.find(item => item.id === entry.settledBy);
+          return entry?.verification.kind === 'assessment' && entry.standing !== 'open'
+            && decision?.actor.kind === 'agent' && decision.actor.role === 'assisted-coordinator'
+            && (decision.decision.action === 'waive' || decision.decision.action === 'defer');
+        });
+      };
+      const repairs = held.repairs.filter(text => !selectedAway(text));
+      const pending = held.decisions.filter(text => !selectedAway(text));
+      const continued = store.ledger.replay().some(line => line.transaction.event.type === 'coordinator-decision-recorded' && line.transaction.event.assessmentId === assessmentId && line.transaction.event.reviewRationale);
+      const gaps = continued ? held.gaps.filter(gap => !/^(Required review|Reconciliation) unavailable:/u.test(gap)) : held.gaps;
+      effective = { ...held, repairs, decisions: pending, gaps,
+        gate: gaps.length ? 'incomplete' : repairs.length || pending.length ? 'action-required' : 'clear',
+        summary: 'Assessment with recorded coordinator finding decisions.' };
+    }
+    return effective === null ? null : { ...effective, ...(finalization === undefined ? {} : { finalization }), ...(assessment.completedAt === undefined ? {} : { completedAt: assessment.completedAt }) };
   }
 
-  assessmentDetail(planId: string, jobId: string, assessmentId: string): AssistedAssessment & { finalizations?: ApprovalFinalization[] } {
+  assessmentDetail(planId: string, jobId: string, assessmentId: string): AssistedAssessment & { finalizations?: ApprovalFinalization[]; coordinatorDecisions?: Array<{ commandId: string; rationale: string }> } {
     const assessment = this.requireAssessment(planId, jobId, assessmentId);
     const finalizations = this.finalizations(this.requireStore(planId, jobId), assessmentId);
-    return finalizations.length ? { ...assessment, finalizations } : assessment;
+    const coordinatorDecisions = this.requireStore(planId, jobId).ledger.replay().flatMap(line => {
+      const event = line.transaction.event;
+      return event.type === 'coordinator-decision-recorded' && event.assessmentId === assessmentId && event.reviewRationale
+        ? [{ commandId: event.command.commandId, rationale: event.reviewRationale }] : [];
+    });
+    return { ...assessment, ...(finalizations.length ? { finalizations } : {}), ...(coordinatorDecisions.length ? { coordinatorDecisions } : {}) };
   }
 
   private finalizations(store: AssistedStore, assessmentId: string): ApprovalFinalization[] {
@@ -473,6 +506,58 @@ export class AssistanceService {
     }) };
   }
   findings(planId: string, jobId: string): CheckFindingEntry[] { return [...this.findingState(this.requireStore(planId, jobId)).findings.values()]; }
+
+  async reviewContinue(input: { planId: string; jobId: string; assessmentId: string; rationale: string; commandId: string }) {
+    const request = z.object({ planId: planIdSchema, jobId: jobIdSchema, assessmentId: z.string(),
+      rationale: z.string().trim().min(1).max(4000), commandId: commandIdSchema }).strict().parse(input);
+    return this.write(async () => {
+      const store = this.requireStore(request.planId, request.jobId);
+      const assessment = this.requireAssessment(request.planId, request.jobId, request.assessmentId);
+      const command = { ...request, type: 'review-continue', expectedVersion: 0 };
+      const admitted = this.commands.admit(command);
+      if (admitted.kind === 'repeat') return admitted.receipt;
+      if (assessment.status !== 'completed') throw new CommandRejection('conflict', 'Running review cannot be bypassed');
+      if (!assessment.outcome?.gaps.some(gap => /^(Required review|Reconciliation) unavailable:/u.test(gap)))
+        throw new CommandRejection('invalid-request', 'No unavailable advisory review awaits a coordinator decision');
+      const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
+      await store.record({ type: 'coordinator-decision-recorded', assessmentId: assessment.id,
+        reviewRationale: request.rationale, command: accepted, checkFindings: [] });
+      this.commands.remember(accepted);
+      return accepted.receipt;
+    });
+  }
+
+  /** Ordinary coordinator judgment, recorded as an agent rather than user authority. */
+  async findingDecide(input: { planId: string; jobId: string; assessmentId: string; checkFinding: string;
+    action: 'fix' | 'leave' | 'defer'; rationale: string; commandId: string }) {
+    const request = z.object({ planId: planIdSchema, jobId: jobIdSchema, assessmentId: z.string(), checkFinding: z.string(),
+      action: z.enum(['fix', 'leave', 'defer']), rationale: z.string().trim().min(1).max(4000), commandId: commandIdSchema }).strict().parse(input);
+    return this.write(async () => {
+      const store = this.requireStore(request.planId, request.jobId);
+      const assessment = this.requireAssessment(request.planId, request.jobId, request.assessmentId);
+      const command = { ...request, type: 'finding-decide', expectedVersion: 0 };
+      const admitted = this.commands.admit(command);
+      if (admitted.kind === 'repeat') return admitted.receipt;
+      if (assessment.status !== 'completed') throw new CommandRejection('conflict', 'Wait for assessment completion before deciding findings');
+      const entry = this.findingState(store).findings.get(request.checkFinding);
+      if (!entry) throw new CommandRejection('not-found', 'Finding does not belong to this execution');
+      if (entry.pendingUserDecision !== null || entry.verification.kind !== 'assessment')
+        throw new CommandRejection('invalid-request', 'Required checks and pending user authority cannot be disposed as discretionary suggestions');
+      const authority = { kind: 'work-item-assessment' as const, ref: assessment.id };
+      const findingCommand: CheckFindingCommand = { type: 'dispose', checkFinding: entry.id, expectedRevision: entry.revision,
+        decision: { actor: { kind: 'agent', role: 'assisted-coordinator', invocation: request.commandId }, source: entry.reports.at(-1)!.source,
+          rationale: request.rationale, evidence: [{ kind: 'coordinator-decision', ref: request.commandId, hash: null }], communication: { mode: 'quiet' },
+          decision: request.action === 'fix' ? { action: 'plan-repair', repair: { kind: 'intent', ref: request.commandId } }
+            : request.action === 'leave' ? { action: 'waive', authority, acceptedRisk: entry.risk, uncertainty: request.rationale }
+            : { action: 'defer', authority, responsible: { kind: 'run' }, revisit: { kind: 'condition', condition: request.rationale } } } };
+      const result = decideCheckFindingChange(this.findingState(store), findingCommand);
+      if (!result.ok) throw new CommandRejection('conflict', result.rejection.message);
+      const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
+      await store.record({ type: 'coordinator-decision-recorded', assessmentId: assessment.id, command: accepted, checkFindings: [...result.events] });
+      this.commands.remember(accepted);
+      return accepted.receipt;
+    });
+  }
 
   /** Persist an existing user's answer to an offered choice; it never edits source or waives a check. */
   async findingAnswer(input: FindingAnswerRequest): Promise<{ checkFinding: string; request: string; option: string; receipt: { commandId: string; jobId: string; sequence: number; acceptedAt: string } }> {
@@ -587,7 +672,8 @@ export class AssistanceService {
       const priorEvents = store.ledger.replay().flatMap(line => 'checkFindings' in line.transaction.event ? line.transaction.event.checkFindings : []);
       const prospective = replayCheckFindingEvents([...priorEvents, ...decided.transaction.event.checkFindings]);
       if (!prospective.ok) throw new Error(prospective.rejection.message);
-      const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: prospective.state, commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt });
+      const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: prospective.state, commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt,
+        reviewContinued: store.ledger.replay().some(line => line.transaction.event.type === 'coordinator-decision-recorded' && line.transaction.event.assessmentId === assessment.id && Boolean(line.transaction.event.reviewRationale)) });
       await store.ledger.append({ ...decided.transaction, event: { ...decided.transaction.event, finalization } });
       this.commands.remember(accepted);
       return { ...(finalization ? { finalization } : {}), path: request.path, checkFinding: entry.id, request: requested.data.decision.id, option: 'accept-exact-change', receipt: accepted.receipt };

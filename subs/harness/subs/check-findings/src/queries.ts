@@ -194,3 +194,11 @@ function countsOf(entries: readonly CheckFindingEntry[]): CheckFindingCounts {
   }
   return { total: entries.length, standings, reasons };
 }
+
+/** Bounded context for ordinary reviewers; existing records remain authoritative. */
+export function knownFindingSummary(state: import('./interfaces/check-findings.js').CheckFindingState) {
+  return [...state.findings.values()].slice(-20).map(entry => ({ id: entry.id,
+    title: entry.reports.at(-1)?.observation.summary.slice(0, 500) ?? entry.id, standing: entry.standing,
+    decision: entry.decisions.at(-1)?.decision.action ?? 'undecided',
+    rationale: entry.decisions.at(-1)?.rationale.slice(0, 700) ?? '' }));
+}

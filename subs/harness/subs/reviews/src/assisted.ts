@@ -41,7 +41,7 @@ export interface AssistedReviewBriefing {
   readonly requirements: readonly AssistedRequirement[];
   readonly principles: readonly { readonly path: string; readonly note: string }[];
   readonly protectionPaths?: readonly string[];
-  readonly previousFindings?: readonly { readonly id: string; readonly title: string; readonly standing: string }[];
+  readonly previousFindings?: readonly { readonly id: string; readonly title: string; readonly standing: string; readonly decision?: string; readonly rationale?: string }[];
 }
 
 /** The assisted caller supplies facts; preparation never fabricates a work item or passing gate. */
@@ -63,7 +63,7 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
     diffPayload, '',
     'Review code behavior, tests, consumers, intended scope and design together. Scope means intended outcomes, missing behavior and unjustified unrelated work; module boundaries do not restrict edits. Inspect relevant source with the supplied candidate tools, including shell. Do not edit source. Assess interface, ownership, dependency, protocol and principle-sensitive consequences in design.assessment. Set design.needed when these changes warrant deliberate design attention and explain why; the combined assessment still answers them. Put minor observations and nits in assessment prose, not actionable concerns. If more than 20 material concerns remain, submit the first 20 and state the unfinished coverage in coverageGap; never silently truncate. Answer the supplied acceptance references; choose inspection by relevance. Unread files are not automatically evidence gaps. Report meaningful limitations in assessment prose or limitations.',
   ];
-  if (input.previousFindings?.length) lines.push('', '## Earlier findings', '', ...input.previousFindings.map(item => `- ${item.id} (${item.standing}): ${item.title}`));
+  if (input.previousFindings?.length) lines.push('', '## Earlier findings', '', 'Avoid repeating unchanged issues. Explain meaningful changed circumstances when raising an existing issue again. At most 20 recent findings are summarized; retained records remain available on demand.', '', ...input.previousFindings.map(item => `- ${item.id} (${item.standing}): ${item.title}; decision: ${item.decision ?? 'undecided'}; rationale: ${item.rationale ?? 'none'}`));
   return lines.join('\n');
 }
 

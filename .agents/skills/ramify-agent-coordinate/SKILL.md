@@ -69,3 +69,29 @@ Use `finding_list` for pending choices. `finding_answer` records an actual autho
 On reconnect, recover the same job and assessment IDs. An interrupted assessment can use `assessment_resume` to reuse retained stages. A completed `incomplete` result needs its gap addressed and a new assessment. Cancel only work no longer wanted or explicitly requested to stop; do not edit RA's durable records manually.
 
 When all plan outcomes are implemented, separately call `iteration_assess` with `kind: "final"`, the registered IDs, exact `base` and `candidate`, a whole-plan `brief`, `acceptance` and a fresh `command_id` and `plan_baseline` equal to the original registered baseline. Keep this cumulative assessment separate from the native iteration record; its comparison uses the original registered plan baseline. A local iteration pass does not replace cumulative review. Report the final gate, candidate and remaining limitations. Publishing, merging and tracker synchronization retain their own authorization requirements.
+
+### Useful review decisions
+
+Default to one broad review of a coherent iteration. Repairs keep its iteration
+ID and previous assessment. RA verifies selected repairs and relevant surrounding
+behavior; do not request another broad pass merely because a candidate changed.
+Supply `review_reason` only for a concrete useful reason, such as substantial new
+behavior. Read `review-policy` stage evidence when the distinction matters.
+
+Use `finding_decide` with `action: "fix"`, `"leave"` or `"defer"` and a short
+`rationale` for discretionary concerns. This records coordinator judgment rather
+than user approval. Read the effective result afterward; unmet requirements and
+required checks still need repair. A failed configured audit returns diagnostics
+directly without semantic review; send those diagnostics to the engineer.
+
+An unavailable advisory review calls for ordinary judgment. Investigate useful
+missing evidence or record `review_continue` with a rationale when continuing is
+appropriate. Never use it to stop a running review. Keep the unavailable stage
+visible and preserve concrete unmet requirements and other gaps.
+
+When the only remaining conditions are exact protected-document authorizations
+intentionally held for final approval, continue independent and dependent planned
+engineering using the completed substantive assessment. Protection remains open:
+finish the plan assessment, show the concrete cumulative protected diffs, and seek
+actual user authority as the final step. Never fabricate a user answer to advance
+ordinary work.

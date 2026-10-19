@@ -34,7 +34,7 @@ export function approvalReadiness(input: { assessment: AssistedAssessment; job: 
 
 /** A recorded choice resolves only typed authority dependencies of this exact reviewed candidate. */
 export function finalizeApproval(input: { assessment: AssistedAssessment; job: AssistedJob; assessments: readonly AssistedAssessment[];
-  state: CheckFindingState; commandId: string; finalizedAt: string }): ApprovalFinalization | null {
+  state: CheckFindingState; commandId: string; finalizedAt: string; reviewContinued?: boolean }): ApprovalFinalization | null {
   const { assessment, job, state } = input;
   const parsed = readinessSchema.safeParse(assessment.stages.find(stage => stage.name === 'approval-readiness')?.evidence);
   if (assessment.status !== 'completed' || !assessment.outcome || !parsed.success) return null;
@@ -48,23 +48,26 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
   } | undefined;
   const heldProtection = assessment.stages.find(stage => stage.name === 'protection')?.evidence as ProtectionComparison | undefined;
   if (audit?.state !== 'passed' || audit.requestedSourceCommit !== assessment.request.candidate
-    || audit.auditedSourceCommit === null || review?.result?.status !== 'submitted' || !review.result.value
+    || audit.auditedSourceCommit === null || (!input.reviewContinued && (review?.result?.status !== 'submitted' || !review.result.value))
     || heldProtection?.baselineCommit !== readiness.baseline || heldProtection.candidateCommit !== readiness.candidate) return null;
   const protection = authorizeProtection(heldProtection, acceptedProtectionExceptions(state, input.assessments));
   const authorized = (path: string) => protection.changes.some(change => change.path === path && change.authorizedBy !== null);
-  const report = review.result.value;
-  const gaps = [...new Set([...readiness.gaps, ...assessment.outcome.gaps])];
+  const report = review?.result?.value;
+  const gaps = [...new Set([...readiness.gaps, ...assessment.outcome.gaps])].filter(gap => !input.reviewContinued || !/^(Required review|Reconciliation) unavailable:/u.test(gap));
   const details = findingDetails(state).filter(detail => !authorizedProtectionFinding(detail.summary, protection));
   const remaining = remainingBriefs(details);
   // A later generic disposition cannot turn a non-protection blocker into approval-only completion.
   for (const id of readiness.blockers) {
     const entry = state.findings.get(id);
-    if (!entry || !authorizedProtectionFinding(entry, protection)) {
+    const settlement = entry?.decisions.find(decision => decision.id === entry.settledBy);
+    const coordinatorChoice = settlement?.actor.kind === 'agent' && settlement.actor.role === 'assisted-coordinator'
+      && (settlement.decision.action === 'waive' || settlement.decision.action === 'defer') && entry?.verification.kind === 'assessment';
+    if (!coordinatorChoice && (!entry || !authorizedProtectionFinding(entry, protection))) {
       if (!details.some(detail => detail.summary.id === id && detail.summary.standing === 'open'))
         remaining.repairs.push(`Original blocker ${id} requires a fresh assessment.`);
     }
   }
-  for (const answer of report.requirements) {
+  for (const answer of report?.requirements ?? []) {
     if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
     if (answer.outcome === 'unmet' && !(answer.pendingProtection?.length && answer.pendingProtection.every(authorized)))
       remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);

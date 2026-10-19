@@ -226,6 +226,19 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
   });
 
+  it('preserves exact user authority after a coordinator continues unavailable advisory review', async () => {
+    const { service, job, assess, audit, review } = await fixture({ reviewMissing: true });
+    const original = await assess(baseline, edited);
+    const ids = { planId: 'sample', jobId: job.jobId, assessmentId: original.id };
+    await service.reviewContinue({ ...ids, rationale: 'Configured checks and engineer inspection suffice.', commandId: 'continue' });
+    expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('action-required');
+    const accepted = await service.protectionAccept({ ...ids, path: contract, userName: 'Owner', authority: 'actual-user-approval', commandId: 'accept' });
+    expect(accepted.finalization?.outcome.gate).toBe('clear');
+    expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
+    expect(audit).toHaveBeenCalledTimes(1);
+    expect(review).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     [{ plainUnmet: true }, 'action-required'],
     [{ gap: true }, 'clear'],
@@ -240,7 +253,7 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe(gate);
     if ('auditFailed' in options || 'reviewMissing' in options) expect(accepted.finalization).toBeUndefined();
     expect(audit).toHaveBeenCalledTimes(1);
-    expect(review).toHaveBeenCalledTimes(1);
+    expect(review).toHaveBeenCalledTimes('auditFailed' in options ? 0 : 1);
   });
 
 

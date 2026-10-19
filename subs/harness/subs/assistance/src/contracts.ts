@@ -47,7 +47,8 @@ export const iterationRequestSchema = z.discriminatedUnion('action', [
   z.object({ ...iterationIds, action: z.literal('end'), iterationId: iterationIdSchema, candidate: commitSchema,
     acceptance: z.array(z.string().min(1)).default([]),
     requirementDocuments: z.array(z.object({ path: z.string().min(1), revision: z.string().min(1) }).strict()).default([]),
-    previousAssessment: assessmentIdSchema.optional(), additionalContext: z.string().min(1).optional(),
+    previousAssessment: assessmentIdSchema.optional(),
+  reviewReason: z.string().trim().min(1).optional(), additionalContext: z.string().min(1).optional(),
   }).strict(),
 ]);
 export type IterationRequest = z.infer<typeof iterationRequestSchema>;
@@ -62,6 +63,7 @@ const assessmentRequestBaseSchema = z.object({
   planBaseline: z.string().regex(/^[a-f0-9]{40}$|^[a-f0-9]{64}$/).optional(),
   requirementDocuments: z.array(z.object({ path: z.string().min(1), revision: z.string().min(1) }).strict()).default([]),
   previousAssessment: assessmentIdSchema.optional(),
+  reviewReason: z.string().trim().min(1).optional(),
   commandId: commandIdSchema,
 }).strict();
 export const assessmentRequestSchema = assessmentRequestBaseSchema.superRefine((value, context) => {
