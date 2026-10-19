@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { CodexEvent } from '../interfaces/provider.js';
 import { ScriptedCodex, testSession, testThread, testTurn } from './scripted.js';
 import { checkAdmissionOrdering } from './ordering.js';
+import { checkStatusOutcome } from './status-outcomes.js';
 
 afterEach(() => vi.useRealTimers());
 const settings = { cwd: '/target', model: 'gpt-6-astra' };
@@ -621,4 +622,114 @@ test('idle before adoption cannot retire an identity it did not observe', async 
   const interrupt = script.provider.interrupt('thread-1', 'turn-1');
   script.replyLast({});
   await expect(interrupt).resolves.toMatchObject({ turnId: 'turn-1' });
+});
+
+
+test('status-only active survives rejected admission and fresh active history', async () => {
+  await checkStatusOutcome('rejected', 'active', 'before', 'active');
+});
+test('unloaded observation survives rejection and an empty idle snapshot', async () => {
+  await checkStatusOutcome('rejected', 'notLoaded', 'after', 'idle');
+});
+test('provider error survives uncertain admission and empty idle history', async () => {
+  await checkStatusOutcome('uncertain', 'systemError', 'before', 'idle');
+});
+test('status active dispatched after a terminal acknowledgement stays conservatively busy', async () => {
+  await checkStatusOutcome('completed', 'active', 'after', 'active');
+});
+test('unavailable status dispatched after a successful start survives its later continuation', async () => {
+  await checkStatusOutcome('running', 'notLoaded', 'after', 'idle');
+});
+test('correlated successful start establishes a new identity after an earlier provider error', async () => {
+  await checkStatusOutcome('running', 'systemError', 'before', 'idle');
+});
+
+test.each(['active', 'systemError', 'notLoaded'])('rejected admission retains %s until authoritative idle or a new actual turn identity', async status => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'rejected');
+  const submission = script.written.at(-1)!.id!;
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: status } } });
+  script.receive({ id: submission, error: { code: -32000, message: 'rejected' } });
+  await expect(send).rejects.toMatchObject({ kind: 'rpc' });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread() });
+  await expect(read).resolves.toMatchObject({ status });
+  await expect(script.provider.send('thread-1', 'blocked')).rejects.toMatchObject({ kind: status === 'notLoaded' ? 'unavailable' : 'busy' });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'actual') } });
+  const interrupt = script.provider.interrupt('thread-1', 'actual');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'actual' });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  await expect(script.provider.send('thread-1', 'ambiguous idle cannot finish actual')).rejects.toMatchObject({ kind: 'busy' });
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'actual') } });
+  const next = script.provider.send('thread-1', 'settled');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await next;
+});
+
+test('matching terminal history finishes acknowledged work without claiming provider error recovery', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'accepted');
+  script.replyLast({ turn: testTurn() });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'systemError' } } });
+  await send;
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ turns: [testTurn('completed')] }) });
+  await expect(read).resolves.toMatchObject({ status: 'systemError' });
+  await expect(script.provider.send('thread-1', 'error remains')).rejects.toMatchObject({ kind: 'busy' });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  const next = script.provider.send('thread-1', 'provider recovered');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await next;
+});
+
+
+test('a later different turn finishing cannot prove the acknowledged turn finished', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'accepted');
+  script.replyLast({ turn: testTurn('inProgress', 'accepted') });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'other') } });
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'other') } });
+  await expect(send).rejects.toMatchObject({ kind: 'uncertain' });
+  await expect(script.provider.send('thread-1', 'no terminal proof for accepted')).rejects.toMatchObject({ kind: 'busy' });
+  expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(1);
+  const proof = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ turns: [testTurn('completed', 'accepted'), testTurn('completed', 'other')] }) });
+  await proof;
+  const next = script.provider.send('thread-1', 'matching terminal permits input');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await next;
+});
+
+
+test('a known old turn completing cannot erase newer status-only activity without identifying it', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'known work');
+  script.replyLast({ turn: testTurn('inProgress', 'known') });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'active' } } });
+  await send;
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'known') } });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ turns: [testTurn('completed', 'known')] }) });
+  await expect(read).resolves.toMatchObject({ status: 'active' });
+  await expect(script.provider.send('thread-1', 'unidentified work remains')).rejects.toMatchObject({ kind: 'busy' });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  const next = script.provider.send('thread-1', 'authoritatively idle');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await next;
+});
+
+test('fresh active history can identify status-only activity before exact matching completion', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'known work');
+  script.replyLast({ turn: testTurn('inProgress', 'known') });
+  await send;
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'active' } } });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ status: { type: 'active' }, turns: [testTurn('inProgress', 'known')] }) });
+  await expect(read).resolves.toMatchObject({ status: 'active' });
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'known') } });
+  const next = script.provider.send('thread-1', 'identified work settled');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await next;
 });

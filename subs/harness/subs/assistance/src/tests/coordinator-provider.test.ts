@@ -123,3 +123,26 @@ test('prepared resumed coordinator keeps new admission busy and interruptible wh
   script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
   await expect(followup).resolves.toMatchObject({ id: 'next-turn' });
 });
+
+test.each(['idle', 'active'])('prepared consumer preserves status-only activity after rejected input despite fresh %s history', async history => {
+  const script = scriptForPreparation({
+    turn: () => undefined,
+    history: testThread({ status: { type: history }, turns: history === 'active' ? [testTurn('inProgress', 'other-turn')] : [] }),
+  });
+  const prepared = await prepareCoordinatorProvider(inputs(), script.provider);
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  const send = prepared.provider.send('thread-1', 'input');
+  const submission = script.written.at(-1)!.id!;
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'active' } } });
+  script.receive({ id: submission, error: { code: -32000, message: 'thread already active' } });
+  await expect(send).rejects.toMatchObject({ kind: 'rpc' });
+  await expect(prepared.provider.readThread('thread-1')).resolves.toMatchObject({ status: 'active' });
+  await expect(prepared.provider.send('thread-1', 'must refuse busy')).rejects.toMatchObject({ kind: 'busy' });
+  expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(1);
+  if (history === 'active') await expect(prepared.provider.interrupt('thread-1', 'other-turn')).resolves.toMatchObject({ turnId: 'other-turn' });
+  else await expect(prepared.provider.interrupt('thread-1', 'other-turn')).rejects.toMatchObject({ kind: 'stale-response' });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  const next = prepared.provider.send('thread-1', 'authoritative idle permits input');
+  script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
+  await expect(next).resolves.toMatchObject({ id: 'next-turn' });
+});

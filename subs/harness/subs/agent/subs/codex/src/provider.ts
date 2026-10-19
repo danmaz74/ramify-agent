@@ -21,7 +21,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
   let initializing: Promise<CodexReadiness> | undefined;
   let unavailable: CodexProviderError | undefined;
   let stopped = false;
-  const requests = new Map<string | number, { method: string; mutation: boolean; resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout }>();
+  const requests = new Map<string | number, { method: string; mutation: boolean; resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout; received?(revision: number): void }>();
   const responseDeliveries = new Map<string, { reject(error: Error): void; timer: NodeJS.Timeout }>();
   const pending = new Map<string, { rpcId: string | number; request: CodexPendingRequest; decisions: readonly WireDecision[]; state: 'pending' | 'responding' | 'uncertain' }>();
   type Turn = ReturnType<typeof projectTurn>;
@@ -30,6 +30,8 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
   type ThreadControl = {
     status: Observation<CodexThread['status']>; activeTurn: Observation<string | null>;
     adopted: boolean; latestTurn?: Turn;
+    // A status-only active observation has not yet identified its running turn.
+    unidentifiedActivity: boolean;
     // An admitted request has no turn identity until its correlated reply.
     admission?: Admission;
     // Terminal identities cannot become running again, even in a fresh stale snapshot.
@@ -42,7 +44,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
   const control = (threadId: string): ThreadControl => {
     let thread = threads.get(threadId);
     if (thread === undefined) {
-      thread = { status: { value: 'notLoaded', revision: 0, live: false }, activeTurn: { value: null, revision: 0, live: false }, adopted: false, finished: new Map(), retired: new Set() };
+      thread = { status: { value: 'notLoaded', revision: 0, live: false }, activeTurn: { value: null, revision: 0, live: false }, adopted: false, unidentifiedActivity: false, finished: new Map(), retired: new Set() };
       threads.set(threadId, thread);
     }
     return thread;
@@ -51,10 +53,21 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     const finished = thread.finished.get(turn.id);
     return finished === undefined ? turn : { ...turn, ...finished };
   };
-  const applyTurn = (thread: ThreadControl, turn: Turn) => {
+  const unavailableStatus = (status: CodexThread['status']) => status === 'notLoaded' || status === 'systemError';
+  const currentStatus = (thread: ThreadControl): CodexThread['status'] => {
+    if (unavailableStatus(thread.status.value)) return thread.status.value;
+    return thread.admission !== undefined || thread.activeTurn.value !== null || thread.unidentifiedActivity ? 'active' : thread.status.value;
+  };
+  const applyTurn = (thread: ThreadControl, turn: Turn, basis = Infinity) => {
     const at = ++revision;
-    thread.activeTurn = { value: turn.status === 'inProgress' ? turn.id : null, revision: at, live: true };
-    thread.status = { value: turn.status === 'inProgress' ? 'active' : 'idle', revision: at, live: true };
+    // A start identifies current activity. A reply can bind only observations
+    // preceding its frame; a terminal event for an older ID cannot do so.
+    if (basis === Infinity ? turn.status === 'inProgress' : thread.status.revision <= basis) thread.unidentifiedActivity = false;
+    if (thread.activeTurn.revision <= basis) thread.activeTurn = { value: turn.status === 'inProgress' ? turn.id : null, revision: at, live: true };
+    // A completed turn proves its outcome, not recovery from a provider error.
+    if (thread.status.revision <= basis && !(turn.status !== 'inProgress' && (thread.unidentifiedActivity || thread.status.live && unavailableStatus(thread.status.value)))) {
+      thread.status = { value: turn.status === 'inProgress' ? 'active' : 'idle', revision: at, live: true };
+    }
     thread.latestTurn = structuredClone(turn);
   };
   const observeTurn = (thread: ThreadControl, value: Turn) => {
@@ -100,7 +113,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     }
     if (publish) emit({ kind: 'provider-error', message });
   };
-  const call = async (method: string, params: unknown, mutation = false): Promise<unknown> => {
+  const call = async (method: string, params: unknown, mutation = false, received?: (revision: number) => void): Promise<unknown> => {
     if (unavailable !== undefined) throw unavailable;
     if (stopped) throw new CodexProviderError('unavailable', 'Codex provider has been stopped', method);
     const id = ++nextId;
@@ -109,7 +122,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         requests.delete(id);
         reject(new CodexProviderError(mutation ? 'uncertain' : 'unavailable', `${method} reply timed out; ${mutation ? 'provider acceptance is uncertain; do not replay blindly' : 'observation is unavailable'}`, method));
       }, timeoutMs);
-      requests.set(id, { method, mutation, resolve, reject, timer });
+      requests.set(id, { method, mutation, resolve, reject, timer, ...(received === undefined ? {} : { received }) });
       void connection.write(JSON.stringify({ id, method, params })).catch(error => fail(`Codex write failed: ${String(error)}`));
     });
   };
@@ -129,6 +142,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     if (old.admission === undefined) {
       const turns = thread.turns.map(turn => observedTurn(old, turn));
       const running = turns.find(turn => turn.status === 'inProgress' && !old.retired.has(turn.id))?.id ?? null;
+      if (thread.status === 'active' && running !== null && old.activeTurn.revision <= basis && old.status.revision <= basis) old.unidentifiedActivity = false;
       const current = old.activeTurn.value;
       const finishedCurrent = current !== null && turns.some(turn => turn.id === current && turn.status !== 'inProgress');
       // A live running identity needs its own terminal proof. An empty history
@@ -139,7 +153,8 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       if (!preserveLive && !preserveIdle) {
         if (old.activeTurn.revision <= basis) old.activeTurn = { value: running, revision: at, live: false };
         const preserveStatus = old.status.live && (
-          old.status.value === 'active' && !finishedCurrent && thread.status !== 'active' ||
+          old.unidentifiedActivity || unavailableStatus(old.status.value) ||
+          old.status.value === 'active' && !finishedCurrent && running === null ||
           old.status.value === 'idle' && thread.status === 'active' && running === null
         );
         if (old.status.revision <= basis && !preserveStatus) {
@@ -154,7 +169,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     if (old.latestTurn !== undefined) old.latestTurn = observedTurn(old, old.latestTurn);
     const turns = thread.turns.map(turn => observedTurn(old, turn));
     if (old.latestTurn !== undefined && !turns.some(turn => turn.id === old.latestTurn!.id)) turns.push(structuredClone(old.latestTurn));
-    return { ...thread, status: old.admission === undefined ? old.status.value : 'active', turns };
+    return { ...thread, status: currentStatus(old), turns };
   };
   const resolvePending = (id: string) => { if (pending.delete(id)) emit({ kind: 'request-resolved', id }); };
   const onLine = (line: string) => {
@@ -183,14 +198,16 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
           const threadId = text.parse(p.threadId);
           const status = z.object({ type: z.enum(['idle', 'active', 'notLoaded', 'systemError']) }).parse(p.status).type;
           const old = control(threadId);
-          // Idle has no turn identity. During admission, or against an exact
-          // live running turn, it may belong to preceding work. Await matching
-          // terminal evidence rather than attributing it to the new request.
-          if (old.admission === undefined && !(status === 'idle' && old.activeTurn.live && old.activeTurn.value !== null)) {
-            const at = ++revision;
-            old.status = { value: status, revision: at, live: true };
-            if (status === 'idle' && old.activeTurn.value !== null) old.retired.add(old.activeTurn.value);
-            if (status !== 'active') old.activeTurn = { value: null, revision: at, live: true };
+          // Always retain provider status independently of admission. Idle
+          // cannot identify or settle an admitted/known live turn; its exact
+          // identity continues to make effective control busy until terminal.
+          const at = ++revision;
+          old.status = { value: status, revision: at, live: true };
+          if (status === 'active') old.unidentifiedActivity = true;
+          else if (status === 'idle') old.unidentifiedActivity = false;
+          if (status === 'idle' && old.admission === undefined && !old.activeTurn.live) {
+            if (old.activeTurn.value !== null) old.retired.add(old.activeTurn.value);
+            old.activeTurn = { value: null, revision: at, live: true };
           }
           emit({ kind: 'thread-status', threadId, status });
         } else if (frame.method === 'item/agentMessage/delta') {
@@ -220,6 +237,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       const decodedError = 'error' in frame ? z.object({ code: z.number().int(), message: z.string() }).parse(frame.error) : null;
       requests.delete(id);
       clearTimeout(request.timer);
+      request.received?.(++revision);
       if (decodedError !== null) {
         const error = decodedError;
         request.reject(new CodexProviderError('rpc', error.message, request.method, error.code));
@@ -317,8 +335,8 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       requireReady();
       if (!message.trim()) throw new CodexProviderError('protocol', 'Codex input must contain text');
       const thread = threads.get(threadId);
-      if (thread === undefined || !thread.adopted || thread.status.value === 'notLoaded') throw new CodexProviderError('unavailable', 'Resume or start this thread before input');
-      if (thread.status.value !== 'idle' || thread.activeTurn.value !== null || thread.admission !== undefined) throw new CodexProviderError('busy', `Thread ${threadId} is busy or its previous submission is uncertain`);
+      if (thread === undefined || !thread.adopted || currentStatus(thread) === 'notLoaded') throw new CodexProviderError('unavailable', 'Resume or start this thread before input');
+      if (currentStatus(thread) !== 'idle') throw new CodexProviderError('busy', `Thread ${threadId} is busy or its previous submission is uncertain`);
       const generation = ++revision;
       const admission: Admission = { generation, phase: 'pending', conflicts: new Set() };
       thread.admission = admission;
@@ -326,20 +344,22 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       // or assigning the preceding turn's observations to this generation.
       thread.status = { ...thread.status, revision: generation };
       thread.activeTurn = { ...thread.activeTurn, revision: generation };
+      let receivedAt = generation;
       try {
-        const result = z.object({ turn: z.unknown() }).parse(await call('turn/start', { threadId, input: [{ type: 'text', text: message, text_elements: [] }] }, true));
+        const result = z.object({ turn: z.unknown() }).parse(await call('turn/start', { threadId, input: [{ type: 'text', text: message, text_elements: [] }] }, true, at => { receivedAt = at; }));
         if (thread.admission?.generation !== admission.generation) throw new CodexProviderError('uncertain', 'Turn reply does not identify the current admission generation', 'turn/start');
         const observed = observedTurn(thread, projectTurn(result.turn));
         admission.turnId = observed.id;
-        if (observed.status === 'inProgress' && thread.activeTurn.value !== null && thread.activeTurn.value !== observed.id) {
-          // The reply proves this request's identity, not that another observed
-          // running identity finished. Preserve uncertainty instead of guessing.
-          admission.conflicts.add(thread.activeTurn.value);
-          throw new CodexProviderError('uncertain', 'Turn acknowledgement conflicts with another observed running turn', 'turn/start');
+        if (observed.status === 'inProgress' && thread.activeTurn.value !== observed.id &&
+          (thread.activeTurn.value !== null || thread.activeTurn.revision > receivedAt)) {
+          // The reply proves this request's identity. A different later turn
+          // observation cannot prove its terminal outcome. Keep uncertainty.
+          if (thread.activeTurn.value !== null) admission.conflicts.add(thread.activeTurn.value);
+          throw new CodexProviderError('uncertain', 'Running acknowledgement lacks matching terminal proof after another turn observation', 'turn/start');
         }
         thread.admission = undefined;
         if (observed.status !== 'inProgress') thread.finished.set(observed.id, { status: observed.status, error: observed.error });
-        if (thread.activeTurn.value === null || thread.activeTurn.value === observed.id) applyTurn(thread, observed);
+        if (thread.activeTurn.value === null || thread.activeTurn.value === observed.id) applyTurn(thread, observed, receivedAt);
         return structuredClone(observed);
       } catch (error) {
         if (error instanceof CodexProviderError && error.kind === 'rpc') {
@@ -393,7 +413,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     async interrupt(threadId, turnId) {
       requireReady();
       const thread = threads.get(threadId);
-      if (thread === undefined || !thread.adopted || thread.status.value !== 'active' || thread.activeTurn.value !== turnId) throw new CodexProviderError('stale-response', 'Interrupt does not identify the observed active turn');
+      if (thread === undefined || !thread.adopted || currentStatus(thread) !== 'active' || thread.activeTurn.value !== turnId) throw new CodexProviderError('stale-response', 'Interrupt does not identify the observed active turn');
       await call('turn/interrupt', { threadId, turnId }, true);
       return { acknowledged: true, threadId, turnId, descendants: 'not-established', assessments: 'not-controlled' };
     },

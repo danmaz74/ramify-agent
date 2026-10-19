@@ -1,0 +1,7 @@
+{
+  "subs/harness/subs/agent/subs/codex/src/provider.ts": "448ee1011489defa5b9fca3fda489781cf6945fff6eab43a6798644bb646831c",
+  "subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts": "6440bf0d4aadad5baf7fb956483c344e03ae15f0e8b40ec41300c8ad311e5ed6",
+  "subs/harness/subs/agent/subs/codex/src/tests/status-outcomes.ts": "f0903241b564d7b96fef564d5a78d15d825c69ff978d900d733938999f216b44",
+  "subs/harness/subs/agent/subs/codex/src/tests/provider-status.stress.ts": "0eda38187e82b2cb74a9ee7b8af5538586cd644862a4567bd5d1997b1106122b",
+  "subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts": "937e0f8db0d9dae26ff8ab4771305dc318930fc4f6d6b778306f519e00ac7b58"
+}
