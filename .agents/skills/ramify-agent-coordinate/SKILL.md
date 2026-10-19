@@ -33,12 +33,15 @@ Give workers the [module-work skill](../ramify-agent-module-work/SKILL.md), incl
 - Focus module, if useful, and why; source/API/test starting points.
 - Applicable principles and specifications, preserving status and source references; relevant protected paths.
 - Known consumer/provider obligations, overlapping writers and who verifies integration.
+- Permission for one additional level of Sol subagents under the module-work skill, with the assigned worker responsible for integration and verification. Children inherit that worker's module focus by default and may receive an explicit different or broader focus; they may not delegate further.
 
 For a module-focused worker, supply the absolute target worktree root, module root and `<module-root>/src` working directory, all in the intended worktree. Set the worker's launch CWD there when supported. If the native launcher has no CWD option, explicitly instruct the worker to use that directory for its shell calls and resolve file-tool paths against it; do not assume a shell `cd` persists across calls. The worker skill requires the same shared module orientation. Project-wide commands use the project root explicitly. For a broader assignment, choose the project root or a useful common starting directory; an absent module `src/` uses the module root until implementation requires source there.
 
 For example: “Implement parser validation in the evidence module because its internals dominate this change and the caller contract is stable. Preserve blob compatibility; add regression cases for malformed records and verify the protection consumer. Edit that consumer if necessary.”
 
 Sol may edit other modules without scope expansion or permission based on module ownership. Use another worker when the work is substantial and separable; keep interacting provider and consumer changes together when that reduces repeated discovery. Reconsider the split if workers wait on each other or repeatedly relearn shared behavior. Coordinate overlapping writers through ordinary messages or separate worktrees.
+
+Workers may delegate bounded work without another permission request. Use their brief delegation notices to coordinate affected areas and shared agent capacity; avoid assigning overlapping work elsewhere. Keep candidate assessment and plan coordination with Astra. Nested work remains part of the existing iteration.
 
 Immediately before implementation of the chosen outcome begins, call `iteration` with `action: "start"`, the registered `plan_id` and `job_id`, a unique retryable `command_id`, the outcome in `brief` and `focus_module` as a project-relative module path or explicit `null` for a broader assignment. Omit `base` to capture checkout HEAD, or name an explicit revision when needed. Retain the returned `id` as `iteration_id`, along with its start time, resolved base and Git provenance in continuation notes. Dirty starts are allowed but qualify attribution; unavailable cleanliness remains unknown. Start launches no assessor or implementation. Multiple open iterations are allowed; always identify the intended one.
 

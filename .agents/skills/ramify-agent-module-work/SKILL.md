@@ -5,7 +5,7 @@ description: Implement or repair an assignment from a native Ramify coordinator,
 
 # Implement assisted plan work
 
-Receive the intended outcome, acceptance, target project and any module focus from the coordinator. Read the project's instructions. This skill works for a focused module assignment or a broader outcome spanning several owners. RA's Pi sessions independently assess the committed result; the worker implements and verifies it with native tools.
+Receive the intended outcome, acceptance, target project and any module focus from the coordinator or parent Sol worker. Read the project's instructions. This skill works for a focused module assignment or a broader outcome spanning several owners. RA's Pi sessions independently assess the committed result; the worker implements and verifies it with native tools.
 
 ## Working directory
 
@@ -27,15 +27,27 @@ Treat adopted principles as design commitments and specifications as precise beh
 
 Module focus concentrates understanding; it never restricts where you may write. Make understood provider, consumer, exposure, test or configuration changes needed for the outcome. Crossing a module boundary alone requires no permission, scope expansion, new task record or handback.
 
-Consult the coordinator when design uncertainty needs a decision, another worker owns overlapping edits, or splitting/recombining work would help. Send the needed behavior, evidence, affected owners and recommended next action. Keep working on independent parts. Do not turn an ordinary question into a terminal partial submission.
+Consult the coordinator when design uncertainty needs a decision, another worker owns overlapping edits, or splitting/recombining coordinator assignments would help. Bounded delegation within your assignment follows the permission below. Send the needed behavior, evidence, affected owners and recommended next action. Keep working on independent parts. Do not turn an ordinary question into a terminal partial submission.
 
 Preserve behavioral contracts and Ramify importability. Verify consumer/provider behavior together where it matters; local mocks alone do not demonstrate integration. When repairing an RA finding, use its evidence and acceptance to address the cause and relevant regressions, rather than changing the requirement or merely removing the reported symptom. Run checks appropriate to the change; RA performs the iteration audit.
+
+## Delegate bounded work
+
+A Sol worker assigned directly by Astra may use Sol subagents for bounded investigation, implementation or verification without asking permission again. Choose separable work whose benefit justifies briefing, repeated orientation and integration. This permits one additional delegation level: children of a Sol worker may not spawn further subagents. Honor explicit user restrictions and available agent capacity; continue locally when delegation is unavailable.
+
+Give each child this skill and the shared module orientation, using resolved paths, and explicitly identify it as a child that may not delegate further. Supply the bounded outcome, relevant parent acceptance and integration obligations, applicable principles/specifications, protected inputs, source/API/test starting points, and known overlapping writers. Do not rely on conversation inheritance to provide the brief.
+
+Inherit the parent's module focus by default. Explicitly name a different module when its internals dominate the child's task, or state a broader focus for integration across owners. If the parent has no module focus, retain that broader focus unless the child needs a specific owner. Supply the absolute target worktree root, chosen module root and working directory using the working-directory rules above. Focus never restricts reads or writes. Check API availability for the actual consuming module and ordinary or testing source area, even when it differs from the assigned focus.
+
+Send Astra a short notice naming the child, its task, focus and affected areas so it can coordinate overlap and capacity; this is a notification, not an approval request. Coordinate shared edits and commit ownership before concurrent work. Children return findings, changes and verification evidence to their parent Sol, which integrates the results, verifies the composed outcome and owns the complete engineering handoff. Keep children within the existing iteration; Astra retains candidate assessment and plan coordination.
 
 ## Wait for verification
 
 Wait for commands to finish using an interruptible process wait, with a maximum of 15 minutes where the host supports it. Completion should return early. Use the longest supported wait if the tool has a shorter limit; avoid repeated one-second checks and separate sleep/status loops. At the deadline, inspect status and investigate concrete evidence of a problem, then continue waiting if healthy. A timeout alone does not justify stopping or restarting work. Keep detailed output in command logs and retrieve what is needed to diagnose failures.
 
-Send the coordinator meaningful changes, blockers and the engineering result, rather than unchanged-status messages or routine acknowledgments. After the handoff, finish the worker turn; the coordinator observes RA and can resume you for repairs. See [passive-wait setup](../../../docs/agent-assistance.md#passive-waiting) for host configuration; a skill cannot override conflicting higher-priority commentary instructions.
+When waiting for children, use `wait_agent` with `timeout_ms: 900000` where supported, returning early for messages or completion. Finish or explicitly stop child work before the final handoff so no child continues changing the candidate afterward.
+
+Send the assigning coordinator or parent Sol meaningful changes, blockers and the engineering result, rather than unchanged-status messages or routine acknowledgments. After the handoff, finish the worker turn; Astra observes RA and can resume engineering for repairs. See [passive-wait setup](../../../docs/agent-assistance.md#passive-waiting) for host configuration; a skill cannot override conflicting higher-priority commentary instructions.
 
 ## Return a concise engineering result
 
