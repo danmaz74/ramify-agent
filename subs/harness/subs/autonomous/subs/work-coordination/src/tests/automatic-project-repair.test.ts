@@ -24,6 +24,9 @@ test('recorded source-pointer preparation fault repairs once and returns origina
   expect(onlyRun(subject.service, 'review-notes').state, JSON.stringify({ failure: onlyRun(subject.service, 'review-notes').failure, childOutcome, warnings: subject.warnings })).toBe('completed');
   const { events, incident, latest } = await incidents(subject);
   expect(latest.data.stage).toBe('continued');
+  expect(childOutcome.settled.confirmed).toBe(true);
+  const active = subject.service['runs'].get(`review-notes/${subject.runId}`)!;
+  expect(subject.service['coordination'](active)['ports'].writer.blocked()).toBeNull();
   expect(incident.harnessError.message).toContain('ENOENT');
   expect(incident.verification?.verified).toBe(true);
   expect(incident.continuation?.delivered).toBe(true);
@@ -154,4 +157,25 @@ test('resource fallback continues the same authorized automatic repair after his
   expect(source.schema).toBe('ramify-agent.automatic-repair-source/1');
   expect(source.before.length).toBeGreaterThan(0);
   subject.boundary.assertComplete();
+});
+
+test('confirmed repair child cannot hand back while the lifecycle writer remains blocked', async () => {
+  const subject = await scenario({ unsettledRepair: true });
+  const { latest, incident } = await incidents(subject);
+  const run = subject.service['runs'].get(`review-notes/${subject.runId}`)!;
+  try {
+    const child = JSON.parse(await readFile(runPath(subject.root, 'review-notes', subject.runId,
+      runLayout.outcome(incident.invocation!)), 'utf8'));
+    expect(child.ended).toBe('submitted');
+    expect(child.settled.confirmed).toBe(true);
+    expect(latest.data.stage).toBe('unverified');
+    expect(incident.verification).toMatchObject({ verified: false, reason: 'Repair writer settlement is unverified' });
+    expect(incident.continuation?.delivered).toBe(false);
+    expect(onlyRun(subject.service, 'review-notes').state).toBe('failed');
+    expect(subject.service['coordination'](run)['ports'].writer.blocked()).toContain('Scripted unsettled writer');
+    expect(subject.specs.filter(spec => spec.role === 'local-architect')).toHaveLength(1);
+  } finally {
+    // Retire the test's injected obstruction through the real settlement owner.
+    expect((await run.writer.reinspect(incident.invocation!))?.confirmed).toBe(true);
+  }
 });

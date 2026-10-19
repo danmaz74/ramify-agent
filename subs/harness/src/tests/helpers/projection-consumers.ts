@@ -299,8 +299,8 @@ export async function recordedProjectionConsumers(paging = false, prepare?: (roo
     noEffects: () => assert.deepEqual(effects.calls, { agent: 0, audit: 0, exporter: 0, evidence: 0 }),
     composition: async () => {
       assert.ok(Object.isFrozen(source)); assert.deepEqual(Object.keys(source).sort(), ['agentName', 'candidateSource', 'changeHistory', 'committed', 'committedRuns', 'projectRoot', 'runVersions']);
-      for (const file of ['../../http/app.ts', '../../consultations/command.ts']) {
-        const code = await readFile(new URL(file, import.meta.url), 'utf8'); assert.ok(code.includes("../../subs/projections/src/"));
+      for (const file of ['../../http/app.ts', '../../../subs/autonomous/subs/work-coordination/src/consultations/command.ts']) {
+        const code = await readFile(new URL(file, import.meta.url), 'utf8'); assert.ok(/from ['"][^'"]*projections\/src\//.test(code));
       }
     },
     oldTreeAbsent: async () => { await assert.rejects(readdir(new URL('../../projections/', import.meta.url)), { code: 'ENOENT' }); },

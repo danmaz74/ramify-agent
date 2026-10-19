@@ -53,3 +53,4 @@ expose-test readinessBoundaries, readinessHead, strictReadinessAudit, strictRead
 expose-test nfrBoundaries, NfrScript from "helpers/nonfunctional-boundaries.ts" to parent
 expose-src checkExecutionObstruction, auditCheckFacts, hasAssertionFailure, CheckExecutionObstruction from "check-execution-recovery.ts" to parent
 expose-src compatibleAuditRepair from "audit-configuration.ts" to parent
+expose-test producerBoundary, nonfunctionalSourceBoundary, ProducerBoundary, NonfunctionalSourceBoundary from "helpers/source-boundaries.ts" to parent

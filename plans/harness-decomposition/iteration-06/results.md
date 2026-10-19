@@ -96,3 +96,32 @@ structural checking establish the complete contract. This refresh's architect
 view reports dependency coverage unavailable (`resource-limit`), including a
 separate architect-only refresh. That producer limitation remains explicit in
 final collection rather than being reported as measured dependency coverage.
+
+The final default audit of `279b538f` exposed stale source-reader/testing seams and
+an automatic-repair port mismatch. Coordination's writer port uses `null` for an
+unblocked writer; two moved repair branches still compared it with `undefined`.
+They now follow the declared contract. Composed regressions prove a confirmed
+submitted repair continues when clear and cannot hand back when the lifecycle
+writer remains blocked. The injected obstruction is retired through the actual
+writer's settlement reinspection during test cleanup.
+
+KPI/projection source witnesses now inspect their defining owners, including the
+shared repair authenticator and consolidated named exposures. Producer and NFR
+source tests call acceptance-local testing boundaries rather than removed private
+service methods. These helpers expose only the tested operations; ordinary
+Acceptance exposure is unchanged. Existing assertions, native registrations,
+process guards and historical behavior remain intact.
+
+Focused validation passed: 31 automatic-repair/preparation/restart cases; 25
+KPI/projection/NFR cases, with the adjusted acceptance-boundary and surface files
+rechecked (12 cases); the registered native producer proof; and the three affected
+Cucumber scenarios (47 steps). Root type-check, structural and patch verification
+are retained with the repair handoff. No full audit or further broad review ran
+in the implementation worker. The coordinator's failed-audit status remains
+recorded honestly until its subsequent qualification.
+
+Final measurements remain the immutable `409c7de1` source snapshot. This later
+repair adds one test helper and one blocked-writer witness, updates existing
+source/import witnesses and their named testing exposures, and changes the two
+null-sentinel comparisons. No measurements or producer evidence were regenerated;
+no protected requirements, configuration or registry claims changed.

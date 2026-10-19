@@ -69,11 +69,11 @@ export async function recordedProjectionSurface(requireViews: boolean) {
       assert.equal(typeof readConsultations, 'function');
       assert.equal(typeof consultationText, 'function');
       const http = await contents('subs/harness/src/http/app.ts');
-      const cli = await contents('subs/harness/src/consultations/command.ts');
-      const exporter = await contents('subs/harness/src/run/repair-export-command.ts');
+      const cli = await contents('subs/harness/subs/autonomous/subs/work-coordination/src/consultations/command.ts');
+      const exporter = await contents('subs/harness/subs/autonomous/src/run/repair-export-command.ts');
       assert.match(http, /new RunQueries\(source\)/);
       assert.match(http, /new SessionQueries\(source\)/);
-      assert.match(cli, /from ['"]\.\.\/\.\.\/subs\/projections\/src\/consultations\.js['"]/);
+      assert.match(cli, /from ['"](?:\.\.\/)+projections\/src\/consultations\.js['"]/);
       assert.match(exporter, /authenticateRepairHistory/);
     },
     exposed() {
@@ -103,7 +103,8 @@ export async function recordedProjectionSurface(requireViews: boolean) {
       }
       assert.doesNotMatch(port, forbidden);
       const parent = await contents('subs/harness/module.ramify');
-      assert.match(parent, /^expose-sub CommittedRun, CommittedLine from projections to descendants$/m);
+      const committedInputs = parent.match(/^expose-sub (.+) from projections to descendants$/m)?.[1]?.split(',').map(name => name.trim()) ?? [];
+      for (const name of ['CommittedRun', 'CommittedLine']) assert(committedInputs.includes(name), `${name} is exposed to descendants`);
       const selected = parent.slice(parent.indexOf('// Selected reading dependencies'), parent.indexOf('// Temporary local guards'));
       assert(selected.startsWith('// Selected reading dependencies'), 'Selected child inputs are declared');
       assert.doesNotMatch(selected, /\b(?:RunService|RunLog|commitRecord|runCommand|commitTree|spawn|execFile|writeFile|openSessionStore)\b/);

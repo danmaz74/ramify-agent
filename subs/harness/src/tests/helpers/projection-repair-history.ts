@@ -50,8 +50,8 @@ async function inventory(directory: string): Promise<unknown[]> {
 // import and call the harness's authenticator; equal errors alone cannot prove
 // that they have not independently reimplemented its rules.
 async function sharedAuthenticatorTopology() {
-  const provider = fileURLToPath(new URL('../../run/repair-history.ts', import.meta.url));
-  for (const url of [new URL('../../run/repair-export-command.ts', import.meta.url),
+  const provider = fileURLToPath(new URL('../../../subs/autonomous/subs/work-coordination/src/repair/repair-history.ts', import.meta.url));
+  for (const url of [new URL('../../../subs/autonomous/src/run/repair-export-command.ts', import.meta.url),
     new URL('../../../subs/projections/src/repairs.ts', import.meta.url)]) {
     const path = fileURLToPath(url);
     const source = await readFile(path, 'utf8');

@@ -23,7 +23,7 @@ const tree = 'a'.repeat(40);
  * A retained source-pointer assembler reads the old entry after an allowed rename.
  * Real readFile throws ENOENT; the repaired target restores a compatible source entry.
  */
-export async function scenario(options: { delegated?: boolean; blocked?: boolean; mutateDeclaration?: boolean; freezeStage?: 'admitted' | 'running'; noFault?: boolean; skipRestore?: boolean; secondFault?: boolean; stopDuringRepair?: boolean; rootSibling?: boolean; freezeAssignment?: boolean; resourceRepair?: boolean; downtimeEdit?: boolean } = {}) {
+export async function scenario(options: { delegated?: boolean; blocked?: boolean; mutateDeclaration?: boolean; freezeStage?: 'admitted' | 'running'; noFault?: boolean; skipRestore?: boolean; secondFault?: boolean; stopDuringRepair?: boolean; rootSibling?: boolean; freezeAssignment?: boolean; resourceRepair?: boolean; downtimeEdit?: boolean; unsettledRepair?: boolean } = {}) {
   const fixture = await copyFixture(); cleanups.push(fixture.remove);
   await installTestRunner(fixture.root);
   await writeFile(join(fixture.root, legacy), content);
@@ -42,7 +42,7 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
     }
     return facts(...args);
   });
-  const final = !options.secondFault && !options.stopDuringRepair && !options.freezeAssignment && !options.blocked && !options.skipRestore && !options.mutateDeclaration && options.delegated !== false;
+  const final = !options.unsettledRepair && !options.secondFault && !options.stopDuringRepair && !options.freezeAssignment && !options.blocked && !options.skipRestore && !options.mutateDeclaration && options.delegated !== false;
   const commits = [...(options.freezeAssignment ? [] : [scenariosCommit('review-notes', 'scenarios', 'base')]),
     ...(final ? [{ commit: 'accepted', changes: [{ status: 'A', path: renamed }, ...(options.rootSibling ? [{ status: 'D', path: legacy }, { status: 'M', path: rootPointer }] : []), ...(options.downtimeEdit ? [{ status: 'A', path: externalPath }] : [])], subject: 'wi-001' }, { commit: null, changes: [], subject: 'final verification' }] : [])];
   const previews = [
@@ -113,6 +113,12 @@ export async function scenario(options: { delegated?: boolean; blocked?: boolean
       recovery: { ...policy.recovery!, baseDelayMs: 0 }, limits: { ...policy.limits, runAbsoluteMs: 1, maxInvocationsPerRun: 1 } }; } } : {}),
     candidates: final ? candidateAnswers() : undefined,
     afterWrite: async (write, runId) => {
+      if (write === 'invocation-ended' && options.unsettledRepair) {
+        const run = activeService!['runs'].get(`review-notes/${runId}`)!;
+        const last = run.log.all('invocation-started').at(-1)!;
+        if (last.data.work.automaticRepair) run.writer.markUnsettled(last.data.invocation,
+          'Scripted unsettled writer after confirmed child outcome', { settled: async () => 'settled' });
+      }
       if (write === 'repair-assignment-recorded' && options.freezeAssignment) { frozen = true; await freeze(); }
       if (write === 'repair-preparation-recorded' && !options.noFault) fault = true;
       if (write === 'repair-incident-recorded' && options.freezeStage !== undefined) {

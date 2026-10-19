@@ -1,3 +1,4 @@
+import { nonfunctionalSourceBoundary as sourceBoundary } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/source-boundaries.js';
 import { afterEach, expect, test, vi } from 'vitest';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -253,11 +254,10 @@ test('D10: missing historical provenance omits run-start without consulting HEAD
   const { service } = await openRuns(fixture.root, { git: mockGit(), candidates: source }); cleanups.push(() => service.close());
   const boundary = service as unknown as {
     recordedRunBase(record: unknown, log: unknown): string | undefined;
-    nonfunctionalSourceInputs(run: unknown, candidate: unknown): Promise<{ sections: { key: string; text: string }[]; comparisons: SnapshotComparison[] }>;
   };
   const record = { manifest: { source: null } }, log = { ledger: { replay: () => [] } };
   expect(boundary.recordedRunBase(record, log)).toBeUndefined();
-  const captured = await boundary.nonfunctionalSourceInputs({ record, log, base: B }, { head: B, tree: C });
+  const captured = await sourceBoundary(fixture.root, source, record, B, boundary.recordedRunBase(record, log)).nonfunctionalSourceInputs({ head: B, tree: C, preparedAt: '2026-10-19T00:00:00.000Z' });
   expect(captured.comparisons.map(item => item.name)).toEqual(['accepted-boundary']);
   expect(JSON.parse(captured.sections[0]!.text).defaultComparison).toBe('accepted-boundary');
   expect(source.calls).toEqual([`diffNameStatus ${C} ${B}`, `treeEntries ${C}`]);
@@ -271,6 +271,6 @@ for (const failure of ['diffNameStatus', 'treeEntries'] as const) test(`D10: aut
   const fixture = await copyFixture(); cleanups.push(fixture.remove);
   const source = scriptedCandidates(fixture.root, { [C]: { tree: C, files: {}, base: A, changes: [] } }); source.fail(failure, C);
   const { service } = await openRuns(fixture.root, { git: mockGit(), candidates: source }); cleanups.push(() => service.close());
-  const boundary = service as unknown as { nonfunctionalSourceInputs(run: unknown, candidate: unknown): Promise<unknown> };
-  await expect(boundary.nonfunctionalSourceInputs({ record: { manifest: { source: { commit: A, dirty: false } } }, base: A, log: { ledger: { replay: () => [] } } }, { head: A, tree: C })).rejects.toThrow(`fatal: ${failure}`);
+  const boundary = sourceBoundary(fixture.root, source, { manifest: { source: { commit: A, dirty: false } } }, A, A);
+  await expect(boundary.nonfunctionalSourceInputs({ head: A, tree: C, preparedAt: '2026-10-19T00:00:00.000Z' })).rejects.toThrow(`fatal: ${failure}`);
 });

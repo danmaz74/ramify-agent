@@ -92,6 +92,6 @@ test('the production source calls nothing that writes and receives no writable s
     const offending = source.split('\n').filter(line => !line.trim().startsWith('*') && !line.trim().startsWith('//') && (writing.test(line) || collaborators.test(line)));
     expect([file, offending]).toEqual([file, []]);
   }
-  expect(await readFile(join(directory, 'repairs.ts'), 'utf8')).toContain("from '../../../src/run/repair-history.js'");
+  expect(await readFile(join(directory, 'repairs.ts'), 'utf8')).toContain("from '../../autonomous/subs/work-coordination/src/repair/repair-history.js'");
   expect(await readFile(join(directory, 'consultations.ts'), 'utf8')).toContain('openContentReader(join(directory, runLayout.blobs))');
 });

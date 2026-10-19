@@ -1720,7 +1720,7 @@ export class WorkCoordination {
                     verification: { verified: false, reason: `Repair workflow could not settle: ${message(repairError)}`, evidence: [] },
                     continuation: { delivered: false, reason: 'Repair workflow failed before verified handback; manual attention required', evidence: [] } }, 'unverified');
                 }
-                await this.ports.fail(this.ports.writer.blocked() === undefined ? 'inputs-changed' : 'writer-unsettled',
+                await this.ports.fail(this.ports.writer.blocked() === null ? 'inputs-changed' : 'writer-unsettled',
                   `Original architect obstruction: ${message(error)}. Automatic repair workflow failed: ${message(repairError)}`);
               }
               return null;
@@ -6594,7 +6594,7 @@ export class WorkCoordination {
       return null;
     };
     if (result.ended !== 'submitted' || result.value === undefined || result.value.outcome === 'blocked') return blocked(`Repair ended ${result.ended}${result.value === undefined ? '' : `: ${result.value.summary}`}`, 'blocked');
-    if (this.ports.ignoring() || this.ports.writer.blocked() !== undefined || outcome?.settled.confirmed !== true) return blocked('Repair writer settlement is unverified');
+    if (this.ports.ignoring() || this.ports.writer.blocked() !== null || outcome?.settled.confirmed !== true) return blocked('Repair writer settlement is unverified');
     if (outcome.outsideScope.length > 0 || (outcome.unknownPlacement?.length ?? 0) > 0) return blocked('Repair outcome records outside-scope writes or unknown placement');
     try {
       const documentFaults = await documentChanges(this.projectRoot, this.input.record.planId, this.input.directory, this.input.record.manifest);

@@ -218,12 +218,13 @@ export async function runCollectionFixture() {
       await projectionImplementationBase();
       // These committed production consumers are typed and checked by the configured type/self checks.
       for (const [path, names] of [
-        ['../../run/service.ts', ['captureSnapshot', 'takeLineSnapshot', 'lineEvents']],
-        ['../../steps/runner.ts', ['invocationScopeSize', 'DeclaredScope']],
-        ['../../measurement/inputs.ts', ['DeliveredScopeInputs', 'DeclaredScope']],
+        ['../../../subs/autonomous/src/run/service.ts', ['captureSnapshot']],
+        ['../../../subs/autonomous/subs/work-coordination/src/coordination.ts', ['takeLineSnapshot', 'lineEvents']],
+        ['../../../subs/task-workflow/src/steps/runner.ts', ['invocationScopeSize', 'DeclaredScope']],
+        ['../../../subs/kpi/src/measurement/inputs.ts', ['DeliveredScopeInputs', 'DeclaredScope']],
       ] as const) {
         const source = await readFile(new URL(path, import.meta.url), 'utf8');
-        const imports = source.match(/\bimport\s+(?:type\s+)?\{[^}]*\}\s+from ['"][^'"]*subs\/kpi\/src\/(?:capture|lines)\.js['"];?/g)?.join('\n') ?? '';
+        const imports = source.match(/\bimport\s+(?:type\s+)?\{[^}]*\}\s+from ['"][^'"]*(?:kpi\/src\/|\.\.\/)(?:capture|lines)\.js['"];?/g)?.join('\n') ?? '';
         for (const name of names) assert.match(imports, new RegExp(`\\b${name}\\b`), `${path}: typed KPI consumer import ${name}`);
       }
       await assert.rejects(readdir(new URL('../../kpi/', import.meta.url)), { code: 'ENOENT' });
