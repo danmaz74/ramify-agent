@@ -1,5 +1,5 @@
 import type { LineageInputs, SegmentFacts, StartKind } from '../../kpi/src/lineage.js';
-import type { Observation } from '../../../src/run/observations.js';
+import type { Observation } from '../../task-execution/src/observations.js';
 import type { ForkRelation, ReplaceRelation } from '../../../src/run/records.js';
 import type { RunView } from './inputs.js';
 

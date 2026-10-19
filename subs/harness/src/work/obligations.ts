@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { boundState, reportedState } from '../../subs/scenarios/src/states.js';
 import { carriesFakeDesignation } from '../contracts/naming.js';
-import type { SubmissionError } from '../run/submissions.js';
+import type { SubmissionError } from '../../subs/task-execution/src/submissions.js';
 import { integrationScenarioOf, type WorkItem } from './records.js';
 
 /*

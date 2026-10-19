@@ -1,6 +1,7 @@
-import type { TaskEnvironment, TaskKind } from '../prompts/tasks.js';
+import type { TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
+import type { TaskKind } from '../prompts/tasks.js';
 import type { TestArea } from './project-config.js';
-import type { HarnessTaskBrief } from './session-operations.js';
+import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 import { taskSupportSections } from '../work/task-support.js';
 import { declaredCheckInputs, moduleInputPointers, startingPointsSection, type StartingPointGroup } from '../work/starting-inputs.js';
 

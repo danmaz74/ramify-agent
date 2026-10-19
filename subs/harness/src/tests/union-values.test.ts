@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { openLedger } from '../../subs/ledger/src/ledger.js';
 import { readCommitted } from '../jobs/commit.js';
 import { runEventSchema, terminalRunEvents, type RunEvent } from '../run/log.js';
-import { ObservationLog, observationSchema, type ObservationInput } from '../run/observations.js';
+import { ObservationLog, observationSchema, type ObservationInput } from '../../subs/task-execution/src/observations.js';
 import {
   capabilityStateSchema, decisionViewSchema, hypothesisStandingSchema, metricSchema, metricStateSchema,
   failureCauseSchema, roleSchema, runFailureReasonSchema, runNoticeSchema, runPhaseSchema, workItemStateSchema,

@@ -25,9 +25,9 @@ import { obligationsOf } from '../work/obligations.js';
 import { trackedScenarios } from '../run/feature-files.js';
 import { committedRecords } from '../work/committed.js';
 import { RunLog } from '../run/log.js';
-import { readPointContext, readRecordedOperation } from '../run/session-operations.js';
-import { exactInputHash } from '../prompts/delivered-manifest.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
+import { readPointContext, readRecordedOperation } from '../../subs/task-execution/src/session-operations.js';
+import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 
 /*
  * Everything a module architect tells the harness is validated JSON: the

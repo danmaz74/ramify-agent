@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { capabilityLayout, type CapabilityHandback, type CapabilityRequest } from './records.js';
-import type { TaskEnvironment } from '../prompts/tasks.js';
+import type { TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
 import type { IterationApiViews } from '../work/engineer.js';
 import { apiCoverageStatement } from '../work/session.js';
 import { runLayout } from '../run/records.js';

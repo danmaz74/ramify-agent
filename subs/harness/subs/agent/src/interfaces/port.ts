@@ -583,3 +583,6 @@ export type AppendOutcome =
   | { readonly outcome: 'appended' | 'already-present'; readonly ref: SessionRef }
   | { readonly outcome: 'conflict'; readonly reason: string }
   | { readonly outcome: 'session-lost' };
+
+// Distinct provider binding beside the browser session projection reference.
+export type { SessionRef as AgentSessionRef };

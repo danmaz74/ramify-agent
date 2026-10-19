@@ -5,8 +5,8 @@ import type { AgentEvent, ToolAction } from '../../subs/agent/src/interfaces/por
 import { createScriptedAgent, type ScriptedAgentOptions, type ScriptStep } from '../../subs/agent/src/scripted.js';
 import { activityOf } from '../jobs/activity.js';
 import { runLayout } from '../run/records.js';
-import type { Observation } from '../run/observations.js';
-import { ContentStore } from '../transcripts/store.js';
+import type { Observation } from '../../subs/task-execution/src/observations.js';
+import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { RunLog } from '../run/log.js';
 import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownership-authority.js';
 import { decodeOwnershipEvidenceAnswer } from '../../subs/evidence/src/ownership-evidence.js';

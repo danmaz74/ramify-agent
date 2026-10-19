@@ -13,7 +13,7 @@ import { deliveredSupportPaths, type TaskKind } from '../prompts/tasks.js';
 import { renderContextSelectorPrompt, renderLocalArchitectPrompt, renderWorkOrientationPrompt } from '../prompts/packages.js';
 import { invocationLimits } from '../run/policy.js';
 import { runDirectory, runLayout, type ContinueReason, type ForkRelation } from '../run/records.js';
-import { validateAgainst, type SubmissionValidation } from '../run/submissions.js';
+import { validateAgainst, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import { composeTaskBrief } from '../run/task-brief.js';
 import { creationAuthority, type AssignmentBody } from '../work/assignment.js';
 import { refOf } from '../work/committed.js';

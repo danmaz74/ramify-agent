@@ -8,7 +8,7 @@ import { apiViewEvidenceSchema } from '../interfaces/protocol/jobs.js';
 import { reviewRequestSchema } from '../reviews/records.js';
 import { viewIdentitySchema } from '../interfaces/protocol/evidence.js';
 import { continueReasonSchema, contextPolicySchema, runPolicySchema, sessionIdSchema } from '../run/records.js';
-import { readSessionPointReference } from '../run/session-operations.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { iterationAssignmentSchema } from '../work/iterations.js';
 import { workItemOutlineSchema, workItemSchema } from '../work/records.js';
 import { startingPointSchema } from '../work/starting-points.js';

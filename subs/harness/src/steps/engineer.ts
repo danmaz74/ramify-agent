@@ -8,7 +8,7 @@ import { deliveredSupportPaths } from '../prompts/tasks.js';
 import { renderEngineerPrompt, type LoadedPackage } from '../prompts/packages.js';
 import type { RunPolicy } from '../run/records.js';
 import { invocationLimits } from '../run/policy.js';
-import type { HarnessTaskBrief } from '../run/session-operations.js';
+import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 import { composeTaskBrief, type KnownProjectFacts } from '../run/task-brief.js';
 import { shellToolDeclaration } from '../tools/shell.js';
 import {

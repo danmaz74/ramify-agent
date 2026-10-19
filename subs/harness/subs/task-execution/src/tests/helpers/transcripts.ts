@@ -2,8 +2,8 @@ import { readdir } from 'node:fs/promises';
 import { expect } from 'vitest';
 import {
   assistantText, type AgentEvent, type AssistantBlock, type ContentBlock,
-} from '../../../subs/agent/src/interfaces/port.js';
-import type { TranscriptBody, TranscriptEntry } from '../../interfaces/protocol/transcripts.js';
+} from '../../../../agent/src/interfaces/port.js';
+import type { TranscriptBody, TranscriptEntry } from '../../../../../src/interfaces/protocol/transcripts.js';
 import type { ContentStore } from '../../transcripts/store.js';
 import { readBody } from '../../transcripts/writer.js';
 

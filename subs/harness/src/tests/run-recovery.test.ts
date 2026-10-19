@@ -33,7 +33,7 @@ import { gateAttemptSchema, runLayout, type InvocationOutcome } from '../run/rec
 import type { RunWrite } from '../run/service.js';
 import type { RunEvent } from '../run/log.js';
 import { reduceSessions } from '../run/sessions.js';
-import { readTranscript } from '../transcripts/writer.js';
+import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { statedCommands } from './helpers/composition.js';
 import { intakeToolName } from '../analysis/extraction.js';
 

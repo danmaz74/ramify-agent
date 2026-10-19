@@ -3,7 +3,7 @@ import { join, relative, sep } from 'node:path';
 import { deliveredScopeInputs as collectDelivered, type DeclaredScope, type DeliveredScopeInputs, type DeliveredSupportEntry } from '../../subs/kpi/src/capture.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { LoadedPackage } from '../prompts/packages.js';
-import type { DeliveredManifest } from '../prompts/delivered-manifest.js';
+import type { DeliveredManifest } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { WriteScope } from '../work/scope.js';
 
 /** Execution selection translation; accounting and overlap policy belong to KPI. */

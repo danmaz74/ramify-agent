@@ -1,5 +1,5 @@
 import { open, stat } from 'node:fs/promises';
-import { transcriptEntrySchema, type TranscriptEntry } from '../interfaces/protocol/transcripts.js';
+import { transcriptEntrySchema, type TranscriptEntry } from '../../../../src/interfaces/protocol/transcripts.js';
 
 /*
  * Pages of transcripts, for a reader that follows them.

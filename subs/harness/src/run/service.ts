@@ -103,7 +103,8 @@ import { recoveryInspectionSchema, restartInspectionSchema, type RestartInspecti
 import type { InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
 import { composeTaskBrief, type KnownProjectFacts } from './task-brief.js';
 import { constructEngineerStep, engineerStepInputsOf, type ConstructedEngineerStep } from '../steps/engineer.js';
-import { committedBody, finished, invocationRecord, InvocationRunner, kept, type InvocationRequest, type InvocationResult, type LiveInvocation, type RunnerHost, type RunnerRun, type SessionKeeping,  } from '../steps/runner.js';
+import { committedBody, invocationRecord, InvocationRunner, type InvocationRequest, type LiveInvocation, type RunnerHost, type RunnerRun } from '../steps/runner.js';
+import { finished, kept, type InvocationResult, type SessionKeeping } from '../../subs/task-execution/src/results.js';
 import { knownFactsInputs } from '../steps/constructed.js';
 import { projectPath, stepInputsSchemaId, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs, type EngineerStepInputs, type KnownFactsInputs, type OrientationStepInputs, type ProjectPath, type StepInputs } from '../steps/inputs.js';
 import { constructStep, freshFallback } from '../steps/construct.js';
@@ -140,7 +141,8 @@ import { remainingInjections } from '../contracts/verification.js';
 import type { Hypothesis, RegistryEntry } from '../analysis/records.js';
 import { assignedFeaturePaths } from '../work/feature-selection.js';
 import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from '../work/assignment.js';
-import { engineerEquipment, type EngineerEquipment, type EquipContext, type Equipment, type ShellCallRecord,  } from '../work/engineer-equipment.js';
+import { engineerEquipment, type EngineerEquipment, type ShellCallRecord } from '../work/engineer-equipment.js';
+import { type EquipContext, type Equipment } from '../../subs/task-execution/src/equipment.js';
 import { nonfunctionalEquipment } from '../nonfunctional/equipment.js';
 import { engineerWorkingDirectory, repairWorkingDirectory } from '../work/engineer-directory.js';
 import { createGitInspectionTool } from '../work/git-inspection.js';
@@ -165,7 +167,7 @@ import { capturePlan, EvidenceUnavailableError, type RunInputs } from './inputs.
 import { extractPlanScenarios, type PlanScenarioExtraction } from '../../subs/scenarios/src/extraction.js';
 import type { RenderedFeatureFile } from '../../subs/scenarios/src/rendering.js';
 import { RunLog, type RunEvent, type RunEventInput, type RunEventOf } from './log.js';
-import { ObservationLog } from './observations.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 
 import { contextPolicyOf, defaultContextPolicies, defaultRunPolicy, engineerBoundsOf, withProjectTimeouts, type EngineerBounds } from './policy.js';
 import { captureProjectConfig, resolveBeadsProjectConfig, moduleTestAreas, type TestArea } from './project-config.js';
@@ -182,12 +184,13 @@ import { assertScratchSafe, ensureScratchRule, scratchSafetyRule, ScratchIgnoreC
 import { globalForkSourceSchema, gateAttemptId, gateAttemptSchema, invocationOutcomeSchema, invocationSchema, lineEventSummarySchema, measurementSnapshotSchema, readinessAttemptSchema, recoveryId, runDirectory, runLayout, runRecordSchema, runSchemas, sessionId, snapshotId, type GateOperation, type Invocation, type InvocationOutcome, type LineEventSummary, type MeasurementSnapshot, type RecordRef, type RunPolicy, type RunRecord, type ArchitectRef, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type RequestRelation, type SessionFinishReason, type SessionId,  } from './records.js';
 import { type RunSessions } from './sessions.js';
 import { runSnapshot, type RunSnapshot } from './snapshot.js';
-import { InvocationTranscript, recordAppend } from '../transcripts/recorder.js';
-import { ContentStore } from '../transcripts/store.js';
-import { readBody, readTranscript, TranscriptWriter } from '../transcripts/writer.js';
-import { validateAgainst, type SubmissionValidation } from './submissions.js';
-import { nodeProcessGroups, WriterBlockedError, WriterOwnership, type ProcessGroups, type TreeObserver } from './writer.js';
-import { HarnessSessionOperations, readSessionPointReference, type HarnessTaskBrief } from './session-operations.js';
+import { InvocationTranscript, recordAppend } from '../../subs/task-execution/src/transcripts/recorder.js';
+import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
+import { readBody, readTranscript, TranscriptWriter } from '../../subs/task-execution/src/transcripts/writer.js';
+import { validateAgainst, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
+import { nodeProcessGroups, WriterBlockedError, WriterOwnership, type ProcessGroups, type TreeObserver } from '../../subs/task-execution/src/writer.js';
+import { HarnessSessionOperations } from '../prompts/session-adapter.js';
+import { readSessionPointReference, type HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 import { deliveredSupportPaths, type TaskKind } from '../prompts/tasks.js';
 import { processGroupIdentity } from '../../subs/evidence/src/run-command.js';
 
@@ -506,7 +509,6 @@ class Run implements RunnerRun {
   /** The content store the run's transcripts name their large bodies in. */
   readonly store: ContentStore;
   /** One transcript writer per session, so each session's entries keep one order. */
-  readonly transcripts = new Map<SessionId, TranscriptWriter>();
 
   constructor(
     readonly record: RunRecord,

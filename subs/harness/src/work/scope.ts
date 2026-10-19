@@ -14,7 +14,7 @@ import { modulePathSchema, viewIdentitySchema, sha256Schema } from '../interface
 import type { ViewIdentity } from '../interfaces/protocol/evidence.js';
 import { resolveRealTarget } from '../guard/resolve-contained-path.js';
 import type { GuardedScope } from '../guard/write-guard.js';
-import type { SubmissionError } from '../run/submissions.js';
+import type { SubmissionError } from '../../subs/task-execution/src/submissions.js';
 import type { IterationKind } from './iterations.js';
 import type { OwnershipAuthority, OwnershipEvidenceReference } from './ownership-authority.js';
 import { OwnershipAuthorityError } from './ownership-authority.js';

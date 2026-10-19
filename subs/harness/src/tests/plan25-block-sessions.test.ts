@@ -6,10 +6,11 @@ import { createHash } from 'node:crypto';
 import { createScriptedAgent, type SessionScript } from '../../subs/agent/src/scripted.js';
 import type { SessionDriverInvocation, SessionExecutionPolicy, SessionTaskInput } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { AgentPort } from '../../subs/agent/src/interfaces/port.js';
-import { HarnessSessionOperations, readSessionPointReference, sessionPointReference, type HarnessOperationInput } from '../run/session-operations.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
-import { buildDeliveredManifest, type DeliveredInput } from '../prompts/delivered-manifest.js';
-import type { BriefingRevision } from '../prompts/briefings.js';
+import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts/session-adapter.js';
+import { readSessionPointReference, sessionPointReference } from '../../subs/task-execution/src/session-operations.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
+import { buildDeliveredManifest, type DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
+import type { BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 
 const roots: string[] = []; const adapters: HarnessSessionOperations[] = [];
 afterEach(async () => { for (const adapter of adapters.splice(0)) await adapter.close(); for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true }); });

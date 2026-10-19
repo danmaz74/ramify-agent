@@ -1,4 +1,4 @@
-import type { Observation } from '../run/observations.js';
+import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';

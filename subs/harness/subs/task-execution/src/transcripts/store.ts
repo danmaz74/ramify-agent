@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
+import { writeFileExclusive } from '../../../ledger/src/atomic.js';
 
 /*
  * The content store of a run or a standalone session: `blobs/<sha256>`, one

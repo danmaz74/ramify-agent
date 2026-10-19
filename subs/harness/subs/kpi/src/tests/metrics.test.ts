@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { metricSchema, type Metric } from '../../../../src/interfaces/protocol/runs.js';
 import type { DeliveredChange } from '../delivered.js';
 import { comparableScopeMetrics, kpiMetrics, type InvocationFacts, type MetricInputs } from '../metrics.js';
-import type { Observation } from '../../../../src/run/observations.js';
+import type { Observation } from '../../../task-execution/src/observations.js';
 import type { LineEventSummary, ScopeSize } from '../../../../src/run/records.js';
 const guarded = { statement: 'Every observed mutation passed the guard (edit).', complete: true };
 function lines(invocation: string, added: number, deleted: number, coverage: 'complete' | 'partial' = 'complete'): LineEventSummary {

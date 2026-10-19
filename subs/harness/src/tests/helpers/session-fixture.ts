@@ -8,7 +8,7 @@ import { commandResponseSchema } from '../../interfaces/protocol/jobs.js';
 import { runSessionsResponseSchema, type RunSessionView } from '../../interfaces/protocol/sessions.js';
 import type { RunServiceOptions } from '../../run/service.js';
 import { runLayout } from '../../run/records.js';
-import { readTranscript } from '../../transcripts/writer.js';
+import { readTranscript } from '../../../subs/task-execution/src/transcripts/writer.js';
 import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import { openRunsWithoutProcesses } from './external-tools.js';
 import { assign, byRole, completionProposed, outline, read, submit, treeInputs } from './iterations.js';

@@ -16,8 +16,8 @@ import { architectRunInputs } from '../run/inputs.js';
 import { defaultRunPolicy, withProjectTimeouts } from '../run/policy.js';
 import { captureProjectConfig, declaredModuleDirectories } from '../run/project-config.js';
 import { invocationOutcomeSchema, runLayout, type InvocationOutcome } from '../run/records.js';
-import { readSessionPointReference } from '../run/session-operations.js';
-import type { ProcessGroups } from '../run/writer.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
+import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
 import { committedRecords } from '../work/committed.js';
 import { iterationAcceptance, validateEngineerWithOwnership, type EngineerSubmission } from '../work/engineer.js';
@@ -34,7 +34,8 @@ import { constructOrientationStep, constructSelectorStep, constructWorkTurnStep,
 import { manualRunLocationOf, manualRunner, openManualRun, recordAuthoredInputs, settleManualAttempts, recordManualResourceIntent, readManualResourceResult, recordManualResourceResult, waitManualResourceResult, type ManualRun } from './manual.js';
 import { constructDesignOrientationStep } from './reviewer.js';
 import { prepareManualReview, ReviewRefusal, type ManualReview } from './review-step.js';
-import { committedBody, finished, kept, type InvocationProgress, type InvocationRequest, type InvocationResult, type InvocationRunner } from './runner.js';
+import { committedBody, type InvocationRequest, type InvocationRunner } from './runner.js';
+import { finished, kept, type InvocationProgress, type InvocationResult } from '../../subs/task-execution/src/results.js';
 
 /*
  * `step run`: one invocation of one role, built from its step inputs by the

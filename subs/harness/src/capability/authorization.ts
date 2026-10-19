@@ -1,4 +1,4 @@
-import type { SubmissionError } from '../run/submissions.js';
+import type { SubmissionError } from '../../subs/task-execution/src/submissions.js';
 
 /** Capability tasks may authorize changes to registered agreement artifacts only.
  * Compiler/runner/audit/root configuration remains guarded but this task policy

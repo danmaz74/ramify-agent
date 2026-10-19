@@ -18,7 +18,7 @@ import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unc
 import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
 import { runLayout, type RunPolicy } from '../run/records.js';
 import { engineerBoundsOf } from '../run/policy.js';
-import { InvocationBounds } from '../run/port-events.js';
+import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
 import { validateLocalArchitect, type LocalArchitectSubmission } from '../work/submission.js';
 import { createShellTool, shellToolName } from '../tools/shell.js';
 

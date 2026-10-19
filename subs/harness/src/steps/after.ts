@@ -20,7 +20,7 @@ import { expectedFeatureHashes } from '../run/feature-files.js';
 import { architectRunInputs } from '../run/inputs.js';
 import { auditPreparationPathsOf, engineerBoundsFor, iterationAssignmentOf } from '../run/project-facts.js';
 import { committedAuditConfigurationSchema, invocationOutcomeSchema, runLayout, type ArchitectRef, type RecordRef } from '../run/records.js';
-import type { ProcessGroups } from '../run/writer.js';
+import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { committedRecords, refOf } from '../work/committed.js';
 import { engineerSubmissionSchema, type EngineerSubmission } from '../work/engineer.js';
 import { iterationId, iterationLayout, type IterationAssignment } from '../work/iterations.js';

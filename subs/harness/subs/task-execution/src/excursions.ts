@@ -1,8 +1,8 @@
 import { isAbsolute, relative, resolve, sep } from 'node:path';
-import { isContained } from '../guard/resolve-contained-path.js';
-import type { GuardedScope } from '../guard/write-guard.js';
-import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
-import { ownerOf } from '../measurement/owners.js';
+import { isContained } from '../../../src/guard/resolve-contained-path.js';
+import type { GuardedScope } from '../../../src/guard/write-guard.js';
+import type { ArchitectIndex } from '../../evidence/src/views.js';
+import { ownerOf } from '../../../src/measurement/owners.js';
 
 /*
  * Read excursions.

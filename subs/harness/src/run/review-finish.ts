@@ -17,7 +17,7 @@ import {
 } from '../reviews/records.js';
 import { groundCredibility } from '../../subs/reviews/src/signals.js';
 import { reviewStateOf } from '../reviews/state.js';
-import type { InvocationResult } from '../steps/runner.js';
+import type { InvocationResult } from '../../subs/task-execution/src/results.js';
 import { committedRecords } from '../work/committed.js';
 import { trackedScenarios } from './feature-files.js';
 

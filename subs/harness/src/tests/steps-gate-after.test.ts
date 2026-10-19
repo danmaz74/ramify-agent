@@ -1,5 +1,5 @@
 import { consultationOutcome } from '../consultations/store.js';
-import { readTranscript } from '../transcripts/writer.js';
+import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

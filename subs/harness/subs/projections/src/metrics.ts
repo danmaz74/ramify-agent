@@ -12,7 +12,7 @@ import { lineageMetrics, lineagePolicyVersion, type LineageInputs } from '../../
 import { comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion, type InvocationFacts } from '../../kpi/src/metrics.js';
 import { explorationDetails, type SearchCount, type SearchCounts } from '../../kpi/src/exploration.js';
 import { invocationTiming } from '../../kpi/src/efficiency.js';
-import { observationSchema, type Observation } from '../../../src/run/observations.js';
+import { observationSchema, type Observation } from '../../task-execution/src/observations.js';
 import { invocationSessions } from '../../../src/run/sessions.js';
 import type { RunEvent } from '../../../src/run/log.js';
 import {

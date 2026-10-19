@@ -7,7 +7,7 @@ import { SessionQueries } from '../../../subs/projections/src/session-queries.js
 import { createQuerySource } from '../../http/query-source.js';
 import { invocationSchema, invocationOutcomeSchema, runLayout, type Invocation } from '../../run/records.js';
 import type { Role } from '../../interfaces/protocol/runs.js';
-import { observationSchema, type Observation } from '../../run/observations.js';
+import { observationSchema, type Observation } from '../../../subs/task-execution/src/observations.js';
 import { constructedRun, constructedRecord, hash, runId, type Line } from './constructed.js';
 import { size, find } from './metric-fixtures.js';
 

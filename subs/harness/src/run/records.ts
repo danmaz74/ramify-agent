@@ -1127,3 +1127,6 @@ export const runSchemas = {
 
 /** Every role a run's policy and prompt manifest must carry an entry for. */
 export const roles: readonly Role[] = roleSchema.options;
+
+// Distinct binding beside the public transcript/query usage schema.
+export { usageSchema as invocationUsageSchema };

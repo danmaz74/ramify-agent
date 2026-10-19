@@ -1,16 +1,17 @@
 import { afterEach, beforeAll, expect, test } from 'vitest';
 import { createHash } from 'node:crypto';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { assertTaskProcedureSelection, buildTaskPacket, type TaskEnvironment, type TaskKind } from '../prompts/tasks.js';
-import { buildBriefingDelivery, taskBriefingRevision } from '../prompts/briefings.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
+import { assertTaskProcedureSelection, type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
+import { buildTaskPacket, type TaskKind } from '../prompts/tasks.js';
+import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 import type { Role } from '../interfaces/protocol/runs.js';
-import type { DeliveredInput } from '../prompts/delivered-manifest.js';
+import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { runAcceptedHandback } from './helpers/acceptance-flow.js';
 import { engineerDeliveries, stepDeliveries } from './helpers/step-equality.js';
 import { join } from 'node:path';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
-import { readRecordedOperation } from '../run/session-operations.js';
+import { readRecordedOperation } from '../../subs/task-execution/src/session-operations.js';
 import { inputsFromRun } from '../steps/from-run.js';
 import { runPath } from './helpers/runs.js';
 

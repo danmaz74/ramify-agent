@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import { observationSchema } from '../run/observations.js';
+import { observationSchema } from '../../subs/task-execution/src/observations.js';
 import { runSingleSession, type SessionProgress } from '../sessions/single.js';
 import { copyFixture } from './helpers/fixture.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';

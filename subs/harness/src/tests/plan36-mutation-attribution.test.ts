@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { metricsResponseSchema, workItemResponseSchema } from '../interfaces/protocol/runs.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
-import type { Observation } from '../run/observations.js';
+import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { gateAttemptSchema, invocationOutcomeSchema, invocationSchema, runLayout } from '../run/records.js';
 import { iterationAssignmentSchema, iterationResultSchema } from '../work/iterations.js';
 import { constructedRecord, constructedRun, hash, item, reviews } from './helpers/constructed.js';

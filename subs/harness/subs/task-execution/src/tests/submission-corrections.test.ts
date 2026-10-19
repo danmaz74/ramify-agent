@@ -2,8 +2,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
-import { ObservationLog } from '../run/observations.js';
-import { SubmissionJudge, ToolInputJudge, type SubmissionError } from '../run/submissions.js';
+import { ObservationLog } from '../observations.js';
+import { SubmissionJudge, ToolInputJudge, type SubmissionError } from '../submissions.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });

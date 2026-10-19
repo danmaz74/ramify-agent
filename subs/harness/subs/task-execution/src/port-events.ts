@@ -1,13 +1,13 @@
 import { isAbsolute, relative, resolve } from 'node:path';
-import type { AgentEvent, AgentPort, AgentSession, ContextPolicy, SessionOutcome } from '../../subs/agent/src/interfaces/port.js';
-import type { SessionExecutionIdentity } from '../../subs/agent/src/interfaces/session-operations.js';
-import { estimateRecordedCharge } from '../../subs/kpi/src/efficiency.js';
-import type { ExplorationObservation } from '../../subs/kpi/src/exploration.js';
-import { activityOf } from '../jobs/activity.js';
-import type { InvocationTranscript } from '../transcripts/recorder.js';
+import type { AgentEvent, AgentPort, AgentSession, ContextPolicy, SessionOutcome } from '../../agent/src/interfaces/port.js';
+import type { SessionExecutionIdentity } from '../../agent/src/interfaces/session-operations.js';
+import { estimateRecordedCharge } from '../../kpi/src/efficiency.js';
+import type { ExplorationObservation } from '../../kpi/src/exploration.js';
+import { activityOf } from '../../../src/jobs/activity.js';
+import type { InvocationTranscript } from './transcripts/recorder.js';
 import type { ExcursionWatcher } from './excursions.js';
 import type { ObservationLog } from './observations.js';
-import type { InvocationOutcome } from './records.js';
+import type { InvocationOutcome } from '../../../src/run/records.js';
 
 /*
  * What one session's port events leave in its observation log and its

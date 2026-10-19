@@ -12,7 +12,8 @@ import {
 } from './composition.js';
 import { scenariosCommitName, type GitResponses } from './recovery-git.js';
 import { onlyRun, openRuns } from './runs.js';
-import { HarnessSessionOperations, readSessionPointReference } from '../../run/session-operations.js';
+import { HarnessSessionOperations } from '../../prompts/session-adapter.js';
+import { readSessionPointReference } from '../../../subs/task-execution/src/session-operations.js';
 import { readAcceptedEvidence } from '../../analysis/evidence.js';
 import { runRecordSchema } from '../../run/records.js';
 import { readRecordedContextSelection } from '../../context-selection/recorded.js';

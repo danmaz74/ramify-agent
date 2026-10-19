@@ -2,7 +2,7 @@ import { posix, sep } from 'node:path';
 import { z } from 'zod';
 import { findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { modulePathSchema } from '../interfaces/protocol/evidence.js';
-import type { SubmissionError } from '../run/submissions.js';
+import type { SubmissionError } from '../../subs/task-execution/src/submissions.js';
 import { slugSchema, type RegistryEntry } from '../analysis/records.js';
 import { assignedBoundsSchema, extraPurposeSchema, type AssignedBounds } from './iterations.js';
 import { includedConfigurationPaths, within } from './scope.js';

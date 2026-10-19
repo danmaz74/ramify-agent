@@ -5,7 +5,7 @@ import { ScriptedCli } from '../../subs/evidence/src/tests/helpers/scripted-cli.
 import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { placementOutcome, type GuardedScope } from '../guard/write-guard.js';
 import { classifyMutations, outsideScope, recordSettledSnapshot, takeMutationSnapshot } from '../run/mutations.js';
-import { ObservationLog } from '../run/observations.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { CommittingGates, type GateHost, type GateRun } from '../run/committing-gate.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { temporaryDirectory } from './helpers/fixture.js';

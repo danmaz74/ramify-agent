@@ -1,9 +1,9 @@
 import { mkdir, readFile, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
-import { appendJsonLine, discardPartialLine, readJsonLines, withJsonLineAppender } from '../../subs/ledger/src/jsonl.js';
+import { appendJsonLine, discardPartialLine, readJsonLines, withJsonLineAppender } from '../../../ledger/src/jsonl.js';
 import {
   transcriptEntrySchema, type TranscriptBody, type TranscriptEntry,
-} from '../interfaces/protocol/transcripts.js';
+} from '../../../../src/interfaces/protocol/transcripts.js';
 import type { ContentReader, ContentStore } from './store.js';
 
 /*
@@ -53,10 +53,10 @@ export interface TranscriptWriterOptions {
 /** How many characters of a stored body's first line its header previews. */
 export const previewCharacters = 120;
 
-type Build = (bodies: TranscriptBodies) => TranscriptEntryInput | Promise<TranscriptEntryInput>;
+export type TranscriptBuild = (bodies: TranscriptBodies) => TranscriptEntryInput | Promise<TranscriptEntryInput>;
 type AppendTask = {
   readonly kind: 'single' | 'independent';
-  readonly build: Build;
+  readonly build: TranscriptBuild;
   readonly resolve: (entry: TranscriptEntry) => void;
   readonly reject: (error: unknown) => void;
 };
@@ -90,7 +90,7 @@ export class TranscriptWriter {
    * runs in turn, so the bodies it stores and the number the entry gets
    * follow the same order. It rejects when the entry could not be written.
    */
-  append(build: Build): Promise<TranscriptEntry> {
+  append(build: TranscriptBuild): Promise<TranscriptEntry> {
     return this.admit('single', build);
   }
 
@@ -99,7 +99,7 @@ export class TranscriptWriter {
    * Adjacent admitted entries can share a handle; each line still flushes
    * before the next builder, and no answer precedes the handle's close.
    */
-  appendIndependent(build: Build): Promise<TranscriptEntry> {
+  appendIndependent(build: TranscriptBuild): Promise<TranscriptEntry> {
     return this.admit('independent', build);
   }
 
@@ -111,7 +111,7 @@ export class TranscriptWriter {
     });
   }
 
-  private admit(kind: AppendTask['kind'], build: Build): Promise<TranscriptEntry> {
+  private admit(kind: AppendTask['kind'], build: TranscriptBuild): Promise<TranscriptEntry> {
     return new Promise((resolve, reject) => {
       this.queue.push({ kind, build, resolve, reject });
       this.schedule();
@@ -290,4 +290,18 @@ export async function readBody(root: string, store: ContentReader, body: Transcr
   const path = join(root, ...body.path.split('/'));
   if (relative(root, path).startsWith('..')) return null;
   return readFile(path, 'utf8').catch(() => null);
+}
+
+/** Session writers belong to execution; workflow hosts supply only storage configuration. */
+export class TranscriptWriters {
+  private readonly writers = new Map<string, TranscriptWriter>();
+  async drain(root: string): Promise<void> {
+    for (const [path, writer] of this.writers) if (path.startsWith(root + '/')) await writer.drain();
+  }
+  of(options: TranscriptWriterOptions): TranscriptWriter {
+    const key = options.path;
+    let writer = this.writers.get(key);
+    if (writer === undefined) { writer = new TranscriptWriter(options); this.writers.set(key, writer); }
+    return writer;
+  }
 }

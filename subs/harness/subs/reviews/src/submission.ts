@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { JsonSchema } from '../../agent/src/interfaces/port.js';
-import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../../src/run/submissions.js';
+import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../task-execution/src/submissions.js';
 import { orientationSubmissionSchema, reviewSubmissionSchema, type OrientationSubmission, type ReviewSubmission } from './interfaces/submissions.js';
 import { resolveChangedPath, resolveSnapshotPath, snapshotToolNames, type CandidateSnapshot } from './snapshot.js';
 

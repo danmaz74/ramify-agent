@@ -31,7 +31,7 @@ import {
 import { copyFixture } from './helpers/fixture.js';
 import { fixtureScratchGit } from './helpers/mock-git.js';
 import { acquireProjectLock } from '../store/lock.js';
-import { ObservationLog } from '../run/observations.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { runLayout } from '../run/records.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 

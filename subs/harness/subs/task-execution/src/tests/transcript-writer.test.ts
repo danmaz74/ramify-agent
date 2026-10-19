@@ -1,12 +1,12 @@
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { noMessageDetail, type AgentEvent } from '../../subs/agent/src/interfaces/port.js';
-import { transcriptEntrySchema, type TranscriptEntry } from '../interfaces/protocol/transcripts.js';
+import { noMessageDetail, type AgentEvent } from '../../../agent/src/interfaces/port.js';
+import { transcriptEntrySchema, type TranscriptEntry } from '../../../../src/interfaces/protocol/transcripts.js';
 import { InvocationTranscript, recordAppend, type InvocationStart } from '../transcripts/recorder.js';
 import { ContentStore } from '../transcripts/store.js';
 import { readTranscript, TranscriptWriter } from '../transcripts/writer.js';
-import { temporaryDirectory } from './helpers/fixture.js';
+import { temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
 import { blobsIn, portEventsOf, transcribed } from './helpers/transcripts.js';
 
 /*

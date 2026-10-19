@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { AgentEvent, JsonSchema, ToolDefinition } from '../../agent/src/interfaces/port.js';
 import type { SessionOperations, SessionExecutionPolicy, SessionTaskInput, SessionToolDeclaration } from '../../agent/src/interfaces/session-operations.js';
-import type { SubmissionValidation } from '../../../src/run/submissions.js';
-import { rejectionAnswer } from '../../../src/run/submissions.js';
+import type { SubmissionValidation } from '../../task-execution/src/submissions.js';
+import { rejectionAnswer } from '../../task-execution/src/submissions.js';
 import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
 import { assistedReviewSubmissionSchema } from '../../reviews/src/assisted.js';
 import type { PreparedReview } from '../../reviews/src/preparation.js';

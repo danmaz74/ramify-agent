@@ -4,7 +4,7 @@ import { symbolRecords, type ArchitectIndex, type ModuleEntry } from '../../subs
 import { citationSchema, modulePathSchema } from '../interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import { moduleProposalSchema } from '../run/records.js';
-import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../run/submissions.js';
+import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import { hypothesisChangeSchema, slugSchema } from './records.js';
 import { extractDocumentScenarios, type PlanScenario, type PlanScenarioExtraction } from '../../subs/scenarios/src/extraction.js';
 import type { DocumentManifest } from '../../subs/plan-evidence/src/interfaces/contracts.js';

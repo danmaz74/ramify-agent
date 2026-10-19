@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import type { ElementCatalog, PackageDeviation } from '../../subs/plan-evidence/src/interfaces/catalog.js';
-import type { SubmissionError } from '../run/submissions.js';
+import type { SubmissionError } from '../../subs/task-execution/src/submissions.js';
 import { contextSelectionSchema, type ContextSelection } from './contracts.js';
 import { citePackage } from './delivery.js';
 import { selectableKinds } from './prompts.js';

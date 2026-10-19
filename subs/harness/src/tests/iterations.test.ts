@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { GateAttempt } from '../checks/records.js';
 import { iterationLayout, type IterationAssignment, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../run/records.js';
-import { ObservationLog, type Observation, type ObservationOf } from '../run/observations.js';
+import { ObservationLog, type Observation, type ObservationOf } from '../../subs/task-execution/src/observations.js';
 import { scriptedCandidates } from './helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';

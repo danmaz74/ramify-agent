@@ -7,7 +7,7 @@ import { assessmentCoverage, assessmentResultSchema, assessmentSchema, type Asse
 import type { RoundDecision } from '../../subs/nonfunctional/src/rounds.js';
 import type { ElementCatalog } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { modulePathSchema } from '../interfaces/protocol/evidence.js';
-import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../run/submissions.js';
+import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 
 const text = z.string().min(1);
 const nfrId = z.string().regex(/^(nfr|fix)-\d{3,}$/);

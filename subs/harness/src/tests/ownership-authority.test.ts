@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { writeFile, unlink, readdir } from 'node:fs/promises';
 import { afterEach, expect, test, vi } from 'vitest';
-import { ContentStore } from '../transcripts/store.js';
+import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownership-authority.js';
 import { decodeOwnershipEvidenceAnswer, type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';

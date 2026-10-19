@@ -1670,3 +1670,7 @@ it supplies no provider cache-hit, cost or latency benefit claim.
 ## Assisted workflow
 
 The [assistance child](subs/assistance/README.md) owns assisted admission, durable assessment lifecycle, Pi review and MCP transport. Harness re-exposes its supported startup facade to the root executable, and supplies selected common job, lock, command and audit-workspace contracts. Autonomous lifecycle policy stays in its own implementation.
+
+## Shared task execution
+
+The [task-execution child](subs/task-execution/README.md) executes prepared tasks for managed, manual and standalone callers. Workflow adapters retain construction, admission, retry/completion and atomic run journals; the child owns session binding, common delivery and recording, transcripts and settlement mechanics. Consultation and administrative workflows retain their applicable policy.

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { findModule, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { citationSchema, modulePathSchema } from '../interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
-import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../run/submissions.js';
+import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import { hypothesisChangeSchema, slugSchema, type Hypothesis, type RegistryEntry } from '../analysis/records.js';
 import { moduleProposalSchema, type ModuleProposal } from '../run/records.js';
 import { hypothesisStanceSchema, placementOutcomeSchema, type PlacementDecision } from './records.js';

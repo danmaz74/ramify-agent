@@ -7,8 +7,8 @@ import { consultationId, consultationLayout, consultationStartSchema, consultati
 import { architectAnswerSchema } from '../../../src/consultations/submissions.js';
 import { runEventSchema } from '../../../src/run/log.js';
 import { invocationSchema, invocationOutcomeSchema, manualRunRecordSchema, runRecordSchema, runLayout, type Invocation, type InvocationOutcome } from '../../../src/run/records.js';
-import { openContentReader } from '../../../src/transcripts/store.js';
-import { readBody, readTranscript } from '../../../src/transcripts/writer.js';
+import { openContentReader } from '../../task-execution/src/transcripts/store.js';
+import { readBody, readTranscript } from '../../task-execution/src/transcripts/writer.js';
 import type { TranscriptBody } from '../../../src/interfaces/protocol/transcripts.js';
 import { readObservationLog } from './metrics.js';
 

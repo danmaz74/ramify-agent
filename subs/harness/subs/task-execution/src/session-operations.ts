@@ -1,21 +1,21 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { isInspectableShellCheck } from '../tools/shell-tests.js';
-import type { AgentPort, AgentSession, AppendOutcome, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
-import type { AppendSessionContextInput, AgentSessionPoint, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
-import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
-import { writeFileExclusive } from '../../subs/ledger/src/atomic.js';
-import { openSessionStore, type LedgerSessionStore } from '../../subs/session-store/src/session-store.js';
-import { buildTaskPacket, type TaskEnvironment, type TaskKind, type TaskPacket } from '../prompts/tasks.js';
-import { buildBriefingDelivery, createBriefingOccurrence, taskBriefingRevision, type BriefingRevision } from '../prompts/briefings.js';
-import { deliveredBefore, renderBlockSet, setsBody } from '../prompts/blocks.js';
-import { buildDeliveredManifest, exactInputHash, type DeliveredInput } from '../prompts/delivered-manifest.js';
-import type { LoadedPackage } from '../prompts/packages.js';
-import { deliveredManifestViewSchema } from '../interfaces/protocol/runs.js';
+
+import type { AgentPort, AgentSession, AppendOutcome, SessionSpec } from '../../agent/src/interfaces/port.js';
+import type { AppendSessionContextInput, AgentSessionPoint, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../agent/src/interfaces/session-operations.js';
+import { piBuiltinDeclarations } from '../../agent/subs/pi/src/session-operations.js';
+import { writeFileExclusive } from '../../ledger/src/atomic.js';
+import { openSessionStore, type LedgerSessionStore } from '../../session-store/src/session-store.js';
+import { buildPreparedTaskPacket, type TaskEnvironment, type TaskPacket, type PreparedTaskPackage } from './delivery/packet.js';
+import { buildBriefingDelivery, createBriefingOccurrence, taskBriefingRevision, type BriefingRevision } from './delivery/briefings.js';
+import { deliveredBefore, renderBlockSet, setsBody } from './delivery/blocks.js';
+import { buildDeliveredManifest, exactInputHash, type DeliveredInput } from './delivery/delivered-manifest.js';
+
+import { deliveredManifestViewSchema } from '../../../src/interfaces/protocol/runs.js';
 
 export interface HarnessTaskBrief {
-  readonly kind: TaskKind;
+  readonly kind: string;
   readonly objective: string;
   readonly goal: string;
   readonly requirements: readonly string[];
@@ -25,11 +25,11 @@ export interface HarnessTaskBrief {
   readonly environment: TaskEnvironment;
   readonly consultationSubmissionSchema?: string;
 }
-export interface HarnessOperationInput {
+export interface PreparedOperationInput {
   readonly runId: string;
   readonly operationId: string;
   readonly session: string;
-  readonly loaded: LoadedPackage;
+  readonly prepare: () => PreparedTaskPackage;
   readonly brief: HarnessTaskBrief;
   readonly spec: SessionSpec;
   readonly authority: Readonly<Record<string, unknown>>;
@@ -170,7 +170,7 @@ export function operationDeclarations(builtins: readonly SessionToolDeclaration[
 export function composeOperationPacket(input: {
   readonly runId: string;
   readonly operationId: string;
-  readonly loaded: LoadedPackage;
+  readonly prepared: PreparedTaskPackage;
   readonly brief: HarnessTaskBrief;
   readonly role: string;
   readonly mode: SessionSpec['session']['mode'];
@@ -196,11 +196,11 @@ export function composeOperationPacket(input: {
     operationId: input.operationId, sections: taskBriefingRevision({ revision: 'construction', goal: input.brief.goal, requirements: input.brief.requirements, sections }).sections });
   const history = [...(prior?.history ?? [])];
   if (!history.some(entry => entry.revision === current.revision)) history.push(current);
-  const ordinary = buildTaskPacket({ loaded: input.loaded, ...input.brief,
+  const ordinary = buildPreparedTaskPacket({ loaded: input.prepared, ...input.brief,
     environment: { ...input.brief.environment, workingDirectory: input.workingDirectory, availableTools: [...input.builtinDeclarations.map(tool => tool.name), ...input.tools.map(tool => tool.name), input.submissionName] },
     briefing: buildBriefingDelivery({ mode: input.mode, current, inheritedRevision: prior?.revision ?? null, history }),
     inheritedPoint: input.source ? sessionPointReference(input.runId, input.source) : null, inherited: prior?.inherited ?? [],
-    supplyRoleInstructions: !prior?.inherited.some(item => item.key === `role:${input.loaded.role}` && item.kind === 'role-instructions'),
+    supplyRoleInstructions: !prior?.inherited.some(item => item.key === `role:${input.prepared.role}` && item.kind === 'role-instructions'),
   });
   // Caller prose is a separate physical delivery after the entire ordinary task.
   // It participates in immutable identity and is inherited at the returned point.
@@ -215,7 +215,7 @@ export function composeOperationPacket(input: {
 }
 
 /** Harness correlations are immutable; provider bytes and execution intent remain in the injected ledger store. */
-export class HarnessSessionOperations {
+export class TaskSessionOperations {
   /** Reconcile only completed admitted handlers; source bytes and elapsed time supply no result. */
   async reconcileOwnedEffects(runId: string, operationId: string): Promise<string[]> {
     const original = await this.originalOperation(runId, operationId);
@@ -261,7 +261,7 @@ export class HarnessSessionOperations {
       if (effect.consequential === undefined && effect.tool !== original?.task.submissionTool && ['read', 'grep', 'find', 'ls', 'write', 'edit'].includes(effect.tool)) return false;
       if (effect.consequential === undefined && effect.tool === 'shell' && typeof effect.input === 'object' && effect.input !== null) {
         const command = (effect.input as { command?: unknown }).command;
-        if (typeof command === 'string' && isInspectableShellCheck(command, original?.task.environment.workingDirectory ?? '.')) return false;
+        if (typeof command === 'string' && this.isInspectableShellCheck(command, original?.task.environment.workingDirectory ?? '.')) return false;
       }
       return true;
     }).map(effect => effect.callId);
@@ -290,13 +290,14 @@ export class HarnessSessionOperations {
     const point = receipt?.point;
     return point && await this.operations.inspect(runId, point.sessionId, point) ? sessionPointReference(runId, point) : null;
   }
+  protected isInspectableShellCheck(_command: string, _workingDirectory: string): boolean { return false; }
   private readonly pending = new Map<Promise<unknown>, { readonly runId: string; readonly operationId: string }>();
   private readonly unconfirmed = new Set<string>();
-  private constructor(private readonly directory: string, private readonly store: LedgerSessionStore, readonly operations: SessionOperations, private readonly agent: AgentPort) {}
-  static async open(directory: string, agent: AgentPort): Promise<HarnessSessionOperations> {
+  protected constructor(private readonly directory: string, private readonly store: LedgerSessionStore, readonly operations: SessionOperations, private readonly agent: AgentPort) {}
+  static async open(directory: string, agent: AgentPort): Promise<TaskSessionOperations> {
     if (!agent.bindSessionStore) throw new Error(genericSessionDriverUnavailableError);
     const store = await openSessionStore({ directory: join(directory, 'store') });
-    try { return new HarnessSessionOperations(directory, store, agent.bindSessionStore(store), agent); }
+    try { return new this(directory, store, agent.bindSessionStore(store), agent); }
     catch (error) { await store.close(); throw error; }
   }
   /** Whether every dispatched operation of this run has confirmed its tool/session barrier. */
@@ -370,7 +371,7 @@ export class HarnessSessionOperations {
     if (!await this.operations.inspect(runId, source.point.sessionId, source.point)) throw new ReusableSessionUnavailableError('Retained session state unavailable');
     return this.context(runId, source.point);
   }
-  async start(input: HarnessOperationInput): Promise<AgentSession & { readonly unavailableReason?: string | undefined }> {
+  async start(input: PreparedOperationInput): Promise<AgentSession & { readonly unavailableReason?: string | undefined }> {
     const { runId, operationId } = input;
     const path = this.path('operations', [runId, operationId]);
     const raw = await this.read<unknown>(path);
@@ -405,7 +406,7 @@ export class HarnessSessionOperations {
     // Role-specific additions apply to new tasks, not immutable retries created
     // before those tools existed. Explicit builtins still undergo equality checks.
     const builtinDeclarations = offeredBuiltins.filter(tool => !previous || builtins.some(name => name === tool.name) || previous.declarations.some(old => old.name === tool.name));
-    const composed = previous ? null : composeOperationPacket({ runId, operationId, loaded: input.loaded, brief: input.brief, role: spec.role,
+    const composed = previous ? null : composeOperationPacket({ runId, operationId, prepared: input.prepare(), brief: input.brief, role: spec.role,
       mode: spec.session.mode, workingDirectory: spec.scope.workingDirectory, builtinDeclarations, tools: spec.tools, submissionName: spec.submission.name,
       source: sourceRef?.point ?? null, prior, ...(input.callerText === undefined ? {} : { callerText: input.callerText }) });
     const current = previous ? previous.context.history.find(entry => entry.revision === previous.context.revision)! : composed!.current;

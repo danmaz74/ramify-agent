@@ -16,9 +16,9 @@ import type { CapabilityRequest, CapabilityTask } from '../capability/records.js
 import { runLayout, type Invocation, type InvocationOutcome } from '../run/records.js';
 import { z } from 'zod';
 import { capabilityActionSchema } from '../capability/submission.js';
-import { readPointContext, readRecordedOperation } from '../run/session-operations.js';
-import { exactInputHash } from '../prompts/delivered-manifest.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
+import { readPointContext, readRecordedOperation } from '../../subs/task-execution/src/session-operations.js';
+import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('./helpers/process-guard.js');

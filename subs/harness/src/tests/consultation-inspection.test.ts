@@ -7,7 +7,7 @@ import { consultationId, consultationLayout, type ConsultationStart, type Consul
 import { runConsultationsCommand } from '../consultations/command.js';
 import { readConsultations, consultationText } from '../../subs/projections/src/consultations.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { sessionPointReference } from '../run/session-operations.js';
+import { sessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { constructedRecord } from './helpers/constructed.js';
 import { answer, ask, consultationFixture } from './helpers/consultations.js';
@@ -62,7 +62,7 @@ test('C13/C14/C15: actual nested exchanges, session descendants, complete per-in
   } }));
   const caller = await f.caller('engineer', f.seeds['local-architect']!, f.seeds['global-fork']!);
   await writeFile(join(f.directory, 'job.json'), JSON.stringify(f.run.record));
-  for (const writer of f.run.transcripts.values()) await writer.drain();
+  await f.runner.drainTranscripts(f.run);
   const before = await bytes(f.directory); const seen = f.seen.length;
   const view = await readConsultations({ run: f.directory });
   const outer = view.consultations[0]!; const inner = view.consultations[1]!;

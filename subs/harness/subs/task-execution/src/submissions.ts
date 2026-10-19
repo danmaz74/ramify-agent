@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { SubmissionVerdict } from '../../subs/agent/src/interfaces/port.js';
+import type { SubmissionVerdict } from '../../agent/src/interfaces/port.js';
 import type { ObservationLog } from './observations.js';
 
 /*
@@ -58,7 +58,7 @@ export function rejectionAnswer(errors: readonly SubmissionError[]): string {
 }
 
 /** What a judge does with an input it accepted. */
-export type AcceptInput<T> = (value: T) => Promise<void>;
+export type SubmissionAcceptance<T> = (value: T) => Promise<void>;
 
 export interface SubmissionJudgeOptions<T> {
   /** The tool the input came through: the submission tool's name, or a harness tool's. */
@@ -67,7 +67,7 @@ export interface SubmissionJudgeOptions<T> {
   readonly bound?: number;
   readonly validate: (input: unknown) => Promise<SubmissionValidation<T>> | SubmissionValidation<T>;
   /** Applied only to an accepted input, and only once. */
-  readonly accept: AcceptInput<T>;
+  readonly accept: SubmissionAcceptance<T>;
   readonly observations: ObservationLog;
   /** What the agent is told when its input is accepted; without it the implementation's own acknowledgement is used. */
   readonly acceptedText?: ((value: T) => string) | undefined;

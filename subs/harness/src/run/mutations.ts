@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { isContained } from '../guard/resolve-contained-path.js';
 import { placementOutcome } from '../guard/write-guard.js';
 import type { GuardedScope } from '../guard/write-guard.js';
-import type { ObservationLog } from './observations.js';
+import type { ObservationLog } from '../../subs/task-execution/src/observations.js';
 
 /*
  * What a writer changed, as the tree reports it.

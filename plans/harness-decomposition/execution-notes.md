@@ -20,11 +20,15 @@ Iteration 1 (session-store) is accepted for continuing under this user-authorize
 - Evidence-inspection experiment: `it-dc6ab4f9-ffd2-4438-86b4-b63324177a3b`, started but never assessed. Parked on `wip/harness-evidence-inspection` at `c58ddee2`; it is excluded from this implementation branch and is not required to proceed.
 - Existing source/evaluation evidence remains beside this plan; do not repeat or expand it solely to satisfy optional artifact coverage. Operational benefit remains unmeasured.
 
-## Next outcome
+## Current outcome
 
-Iteration 2: isolate the complete assisted workflow. RA start record `it-704ef82c-6861-430e-837e-edfa0e931af5`, base `8ad6fe1d381f3d33665be701a37a12df472035f7`, started `2026-10-19T09:31:19.905Z` (UTC), clean observed start. This records implementation timing only; no assessor was launched. Move the service/store/assessor/MCP together, preserve the root facade and actual consumers, and separate shared helpers from autonomous decisions without copying algorithms. Use the existing oriented Sol implementation worker `/root/session_store`; it owns production integration. The coordinator owns these notes and arranges a single native review of the candidate.
+Iteration 2 is accepted at `0297b979be5378faca81834655ef02a4aaf77e94`: 180 focused tests, type-check, structural and patch checks passed; one native source review by `/root/review_assistance` found no substantive issues. No RA assessment was launched for this outcome. Its start record is `it-704ef82c-6861-430e-837e-edfa0e931af5` (base `8ad6fe1d`, clean).
 
-Subsequent outcomes remain task execution, autonomous lifecycle/planning, work coordination, and acceptance/final integration. Preserve the full scope and adapt grouping only when actual interface discovery warrants it.
+Iteration 3: shared task-execution runtime. Start record `it-7d0f5bcf-ab1e-4fe4-a5fc-2dfa4226058a`, base `0297b979be5378faca81834655ef02a4aaf77e94`, started `2026-10-19T09:44:48.280Z` (UTC); dirty provenance reflects coordinator notes only. `/root/session_store` owns implementation and consumer integration. `/root/evaluation` is doing read-only preparation for the next autonomous lifecycle/planning outcome.
+
+Implement shared managed/manual/standalone invocation mechanics using prepared tasks and narrow authority/recording contracts; keep workflow policies outside the runtime and preserve no-review-deadline behavior. One native review follows the committed candidate. The coordinator owns these notes.
+
+Remaining outcomes: autonomous lifecycle/planning, work coordination, acceptance/final integration. Retain the full scope; adapt grouping only when actual interface discovery warrants it.
 
 ## RA connection if needed
 

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { engineerEquipment } from '../work/engineer-equipment.js';
-import { ObservationLog } from '../run/observations.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import type { GuardedScope } from '../guard/write-guard.js';
 import { OwnershipUnavailableError } from '../../subs/evidence/src/ownership-evidence.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';

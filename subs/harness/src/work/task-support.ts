@@ -1,4 +1,4 @@
-import type { HarnessTaskBrief } from '../run/session-operations.js';
+import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 
 /** Remove separately delivered structural blocks while preserving quoted and embedded literals. */
 export function taskSupportSections(prompt: string, separatelyDelivered: readonly string[]): HarnessTaskBrief['sections'] {

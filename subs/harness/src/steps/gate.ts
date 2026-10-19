@@ -19,7 +19,7 @@ import { architectRunInputs } from '../run/inputs.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { runReadiness } from '../run/readiness.js';
 import { committedAuditConfigurationSchema, gateAttemptId, gateAttemptSchema, runLayout } from '../run/records.js';
-import type { ProcessGroups } from '../run/writer.js';
+import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { unsettledRequests } from '../reviews/state.js';
 import { committedRecords } from '../work/committed.js';
 import { engineerSubmissionSchema } from '../work/engineer.js';

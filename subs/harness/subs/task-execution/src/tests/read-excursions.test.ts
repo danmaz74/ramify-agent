@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { ExcursionWatcher } from '../run/excursions.js';
-import { architectIndex, moduleEntry } from './helpers/views.js';
+import { ExcursionWatcher } from '../excursions.js';
+import { architectIndex, moduleEntry } from '../../../../src/tests/helpers/views.js';
 
 /*
  * Read boundaries are soft.

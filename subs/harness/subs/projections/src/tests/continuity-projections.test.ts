@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { invocationEvaluationSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { transcriptEntrySchema } from '../../../../src/interfaces/protocol/transcripts.js';
 import { evaluationOf } from '../metrics.js';
-import { observationSchema } from '../../../../src/run/observations.js';
+import { observationSchema } from '../../../task-execution/src/observations.js';
 import { invocationSchema } from '../../../../src/run/records.js';
 const at = '2026-10-13T06:00:00.000Z';
 const nativeSettings = { source: 'pi@0.87.1:SettingsManager' as const, compaction: { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 },

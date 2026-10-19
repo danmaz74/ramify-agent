@@ -7,13 +7,14 @@ import { loadPromptPackages } from '../../prompts/packages.js';
 import { createSessionOperations } from '../../../subs/agent/src/session-operations.js';
 import { defaultRunPolicy } from '../../run/policy.js';
 import { RunLog } from '../../run/log.js';
-import { readSessionPointReference } from '../../run/session-operations.js';
-import { WriterOwnership } from '../../run/writer.js';
+import { readSessionPointReference } from '../../../subs/task-execution/src/session-operations.js';
+import { WriterOwnership } from '../../../subs/task-execution/src/writer.js';
 import { ManualRun, manualRunner } from '../../steps/manual.js';
-import { kept, type InvocationRequest } from '../../steps/runner.js';
+import { kept } from '../../../subs/task-execution/src/results.js';
+import { type InvocationRequest } from '../../steps/runner.js';
 import { composeTaskBrief } from '../../run/task-brief.js';
 import { consultationTool } from '../../consultations/tools.js';
-import type { TaskEnvironment } from '../../prompts/tasks.js';
+import type { TaskEnvironment } from '../../../subs/task-execution/src/delivery/packet.js';
 import type { ConsultationTarget } from '../../consultations/targets.js';
 import { temporaryDirectory } from './fixture.js';
 import { mockGit } from './mock-git.js';
@@ -76,7 +77,7 @@ export async function retainConsultationExample(fixture: Awaited<ReturnType<type
   const root = process.env['RAMIFY_PLAN33_EVIDENCE_DIR'];
   if (root === undefined) return;
   if (fixture.run.live.size !== 0) throw new Error('Consultation evidence must be retained after settlement');
-  for (const transcript of fixture.run.transcripts.values()) await transcript.drain();
+  await fixture.runner.drainTranscripts(fixture.run);
   const target = join(root, name);
   await mkdir(target, { recursive: true });
   for (const artifact of ['events.jsonl', 'invocations', 'transcripts', 'blobs', 'consultations']) {

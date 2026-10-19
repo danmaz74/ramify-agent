@@ -1,9 +1,9 @@
 import { appendFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import type { TranscriptEntry } from '../interfaces/protocol/transcripts.js';
+import type { TranscriptEntry } from '../../../../src/interfaces/protocol/transcripts.js';
 import { TranscriptPages } from '../transcripts/pages.js';
-import { temporaryDirectory } from './helpers/fixture.js';
+import { temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
 
 /*
  * Pages of a transcript after a cursor, read as a follower reads them: only

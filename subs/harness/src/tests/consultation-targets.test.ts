@@ -6,7 +6,7 @@ import { consultationAvailability, consultationInputsSchema, consultationTargetS
 import { globalContext } from '../architecture/context.js';
 import { RunLog, type RunEventOf } from '../run/log.js';
 import { runLayout } from '../run/records.js';
-import { HarnessSessionOperations, type HarnessOperationInput } from '../run/session-operations.js';
+import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts/session-adapter.js';
 import { loadPromptPackages } from '../prompts/packages.js';
 import { constructEngineerStep } from '../steps/engineer.js';
 import { constructStep } from '../steps/construct.js';

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { FindingsSeen, findingIdentities, runHookCheck, type HookCheck } from '../hooks/post-write.js';
 import { runLayout, type InvocationOutcome } from '../run/records.js';
-import type { Observation } from '../run/observations.js';
+import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';

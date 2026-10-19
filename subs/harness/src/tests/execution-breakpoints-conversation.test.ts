@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { debugInspectionSchema, debugExchangeSchema, startRunCommandSchema, type DebugMessageCommand } from '../interfaces/protocol/runs.js';
 import { openSessionStore } from '../../subs/session-store/src/session-store.js';
-import { readSessionPointReference } from '../run/session-operations.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';

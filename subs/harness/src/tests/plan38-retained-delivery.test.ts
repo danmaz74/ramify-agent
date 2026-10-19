@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, test } from 'vitest';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { buildTaskPacket, type TaskEnvironment } from '../prompts/tasks.js';
-import { buildBriefingDelivery, taskBriefingRevision, type BriefingRevision } from '../prompts/briefings.js';
-import { effectiveBlocks, renderBlockRemoval, renderBlockSet } from '../prompts/blocks.js';
-import type { DeliveredInput } from '../prompts/delivered-manifest.js';
+import { buildTaskPacket } from '../prompts/tasks.js';
+import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
+import { buildBriefingDelivery, taskBriefingRevision, type BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
+import { effectiveBlocks, renderBlockRemoval, renderBlockSet } from '../../subs/task-execution/src/delivery/blocks.js';
+import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { composeTaskBrief } from '../run/task-brief.js';
 import { capturedPlanBlock, planScenariosSection } from '../run/service.js';
 import { extractDocumentScenarios } from '../../subs/scenarios/src/extraction.js';

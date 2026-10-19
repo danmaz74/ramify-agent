@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { CandidateSource } from '../../evidence/src/git.js';
-import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../../src/run/submissions.js';
+import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../task-execution/src/submissions.js';
 import { prepareCandidateReview, type PreparedReview } from './preparation.js';
 import { reviewSubmissionSchema } from './interfaces/submissions.js';
 import { validateReview, type ReviewEvidence } from './submission.js';

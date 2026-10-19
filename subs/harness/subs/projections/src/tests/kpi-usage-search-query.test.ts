@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, expect, test } from 'vitest';
-import type { Observation } from '../../../../src/run/observations.js';
+import type { Observation } from '../../../task-execution/src/observations.js';
 import { invocationSchema, invocationOutcomeSchema, runLayout } from '../../../../src/run/records.js';
 import { recordPlan23Stimulus, plan23Identity, type Plan23Stimulus } from '../../../../src/tests/helpers/plan23-recorded.js';
 import { constructedRun, hash } from '../../../../src/tests/helpers/constructed.js';

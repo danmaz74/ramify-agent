@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, test } from 'vitest';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { buildTaskPacket, selectedEnvironment, type TaskEnvironment } from '../prompts/tasks.js';
-import { buildBriefingDelivery, taskBriefingRevision } from '../prompts/briefings.js';
+import { buildTaskPacket, selectedEnvironment } from '../prompts/tasks.js';
+import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
+import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import { scenarioFilePointers, taskObjective } from '../run/task-brief.js';
 import { capturedPlanBlock, groupedPassedScenarioLines, planPointer, withSelectionReasons } from '../run/service.js';
 import { taskSupportSections } from '../work/task-support.js';
-import { composeOperationPacket } from '../run/session-operations.js';
+import { composeWorkflowOperationPacket as composeOperationPacket } from '../prompts/session-adapter.js';
 import type { ScenarioResult } from '../checks/scenario-results.js';
 import type { Role } from '../interfaces/protocol/runs.js';
 

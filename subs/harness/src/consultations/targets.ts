@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { GlobalContext } from '../architecture/context.js';
 import type { RunEvent } from '../run/log.js';
 import { sessionIdSchema, sessionPointSchema } from '../run/records.js';
-import { readSessionPointReference } from '../run/session-operations.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 
 const text = z.string().min(1);
 /** A delegation point, independent of the architect's subsequent history. */

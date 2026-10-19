@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { effectiveBlocks, renderBlockRemoval, renderBlockSet, resolveBlockAdditions, type InstructionBlock } from '../prompts/blocks.js';
-import { buildDeliveredManifest, exactInputHash, type DeliveredInput } from '../prompts/delivered-manifest.js';
-import { briefingContentHash, buildBriefingDelivery, createBriefingOccurrence, taskBriefingRevision, type BriefingRevision } from '../prompts/briefings.js';
-import { deliveredManifestViewSchema } from '../interfaces/protocol/runs.js';
-import { readHarnessOperationIntent } from '../run/session-operations.js';
+import { effectiveBlocks, renderBlockRemoval, renderBlockSet, resolveBlockAdditions, type InstructionBlock } from '../delivery/blocks.js';
+import { buildDeliveredManifest, exactInputHash, type DeliveredInput } from '../delivery/delivered-manifest.js';
+import { briefingContentHash, buildBriefingDelivery, createBriefingOccurrence, taskBriefingRevision, type BriefingRevision } from '../delivery/briefings.js';
+import { deliveredManifestViewSchema } from '../../../../src/interfaces/protocol/runs.js';
+import { readHarnessOperationIntent } from '../session-operations.js';
 
 const key = 'procedure:engineer:main';
 const setA = '# Block procedure:engineer:main\nCurrent value; replaces any earlier value for this key.\nA\n';

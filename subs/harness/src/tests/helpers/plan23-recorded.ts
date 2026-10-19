@@ -1,9 +1,9 @@
 import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AgentEvent } from '../../../subs/agent/src/interfaces/port.js';
-import { ExcursionWatcher } from '../../run/excursions.js';
-import { ObservationLog, type Observation } from '../../run/observations.js';
-import { PortEventRecorder } from '../../run/port-events.js';
+import { ExcursionWatcher } from '../../../subs/task-execution/src/excursions.js';
+import { ObservationLog, type Observation } from '../../../subs/task-execution/src/observations.js';
+import { PortEventRecorder } from '../../../subs/task-execution/src/port-events.js';
 import { openCandidateSnapshot, snapshotTools } from '../../../subs/reviews/src/snapshot.js';
 import { scriptedCandidates } from './candidates.js';
 import { temporaryDirectory } from './fixture.js';

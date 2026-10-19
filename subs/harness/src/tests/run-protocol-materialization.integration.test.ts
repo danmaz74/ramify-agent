@@ -23,7 +23,7 @@ import {
 } from './helpers/runs.js';
 import { copyFixture } from './helpers/fixture.js';
 import { acquireProjectLock } from '../store/lock.js';
-import { ObservationLog } from '../run/observations.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { runLayout } from '../run/records.js';
 import { gitService } from '../../subs/evidence/src/git.js';
 

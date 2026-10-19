@@ -15,16 +15,17 @@ import { recoveryHash } from '../run/recovery-admission.js';
 import { acquireProjectLock, lockPath, ProjectLockError, type ProjectLock } from '../store/lock.js';
 import { ensureStateDirectory } from '../store/state-directory.js';
 import { RunLog } from '../run/log.js';
-import { manualRunRecordSchema, operationRecoverySchema, runDirectory, runLayout, type ManualRunRecord, type RunPolicy, type SessionId } from '../run/records.js';
-import { HarnessSessionOperations } from '../run/session-operations.js';
-import { nodeProcessGroups, WriterOwnership, type ProcessGroups } from '../run/writer.js';
-import { ContentStore } from '../transcripts/store.js';
-import type { TranscriptWriter } from '../transcripts/writer.js';
+import { manualRunRecordSchema, operationRecoverySchema, runDirectory, runLayout, type ManualRunRecord, type RunPolicy } from '../run/records.js';
+import { HarnessSessionOperations } from '../prompts/session-adapter.js';
+import { nodeProcessGroups, WriterOwnership, type ProcessGroups } from '../../subs/task-execution/src/writer.js';
+import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
+
 import { iterationLayout } from '../work/iterations.js';
 import { integrationScenarioOf, originKindOf, workLayout } from '../work/records.js';
 import { authoredOutlineInvocation } from './authoring.js';
 import type { EngineerStepInputs } from './inputs.js';
-import { committedBody, stoppedOutcome, finished, InvocationRunner, type LiveInvocation, type RunnerRun } from './runner.js';
+import { committedBody, InvocationRunner, type LiveInvocation, type RunnerRun } from './runner.js';
+import { stoppedOutcome, finished } from '../../subs/task-execution/src/results.js';
 
 /*
  * A manual run: the run layout `plans/<plan>/.harness/jobs/<run>/` with a
@@ -110,7 +111,6 @@ export class ManualRun implements RunnerRun {
   readonly mutex = new Mutex();
   readonly starting = new PriorityMutex();
   readonly live = new Map<string, LiveInvocation>();
-  readonly transcripts = new Map<SessionId, TranscriptWriter>();
   readonly store: ContentStore;
   readonly baselineMeasurement = null;
   index: ArchitectIndex | null = null;

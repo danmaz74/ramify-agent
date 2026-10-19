@@ -1,8 +1,9 @@
 import type { ToolDefinition } from '../../subs/agent/src/interfaces/port.js';
 import { runCommand, type CommandRunner } from '../../subs/evidence/src/run-command.js';
-import { ToolInputJudge, validateAgainst } from '../run/submissions.js';
+import { ToolInputJudge, validateAgainst } from '../../subs/task-execution/src/submissions.js';
 import { createShellTool, shellInputSchemaFor, shellMaxTimeoutMs, shellToolName } from '../tools/shell.js';
-import { heldCommands, type EquipContext, type Equipment } from '../work/engineer-equipment.js';
+import { heldCommands } from '../work/engineer-equipment.js';
+import { type EquipContext, type Equipment } from '../../subs/task-execution/src/equipment.js';
 
 /** Ordinary inspection equipment, with optional conveniences for the pinned candidate. */
 export function nonfunctionalEquipment(input: {

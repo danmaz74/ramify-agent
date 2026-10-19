@@ -1,14 +1,16 @@
-import { taskBriefingRevision } from '../prompts/briefings.js';
+import { executePreparedTask, executeWithContextFallback } from '../../subs/task-execution/src/execution.js';
+import { stoppedOutcome, kept, finished, type InvocationResult, type SessionKeeping, type InvocationProgress } from '../../subs/task-execution/src/results.js';
+import { taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import { consultationAvailability } from '../consultations/targets.js';
 import { consultationTool, consultArchitectDeclaration } from '../consultations/tools.js';
 import { consultationId } from '../consultations/records.js';
 import { consultationOutcome, recordConsultationDelivery } from '../consultations/store.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 import type { DebugInspection } from '../interfaces/protocol/runs.js';
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';
-import { interruptionEvidence, type AgentPort, type AgentSession, type JsonSchema, type SessionSpec, type SessionStart, type InterruptionEvidence } from '../../subs/agent/src/interfaces/port.js';
+import { interruptionEvidence, type AgentPort, type AgentSession, type JsonSchema, type SessionSpec, type SessionStart } from '../../subs/agent/src/interfaces/port.js';
 import type { GitService } from '../../subs/evidence/src/git.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
@@ -19,32 +21,28 @@ import { commitRecord, type RecordRef as CommitRecord } from '../jobs/commit.js'
 import type { Mutex, PriorityMutex } from '../jobs/mutex.js';
 import { invocationReadSize, invocationScopeSize, invocationScopeFailure, type DeclaredScope } from '../../subs/kpi/src/capture.js';
 import { deliveredScopeInputs, invocationScope, declaredRoots } from '../measurement/inputs.js';
-import { inputsHash, sha256, type LoadedPackage } from '../prompts/packages.js';
-import type { TaskEnvironment, TaskKind, TaskPacket } from '../prompts/tasks.js';
-import { ExcursionWatcher } from '../run/excursions.js';
+import { inputsHash, type LoadedPackage } from '../prompts/packages.js';
+import type { TaskEnvironment, TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
+import type { TaskKind } from '../prompts/tasks.js';
+
 import type { RunEventInput, RunLog } from '../run/log.js';
 import { recordSettledSnapshot } from '../run/mutations.js';
-import { ObservationLog } from '../run/observations.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
 import { contextPolicyOf, invocationLimits } from '../run/policy.js';
 import { decideTaskReentry, mayRetryTask, taskInterruption, taskRetryDelay, waitForTaskRetry } from '../../subs/recovery/src/reentry.js';
-import { endedOf, InvocationBounds, PortEventRecorder, type CallInFlight } from '../run/port-events.js';
+
 import { declaredModuleDirectories } from '../run/project-config.js';
-import {
-  invocationId, invocationOutcomeSchema, invocationSchema, measurementSnapshotSchema, runLayout, sessionId,
-  type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type Invocation, type InvocationOutcome,
-  type MeasurementSnapshot, type RecordRef, type ReplaceRelation, type RequestRelation, type RunPolicy, type SessionFinishReason, type SessionId,
-} from '../run/records.js';
-import {
-  HarnessSessionOperations, ReusableSessionUnavailableError, composeOperationPacket, operationDeclarations, readSessionPointReference, settleSessionEquipment, type HarnessTaskBrief, type PointContext,
-} from '../run/session-operations.js';
+import { invocationId, invocationOutcomeSchema, invocationSchema, measurementSnapshotSchema, runLayout, sessionId, type ContinueReason, type ContinueRelation, type DegradeRelation, type ForkRelation, type Invocation, type InvocationOutcome, type MeasurementSnapshot, type RecordRef, type ReplaceRelation, type RequestRelation, type RunPolicy, type SessionId } from '../run/records.js';
+import { HarnessSessionOperations, composeWorkflowOperationPacket as composeOperationPacket } from '../prompts/session-adapter.js';
+import { ReusableSessionUnavailableError, operationDeclarations, settleSessionEquipment, type HarnessTaskBrief, type PointContext } from '../../subs/task-execution/src/session-operations.js';
 import { reduceSessions, type RunSessions } from '../run/sessions.js';
-import { SubmissionJudge, type SubmissionValidation } from '../run/submissions.js';
+import { type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import type { CompactionReason } from '../../subs/agent/src/interfaces/port.js';
-import type { WriterOwnership } from '../run/writer.js';
-import { InvocationTranscript, verdictNote } from '../transcripts/recorder.js';
-import type { ContentStore } from '../transcripts/store.js';
-import { readBody, readTranscript, TranscriptWriter } from '../transcripts/writer.js';
-import type { EquipContext, Equipment } from '../work/engineer-equipment.js';
+import type { WriterOwnership } from '../../subs/task-execution/src/writer.js';
+import { InvocationTranscript } from '../../subs/task-execution/src/transcripts/recorder.js';
+import type { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
+import { readTranscript, TranscriptWriter, TranscriptWriters } from '../../subs/task-execution/src/transcripts/writer.js';
+import type { EquipContext, Equipment } from '../../subs/task-execution/src/equipment.js';
 import type { StartingPointGroup } from '../work/starting-inputs.js';
 import { scratchSafetyRule } from '../work/scratch.js';
 import { serializeStepInputs, type StepInputs } from './inputs.js';
@@ -91,23 +89,12 @@ export interface RunnerRun {
   readonly live: Map<string, LiveInvocation>;
   readonly writer: WriterOwnership;
   readonly store: ContentStore;
-  readonly transcripts: Map<SessionId, TranscriptWriter>;
   readonly index: ArchitectIndex | null;
   path(relative: string): string;
 }
 
 /** The writes the runner reports to its host after each one is durable. */
 export type RunnerWrite = 'session-opened' | 'invocation-started' | 'writer-acquired' | 'writer-released' | 'invocation-ended';
-
-/** What a step's live output shows as the invocation happens. */
-export type InvocationProgress =
-  | { readonly type: 'started'; readonly invocation: string; readonly session: SessionId; readonly message: string }
-  | { readonly type: 'tool-call'; readonly callId: string; readonly tool: string; readonly input: unknown }
-  | { readonly type: 'tool-error'; readonly callId: string; readonly tool: string; readonly text: string }
-  | { readonly type: 'message'; readonly text: string }
-  /** Text of the harness's own in a tool result: a refusal by the guard, or what is appended after a mutation. */
-  | { readonly type: 'harness-text'; readonly callId: string; readonly tool: string; readonly kind: 'refusal' | 'appended'; readonly text: string }
-  | { readonly type: 'submission'; readonly input: unknown; readonly accepted: boolean; readonly answer: string };
 
 /** What one invocation is: its role, its work, its prompt and the one submission it may make. */
 export interface InvocationRequest<T> {
@@ -250,49 +237,6 @@ export interface InvocationRequest<T> {
   readonly signal?: AbortSignal | undefined;
 }
 
-/** What one invocation ended with. `value` is present only for an accepted submission. */
-export interface InvocationResult<T> {
-  readonly interruptionEvidence?: InterruptionEvidence;
-  readonly id: string;
-  readonly ended: InvocationOutcome['ended'];
-  readonly value: T | undefined;
-  /** The point the session's history reached, for a turn that continues it. */
-  readonly ref: string;
-  readonly outcomeKind: string;
-  /** The session the invocation belongs to; empty where no invocation started. */
-  readonly session: SessionId;
-  /** Whether the harness kept the session to use it again. */
-  readonly kept: boolean;
-  /** The bound or fault that interrupted it, where one did. */
-  readonly interruption?: InvocationOutcome['interruption'];
-  /** What ended a failed invocation, as its outcome records it. */
-  readonly error?: string | undefined;
-  /** The mode the executor actually started the session in; absent where none started. */
-  readonly actual?: 'fresh' | 'continue' | 'fork' | undefined;
-  /** How long the invocation ran, where its session started. */
-  readonly elapsedMs?: number | undefined;
-  /** The tool calls in flight when it ended: when a bound fired, or when its outcome arrived. */
-  readonly inFlight?: readonly CallInFlight[] | undefined;
-  /** The text of its last assistant message that had any. */
-  readonly lastText?: string | null | undefined;
-  /** A writer's: every path that differed from its base when its session settled. */
-  readonly changed?: readonly string[] | undefined;
-  /** Whether the agent session could not start, so the invocation ended before any model call. */
-  readonly notStarted?: boolean | undefined;
-  readonly pending?: boolean;
-  readonly resource?: 'context' | 'stall';
-  readonly resourceReason?: string;
-  readonly checkpointReason?: string;
-  readonly settlementConfirmed?: boolean;
-  readonly verdicts?: readonly { readonly accepted: boolean; readonly answer: string }[];
-}
-
-/** What the harness does with a session when one of its invocations ends. */
-export type SessionKeeping = { readonly kept: true } | { readonly kept: false; readonly finished: SessionFinishReason };
-
-export const kept: SessionKeeping = { kept: true };
-export const finished = (reason: SessionFinishReason): SessionKeeping => ({ kept: false, finished: reason });
-
 /** An invocation started and not yet run: its identifiers, its observations and its transcript. */
 export interface StartedInvocation {
   readonly id: string;
@@ -355,20 +299,6 @@ export function invocationRecord(run: Pick<RunnerRun, 'log'>, id: string): { rea
   return { revision: record.revision, body: invocationSchema.parse(record.body) };
 }
 
-/** The outcome of an invocation whose session never ran: stopped, with nothing observed. */
-export function stoppedOutcome(): Omit<InvocationOutcome, 'schema' | 'invocation'> {
-  return {
-    ended: 'stopped',
-    rejectedSubmissions: 0,
-    disposition: 'incomplete',
-    submission: null,
-    settled: { confirmed: true, at: new Date().toISOString(), groupsKilled: 0, lateWrites: [] },
-    outsideScope: [],
-    usage: { unavailable: 'the session never started' },
-    elapsedMs: 0,
-  };
-}
-
 function requestedSession<T>(request: InvocationRequest<T>): Invocation['session'] {
   if (request.degraded !== undefined) {
     return {
@@ -390,6 +320,7 @@ function requestedSession<T>(request: InvocationRequest<T>): Invocation['session
 
 /** The shared invocation runner over one host's runs. */
 export class InvocationRunner<R extends RunnerRun> {
+  private readonly transcripts = new TranscriptWriters();
   constructor(private readonly host: RunnerHost<R>) {}
 
   private get projectRoot(): string {
@@ -444,21 +375,13 @@ export class InvocationRunner<R extends RunnerRun> {
     return { from: point, reason, briefs: [...briefs, ...reconciled] };
   }
 
+  /** Drain execution-owned writers without exposing their mutable registry. */
+  drainTranscripts(run: Pick<RunnerRun, 'directory'>): Promise<void> { return this.transcripts.drain(run.directory); }
+
   /** The transcript of one of the run's sessions. */
   transcriptOf(run: R, session: SessionId): TranscriptWriter {
-    let writer = run.transcripts.get(session);
-    if (writer === undefined) {
-      writer = new TranscriptWriter({
-        session,
-        path: run.path(runLayout.transcript(session)),
-        root: run.directory,
-        store: run.store,
-        inlineBytes: run.policy.transcript.inlineBodyBytes,
-        now: () => this.host.now(),
-      });
-      run.transcripts.set(session, writer);
-    }
-    return writer;
+    return this.transcripts.of({ session, path: run.path(runLayout.transcript(session)), root: run.directory,
+      store: run.store, inlineBytes: run.policy.transcript.inlineBodyBytes, now: () => this.host.now() });
   }
 
   /**
@@ -482,19 +405,19 @@ export class InvocationRunner<R extends RunnerRun> {
    */
   async runInvocation<T>(run: R, agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
     if (request.signal?.aborted === true) return { id: '', ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session: '' as SessionId, kept: false, notStarted: true, error: 'Stopped by the caller before dispatch' };
-    const result = await this.invokeOnce(run, agent, request);
-    // Missing optional context starts the ordinary task fresh after settlement.
-    if (request.allowFreshFallback === false || result.settlementConfirmed === false || run.writer.isUnsettled || Boolean(request.signal?.aborted) || request.start.mode === 'fresh' || result.interruption !== 'session-lost' || this.host.ignoring(run) || request.fenced?.()) return result;
-    const reason = result.error ?? 'The retained session is unavailable';
-    const fresh = request.fallback?.(reason);
-    return this.invokeOnce(run, agent, {
-      ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined,
-      recoveryPredecessor: result.id,
-      continuing: undefined, fork: undefined, replaces: undefined,
-      prompt: fresh?.prompt ?? request.freshPrompt ?? request.prompt,
-      ...(fresh === undefined ? {} : { brief: fresh.brief, stepInputs: fresh.stepInputs }),
-      degraded: { requested: request.start.mode === 'continue' ? 'continued' : 'fork', reason },
-    });
+    return executeWithContextFallback({ mode: request.start.mode, allowFreshFallback: request.allowFreshFallback !== false, signal: request.signal,
+      blocked: () => run.writer.isUnsettled || this.host.ignoring(run) || request.fenced?.() === true,
+      attempt: () => this.invokeOnce(run, agent, request), fresh: (result, reason) => {
+        const fresh = request.fallback?.(reason);
+        return this.invokeOnce(run, agent, {
+          ...request, originalInvocation: undefined, restore: false, start: { mode: 'fresh' }, session: undefined,
+          recoveryPredecessor: result.id,
+          continuing: undefined, fork: undefined, replaces: undefined,
+          prompt: fresh?.prompt ?? request.freshPrompt ?? request.prompt,
+          ...(fresh === undefined ? {} : { brief: fresh.brief, stepInputs: fresh.stepInputs }),
+          degraded: { requested: request.start.mode === 'continue' ? 'continued' : 'fork', reason },
+        });
+      } });
   }
 
   /** Re-enter the same ordinary task after lifecycle and effect owners settle it. */
@@ -785,379 +708,70 @@ export class InvocationRunner<R extends RunnerRun> {
   }
 
   private async runSession<T>(run: R, agent: AgentPort, started: StartedInvocation, request: InvocationRequest<T>): Promise<InvocationResult<T>> {
-    const { id, session, observations, transcript } = started;
-    const verdicts: Array<{ accepted: boolean; answer: string }> = [];
-    const progress = (event: InvocationProgress): void => {
-      if (event.type === 'submission') verdicts.push({ accepted: event.accepted, answer: event.answer });
-      try { request.progress?.(event); } catch { /* A reader that fails does not end the invocation. */ }
-    };
-    // What the harness does with the session once this invocation ends. A
-    // run that is ending uses none again.
-    const keeping = (ended: InvocationOutcome['ended'], value: T | undefined): SessionKeeping =>
-      (this.host.ignoring(run) ? finished('run-ended') : request.keep(ended, value));
-    await this.host.afterWrite('invocation-started', run.jobId);
-    if (this.host.ignoring(run) || request.fenced?.() === true) {
-      await this.endInvocation(run, id, session, keeping('stopped', undefined), stoppedOutcome(), undefined, transcript);
-      return { id, ended: 'stopped', value: undefined, ref: '', outcomeKind: 'stopped', session, kept: false };
-    }
-
-    const startedAt = this.host.now().getTime();
-    let value: T | undefined;
-    let submissionHash: string | null = null;
-    let recoveryRequested = false;
-    const judge = new SubmissionJudge<T>({
-      target: request.toolName,
-      validate: input => request.validate(input),
-      accept: async accepted => {
-        const content = `${JSON.stringify({ schema: request.submissionSchema, ...(accepted as object) }, null, 2)}\n`;
-        await writeFileAtomic(run.path(runLayout.submission(id)), content);
-        value = accepted;
-        submissionHash = sha256(content);
-      },
-      observations,
-      ...(request.acceptedText === undefined ? {} : { acceptedText: request.acceptedText }),
-      closed: () => (this.host.ignoring(run) || recoveryRequested || request.fenced?.() === true || request.signal?.aborted === true
-        || request.endedAs?.() === 'invalid-submission' ? 'This invocation accepts no further submissions.' : undefined),
-    });
-
-    // Read boundaries are soft: an excursion into another module is
-    // permitted, recorded once, and reminded of once.
-    const excursions = new ExcursionWatcher({
-      projectRoot: this.projectRoot,
-      index: run.index,
-      scope: request.guarded,
-      readModules: request.readModules,
-    });
-    const context = request.context ?? contextPolicyOf(run.policy, request.role);
-    const recorder = new PortEventRecorder({
-      projectRoot: this.projectRoot, workingDirectory: request.workingDirectory ?? this.projectRoot, observations, judge, excursions, context, transcript,
-      invocation: { id, role: request.role, startedAt: invocationSchema.parse(committedBody(run, runLayout.invocation(id))).startedAt, submissionTool: request.toolName,
-        // A writer's searches are judged against its guarded roots, a
-        // reader's against the modules its declared scope selects.
-        declaredPaths: request.guarded?.roots
-          ?? declaredRoots(run.index, request.measured?.readScope ?? request.measured?.scope).map(path => resolvePath(this.projectRoot, path)) },
-    });
-    // Actual producer progress resets idle detection; passive observations do not.
-    // A command the equipment runs for the session holds it instead. An
-    // engineer's own bounds replace the policy's; a reader's may only be
-    // tighter.
+    const { id, session } = started;
     const limits = invocationLimits(run.policy.limits, request);
-    const bounds = new InvocationBounds(limits);
-    // What was in flight at the moment a bound fired, before the stop it
-    // asks for ends those calls.
-    let inFlightAtBound: CallInFlight[] | undefined;
-    bounds.onReached(() => { recoveryRequested = true; inFlightAtBound = recorder.inFlight(); });
-    const equipContext: EquipContext = {
-      invocation: id,
-      observations,
-      callId: tool => recorder.callId(tool),
-      reminders: () => excursions.takeReminders(),
-      transcript,
-      hold: timeoutMs => bounds.hold(timeoutMs),
-      waitForProducer: () => bounds.pauseForWait(),
-    };
-    const baseEquipment = request.equip?.(equipContext) ?? {};
-    const consultation = consultationAvailability(request.stepInputs !== undefined && 'consultation' in request.stepInputs ? request.stepInputs.consultation ?? undefined : undefined, request.role);
-    const tool = consultation.target === null ? null : consultationTool({ run, runner: this, agent,
-      packages: request.consultationPackages ?? new Map(), target: consultation.target, global: consultation.global,
-      caller: { session, role: request.role, work: request.work }, views: request.brief?.environment.views ?? [],
-      projectRoot: this.projectRoot, now: () => this.host.now(), holdMs: limits.invocationAbsoluteMs }, equipContext);
-    const equipment: Equipment = tool === null ? baseEquipment : { ...baseEquipment, tools: [...baseEquipment.tools ?? [], tool] };
-    let budget: InvocationOutcome['budget'] | undefined;
-    const { guard, afterMutation } = equipment;
-
-    const spec: SessionSpec = {
-      role: request.role,
-      scope: { workingDirectory: request.workingDirectory ?? this.projectRoot },
-      systemPrompt: request.systemPrompt,
-      prompt: request.prompt,
-      session: request.start,
-      context,
-      builtinTools: equipment.builtinTools ?? ['read', 'grep', 'ls'],
-      tools: [...(equipment.tools ?? [])],
-      ...(guard === undefined ? {} : {
-        guard: request.progress === undefined ? guard : async call => {
-          const decision = await guard(call);
-          if (!decision.allow) progress({ type: 'harness-text', callId: call.callId, tool: call.tool, kind: 'refusal', text: decision.text });
-          return decision;
-        },
-      }),
-      ...(afterMutation === undefined ? {} : {
-        afterMutation: request.progress === undefined ? afterMutation : async call => {
-          const appended = await afterMutation(call);
-          if (appended !== null) progress({ type: 'harness-text', callId: call.callId, tool: call.tool, kind: 'appended', text: appended.text });
-          return appended;
-        },
-      }),
-      submission: {
-        name: request.toolName,
-        description: request.description,
-        inputSchema: request.inputSchema,
-        accept: async (input, signal) => {
-          await request.beforeSubmission?.(input, signal);
-          signal.throwIfAborted();
-          // The call's ID keys its rejection observation to the call the
-          // transcript and the tool-start observation name.
-          const callId = recorder.callId(request.toolName);
-          const verdict = await judge.judge(input, callId);
-          transcript.note(verdictNote(callId, request.toolName, verdict));
-          progress({ type: 'submission', input, accepted: verdict.accepted, answer: verdict.accepted ? verdict.text ?? '' : verdict.errors.join('\n') });
-          return verdict;
-        },
-      },
-      ...(request.onCompactionStarted === undefined ? {} : { onCompactionStarted: (checkpoint, signal) => request.onCompactionStarted!({ invocation: id, ...checkpoint }, signal) }),
-
-      onEvent: event => {
-        bounds.observe(event);
-        if (request.progress !== undefined) {
-          if (event.type === 'tool-started' && event.tool !== request.toolName) {
-            progress({ type: 'tool-call', callId: event.callId, tool: event.tool, input: event.input });
-          } else if (event.type === 'tool-finished' && event.isError && event.tool !== request.toolName) {
-            progress({ type: 'tool-error', callId: event.callId, tool: event.tool, text: event.errorText ?? '' });
-          } else if (event.type === 'message' && event.role === 'assistant' && event.blocks.some(block => block.type === 'text' && block.text.trim() !== '')) {
-            // The assistant's own text; its tool calls are shown as calls.
-            progress({ type: 'message', text: event.text });
-          }
-        }
-        void recorder.record(event)
-          .catch(error => this.host.warn(`Run ${run.jobId}: observation not recorded: ${message(error)}`));
-      },
-    };
-
-    let agentSession: AgentSession & { readonly unavailableReason?: string | undefined };
-    try {
-      agentSession = await (await this.host.operations(agent)).start({ runId: run.jobId, operationId: id, session, loaded: request.loaded,
+    return executePreparedTask({ ...started, agent, runId: run.jobId, projectRoot: this.projectRoot,
+      request: { role: request.role, work: request.work, toolName: request.toolName, description: request.description, inputSchema: request.inputSchema,
+        submissionSchema: request.submissionSchema, validate: request.validate, acceptedText: request.acceptedText, beforeSubmission: request.beforeSubmission,
+        systemPrompt: request.systemPrompt, prompt: request.prompt, start: request.start, restore: request.restore,
+        guarded: request.guarded, readModules: request.readModules, equip: request.equip, keep: request.keep, fenced: request.fenced,
+        endedAs: request.endedAs, onCompactionStarted: request.onCompactionStarted, progress: request.progress, signal: request.signal,
+        writer: request.writer, reader: request.reader, workingDirectory: request.workingDirectory, pendingPlainReturn: request.pendingPlainReturn,
+        fork: request.fork, replaces: request.replaces, requestedBy: request.requestedBy, degraded: request.degraded },
+      context: request.context ?? contextPolicyOf(run.policy, request.role), limits,
+      watchdog: !(request.role === 'reviewer' || ['ramify-agent.reconciliation-submission/1', 'ramify-agent.nonfunctional-assessment-submission/1', 'ramify-agent.nonfunctional-investigation/1'].includes(request.submissionSchema)),
+      index: run.index, declaredPaths: request.guarded?.roots ?? declaredRoots(run.index, request.measured?.readScope ?? request.measured?.scope).map(path => resolvePath(this.projectRoot, path)),
+      startedAt: invocationSchema.parse(committedBody(run, runLayout.invocation(id))).startedAt, model: this.host.model,
+      continues: request.start.mode === 'continue' ? this.continuationOf(run, session, request.continuing!) : undefined,
+      destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) },
+      directory: run.directory, transcriptPath: run.path(runLayout.transcript(session)), content: run.store,
+    }, {
+      now: () => this.host.now(), warn: text => this.host.warn(text), closed: () => this.host.ignoring(run),
+      authorityCurrent: async () => !this.host.authorityCurrent || await this.host.authorityCurrent(),
+      afterStarted: () => this.host.afterWrite('invocation-started', run.jobId),
+      writeSubmission: content => writeFileAtomic(run.path(runLayout.submission(id)), content), readSubmission: () => readIfExists(run.path(runLayout.submission(id))),
+      start: async (spec, hooks) => (await this.host.operations(agent)).start({ runId: run.jobId, operationId: id, session, loaded: request.loaded,
         brief: request.brief ?? await this.host.taskBrief(run, request, spec, limits), spec, restore: request.restore,
         ...(request.callerText === undefined ? {} : { callerText: request.callerText }),
         authority: { scope: request.guarded === undefined ? null : { revision: request.guarded.revision, projectRoot: request.guarded.projectRoot, roots: request.guarded.roots, files: request.guarded.files, excluded: request.guarded.excluded ?? [], denied: request.guarded.denied ?? [], guarded: request.guarded.guarded ?? [] }, writer: request.writer === true, work: request.work },
-        // Preserve the historical identity of retained sessions. This field
-        // no longer limits validation corrections.
         validator: { name: request.toolName, schema: request.inputSchema, submissionSchema: request.submissionSchema, bound: limits.rejectedSubmissionsPerTurn },
-        destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) },
-        accepted: () => { if (value === undefined || submissionHash === null) throw new Error('Accepted destination was not retained'); return { value, schema: request.submissionSchema, submissionHash }; }, currentAuthority: async () => (!this.host.authorityCurrent || await this.host.authorityCurrent()) && !this.host.ignoring(run) && !recoveryRequested && request.fenced?.() !== true && request.signal?.aborted !== true,
-        identified: async identity => {
-          recorder.identify(identity);
-          await this.prepareInvocation(run, id, undefined, identity);
-        },
-        prepared: async (packet, declarations) => {
-          await this.prepareInvocation(run, id, { packet, request });
-          const recorded = await readTranscript(run.path(runLayout.transcript(session))).catch(error => {
-            if (request.restore === true) throw error;
-            // A new invocation keeps display transcript failures as coverage gaps.
-            // Its operation/store input remains authoritative.
-            return { entries: [], unreadable: [] };
-          });
-          const starts = recorded.entries.filter(entry => entry.type === 'started' && entry.invocation === id);
-          if ((request.restore === true && recorded.unreadable.length > 0) || starts.length > 1) throw new Error('Original invocation transcript start is unavailable or ambiguous');
-          const prior = starts[0];
-          if (prior?.type === 'started') {
-            if (prior.role !== request.role || JSON.stringify(prior.work) !== JSON.stringify(request.work) ||
-              await readBody(run.directory, run.store, prior.systemPrompt) !== packet.roleInstructions ||
-              await readBody(run.directory, run.store, prior.prompt) !== packet.message) throw new Error('Original invocation transcript input identity changed');
-            return;
-          }
-          progress({ type: 'started', invocation: id, session, message: packet.message });
-          await transcript.started({ role: request.role, work: request.work, start: request.start.mode === 'continue' ? 'continued' : 'opened', requested: request.start.mode,
-            continues: request.start.mode === 'continue' ? this.continuationOf(run, session, request.continuing!) : undefined, fork: request.fork, replaces: request.replaces, requestedBy: request.requestedBy,
-            executor: agent.name, model: this.host.model, systemPrompt: packet.roleInstructions, prompt: packet.message,
-            declarations, additions: packet.additions });
-        } });
-    } catch (error) {
-      const keptAs = keeping('failed', undefined);
-      const failure = `The agent session could not start: ${message(error)}`;
-      const interruption = error instanceof ReusableSessionUnavailableError && request.start.mode !== 'fresh' ? 'session-lost' as const : 'adapter-fault' as const;
-      // Known reusable-context refusal occurs before dispatch. The ordinary
-      // fresh fallback must first release the writer acquired for that attempt.
-      let preflightSettlement = stoppedOutcome().settled;
-      if (run.writer.held === id) {
-        const toolsSettled = await settleSessionEquipment(equipment.settle, limits.stopSettleMs).catch(() => false);
-        preflightSettlement = await run.writer.release(id, toolsSettled ? undefined : {
-          settled: async () => 'timed-out',
-        });
-        await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: preflightSettlement.confirmed, groupsKilled: preflightSettlement.groupsKilled } });
-        await this.host.afterWrite('writer-released', run.jobId);
-      }
-
-      await this.endInvocation(run, id, session, keptAs, {
-        ...stoppedOutcome(),
-        ended: 'failed',
-        interruption,
-        interruptionEvidence: interruptionEvidence(error, interruption === 'session-lost' ? 'unknown' : 'adapter-fault'),
-        error: failure,
-        settled: preflightSettlement,
-      }, undefined, transcript);
-      return {
-        id, ended: 'failed', value: undefined, ref: '', outcomeKind: 'failed', session, kept: keptAs.kept,
-        interruption, error: failure, elapsedMs: 0, inFlight: [], lastText: null, notStarted: true,
-        interruptionEvidence: interruptionEvidence(error, interruption === 'session-lost' ? 'unknown' : 'adapter-fault'), settlementConfirmed: preflightSettlement.confirmed,
-      };
-    }
-    const live = run.live.get(id);
-    if (live !== undefined) live.session = agentSession;
-    // A start the executor could not honor is known only now, after the
-    // invocation's start is committed; its end records it.
-    const degraded: DegradeRelation | undefined = request.degraded !== undefined && request.degraded.requested !== 'fresh'
-      ? { requested: request.degraded.requested === 'continued' ? 'continue' : request.degraded.requested, actual: agentSession.start.mode, reason: request.degraded.reason }
-      : request.start.mode !== 'fresh' && agentSession.start.mode !== request.start.mode
-      ? { requested: request.start.mode, actual: agentSession.start.mode, reason: agentSession.start.degradedReason ?? null }
-      : undefined;
-
-    // A caller's stop asks the session to stop, as a bound does.
-    let stoppedByCaller = false;
-    const stop = () => {
-      stoppedByCaller = true;
-      void agentSession.stop().catch(() => undefined);
-    };
-    if (request.signal?.aborted === true) stop();
-    else request.signal?.addEventListener('abort', stop, { once: true });
-    // A stalled invocation requests recovery. Settlement below establishes
-    // whether another owner may safely continue its pending task.
-    let outcome: Awaited<AgentSession['outcome']>;
-    try {
-      // A quiet reviewer or reconciliation is still authorized review work.
-      // Other roles retain the progress watchdog; explicit caller cancellation
-      // above and actual provider failures remain effective for every role.
-      const review = request.role === 'reviewer' || [
-        'ramify-agent.reconciliation-submission/1', 'ramify-agent.nonfunctional-assessment-submission/1',
-        'ramify-agent.nonfunctional-investigation/1',
-      ].includes(request.submissionSchema);
-      outcome = await (review ? agentSession.outcome : bounds.outcome(agentSession));
-    } finally {
-      request.signal?.removeEventListener('abort', stop);
-    }
-    // Acceptance is durable before the acknowledgement. A failed stream after
-    // that acceptance completes this transition without asking for another submission.
-    if (value !== undefined && submissionHash !== null && (outcome.kind === 'failed' || outcome.kind === 'resource-pending' || outcome.kind === 'checkpoint-pending')) outcome = { kind: 'submitted', input: value };
-    if (outcome.kind === 'resource-pending' || outcome.kind === 'context-budget-reached' || outcome.kind === 'checkpoint-pending') recoveryRequested = true;
-    if (outcome.kind === 'submitted' && value === undefined) {
-      const accepted = await (await this.host.operations(agent)).acceptance(run.jobId, id);
-      const bytes = await readIfExists(run.path(runLayout.submission(id)));
-      if (!accepted || !bytes || accepted.schema !== request.submissionSchema || canonicalJson(accepted.destination) !== canonicalJson({ run: run.jobId, invocation: id, submission: runLayout.submission(id) }) || canonicalJson(accepted.validator) !== canonicalJson({ name: request.toolName, schema: request.inputSchema, submissionSchema: request.submissionSchema, bound: limits.rejectedSubmissionsPerTurn }) || sha256(bytes) !== accepted.submissionHash || canonicalJson(accepted.input) !== canonicalJson(outcome.input)) throw new Error('Original accepted destination is unavailable or changed');
-      const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
-      if (schema !== accepted.schema || canonicalJson(body) !== canonicalJson(accepted.value)) throw new Error('Original accepted destination value changed');
-      value = accepted.value as T; submissionHash = accepted.submissionHash;
-    }
-    const interruption = bounds.interruption ?? (agentSession.unavailableReason === undefined ? undefined : 'session-lost');
-    const structured = outcome.kind === 'failed' ? outcome.evidence ?? { classification: 'unknown' as const, diagnostic: outcome.error }
-      : outcome.kind === 'resource-pending' ? outcome.evidence : undefined;
-    const resource = outcome.kind === 'resource-pending' ? outcome.resource : outcome.kind === 'context-budget-reached' ? 'context' as const : undefined;
-    const resourceReason = outcome.kind === 'resource-pending' ? outcome.reason
-      : outcome.kind === 'context-budget-reached' ? 'Legacy context return requires source-backed continuation' : undefined;
-    const inFlight = inFlightAtBound ?? recorder.inFlight();
-    const elapsedMs = this.host.now().getTime() - startedAt;
-    if (outcome.kind === 'context-budget-reached') {
-      budget = { threshold: context.budgetTokens ?? 0, observed: outcome.tokens, reportDelivered: outcome.report !== undefined };
-      transcript.note({ kind: 'budget-reached', tokens: outcome.tokens, threshold: context.budgetTokens, reportDelivered: outcome.report !== undefined });
-    }
-
-    // Whatever the equipment started ends before the writer is released:
-    // discarding a reply is not shutdown, and a command still running is a
-    // command that can still write.
-    const equipmentSettled = await settleSessionEquipment(equipment.settle, limits.stopSettleMs).catch(error => { this.host.warn(`Run ${run.jobId}: ${id} did not settle its own tools: ${message(error)}`); return false; });
-
-    // An architect writes nothing, so it holds no writer; its settlement is
-    // still the harness's own observation of the session.
-    const settled = await this.settleSession(run, id, equipmentSettled ? agentSession : { settled: async () => 'timed-out' as const }, request.reader === true);
-    if (settled.confirmed) await equipment.drained?.();
-    // `onEvent` cannot be async at the port boundary. Its ordered writes must
-    // still finish before gaps are derived and before this driver can settle.
-    await recorder.drain();
-    if (run.log.all('consultation-started').some(event => event.data.caller === id)) {
-      await transcript.drain();
-      const recordedResults = await readTranscript(run.path(runLayout.transcript(session))).catch(error => {
-        this.host.warn(`Run ${run.jobId}: consultation caller transcript unavailable: ${message(error)}`);
-        return { entries: [] };
-      });
-      for (const entry of recordedResults.entries) {
-        if (entry.invocation !== id || entry.type !== 'message' || entry.role !== 'tool-result' || entry.tool !== 'consult_architect') continue;
-        const consultation = consultationId(id, entry.callId);
-        if (consultationOutcome(run.log, consultation)?.delivery !== 'recorded' && consultationOutcome(run.log, consultation) !== null) await run.mutex.run(() => recordConsultationDelivery(run.log, consultation, { session, entry: entry.n }));
-      }
-    }
-    await recorder.recordGaps(agent);
-    const ref = agentSession.ref;
-
-    // What the tree says changed since the invocation's base. It is the
-    // only observation that sees a write no guard saw, and comparing it with
-    // the scope is what fills `outsideScope`. Nothing here blocks anything.
-    let outsideScope: string[] = [];
-    let unknownPlacement: string[] = [];
-    let placementFailure: string | undefined;
-    let changed: string[] | undefined;
-    if (request.writer === true) {
-      const snapshot = await recordSettledSnapshot({
-        projectRoot: this.projectRoot,
-        changed: () => this.host.git.changedPaths(this.projectRoot, this.host.base(run)),
-        scope: request.guarded,
-      }, observations);
-      outsideScope = [...snapshot.outsideScope];
-      unknownPlacement = [...snapshot.unknownPlacement];
-      placementFailure = snapshot.placementFailure;
-      changed = [...snapshot.paths];
-    }
-
-    const ended = outcome.kind === 'submitted' ? 'submitted' : stoppedByCaller ? 'stopped' : resource !== undefined ? endedOf(outcome.kind, false)
-      : interruption !== undefined ? 'failed' : request.endedAs?.() ?? endedOf(outcome.kind, false);
-    const pending = !stoppedByCaller && request.fenced?.() !== true && !this.host.ignoring(run) && (resource !== undefined || outcome.kind === 'checkpoint-pending' || request.pendingPlainReturn === true && outcome.kind === 'ended' && ended === 'ended' && settled.confirmed && ref !== '');
-    const keptAs = pending ? kept : keeping(ended, ended === 'submitted' ? value : undefined);
-    const scratchAtSettlement = request.candidateBefore === undefined ? null
-      : await scratchSafetyRule(this.projectRoot, await declaredModuleDirectories(this.projectRoot), this.host.git);
-    const candidateAfter = scratchAtSettlement?.outcome === 'passed' ? (await this.host.previewCandidateTree()).tree : undefined;
-    const error = interruption === 'idle-timeout'
-      ? `No execution progress for ${limits.invocationIdleMs} ms`
-      : outcome.kind === 'failed' ? outcome.error : undefined;
-    const callerStop = stoppedByCaller && interruption === undefined && outcome.kind !== 'failed' ? { error: 'Stopped by the caller' } : {};
-    await this.endInvocation(run, id, session, keptAs, {
-      ended,
-      ...(interruption === undefined ? {} : { interruption, error }),
-      ...(structured === undefined ? {} : { interruptionEvidence: structured }),
-      ...(resource === undefined ? {} : { resource, resourceReason }),
-      ...(outcome.kind === 'checkpoint-pending' ? { checkpointReason: outcome.reason } : {}),
-      // What the implementation answered, not what was asked for: a fork it
-      // could not take is a fresh session, and the comparison of fork cost
-      // must not be corrupted by one that silently became fresh.
-      sessionOperation: { runId: run.jobId, operationId: id, ...(readSessionPointReference(ref) === null ? { point: null } : { sessionId: readSessionPointReference(ref)!.point.sessionId, point: readSessionPointReference(ref)!.point }) },
-      session: {
-        ref,
-        mode: agentSession.start.mode === 'continue' ? 'continued' : agentSession.start.mode,
-        ...(agentSession.start.degradedReason === undefined ? {} : { degradedReason: agentSession.start.degradedReason }),
+        destination: { run: run.jobId, invocation: id, submission: runLayout.submission(id) }, ...hooks }),
+      acceptance: async () => (await this.host.operations(agent)).acceptance(run.jobId, id),
+      prepared: (packet, identity) => this.prepareInvocation(run, id, packet ? { packet, request } : undefined, identity),
+      publish: agentSession => { const live = run.live.get(id); if (live) live.session = agentSession; },
+      equipment: (context, base) => {
+        const consultation = consultationAvailability(request.stepInputs !== undefined && 'consultation' in request.stepInputs ? request.stepInputs.consultation ?? undefined : undefined, request.role);
+        const tool = consultation.target === null ? null : consultationTool({ run, runner: this, agent, packages: request.consultationPackages ?? new Map(),
+          target: consultation.target, global: consultation.global, caller: { session, role: request.role, work: request.work }, views: request.brief?.environment.views ?? [],
+          projectRoot: this.projectRoot, now: () => this.host.now(), holdMs: limits.invocationAbsoluteMs }, context);
+        return tool === null ? base : { ...base, tools: [...base.tools ?? [], tool] };
       },
-      disposition: this.host.ignoring(run) ? 'superseded' : ended === 'submitted' ? 'applied' : 'incomplete',
-      submission: submissionHash === null ? null : { hash: submissionHash },
-      rejectedSubmissions: judge.rejections,
-      ...(budget === undefined ? {} : { budget }),
-      settled,
-      outsideScope,
-      unknownPlacement,
-      ...(placementFailure === undefined ? {} : { placementFailure }),
-      ...(candidateAfter === undefined ? {} : { candidateAfter }),
-      usage: recorder.outcomeUsage(agent),
-      elapsedMs,
-      ...(outcome.kind === 'failed' && interruption === undefined ? { error: outcome.error } : {}),
-      ...callerStop,
-    }, degraded, transcript);
-
-    return {
-      id,
-      ended,
-      value: ended === 'submitted' ? value : undefined,
-      ref,
-      outcomeKind: resource !== undefined || ended === 'submitted' ? outcome.kind : interruption === undefined ? outcome.kind : 'failed',
-      ...(outcome.kind === 'checkpoint-pending' ? { checkpointReason: outcome.reason } : {}),
-      session,
-      kept: keptAs.kept,
-      ...(interruption === undefined ? {} : { interruption }),
-      ...(structured === undefined ? {} : { interruptionEvidence: structured }),
-      ...(ended === 'failed' && error !== undefined ? { error } : {}),
-      ...callerStop,
-      actual: agentSession.start.mode,
-      elapsedMs,
-      inFlight,
-      lastText: recorder.lastText ?? (outcome.kind === 'ended' ? outcome.message ?? null : null),
-      pending, settlementConfirmed: settled.confirmed, verdicts,
-      ...(resource === undefined ? {} : { resource, resourceReason }),
-      ...(changed === undefined ? {} : { changed }),
-    };
+      preflightSettlement: async (settle, boundMs) => {
+        if (run.writer.held !== id) return stoppedOutcome().settled;
+        const toolsSettled = await settleSessionEquipment(settle, boundMs).catch(() => false);
+        const released = await run.writer.release(id, toolsSettled ? undefined : { settled: async () => 'timed-out' });
+        await this.write(run, { type: 'writer-released', data: { invocation: id, confirmed: released.confirmed, groupsKilled: released.groupsKilled } });
+        await this.host.afterWrite('writer-released', run.jobId); return released;
+      },
+      settle: (agentSession, reader) => this.settleSession(run, id, agentSession, reader),
+      afterTools: async transcript => {
+        if (!run.log.all('consultation-started').some(event => event.data.caller === id)) return;
+        await transcript.drain();
+        const results = await readTranscript(run.path(runLayout.transcript(session))).catch(error => { this.host.warn(`Run ${run.jobId}: consultation caller transcript unavailable: ${message(error)}`); return { entries: [] }; });
+        for (const entry of results.entries) {
+          if (entry.invocation !== id || entry.type !== 'message' || entry.role !== 'tool-result' || entry.tool !== 'consult_architect') continue;
+          const consultation = consultationId(id, entry.callId);
+          if (consultationOutcome(run.log, consultation)?.delivery !== 'recorded' && consultationOutcome(run.log, consultation) !== null) await run.mutex.run(() => recordConsultationDelivery(run.log, consultation, { session, entry: entry.n }));
+        }
+      },
+      snapshot: observations => recordSettledSnapshot({ projectRoot: this.projectRoot, changed: () => this.host.git.changedPaths(this.projectRoot, this.host.base(run)), scope: request.guarded }, observations),
+      candidateAfter: async () => {
+        if (request.candidateBefore === undefined) return undefined;
+        const safety = await scratchSafetyRule(this.projectRoot, await declaredModuleDirectories(this.projectRoot), this.host.git);
+        return safety.outcome === 'passed' ? (await this.host.previewCandidateTree()).tree : undefined;
+      },
+      end: (keeping, body, degraded, transcript) => this.endInvocation(run, id, session, keeping, body, degraded, transcript),
+    });
   }
 
   /**

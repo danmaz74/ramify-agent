@@ -11,12 +11,12 @@ import { consultationLayout, consultationStartSchema, consultationOutcomeSchema 
 import { runSessionScenario } from './helpers/session-scenario.js';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { SessionDriverRuntime } from '../../subs/agent/src/interfaces/session-operations.js';
-import { readSessionPointReference } from '../run/session-operations.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { consultationId } from '../consultations/records.js';
 import { consultationOutcome } from '../consultations/store.js';
-import { InvocationBounds } from '../run/port-events.js';
+import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
 import { runLayout } from '../run/records.js';
-import { readTranscript } from '../transcripts/writer.js';
+import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { answer, ask, consultationFixture, retainConsultationExample } from './helpers/consultations.js';
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); vi.useRealTimers(); });

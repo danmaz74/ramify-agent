@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { loadPromptPackages, renderEngineerPrompt } from '../prompts/packages.js';
 import { iterationMessage } from '../work/engineer.js';
-import { buildTaskPacket, type TaskEnvironment } from '../prompts/tasks.js';
-import { buildBriefingDelivery, taskBriefingRevision } from '../prompts/briefings.js';
+import { buildTaskPacket } from '../prompts/tasks.js';
+import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
+import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import type { IterationAssignment } from '../work/iterations.js';
 import { declaredCheckInputs, moduleInputPointers } from '../work/starting-inputs.js';
 

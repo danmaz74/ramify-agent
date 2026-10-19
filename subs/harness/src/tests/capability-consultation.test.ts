@@ -7,7 +7,8 @@ import type { Script, ScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { HarnessSessionOperations, readSessionPointReference } from '../run/session-operations.js';
+import { HarnessSessionOperations } from '../prompts/session-adapter.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { runLayout } from '../run/records.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 

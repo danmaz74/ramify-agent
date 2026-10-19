@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { AgentPort, AgentSession } from '../../subs/agent/src/interfaces/port.js';
-import { WriterBlockedError, WriterOwnership } from '../run/writer.js';
+import { WriterBlockedError, WriterOwnership } from '../../subs/task-execution/src/writer.js';
 import { runLayout, type InvocationOutcome } from '../run/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, testPolicy } from './helpers/runs.js';

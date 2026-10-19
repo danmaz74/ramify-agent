@@ -1,11 +1,10 @@
 import { roleDisplayName } from '../interfaces/protocol/runs.js';
 import type { BuiltinTool, WriteTool } from '../../subs/agent/src/interfaces/port.js';
 import type { SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
-import type { TaskPacket } from '../prompts/tasks.js';
-import type { DeliveredInput } from '../prompts/delivered-manifest.js';
-import {
-  composeOperationPacket, operationDeclarations, readPointContext, readSessionPointReference, ReusableSessionUnavailableError, type PointContext,
-} from '../run/session-operations.js';
+import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
+import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
+import { composeWorkflowOperationPacket as composeOperationPacket } from '../prompts/session-adapter.js';
+import { operationDeclarations, readPointContext, readSessionPointReference, ReusableSessionUnavailableError, type PointContext } from '../../subs/task-execution/src/session-operations.js';
 import { constructStep, freshFallback } from './construct.js';
 import type { ConstructedStepCommon } from './constructed.js';
 import type { StepEnvironment } from './engineer.js';

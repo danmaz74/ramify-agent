@@ -1,0 +1,22 @@
+ramify 1
+module task-execution
+
+// Prepared execution, preserving delivery, observation and settlement contracts.
+expose-src InstructionBlock, deliveredBefore, effectiveBlocks, renderBlockRemoval, renderBlockSet, replacementBanner, resolveBlockAdditions, setsBody from "delivery/blocks.ts" to parent
+expose-src BriefingDelivery, BriefingRevision, briefingAdditionKey, buildBriefingDelivery, taskBriefingRevision from "delivery/briefings.ts" to parent
+expose-src DeliveredInput, DeliveredManifest, DeliveredManifestEntry, buildDeliveredManifest, exactInputHash from "delivery/delivered-manifest.ts" to parent
+expose-src EnvironmentField, PreparedTaskPackage, TaskEnvironment, TaskPacket, assertTaskProcedureSelection, buildPreparedTaskPacket from "delivery/packet.ts" to parent
+expose-src EquipContext, Equipment from "equipment.ts" to parent
+expose-src Excursion, ExcursionOptions, ExcursionWatcher from "excursions.ts" to parent
+expose-src PreparedTask, PreparedTaskRequest, TaskExecutionPorts, executePreparedTask, executeWithContextFallback from "execution.ts" to parent
+expose-src CoverageGapKind, Observation, ObservationInput, ObservationLog, ObservationOf, ObservationType, observationSchema, rawOutputGapKinds from "observations.ts" to parent
+expose-src CallInFlight, InvocationBounds, InvocationLimits, PortEventRecorder, PortEventRecorderOptions, UsageTotals, endedOf from "port-events.ts" to parent
+expose-src InvocationProgress, InvocationResult, SessionKeeping, finished, kept, stoppedOutcome from "results.ts" to parent
+expose-src HarnessTaskBrief, PointContext, PreparedOperationInput, ReusableSessionUnavailableError, TaskSessionOperations, composeOperationPacket, genericSessionDriverUnavailableError, operationDeclarations, readPointContext, readRecordedOperation, readSessionPointReference, sessionPointReference, settleSessionEquipment from "session-operations.ts" to parent
+expose-src SubmissionAcceptance, SubmissionError, SubmissionJudge, SubmissionJudgeOptions, SubmissionValidation, ToolInputJudge, rejectionAnswer, schemaErrors, validateAgainst from "submissions.ts" to parent
+expose-src PageBounds, TranscriptPageRead, TranscriptPages from "transcripts/pages.ts" to parent
+expose-src HarnessNote, InvocationEnd, InvocationStart, InvocationTranscript, PostWriteCheckNote, TranscriptNotes, recordAppend, verdictNote from "transcripts/recorder.ts" to parent
+expose-src ContentReader, ContentStore, StoredContent, openContentReader from "transcripts/store.ts" to parent
+expose-src TranscriptBodies, TranscriptBuild, TranscriptEntryInput, TranscriptRead, TranscriptWriter, TranscriptWriterOptions, TranscriptWriters, readBody, readTranscript from "transcripts/writer.ts" to parent
+expose-src ProcessGroups, Settlement, TreeObserver, WriterBlockedError, WriterOwnership, WriterOwnershipOptions, nodeProcessGroups from "writer.ts" to parent
+expose-test blobsIn, portEventsOf, transcribed from "helpers/transcripts.ts" to parent

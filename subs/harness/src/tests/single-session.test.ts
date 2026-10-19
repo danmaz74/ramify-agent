@@ -11,8 +11,8 @@ import { sessionAcceptance, type SessionProgress } from '../sessions/single.js';
 import { acquireProjectLock, lockPath } from '../store/lock.js';
 import type { AgentPort } from '../../subs/agent/src/interfaces/port.js';
 import type { TranscriptEntry } from '../interfaces/protocol/transcripts.js';
-import { readTranscript } from '../transcripts/writer.js';
-import { blobsIn } from './helpers/transcripts.js';
+import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
+import { blobsIn } from '../../subs/task-execution/src/tests/helpers/transcripts.js';
 import { completionProposed, edit, read, shell, unsuitableScope, write } from './helpers/iterations.js';
 
 import { commandResult } from './helpers/command-result.js';

@@ -14,7 +14,7 @@ import { copyCapabilityFixture, fixtureRequest, openCapabilityRuns } from './hel
 import { temporaryDirectory } from './helpers/fixture.js';
 import { assign, edit, installMiniRunner, outline, shell, submit, treeInputs } from './helpers/iterations.js';
 import { freeze, git, initRepository, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
-import { nodeProcessGroups } from '../run/writer.js';
+import { nodeProcessGroups } from '../../subs/task-execution/src/writer.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });

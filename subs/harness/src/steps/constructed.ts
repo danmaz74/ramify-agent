@@ -3,7 +3,7 @@ import type { BuiltinTool, JsonSchema, WriteTool } from '../../subs/agent/src/in
 import type { LoadedPackage } from '../prompts/packages.js';
 import type { RunPolicy } from '../run/records.js';
 import { runDirectory } from '../run/records.js';
-import type { HarnessTaskBrief } from '../run/session-operations.js';
+import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 import type { KnownProjectFacts } from '../run/task-brief.js';
 import type { StepEnvironment } from './engineer.js';
 import { projectPath, type KnownFactsInputs, type ProjectPath, type RunPath, type StepInputs } from './inputs.js';

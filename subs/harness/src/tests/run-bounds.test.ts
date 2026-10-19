@@ -12,7 +12,7 @@ import { commandResult } from './helpers/command-result.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, outline, partialReport, shell, submit, treeInputs } from './helpers/iterations.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy } from './helpers/runs.js';
-import { InvocationBounds } from '../run/port-events.js';
+import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
 import { runLayout, type InvocationOutcome, type RunPolicy } from '../run/records.js';
 
 /* Historical resource limits are retained as observations; progress and pending work remain eligible. */

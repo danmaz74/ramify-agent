@@ -2,9 +2,9 @@ import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { ObservationLog } from '../run/observations.js';
-import { ToolInputJudge } from '../run/submissions.js';
-import { validateAgainst } from '../run/submissions.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
+import { ToolInputJudge } from '../../subs/task-execution/src/submissions.js';
+import { validateAgainst } from '../../subs/task-execution/src/submissions.js';
 import {
   createShellTool, shellDefaultTimeoutMs, shellInputSchema, shellJsonSchema, shellMaxTimeoutMs, shellToolName,
   type ShellCall, type ShellResult,

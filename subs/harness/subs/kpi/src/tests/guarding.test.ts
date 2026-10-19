@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { guardingReport } from '../guarding.js';
-import { observationSchema, type Observation } from '../../../../src/run/observations.js';
+import { observationSchema, type Observation } from '../../../task-execution/src/observations.js';
 const at = '2026-01-01T00:00:00.000Z';
 const guard = (tool: string, verdict: 'allowed' | 'blocked-scope' | 'blocked-unresolved'): Observation => ({ n: 1, at, type: 'guard',
   data: { callId: tool, tool, requested: 'a', resolved: 'a', owner: null, scopeRevision: 1, verdict, reason: 'recorded' } });

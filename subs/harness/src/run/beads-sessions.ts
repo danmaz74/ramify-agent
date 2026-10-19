@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { AgentEvent } from '../../subs/agent/src/interfaces/port.js';
 import type { SessionExecutionBindings, SessionExecutionPolicy, SessionOperationHandle, SessionOperationReceipt, SessionOperations, SessionTaskInput } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
-import { readSessionPointReference } from './session-operations.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { BeadsStateStore, beadsStageInputSchema, type BeadsRunState, type BeadsStage, type BeadsStageInput } from './beads-storage.js';
 import { createBeadsTools } from './beads-tools.js';
 

@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import type { AgentSession } from '../../subs/agent/src/interfaces/port.js';
-import { nodeProcessGroups, WriterOwnership } from '../run/writer.js';
-import { temporaryDirectory } from './helpers/fixture.js';
+import type { AgentSession } from '../../../agent/src/interfaces/port.js';
+import { nodeProcessGroups, WriterOwnership } from '../writer.js';
+import { temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
 
 /*
  * Cancellation is not settlement.

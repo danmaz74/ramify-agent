@@ -1,13 +1,13 @@
 import type {
   AgentEvent, AssistantBlock, ContentBlock, MessageEvent, SessionMode, SubmissionVerdict, ToolAction,
-} from '../../subs/agent/src/interfaces/port.js';
+} from '../../../agent/src/interfaces/port.js';
 import type {
   TranscriptAssistantBlock, TranscriptContentBlock, TranscriptHarnessDecision, TranscriptToolAction,
-} from '../interfaces/protocol/transcripts.js';
-import type { Role } from '../interfaces/protocol/runs.js';
+} from '../../../../src/interfaces/protocol/transcripts.js';
+import type { Role } from '../../../../src/interfaces/protocol/runs.js';
 import type {
   ContinueRelation, ForkRelation, InvocationOutcome, InvocationWork, ReplaceRelation, RequestRelation,
-} from '../run/records.js';
+} from '../../../../src/run/records.js';
 import type { TranscriptBodies, TranscriptEntryInput, TranscriptWriter } from './writer.js';
 
 /*

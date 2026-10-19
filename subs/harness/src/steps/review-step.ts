@@ -16,7 +16,7 @@ import { captureProjectConfig } from '../run/project-config.js';
 import { declaredCheckFacts } from '../run/project-facts.js';
 import { committedAuditConfigurationSchema, invocationSchema, runLayout, sessionIdSchema } from '../run/records.js';
 import { concernBindings, finishReview, requestedStartOf, reviewOutcome } from '../run/review-finish.js';
-import type { InvocationResult } from './runner.js';
+import type { InvocationResult } from '../../subs/task-execution/src/results.js';
 import { reviewAttemptId, reviewLayout, reviewRequestSchema, reviewSubmissionSchema, type ReviewRequest, type ReviewSubmission } from '../reviews/records.js';
 import { reviewStateOf } from '../reviews/state.js';
 import { iterationAssignmentSchema } from '../work/iterations.js';

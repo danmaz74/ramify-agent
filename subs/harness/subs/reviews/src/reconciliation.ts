@@ -21,7 +21,7 @@ import {
   type CheckFindingRejection,
   type CheckFindingSource,
 } from '../../check-findings/src/interfaces/check-findings.js';
-import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../../src/run/submissions.js';
+import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../task-execution/src/submissions.js';
 
 const prose = z.string().min(1).max(4000);
 const reference = z.string().min(1).max(500);

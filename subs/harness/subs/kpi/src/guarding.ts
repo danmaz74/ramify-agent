@@ -1,4 +1,4 @@
-import type { Observation } from '../../../src/run/observations.js';
+import type { Observation } from '../../task-execution/src/observations.js';
 
 export type GuardVerdictCounts = Record<'allowed' | 'blocked-scope' | 'blocked-unresolved', number>;
 

@@ -6,11 +6,11 @@ import type { AgentEvent, AgentPort } from '../../subs/agent/src/interfaces/port
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { observationSchema } from '../run/observations.js';
+import { observationSchema } from '../../subs/task-execution/src/observations.js';
 import { runLayout, invocationSchema, type InvocationOutcome } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
-import { ContentStore } from '../transcripts/store.js';
-import { readBody, readTranscript } from '../transcripts/writer.js';
+import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
+import { readBody, readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { copyFixture } from './helpers/fixture.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
 import { read } from './helpers/iterations.js';
@@ -19,7 +19,7 @@ import { emptyAnalysis, installTestRunner, onlyRun, runPath, startRun } from './
 import { scriptedGit } from './helpers/scripted-git.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
 import { finalCandidate } from './helpers/final-candidate.js';
-import { blobsIn, portEventsOf, transcribed } from './helpers/transcripts.js';
+import { blobsIn, portEventsOf, transcribed } from '../../subs/task-execution/src/tests/helpers/transcripts.js';
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

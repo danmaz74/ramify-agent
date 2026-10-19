@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { modulePathSchema } from '../interfaces/protocol/evidence.js';
-import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../run/submissions.js';
+import { validateAgainst, type SubmissionError, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import { openFindingsMessage, type HookFinding, type HookSubmissionPolicy } from '../hooks/post-write.js';
 import { needAsBehaviorSchema } from '../contracts/submission.js';
 import { capabilityNeedInputSchema } from '../capability/records.js';

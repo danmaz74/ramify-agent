@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { RunQueries, type RunSource } from '../../../subs/projections/src/queries.js';
 import type { CandidateSource, ChangeHistory, LineRange } from '../../../subs/evidence/src/git.js';
 import { createQuerySource } from '../../http/query-source.js';
-import { observationSchema } from '../../run/observations.js';
+import { observationSchema } from '../../../subs/task-execution/src/observations.js';
 import { metricsResponseSchema } from '../../interfaces/protocol/runs.js';
 import { invocationSchema, invocationOutcomeSchema, measurementSnapshotSchema, lineEventSummarySchema, gateAttemptSchema, runLayout } from '../../run/records.js';
 import { constructedRecord, constructedRun, hash, runId, type Line } from './constructed.js';

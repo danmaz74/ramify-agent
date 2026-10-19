@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { canonicalJson } from '../jobs/commands.js';
 import { sha256Schema } from '../interfaces/protocol/evidence.js';
-import type { ContentStore } from '../transcripts/store.js';
+import type { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import type { RunLog } from '../run/log.js';
 import type { WriteScope } from './scope.js';
 import { decodeOwnershipEvidenceAnswer, type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';

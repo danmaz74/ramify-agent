@@ -16,7 +16,7 @@ import {
   knownProjectFactsOf, obligationBriefingOf, ownedTestAreasOf, unauthorizedGuardedOf, viewIdentityOf,
 } from '../run/project-facts.js';
 import { committedAuditConfigurationSchema, type CommittedAuditConfigurationRecord } from '../run/records.js';
-import { validateAgainst } from '../run/submissions.js';
+import { validateAgainst } from '../../subs/task-execution/src/submissions.js';
 import { committedRecords, refOf } from '../work/committed.js';
 import { assignedSourceDirectory } from '../work/engineer-directory.js';
 import { iterationApiViews, apiViewsOf, onboardingOf, prepareAssignedCucumber, type WorkItemBriefing } from '../work/session.js';

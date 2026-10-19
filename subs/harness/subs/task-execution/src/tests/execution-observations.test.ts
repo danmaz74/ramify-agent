@@ -2,9 +2,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
-import { ObservationLog } from '../run/observations.js';
-import { PortEventRecorder } from '../run/port-events.js';
-import { ExcursionWatcher } from '../run/excursions.js';
+import { ObservationLog } from '../observations.js';
+import { PortEventRecorder } from '../port-events.js';
+import { ExcursionWatcher } from '../excursions.js';
 
 test.each(['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'] as const)('%s context settings and compaction failure remain honest evidence without a harness threshold', async source => {
   const directory = await mkdtemp(join(tmpdir(), 'ramify-context-observation-'));

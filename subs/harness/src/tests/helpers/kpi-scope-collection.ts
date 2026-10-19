@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { RamifyCli, type RamifyRun } from '../../../subs/evidence/src/ramify-cli.js';
 import { captureSnapshot, invocationScopeSize, type DeliveredScopeInputs } from '../../../subs/kpi/src/capture.js';
 import { deliveredScopeInputs, deliveredSupportEntries, writeScopeMeasurement } from '../../measurement/inputs.js';
-import { buildDeliveredManifest, type DeliveredInput } from '../../prompts/delivered-manifest.js';
+import { buildDeliveredManifest, type DeliveredInput } from '../../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { MeasurementSnapshot, ScopeSize } from '../../run/records.js';
 import type { WriteScope } from '../../work/scope.js';
 

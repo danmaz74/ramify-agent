@@ -7,7 +7,7 @@ import { fixtureRequest } from './helpers/capability.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { runAcceptedHandback } from './helpers/acceptance-flow.js';
 import { runEventsOnDisk } from './helpers/runs.js';
-import type { TaskPacket } from '../prompts/tasks.js';
+import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 
 const cleanups: Array<() => Promise<void>> = [];

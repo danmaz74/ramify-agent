@@ -11,7 +11,7 @@ import { openSessionStore } from '../../subs/session-store/src/session-store.js'
 import { BeadsSessions, type BeadsStageInput } from '../run/beads-sessions.js';
 import { BeadsStateStore } from '../run/beads-storage.js';
 import { createBeadsTools } from '../run/beads-tools.js';
-import { sessionPointReference } from '../run/session-operations.js';
+import { sessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { sha256 } from '../prompts/packages.js';
 
 const cleanup: (() => Promise<void>)[] = [];

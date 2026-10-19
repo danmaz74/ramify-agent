@@ -13,8 +13,8 @@ import {
   sessionLayout, sessionOutcomeSchema, sessionRecordSchema, sessionsDirectory,
   type SessionOutcomeRecord, type SessionRecord,
 } from './standalone-records.js';
-import { TranscriptPages, type PageBounds, type TranscriptPageRead } from '../../../src/transcripts/pages.js';
-import { readTranscript } from '../../../src/transcripts/writer.js';
+import { TranscriptPages, type PageBounds, type TranscriptPageRead } from '../../task-execution/src/transcripts/pages.js';
+import { readTranscript } from '../../task-execution/src/transcripts/writer.js';
 import { ProjectionError, runView, type RunView } from './inputs.js';
 import { evaluationOf, invocationEvaluation, readObservationLog } from './metrics.js';
 import { servedRun, type RunSource } from './queries.js';

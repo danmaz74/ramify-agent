@@ -7,7 +7,7 @@ import { scopeSize, type DeclaredScope } from '../../subs/kpi/src/capture.js';
 import { deliveredScopeInputs, invocationScope, readScopeMeasurement, writeScopeMeasurement } from '../measurement/inputs.js';
 import type { MeasurementSnapshot, ScopeComponent } from '../run/records.js';
 import type { LoadedPackage } from '../prompts/packages.js';
-import { buildDeliveredManifest, type DeliveredInput, type DeliveredManifest } from '../prompts/delivered-manifest.js';
+import { buildDeliveredManifest, type DeliveredInput, type DeliveredManifest } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { WriteScope } from '../work/scope.js';
 
 const directories: string[] = [];

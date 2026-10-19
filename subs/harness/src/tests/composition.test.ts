@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import { CommittingGates } from '../run/committing-gate.js';
 import { runEventSchema } from '../run/log.js';
 import type { GateAttempt } from '../checks/records.js';
-import { observationSchema } from '../run/observations.js';
+import { observationSchema } from '../../subs/task-execution/src/observations.js';
 import { invocationSchema, runSchemas } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
 import { analysisSchemas } from '../analysis/records.js';
@@ -39,9 +39,9 @@ import {
 import { errorResponseSchema } from '../interfaces/protocol/errors.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { ObservationLog } from '../run/observations.js';
-import { PortEventRecorder } from '../run/port-events.js';
-import { ExcursionWatcher } from '../run/excursions.js';
+import { ObservationLog } from '../../subs/task-execution/src/observations.js';
+import { PortEventRecorder } from '../../subs/task-execution/src/port-events.js';
+import { ExcursionWatcher } from '../../subs/task-execution/src/excursions.js';
 import { crashAt, fileHashes, logLines, plan, runDirectory, runToEnd, scenarios, type ScenarioName } from './helpers/composition.js';
 import { allRows, machineNames, type Machine } from './helpers/recovery-table.js';
 import { observeValues, unionInventory } from './helpers/unions.js';
@@ -561,7 +561,7 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'run log.type', values: ['job-continued'], file: 'subs/harness/src/tests/restart-service.test.ts', test: 'continuation preserves historical failure and accepted analysis without copying run history' },
   { union: 'run log.type', values: ['external-candidate-observed'], file: 'subs/harness/src/tests/recovery-readiness-source.test.ts', test: 'readiness retains observed source and operational corrections through one %s run-branch commit' },
 
-  { union: 'observation log[context].data.native.source', values: ['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'], file: 'subs/harness/src/tests/execution-observations.test.ts', test: '%s context settings and compaction failure remain honest evidence without a harness threshold' },
+  { union: 'observation log[context].data.native.source', values: ['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'], file: 'subs/harness/subs/task-execution/src/tests/execution-observations.test.ts', test: '%s context settings and compaction failure remain honest evidence without a harness threshold' },
   { union: 'query metrics.evaluation.invocations[].context.observations[].native.source', values: ['pi@0.87.1:SettingsManager', 'pi@1.3.0:SettingsManager'], file: 'subs/harness/subs/projections/src/tests/continuity-projections.test.ts', test: 'context projection preserves %s settings, missing estimates and failed compaction without manufacturing usage' },
   { union: 'run log.type', values: ['operation-recovery-pausing', 'operation-recovery-paused'], file: 'subs/harness/src/tests/operation-recovery.test.ts', test: 'bounded transport retries leave the task pending with its actual diagnostic' },
   { union: 'run log.type', values: ['operation-recovery-resumed'], file: 'subs/harness/src/tests/operation-recovery.test.ts', test: 'ordinary continuation after %s needs no repair declaration or occurrence' },
@@ -627,9 +627,9 @@ const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values
   { union: 'record ramify-agent.invocation/1.sessionOperation.point.kind', values: ['checkpoint'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
   { union: 'query metrics.evaluation.invocations[].efficiency.operation.point.kind', values: ['checkpoint'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
   { union: 'query metrics.evaluation.invocations[].efficiency.manifest[ramify-agent.delivered-inputs/1].entries[].kind', values: ['skill'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.manifest.schema', values: ['ramify-agent.delivered-inputs/1'], file: 'subs/harness/src/tests/plan25-blocks.test.ts', test: 'legacy manifest bytes, hashes and writer representation are unchanged' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.manifest.schema', values: ['ramify-agent.delivered-inputs/2'], file: 'subs/harness/src/tests/plan25-blocks.test.ts', test: 'new manifest retains physical identity and optional logical effects' },
-  { union: 'query metrics.evaluation.invocations[].efficiency.manifest[ramify-agent.delivered-inputs/2].entries[].block.effect', values: ['set', 'remove'], file: 'subs/harness/src/tests/plan25-blocks.test.ts', test: 'new manifest retains physical identity and optional logical effects' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.manifest.schema', values: ['ramify-agent.delivered-inputs/1'], file: 'subs/harness/subs/task-execution/src/tests/plan25-blocks.test.ts', test: 'legacy manifest bytes, hashes and writer representation are unchanged' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.manifest.schema', values: ['ramify-agent.delivered-inputs/2'], file: 'subs/harness/subs/task-execution/src/tests/plan25-blocks.test.ts', test: 'new manifest retains physical identity and optional logical effects' },
+  { union: 'query metrics.evaluation.invocations[].efficiency.manifest[ramify-agent.delivered-inputs/2].entries[].block.effect', values: ['set', 'remove'], file: 'subs/harness/subs/task-execution/src/tests/plan25-blocks.test.ts', test: 'new manifest retains physical identity and optional logical effects' },
   { union: 'query metrics.evaluation.invocations[].efficiency.declared.policy', values: ['scope-size/1'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
   { union: 'query metrics.evaluation.invocations[].efficiency.declared.components[].state', values: ['unknown'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },
   { union: 'query metrics.evaluation.invocations[].efficiency.declared.coverage', values: ['complete'], file: 'subs/harness/subs/projections/src/tests/efficiency-provenance.test.ts', test: 'plain efficiency projections retain original checkpoint and skill identities, legacy unknown scope and complete current scope without inventing charges' },

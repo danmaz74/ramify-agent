@@ -7,7 +7,7 @@ import {
   type ElementCatalog, type ElementKind,
 } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { extractPlanScenarios, type PlanScenario } from '../../subs/scenarios/src/extraction.js';
-import type { SubmissionError, SubmissionValidation } from '../run/submissions.js';
+import type { SubmissionError, SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import { incorporationSchema, type Incorporation } from './evidence-contracts.js';
 import type { CatalogFinding } from './records.js';
 import { analysisCitationErrors, analysisElementReferences, scenarioFormOf, type AnalysisEvidence, type ResolvedAnalysis } from './submission.js';

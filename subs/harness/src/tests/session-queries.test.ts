@@ -18,8 +18,8 @@ import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/tra
 import { runLayout } from '../run/records.js';
 import { reduceSessions } from '../run/sessions.js';
 import { historicalSessionLayout } from '../../subs/projections/src/tests/helpers/historical-session-layout.js';
-import { ContentStore } from '../transcripts/store.js';
-import { readTranscript } from '../transcripts/writer.js';
+import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
+import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { copyFixture } from './helpers/fixture.js';

@@ -3,9 +3,9 @@ import type { JsonSchema } from '../../subs/agent/src/interfaces/port.js';
 import { failureCauseSchema, type FailureAnalysis, type Role } from '../interfaces/protocol/runs.js';
 import type { TranscriptBody, TranscriptEntry } from '../interfaces/protocol/transcripts.js';
 import type { EngineerBounds } from '../run/policy.js';
-import type { CallInFlight } from '../run/port-events.js';
+import type { CallInFlight } from '../../subs/task-execution/src/port-events.js';
 import type { InvocationOutcome, LineEventSummary } from '../run/records.js';
-import { validateAgainst, type SubmissionValidation } from '../run/submissions.js';
+import { validateAgainst, type SubmissionValidation } from '../../subs/task-execution/src/submissions.js';
 import type { FailureDigest } from './iterations.js';
 
 /*

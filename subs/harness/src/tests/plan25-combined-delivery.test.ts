@@ -7,12 +7,12 @@ import type { AgentSessionSnapshot, ContinueSessionInput, SessionOperations } fr
 import { intakeToolName } from '../analysis/extraction.js';
 import { coordinatorAssessmentToolName } from '../nonfunctional/submissions.js';
 import { deliveredManifestViewSchema, metricsResponseSchema } from '../interfaces/protocol/runs.js';
-import type { TaskPacket } from '../prompts/tasks.js';
-import type { DeliveredInput } from '../prompts/delivered-manifest.js';
-import type { BriefingRevision } from '../prompts/briefings.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
+import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
+import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
+import type { BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 import { deliveredScopeInputs } from '../measurement/inputs.js';
-import { HarnessSessionOperations } from '../run/session-operations.js';
+import { HarnessSessionOperations } from '../prompts/session-adapter.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';

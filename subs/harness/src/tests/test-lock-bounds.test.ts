@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { AgentSession } from '../../subs/agent/src/interfaces/port.js';
 import { executeConfiguredGate, prepareGate } from '../checks/gate.js';
-import { InvocationBounds } from '../run/port-events.js';
+import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
 import { PausableDeadline } from '../run/pausable-deadline.js';
 
 afterEach(() => vi.useRealTimers());

@@ -19,7 +19,7 @@ import type { GuardedScope } from '../guard/write-guard.js';
 import type { HookFinding } from '../hooks/post-write.js';
 import { loadPromptPackages, renderEngineerPrompt, sha256 } from '../prompts/packages.js';
 import { deliveredSupportPaths } from '../prompts/tasks.js';
-import type { HarnessTaskBrief } from '../run/session-operations.js';
+import type { HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 import { runCheckpoint } from '../run/gates.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { readCommittedAuditConfiguration } from '../../subs/audit/src/check-execution.js';
@@ -31,7 +31,8 @@ import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store
 import { engineerBuiltinTools, engineerEquipment } from '../work/engineer-equipment.js';
 import { shellToolName } from '../tools/shell.js';
 import { manualRunner, openManualRun, settleManualAttempts, recordManualResourceIntent, readManualResourceResult, recordManualResourceResult, waitManualResourceResult } from '../steps/manual.js';
-import { committedBody, finished } from '../steps/runner.js';
+import { committedBody } from '../steps/runner.js';
+import { finished } from '../../subs/task-execution/src/results.js';
 import { engineerWorkingDirectory } from '../work/engineer-directory.js';
 import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../work/scratch.js';
 import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../work/engineer.js';

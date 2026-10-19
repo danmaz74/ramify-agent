@@ -36,7 +36,7 @@ import { unchangedRepairPaths } from './repair-preparation.js';
 import { declaredModuleDirectories } from './project-config.js';
 import { gateAttemptId, gateAttemptSchema, runLayout, type GateOperation, type RecordRef, type RunPolicy } from './records.js';
 import type { RunWrite } from './service.js';
-import type { WriterOwnership } from './writer.js';
+import type { WriterOwnership } from '../../subs/task-execution/src/writer.js';
 import { checkExecutionObstruction } from './recovery-checks.js';
 import { recordedExternalChanges } from './recovery-gate.js';
 import { compatibleAuditRepair } from './recovery-admission.js';

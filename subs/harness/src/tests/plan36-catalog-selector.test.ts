@@ -7,10 +7,11 @@ import { extractDocumentScenarios } from '../../subs/scenarios/src/extraction.js
 import { incorporatedScenarios, type AnalysisEvidence, type ResolvedAnalysis } from '../analysis/submission.js';
 import { applyCheck, checkMessage, intakeMessage, principleMessage, type CheckState, type ExtractionInputs } from '../analysis/extraction.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { buildTaskPacket, type TaskEnvironment, type TaskKind } from '../prompts/tasks.js';
-import { buildBriefingDelivery, taskBriefingRevision } from '../prompts/briefings.js';
-import { effectiveBlocks } from '../prompts/blocks.js';
-import { exactInputHash, type DeliveredInput } from '../prompts/delivered-manifest.js';
+import { buildTaskPacket, type TaskKind } from '../prompts/tasks.js';
+import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
+import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
+import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
+import { exactInputHash, type DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { contextSelectorMessage } from '../context-selection/prompts.js';
 import { contextSelectorSubmissionSchema, prepareContextSelection } from '../context-selection/submissions.js';
 import type { Role } from '../interfaces/protocol/runs.js';

@@ -16,9 +16,9 @@ import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, st
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { runLayout } from '../run/records.js';
 import { InvocationRunner } from '../steps/runner.js';
-import { HarnessSessionOperations, type HarnessOperationInput } from '../run/session-operations.js';
-import { buildDeliveredManifest, type DeliveredInput } from '../prompts/delivered-manifest.js';
-import type { TaskPacket } from '../prompts/tasks.js';
+import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts/session-adapter.js';
+import { buildDeliveredManifest, type DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
+import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { try { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); expectNoProcesses(); } finally { forgetExternalTools(); } });

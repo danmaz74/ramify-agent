@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { readSessionPointReference } from '../run/session-operations.js';
+import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { sha256 } from '../prompts/packages.js';
 import { copyFixture } from './helpers/fixture.js';
 import { writeProjectConfig } from './helpers/project-config.js';

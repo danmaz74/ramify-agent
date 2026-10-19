@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { AgentEvent, AgentSession, SessionOutcome } from '../../subs/agent/src/interfaces/port.js';
-import { InvocationBounds } from '../run/port-events.js';
-import { WriterBlockedError, WriterOwnership } from '../run/writer.js';
+import type { AgentEvent, AgentSession, SessionOutcome } from '../../../agent/src/interfaces/port.js';
+import { InvocationBounds } from '../port-events.js';
+import { WriterBlockedError, WriterOwnership } from '../writer.js';
 
 const limits = { invocationIdleMs: 100, invocationAbsoluteMs: 150, writerSettleMs: 20 };
 function operation(stopSettles = true) {

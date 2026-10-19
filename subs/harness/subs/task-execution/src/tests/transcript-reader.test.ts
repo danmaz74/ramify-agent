@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { ContentStore, openContentReader } from '../transcripts/store.js';
 import { readBody, readTranscript } from '../transcripts/writer.js';
-import { temporaryDirectory } from './helpers/fixture.js';
+import { temporaryDirectory } from '../../../../src/tests/helpers/fixture.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });

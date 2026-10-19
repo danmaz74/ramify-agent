@@ -4,7 +4,7 @@ import { afterEach, expect, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { RamifyCheckResult } from '../../subs/evidence/src/ramify-cli.js';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
-import { observationSchema, type Observation } from '../run/observations.js';
+import { observationSchema, type Observation } from '../../subs/task-execution/src/observations.js';
 import { invocationOutcomeSchema, type InvocationOutcome } from '../run/records.js';
 import { runSingleSession, type SessionProgress, type SingleSessionOptions, type SingleSessionResult } from '../sessions/single.js';
 import { completionCheckDeadlineMs } from '../hooks/post-write.js';

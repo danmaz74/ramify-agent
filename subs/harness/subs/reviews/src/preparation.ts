@@ -1,5 +1,5 @@
 import type { CandidateSource } from '../../evidence/src/git.js';
-import type { SubmissionValidation } from '../../../src/run/submissions.js';
+import type { SubmissionValidation } from '../../task-execution/src/submissions.js';
 import type { ReviewSubmission } from './interfaces/submissions.js';
 import { collectReviewDiffPayload } from './diff-payload.js';
 import { reviewMessage, type ReviewBriefing } from './message.js';

@@ -6,7 +6,7 @@ import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { contextSelectorSubmissionSchema, prepareContextSelection } from '../context-selection/submissions.js';
 import { reviewRequestSchema } from '../reviews/records.js';
 import { runLayout } from '../run/records.js';
-import { validateAgainst } from '../run/submissions.js';
+import { validateAgainst } from '../../subs/task-execution/src/submissions.js';
 import { iterationAssignmentSchema } from '../work/iterations.js';
 import { workItemOutlineSchema, workItemSchema } from '../work/records.js';
 import { checkpointOf, testPolicyOf } from '../work/scope.js';

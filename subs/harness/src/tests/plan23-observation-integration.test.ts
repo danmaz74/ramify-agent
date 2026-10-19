@@ -7,8 +7,9 @@ import { deliveredManifestViewSchema, metricsResponseSchema, type Role } from '.
 import { deliveredScopeInputs } from '../measurement/inputs.js';
 import * as chargeProvider from '../../subs/kpi/src/efficiency.js';
 import { loadPromptPackages } from '../prompts/packages.js';
-import type { TaskKind, TaskPacket } from '../prompts/tasks.js';
-import { HarnessSessionOperations } from '../run/session-operations.js';
+import type { TaskKind } from '../prompts/tasks.js';
+import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
+import { HarnessSessionOperations } from '../prompts/session-adapter.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { runLayout } from '../run/records.js';

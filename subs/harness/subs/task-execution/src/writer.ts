@@ -1,5 +1,5 @@
-import type { AgentSession } from '../../subs/agent/src/interfaces/port.js';
-import type { InvocationOutcome } from './records.js';
+import type { AgentSession } from '../../agent/src/interfaces/port.js';
+import type { InvocationOutcome } from '../../../src/run/records.js';
 
 /*
  * Writer ownership. One writer works at a time, and the run's log says which
