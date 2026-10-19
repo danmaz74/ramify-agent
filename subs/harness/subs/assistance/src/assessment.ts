@@ -18,7 +18,7 @@ import { compareProtection, type ProtectionComparison } from './protection.js';
 import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
-import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
+import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, predecessorAssessment, retainedRequirementAnswers, substantiveGaps, reportReviewConcerns, knownFindingSummary, unverifiedSemanticClosures } from './findings.js';
 
 const digest = (value: unknown): string => `sha256:${createHash('sha256').update(`${JSON.stringify(value, null, 2)}\n`).digest('hex')}`;
 const errorText = (error: unknown): string => error instanceof Error ? error.message : String(error);
@@ -111,8 +111,13 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
 
     if (audit.state === 'failed') {
       await record('review-policy', { mode: 'not-run', reason: 'Configured check failed; return diagnostics directly for repair.' });
-      return compactOutcome({ gate: 'action-required', summary: audit.detail,
-        ...remainingBriefs(findingDetails(context.findingState())), gaps,
+      const remaining = remainingBriefs(findingDetails(context.findingState()));
+      gaps.push(...substantiveGaps(predecessorAssessment(assessment, context.assessments())));
+      for (const answer of retainedRequirementAnswers({ ...assessment, stages: [...context.stages()] }, context.assessments())) {
+        if (answer.outcome === 'unmet') remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);
+        if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
+      }
+      return compactOutcome({ gate: 'action-required', summary: audit.detail, ...remaining, gaps,
         evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`) });
     }
 
@@ -169,13 +174,11 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       ...request.requirementDocuments.map((document, index) => ({ ref: `requirement-document-${index + 1}`,
         text: `Selected guidance: ${document.path} at ${document.revision}. Read exact original on demand with assessment_evidence ref requirement-document-${index + 1}; determine its applicability and adoption status.` })),
     ];
-    const previous = request.previousAssessment === undefined
-      ? request.iterationId === undefined ? undefined : context.assessments().filter(item => item.id !== assessment.id && item.request.iterationId === request.iterationId && item.status === 'completed').at(-1)
-      : context.assessments().find(item => item.id === request.previousAssessment);
+    const previous = predecessorAssessment(assessment, context.assessments());
     const priorReview = previous?.stages.find(stage => stage.name === 'review-accepted') ?? previous?.stages.find(stage => stage.name === 'review');
     const prior = priorReview?.evidence as ReviewEvidence | undefined;
     if (request.kind === 'iteration' && previous && !request.reviewReason && prior?.result.status === 'submitted'
-      && prior.result.value.requirements.every(answer => answer.outcome === 'met')
+      && prior.result.value.requirements.every(answer => answer.outcome === 'met') && !substantiveGaps(previous).length
       && !findingDetails(context.findingState()).some(detail => detail.summary.standing === 'open') && !protection.violations.length && !gaps.length && audit.state === 'passed') {
       await record('review-policy', { mode: 'not-run', reason: 'Selected correction verified by configured checks; no remaining semantic repair selected.', previousAssessment: previous.id });
       return compactOutcome({ gate: 'clear', summary: 'Repair candidate verified; broad review deliberately not repeated.',
@@ -326,7 +329,10 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     else if (attention.length) gaps.push(`Reconciliation unavailable: ${reconciliation?.reason ?? 'no valid assessment'}`);
 
     const remaining = remainingBriefs(findingDetails(context.findingState()).filter(detail => !authorizedProtectionFinding(detail.summary, protection)));
-    if (reviewed.result.status === 'submitted') for (const answer of reviewed.result.value.requirements) {
+    if (reviewed.result.status !== 'submitted') gaps.push(...substantiveGaps(previous));
+    const answers = retainedRequirementAnswers({ ...assessment, stages: [...context.stages()] }, context.assessments());
+    for (const answer of answers) {
+      if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
       if (answer.outcome === 'unmet' && !(answer.pendingProtection?.length && answer.pendingProtection.every(path => protection.changes.some(change => change.path === path && change.authorizedBy !== null)))) remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);
     }
     for (const change of protection.violations) if (!remaining.repairs.some(text => text.includes(change.path))) remaining.decisions.push(`Protected change ${change.path} requires an exact authorized exception or restoration.`);

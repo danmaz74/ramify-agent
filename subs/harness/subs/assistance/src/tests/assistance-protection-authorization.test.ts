@@ -226,6 +226,32 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
   });
 
+  it('finalizes prior exact user authority when advisory continuation comes last, including reload and retries', async () => {
+    const { service, job, assess, audit, review, serviceOptions } = await fixture({ reviewMissing: true });
+    const original = await assess(baseline, edited);
+    const ids = { planId: 'sample', jobId: job.jobId, assessmentId: original.id };
+    const approval = { ...ids, path: contract, userName: 'Owner', authority: 'actual-user-approval', commandId: 'approve-first' };
+    const accepted = await service.protectionAccept(approval);
+    expect(accepted.finalization).toBeUndefined();
+    expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('incomplete');
+    await service.close();
+    const reopened = await AssistanceService.open(serviceOptions); services.push(reopened);
+    const continuation = { ...ids, rationale: 'Configured checks and engineer inspection suffice.', commandId: 'continue-last' };
+    const receipt = await reopened.reviewContinue(continuation);
+    const effective = reopened.assessmentResult('sample', job.jobId, original.id);
+    expect(effective?.gate, JSON.stringify(effective)).toBe('clear');
+    expect(reopened.assessmentDetail('sample', job.jobId, original.id).outcome).toEqual(original.outcome);
+    expect(await reopened.protectionAccept(approval)).toEqual(accepted);
+    await reopened.close();
+    const reloaded = await AssistanceService.open(serviceOptions); services.push(reloaded);
+    expect(await reloaded.reviewContinue(continuation)).toEqual(receipt);
+    expect(await reloaded.protectionAccept(approval)).toEqual(accepted);
+    expect(reloaded.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
+    expect(reloaded.assessmentDetail('sample', job.jobId, original.id).finalizations).toHaveLength(1);
+    expect(audit).toHaveBeenCalledTimes(1);
+    expect(review).toHaveBeenCalledTimes(1);
+  });
+
   it('preserves exact user authority after a coordinator continues unavailable advisory review', async () => {
     const { service, job, assess, audit, review } = await fixture({ reviewMissing: true });
     const original = await assess(baseline, edited);

@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { canonicalJson } from '../../../src/jobs/commands.js';
 import type { CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 import { assistedOutcomeSchema, type AssistedAssessment, type AssistedJob, type AssistedOutcome, type AssessmentStage } from './contracts.js';
-import { acceptedProtectionExceptions, authorizedProtectionFinding, findingDetails, remainingBriefs } from './findings.js';
+import { acceptedProtectionExceptions, authorizedProtectionFinding, findingDetails, remainingBriefs, retainedRequirementAnswers } from './findings.js';
 import { authorizeProtection, type ProtectionComparison } from './protection.js';
 import type { AssistedAuditOutcome } from './audit.js';
 import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
@@ -22,13 +23,19 @@ export const approvalFinalizationSchema = z.object({
 }).strict();
 export type ApprovalFinalization = z.infer<typeof approvalFinalizationSchema>;
 const prerequisites = (stages: readonly AssessmentStage[]) => stages.filter(stage => stage.name !== 'approval-readiness');
+const stagesHash = (stages: readonly AssessmentStage[]) => createHash('sha256').update(canonicalJson(prerequisites(stages))).digest('hex');
+const matchesStages = (stages: readonly AssessmentStage[], expected: string) => expected === stagesHash(stages)
+  // Historical readiness hashed insertion order. Schema reload may reorder the
+  // stage envelope, but neither its evidence nor its completion time changed.
+  || expected === hash(prerequisites(stages))
+  || expected === hash(prerequisites(stages).map(stage => ({ name: stage.name, evidence: stage.evidence, completedAt: stage.completedAt })));
 
 /** Produced only after source verification, review and reconciliation have completed. */
 export function approvalReadiness(input: { assessment: AssistedAssessment; job: AssistedJob; stages: readonly AssessmentStage[];
   tree: string; gaps: readonly string[]; state: CheckFindingState }): z.infer<typeof readinessSchema> {
   return { schema: 'ramify-agent.approval-readiness/1', assessmentId: input.assessment.id, candidate: input.assessment.request.candidate,
     tree: input.tree, baseline: input.job.protection.baselineCommit!, planHash: input.job.plan.sha256,
-    requestHash: hash(input.assessment.request), stagesHash: hash(prerequisites(input.stages)), gaps: [...input.gaps],
+    requestHash: hash(input.assessment.request), stagesHash: stagesHash(input.stages), gaps: [...input.gaps],
     blockers: [...input.state.findings.values()].filter(entry => entry.standing === 'open').map(entry => entry.id) };
 }
 
@@ -41,7 +48,7 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
   const readiness = parsed.data;
   if (readiness.assessmentId !== assessment.id || readiness.candidate !== assessment.request.candidate
     || readiness.baseline !== job.protection.baselineCommit || readiness.planHash !== job.plan.sha256
-    || readiness.requestHash !== hash(assessment.request) || readiness.stagesHash !== hash(prerequisites(assessment.stages))) return null;
+    || readiness.requestHash !== hash(assessment.request) || !matchesStages(assessment.stages, readiness.stagesHash)) return null;
   const audit = assessment.stages.find(stage => stage.name === 'audit')?.evidence as AssistedAuditOutcome | undefined;
   const review = (assessment.stages.find(stage => stage.name === 'review-accepted') ?? assessment.stages.find(stage => stage.name === 'review'))?.evidence as {
     result?: { status: string; value?: AssistedReviewSubmission };
@@ -52,7 +59,7 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
     || heldProtection?.baselineCommit !== readiness.baseline || heldProtection.candidateCommit !== readiness.candidate) return null;
   const protection = authorizeProtection(heldProtection, acceptedProtectionExceptions(state, input.assessments));
   const authorized = (path: string) => protection.changes.some(change => change.path === path && change.authorizedBy !== null);
-  const report = review?.result?.value;
+  const answers = retainedRequirementAnswers(assessment, input.assessments);
   const gaps = [...new Set([...readiness.gaps, ...assessment.outcome.gaps])].filter(gap => !input.reviewContinued || !/^(Required review|Reconciliation) unavailable:/u.test(gap));
   const details = findingDetails(state).filter(detail => !authorizedProtectionFinding(detail.summary, protection));
   const remaining = remainingBriefs(details);
@@ -67,7 +74,7 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
         remaining.repairs.push(`Original blocker ${id} requires a fresh assessment.`);
     }
   }
-  for (const answer of report?.requirements ?? []) {
+  for (const answer of answers) {
     if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
     if (answer.outcome === 'unmet' && !(answer.pendingProtection?.length && answer.pendingProtection.every(authorized)))
       remaining.repairs.push(`${answer.ref}: ${answer.explanation}`);

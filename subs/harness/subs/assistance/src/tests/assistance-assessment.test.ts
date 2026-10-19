@@ -554,6 +554,38 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(service.findings('sample', job.jobId)[0]?.pendingUserDecision).toBeNull();
   });
 
+  it.each(['unmet', 'uncertain'] as const)('retains prior %s acceptance without duplicate concerns across unavailable same-iteration follow-up', async standing => {
+    let reviews = 0;
+    const { service, job } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        reviews++;
+        if (reviews === 2) return { status: 'incomplete', reason: 'Advisory provider unavailable', operationId: input.operationId, eventCount: 1 };
+        const report = reviewReport(input.candidate);
+        if (reviews === 1) report.requirements[1] = { ref: 'acceptance-1', outcome: standing, explanation: 'Feature still requires relevant verification.', evidencePaths: [] };
+        return { status: 'submitted', value: report, operationId: input.operationId, sessionId: 'script', eventCount: 1 };
+      },
+    });
+    const ids = { planId: 'sample', jobId: job.jobId };
+    const iteration = await service.iteration({ ...ids, action: 'start', brief: 'Implement the feature.', focusModule: null, commandId: 'begin' });
+    const end = async (candidate: string, commandId: string, previousAssessment?: string) => {
+      const admitted = await service.iteration({ ...ids, action: 'end', iterationId: iteration.id, candidate,
+        acceptance: ['The feature returns 2.'], commandId, ...(previousAssessment ? { previousAssessment } : {}) });
+      await outcome(service, job.jobId, admitted.assessmentId);
+      return admitted.assessmentId;
+    };
+    const initial = await end(first, 'initial-requirement');
+    expect(service.findings('sample', job.jobId)).toEqual([]);
+    const unavailable = await end(first, 'unchanged-follow-up', initial);
+    await service.reviewContinue({ ...ids, assessmentId: unavailable, rationale: 'Continue advisory work only.', commandId: 'continue-unavailable' });
+    const held = service.assessmentResult('sample', job.jobId, unavailable)!;
+    expect(held.gate).toBe(standing === 'unmet' ? 'action-required' : 'incomplete');
+    expect([...held.repairs, ...held.gaps].join(' ')).toContain('acceptance-1: Feature still requires relevant verification.');
+    const verified = await end(repaired, 'verified-repair', unavailable);
+    expect(service.assessmentResult('sample', job.jobId, verified)?.gate).toBe('clear');
+  });
+
   it('lets the coordinator continue unavailable advisory review while preserving its stage', async () => {
     const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),

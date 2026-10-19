@@ -474,7 +474,7 @@ export class AssistanceService {
   private finalizations(store: AssistedStore, assessmentId: string): ApprovalFinalization[] {
     return store.ledger.replay().flatMap(line => {
       const event = line.transaction.event;
-      return event.type === 'protection-accepted' && event.assessmentId === assessmentId && event.finalization ? [event.finalization] : [];
+      return (event.type === 'protection-accepted' || event.type === 'coordinator-decision-recorded') && event.assessmentId === assessmentId && event.finalization ? [event.finalization] : [];
     });
   }
 
@@ -520,8 +520,10 @@ export class AssistanceService {
       if (!assessment.outcome?.gaps.some(gap => /^(Required review|Reconciliation) unavailable:/u.test(gap)))
         throw new CommandRejection('invalid-request', 'No unavailable advisory review awaits a coordinator decision');
       const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
+      const finalization = finalizeApproval({ assessment, job: store.job, assessments: store.assessments(), state: this.findingState(store),
+        commandId: request.commandId, finalizedAt: accepted.receipt.acceptedAt, reviewContinued: true });
       await store.record({ type: 'coordinator-decision-recorded', assessmentId: assessment.id,
-        reviewRationale: request.rationale, command: accepted, checkFindings: [] });
+        reviewRationale: request.rationale, finalization, command: accepted, checkFindings: [] });
       this.commands.remember(accepted);
       return accepted.receipt;
     });

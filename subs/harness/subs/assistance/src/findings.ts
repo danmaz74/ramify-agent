@@ -155,3 +155,30 @@ export function authorizedProtectionFinding(entry: Pick<import('../../check-find
 }
 
 export { knownFindingSummary } from '../../check-findings/src/queries.js';
+
+/** Read the existing predecessor chain; unavailable invocations cannot replace an acceptance judgment. */
+export function predecessorAssessment(assessment: AssistedAssessment, assessments: readonly AssistedAssessment[]): AssistedAssessment | undefined {
+  if (assessment.request.previousAssessment !== undefined) return assessments.find(item => item.id === assessment.request.previousAssessment);
+  const index = assessments.findIndex(item => item.id === assessment.id);
+  return assessment.request.iterationId === undefined ? undefined : assessments.slice(0, index < 0 ? assessments.length : index)
+    .filter(item => item.request.iterationId === assessment.request.iterationId && item.status === 'completed').at(-1);
+}
+
+/** The most recent usable answers remain substantive until a relevant submitted follow-up replaces them. */
+export function retainedRequirementAnswers(assessment: AssistedAssessment, assessments: readonly AssistedAssessment[]): AssistedReviewSubmission['requirements'] {
+  const seen = new Set<string>();
+  let current: AssistedAssessment | undefined = assessment;
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    const review = (current.stages.find(stage => stage.name === 'review-accepted') ?? current.stages.find(stage => stage.name === 'review'))?.evidence as {
+      result?: { status: string; value?: AssistedReviewSubmission };
+    } | undefined;
+    if (review?.result?.status === 'submitted' && review.result.value) return review.result.value.requirements;
+    current = predecessorAssessment(current, assessments);
+  }
+  return [];
+}
+
+export function substantiveGaps(assessment: AssistedAssessment | undefined): string[] {
+  return assessment?.outcome?.gaps.filter(gap => !/^(Required review|Reconciliation) unavailable:/u.test(gap)) ?? [];
+}

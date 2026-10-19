@@ -96,7 +96,9 @@ records. The actor is the assisted coordinator, never an invented user answer.
 A short rationale suffices. Decisions and command receipts survive reload.
 Required check findings and pending user authority cannot use this command.
 Independent unmet or uncertain acceptance answers remain effective even when a
-discretionary suggestion is left or deferred. `assessment_result` projects the
+discretionary suggestion is left or deferred. An unavailable follow-up retains
+applicable prior acceptance answers and substantive gaps through the existing
+assessment chain until a relevant submitted assessment resolves them. `assessment_result` projects the
 remaining finding actions; original assessment evidence stays unchanged.
 
 Reviewer context includes at most 20 recent findings with bounded titles,
@@ -109,4 +111,7 @@ coordinator's decision to continue when an advisory review or reconciliation is
 unavailable. It cannot bypass running work, failed configured checks, protected
 changes, substantive unmet requirements or other evidence gaps. Retained stages
 still show the unavailable invocation; the effective result removes only its
-availability gap. This is ordinary coordinator authority, not user approval.
+availability gap. When exact user protection authority was recorded first,
+continuation also derives an append-only finalization from retained readiness and
+that authority. Both command orders preserve original receipts and assessment
+records across reload. This is ordinary coordinator authority, not user approval.
