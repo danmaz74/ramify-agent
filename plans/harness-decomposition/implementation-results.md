@@ -1,9 +1,12 @@
 # Harness decomposition implementation results
 
-The six implementation outcomes have defining owners and real consumers. Overall
-qualification remains the coordinator's combined native whole-plan review and
-final configured default audit; this document does not declare historical RA
-assessments clear or replace those final checks.
+The six implementation outcomes are complete under the user-authorized native
+workflow. The combined whole-plan review and selected repairs are complete. The
+final default configured audit passed at `c2fa6a8b29e1ab9c3e8e195b3a744524d0d62115`,
+with zero outstanding failures in its composed full/partial evidence chain.
+[Execution notes](execution-notes.md#completion) retain the exact report references,
+coverage and verification counts. Historical RA assessments retain their original
+statuses; this completion does not relabel them clear.
 
 The [responsibility map](responsibility-map.md) records the actual tree, decision
 boundaries and all original remainder/seed/facade files. Iteration results document
