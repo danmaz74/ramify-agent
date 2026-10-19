@@ -1,0 +1,63 @@
+{
+  "evidence": "plans/codex-coordinator-host/.harness/jobs/20261019T190943Z-7fd938/evidence/b49cc02e25ea89037f33e73d9db7fdf1d1e3bd7e050c8b99c86b9566b74d8a56.json",
+  "evidenceSha256": "b49cc02e25ea89037f33e73d9db7fdf1d1e3bd7e050c8b99c86b9566b74d8a56",
+  "auditedSourceCommit": "70723cbe1ed56d18a9fe34db85f5d4f99dc58d79",
+  "reportCommit": "ea11646bd5895b44b142081d0d78389e5cf49962",
+  "runRef": "refs/audited/runs/2026-10-19T21-16-48Z-70723cbe1",
+  "overall": "fail",
+  "agentTests": {
+    "status": "fail",
+    "counts": {
+      "files": {
+        "failed": 1,
+        "passed": 447,
+        "skipped": 1,
+        "total": 449
+      },
+      "tests": {
+        "failed": 1,
+        "passed": 3595,
+        "skipped": 2,
+        "total": 3598
+      }
+    },
+    "failedTests": [
+      {
+        "errorFull": "CommandRejection: The job is at version 82, not 81\n    at CommandLedger.requireVersion (/tmp/ramify-audit-worktree-y5EW1G/source/subs/harness/src/jobs/commands.ts:72:11)\n    at /tmp/ramify-audit-worktree-y5EW1G/source/subs/harness/subs/autonomous/src/run/service.ts:2175:21",
+        "errorShort": "The job is at version 82, not 81",
+        "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.test.ts",
+        "fullName": "CA20 CA32: restart settles an unstarted provider attempt before resuming the same pending assignment",
+        "name": "CA20 CA32: restart settles an unstarted provider attempt before resuming the same pending assignment",
+        "runner": "vitest",
+        "suite": "node"
+      }
+    ]
+  },
+  "expectedFiles": {
+    "contract": "runner-configured-files/3",
+    "directExecutions": [
+      {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "project": "node",
+        "path": "subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts",
+        "ran": true
+      },
+      {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "project": "node",
+        "path": "subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts",
+        "ran": true
+      }
+    ],
+    "source": "partial-answer",
+    "expected": 449,
+    "run": 449,
+    "missing": [],
+    "status": "complete",
+    "runnerConfigFiles": [
+      "vitest.config.ts"
+    ]
+  }
+}

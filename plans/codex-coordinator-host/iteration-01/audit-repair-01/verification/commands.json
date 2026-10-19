@@ -1,0 +1,27 @@
+[
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run test:quick -- subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.test.ts -t 'CA20 CA32: restart settles an unstarted provider attempt'",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run test:quick -- subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.test.ts",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run type-check",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run check:self",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "git diff --check",
+    "exitCode": 0
+  }
+]

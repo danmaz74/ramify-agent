@@ -652,6 +652,7 @@ test('CA20 CA32: restart settles an unstarted provider attempt before resuming t
   const a = 'capability-coordination/a';
   const b = 'capability-coordination/b';
   let engineerTurns = 0;
+  let providerWaiting = false;
   let frozen = false;
   const script: Script = spec => {
     if (spec.role === 'initial-architect') return submit(analysis([entry('a-reads-b', a), entry('b-entry', b)]));
@@ -667,7 +668,7 @@ test('CA20 CA32: restart settles an unstarted provider attempt before resuming t
         need: 'B fact for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display source', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
         examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
-      } }) : [{ kind: 'wait', ms: 60_000 }];
+      } }) : [{ kind: 'await', until: () => { providerWaiting = true; return freeze(); } }];
     }
     if (spec.role === 'capability-architect') {
       const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
@@ -701,8 +702,18 @@ test('CA20 CA32: restart settles an unstarted provider attempt before resuming t
       && started.data.work.iteration === 'cap-001.i01')).length >= 2
       || second.service.getRun('need', receipt.jobId)?.state === 'failed';
   }, 10_000).catch(error => { throw new Error(`${String(error)}; ${JSON.stringify({ engineerTurns, recovery: second.recovery, tail: second.service.events('need', receipt.jobId)?.slice(-20) })}`); });
+  // Writer acquisition precedes delivered-input/operation preparation. A stop
+  // read there can become stale before mutex admission, especially under audit
+  // load. Wait for the abortable provider step, after those ledger writes.
+  await until(() => providerWaiting || second.service.getRun('need', receipt.jobId)?.state === 'failed', 10_000);
   expect(second.service.getRun('need', receipt.jobId)?.state, JSON.stringify(second.service.getRun('need', receipt.jobId)?.failure)).not.toBe('failed');
-  await second.service.execute(stopRun('need', receipt.jobId, second.service.getRun('need', receipt.jobId)!.version));
+  const acquired = second.service.events('need', receipt.jobId)!.filter(event => event.type === 'writer-acquired').at(-1)!;
+  const currentVersion = second.service.getRun('need', receipt.jobId)!.version;
+  expect(currentVersion).toBeGreaterThan(acquired.sequence);
+  await expect(second.service.execute(stopRun('need', receipt.jobId, acquired.sequence))).rejects.toMatchObject({
+    code: 'stale-version', currentVersion,
+  });
+  await second.service.execute(stopRun('need', receipt.jobId, currentVersion));
   await second.service.settled('need', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   const attempts = events.filter(event => event.type === 'writer-acquired' &&

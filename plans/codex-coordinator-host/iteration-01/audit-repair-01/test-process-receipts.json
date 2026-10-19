@@ -1,0 +1,26 @@
+[
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 4137624,
+    "startedAt": "2026-10-19T21:19:01.706Z",
+    "finishedAt": "2026-10-19T21:19:08.049Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 4137837,
+    "startedAt": "2026-10-19T21:19:41.166Z",
+    "finishedAt": "2026-10-19T21:20:02.172Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  }
+]
