@@ -82,6 +82,7 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
   });
   let clock = new Date('2026-10-18T20:00:00.000Z');
   const serviceOptions = { now: () => clock, projectRoot: root, registrationProtection: async () => protection, resolveCommit: async (_project: string, revision: string) => revision,
+    currentHead: async () => baseline, isCleanRepository: async () => true,
     assessor: createAssessor({ candidates, operations: async () => ({} as SessionOperations), audit, review,
       reconcile: async input => {
         const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0002', rationale: 'Implementation still needs repair.',
@@ -226,9 +227,16 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
   });
 
-  it('finalizes prior exact user authority when advisory continuation comes last, including reload and retries', async () => {
+  it.each(['legacy', 'native'] as const)('finalizes prior exact user authority after %s admission, reload and continuation retries', async admission => {
     const { service, job, assess, audit, review, serviceOptions } = await fixture({ reviewMissing: true });
-    const original = await assess(baseline, edited);
+    const start = { planId: 'sample', jobId: job.jobId, action: 'start' as const, brief: 'Keep the feature returning 2.',
+      focusModule: null, base: baseline, commandId: 'native-start' };
+    const iteration = admission === 'native' ? await service.iteration(start) : undefined;
+    const end = iteration ? { planId: 'sample', jobId: job.jobId, action: 'end' as const, iterationId: iteration.id, candidate: edited,
+      acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'native-end' } : undefined;
+    const submitted = end ? await service.iteration(end) : undefined;
+    if (submitted) await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, submitted.assessmentId).status).toBe('completed'));
+    const original = submitted ? service.assessmentDetail('sample', job.jobId, submitted.assessmentId) : await assess(baseline, edited);
     const ids = { planId: 'sample', jobId: job.jobId, assessmentId: original.id };
     const approval = { ...ids, path: contract, userName: 'Owner', authority: 'actual-user-approval', commandId: 'approve-first' };
     const accepted = await service.protectionAccept(approval);
@@ -248,6 +256,23 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(await reloaded.protectionAccept(approval)).toEqual(accepted);
     expect(reloaded.assessmentResult('sample', job.jobId, original.id)?.gate).toBe('clear');
     expect(reloaded.assessmentDetail('sample', job.jobId, original.id).finalizations).toHaveLength(1);
+    const detail = reloaded.assessmentDetail('sample', job.jobId, original.id);
+    expect(detail.request).toEqual(original.request);
+    expect(detail.stages).toEqual(original.stages);
+    expect(detail.outcome).toEqual(original.outcome);
+    if (iteration && end && submitted) {
+      expect(await reloaded.iteration(start)).toEqual(iteration);
+      expect(await reloaded.iteration(end)).toMatchObject({ assessmentId: submitted.assessmentId });
+    }
+    // Existing native readiness records retain their exact request binding.
+    const historical = structuredClone(detail);
+    (historical.stages.find(stage => stage.name === 'approval-readiness')!.evidence as { requestHash: string }).requestHash =
+      createHash('sha256').update(JSON.stringify(original.request)).digest('hex');
+    const finalizationInput = { assessment: historical, job: reloaded.assistedJob('sample', job.jobId), assessments: [historical],
+      state: emptyCheckFindingState(), commandId: 'historical-binding', finalizedAt: '2026-10-18T20:00:00.000Z', reviewContinued: true };
+    expect(finalizeApproval(finalizationInput)).not.toBeNull();
+    historical.request.brief = 'A different request';
+    expect(finalizeApproval(finalizationInput)).toBeNull();
     expect(audit).toHaveBeenCalledTimes(1);
     expect(review).toHaveBeenCalledTimes(1);
   });

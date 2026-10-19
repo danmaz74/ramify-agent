@@ -23,7 +23,17 @@ export const approvalFinalizationSchema = z.object({
 }).strict();
 export type ApprovalFinalization = z.infer<typeof approvalFinalizationSchema>;
 const prerequisites = (stages: readonly AssessmentStage[]) => stages.filter(stage => stage.name !== 'approval-readiness');
-const stagesHash = (stages: readonly AssessmentStage[]) => createHash('sha256').update(canonicalJson(prerequisites(stages))).digest('hex');
+const semanticHash = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
+const stagesHash = (stages: readonly AssessmentStage[]) => semanticHash(prerequisites(stages));
+const matchesRequest = (request: AssistedAssessment['request'], expected: string) => {
+  if (expected === semanticHash(request) || expected === hash(request)) return true;
+  // Native iteration admission historically inserted kind before base/candidate;
+  // schema reload preserves the values but reconstructs a different key order.
+  const { planId, jobId, kind, base, candidate, brief, acceptance, requirementDocuments,
+    previousAssessment, reviewReason, iterationId, focusModule, additionalContext, ...rest } = request;
+  return expected === hash({ planId, jobId, kind, base, candidate, brief, acceptance, requirementDocuments,
+    previousAssessment, reviewReason, iterationId, focusModule, additionalContext, ...rest });
+};
 const matchesStages = (stages: readonly AssessmentStage[], expected: string) => expected === stagesHash(stages)
   // Historical readiness hashed insertion order. Schema reload may reorder the
   // stage envelope, but neither its evidence nor its completion time changed.
@@ -35,7 +45,7 @@ export function approvalReadiness(input: { assessment: AssistedAssessment; job: 
   tree: string; gaps: readonly string[]; state: CheckFindingState }): z.infer<typeof readinessSchema> {
   return { schema: 'ramify-agent.approval-readiness/1', assessmentId: input.assessment.id, candidate: input.assessment.request.candidate,
     tree: input.tree, baseline: input.job.protection.baselineCommit!, planHash: input.job.plan.sha256,
-    requestHash: hash(input.assessment.request), stagesHash: stagesHash(input.stages), gaps: [...input.gaps],
+    requestHash: semanticHash(input.assessment.request), stagesHash: stagesHash(input.stages), gaps: [...input.gaps],
     blockers: [...input.state.findings.values()].filter(entry => entry.standing === 'open').map(entry => entry.id) };
 }
 
@@ -48,7 +58,7 @@ export function finalizeApproval(input: { assessment: AssistedAssessment; job: A
   const readiness = parsed.data;
   if (readiness.assessmentId !== assessment.id || readiness.candidate !== assessment.request.candidate
     || readiness.baseline !== job.protection.baselineCommit || readiness.planHash !== job.plan.sha256
-    || readiness.requestHash !== hash(assessment.request) || !matchesStages(assessment.stages, readiness.stagesHash)) return null;
+    || !matchesRequest(assessment.request, readiness.requestHash) || !matchesStages(assessment.stages, readiness.stagesHash)) return null;
   const audit = assessment.stages.find(stage => stage.name === 'audit')?.evidence as AssistedAuditOutcome | undefined;
   const review = (assessment.stages.find(stage => stage.name === 'review-accepted') ?? assessment.stages.find(stage => stage.name === 'review'))?.evidence as {
     result?: { status: string; value?: AssistedReviewSubmission };
