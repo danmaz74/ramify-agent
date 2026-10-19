@@ -1,57 +1,33 @@
 # Harness decomposition execution notes
 
-## Execution identity
+## Current operating decision
+
+On 2026-10-19 the user approved proceeding with native coordination and one-pass review while the review/fix-cycle runtime changes are pending. This supersedes the captured plan's repeated RA assessment cadence and requirement for a clear RA gate before the next outcome. Architectural outcomes, compatibility requirements, applicable checks and the original baseline remain unchanged.
+
+Implement each coherent outcome with Sol, run relevant checks, and obtain one compact native review using ordinary inspection tools. The coordinator selects useful fixes; verify repairs without automatically repeating broad review. Additional review requires a concrete reason. Retain a final configured audit and whole-plan native review. Historical RA results keep their actual statuses; no missing review is represented as completed, and actual check failures or unmet requirements still require action.
+
+Iteration 1 (session-store) is accepted for continuing under this user-authorized workflow. Its candidate has a passing configured audit; the latest substantive RA review had no repairs or decisions. Its `as-0007` result remains `incomplete` because of mandatory direct artifact inspection. That accounting rule no longer blocks native plan progress.
+
+## Identity and retained evidence
 
 - Target: `/workspaces/worktrees/harness-decomposition`, branch `refactor/harness-decomposition`.
-- Source and immutable proposal baseline: `3cf06e52cbb2996a8d4db7a6f7cf9527dcd611ac`.
-- Registered execution/protection baseline: `85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4`. Its only differences from the source baseline are the captured plan, proposal, baseline JSON and historical collector; production source is unchanged.
-- Plan: `harness-decomposition`; job: `20261019T065548Z-f298d1`.
+- Immutable proposal/source baseline: `3cf06e52cbb2996a8d4db7a6f7cf9527dcd611ac`.
+- Registered execution/protection baseline: `85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4`; it only adds plan/proposal/evidence over the source baseline.
+- RA plan/job: `harness-decomposition` / `20261019T065548Z-f298d1`. No replacement job was created.
 - Captured plan SHA-256: `f82acb9c349018ceeb4a278a4b472a87dc0d370680e4919f14c6fc553baae4df`.
-- Registration protection has no gaps. Default guarded configuration and principle/specification selection apply.
-- Stable assessor: `/workspaces/worktrees/passive-waiting` at source baseline, with recorded passing audit `refs/audited/runs/2026-10-19T05-51-00Z-3cf06e52c`.
+- Session-store iteration: `it-9b118795-62fe-4210-ae0f-d3cc5b087e82`, original base `85ed836c`, latest assessment `as-0007`, incomplete for artifact-access gaps only.
+- Review lifetime correction: `it-4e134ddb-6972-4282-9fa2-b15b0bab201a`, clear assessment `as-0006` at `93f63a81fa87112d7ee71469c0c4cddbd27b4689`. No review execution deadlines remain in the qualified assessor.
+- Evidence-inspection experiment: `it-dc6ab4f9-ffd2-4438-86b4-b63324177a3b`, started but never assessed. Parked on `wip/harness-evidence-inspection` at `c58ddee2`; it is excluded from this implementation branch and is not required to proceed.
+- Existing source/evaluation evidence remains beside this plan; do not repeat or expand it solely to satisfy optional artifact coverage. Operational benefit remains unmeasured.
 
-## Transport and continuation
+## Next outcome
 
-Native RA tools were not exposed to this session. A persistent official SDK MCP client connects to the stable assessor over stdio, targeting the implementation worktree. Its local adapter is `/tmp/harness-decomposition-mcp/bridge.mjs`; requests use `/tmp/harness-decomposition-mcp/call.py` with a JSON MCP tool request on stdin. The Unix socket is `/tmp/harness-decomposition-mcp/socket`. This adapter forwards actual MCP operations; RA retains its ordinary durable records. Preserve the single live owner of this target. The existing MCP process targeting the original repository remains separate and untouched.
+Iteration 2: isolate the complete assisted workflow. Move the service/store/assessor/MCP together, preserve the root facade and actual consumers, and separate shared helpers from autonomous decisions without copying algorithms. Use the existing oriented Sol implementation worker `/root/session_store`; it owns production integration. The coordinator owns these notes and arranges a single native review of the candidate.
 
-On reconnect, call `plan_executions` and `job_detail` for these IDs. Recover assessments through RA, never edit its durable records. If the temporary adapter is lost, reconnect an official client to the same stable assessor and target after confirming project ownership. Do not start a new execution to reset evidence.
+Subsequent outcomes remain task execution, autonomous lifecycle/planning, work coordination, and acceptance/final integration. Preserve the full scope and adapt grouping only when actual interface discovery warrants it.
 
-## Active outcome
+## RA connection if needed
 
-Iteration 1: shared durable session persistence and all real consumers.
+The stable assessor is `/workspaces/worktrees/harness-decomposition-assessor-93f63a8`, immutable at `93f63a81`, with its own dependencies. The official MCP client adapter is `/tmp/harness-decomposition-mcp/bridge.mjs`, socket `/tmp/harness-decomposition-mcp/socket`, request helper `/tmp/harness-decomposition-mcp/call.py`. It uses normal MCP startup with `openai/gpt-6-astra:high`, no execution timeout. Existing RA records are retained read-only for this temporary workflow; no new broad assessment is needed for ordinary iteration acceptance.
 
-- Iteration: `it-9b118795-62fe-4210-ae0f-d3cc5b087e82`.
-- Started: `2026-10-19T06:56:02.597Z` (UTC).
-- Base: `85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4`; clean observed start, captured from HEAD.
-- Focus: `subs/harness/subs/session-store`.
-- Native Sol implementation worker: `/root/session_store`.
-- Independent Sol evaluation worker: `/root/evaluation`, restricted to comparison evidence under `evaluation/`.
-- Candidate: `ed9a61330fa6e3f7d72d34197e7fb840beffc13c`.
-- Current assessment: `as-0003`, linked to `as-0002` (audit/protection passed; review exceeded its configured deadline); awaiting compact result.
-- Local verification: 218 ordinary tests, 8 native cases, TypeScript and Ramify structural checks passed. No protected changes reported.
-
-Follow the six ordered outcomes in the captured plan. The implementation worker owns cross-owner integration; the coordinator submits each candidate and observes RA. Independent evaluation does not authorize a dependent extraction before the current gate. Next: retrieve the completed compact result for `as-0003`; repair within the same iteration if required, otherwise start iteration 2 assistance extraction. Worker `/root/session_store` is available for related outcomes; evaluation worker completed its baseline artifacts.
-
-Assessor startup now explicitly selects `openai/gpt-6-astra:high`; offline readiness verifies preservation capabilities. Same stable code, target, execution and original baseline retained.
-
-The stable runtime now receives `timeoutMs: 1800000` through `/tmp/harness-decomposition-mcp/assessor-30min.mjs`, using unchanged service/runtime/MCP composition and shutdown order. Observer waits remain 15 minutes. No assessment was cancelled or accepted on elapsed time.
-
-Iteration 2 read-only reconnaissance identified a cohesive move of all 13 assistance files and 12 related tests. Candidate concern binding, reconciliation core, review scheduling and generic finding transactions need separation from autonomous wrappers. Shared job/command/lock/audit-workspace mechanisms retain explicit support ownership. No protected configuration change is currently expected. No iteration 2 source edits have begun.
-
-## User correction: review has no elapsed-time cancellation
-
-The user rejected fixed review time limits on 2026-10-19: “there should be no such thing.” Remove review execution deadlines rather than increasing them. Observation waits remain bounded and do not cancel work; explicit cancellation and genuine failures remain meaningful.
-
-- Corrective iteration: `it-4e134ddb-6972-4282-9fa2-b15b0bab201a`.
-- Started: `2026-10-19T07:36:25.002Z` (UTC).
-- Base: `ed9a61330fa6e3f7d72d34197e7fb840beffc13c`; dirty provenance reflects coordinator execution-note changes only.
-- Worker: `/root/session_store`; assistance extraction has not begun.
-- The already-running `as-0003` remains untouched while the source correction is prepared. The temporary 30-minute bootstrap is superseded by this user requirement and must be retired when the corrected assessor is qualified.
-
-## Current continuation (after broader review correction)
-
-- Session-store assessment `as-0003` completed `incomplete`: no source repairs or decisions; remaining gaps were inspection of oversized/compressed structural evidence. Independent native investigation now fully verifies those inputs and supplies bounded artifacts at `corrections/evidence-access/`.
-- Corrective candidate `e30a881d661736bdb597c45564d7db683ac9fe4a` was assessed as `as-0004`, completed `action-required`: Pi accepted the corrective behavior, but configured audit has an outstanding agent-tests failure. The worker is investigating its exact diagnostic before resubmission.
-- Broader joint candidate `693ed890f2cc3844482b355b0fe071fcbdc4c443` removes review silence stops across managed/manual/reconciliation/NFR assessment/investigation, retains non-review watchdogs and historical schema readers, and includes independently verified evidence. Local checks passed; it is not yet assessed.
-- Retain both original iteration IDs. Next: resolve the audit diagnostic, reassess the corrective iteration with `previous_assessment: as-0004`, reassess session-store with `previous_assessment: as-0003`, then switch the idle assessor to a qualified immutable corrected checkout before assistance extraction.
-- All assessments are currently settled. No execution is complete; five decomposition outcomes remain after session-store acceptance.
+The original repository and its separate MCP owner remain untouched. Local commits/audits are authorized; no push or tracker synchronization is authorized.
