@@ -24,16 +24,45 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
   const requests = new Map<string | number, { method: string; mutation: boolean; resolve(value: unknown): void; reject(error: Error): void; timer: NodeJS.Timeout }>();
   const responseDeliveries = new Map<string, { reject(error: Error): void; timer: NodeJS.Timeout }>();
   const pending = new Map<string, { rpcId: string | number; request: CodexPendingRequest; decisions: readonly WireDecision[]; state: 'pending' | 'responding' | 'uncertain' }>();
-  const threads = new Map<string, { status: CodexThread['status']; activeTurn: string | null; uncertain: boolean }>();
-  const threadRevisions = new Map<string, number>();
-  const liveThreadControl = new Set<string>();
-  const advanceThread = (threadId: string, live = true) => {
-    threadRevisions.set(threadId, (threadRevisions.get(threadId) ?? 0) + 1);
-    if (live) liveThreadControl.add(threadId);
+  type Turn = ReturnType<typeof projectTurn>;
+  type Observation<T> = { value: T; revision: number; live: boolean };
+  type ThreadControl = {
+    status: Observation<CodexThread['status']>; activeTurn: Observation<string | null>;
+    adopted: boolean; uncertain: boolean; latestTurn?: Turn;
+    // Terminal identities cannot become running again, even in a fresh stale snapshot.
+    finished: Map<string, Pick<Turn, 'status' | 'error'>>;
+    // Idle retires a known identity without inventing a terminal turn outcome.
+    retired: Set<string>;
   };
-  // Retain early turn outcomes only while an input acknowledgement is pending.
-  const earlyTurns = new Map<string, ReturnType<typeof projectTurn>>();
-  const submissions = new Set<string>();
+  let revision = 0;
+  const threads = new Map<string, ThreadControl>();
+  const control = (threadId: string): ThreadControl => {
+    let thread = threads.get(threadId);
+    if (thread === undefined) {
+      thread = { status: { value: 'notLoaded', revision: 0, live: false }, activeTurn: { value: null, revision: 0, live: false }, adopted: false, uncertain: false, finished: new Map(), retired: new Set() };
+      threads.set(threadId, thread);
+    }
+    return thread;
+  };
+  const observedTurn = (thread: ThreadControl, turn: Turn): Turn => {
+    const finished = thread.finished.get(turn.id);
+    return finished === undefined ? turn : { ...turn, ...finished };
+  };
+  const observeTurn = (thread: ThreadControl, value: Turn, basis = Infinity): Turn => {
+    const turn = observedTurn(thread, value);
+    if (turn.status !== 'inProgress') thread.finished.set(turn.id, { status: turn.status, error: turn.error });
+    const at = ++revision;
+    if (turn.status === 'inProgress' && thread.activeTurn.revision > basis && thread.activeTurn.value !== turn.id) thread.retired.add(turn.id);
+    if (turn.status === 'inProgress' && thread.retired.has(turn.id)) return turn;
+    // Notifications are retained before adoption. Acknowledgements use the same
+    // rule with their admission basis, so a batched completion wins over the reply.
+    if (thread.activeTurn.revision <= basis && (turn.status === 'inProgress' || thread.activeTurn.value === null || thread.activeTurn.value === turn.id)) {
+      thread.activeTurn = { value: turn.status === 'inProgress' ? turn.id : null, revision: at, live: true };
+      if (thread.status.revision <= basis) thread.status = { value: turn.status === 'inProgress' ? 'active' : 'idle', revision: at, live: true };
+      thread.latestTurn = structuredClone(turn);
+    } else if (thread.latestTurn?.id === turn.id) thread.latestTurn = turn;
+    return thread.latestTurn?.id === turn.id ? structuredClone(thread.latestTurn) : turn;
+  };
   const listeners = new Set<(event: CodexEvent) => void>();
   const emit = (event: CodexEvent) => {
     for (const listener of listeners) {
@@ -75,17 +104,45 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     if (unavailable !== undefined) throw unavailable;
     if (stopped) throw new CodexProviderError('unavailable', 'Codex provider has been stopped');
   };
-  const remember = (thread: CodexThread, readRevision?: number) => {
-    const old = threads.get(thread.id);
-    // History is inspection once live control exists. It cannot revoke an
-    // admission, erase a running turn or resurrect one already completed.
-    // Concurrent history reads also cannot replace a newer adopted snapshot.
-    if (readRevision !== undefined && (readRevision !== (threadRevisions.get(thread.id) ?? 0) || old !== undefined && liveThreadControl.has(thread.id))) return;
-    // An observation cannot prove an in-flight/lost mutation was never accepted.
-    const observed = { status: thread.status, activeTurn: thread.turns.find(t => t.status === 'inProgress')?.id ?? null };
-    if (old === undefined) threads.set(thread.id, { ...observed, uncertain: false });
-    else Object.assign(old, observed);
-    advanceThread(thread.id, false);
+  const remember = (thread: CodexThread, basis: number): CodexThread => {
+    const old = control(thread.id);
+    old.adopted = true;
+    const at = ++revision;
+    // Inspection never proves acceptance or rejection of an unacknowledged input.
+    if (!old.uncertain) {
+      const turns = thread.turns.map(turn => observedTurn(old, turn));
+      // A snapshot already superseded by idle can identify the retired turn,
+      // even when that idle arrived before the first session was adopted.
+      if (old.status.value === 'idle' && old.status.live && old.status.revision > basis) {
+        for (const turn of turns) if (turn.status === 'inProgress') old.retired.add(turn.id);
+      }
+      const running = turns.find(turn => turn.status === 'inProgress' && !old.retired.has(turn.id))?.id ?? null;
+      const current = old.activeTurn.value;
+      const finishedCurrent = current !== null && turns.some(turn => turn.id === current && turn.status !== 'inProgress');
+      // A live running identity needs its own terminal proof. An empty history
+      // cannot revoke it; snapshot-derived control remains refreshable by history.
+      const liveActive = old.activeTurn.live || old.status.live && old.status.value === 'active';
+      const preserveLive = current !== null && liveActive && !finishedCurrent;
+      const preserveIdle = old.status.live && old.status.value === 'idle' && current === null;
+      if (!preserveLive && !preserveIdle) {
+        if (old.activeTurn.revision <= basis) old.activeTurn = { value: running, revision: at, live: false };
+        const preserveStatus = old.status.live && (
+          old.status.value === 'active' && !finishedCurrent && thread.status !== 'active' ||
+          old.status.value === 'idle' && thread.status === 'active' && running === null
+        );
+        if (old.status.revision <= basis && !preserveStatus) {
+          const staleRunning = thread.turns.some(turn => turn.status === 'inProgress') && running === null;
+          const status = thread.status === 'active' && staleRunning ? 'idle' : thread.status;
+          old.status = { value: status, revision: at, live: old.status.live && old.status.value === status };
+        }
+      }
+      // Keep only terminal identity/outcome facts, not another history copy.
+      for (const turn of turns) if (turn.status !== 'inProgress') old.finished.set(turn.id, { status: turn.status, error: turn.error });
+    }
+    if (old.latestTurn !== undefined) old.latestTurn = observedTurn(old, old.latestTurn);
+    const turns = thread.turns.map(turn => observedTurn(old, turn));
+    if (old.latestTurn !== undefined && !turns.some(turn => turn.id === old.latestTurn!.id)) turns.push(structuredClone(old.latestTurn));
+    return { ...thread, status: old.status.value, turns };
   };
   const resolvePending = (id: string) => { if (pending.delete(id)) emit({ kind: 'request-resolved', id }); };
   const onLine = (line: string) => {
@@ -107,21 +164,17 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
         } else if (frame.method === 'turn/started' || frame.method === 'turn/completed') {
           const threadId = text.parse(p.threadId);
           const turn = projectTurn(p.turn);
-          advanceThread(threadId);
-          if (submissions.has(threadId)) earlyTurns.set(`${threadId}:${turn.id}`, turn);
-          const old = threads.get(threadId);
-          if (old !== undefined) {
-            old.activeTurn = turn.status === 'inProgress' ? turn.id : old.activeTurn === turn.id ? null : old.activeTurn;
-            old.status = old.activeTurn === null ? 'idle' : 'active';
-          }
+          observeTurn(control(threadId), turn);
           if (turn.status !== 'inProgress') for (const [id, request] of pending) if (request.request.threadId === threadId && request.request.turnId === turn.id) resolvePending(id);
           emit({ kind: 'turn', threadId, turn });
         } else if (frame.method === 'thread/status/changed') {
           const threadId = text.parse(p.threadId);
           const status = z.object({ type: z.enum(['idle', 'active', 'notLoaded', 'systemError']) }).parse(p.status).type;
-          advanceThread(threadId);
-          const old = threads.get(threadId);
-          if (old !== undefined) old.status = status;
+          const old = control(threadId);
+          const at = ++revision;
+          old.status = { value: status, revision: at, live: true };
+          if (status === 'idle' && old.activeTurn.value !== null) old.retired.add(old.activeTurn.value);
+          if (status !== 'active') old.activeTurn = { value: null, revision: at, live: true };
           emit({ kind: 'thread-status', threadId, status });
         } else if (frame.method === 'item/agentMessage/delta') {
           emit({ kind: 'assistant-delta', threadId: text.parse(p.threadId), turnId: text.parse(p.turnId), text: z.string().parse(p.delta) });
@@ -157,13 +210,13 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       else request.reject(new CodexProviderError(request.mutation ? 'uncertain' : 'protocol', 'Codex response has neither result nor error', request.method));
     } catch (error) { fail(`Invalid Codex protocol: ${String(error)}`); }
   };
-  const session = (value: unknown, settings: CodexThreadSettings, expectedThreadId?: string): CodexThreadSession => {
+  const session = (value: unknown, settings: CodexThreadSettings, basis: number, expectedThreadId?: string): CodexThreadSession => {
     const response = z.object({ thread: z.unknown(), model: text, instructionSources: z.array(z.string()), approvalPolicy: z.union([z.string(), object]), sandbox: z.object({ type: text }).passthrough() }).parse(value);
     const thread = projectThread(response.thread);
     if (response.model !== settings.model || thread.model !== settings.model || thread.cwd !== settings.cwd) throw new Error('Codex returned a different model or working directory');
     if (expectedThreadId !== undefined && thread.id !== expectedThreadId) throw new Error('Codex resumed another thread');
-    remember(thread);
-    return { thread, model: response.model, instructionSources: response.instructionSources,
+    const current = remember(thread, basis);
+    return { thread: current, model: response.model, instructionSources: response.instructionSources,
       approvalPolicy: typeof response.approvalPolicy === 'string' ? response.approvalPolicy : JSON.stringify(response.approvalPolicy), sandbox: response.sandbox.type };
   };
   const pageAll = async (method: string, params: Record<string, unknown>): Promise<unknown[]> => {
@@ -216,8 +269,9 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     },
     async startThread(settings) {
       requireReady();
+      const basis = revision;
       try {
-        return session(await call('thread/start', { model: settings.model, cwd: settings.cwd, ephemeral: false }, true), settings);
+        return session(await call('thread/start', { model: settings.model, cwd: settings.cwd, ephemeral: false }, true), settings, basis);
       } catch (error) {
         if (error instanceof CodexProviderError) throw error;
         throw new CodexProviderError('uncertain', `Persistent Codex thread start was not verified: ${String(error)}`, 'thread/start');
@@ -225,17 +279,17 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     },
     async readThread(threadId) {
       requireReady();
-      const readRevision = threadRevisions.get(threadId) ?? 0;
+      const basis = revision;
       const response = z.object({ thread: z.unknown() }).parse(await call('thread/read', { threadId, includeTurns: true }));
       const thread = projectThread(response.thread);
       if (thread.id !== threadId) throw new CodexProviderError('protocol', 'Codex read returned another thread', 'thread/read');
-      remember(thread, readRevision);
-      return thread;
+      return remember(thread, basis);
     },
     async resumeThread(threadId, settings) {
       requireReady();
+      const basis = revision;
       try {
-        const result = session(await call('thread/resume', { threadId, model: settings.model, cwd: settings.cwd }, true), settings, threadId);
+        const result = session(await call('thread/resume', { threadId, model: settings.model, cwd: settings.cwd }, true), settings, basis, threadId);
         return result;
       } catch (error) {
         if (error instanceof CodexProviderError) throw error;
@@ -246,28 +300,26 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       requireReady();
       if (!message.trim()) throw new CodexProviderError('protocol', 'Codex input must contain text');
       const thread = threads.get(threadId);
-      if (thread === undefined || thread.status === 'notLoaded') throw new CodexProviderError('unavailable', 'Resume or start this thread before input');
-      if (thread.status !== 'idle' || thread.activeTurn !== null || thread.uncertain) throw new CodexProviderError('busy', `Thread ${threadId} is busy or its previous submission is uncertain`);
-      advanceThread(threadId);
-      thread.status = 'active';
+      if (thread === undefined || !thread.adopted || thread.status.value === 'notLoaded') throw new CodexProviderError('unavailable', 'Resume or start this thread before input');
+      if (thread.status.value !== 'idle' || thread.activeTurn.value !== null || thread.uncertain) throw new CodexProviderError('busy', `Thread ${threadId} is busy or its previous submission is uncertain`);
+      const basis = ++revision;
+      thread.status = { value: 'active', revision: basis, live: true };
+      thread.activeTurn = { value: null, revision: basis, live: true };
       thread.uncertain = true;
-      submissions.add(threadId);
       try {
         const result = z.object({ turn: z.unknown() }).parse(await call('turn/start', { threadId, input: [{ type: 'text', text: message, text_elements: [] }] }, true));
-        const submitted = projectTurn(result.turn);
-        const observed = earlyTurns.get(`${threadId}:${submitted.id}`) ?? submitted;
-        advanceThread(threadId);
-        thread.activeTurn = observed.status === 'inProgress' ? observed.id : null;
-        thread.status = thread.activeTurn === null ? 'idle' : 'active';
+        const observed = observeTurn(thread, projectTurn(result.turn), basis);
         thread.uncertain = false;
         return observed;
       } catch (error) {
-        if (error instanceof CodexProviderError && error.kind === 'rpc') { advanceThread(threadId); thread.status = 'idle'; thread.uncertain = false; }
+        if (error instanceof CodexProviderError && error.kind === 'rpc') {
+          const at = ++revision;
+          if (thread.status.revision === basis) thread.status = { value: 'idle', revision: at, live: true };
+          if (thread.activeTurn.revision === basis) thread.activeTurn = { value: null, revision: at, live: true };
+          thread.uncertain = false;
+        }
         if (error instanceof CodexProviderError) throw error;
         throw new CodexProviderError('uncertain', `Turn submission was not verified: ${String(error)}`, 'turn/start');
-      } finally {
-        submissions.delete(threadId);
-        for (const key of earlyTurns.keys()) if (key.startsWith(`${threadId}:`)) earlyTurns.delete(key);
       }
     },
     pendingRequests: () => [...pending.values()].map(value => structuredClone(value.request)),
@@ -311,7 +363,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     async interrupt(threadId, turnId) {
       requireReady();
       const thread = threads.get(threadId);
-      if (thread === undefined || thread.activeTurn !== turnId) throw new CodexProviderError('stale-response', 'Interrupt does not identify the observed active turn');
+      if (thread === undefined || !thread.adopted || thread.status.value !== 'active' || thread.activeTurn.value !== turnId) throw new CodexProviderError('stale-response', 'Interrupt does not identify the observed active turn');
       await call('turn/interrupt', { threadId, turnId }, true);
       return { acknowledged: true, threadId, turnId, descendants: 'not-established', assessments: 'not-controlled' };
     },

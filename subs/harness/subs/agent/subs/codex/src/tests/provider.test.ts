@@ -337,3 +337,212 @@ test.each(['exit', 'stop', 'timeout', 'write-error'])('response delivery settles
   expect(script.provider.pendingRequests().map(request => request.id)).toContain(id);
   expect(events.filter(event => event.kind === 'request-resolved')).toHaveLength(0);
 });
+
+// All snapshot entry points share ordering and terminal identity rules.
+test.each(['start', 'resume'])('early completion before the initial %s response survives adoption and later stale history', async method => {
+  const script = new ScriptedCodex();
+  await script.initialize();
+  const session = method === 'start' ? script.provider.startThread(settings) : script.provider.resumeThread('thread-1', settings);
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed') } });
+  script.replyLast(testSession({ status: { type: 'active' }, turns: [testTurn()] }));
+  await expect(session).resolves.toMatchObject({ thread: { status: 'idle', turns: [{ status: 'completed' }] } });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) });
+  await expect(read).resolves.toMatchObject({ status: 'idle', turns: [{ status: 'completed' }] });
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const send = script.provider.send('thread-1', 'next');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await expect(send).resolves.toMatchObject({ id: 'turn-2' });
+});
+
+test('fresh idle history can correct snapshot-derived active resume state', async () => {
+  const script = new ScriptedCodex();
+  await script.initialize();
+  const resumed = script.provider.resumeThread('thread-1', settings);
+  script.replyLast(testSession({ status: { type: 'active' }, turns: [testTurn()] }));
+  await resumed;
+  await expect(script.provider.send('thread-1', 'busy')).rejects.toMatchObject({ kind: 'busy' });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread() });
+  await read;
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'corrected');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await expect(next).resolves.toMatchObject({ id: 'turn-2' });
+});
+
+test.each(['read', 'resume'])('fresh %s terminal proof can finish the same live turn, without accepting empty idle history', async method => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'first');
+  script.replyLast({ turn: testTurn() });
+  await send;
+  const snapshot = (turns: ReturnType<typeof testTurn>[]) => {
+    const observation = method === 'read' ? script.provider.readThread('thread-1') : script.provider.resumeThread('thread-1', settings);
+    script.replyLast(method === 'read' ? { thread: testThread({ turns }) } : testSession({ turns }));
+    return observation;
+  };
+  await snapshot([]);
+  await expect(script.provider.send('thread-1', 'empty snapshot')).rejects.toMatchObject({ kind: 'busy' });
+  await snapshot([testTurn('completed')]);
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'confirmed complete');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await expect(next).resolves.toMatchObject({ id: 'turn-2' });
+});
+
+test('status-only active notification retains the snapshot turn identity before adoption', async () => {
+  const script = new ScriptedCodex();
+  await script.initialize();
+  const resumed = script.provider.resumeThread('thread-1', settings);
+  script.replyLast(testSession({ status: { type: 'active' }, turns: [testTurn()] }));
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'active' } } });
+  await resumed;
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread() });
+  await read;
+  const interrupt = script.provider.interrupt('thread-1', 'turn-1');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'turn-1' });
+});
+
+test('an authoritative idle status before adoption clears a stale active identity without inventing a terminal outcome', async () => {
+  const script = new ScriptedCodex();
+  await script.initialize();
+  const resumed = script.provider.resumeThread('thread-1', settings);
+  script.replyLast(testSession({ status: { type: 'active' }, turns: [testTurn()] }));
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  await expect(resumed).resolves.toMatchObject({ thread: { status: 'idle', turns: [{ status: 'inProgress' }] } });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) });
+  await expect(read).resolves.toMatchObject({ status: 'idle', turns: [{ status: 'inProgress' }] });
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'idle');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await next;
+});
+
+test('notifications alone cannot adopt an unverified thread or enable interruption', async () => {
+  const script = new ScriptedCodex();
+  await script.initialize();
+  script.receive({ method: 'turn/started', params: { threadId: 'unknown', turn: testTurn() } });
+  await expect(script.provider.send('unknown', 'input')).rejects.toMatchObject({ kind: 'unavailable' });
+  await expect(script.provider.interrupt('unknown', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+});
+
+test('a resume reply cannot replace the newer running identity or an uncertain submission', async () => {
+  vi.useFakeTimers();
+  const script = await prepared();
+  const resumed = script.provider.resumeThread('thread-1', settings);
+  const resumeId = script.written.at(-1)!.id!;
+  const send = script.provider.send('thread-1', 'first');
+  const rejected = expect(send).rejects.toMatchObject({ kind: 'uncertain' });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'actual-turn') } });
+  script.receive({ id: resumeId, result: testSession({ status: { type: 'active' }, turns: [testTurn()] }) });
+  await expect(resumed).resolves.toMatchObject({ thread: { status: 'active' } });
+  await vi.advanceTimersByTimeAsync(1001);
+  await rejected;
+  await expect(script.provider.send('thread-1', 'uncertain')).rejects.toMatchObject({ kind: 'busy' });
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const interrupt = script.provider.interrupt('thread-1', 'actual-turn');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'actual-turn' });
+});
+
+test.each(['read', 'resume'])('a %s reply dispatched before newer notifications cannot replace the current turn', async method => {
+  const script = await prepared();
+  const observation = method === 'read' ? script.provider.readThread('thread-1') : script.provider.resumeThread('thread-1', settings);
+  script.replyLast(method === 'read' ? { thread: testThread() } : testSession());
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'new-turn') } });
+  await observation;
+  await expect(script.provider.send('thread-1', 'busy')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'new-turn');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'new-turn' });
+});
+
+test('a send acknowledgement followed by batched completion remains idle, and a repeated start cannot resurrect it', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'first');
+  script.replyLast({ turn: testTurn() });
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed') } });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  await expect(send).resolves.toMatchObject({ status: 'completed' });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn() } });
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'next');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await next;
+});
+
+test('an explicit submission rejection cannot roll back a newer turn notification', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'first');
+  const submission = script.written.at(-1)!.id!;
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'actual-turn') } });
+  script.receive({ id: submission, error: { code: -32000, message: 'conflicting turn' } });
+  await expect(send).rejects.toMatchObject({ kind: 'rpc' });
+  await expect(script.provider.send('thread-1', 'second')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'actual-turn');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'actual-turn' });
+});
+
+
+test('a batched idle status can retire the submitted identity without fabricating completion', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'first');
+  script.replyLast({ turn: testTurn() });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  await expect(send).resolves.toMatchObject({ id: 'turn-1', status: 'inProgress' });
+  const read = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) });
+  await expect(read).resolves.toMatchObject({ status: 'idle' });
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'next');
+  script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
+  await next;
+});
+
+test('an older completion cannot clear a different current turn', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'current');
+  script.replyLast({ turn: testTurn('inProgress', 'current-turn') });
+  await send;
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'old-turn') } });
+  await expect(script.provider.send('thread-1', 'busy')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'current-turn');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'current-turn' });
+});
+
+
+test('a history read started during a rejected submission cannot restore its stale active identity', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'rejected');
+  const submission = script.written.at(-1)!.id!;
+  const read = script.provider.readThread('thread-1');
+  const history = script.written.at(-1)!.id!;
+  script.receive({ id: submission, error: { code: -32000, message: 'rejected' } });
+  await expect(send).rejects.toMatchObject({ kind: 'rpc' });
+  script.receive({ id: history, result: { thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) } });
+  await read;
+  const next = script.provider.send('thread-1', 'retry after explicit rejection');
+  script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
+  await expect(next).resolves.toMatchObject({ id: 'next-turn' });
+});
+
+
+test('an idle notification remains authoritative after corroborating history without a known turn identity', async () => {
+  const script = await prepared();
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  const corroboration = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread() });
+  await corroboration;
+  const stale = script.provider.readThread('thread-1');
+  script.replyLast({ thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) });
+  await expect(stale).resolves.toMatchObject({ status: 'idle' });
+  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  const next = script.provider.send('thread-1', 'next');
+  script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
+  await next;
+});

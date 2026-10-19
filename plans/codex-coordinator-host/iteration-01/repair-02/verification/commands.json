@@ -1,0 +1,27 @@
+[
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run test:quick -- subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run test:boundaries -- subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run type-check",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "npm run check:self",
+    "exitCode": 0
+  },
+  {
+    "cwd": "/workspaces/worktrees/codex-coordinator-host",
+    "command": "git diff --check",
+    "exitCode": 0
+  }
+]

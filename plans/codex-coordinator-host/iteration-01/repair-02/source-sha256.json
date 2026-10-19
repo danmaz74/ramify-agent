@@ -1,0 +1,5 @@
+{
+  "subs/harness/subs/agent/subs/codex/src/provider.ts": "cdfe0de5ecc50013fb04ddf7a2e096702efcb659116b592db6ac34283bcfbea6",
+  "subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts": "5a69a0a1e611d6d1986213441416c630eed03ba37645abc4ac5e444344c2ad27",
+  "subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts": "5c5ae322163aaf91609f7d6e9de53b2441b9f0703479fa7e2d17abd16cdd341c"
+}
