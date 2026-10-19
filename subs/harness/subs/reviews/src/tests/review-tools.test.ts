@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { openCandidateSnapshot, resolveSnapshotPath, snapshotToolNames, snapshotTools } from '../snapshot.js';
 import { collectReviewDiffPayload } from '../diff-payload.js';
 import { validateReview } from '../submission.js';
-import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 
 /*
  * The parts of a review that need no run: path resolution in a candidate,

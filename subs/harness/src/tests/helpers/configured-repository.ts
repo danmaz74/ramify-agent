@@ -13,9 +13,9 @@ import {
   type ConfiguredAuditPort,
   type IntendedAuditWorkspace,
 } from '../../../subs/audit/src/check-execution.js';
-import type { GateCommandStart } from '../../checks/execution.js';
-import { executeConfiguredGate, prepareGate } from '../../checks/gate.js';
-import type { Checkpoint, GateAttempt, GateRuleRecord } from '../../checks/records.js';
+import type { GateCommandStart } from '../../../subs/autonomous/subs/acceptance/src/checks/execution.js';
+import { executeConfiguredGate, prepareGate } from '../../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import type { Checkpoint, GateAttempt, GateRuleRecord } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
 
 /*
  * A real Git project audited by the installed provider through the

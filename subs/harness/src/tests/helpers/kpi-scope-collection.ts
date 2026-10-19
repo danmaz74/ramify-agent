@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { RamifyCli, type RamifyRun } from '../../../subs/evidence/src/ramify-cli.js';
 import { captureSnapshot, invocationScopeSize, type DeliveredScopeInputs } from '../../../subs/kpi/src/capture.js';
-import { deliveredScopeInputs, deliveredSupportEntries, writeScopeMeasurement } from '../../measurement/inputs.js';
+import { deliveredManifestScopeInputs as deliveredScopeInputs, deliveredSupportEntries, writeScopeMeasurement } from '../../../subs/kpi/src/measurement/inputs.js';
 import { buildDeliveredManifest, type DeliveredInput } from '../../../subs/task-execution/src/delivery/delivered-manifest.js';
-import type { MeasurementSnapshot } from '../../../subs/autonomous/src/run/records.js';
+import type { MeasurementSnapshot } from '../../../subs/kpi/src/run-records.js';
 import type { ScopeSize } from '../../../subs/task-execution/src/records.js';
 import type { WriteScope } from '../../work/scope.js';
 

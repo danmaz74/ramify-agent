@@ -12,7 +12,7 @@ import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.j
 import type { BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { startingPointsSection, type StartingPointGroup } from '../../subs/autonomous/subs/work-coordination/src/work/starting-inputs.js';
-import { nonfunctionalSourceAllows } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { nonfunctionalSourceAllows } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import type { CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
@@ -20,9 +20,9 @@ import { byRole, treeInputs } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { openUnchangedRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
-import { candidates, eventsOf, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store } from './helpers/reviews.js';
+import { candidates, reviewEventsOf as eventsOf, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 

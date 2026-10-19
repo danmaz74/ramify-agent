@@ -4,9 +4,9 @@ import {
   type AnalysisScenario, type GateScenarioResultView, type ObligationView, type ScenarioGateResult, type ScenarioListResponse, type ScenarioOriginView,
   type ScenarioView, type ScenarioWarningView,
 } from '../../../src/interfaces/protocol/runs.js';
-import type { GateAttempt } from '../../../src/checks/records.js';
-import { scenarioResultsOf } from '../../../src/checks/scenario-results.js';
-import { trackedScenarios, type TrackedScenarios } from '../../autonomous/src/run/feature-files.js';
+import type { GateAttempt } from '../../autonomous/subs/acceptance/src/checks/records.js';
+import { scenarioResultsOf } from '../../autonomous/subs/acceptance/src/checks/scenario-results.js';
+import { trackedScenarios, type TrackedScenarios } from '../../autonomous/subs/acceptance/src/feature-files.js';
 import { capabilityOf } from '../../autonomous/subs/work-coordination/src/work/frontier.js';
 import { integrationScenarioOf } from '../../autonomous/subs/work-coordination/src/work/records.js';
 import { obligationsOf } from '../../autonomous/subs/work-coordination/src/work/obligations.js';

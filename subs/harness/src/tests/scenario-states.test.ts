@@ -2,9 +2,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { GateAttempt } from '../checks/records.js';
-import { scenarioResultsOf, type ScenarioResult } from '../checks/scenario-results.js';
-import { incompleteScenarios } from '../../subs/autonomous/src/run/feature-files.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import { scenarioResultsOf, type ScenarioResult } from '../../subs/autonomous/subs/acceptance/src/checks/scenario-results.js';
+import { incompleteScenarios } from '../../subs/autonomous/subs/acceptance/src/feature-files.js';
 import { runEventSchema, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { bindingErrors, bindingEventsToRecord, obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
@@ -19,8 +19,8 @@ import {
 import type { DirectCheckScript, DirectCheckStep, ScriptedScenario } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
-import { treeCandidates } from './helpers/candidates.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { treeCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import {
   addModule, assign, byRole, completionProposed, installMiniRunner, outline, partialReport, submit, treeInputs, write,
 } from './helpers/iterations.js';

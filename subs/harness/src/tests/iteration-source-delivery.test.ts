@@ -8,7 +8,7 @@ import { createPackage, type SubmittedElement } from '../../subs/plan-evidence/s
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
 import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
-import { coordinatorAssessmentToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { coordinatorAssessmentToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import type { RunEvent, RunEventOf } from '../../subs/autonomous/src/run/log.js';
 import { readRecordedContextSelection } from '../../subs/autonomous/subs/work-coordination/src/context-selection/recorded.js';
 import { withSelectionReasons } from '../../subs/autonomous/subs/work-coordination/src/selection-reasons.js';

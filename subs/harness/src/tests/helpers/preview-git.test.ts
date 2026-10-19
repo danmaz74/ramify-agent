@@ -3,7 +3,7 @@ import type { CandidateTreePreview } from '../../../subs/evidence/src/candidate-
 import { mockGit } from './mock-git.js';
 import { scriptedGit } from './scripted-git.js';
 import { scenarioGit } from './recovery-git.js';
-import { gateGit } from './gate-git.js';
+import { gateGit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { answeredGit } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 
 const root = '/fixture/project';

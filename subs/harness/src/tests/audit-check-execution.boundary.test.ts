@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { gateDiagnostics } from '../checks/diagnostics.js';
-import { inPlaceCheckExecution } from '../checks/execution.js';
-import { runGate } from '../checks/gate.js';
-import { checkCommand, type GateAttempt } from '../checks/records.js';
-import { scenarioResultsOf } from '../checks/scenario-results.js';
-import type { PlannedCheck } from '../checks/verify.js';
+import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
+import { inPlaceCheckExecution } from '../../subs/autonomous/subs/acceptance/src/checks/execution.js';
+import { runGate } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { checkCommand, type GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import { scenarioResultsOf } from '../../subs/autonomous/subs/acceptance/src/checks/scenario-results.js';
+import type { PlannedCheck } from '../../subs/autonomous/subs/acceptance/src/checks/verify.js';
 import {
   auditDefinition, commandCheck, configuredGate, configuredRepository, privateConfiguredAudit, recordingOwnership,
   type ConfiguredRepository,

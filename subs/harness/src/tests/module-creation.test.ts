@@ -9,8 +9,8 @@ import { assign, byRole, completionProposed, installMiniRunner, outline, submit,
 import { forkDecision, registryChange, requestPlacement } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { architectureLayout, type PlacementDecision } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
 import { analysisLayout, type RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
-import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 

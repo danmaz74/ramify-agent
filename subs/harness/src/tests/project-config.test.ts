@@ -1,11 +1,12 @@
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { captureProjectConfig, moduleTestAreas, parseProjectConfig } from '../run/project-config.js';
 import { withProjectTimeouts } from '../run/policy.js';
-import { readinessFailureReason } from '../../subs/autonomous/src/run/readiness.js';
-import { runLayout, type ReadinessAttempt, type RunRecord } from '../../subs/autonomous/src/run/records.js';
+import { readinessFailureReason } from '../../subs/autonomous/subs/acceptance/src/readiness.js';
+import { runLayout, type RunRecord } from '../../subs/autonomous/src/run/records.js';
+import { type ReadinessAttempt } from '../../subs/autonomous/subs/acceptance/src/readiness-records.js';
 import type { ArchitectIndex, ModuleEntry } from '../../subs/evidence/src/views.js';
 import { copyFixture, fixtureRoot, temporaryDirectory } from './helpers/fixture.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';

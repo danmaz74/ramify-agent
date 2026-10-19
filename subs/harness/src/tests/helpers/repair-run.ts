@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { analysis, entry, requestCompletion } from './analysis.js';
-import { finalCandidate } from './final-candidate.js';
+import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { copyFixture } from './fixture.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs } from './iterations.js';
 import { mockGit } from './mock-git.js';

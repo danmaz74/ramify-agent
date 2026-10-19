@@ -1,4 +1,4 @@
-import { finalCandidate } from './final-candidate.js';
+import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { analysis, entry, hypothesis, requestCompletion, unresolved } from './analysis.js';

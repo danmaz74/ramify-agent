@@ -15,7 +15,7 @@ import {
   onlyRun, openRuns, runEventsOnDisk, runPath, startRun,
 } from './helpers/runs.js';
 
-import { gateGit } from './helpers/gate-git.js';
+import { gateGit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 
 
 import { cleanups, plan, attribution, core, views, dirA, dirC, dirV, dirP, base, materialized, scenarios, unchanged, revision, broadRationale, target, run, gates, readAssignment, readResult, stagedOutline, broadScope, coreV2, coreTestV2, adaptersV2, adaptersTestV2, panelV2, panelTestV2, pureV2, pureTestV2 } from './breaking-work-fixture.js';

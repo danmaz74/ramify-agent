@@ -6,10 +6,10 @@ import { loadPromptPackages } from '../../prompts/packages.js';
 import type { TaskPacket } from '../../../subs/task-execution/src/delivery/packet.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { readRecordedOperation } from '../../../subs/task-execution/src/session-operations.js';
-import { constructEngineerStep } from '../../steps/engineer.js';
-import { constructStep } from '../../steps/construct.js';
-import { parseStepInputs, type EngineerStepInputs, type StepInputs } from '../../steps/inputs.js';
-import { renderStep, type RenderedStep } from '../../steps/render.js';
+import { constructEngineerStep } from '../../../subs/task-workflow/src/steps/engineer.js';
+import { constructStep } from '../../../subs/task-workflow/src/steps/construct.js';
+import { parseStepInputs, type EngineerStepInputs, type StepInputs } from '../../../subs/task-workflow/src/steps/inputs.js';
+import { renderStep, type RenderedStep } from '../../../subs/task-workflow/src/steps/render.js';
 import { runEventsOnDisk, runPath } from './runs.js';
 
 /** One engineer invocation of a run: the inputs it recorded, its recorded delivery and the constructor's render of those inputs. */

@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 
 import { defaultRunPolicy } from '../run/policy.js';
-import { checkCommandSchema, runPolicySchema } from '../../subs/autonomous/src/run/records.js';
+import { checkCommandSchema } from '../../subs/autonomous/subs/acceptance/src/checks/command-records.js';
+import { runPolicySchema } from '../../subs/autonomous/src/run/records.js';
 
 
 /*

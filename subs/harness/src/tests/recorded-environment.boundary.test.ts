@@ -1,9 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { runGate } from '../checks/gate.js';
-import { inPlaceCheckExecution } from '../checks/execution.js';
-import { checkCommand, checkCommandEnvironment } from '../checks/records.js';
+import { runGate } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { inPlaceCheckExecution } from '../../subs/autonomous/subs/acceptance/src/checks/execution.js';
+import { checkCommand, checkCommandEnvironment } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 
 
 import { temporaryDirectory } from './helpers/fixture.js';

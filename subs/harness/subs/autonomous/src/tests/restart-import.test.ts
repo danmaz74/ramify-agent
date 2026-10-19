@@ -14,7 +14,7 @@ import { concern, report } from '../../../../src/tests/helpers/check-findings.js
 
 
 
-import { unsettledRequests } from '../../../../src/reviews/state.js';
+import { unsettledRequests } from '../../subs/acceptance/src/reviews/state.js';
 import { constructedRecord, constructedRun, hash, item, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 function retained() {

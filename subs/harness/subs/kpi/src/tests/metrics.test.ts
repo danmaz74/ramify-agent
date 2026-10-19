@@ -4,7 +4,7 @@ import { metricSchema, type Metric } from '../../../../src/interfaces/protocol/r
 import type { DeliveredChange } from '../delivered.js';
 import { comparableScopeMetrics, kpiMetrics, type InvocationFacts, type MetricInputs } from '../metrics.js';
 import type { Observation } from '../../../task-execution/src/observations.js';
-import type { LineEventSummary } from '../../../autonomous/src/run/records.js';
+import type { LineEventSummary } from '../run-records.js';
 import type { ScopeSize } from '../../../task-execution/src/records.js';
 const guarded = { statement: 'Every observed mutation passed the guard (edit).', complete: true };
 function lines(invocation: string, added: number, deleted: number, coverage: 'complete' | 'partial' = 'complete'): LineEventSummary {

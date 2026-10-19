@@ -13,7 +13,7 @@ import { acceptAnalysis } from '../../subs/autonomous/subs/planning/src/accept.j
 import { briefed, engineerScenarioSection } from '../../subs/autonomous/subs/work-coordination/src/work/scenario-briefing.js';
 import { architectScenarioSections } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { stableRoleInstructions } from '../prompts/tasks.js';
+import { stableRoleInstructions } from '../../subs/task-workflow/src/prompts/tasks.js';
 import type { Role } from '../interfaces/protocol/runs.js';
 
 // Exact offline evidence from run 20261011T143710Z-e572ca, harness 8d5e4684:

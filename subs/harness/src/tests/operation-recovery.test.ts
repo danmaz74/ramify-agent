@@ -8,7 +8,7 @@ import { invocationOutcomeSchema } from '../../subs/task-execution/src/records.j
 import { copyFixture } from './helpers/fixture.js';
 import { byRole, submit } from './helpers/iterations.js';
 import { mockGit, fixtureScratchGit } from './helpers/mock-git.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { emptyAnalysis, openRuns, startRun, stopRun, testPolicy, until, freeze, staleCrashLock } from './helpers/runs.js';
 

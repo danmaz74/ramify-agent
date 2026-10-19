@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Role } from '../interfaces/protocol/runs.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
-import { buildTaskPacket, type TaskKind } from '../prompts/tasks.js';
+import { buildTaskPacket, type TaskKind } from '../../subs/task-workflow/src/prompts/tasks.js';
 import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/packet.js';
 import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';

@@ -16,7 +16,7 @@ import { workItemOfIteration, type IterationAssignment } from './iterations.js';
 import { obligationsOf, type ObligationProjection } from './obligations.js';
 import { workLayout, type WorkItem } from './records.js';
 
-import { trackedScenarios } from '../../../../src/run/feature-files.js';
+import { trackedScenarios } from '../../../acceptance/src/feature-files.js';
 import type { RunEventOf } from '../../../../src/run/log.js';
 
 import type { LedgerEntry } from '../../../../../ledger/src/ledger.js';

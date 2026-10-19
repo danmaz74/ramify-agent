@@ -19,7 +19,7 @@ import { defaultTurn } from './helpers/declarations.js';
 import { emptyAnalysis, installTestRunner, onlyRun, runPath, startRun } from './helpers/runs.js';
 import { scriptedGit } from './helpers/scripted-git.js';
 import { runSessionScenario } from './helpers/session-scenario.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { blobsIn, portEventsOf, transcribed } from '../../subs/task-execution/src/tests/helpers/transcripts.js';
 
 vi.mock('node:child_process', async original =>

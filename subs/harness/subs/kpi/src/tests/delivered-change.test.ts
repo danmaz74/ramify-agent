@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { ChangedFile, ChangeHistory, LineCommit, GitLineRange as LineRange } from '../../../evidence/src/git.js';
 import { cachedChangeHistory, deliveredChange, type DeliveredChangeRequest } from '../delivered.js';
-import type { LineEventSummary } from '../../../autonomous/src/run/records.js';
+import type { LineEventSummary } from '../run-records.js';
 
 /* External Git answers only; attribution executes the real provider. */
 const base = 'b'.repeat(40);

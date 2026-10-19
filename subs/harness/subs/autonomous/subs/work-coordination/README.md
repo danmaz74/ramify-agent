@@ -12,7 +12,7 @@ and perform named idempotent effects. No mutable run, log, ledger, mutex or live
 session map crosses that interface. Lifecycle serializes accepted writes and
 revalidates capability transitions against the current stack and record bodies.
 
-Acceptance still lives in the autonomous parent during iteration 5. It returns
+The acceptance sibling returns
 candidate-bound gate, immutable record reference, tree, review and reconciliation
 evidence for handback. Lifecycle rechecks that evidence under handback
 serialization; coordination records the returned capability and resumes the
@@ -22,6 +22,7 @@ completed gate, including historical records without optional later context.
 The domain selectors, immutable publication builders and historical delivery
 helpers are shared with managed/manual execution and read-only projections.
 Planning, task execution, evidence, agent/Pi, ledger, KPI and the other existing
-providers remain composed through their declared APIs. Iteration 6 extracts
-qualification, review/reconciliation and completion eligibility and resolves the
-remaining acceptance/lifecycle mixed files.
+providers remain composed through their declared APIs. Engineer-turn/failure/automatic-repair and compaction-review decisions also live
+here. Lifecycle supplies only task admission/execution, accepted transactions and
+settled transcript access; qualification, review/reconciliation and completion
+eligibility live in the acceptance sibling.

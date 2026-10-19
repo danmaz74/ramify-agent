@@ -1,7 +1,7 @@
 import { constructedRun, registered, hash, type Line } from '../../../../../../../src/tests/helpers/constructed.js';
 import { fixturePlan, fixtureRequest, fixtureTask } from './capability.js';
 import { invocationSchema } from '../../../../../../task-execution/src/records.js';
-import type { GateAttempt } from '../../../../../../../src/checks/records.js';
+import type { GateAttempt } from '../../../../acceptance/src/checks/records.js';
 import type { CommittedRun } from '../../../../../../projections/src/inputs.js';
 
 export function capabilityProjectionLines(): Line[] {

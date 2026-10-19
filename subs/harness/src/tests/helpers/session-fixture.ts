@@ -18,7 +18,7 @@ import { emptyAnalysis, runPath, scriptedConfiguredAudit, startRun, stopRun, tes
 import { declaringScenarios } from './declarations.js';
 import { scenariosCommit, scriptedGit, type ScriptedGit } from './scripted-git.js';
 import { runSessionScenario } from './session-scenario.js';
-import { finalCandidate } from './final-candidate.js';
+import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { fixtureScratchGit } from './mock-git.js';
 
 /*

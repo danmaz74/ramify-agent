@@ -1,7 +1,9 @@
 import { ramifyExecutable } from '../../subs/evidence/src/ramify-cli.js';
-import { checkCommand, type CheckCommand } from '../checks/records.js';
+import { checkCommand, type CheckCommand } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import type { Role } from '../interfaces/protocol/runs.js';
-import { reviewPolicyVersion, roles, runPolicySchema, type CapturedProjectConfig, type ReviewPolicy, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
+import { reviewPolicyVersion, type ReviewPolicy } from '../../subs/autonomous/subs/acceptance/src/review-policy.js';
+import { roles, runPolicySchema, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
+import { type CapturedProjectConfig } from './project-records.js';
 
 /*
  * The policy one run runs under. It is hardcoded, captured in `job.json`

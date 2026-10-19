@@ -8,7 +8,9 @@ import type { CandidateSource, ChangeHistory, LineRange } from '../../../subs/ev
 import { createQuerySource } from '../../http/query-source.js';
 import { observationSchema } from '../../../subs/task-execution/src/observations.js';
 import { metricsResponseSchema } from '../../interfaces/protocol/runs.js';
-import { measurementSnapshotSchema, lineEventSummarySchema, gateAttemptSchema, runLayout } from '../../../subs/autonomous/src/run/records.js';
+import { measurementSnapshotSchema, lineEventSummarySchema } from '../../../subs/kpi/src/run-records.js';
+import { gateAttemptSchema } from '../../../subs/autonomous/subs/acceptance/src/gate-records.js';
+import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { invocationSchema, invocationOutcomeSchema } from '../../../subs/task-execution/src/records.js';
 import { constructedRecord, constructedRun, hash, runId, type Line } from './constructed.js';
 import { size, usage, find } from './metric-fixtures.js';

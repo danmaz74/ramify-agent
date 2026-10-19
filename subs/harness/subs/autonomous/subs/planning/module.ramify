@@ -3,68 +3,12 @@ module planning
 
 // Captured plan intake, extraction, validation and the single initial-analysis bundle.
 expose-src Incorporation, incorporationSchema from "evidence-contracts.ts" to parent
-expose-src AcceptedEvidence, readAcceptedEvidence from "evidence.ts" to parent
-expose-src Hypothesis, RegistryEntry, hypothesisSchema, registryEntrySchema from "records.ts" to parent
-expose-src acceptedAnalysisReferences from "evidence.ts" to parent
-expose-src analysisLayout from "records.ts" to parent
-expose-src intakeToolName from "extraction.ts" to parent
-expose-src checkToolName from "extraction.ts" to parent
-expose-src CheckSubmission from "extraction.ts" to parent
-expose-src hypothesisChangeSchema from "records.ts" to parent
-expose-src slugSchema from "records.ts" to parent
-expose-src performInitialAnalysis from "planning.ts" to parent
-expose-src planPointer from "messages.ts" to parent
-expose-src capturedPlanBlock from "messages.ts" to parent
-expose-src planScenariosSection from "messages.ts" to parent
-expose-src acceptIntake from "extraction.ts" to parent
-expose-src acceptPrinciples from "extraction.ts" to parent
-expose-src applyCheck from "extraction.ts" to parent
-expose-src asValidation from "extraction.ts" to parent
-expose-src checkJsonSchema from "extraction.ts" to parent
-expose-src checkMessage from "extraction.ts" to parent
-expose-src checkSubmissionSchema from "extraction.ts" to parent
-expose-src intakeJsonSchema from "extraction.ts" to parent
-expose-src intakeMessage from "extraction.ts" to parent
-expose-src intakeSubmissionSchema from "extraction.ts" to parent
-expose-src principleJsonSchema from "extraction.ts" to parent
-expose-src principleMessage from "extraction.ts" to parent
-expose-src principleSubmissionSchema from "extraction.ts" to parent
-expose-src principleToolName from "extraction.ts" to parent
-expose-src CheckState from "extraction.ts" to parent
-expose-src ExtractionInputs from "extraction.ts" to parent
-expose-src IntakeSubmission from "extraction.ts" to parent
-expose-src PrincipleSubmission from "extraction.ts" to parent
-expose-src CatalogFinding from "records.ts" to parent
-expose-src acceptAnalysis from "accept.ts" to parent
-expose-src acceptArchitectElements from "submission.ts" to parent
-expose-src incorporatedExtraction from "submission.ts" to parent
-expose-src incorporatedScenarios from "submission.ts" to parent
-expose-src initialAnalysisJsonSchema from "submission.ts" to parent
-expose-src initialAnalysisToolName from "submission.ts" to parent
-expose-src validateInitialAnalysis from "submission.ts" to parent
-expose-src AnalysisEvidence from "submission.ts" to parent
-expose-src InitialAnalysisSubmission from "submission.ts" to parent
-expose-src catalogFindingSchema from "records.ts" to parent
-expose-src scenarioWarningSchema from "records.ts" to parent
-expose-src planningRecords from "committed.ts" to parent
-expose-src correctionSchema from "extraction.ts" to parent
-expose-src analysisSchemas from "records.ts" to parent
-expose-src ResolvedAnalysis from "submission.ts" to parent
-expose-src initialAnalysisSubmissionSchema from "submission.ts" to parent
-expose-src AcceptedAnalysisReferences from "evidence.ts" to parent
-expose-src PlanningPorts from "planning.ts" to parent
-expose-src PlanningInputs from "planning.ts" to parent
-expose-src Accepted from "extraction.ts" to parent
-expose-src AcceptedAnalysis from "accept.ts" to parent
-expose-src AnalysisAcceptanceContext from "accept.ts" to parent
-expose-src PlanningRecords from "committed.ts" to parent
-expose-src entryAssignmentsSchema from "records.ts" to parent
-expose-src EntryAssignments from "records.ts" to parent
-expose-src ModuleProposal from "records.ts" to parent
-expose-src moduleProposalSchema from "records.ts" to parent
-expose-src planRefSchema from "records.ts" to parent
-expose-src PlanningInvocation from "planning.ts" to parent
-expose-src RecordedScenarioWarning from "records.ts" to parent
-
-expose-src EntryAssignments, ModuleProposal, entryAssignmentsSchema, moduleProposalSchema, planRefSchema from "records.ts" to parent
-expose-src AnalysisAcceptedTransition from "planning.ts" to parent
+expose-src AcceptedEvidence, readAcceptedEvidence, acceptedAnalysisReferences, AcceptedAnalysisReferences from "evidence.ts" to parent
+expose-src Hypothesis, RegistryEntry, hypothesisSchema, registryEntrySchema, analysisLayout, hypothesisChangeSchema, slugSchema, CatalogFinding, catalogFindingSchema, scenarioWarningSchema, analysisSchemas, entryAssignmentsSchema, EntryAssignments, ModuleProposal, moduleProposalSchema, planRefSchema, RecordedScenarioWarning from "records.ts" to parent
+expose-src intakeToolName, checkToolName, CheckSubmission, acceptIntake, acceptPrinciples, applyCheck, asValidation, checkJsonSchema, checkMessage, checkSubmissionSchema, intakeJsonSchema, intakeMessage, intakeSubmissionSchema, principleJsonSchema, principleMessage, principleSubmissionSchema, principleToolName, CheckState, ExtractionInputs, IntakeSubmission, PrincipleSubmission, correctionSchema, Accepted from "extraction.ts" to parent
+expose-src performInitialAnalysis, PlanningPorts, PlanningInputs, PlanningInvocation, AnalysisAcceptedTransition from "planning.ts" to parent
+expose-src planPointer, capturedPlanBlock, planScenariosSection from "messages.ts" to parent
+expose-src acceptAnalysis, AcceptedAnalysis, AnalysisAcceptanceContext from "accept.ts" to parent
+expose-src acceptArchitectElements, incorporatedExtraction, incorporatedScenarios, initialAnalysisJsonSchema, initialAnalysisToolName, validateInitialAnalysis, AnalysisEvidence, InitialAnalysisSubmission, ResolvedAnalysis, initialAnalysisSubmissionSchema from "submission.ts" to parent
+expose-src planningRecords, PlanningRecords from "committed.ts" to parent
+expose-src documentChanges, readCapturedDocuments from "documents.ts" to parent

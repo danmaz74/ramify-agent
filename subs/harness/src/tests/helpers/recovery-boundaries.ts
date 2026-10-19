@@ -3,7 +3,7 @@ import { expect } from 'vitest';
 import type { CandidateSource } from '../../../subs/evidence/src/git.js';
 import type { ProvisionalSourceGit } from '../../../subs/evidence/src/provisional-git.js';
 import { mockGit } from './mock-git.js';
-import { scriptedCandidates } from './candidates.js';
+import { scriptedCandidates } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { mappedAudit } from './direct-check-execution.js';
 import { FakeRamifyCli } from './fake-ramify.js';
 import { recoveryInitialFiles } from './recovery-files.js';

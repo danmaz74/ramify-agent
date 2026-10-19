@@ -1,6 +1,6 @@
 import { sep } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { ownerOf } from '../measurement/owners.js';
+import { ownerOf } from '../../subs/kpi/src/measurement/owners.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 
 const notes = 'collection-review/workspace/reviews/notes';

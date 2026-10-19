@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { gateAuditOutcomeSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
+import { gateAuditOutcomeSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { RunService } from '../run/lifecycle.js';
 import { analysis, entry } from './helpers/analysis.js';
 import { passingAudit } from './helpers/direct-check-execution.js';

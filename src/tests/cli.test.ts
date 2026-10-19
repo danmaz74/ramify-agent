@@ -231,7 +231,7 @@ describe('Plan 33 C16 consultations', () => {
 
 
 test('C16: main dispatches the exposed read command in process and preserves its output and error status', async () => {
-  const command = await import('../../subs/harness/src/consultations/command.js');
+  const command = await import('../../subs/harness/subs/autonomous/subs/work-coordination/src/consultations/command.js');
   const dispatch = vi.spyOn(command, 'runConsultationsCommand');
   const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);

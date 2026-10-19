@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { GateAttempt } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
@@ -9,10 +9,10 @@ import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
-import { gateDiagnostics } from '../checks/diagnostics.js';
+import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
 import { mappedAudit, type DirectCheckStep } from './helpers/direct-check-execution.js';
 import { accepted, answeredGit, modified, scenariosCommitted, unchanged } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>

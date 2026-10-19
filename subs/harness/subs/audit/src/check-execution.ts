@@ -24,7 +24,7 @@ import {
 } from 'ramify-audit';
 
 import { childEnvironment } from '../../evidence/src/run-command.js';
-import type { GateCommandStart, GateCommandStarted } from '../../../src/checks/execution.js';
+import type { GateCommandStart, GateCommandStarted } from '../../autonomous/subs/acceptance/src/checks/execution.js';
 import type { TestLockOverride } from './test-lock.js';
 
 /*

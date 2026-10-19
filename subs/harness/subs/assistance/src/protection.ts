@@ -1,5 +1,5 @@
 import { gitCandidateSource, recoveryStatus, type CandidateSource, type TreeEntry } from '../../evidence/src/git.js';
-import type { RecordReference } from '../../../src/checks/records.js';
+import type { RecordReference } from '../../autonomous/subs/acceptance/src/checks/records.js';
 import { guardedConfigurationFiles } from '../../../src/work/scope.js';
 
 /** Frozen at registration. Entries name exact files or directory prefixes ending in `/`. */

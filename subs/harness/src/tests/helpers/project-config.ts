@@ -1,6 +1,6 @@
 import { chmod, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { projectConfigSchema, type ProjectConfig } from '../../../subs/autonomous/src/run/records.js';
+import { projectConfigSchema, type ProjectConfig } from '../../run/project-records.js';
 
 /*
  * The project configuration a test project needs to pass readiness's

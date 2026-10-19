@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { contingentRepairDelegationSchema } from '../../../src/run/repair-preparation.js';
+import { contingentRepairDelegationSchema } from '../../work-coordination/src/repair/repair-preparation.js';
 import { symbolRecords, type ArchitectIndex, type ModuleEntry } from '../../../../evidence/src/views.js';
 import { citationSchema, modulePathSchema } from '../../../../../src/interfaces/protocol/evidence.js';
 import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';

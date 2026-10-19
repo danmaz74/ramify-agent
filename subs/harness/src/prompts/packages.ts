@@ -15,10 +15,11 @@ import { reconciliationJsonSchema, reconciliationToolName } from '../../subs/rev
 import { failureAnalysisJsonSchema, failureAnalysisToolName } from '../../subs/autonomous/subs/work-coordination/src/work/failure.js';
 import { contextSelectorJsonSchema, contextSelectorToolName, workOrientationJsonSchema, workOrientationToolName } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
 import { checkJsonSchema, intakeJsonSchema, principleJsonSchema } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { coordinatorAssessmentJsonSchema, coordinatorAssessmentToolName, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
-import { promptPackageManifestSchema, type PromptPackageManifest, type ReviewKind } from '../../subs/autonomous/src/run/records.js';
+import { coordinatorAssessmentJsonSchema, coordinatorAssessmentToolName, nonfunctionalRepairJsonSchema, nonfunctionalRepairToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
+import { promptPackageManifestSchema, type PromptPackageManifest } from './records.js';
+import { type ReviewKind } from '../../subs/autonomous/subs/acceptance/src/review-policy.js';
 import { shellMaxTimeoutMs } from '../tools/shell.js';
-import { rejectSingleBracePlaceholders, renderRequiredSlots, stableRoleInstructions } from './tasks.js';
+import { rejectSingleBracePlaceholders, renderRequiredSlots, stableRoleInstructions } from '../../subs/task-workflow/src/prompts/tasks.js';
 
 /*
  * One prompt package per role, versioned and hashed into the run's

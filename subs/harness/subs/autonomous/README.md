@@ -10,7 +10,18 @@ The planning child performs the initial captured-document workflow. Its accepted
 bundle remains one atomic `analysis-accepted` transition. Staging catalog files is
 not acceptance, and an accepted run never repeats planning during reopening.
 
-The work-coordination child owns placement, frontier, assignments, contracts and
-capability delegation/handback. Acceptance algorithms remain local here during
-the intermediate iteration 5 state; iteration 6 extracts their cohesive owner. Shared task mechanics remain in task-execution; common job, command,
-guard and lock mechanisms remain with harness composition.
+The work-coordination child owns placement, frontier, assignments, contract
+obligations, engineer turns/repair policy and capability delegation/consumer
+return. The acceptance child owns qualification, gates, review/reconciliation,
+nonfunctional assessment and completion eligibility. Lifecycle orchestrates these
+owners and serializes their proposed transitions; it retains no alternative
+implementation of their decisions.
+
+Shared task mechanics live in task-execution. Authored/manual/standalone workflow
+construction lives in task-workflow, used by managed owners as well. Common jobs,
+commands, configuration, guards and project locks remain harness support. The
+historical layout/schema registry composes owner-defined contracts for replay; it
+is not a second domain projector.
+
+See the [final responsibility map](../../../../plans/harness-decomposition/responsibility-map.md)
+for the original mixed files and their actual homes.

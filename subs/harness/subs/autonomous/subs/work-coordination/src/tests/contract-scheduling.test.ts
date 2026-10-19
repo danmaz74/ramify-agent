@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { join } from 'node:path';
 import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
-import { finalCandidate } from '../../../../../../src/tests/helpers/final-candidate.js';
+import { finalCandidate } from '../../../acceptance/src/tests/helpers/final-candidate.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';

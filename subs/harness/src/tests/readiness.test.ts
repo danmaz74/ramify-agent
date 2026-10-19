@@ -6,12 +6,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { type CommittedAuditConfiguration, type ConfiguredAuditInput, type ConfiguredAuditPort, type ConfiguredFullAuditResult } from '../../subs/audit/src/check-execution.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { committedAuditConfigurationSchema, runLayout, type CommittedAuditConfigurationRecord, type InfrastructureRecovery, type ReadinessAttempt } from '../../subs/autonomous/src/run/records.js';
-import { failingStep, performRecovery, recoveryFor, runReadiness, type ReadinessRequest } from '../../subs/autonomous/src/run/readiness.js';
+import { committedAuditConfigurationSchema, type CommittedAuditConfigurationRecord } from '../run/project-records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type InfrastructureRecovery, type ReadinessAttempt } from '../../subs/autonomous/subs/acceptance/src/readiness-records.js';
+import { failingStep, performRecovery, recoveryFor, runReadiness, type ReadinessRequest } from '../../subs/autonomous/subs/acceptance/src/readiness.js';
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 
-import { readinessBoundaries, readinessHead, strictReadinessAudit, strictReadinessCommand } from './helpers/readiness-boundaries.js';
+import { readinessBoundaries, readinessHead, strictReadinessAudit, strictReadinessCommand } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/readiness-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
 vi.mock('node:child_process', async importOriginal => {
   const { guardedChildProcess } = await import('./helpers/process-guard.js');

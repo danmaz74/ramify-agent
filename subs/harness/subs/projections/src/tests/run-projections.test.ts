@@ -4,7 +4,7 @@ import { eventPage } from '../events.js';
 import { ProjectionError, runView } from '../inputs.js';
 import { snapshotOf } from '../snapshot.js';
 import { boundedTail, gateOf } from '../work.js';
-import type { GateAttempt } from '../../../../src/checks/records.js';
+import type { GateAttempt } from '../../../autonomous/subs/acceptance/src/checks/records.js';
 import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 /*

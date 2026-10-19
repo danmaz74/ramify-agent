@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { acceptedCommit, type AcceptedBoundaryLine } from '../checks/accepted.js';
-import type { Checkpoint, GateAttempt } from '../checks/records.js';
+import { acceptedCommit, type AcceptedBoundaryLine } from '../../subs/autonomous/subs/acceptance/src/checks/accepted.js';
+import type { Checkpoint, GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 
 function line(
   id: string,

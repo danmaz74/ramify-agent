@@ -2,7 +2,7 @@ import { architectViewDirectory } from '../../../../../evidence/src/views.js';
 import type { ViewIdentity } from '../../../../../../src/interfaces/protocol/evidence.js';
 import type { Hypothesis, RegistryEntry } from '../../../planning/src/records.js';
 import type { PlacementDecision, PlacementRequest } from './records.js';
-import type { EnvironmentProblem, UnresolvedRequest } from '../../../../src/deviations/records.js';
+import type { EnvironmentProblem, UnresolvedRequest } from '../../../acceptance/src/deviations/records.js';
 
 /*
  * What one fork of the architect context is given: the focused request, the

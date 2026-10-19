@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { RunQueries, type RunSource } from '../../../subs/projections/src/queries.js';
 import type { CommittedRun } from '../../../subs/projections/src/inputs.js';
 import { scenarioRecordSchema, scenarioSourceHash } from '../../../subs/scenarios/src/records.js';
-import type { GateAttempt } from '../../checks/records.js';
+import type { GateAttempt } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { invocationSchema, invocationOutcomeSchema } from '../../../subs/task-execution/src/records.js';
 import { capabilityListResponseSchema, scenarioListResponseSchema, metricsResponseSchema } from '../../interfaces/protocol/runs.js';

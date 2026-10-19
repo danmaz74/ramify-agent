@@ -1,4 +1,4 @@
-import type { LineEventSummary } from '../../autonomous/src/run/records.js';
+import type { LineEventSummary } from './run-records.js';
 import type { InvocationOutcome } from '../../task-execution/src/records.js';
 
 /** One session, as the run's records describe it. Every session counts, whatever ended it. */

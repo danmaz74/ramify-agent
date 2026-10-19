@@ -10,7 +10,7 @@ afterEach(() => {
   expect(spawnAttempts(), 'ordinary setup/flow/teardown process attempts').toEqual([]);
 });
 
-import { gateAuditOutcomeSchema } from '../../subs/autonomous/src/run/records.js';
+import { gateAuditOutcomeSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
 
 describe('a standalone session\'s in-place diagnosis', () => {
   it('retains an indeterminate published audit outcome', () => {

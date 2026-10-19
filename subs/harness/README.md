@@ -1,4 +1,11 @@
-# harness
+# Harness composition
+
+The harness composes assistance, autonomous planning/coordination/acceptance,
+shared task execution, authored/manual workflows and durable session storage.
+Common jobs, command replay, project configuration, writer exclusion and guards
+remain explicit application support; HTTP and browser-safe protocol files expose
+the supported public contracts. See the [responsibility map](../../plans/harness-decomposition/responsibility-map.md)
+for the implemented ownership and the historical mixed-file resolution.
 
 Local and capability architects submit the same complete assignment body. The
 shared builder and iteration executor prepare each selected owner's current

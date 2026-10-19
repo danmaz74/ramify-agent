@@ -3,7 +3,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 
-import type { GateAttempt } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 
@@ -13,8 +13,8 @@ import { copyFixture } from './helpers/fixture.js';
 import { addModule, byRole, installMiniRunner, read, shell, treeInputs, write } from './helpers/iterations.js';
 import { openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { localCommandAudit } from './helpers/direct-check-execution.js';
-import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 
 /*
  * Breaking work and gate integrity.

@@ -4,7 +4,7 @@ import { afterEach, expect, test } from 'vitest';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
 import { copyFixture } from './helpers/fixture.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { commandResult } from './helpers/command-result.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';

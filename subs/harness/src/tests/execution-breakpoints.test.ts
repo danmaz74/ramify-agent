@@ -5,13 +5,13 @@ import { breakpointStateSchema, startRunCommandSchema, type DebugResumeCommand }
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { analysis, entry } from './helpers/analysis.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { installTestRunner, openRuns, startRun, stopRun, testPolicy, until, runEventsOnDisk, emptyAnalysis, freeze, staleCrashLock } from './helpers/runs.js';
-import { reviewRun, reviewTarget, gate, store, tool, candidates as reviewCandidates, notesDirectory } from './helpers/reviews.js';
+import { reviewRun, reviewTarget, gate, store, tool, candidates as reviewCandidates, notesDirectory } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
-import { AfterHandling } from '../../subs/autonomous/src/run/after-handling.js';
+import { AfterHandling } from '../../subs/autonomous/subs/acceptance/src/after-handling.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { openUnchangedRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
 
@@ -296,9 +296,9 @@ test('B02: unavailable frozen review setup remains actionable and restored evide
   const root = await reviewTarget(cleanups);
   let available = false;
   const bindings = AfterHandling.prototype.reviewPendingBindings;
-  const setup = vi.spyOn(AfterHandling.prototype, 'reviewPendingBindings').mockImplementation(async function (this: AfterHandling<import('../../subs/autonomous/src/run/committing-gate.js').GateRun>, run, request, snapshot) {
+  const setup = vi.spyOn(AfterHandling.prototype, 'reviewPendingBindings').mockImplementation(async function (this: AfterHandling, request, snapshot) {
     if (request.id === 'rq-0001' && !available) throw new Error('The exact frozen pending-binding evidence store is temporarily unavailable');
-    return bindings.call(this, run, request, snapshot);
+    return bindings.call(this, request, snapshot);
   });
   cleanups.push(async () => { setup.mockRestore(); });
   const opened = await reviewRun(root, cleanups, { continuity: true, breakpoint: 'before-agent:engineer', detached: true,

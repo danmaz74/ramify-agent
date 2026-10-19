@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { compatibleAuditRepair } from '../../subs/autonomous/src/run/recovery-admission.js';
+import { compatibleAuditRepair } from '../../subs/autonomous/subs/acceptance/src/audit-configuration.js';
 import type { CommittedAuditConfiguration } from '../../subs/audit/src/check-execution.js';
 
 function configuration(): CommittedAuditConfiguration {

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
-import { consultationId, consultationLayout, type ConsultationStart, type ConsultationOutcome } from '../../../../src/consultations/records.js';
+import { consultationId, consultationLayout, type ConsultationStart, type ConsultationOutcome } from '../../../autonomous/subs/work-coordination/src/consultations/records.js';
 import { readConsultations, consultationText } from '../consultations.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { committedRun } from './helpers/committed.js';

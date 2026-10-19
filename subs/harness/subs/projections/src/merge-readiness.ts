@@ -1,21 +1,21 @@
 import type { AcceptedEvidence } from '../../autonomous/subs/planning/src/evidence.js';
 import { assessmentSchema } from '../../nonfunctional/src/interfaces/contracts.js';
-import { currentDeviationDecision } from '../../autonomous/src/deviations/readiness-decision.js';
-import { deviationHash } from '../../autonomous/src/deviations/finding.js';
-import { planDeviationSchema } from '../../autonomous/src/deviations/records.js';
-import { nonfunctionalDeviationHash } from '../../autonomous/src/deviations/nonfunctional.js';
+import { currentDeviationDecision } from '../../autonomous/subs/acceptance/src/deviations/readiness-decision.js';
+import { deviationHash } from '../../autonomous/subs/acceptance/src/deviations/finding.js';
+import { planDeviationSchema } from '../../autonomous/subs/acceptance/src/deviations/records.js';
+import { nonfunctionalDeviationHash } from '../../autonomous/subs/acceptance/src/deviations/nonfunctional.js';
 import { replayCheckFindingState } from '../../../src/check-findings/state.js';
-import { replayNonfunctionalPhase } from '../../autonomous/src/run/nonfunctional-phase.js';
+import { replayNonfunctionalPhase } from '../../autonomous/subs/acceptance/src/nonfunctional-phase.js';
 import { decideNonfunctionalRound } from '../../nonfunctional/src/rounds.js';
-import { assessedElements } from '../../autonomous/src/nonfunctional/submissions.js';
-import { projectMergeReadiness, type FinalAuditFacts, type ReadinessDeviation } from '../../autonomous/src/run/merge-readiness.js';
+import { assessedElements } from '../../autonomous/subs/acceptance/src/nonfunctional/submissions.js';
+import { projectMergeReadiness, type FinalAuditFacts, type ReadinessDeviation } from '../../autonomous/subs/acceptance/src/merge-readiness.js';
 import {
   nonfunctionalDeviationSchema,
   type MergeReadiness,
-} from '../../autonomous/src/run/nonfunctional-records.js';
+} from '../../autonomous/subs/acceptance/src/nonfunctional-records.js';
 import { runLayout } from '../../autonomous/src/run/records.js';
 import { invocationOutcomeSchema } from '../../task-execution/src/records.js';
-import type { GateAttempt } from '../../../src/checks/records.js';
+import type { GateAttempt } from '../../autonomous/subs/acceptance/src/checks/records.js';
 import type { RunView, CommittedLine } from './inputs.js';
 
 const unavailable = (reason: string): MergeReadiness => ({

@@ -5,7 +5,7 @@ import { SessionQueries } from '../../subs/projections/src/session-queries.js';
 import { ProjectionError } from '../../subs/projections/src/inputs.js';
 import { constructedRun } from './helpers/constructed.js';
 import { temporaryDirectory } from './helpers/fixture.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { unscriptedChangeHistory } from './helpers/runs.js';
 
 /** Scripted committed inputs; forbidden service collaborators must never escape. */

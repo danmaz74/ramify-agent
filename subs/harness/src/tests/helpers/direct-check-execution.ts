@@ -1,9 +1,9 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { Checkpoint, GateEvidence } from '../../checks/records.js';
-import { checkOutputPath, commandStart, inPlaceCheckExecution, notRun, type CheckExecutionContext, type CheckExecutionPort } from '../../checks/execution.js';
-import type { PlannedCheck } from '../../checks/verify.js';
+import type { Checkpoint, GateEvidence } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import { checkOutputPath, commandStart, inPlaceCheckExecution, notRun, type CheckExecutionContext, type CheckExecutionPort } from '../../../subs/autonomous/subs/acceptance/src/checks/execution.js';
+import type { PlannedCheck } from '../../../subs/autonomous/subs/acceptance/src/checks/verify.js';
 import { childEnvironment, outputTailBytes, runCommand, type CommandOutcome, type CommandRun } from '../../../subs/evidence/src/run-command.js';
 import { captureProjectConfig } from '../../run/project-config.js';
 import type {

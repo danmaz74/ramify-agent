@@ -7,13 +7,13 @@ import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
-import { finalCandidate } from '../../../../../../src/tests/helpers/final-candidate.js';
+import { finalCandidate } from '../../../acceptance/src/tests/helpers/final-candidate.js';
 import type { RunEvent } from '../../../../src/run/log.js';
 
 
 import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
-import type { GateAttempt } from '../../../../../../src/checks/records.js';
+import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
 
 import { localCommandAudit, passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 import type { ConfiguredAuditPort } from '../../../../../audit/src/check-execution.js';

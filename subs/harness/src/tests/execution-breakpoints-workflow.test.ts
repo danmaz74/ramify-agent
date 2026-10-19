@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'vitest';
 import { completionProposed, submit, write } from './helpers/iterations.js';
-import { reviewRun, reviewTarget, eventsOf, plan, store, limit, notesDirectory, tool, revisionGates, unchanged } from './helpers/reviews.js';
+import { reviewRun, reviewTarget, reviewEventsOf as eventsOf, plan, store, limit, notesDirectory, tool, revisionGates, reviewUnchangedCommit as unchanged } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { mappedAudit } from './helpers/direct-check-execution.js';
 import { until } from './helpers/runs.js';
 

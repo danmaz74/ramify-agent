@@ -1,6 +1,6 @@
 import { currentLifecycleEvents } from './inputs.js';
 import type { AutomaticRepairs, RepairIncidentView } from '../../../src/interfaces/protocol/repairs.js';
-import { authenticateRepairHistory, RepairHistoryError } from '../../autonomous/src/run/repair-history.js';
+import { authenticateRepairHistory, RepairHistoryError } from '../../autonomous/subs/work-coordination/src/repair/repair-history.js';
 import { ProjectionError, type RunView } from './inputs.js';
 
 /** Present authenticated latest revisions; reads never change durable lifecycle. */

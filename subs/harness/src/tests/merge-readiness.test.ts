@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Assessment, Candidate } from '../../subs/nonfunctional/src/interfaces/contracts.js';
-import { projectMergeReadiness, type FinalAuditFacts, type MergeReadinessInput, type ReadinessDeviation } from '../../subs/autonomous/src/run/merge-readiness.js';
+import { projectMergeReadiness, type FinalAuditFacts, type MergeReadinessInput, type ReadinessDeviation } from '../../subs/autonomous/subs/acceptance/src/merge-readiness.js';
 
 const tree = 'a'.repeat(40);
 const otherTree = 'b'.repeat(40);

@@ -1,6 +1,6 @@
 import { openRuns, type OpenRunsOptions } from './runs.js';
 import { scriptedGit, type GitCheckpoint, type GitScript, type ScriptedGit } from './scripted-git.js';
-import { scriptedCandidates } from './candidates.js';
+import { scriptedCandidates } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import type { CandidateTreePreview } from '../../../subs/evidence/src/candidate-tree.js';
 
 const scripts: ScriptedGit[] = [];

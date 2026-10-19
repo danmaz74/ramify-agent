@@ -6,7 +6,7 @@ import { validateAgainst, type SubmissionError, type SubmissionValidation } from
 import { hypothesisChangeSchema, slugSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
 import { moduleProposalSchema, type ModuleProposal } from '../../../planning/src/records.js';
 import { hypothesisStanceSchema, placementOutcomeSchema, type PlacementDecision } from './records.js';
-import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '../../../../src/deviations/records.js';
+import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '../../../acceptance/src/deviations/records.js';
 
 /*
  * What one fork of the plan architect submits, what a module architect

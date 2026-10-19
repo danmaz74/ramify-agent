@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
-import { scriptedCandidates } from '../../../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../../acceptance/src/tests/helpers/candidates.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
@@ -15,7 +15,7 @@ import { contractsLayout, type ConsumerRequirement, type ContractRecord, type Pr
 import { workLayout, type WorkItem } from '../work/records.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
-import type { GateAttempt } from '../../../../../../src/checks/records.js';
+import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
 
 vi.mock('node:child_process', async original =>
   (await import('../../../../../../src/tests/helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

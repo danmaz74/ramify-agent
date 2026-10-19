@@ -9,7 +9,7 @@ import { declaringScenarios } from './declarations.js';
 import { childEnvironment } from '../../../subs/evidence/src/run-command.js';
 import { gitChangeHistory, gitService, type ChangeHistory } from '../../../subs/evidence/src/git.js';
 import { readJsonLines } from '../../../subs/ledger/src/jsonl.js';
-import { checkCommand } from '../../checks/records.js';
+import { checkCommand } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { privateRamify, RamifyCli, ramifyExecutable } from '../../../subs/evidence/src/ramify-cli.js';
 import type { CapturedInputManifest } from '../../interfaces/protocol/evidence.js';
 import type { RunCommand } from '../../interfaces/protocol/runs.js';

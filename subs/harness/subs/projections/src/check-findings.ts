@@ -13,13 +13,13 @@ import {
   type PendingUserDecision, type PlanDeviationView, type ReviewCoverageView, type ReviewListResponse, type ReviewRequestView,
   type UnresolvedReasonView, type UserCheckFindingCommandKind,
 } from '../../../src/interfaces/protocol/check-findings.js';
-import { reviewAttemptSchema, reviewRequestSchema, type ReviewAttempt, type ReviewRequest } from '../../../src/reviews/records.js';
-import { reviewCoverage, reviewStateOf } from '../../../src/reviews/state.js';
+import { reviewAttemptSchema, reviewRequestSchema, type ReviewAttempt, type ReviewRequest } from '../../autonomous/subs/acceptance/src/reviews/records.js';
+import { reviewCoverage, reviewStateOf } from '../../autonomous/subs/acceptance/src/reviews/state.js';
 import { terminalRunEvents, type RunEvent } from '../../autonomous/src/run/log.js';
 import { ProjectionError, type RunView } from './inputs.js';
-import { planDeviationSchema, type PlanDeviation } from '../../autonomous/src/deviations/records.js';
-import { currentDeviationDecision } from '../../autonomous/src/deviations/readiness-decision.js';
-import { nonfunctionalDeviationSchema } from '../../autonomous/src/run/nonfunctional-records.js';
+import { planDeviationSchema, type PlanDeviation } from '../../autonomous/subs/acceptance/src/deviations/records.js';
+import { currentDeviationDecision } from '../../autonomous/subs/acceptance/src/deviations/readiness-decision.js';
+import { nonfunctionalDeviationSchema } from '../../autonomous/subs/acceptance/src/nonfunctional-records.js';
 
 type DeviationRecord = PlanDeviation | ReturnType<typeof nonfunctionalDeviationSchema.parse>;
 

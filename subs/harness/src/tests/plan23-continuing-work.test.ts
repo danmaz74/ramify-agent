@@ -10,7 +10,7 @@ import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts
 import { readSessionPointReference, genericSessionDriverUnavailableError } from '../../subs/task-execution/src/session-operations.js';
 import type { LoadedPackage } from '../prompts/packages.js';
 import type { Role } from '../interfaces/protocol/runs.js';
-import type { TaskKind } from '../prompts/tasks.js';
+import type { TaskKind } from '../../subs/task-workflow/src/prompts/tasks.js';
 import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { readTranscript, readBody } from '../../subs/task-execution/src/transcripts/writer.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';

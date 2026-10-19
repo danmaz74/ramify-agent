@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
-import { deliveredSupportEntries, invocationScope } from '../measurement/inputs.js';
+import { deliveredSupportEntries, invocationScope } from '../../subs/kpi/src/measurement/inputs.js';
 import type { DeliveredManifest } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import type { LoadedPackage } from '../prompts/packages.js';
 import type { DeclaredScope } from '../../subs/kpi/src/capture.js';

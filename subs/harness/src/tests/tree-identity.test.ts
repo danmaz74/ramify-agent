@@ -2,12 +2,12 @@ import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { guardedFilesHash } from '../../subs/evidence/src/guarded-files.js';
-import { runGate } from '../checks/gate.js';
-import { createInPlaceCheckExecution } from '../checks/execution.js';
-import type { GateRequest } from '../checks/gate.js';
-import { checkCommand } from '../checks/records.js';
-import type { CheckCommand, GateAttempt } from '../checks/records.js';
-import type { PlannedCheck } from '../checks/verify.js';
+import { runGate } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { createInPlaceCheckExecution } from '../../subs/autonomous/subs/acceptance/src/checks/execution.js';
+import type { GateRequest } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { checkCommand } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import type { CheckCommand, GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import type { PlannedCheck } from '../../subs/autonomous/subs/acceptance/src/checks/verify.js';
 import { inPlaceReplies } from './helpers/in-place-replies.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 

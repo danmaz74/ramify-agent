@@ -11,7 +11,7 @@ import { CommandRejection } from '../jobs/commands.js';
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import type { RunService } from '../run/lifecycle.js';
 import { validateFork, type ForkSubmission } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
-import { deviationLayout, type EnvironmentProblem } from '../../subs/autonomous/src/deviations/records.js';
+import { deviationLayout, type EnvironmentProblem } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';

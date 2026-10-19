@@ -1,3 +1,18 @@
+import { SnapshotId } from '../../../kpi/src/run-records.js';
+import { readinessDirectory } from '../../subs/acceptance/src/readiness-records.js';
+import { gateOperationSchema } from '../../subs/acceptance/src/gate-records.js';
+import { gateAuditOutcomeSchema } from '../../subs/acceptance/src/gate-records.js';
+import { gateAttemptSchema } from '../../subs/acceptance/src/gate-records.js';
+import { lineEventSummarySchema } from '../../../kpi/src/run-records.js';
+import { measurementSnapshotSchema } from '../../../kpi/src/run-records.js';
+import { infrastructureRecoverySchema } from '../../subs/acceptance/src/readiness-records.js';
+import { readinessAttemptSchema } from '../../subs/acceptance/src/readiness-records.js';
+import { promptPackageManifestSchema } from '../../../../src/prompts/records.js';
+import { committedAuditConfigurationSchema } from '../../../../src/run/project-records.js';
+import { capturedProjectConfigSchema } from '../../../../src/run/project-records.js';
+import { reviewPolicySchema } from '../../subs/acceptance/src/review-policy.js';
+import { contextPolicySchema } from '../../../task-execution/src/context-records.js';
+import { checkCommandSchema } from '../../subs/acceptance/src/checks/command-records.js';
 import { EntryAssignments, ModuleProposal, entryAssignmentsSchema, moduleProposalSchema, planRefSchema } from '../../subs/planning/src/records.js';
 import { InvocationId, SessionId, interruptionEvidenceSchema, invocationOutcomeSchema, invocationSchema, invocationWorkSchema, recordRefSchema } from '../../../task-execution/src/records.js';
 import { z } from 'zod';
@@ -6,7 +21,7 @@ import { citationSchema, inputManifestSchema, modulePathSchema, sha256Schema, vi
 import { jobIdSchema, planIdSchema } from '../../../../src/interfaces/protocol/ids.js';
 import { breakpointSelectorSchema, ownershipPreflightSchema, roleSchema, runAgentSchema, type Role } from '../../../../src/interfaces/protocol/runs.js';
 import { jobSchemaVersion, jobsDirectory } from '../../../../src/jobs/records.js';
-import type { GateAttempt } from '../../../../src/checks/records.js';
+import type { GateAttempt } from '../../subs/acceptance/src/checks/records.js';
 import { planScenarioExtractionSchema } from '../../../scenarios/src/extraction.js';
 import { scenarioRecordSchema } from '../../../scenarios/src/records.js';
 import { nonBehavioralAcceptanceSchema } from '../../../scenarios/src/form.js';
@@ -15,9 +30,9 @@ import { elementCatalogSchema, elementIdSchema } from '../../../plan-evidence/sr
 import { assessmentSchema, roundSchema } from '../../../nonfunctional/src/interfaces/contracts.js';
 import { incorporationSchema } from '../../subs/planning/src/evidence-contracts.js';
 import { contextSelectionSchema } from '../../subs/work-coordination/src/context-selection/contracts.js';
-import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
+import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema } from '../../subs/acceptance/src/nonfunctional-records.js';
 import { repairIncidentRecordSchema } from '../../../../src/interfaces/protocol/repairs.js';
-import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema } from './repair-preparation.js';
+import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema } from '../../subs/work-coordination/src/repair/repair-preparation.js';
 import { repairExportPayloadSchema } from './repair-export.js';
 import { externalRepairAdmissionSchema, recoveryIdentitySchema } from './recovery-admission.js';
 
@@ -40,19 +55,19 @@ import { externalRepairAdmissionSchema, recoveryIdentitySchema } from './recover
 /** `rec-0004`, the count of committed infrastructure recoveries. */
 export type RecoveryId = string;
 /** `ms-0007`, the count of committed measurement snapshots. */
-export type SnapshotId = string;
+
 /** `ses-0003`, the count of committed `session-opened` events of the run. */
 
 const counted = (prefix: string, width: number) => (count: number): string => `${prefix}-${String(count).padStart(width, '0')}`;
 
 export const invocationId = counted('inv', 4);
-export const gateAttemptId = counted('ga', 4);
+
 export const recoveryId = counted('rec', 4);
-export const snapshotId = counted('ms', 4);
+
 export const sessionId = counted('ses', 4);
 
 /** A readiness attempt's directory name, `01`. */
-export const readinessDirectory = (attempt: number): string => String(attempt).padStart(2, '0');
+
 
 // The run's own record.
 
@@ -65,52 +80,6 @@ const text = z.string().min(1);
  * receives and `envAdditions` the harness's own settings; `checks/records.ts`
  * says why.
  *
- */
-export const checkCommandSchema = z.object({
-  argv: z.array(z.string()),
-  cwd: text,
-  env: z.array(z.string()),
-  envAdditions: z.record(z.string(), z.string()),
-  timeoutMs: z.int().positive(),
-}).strict();
-
-/** The context and compaction policy of one role. */
-export const contextPolicySchema = z.object({
-  compaction: z.enum(['forbidden', 'allowed']),
-  budgetTokens: z.int().positive().nullable(),
-  budgetFraction: z.number().positive().max(1).nullable(),
-  reportReserveTokens: z.int().nonnegative(),
-}).strict();
-
-/** The review questions a run can ask of one audited iteration candidate. */
-export const reviewKindSchema = z.enum(['code', 'scope', 'design']);
-export type ReviewKind = z.infer<typeof reviewKindSchema>;
-
-/** The version of the review policy and prompt contract a request is keyed by. */
-export const reviewPolicyVersion = 'review-policy/1';
-
-/**
- * How a run reviews its passing iterations: which questions, how many
- * readers beside the one writer, how many requests may wait, how many
- * retries follow an execution or validation failure, how long one attempt
- * may run, how long a work item waits for its reviews from its completion
- * request, and how many concerns one submission may carry.
- */
-export const reviewPolicySchema = z.object({
-  version: z.literal(reviewPolicyVersion),
-  kinds: z.array(reviewKindSchema).min(1),
-  concurrency: z.int().positive(),
-  queue: z.int().positive(),
-  retries: z.int().nonnegative(),
-  attemptMs: z.int().positive(),
-  settleMs: z.int().positive(),
-  maxConcerns: z.int().positive(),
-}).strict();
-export type ReviewPolicy = z.infer<typeof reviewPolicySchema>;
-
-/**
- * The bounds and commands a run ran under, captured in `job.json` and not
- * configurable while it runs, so that an exhaustion is reproducible.
  */
 export const runPolicySchema = z.object({
   version: z.enum(['run-policy/7', 'run-policy/8']),
@@ -207,135 +176,11 @@ export const runPolicySchema = z.object({
 }).strict();
 export type RunPolicy = z.infer<typeof runPolicySchema>;
 
-export type CheckCommandRecord = z.infer<typeof checkCommandSchema>;
+
 
 // The project's configuration.
 
 /** The version a project's `ramify-agent.json` declares. */
-export const projectConfigVersion = 'ramify-agent.project/1';
-
-/** An argv the harness runs as it stands, with its first element the executable or `npm`. */
-const argvSchema = z.array(text).min(1);
-
-/** The longest a project may give one gate command: two hours. */
-export const projectCommandTimeoutCeilingMs = 7_200_000;
-
-const projectTimeout = z.int().positive().max(projectCommandTimeoutCeilingMs, {
-  error: `A command timeout is at most ${projectCommandTimeoutCeilingMs} ms (two hours)`,
-});
-
-/** The formats of a type checker's output the gate reads error locations from. */
-export const typeCheckOutputSchema = z.enum(['tsc']);
-
-/** A project-relative directory inside the project: no absolute path, no drive and no `..` segment. */
-const projectDirectorySchema = z.string().refine(value => {
-  const normalized = value.replaceAll('\\', '/');
-  return !normalized.startsWith('/') && !/^[A-Za-z]:/u.test(normalized) && !normalized.split('/').includes('..');
-}, 'must be a relative directory inside the project');
-
-/**
- * One command that prepares the project before a gate's checks run, such as
- * its build. `command` is the argv as it stands; `cwd` is relative to the
- * project root, which it defaults to; `env` is added to the environment the
- * harness builds for every command.
- */
-export const setupCommandSchema = z.object({
-  /** Labels the command in records and pages; `build` is shown as the build. */
-  name: text.optional(),
-  command: argvSchema,
-  cwd: projectDirectorySchema.optional(),
-  /** Positive milliseconds; ten minutes where it is not declared. */
-  timeoutMs: z.int().positive().optional(),
-  env: z.record(text, z.string()).optional(),
-}).strict();
-export type SetupCommandConfig = z.infer<typeof setupCommandSchema>;
-
-/** An explicitly enabled existing target-project tracker, independent of the implementation worktree. */
-export const beadsProjectConfigSchema = z.object({
-  /** The main Git working tree, or an explicit absolute/project-relative tracker workspace. */
-  workspace: z.union([
-    z.literal('git-common-root'),
-    z.object({ path: text }).strict(),
-  ]),
-  /** A command name on PATH or an absolute/project-relative executable path; `bd` when omitted. */
-  executable: text.optional(),
-}).strict();
-export type BeadsProjectConfig = z.infer<typeof beadsProjectConfigSchema>;
-
-/**
- * `ramify-agent.json`, the target project's configuration for the harness:
- * only what the harness cannot derive, all of it optional: the format of what
- * the type check prints, the timeouts of a standalone diagnosis's commands
- * and the setup commands it runs first, plus optional existing-issue
- * administration. The project's tests and scenarios are checks of its
- * committed audit definition, `ramify-audit.json`, and nothing here names them.
- */
-export const projectConfigSchema = z.object({
-  schema: z.literal(projectConfigVersion),
-  /**
-   * The project's type check. `output` declares the format it prints, from
-   * which a failed type check is attributed by the locations of its errors;
-   * without it, by which commands failed.
-   */
-  typeCheck: z.object({ output: typeCheckOutputSchema.optional() }).strict().optional(),
-  /**
-   * The timeouts of a standalone diagnosis's commands for this project, in
-   * milliseconds, each replacing the harness's own: the type check and the
-   * complete Ramify check. Each is bounded by `projectCommandTimeoutCeilingMs`.
-   */
-  timeouts: z.object({
-    typeCheck: projectTimeout.optional(),
-    ramifyCheck: projectTimeout.optional(),
-  }).strict().optional(),
-  /**
-   * The project's setup commands, run in order before a standalone
-   * diagnosis's checks at the project root. Readiness requires them to equal
-   * the committed audit definition's workspace setup, which ramify-audit
-   * runs in the worktree of every audited commit. Each carries its own
-   * bound, which `timeouts` does not replace.
-   */
-  setup: z.array(setupCommandSchema).optional(),
-  /** Isolated administrative fork sessions; omission or false disables them. */
-  beads: z.union([z.literal(false), beadsProjectConfigSchema]).optional(),
-}).strict();
-export type ProjectConfig = z.infer<typeof projectConfigSchema>;
-
-/**
- * The configuration as `start-run` found it, captured in `job.json`: the
- * validated file with its hash, or why there is none. An invalid or missing
- * file is not a refusal to start; readiness reports it.
- */
-export const capturedProjectConfigSchema = z.union([
-  z.object({ path: text, hash: sha256Schema, config: projectConfigSchema }).strict(),
-  z.object({ path: text, hash: sha256Schema.nullable(), invalid: text }).strict(),
-]);
-export type CapturedProjectConfig = z.infer<typeof capturedProjectConfigSchema>;
-
-/** Provider-validated committed policy, retained in the harness's own durable vocabulary. */
-export const committedAuditConfigurationSchema = z.object({
-  sourceCommit: text,
-  path: text,
-  blob: text,
-  projectRoot: text,
-  checks: z.array(z.unknown()),
-  ignorePaths: z.array(z.string()),
-  undetectedConfigFilesForcingFullAudit: z.array(z.string()),
-  workspace: z.object({
-    preparationId: z.literal('nodejs'),
-    packageDirectoriesDeclared: z.boolean(),
-    linkNodeModules: z.boolean(),
-    packageDirectories: z.array(z.string()),
-    setupCommands: z.array(z.object({
-      name: z.string().optional(), argv: z.array(z.string()).min(1), cwd: z.string(),
-      env: z.record(z.string(), z.string()), timeoutMs: z.int().positive(),
-    }).strict()),
-  }).strict(),
-}).strict();
-export type CommittedAuditConfigurationRecord = z.infer<typeof committedAuditConfigurationSchema>;
-
-/** A committed record at one revision; `hash` is the SHA-256 of the file's bytes. */
-
-/** `job.json` of a run. Written once, before the first event. */
 export const runRecordSchema = z.object({
   schema: z.literal(jobSchemaVersion),
   jobId: jobIdSchema,
@@ -392,41 +237,7 @@ export type RunRecord = z.infer<typeof runRecordSchema>;
  * no phase progression, and recovery never resumes it. Its identity is
  * recorded when it is created and checked each time it is used again.
  */
-export const manualRunRecordSchema = z.object({
-  schema: z.literal(jobSchemaVersion),
-  jobId: jobIdSchema,
-  planId: planIdSchema,
-  kind: z.literal('manual'),
-  createdAt: timestamp,
-  /** The project's real path when the run was created. */
-  projectRoot: text,
-  /** The commit HEAD named when the run was created; `''` outside Git. */
-  base: z.string(),
-  /** The candidate branch the run's invocations work on, or null where it made none, as a session's does not. */
-  branch: text.nullable(),
-  /** What started it: `step run` or the `session` command. */
-  origin: z.enum(['step-run', 'session']),
-  policy: runPolicySchema,
-}).strict();
-export type ManualRunRecord = z.infer<typeof manualRunRecordSchema>;
-
 // The prompt packages.
-
-export const promptPackageManifestSchema = z.object({
-  schema: z.literal('ramify-agent.prompt-manifest/1'),
-  packages: z.partialRecord(roleSchema, z.object({
-    package: text,
-    hash: sha256Schema,
-    files: z.array(z.object({
-      path: text,
-      hash: sha256Schema,
-      kind: z.enum(['system', 'procedure', 'skill', 'submission-schema']),
-    }).strict()),
-    /** The submission union members this package offers the role. */
-    submissionKinds: z.array(text),
-  }).strict()),
-}).strict();
-export type PromptPackageManifest = z.infer<typeof promptPackageManifestSchema>;
 
 // The initial analysis.
 
@@ -437,106 +248,7 @@ export type PromptPackageManifest = z.infer<typeof promptPackageManifestSchema>;
  * and `run-branch`. The historical `configured-full-audit` step identifier
  * remains readable in durable records; it does not override audit mode.
  */
-export const readinessSteps = [
-  'project-root', 'scratch-cleanup', 'git-clean', 'compiler-config', 'project-config', 'ramify-daemon',
-  'audit-config', 'declared-packages', 'declared-preparation', 'configured-full-audit',
-  'run-branch',
-] as const;
-export const readinessStepSchema = z.enum(readinessSteps);
-export type ReadinessStep = z.infer<typeof readinessStepSchema>;
-
-export const readinessAttemptSchema = z.object({
-  schema: z.literal('ramify-agent.readiness-attempt/1'),
-  /** The count of committed readiness attempts, this one included. */
-  attempt: z.int().positive(),
-  /** The commit readiness ran on. */
-  head: z.string(),
-  steps: z.array(z.object({
-    step: readinessStepSchema,
-    outcome: z.enum(['passed', 'failed', 'not-verified']),
-    detail: z.string(),
-    command: checkCommandSchema.optional(),
-    gate: text.optional(),
-  }).strict()),
-  /** Independent nested packages found, and what each one answered. */
-  nested: z.array(z.object({
-    directory: z.string(),
-    manifest: text,
-    installed: z.boolean(),
-    testScript: z.string().nullable(),
-  }).strict()),
-  /** Present on a configured audit request; the requested and audited sources may differ on reuse. */
-  audit: z.object({
-    requestedSourceCommit: text, auditedSourceCommit: text.nullable(), reused: z.boolean(),
-    reportCommit: text.nullable(), runRef: text.nullable(),
-  }).strict().optional(),
-  verdict: z.enum(['passed', 'failed']),
-  /** The recovery attempted after a failure; null when the failure was not recoverable. */
-  recovery: z.string().nullable(),
-}).strict();
-export type ReadinessAttempt = z.infer<typeof readinessAttemptSchema>;
-
-export const infrastructureRecoverySchema = z.object({
-  schema: z.literal('ramify-agent.infrastructure-recovery/1'),
-  id: text,
-  subject: z.object({
-    gate: text.optional(),
-    readiness: z.int().positive().optional(),
-    invocation: text.optional(),
-  }).strict(),
-  cause: z.enum(['infrastructure', 'timeout', 'daemon-unavailable']),
-  action: z.enum(['restart-daemon', 'reinstall-nested', 'rerun-command', 'reconstruct-session', 'none']),
-  /** Counted over committed history for this subject. */
-  attempt: z.int().positive(),
-  outcome: z.enum(['recovered', 'failed']),
-  /** Command output file references. */
-  evidence: z.array(z.string()),
-}).strict();
-export type InfrastructureRecovery = z.infer<typeof infrastructureRecoverySchema>;
-
 // Measurements.
-
-export const measurementSnapshotSchema = z.object({
-  schema: z.literal('ramify-agent.measurement-snapshot/1'),
-  id: text,
-  /** `scope-size/1` snapshots of earlier runs stay readable; their sizes are not comparable with `scope-size/2`. */
-  policy: z.enum(['scope-size/1', 'scope-size/2']),
-  /** The run branch's head when it was taken. */
-  head: z.string(),
-  /** The captured `ramify.measure/2` document, verbatim, with its revision. */
-  measure: z.union([
-    z.object({ revision: z.string(), document: z.unknown(), hash: sha256Schema }).strict(),
-    z.object({ unavailable: text }).strict(),
-  ]),
-  view: viewIdentitySchema.nullable(),
-  /** Supplementary bytes outside Ramify's inventory: prompts, skills, the captured plan. */
-  supplementary: z.array(z.object({ path: text, bytes: z.int().nonnegative() }).strict()),
-}).strict();
-export type MeasurementSnapshot = z.infer<typeof measurementSnapshotSchema>;
-
-/**
- * One component of `S_s`, the scope size of one invocation. A component
- * whose source the snapshot does not hold is `unavailable` with its reason:
- * the total is then unavailable with its known subtotal beside it, never a
- * zero, and a proposed module's size is unknown.
- */
-export const lineEventSummarySchema = z.object({
-  schema: z.literal('ramify-agent.line-events/1'),
-  invocation: text,
-  paths: z.array(z.object({
-    path: text,
-    owner: modulePathSchema.nullable(),
-    added: z.int().nonnegative(),
-    deleted: z.int().nonnegative(),
-    binary: z.boolean(),
-    /** A binary file's size: git reports no lines for it and none is invented. Null for a text file. */
-    bytes: z.int().nonnegative().nullable(),
-  }).strict()),
-  unmapped: z.object({ paths: z.int().nonnegative(), added: z.int().nonnegative(), deleted: z.int().nonnegative() }).strict(),
-  coverage: z.enum(['complete', 'partial']),
-  gaps: z.array(z.string()),
-}).strict();
-export type LineEventSummary = z.infer<typeof lineEventSummarySchema>;
 
 // Invocations.
 
@@ -571,185 +283,6 @@ export type OperationRecovery = z.infer<typeof operationRecoverySchema>;
 // Gate attempts. The type is `checks/records.ts`'s; this is the reader.
 
 /** The kinds of command a gate announces. */
-const checkKindSchema = z.enum(['setup', 'ramify-check', 'type-check', 'configured']);
-
-/** A rule the harness verified itself over the tree, beside the commands it ran. */
-export const gateRuleSchema = z.object({
-  rule: z.enum(['fake-naming', 'fake-exposure-parity', 'scratch-safety', 'write-scope']),
-  outcome: z.enum(['passed', 'failed']),
-  violations: z.array(z.object({ rule: text, path: text, detail: text }).strict()),
-  /** What the rule could not establish, or found and did not attribute to this attempt; absent when nothing. */
-  limits: z.array(text).optional(),
-}).strict();
-
-const gateAuditCountSchema = z.object({ total: z.int().nonnegative(), passed: z.int().nonnegative(), failed: z.int().nonnegative(), skipped: z.int().nonnegative() }).strict();
-const gateAuditReuseSchema = z.object({
-  auditedCommit: text,
-  ignoredChangedPaths: z.array(z.string()),
-  requestedMode: z.enum(['full', 'ramify-partial']),
-  resolution: z.enum(['requested', 'defaulted']),
-}).strict();
-
-/** One project of a nested audit: its verdict, execution, failures, counts and record identities. */
-const gateAuditProjectRecordSchema = z.object({
-  projectRoot: text,
-  verdict: z.enum(['pass', 'fail', 'indeterminate']),
-  execution: z.enum(['ran', 'reused', 'not-run']),
-  status: z.enum(['completed', 'failed', 'cancelled', 'refused']),
-  failures: z.array(z.string()),
-  requestId: text,
-  auditedSourceCommit: text.nullable(),
-  requestedMode: z.enum(['full', 'ramify-partial']).nullable(),
-  executedMode: z.enum(['full', 'ramify-partial']).nullable(),
-  fallbackReason: z.string().nullable(),
-  reuse: gateAuditReuseSchema.nullable(),
-  evidence: z.object({ runRef: text, reportCommit: text, treeRef: text }).strict().nullable(),
-  retrievalCommands: z.array(z.string()),
-  durationSeconds: z.number().nonnegative().nullable(),
-  counts: z.object({ checks: gateAuditCountSchema, tests: gateAuditCountSchema.nullable(), scenarios: gateAuditCountSchema.nullable() }).strict().nullable(),
-  detail: z.string(),
-}).strict();
-
-/** What nested discovery skipped, with reasons, and what it could not decide. */
-const gateAuditDiscoverySchema = z.object({
-  status: z.enum(['complete', 'indeterminate']),
-  skipped: z.array(z.object({
-    projectRoot: text, enclosingProject: text,
-    reason: z.enum(['external', 'output', 'repository', 'packages', 'generated']), directory: text,
-  }).strict()),
-  unavailable: z.array(z.object({ enclosingProject: text, reason: z.string(), definitions: z.array(z.string()) }).strict()),
-}).strict();
-
-/** What a committing gate asked of the committed audit and what the provider answered. */
-const gateAuditRecordSchema = z.object({
-  requestId: text,
-  mode: z.enum(['project-default', 'full']),
-  status: z.enum(['completed', 'failed', 'cancelled', 'refused']),
-  definition: z.object({ path: z.string(), blob: z.string() }).strict(),
-  requestedSourceCommit: text,
-  auditedSourceCommit: text.nullable(),
-  requestedMode: z.enum(['full', 'ramify-partial']).nullable(),
-  executedMode: z.enum(['full', 'ramify-partial']).nullable(),
-  fallbackReason: z.string().nullable(),
-  reuse: z.object({
-    auditedCommit: text,
-    ignoredChangedPaths: z.array(z.string()),
-    requestedMode: z.enum(['full', 'ramify-partial']),
-    resolution: z.enum(['requested', 'defaulted']),
-  }).strict().nullable(),
-  verdict: z.enum(['pass', 'fail', 'indeterminate']).nullable(),
-  detail: z.string(),
-  nested: z.boolean(),
-  projects: z.array(gateAuditProjectRecordSchema).nullable(),
-  discovery: gateAuditDiscoverySchema.nullable(),
-}).strict();
-
-export const gateAttemptSchema = z.object({
-  schema: z.literal('ramify-agent.gate-attempt/3'),
-  id: text,
-  checkpoint: z.enum(['readiness', 'iteration', 'contract', 'breaking-iteration', 'work-item', 'final']),
-  subject: z.object({ workItem: text.optional(), iteration: text.optional() }).strict(),
-  proposedBy: z.string().nullable(),
-  repairRound: z.int().nonnegative(),
-  infrastructureAttempt: z.int().nonnegative(),
-  head: z.string(),
-  commit: z.string().nullable(),
-  audited: z.string().nullable(),
-  evidence: z.object({ runRef: text, reportCommit: text, treeRef: text }).strict().nullable(),
-  /** Exact producer result and published check payload. */
-  provider: z.object({ result: z.unknown(), checks: z.unknown() }).strict().optional(),
-  /** A committing gate's configured audit request and the provider's answer. */
-  audit: gateAuditRecordSchema.optional(),
-  guardedChanges: z.array(z.object({
-    path: text,
-    before: z.string().nullable(),
-    after: z.string().nullable(),
-    authorizedBy: recordRefSchema.nullable(),
-  }).strict()),
-  /** Rules the harness verified itself; absent for a checkpoint that has none. */
-  ownershipPreflight: ownershipPreflightSchema.optional(),
-  rules: z.array(gateRuleSchema).optional(),
-  commands: z.array(z.object({
-    kind: checkKindSchema,
-    providerCheckId: text.optional(),
-    /** A setup command's declared name. */
-    name: text.optional(),
-    command: checkCommandSchema,
-    startedAt: z.string(),
-    elapsedMs: z.int().nonnegative(),
-    lockWaitMs: z.int().nonnegative().optional(),
-    exitCode: z.int().nullable(),
-    outcome: z.enum(['passed', 'failed', 'not-verified']),
-    notVerified: z.enum(['timeout', 'runner-error', 'command-missing', 'interrupted', 'setup-failed', 'local-rule-failed']).optional(),
-    runnerError: z.object({ kind: z.string(), message: z.string() }).strict().nullable(),
-    output: z.object({ path: z.string(), bytes: z.int().nonnegative(), truncated: z.boolean(), tail: z.string() }).strict(),
-    /** How ramify-audit stopped the command's process tree, in words; absent where it did not stop it. */
-    stopped: text.optional(),
-    /** The command's output streams stayed open after it ended, so what it printed may be incomplete. */
-    outputIncomplete: z.literal(true).optional(),
-  }).strict()),
-  verdict: z.enum(['passed', 'failed', 'not-verified']),
-  cause: z.enum(['check-failed', 'infrastructure', 'timeout', 'guarded-change', 'unknown']).nullable(),
-  next: z.enum(['accept', 'repair', 'retry-infrastructure', 'return-to-local-architect', 'exhausted']),
-}).strict();
-
-/** Exact overall result supplied by the external auditor, independent of the gate verdict. */
-export const gateAuditOutcomeSchema = z.object({
-  schema: z.literal('ramify-agent.gate-audit-outcome/1'),
-  gate: text,
-  overall: z.enum(['pass', 'fail', 'indeterminate']),
-  audited: text,
-}).strict();
-
-/** The reader and the engine's own type describe one record; this keeps them so. */
-const _gateAttemptsAgree: GateAttempt = undefined as unknown as z.infer<typeof gateAttemptSchema>;
-void _gateAttemptsAgree;
-
-/** Durable input for a committing gate, written before its commit and audit effect. */
-export const gateOperationSchema = z.object({
-  schema: z.literal('ramify-agent.gate-operation/2'),
-  /** A new-policy final effect cannot outlive its exact assessed candidate. */
-  finalAssessment: z.object({ assessment: text, candidate: text, tree: z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u) }).strict().optional(),
-  checkpoint: z.enum(['iteration', 'contract', 'breaking-iteration', 'work-item', 'final']),
-  request: z.object({
-    id: text,
-    runId: text,
-    projectRoot: text,
-    directory: text,
-    head: z.string(),
-    /** The mode the gate requests of the committed audit, and the bound of the request. */
-    audit: z.object({ mode: z.enum(['project-default', 'full']), nested: z.boolean().optional(), timeoutMs: z.int().positive().optional() }).strict(),
-    subject: z.object({ workItem: text.optional(), iteration: text.optional() }).strict(),
-    proposedBy: z.string().nullable(),
-    repairRound: z.int().nonnegative(),
-    infrastructureAttempt: z.int().nonnegative(),
-    limits: z.object({ repairRounds: z.int().positive(), infrastructureRetries: z.int().positive() }).strict(),
-  }).strict(),
-  guardedChanges: z.array(z.object({
-    path: text, before: z.string().nullable(), after: z.string().nullable(), authorizedBy: recordRefSchema.nullable(),
-  }).strict()),
-  rules: z.array(gateRuleSchema),
-  unauthorized: z.boolean(),
-  ruleFailed: z.boolean(),
-  timeoutMs: z.int().positive(),
-  message: z.string(),
-}).strict();
-export type GateOperation = z.infer<typeof gateOperationSchema>;
-
-
-
-// Where each record lives beneath the run's directory.
-
-/** The absolute directory of one run, `plans/<plan-id>/.harness/jobs/<run-id>/`. */
-export function runDirectory(projectRoot: string, planId: string, runId: string): string {
-  return join(jobsDirectory(projectRoot, planId), runId);
-}
-
-/**
- * Every path of the run layout. The record paths are relative to the run's
- * directory, which is the ledger's records root, so a path that would leave
- * it is refused before anything is written.
- */
 export const runLayout = {
   record: 'job.json',
   capturedPlan: join('input', 'plan.md'),
@@ -844,3 +377,7 @@ export const runSchemas = {
 export const roles: readonly Role[] = roleSchema.options;
 
 // Distinct binding beside the public transcript/query usage schema.
+
+export function runDirectory(projectRoot: string, planId: string, runId: string): string {
+  return join(jobsDirectory(projectRoot, planId), runId);
+}

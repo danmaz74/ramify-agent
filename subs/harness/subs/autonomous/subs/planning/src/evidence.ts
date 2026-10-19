@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import { elementCatalogSchema, type ElementCatalog } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import { incorporationSchema, type Incorporation } from './evidence-contracts.js';
-import { readCapturedDocuments } from '../../../src/run/document-inputs.js';
+import { readCapturedDocuments } from './documents.js';
 import { runLayout } from '../../../src/run/records.js';
 import type { RunEvent } from '../../../src/run/log.js';
 

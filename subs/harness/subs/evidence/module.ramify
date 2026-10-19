@@ -12,9 +12,7 @@ expose-src RamifyCli, RamifyRun, RamifyCheckResult, CheckProvider, MaterializeRe
 
 // Reading what Ramify generates: the architect view, a requester API view and
 // the measurement document. Their file formats stay here.
-expose-src architectViewDirectory, ArchitectMeta, readArchitectMeta, coverageLimitsOf, CoverageRecord, coverageRecordsOf, describeCoverageLimits, ApiViewDirectory, apiViewDirectoriesOf, ArchitectIndex, loadArchitectIndex, loadModuleTree from "views.ts" to parent
-expose-src ModuleEntry, SymbolRecord, ExposureChannel, findModule, symbolRecords, SourceArea, ApiViewSnapshot, readApiView, findInView from "views.ts" to parent
-expose-src isTestingModule from "views.ts" to parent
+expose-src architectViewDirectory, ArchitectMeta, readArchitectMeta, coverageLimitsOf, CoverageRecord, coverageRecordsOf, describeCoverageLimits, ApiViewDirectory, apiViewDirectoriesOf, ArchitectIndex, loadArchitectIndex, loadModuleTree, ModuleEntry, SymbolRecord, ExposureChannel, findModule, symbolRecords, SourceArea, ApiViewSnapshot, readApiView, findInView, isTestingModule from "views.ts" to parent
 expose-src MeasurementDocument, ModuleMeasurement, MeasurementRead, readMeasurement, documentSchema, moduleSchema from "measure.ts" to parent
 
 // Running one of the target project's own commands, in its own process group
@@ -30,23 +28,14 @@ expose-src guardedFilesHash from "guarded-files.ts" to parent
 
 // Git, for the run branch: a clean-repository check, the branch, the commit a
 // gate audits, recovery by exact trailers, and what changed.
-expose-src GitError, CommitTrailer, isCleanRepository, createRunBranch, commitAccepted, findCommitByTrailer, findCommitByTrailers, changedPaths, diffNumstat from "git.ts" to parent
-expose-src commitNameStatus, diffNameStatus, worktreeLineChanges, worktreePatch, changedEntries from "git.ts" to parent
+expose-src GitError, CommitTrailer, isCleanRepository, createRunBranch, commitAccepted, findCommitByTrailer, findCommitByTrailers, changedPaths, diffNumstat, commitNameStatus, diffNameStatus, worktreeLineChanges, worktreePatch, changedEntries, CandidateSource, gitCandidateSource, TreeEntry, TreeMatch, commitTree, treeEntries, readBlob, grepTree, diffPatch, ChangeHistory, ChangedFile, LineRange, GitLineRange, LineCommit, gitChangeHistory, GitService, gitService, currentHead, resolveCommit, runBranchName, inspectRunBranch, recoveryStatus, isAncestor, commonDirectory, trackedPaths, ignoreStatus, IgnoreRule, IgnoreStatus, GitInspection, inspectGit from "git.ts" to parent
 
 // A committed candidate read from Git's objects, which a review snapshot is
 // served from: its tree, its files, a search and its diff from a base.
-expose-src CandidateSource, gitCandidateSource, TreeEntry, TreeMatch, commitTree, treeEntries, readBlob, grepTree, diffPatch from "git.ts" to parent
-
 // The history a run's delivered change is attributed from: the commits of
 // a range, its direct diff and the commit Git names for each changed line.
-expose-src ChangeHistory, ChangedFile, LineRange, GitLineRange, LineCommit, gitChangeHistory from "git.ts" to parent
-
 // Consumers inject this boundary; real Git integration tests live with the adapter.
-expose-src GitService, gitService, currentHead, resolveCommit, runBranchName, inspectRunBranch, recoveryStatus, isAncestor, commonDirectory from "git.ts" to parent
-expose-src trackedPaths, ignoreStatus, IgnoreRule, IgnoreStatus from "git.ts" to parent
-expose-src GitInspection, inspectGit from "git.ts" to parent
 expose-src CandidateTreePreview, previewCandidateTree from "candidate-tree.ts" to parent
-
 expose-src productionSourceGit, ProvisionalSourceGit from "provisional-git.ts" to parent
 
 // Strict scripted check replies remain testing source in their owning adapter.
@@ -56,7 +45,6 @@ expose-test ScriptedCli, CliReply from "helpers/scripted-cli.ts" to parent
 expose-src OwnershipAnswer, OwnershipPath, OwnershipQueryResult, RawOwnershipEvidence, OwnershipUnavailableError, OwnershipCancelledError, requireOwnershipAnswer, decodeOwnershipEvidenceAnswer, ownershipAnswerOfAffected from "ownership-evidence.ts" to parent
 expose-src ProviderFailureEvidence, RecoveryEvidence from "provider-evidence.ts" to parent
 
-expose-src resolveCommit from "git.ts" to parent
-
 // Exact UTF-8 text from immutable blobs, authenticated against available entry metadata.
 expose-src verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from "git-text.ts" to parent
+expose-src parseModuleHeader from "module-header.ts" to parent

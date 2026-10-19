@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { expect } from 'vitest';
 import type { Script } from '../../../subs/agent/src/scripted.js';
 import { gitService } from '../../../subs/evidence/src/git.js';
-import { checkCommand, type Checkpoint } from '../../checks/records.js';
+import { checkCommand, type Checkpoint } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import type { ConfiguredAuditInput } from '../../../subs/audit/src/check-execution.js';
 import { localCommandAudit, mappedAudit } from './direct-check-execution.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
@@ -15,7 +15,7 @@ import { copyCapabilityFixture, openCapabilityRuns } from '../../../subs/autonom
 import { assign, edit, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';
 import { rootDescription } from './root-description.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
-import { testReviewPolicy } from './candidates.js';
+import { testReviewPolicy } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { freeze, initRepository, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './runs.js';
 
 const a = 'capability-coordination/a';
@@ -299,21 +299,21 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
           const hash = createHash('sha256').update(await readFile(join(fixture.root, path))).digest('hex');
           expect(assignment.coordination.startingPaths).toContainEqual({ path, hash });
         }
-        const positive = await activeService!['gates'].candidateAuthority(active, request);
+        const positive = await activeService!['gates'](active).candidateAuthority(request);
         expect(positive.rules.find(rule => rule.rule === 'write-scope')?.outcome).toBe('passed');
         expect(positive.ownership?.paths.filter(seed => paths.includes(seed.path)).map(seed => [seed.path, seed.status, seed.module, seed.exclusion]).sort()).toEqual(
           paths.map(path => [path, 'owned', path.startsWith('subs/b/') ? b : path.startsWith('subs/d/') ? d : p, null]).sort());
         const file = join(fixture.root, 'subs/b/src/fact.ts');
         const original = await readFile(file);
         await writeFile(file, `${original.toString()}\n// unassigned later bytes\n`);
-        const changed = await activeService!['gates'].candidateAuthority(active, request);
+        const changed = await activeService!['gates'](active).candidateAuthority(request);
         expect(changed.rules.find(rule => rule.rule === 'write-scope')?.violations).toContainEqual(expect.objectContaining({ path: 'subs/b/src/fact.ts' }));
         await writeFile(file, original);
         const declaration = join(fixture.root, 'subs/b/module.ramify');
         const declared = await readFile(declaration);
         for (const line of ['external "docs"', 'owned-nested-project "docs"']) {
           await writeFile(declaration, `${declared.toString()}\n${line}\n`);
-          const narrowed = await activeService!['gates'].candidateAuthority(active, request);
+          const narrowed = await activeService!['gates'](active).candidateAuthority(request);
           expect(narrowed.rules.find(rule => rule.rule === 'write-scope')?.violations).toContainEqual(expect.objectContaining({ path: 'subs/b/docs/prior.txt' }));
         }
         await writeFile(declaration, declared);

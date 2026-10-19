@@ -1,0 +1,55 @@
+ramify 1
+module acceptance
+
+// Candidate qualification, review, reconciliation, obligation satisfaction and final acceptance.
+expose-src CheckExecutionPort, CheckExecutionRequest, CheckExecutionContext, CheckExecutionResult, checkOutputPath, GateCommandStart, GateCommandStarted, commandStart, notRun, inPlaceCheckExecution, createInPlaceCheckExecution from "checks/execution.ts" to parent
+expose-src PlannedCheck from "checks/verify.ts" to parent
+expose-src Checkpoint, GateCommandRecord, GateEvidence, GateRuleRecord, TestSelectionPolicy, CheckCommand, CheckCommandKind, NotVerified, TypeCheckOutput, checkCommandEnvironment, AcceptedCommit, GateAttempt, GateAttemptId, GateAuditCountBucket, GateAuditProjectRecord, GateAuditRecord, GateCause, GateNext, RecordReference, checkCommand, CheckCommandRequest from "checks/records.ts" to parent
+expose-src AcceptedBoundaryLine, acceptedCommit from "checks/accepted.ts" to parent
+expose-src ScenarioResult, ScenarioResultStatus, scenarioResultsOf from "checks/scenario-results.ts" to parent
+expose-src NotVerifiedReason, ReviewAttempt, ReviewRequest, notVerifiedReasonSchema, reviewAttemptSchema, reviewRequestSchema, reviewLayout, concernKey, ReviewResult, ReviewSubmissionRecord, reviewAttemptId, reviewOrientationSchema, ForkPoint, ReviewOrientation, reviewRequestId, reviewAttemptFinishedFields, reviewAttemptStartedDataSchema, reviewOrientationRecordedDataSchema, reviewRequestRecordedDataSchema, reviewResultSchema, reviewSubmissionRecordSchema, forkPointSchema, reviewSchemas from "reviews/records.ts" to parent
+expose-src ReviewAttemptState, ReviewCoverage, ReviewRequestState, reviewCoverage, reviewStateOf, unsettledRequests from "reviews/state.ts" to parent
+expose-src validateReconciliation, ReconciliationContext, attentionAt, basisChange, briefText, needsLaterRound, reconciliationAssessmentSchema, reconciliationBasisSchema, reconciliationId, reconciliationLayout, BasisRequest, BriefAppendOutcome, ReconciliationAssessment, ReconciliationBasis, UnresolvedReason, reconciliationAssessedFields, reconciliationBriefAppendedDataSchema, reconciliationIdSchema, reconciliationRefusedDataSchema, reconciliationStartedDataSchema, unresolvedField, ReconciliationSource, basisRequestSchema, briefAppendOutcomeSchema, unresolvedReasonSchema, reconciliationSourceSchema, reconciliationSchemas, withinModule from "reviews/reconciliation.ts" to parent
+expose-src checkpointPolicies, installOperation, setupChecks, diagnosisChecks, SetupDeclaration, ProjectCommands, CheckpointPolicy from "checks/checkpoint.ts" to parent
+expose-src configuredAuditRecord, PreparedGate, executePreparedGate, prepareGate, GateRequest, executeConfiguredGate, ConfiguredGateAudit, runGate from "checks/gate.ts" to parent
+expose-src reconciliationMessage, ReconciliationPacket from "reviews/reconciliation-message.ts" to parent
+expose-src gateDiagnostics, GateAudience, GateDiagnostics, passedScenarioLines from "checks/diagnostics.ts" to parent
+expose-src pendingBindingEvidence from "reviews/binding-evidence.ts" to parent
+expose-src deviationHash, isPlanDeviation, planDeviationOptions, deviationCommands, nextCheckFinding from "deviations/finding.ts" to parent
+expose-src NonfunctionalDeviation, nonfunctionalDeviationHash, nonfunctionalDeviationCommands, prepareNonfunctionalDeviation, NonfunctionalDeviationInput, AssessmentResult from "deviations/nonfunctional.ts" to parent
+expose-src CurrentDeviationDecision, currentDeviationDecision from "deviations/readiness-decision.ts" to parent
+expose-src PlanDeviation, environmentProblemSchema, packageDeviation, planDeviationSchema, deviationLayout, EnvironmentProblem, deviationSchemas, defaultMaxPlanDeviations, environmentProblemId, planDeviationId, unresolvedRequestId, unresolvedRequestSchema, DeviationBody, EnvironmentBody, UnresolvedRequest, deviationBodySchema, environmentBodySchema from "deviations/records.ts" to parent
+expose-src assessedElements, coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName, coordinatorInvestigationToolName, boundedNonfunctionalTools, bindCoordinatorAssessment, validateCoordinatorAction, validateCoordinatorInvestigation, nonfunctionalRepairSubmissionSchema, ActionContext, nonfunctionalSourceAllows, coordinatorActionJsonSchema, coordinatorInvestigationJsonSchema, coordinatorAssessmentJsonSchema, nonfunctionalRepairJsonSchema, AssessmentBinding, CoordinatorAction, CoordinatorInvestigation, coordinatorActionSchema, coordinatorInvestigationSchema from "nonfunctional/submissions.ts" to parent
+expose-src ScenarioLedgerLine, TrackedScenarios, trackedScenarios, incompleteScenarios, commitForMaterialization, contentHash, expectedFeatureFiles, expectedFeatureHashes, materializationMessage, rerenderFeatureFiles, IncompleteScenario, FeatureRerendering, commitForScenarios, rewordedTrailerValue, rewordingMessage, scenarioNameOf from "feature-files.ts" to parent
+expose-src DeviationOrigin, FinalAuditFacts, MergeReadinessInput, ReadinessDeviation, projectMergeReadiness from "merge-readiness.ts" to parent
+expose-src CommittedNonfunctionalPhase, NonfunctionalPhaseReplay, replayNonfunctionalPhase from "nonfunctional-phase.ts" to parent
+expose-src MergeReadiness, NonfunctionalRepairAssignment, deviationOriginSchema, mergeReadinessSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema, preparedCandidateSchema from "nonfunctional-records.ts" to parent
+expose-src commitForGate, commitMessage, CheckpointRequest, runCheckpoint, CommitMessageParts from "gates.ts" to parent
+expose-src coordinatorActionPrompt, coordinatorAssessmentPrompt, repairPrompt from "nonfunctional/prompts.ts" to parent
+expose-src performRecovery, runReadiness, readinessFailureReason, failingStep, recoveryFor, ReadinessRequest, RecoveryRequest, ReadinessResult, RecoveryPlan from "readiness.ts" to parent
+expose-src CommittingGates, GateHost, readinessAuditOutcome, writeScopePaths, CandidateDriftError, preparedGate from "committing-gate.ts" to parent
+expose-src externalCandidatePath, observeExternalCandidate, externalCandidateSchema, ExternalCandidate from "candidate-attribution.ts" to parent
+expose-src recordedExternalChanges from "recovery-gate.ts" to parent
+expose-src AfterHandling, pendingBindingsOf, HandlingHost, ReviewInputs from "after-handling.ts" to parent
+expose-src finalCorrectionSchema from "final-correction.ts" to parent
+expose-src environmentOptions, isEnvironmentProblem, environmentCommands from "deviations/environment.ts" to parent
+expose-src concernBindings, finishReview, requestedStartOf, reviewOutcome, ReviewCommit from "review-finish.ts" to parent
+expose-src ParentSession, CompletionBasis, Reconciled, ReconciliationOwner, BriefAppend from "completion.ts" to parent
+expose-src ReviewKind, reviewKindSchema, ReviewPolicy, reviewPolicySchema, reviewPolicyVersion from "review-policy.ts" to parent
+expose-src gateAttemptSchema, gateAuditOutcomeSchema, gateRuleSchema, gateAttemptId, gateOperationSchema, GateOperation from "gate-records.ts" to parent
+expose-src verifiedRepairDeltas, Entries, VerifiedRepairDelta from "repair-gate.ts" to parent
+expose-src ReadinessAttempt, infrastructureRecoverySchema, readinessSteps, InfrastructureRecovery, readinessAttemptSchema, readinessDirectory from "readiness-records.ts" to parent
+expose-src checkCommandSchema from "checks/command-records.ts" to parent
+expose-test finalCandidate from "helpers/final-candidate.ts" to parent
+expose-src AcceptanceJournal, AcceptanceReading, AcceptanceIdentity, PreparedFindingPublication, AcceptedProposal, AcceptanceEffect, AcceptanceTransaction from "acceptance-journal.ts" to parent
+expose-test scriptedCandidates, ScriptedCommit, testReviewPolicy, treeCandidates, ScriptedCandidates from "helpers/candidates.ts" to parent
+expose-test scratchCandidateReplies from "helpers/scratch-candidate-replies.ts" to parent
+expose-src Acceptance, AcceptancePorts, AcceptanceInput, AcceptanceObservation from "acceptance.ts" to parent
+expose-src nonfunctionalEquipment from "nonfunctional/equipment.ts" to parent
+expose-test gateGit, gateScenariosCommitFixture, GateCommit, GateGitOptions, operationsOf, GateGit, GateFixtureGitChange, GitCall, TrailedCommit from "helpers/gate-git.ts" to parent
+expose-src commitReadinessRepair, readinessRepairOperationPath, readinessRepairOperationSchema, ReadinessRepairOperation from "readiness-commit.ts" to parent
+expose-test notes, notesDirectory, reviewTarget, store, attemptRecord, eventsOf, limit, plan, reviewRun, interceptOperations, candidates, finalReviewTree, gate, revisionGates, tool, unchanged, reviewScript, base, materialized, ReviewRun, reviewEventsOf, reviewUnchangedCommit from "helpers/reviews.ts" to parent
+expose-test readinessBoundaries, readinessHead, strictReadinessAudit, strictReadinessCommand from "helpers/readiness-boundaries.ts" to parent
+expose-test nfrBoundaries, NfrScript from "helpers/nonfunctional-boundaries.ts" to parent
+expose-src checkExecutionObstruction, auditCheckFacts, hasAssertionFailure, CheckExecutionObstruction from "check-execution-recovery.ts" to parent
+expose-src compatibleAuditRepair from "audit-configuration.ts" to parent

@@ -13,7 +13,10 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import type { CommittedRun } from '../../subs/projections/src/inputs.js';
 import { createQuerySource } from '../http/query-source.js';
 import { constructedRun, constructedRecord } from './helpers/constructed.js';
-import { infrastructureRecoverySchema, measurementSnapshotSchema, readinessSteps, gateRuleSchema, runLayout, runSchemas } from '../../subs/autonomous/src/run/records.js';
+import { infrastructureRecoverySchema, readinessSteps } from '../../subs/autonomous/subs/acceptance/src/readiness-records.js';
+import { measurementSnapshotSchema } from '../../subs/kpi/src/run-records.js';
+import { gateRuleSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
+import { runLayout, runSchemas } from '../../subs/autonomous/src/run/records.js';
 import { invocationOutcomeSchema, sessionModeSchema, continueReasonSchema, degradeRelationSchema, forkReasonSchema, replaceReasonSchema, requestReasonSchema, sessionPointSchema } from '../../subs/task-execution/src/records.js';
 import { defaultContextPolicies } from '../run/policy.js';
 import { analysisLayout, analysisSchemas, hypothesisChangeSchema, hypothesisSchema, registryEntrySchema } from '../../subs/autonomous/subs/planning/src/records.js';
@@ -25,7 +28,7 @@ import {
   hypothesisStanceSchema, placementOutcomeSchema,
 } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
 import { forkSubmissionKinds, forkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
-import { deviationLayout, deviationSchemas } from '../../subs/autonomous/src/deviations/records.js';
+import { deviationLayout, deviationSchemas } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
 import { localArchitectSubmissionSchema, localArchitectSubmissionKinds } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { engineerSubmissionSchema, engineerSubmissionKinds, capabilityEngineerSubmissionKinds, unsuitableReasonSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { assignableKindSchema, assignmentBodySchema } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';

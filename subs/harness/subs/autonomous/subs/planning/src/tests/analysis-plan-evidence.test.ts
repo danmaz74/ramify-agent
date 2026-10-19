@@ -10,7 +10,7 @@ import { RunQueries } from '../../../../../projections/src/queries.js';
 import { createQuerySource } from '../../../../../../src/http/query-source.js';
 import { validateInitialAnalysis } from '../submission.js';
 import { acceptIntake, checkMessage, intakeMessage, intakeToolName, type CheckState, type IntakeSubmission } from '../extraction.js';
-import { readCapturedDocuments } from '../../../../src/run/document-inputs.js';
+import { readCapturedDocuments } from '../documents.js';
 import { runRecordSchema } from '../../../../src/run/records.js';
 import { extractDocumentScenarios } from '../../../../../scenarios/src/extraction.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';

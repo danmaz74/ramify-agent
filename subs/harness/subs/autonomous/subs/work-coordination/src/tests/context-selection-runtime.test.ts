@@ -11,7 +11,7 @@ import { checkToolName, intakeToolName } from '../../../planning/src/extraction.
 import { withSelectionReasons } from '../selection-reasons.js';
 import { readRecordedContextSelection } from '../context-selection/recorded.js';
 import { contextSelectorToolName } from '../context-selection/submissions.js';
-import { coordinatorAssessmentToolName } from '../../../../src/nonfunctional/submissions.js';
+import { coordinatorAssessmentToolName } from '../../../acceptance/src/nonfunctional/submissions.js';
 import type { RunEvent, RunEventOf } from '../../../../src/run/log.js';
 import { HarnessSessionOperations } from '../../../../../../src/prompts/session-adapter.js';
 import { exactInputHash } from '../../../../../task-execution/src/delivery/delivered-manifest.js';
@@ -26,7 +26,7 @@ import { openUnchangedRuns, assertUnchangedGit } from '../../../../../../src/tes
 import { scenariosCommit } from '../../../../../../src/tests/helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
-import { scriptedCandidates } from '../../../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../../acceptance/src/tests/helpers/candidates.js';
 
 vi.mock('node:child_process', async original =>
   (await import('../../../../../../src/tests/helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));

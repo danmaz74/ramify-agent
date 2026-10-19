@@ -1,3 +1,4 @@
+import { currentTestFile } from './helpers/test-source.js';
 import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
@@ -5,9 +6,9 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
-import { CommittingGates } from '../../subs/autonomous/src/run/committing-gate.js';
+import { CommittingGates } from '../../subs/autonomous/subs/acceptance/src/committing-gate.js';
 import { runEventSchema } from '../../subs/autonomous/src/run/log.js';
-import type { GateAttempt } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { observationSchema } from '../../subs/task-execution/src/observations.js';
 import { runSchemas } from '../../subs/autonomous/src/run/records.js';
 
@@ -21,9 +22,9 @@ import { committedRecords } from '../../subs/autonomous/src/run/committed-record
 import { fixtureTask } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { contractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
 import { architectureSchemas } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
-import { reviewSchemas } from '../reviews/records.js';
-import { reconciliationSchemas } from '../reviews/reconciliation.js';
-import { deviationSchemas } from '../../subs/autonomous/src/deviations/records.js';
+import { reviewSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
+import { reconciliationSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
+import { deviationSchemas } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
 import { initialAnalysisSubmissionSchema } from '../../subs/autonomous/subs/planning/src/submission.js';
 import { checkSubmissionSchema, intakeSubmissionSchema, principleSubmissionSchema } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
@@ -201,7 +202,7 @@ describe('the composed runs', () => {
     try {
       const active = run.service['runs'].get(`${plan}/${run.runId}`)!;
       // Scheduling is already admitted in this candidate-authority witness.
-      const admittedGates = new CommittingGates({ ...run.service['gateHost'](), awaitGateAdmission: async () => true });
+      const admittedGates = new CommittingGates({ ...run.service['gateHost'](active), awaitGateAdmission: async () => true });
       const ramify = run.service['options'].ramify;
       const query = vi.spyOn(ramify, 'queryOwnership');
       const git = run.service['git'];
@@ -212,7 +213,7 @@ describe('the composed runs', () => {
       for (const checkpoint of ['iteration', 'work-item', 'final'] as const) {
         query.mockClear();
         const id = `ga-09${checkpoint === 'iteration' ? '00' : checkpoint === 'work-item' ? '01' : '02'}`;
-        const attempt = await admittedGates.committingCheckpoint(active, {
+        const attempt = await admittedGates.committingCheckpoint( {
           id, runId: run.runId, checkpoint, projectRoot: run.root,
           directory: active.path(`gates/${id}`), head: 'source-01', policy: active.record.policy,
           subject: checkpoint === 'iteration' ? { workItem: 'wi-001', iteration: 'wi-001.i01' }
@@ -246,7 +247,7 @@ describe('the composed runs', () => {
     try {
       const active = run.service['runs'].get(`${plan}/${run.runId}`)!;
       // Scheduling is already admitted in this candidate-authority witness.
-      const admittedGates = new CommittingGates({ ...run.service['gateHost'](), awaitGateAdmission: async () => true });
+      const admittedGates = new CommittingGates({ ...run.service['gateHost'](active), awaitGateAdmission: async () => true });
       const query = vi.spyOn(run.service['options'].ramify, 'queryOwnership');
       const git = run.service['git'];
       const dirty = vi.spyOn(git, 'changedPaths');
@@ -256,7 +257,7 @@ describe('the composed runs', () => {
       const bytes = await readFile(join(run.root, config));
       await writeFile(join(external, 'same-config.json'), bytes);
       await rm(join(run.root, config)); await symlink(join(external, 'same-config.json'), join(run.root, config));
-      const feature = run.service['gates'].writtenFeatures(active)[0]!;
+      const feature = run.service['gates'](active).writtenFeatures()[0]!;
       const declaration = join(run.root, 'subs/workspace/subs/reviews/subs/notes/module.ramify');
       const originalDeclaration = await readFile(declaration, 'utf8');
       const variants = [config, feature.path, feature.path, feature.path, capturedPackage];
@@ -279,7 +280,7 @@ describe('the composed runs', () => {
         }
         dirty.mockResolvedValue([path]); query.mockClear();
         const id = `ga-091${index}`;
-        const attempt = await admittedGates.committingCheckpoint(active, {
+        const attempt = await admittedGates.committingCheckpoint( {
           id, runId: run.runId, checkpoint: 'work-item', projectRoot: run.root,
           directory: active.path(`gates/${id}`), head: 'source-01', policy: active.record.policy, subject: { workItem: 'wi-001' },
         });
@@ -334,13 +335,15 @@ describe('the composed runs', () => {
       const query = vi.spyOn(run.service['options'].ramify, 'queryOwnership');
       const request = { checkpoint: 'iteration' as const, subject: { workItem: grandparent.workItem, iteration: child.id } };
       query.mockClear();
-      const denied = await run.service['gates'].candidateAuthority(active, request);
+      const denied = await new CommittingGates(run.service['gateHost'](active)).candidateAuthority(request);
       expect(denied.rules.find(rule => rule.rule === 'write-scope')?.violations).toContainEqual(expect.objectContaining({ path }));
       expect(query).toHaveBeenCalledTimes(1);
       if (parent.coordination?.kind !== 'capability-task') throw new Error('Missing scripted parent coordination');
       parent.coordination.startingPaths[0]!.hash = currentHash;
       query.mockClear();
-      const permitted = await run.service['gates'].candidateAuthority(active, request);
+      // Each explicitly scripted authority projection gets its own detached reader.
+      // Mutating the fixture body cannot revise an already captured observation.
+      const permitted = await new CommittingGates(run.service['gateHost'](active)).candidateAuthority(request);
       expect(permitted.rules.find(rule => rule.rule === 'write-scope')?.outcome).toBe('passed');
       expect(query).toHaveBeenCalledTimes(1);
       replay.mockRestore(); dirty.mockRestore(); query.mockRestore();
@@ -1262,7 +1265,7 @@ describe('every value of every union has a producer', () => {
     const cited = new Map<string, Set<string>>();
     for (const entry of producedElsewhere) {
       expect(byName.has(entry.union), `no union is named ${entry.union}`).toBe(true);
-      const source = await readFile(join(packageRoot, entry.file), 'utf8');
+      const source = await readFile(join(packageRoot, currentTestFile(entry.file)), 'utf8');
       expect(titleLine(source, entry.test), `${entry.file} has no test named "${entry.test}"`).toBeDefined();
       for (const value of entry.values) {
         expect(byName.get(entry.union)!.site.values, `${entry.union} has no value ${value}`).toContain(value);
@@ -1406,7 +1409,7 @@ describe('the acceptance matrix, composed', () => {
           && evidence.file === 'subs/harness/src/tests/kpi-metrics.test.ts'
           ? 'subs/harness/subs/kpi/src/tests/metrics.test.ts'
           : evidence.file;
-        const path = join(packageRoot, currentFile);
+        const path = join(packageRoot, currentTestFile(currentFile));
         if (!existsSync(path)) {
           problems.push(`${entry.case}: ${currentFile} does not exist`);
           continue;

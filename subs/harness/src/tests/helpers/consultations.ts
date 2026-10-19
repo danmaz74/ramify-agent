@@ -9,13 +9,13 @@ import { defaultRunPolicy } from '../../run/policy.js';
 import { RunLog } from '../../../subs/autonomous/src/run/log.js';
 import { readSessionPointReference } from '../../../subs/task-execution/src/session-operations.js';
 import { WriterOwnership } from '../../../subs/task-execution/src/writer.js';
-import { ManualRun, manualRunner } from '../../steps/manual.js';
+import { ManualRun, manualRunner } from '../../../subs/task-workflow/src/steps/manual.js';
 import { kept } from '../../../subs/task-execution/src/results.js';
-import { type InvocationRequest } from '../../steps/runner.js';
-import { composeTaskBrief } from '../../../subs/autonomous/src/run/task-brief.js';
-import { consultationTool } from '../../consultations/tools.js';
+import { type InvocationRequest } from '../../../subs/task-workflow/src/steps/runner.js';
+import { composeTaskBrief } from '../../../subs/task-workflow/src/task-brief.js';
+import { consultationTool } from '../../../subs/autonomous/subs/work-coordination/src/consultations/tools.js';
 import type { TaskEnvironment } from '../../../subs/task-execution/src/delivery/packet.js';
-import type { ConsultationTarget } from '../../consultations/targets.js';
+import type { ConsultationTarget } from '../../../subs/autonomous/subs/work-coordination/src/consultations/targets.js';
 import { temporaryDirectory } from './fixture.js';
 import { mockGit } from './mock-git.js';
 

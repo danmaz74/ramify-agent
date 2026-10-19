@@ -6,8 +6,8 @@ import { loadArchitectIndex } from '../../subs/evidence/src/views.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
 import { loadPromptPackages } from '../prompts/packages.js';
 import { defaultRunPolicy } from '../run/policy.js';
-import { constructOrientationStep } from '../steps/local-architect.js';
-import { renderStep } from '../steps/render.js';
+import { constructOrientationStep } from '../../subs/task-workflow/src/steps/local-architect.js';
+import { renderStep } from '../../subs/task-workflow/src/steps/render.js';
 import { consultationFixture, answer, ask } from './helpers/consultations.js';
 import { localViewInputsOf } from '../../subs/autonomous/subs/work-coordination/src/work/view-inputs.js';
 

@@ -5,11 +5,9 @@ module kpi
 expose-src LineChange, LineSnapshot, LineEventRequest, takeLineSnapshot, lineEvents from "lines.ts" to parent
 
 // Scope accounting and factual delivered-support inputs used by collection/query consumers.
-expose-src DeclaredScope, baselineScope, scopeSize, revisionMismatch, rootModuleOfSnapshot, captureSnapshot, SnapshotRequest, deliveredScopeInputs, DeliveredSupportEntry, DeliveredSupportSource, DeliveredScopeInputs from "capture.ts" to parent
+expose-src DeclaredScope, baselineScope, scopeSize, revisionMismatch, rootModuleOfSnapshot, captureSnapshot, SnapshotRequest, deliveredScopeInputs, DeliveredSupportEntry, DeliveredSupportSource, DeliveredScopeInputs, InvocationScopeDeclaration, invocationReadSize, invocationScopeSize, invocationScopeFailure from "capture.ts" to parent
 
 // Invocation qualification receives facts; acquisition and timing stay with harness.
-expose-src InvocationScopeDeclaration, invocationReadSize, invocationScopeSize, invocationScopeFailure from "capture.ts" to parent
-
 // Pure provider behavior and all owner-local signature companions.
 expose-src verifySetupLineIdentities, SetupLineIdentityInput, RecordedSetupDelta, SetupCandidatePartition, SetupLineMappingFacts, SetupSourceLine, SetupAddedLineFact, SetupDeletedLineFact from "setup-attribution.ts" to parent
 expose-src HarnessLineIdentities, deliveredChange, DeliveredChangeRequest, DeliveredChange, cachedChangeHistory from "delivered.ts" to parent
@@ -20,4 +18,8 @@ expose-src lineageMetrics, lineagePolicyVersion, LineageInputs, SegmentFacts, Se
 expose-src explorationDetails, ExplorationObservation, ExplorationMetrics, SearchCount, SearchCounts from "exploration.ts" to parent
 expose-src invocationTiming, InvocationTiming, estimateRecordedCharge, ChargeInput, RecordedCharge from "efficiency.ts" to parent
 expose-src guardingReport, GuardingReport, GuardVerdictCounts from "guarding.ts" to parent
+
 // Session aggregation remains private; production projections use recorded facts.
+expose-src SnapshotId, LineEventSummary, MeasurementSnapshot, lineEventSummarySchema, measurementSnapshotSchema, snapshotId from "run-records.ts" to parent
+expose-src ownerOf from "measurement/owners.ts" to parent
+expose-src readScopeMeasurement, writeScopeMeasurement, supportDocument, invocationScope, declaredRoots, deliveredSupportEntries, deliveredManifestScopeInputs from "measurement/inputs.ts" to parent

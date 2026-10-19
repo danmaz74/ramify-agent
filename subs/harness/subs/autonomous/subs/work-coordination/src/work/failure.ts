@@ -4,7 +4,7 @@ import { failureCauseSchema, type FailureAnalysis, type Role } from '../../../..
 import type { TranscriptBody, TranscriptEntry } from '../../../../../../src/interfaces/protocol/transcripts.js';
 import type { EngineerBounds } from '../../../../../../src/run/policy.js';
 import type { CallInFlight } from '../../../../../task-execution/src/port-events.js';
-import type { LineEventSummary } from '../../../../src/run/records.js';
+import type { LineEventSummary } from '../../../../../kpi/src/run-records.js';
 import type { InvocationOutcome } from '../../../../../task-execution/src/records.js';
 import { validateAgainst, type SubmissionValidation } from '../../../../../task-execution/src/submissions.js';
 import type { FailureDigest } from './iterations.js';

@@ -23,7 +23,7 @@ import {
 import { placementDecisionFixture as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { commandResult } from './command-result.js';
 import { deleted, modified, scenarioGit, untracked, type GitResponses, type ScenarioGit } from './recovery-git.js';
-import { scriptedCandidates, type ScriptedCommit } from './candidates.js';
+import { scriptedCandidates, type ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import {
   staleCrashLock, freeze, installTestRunner, openRuns, shapeOnlyInputs, startRun, stopRun, testPolicy,
   type OpenRunsOptions,

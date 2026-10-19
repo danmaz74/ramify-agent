@@ -5,7 +5,7 @@ import { copyFixture } from '../../../../src/tests/helpers/fixture.js';
 import { analysis, entry } from '../../../../src/tests/helpers/analysis.js';
 import { byRole, submit, treeInputs } from '../../../../src/tests/helpers/iterations.js';
 import { mockGit } from '../../../../src/tests/helpers/mock-git.js';
-import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/acceptance/src/tests/helpers/candidates.js';
 import { openRuns, startRun, stopRun, until } from '../../../../src/tests/helpers/runs.js';
 import { runLayout } from '../run/records.js';
 

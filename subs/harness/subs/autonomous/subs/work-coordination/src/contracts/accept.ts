@@ -1,6 +1,6 @@
 import type { DurableRecordRef as RecordRef } from '../../../../../task-execution/src/records.js';
 import type { RecordRef as CommitRecord } from '../../../../../../src/jobs/commit.js';
-import type { TestSelectionPolicy } from '../../../../../../src/checks/records.js';
+import type { TestSelectionPolicy } from '../../../acceptance/src/checks/records.js';
 import { refOf } from '../../../../../../src/jobs/committed-reader.js';
 import { workLayout, workItemSchema, type WorkItem, type WorkItemId } from '../work/records.js';
 import {

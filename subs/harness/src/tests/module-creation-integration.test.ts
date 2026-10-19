@@ -9,8 +9,8 @@ import { assign, byRole, completionProposed, installMiniRunner, outline, submit,
 
 
 
-import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { installTestRunner, onlyRun, openRuns, realRamify, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 

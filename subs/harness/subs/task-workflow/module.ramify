@@ -1,0 +1,26 @@
+ramify 1
+module task-workflow
+
+// Authored task construction and managed/manual/standalone workflow entry points; policy remains separate from shared execution mechanics.
+expose-src runSessionCommand, SessionCommandOptions, SessionAgentChoice from "sessions/command.ts" to parent
+expose-src SingleSessionResult, SessionSummary, SessionProgress, SessionGateResult, runSingleSession, SingleSessionOptions from "sessions/single.ts" to parent
+expose-src runStepCommand, StepCommandOptions, StepCommandResult, runStepCommandWith from "steps/command.ts" to parent
+expose-src InvocationRequest, committedBody, invocationRecord, InvocationRunner, LiveInvocation, RunnerHost, RunnerRun, RestoredInvocation, RunnerWrite, StartedInvocation from "steps/runner.ts" to parent
+expose-src TaskKind, deliveredSupportPaths, buildTaskPacket, renderRequiredSlots, stableRoleInstructions, prepareTaskPackage, rejectSingleBracePlaceholders, taskKindFor from "prompts/tasks.ts" to parent
+expose-src constructEngineerStep, engineerStepInputsOf, ConstructedEngineerStep, StepEnvironment, EngineerInputFacts, EngineerStepStart from "steps/engineer.ts" to parent
+expose-src knownFactsInputs, ConstructedStepCommon, StepToolDeclaration, ConstructedStart from "steps/constructed.ts" to parent
+expose-src projectPath, stepInputsSchemaId, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs, EngineerStepInputs, KnownFactsInputs, OrientationStepInputs, ProjectPath, StepInputs, ReviewStepInputs, SelectorStepInputs, WorkTurnStepInputs, engineerStepInputsSchema, knownFactsSchema, orientationSchema, projectPathSchema, ReviewerStepInputs, LocalArchitectStepInputs, validateStepInputs, WorkBriefingInputs, reviewForkSchema, reviewFreshSchema, selectorForkSchema, selectorFreshSchema, workTurnContinuedSchema, workTurnFreshSchema, DesignOrientationStepInputs, workBriefingSchema, designOrientationSchema, parseStepInputs, serializeStepInputs from "steps/inputs.ts" to parent
+expose-src constructStep, freshFallback from "steps/construct.ts" to parent
+expose-src assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs, ConstructedWorkTurnStep, ConstructedOrientationStep, ConstructedSelectorStep, WorkTurnJudgement from "steps/local-architect.ts" to parent
+expose-src constructDesignOrientationStep, constructReviewStep, ConstructedDesignOrientationStep, ConstructedReviewStep from "steps/reviewer.ts" to parent
+expose-src manualRunLocationOf, ManualRun, manualRunner, ManualRunner from "steps/manual.ts" to parent
+expose-src manualRunRecordSchema, ManualRunRecord from "steps/records.ts" to parent
+expose-src KnownProjectFacts, composeTaskBrief, TaskBriefFacts from "task-brief.ts" to parent
+expose-src inputsFromRun, InputsFromRunOptions, InputsFromRunResult, DeliveryComparison from "steps/from-run.ts" to parent
+expose-src reviewInputsFromRequest, ReviewInputsFromRequestOptions, ReviewInputsFromRequestResult from "steps/review-step.ts" to parent
+expose-src runStepAfter, StepAfterOptions, StepAfterResult from "steps/after.ts" to parent
+expose-src runStepGate, StepGateOptions, StepGateResult, StepGateCheckpoint, stepGateCheckpoints from "steps/gate.ts" to parent
+expose-src runStep, StepRunOptions, StepRunResult, StepRunProgress, StepRunSummary, StepRunStart from "steps/run.ts" to parent
+expose-src renderStep, RenderedStep, RenderEnvironment from "steps/render.ts" to parent
+expose-src AuthoringPorts from "steps/authoring.ts" to parent
+expose-src AuthoredFiles, AuthoringContext from "steps/authored.ts" to parent

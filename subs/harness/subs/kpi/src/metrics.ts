@@ -1,6 +1,7 @@
 import type { Metric, Role } from '../../../src/interfaces/protocol/runs.js';
 import { rawOutputGapKinds, type Observation } from '../../task-execution/src/observations.js';
-import { roles, type LineEventSummary } from '../../autonomous/src/run/records.js';
+import { roles } from '../../autonomous/src/run/records.js';
+import { type LineEventSummary } from './run-records.js';
 import { type InvocationOutcome, type ScopeSize } from '../../task-execution/src/records.js';
 import { projectOnlySize, scopeSizePolicy } from './capture.js';
 import type { DeliveredChange } from './delivered.js';

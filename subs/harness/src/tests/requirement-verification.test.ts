@@ -7,7 +7,7 @@ import { localDecision, registryChange } from '../../subs/autonomous/subs/work-c
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>
@@ -15,7 +15,7 @@ vi.mock('node:child_process', async original =>
 import { remainingInjections } from '../../subs/autonomous/subs/work-coordination/src/contracts/verification.js';
 import type { ContractRecord } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import type { GateAttempt } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 
 /*
  * The guard this iteration owns: a requirement whose fake is still injected

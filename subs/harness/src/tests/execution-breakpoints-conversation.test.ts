@@ -10,7 +10,7 @@ import { assign, byRole, completionProposed, outline, submit, treeInputs } from 
 import { installTestRunner, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { openUnchangedRuns, assertUnchangedGit } from './helpers/unchanged-run.js';
-import { gate } from './helpers/reviews.js';
+import { gate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import type { ScriptStep } from '../../subs/agent/src/scripted.js';

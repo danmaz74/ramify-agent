@@ -23,7 +23,7 @@ import { forkNothingPossible } from '../../subs/autonomous/subs/work-coordinatio
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { localContext, registered as registeredEvent, reported, submissionHash } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/obligations.js';
 import { obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
-import { trackedScenarios } from '../../subs/autonomous/src/run/feature-files.js';
+import { trackedScenarios } from '../../subs/autonomous/subs/acceptance/src/feature-files.js';
 import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
 import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { readPointContext, readRecordedOperation } from '../../subs/task-execution/src/session-operations.js';

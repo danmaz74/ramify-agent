@@ -186,7 +186,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/nonfunctional-run.boundary.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/acceptance/src/tests/nonfunctional-run.boundary.test.ts",
       "boundary": "Actual audit and accepted Git tree for composed nonfunctional work",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -234,7 +234,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/single-session.boundary.test.ts",
+      "file": "subs/harness/subs/task-workflow/src/tests/single-session.boundary.test.ts",
       "boundary": "PB3-S04 actual permitted shell mutation versus protected candidate",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -374,7 +374,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/single-session-integration.test.ts",
+      "file": "subs/harness/subs/task-workflow/src/tests/single-session-integration.test.ts",
       "boundary": "Actual shell and completion command session",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -398,7 +398,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/review-snapshot.integration.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/acceptance/src/tests/review-snapshot.integration.test.ts",
       "boundary": "Actual audited Git objects versus subsequently changing live files",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -491,7 +491,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/engineer-api-preparation.boundary.test.ts",
+      "file": "subs/harness/subs/task-workflow/src/tests/engineer-api-preparation.boundary.test.ts",
       "boundary": "Installed materializer source-area refresh and descendant API generation",
       "whyFakeCannotProve": "The two cases compare actual generated API symbols and revisions before and after edits; literal metadata only qualifies decoder behavior.",
       "owningCases": [

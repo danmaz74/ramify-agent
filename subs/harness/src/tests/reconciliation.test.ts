@@ -8,17 +8,15 @@ import { CommandRejection } from '../jobs/commands.js';
 
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
-import { reconciliationLayout, type ReconciliationAssessment, type ReconciliationBasis } from '../reviews/reconciliation.js';
+import { reconciliationLayout, type ReconciliationAssessment, type ReconciliationBasis } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { requestCompletion } from './helpers/analysis.js';
-import { scriptedCandidates, testReviewPolicy, type ScriptedCommit } from './helpers/candidates.js';
+import { scriptedCandidates, testReviewPolicy, type ScriptedCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { assign, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { concern as boundConcern, decision, dispose, report } from './helpers/check-findings.js';
-import { gateGit } from './helpers/gate-git.js';
-import {
-  interceptOperations, candidates, eventsOf, finalReviewTree, gate, limit, notes, notesDirectory, plan, revisionGates, reviewRun, reviewTarget, store, tool, unchanged,
-} from './helpers/reviews.js';
+import { gateGit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
+import { interceptOperations, candidates, reviewEventsOf as eventsOf, finalReviewTree, gate, limit, notes, notesDirectory, plan, revisionGates, reviewRun, reviewTarget, store, tool, reviewUnchangedCommit as unchanged } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, testPolicy, until } from './helpers/runs.js';
 
 vi.mock('node:child_process', async original =>

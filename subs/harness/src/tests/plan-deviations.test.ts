@@ -9,7 +9,7 @@ import { runResponseSchema } from '../interfaces/protocol/runs.js';
 import { CommandRejection } from '../jobs/commands.js';
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import type { RunService } from '../run/lifecycle.js';
-import { deviationLayout, packageDeviation, type PlanDeviation } from '../../subs/autonomous/src/deviations/records.js';
+import { deviationLayout, packageDeviation, type PlanDeviation } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
 import { createPackage } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
 import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/records.js';
@@ -22,9 +22,9 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { forkDecision, forkDeviation, forkNothingPossible, registryChange, unresolved } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { eventsOf, limit, notes, notesDirectory, plan as reviewPlan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
+import { reviewEventsOf as eventsOf, limit, notes, notesDirectory, plan as reviewPlan, reviewRun, reviewTarget, store, tool } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
-import { reviewLayout, type ReviewRequest } from '../reviews/records.js';
+import { reviewLayout, type ReviewRequest } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unchanged-run.js';
 
 /*

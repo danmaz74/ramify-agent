@@ -3,12 +3,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { copyFixture } from './helpers/fixture.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { byRole, submit } from './helpers/iterations.js';
 import { emptyAnalysis, openRuns, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
-import { externalCandidatePath } from '../../subs/autonomous/src/run/candidate-attribution.js';
+import { externalCandidatePath } from '../../subs/autonomous/subs/acceptance/src/candidate-attribution.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { declaringScenarios } from './helpers/declarations.js';
 

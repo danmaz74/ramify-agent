@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import type { GateAttempt } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';

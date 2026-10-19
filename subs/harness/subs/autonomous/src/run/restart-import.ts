@@ -10,7 +10,8 @@ import { localArchitectToolName } from '../../subs/work-coordination/src/work/su
 
 import { reconciliationToolName } from '../../../reviews/src/reconciliation.js';
 import { carriedCheckFindings, runEventSchema, type RunEvent } from './log.js';
-import { gateOperationSchema, runRecordSchema, runLayout } from './records.js';
+import { gateOperationSchema } from '../../subs/acceptance/src/gate-records.js';
+import { runRecordSchema, runLayout } from './records.js';
 import { invocationWorkSchema } from '../../../task-execution/src/records.js';
 
 import { recoveryHash, recoveryIdentitySchema } from './recovery-admission.js';

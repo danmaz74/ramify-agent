@@ -20,9 +20,6 @@ expose-src ContentReader, ContentStore, StoredContent, openContentReader from "t
 expose-src TranscriptBodies, TranscriptBuild, TranscriptEntryInput, TranscriptRead, TranscriptWriter, TranscriptWriterOptions, TranscriptWriters, readBody, readTranscript from "transcripts/writer.ts" to parent
 expose-src ProcessGroups, Settlement, TreeObserver, WriterBlockedError, WriterOwnership, WriterOwnershipOptions, nodeProcessGroups from "writer.ts" to parent
 expose-test blobsIn, portEventsOf, transcribed from "helpers/transcripts.ts" to parent
-
-expose-src ArchitectRef, ContinueReason, ContinueRelation, DegradeRelation, ForkRelation, Invocation, InvocationId, InvocationOutcome, InvocationWork, ReplaceRelation, RequestRelation, ScopeComponent, ScopeSize, SessionFinishReason, SessionId, SessionPoint, architectRefSchema, continueReasonSchema, continueRelationSchema, degradeRelationSchema, forkReasonSchema, forkRelationSchema, globalForkSourceSchema, interruptionEvidenceSchema, invocationOutcomeSchema, invocationSchema, invocationUsageSchema, invocationWorkSchema, recordRefSchema, replaceReasonSchema, replaceRelationSchema, requestReasonSchema, requestRelationSchema, runSessionFinishReasonSchema, scopeComponentSchema, scopeSizeSchema, sessionIdSchema, sessionModeSchema, sessionOperationLinkSchema, sessionPointSchema from "records.ts" to parent
-expose-src DurableRecordRef from "records.ts" to parent
-expose-src TaskSessionMode from "records.ts" to parent
-expose-src invocationRecords from "committed.ts" to parent
-expose-src InvocationRecords from "committed.ts" to parent
+expose-src ArchitectRef, ContinueReason, ContinueRelation, DegradeRelation, ForkRelation, Invocation, InvocationId, InvocationOutcome, InvocationWork, ReplaceRelation, RequestRelation, ScopeComponent, ScopeSize, SessionFinishReason, SessionId, SessionPoint, architectRefSchema, continueReasonSchema, continueRelationSchema, degradeRelationSchema, forkReasonSchema, forkRelationSchema, globalForkSourceSchema, interruptionEvidenceSchema, invocationOutcomeSchema, invocationSchema, invocationUsageSchema, invocationWorkSchema, recordRefSchema, replaceReasonSchema, replaceRelationSchema, requestReasonSchema, requestRelationSchema, runSessionFinishReasonSchema, scopeComponentSchema, scopeSizeSchema, sessionIdSchema, sessionModeSchema, sessionOperationLinkSchema, sessionPointSchema, DurableRecordRef, TaskSessionMode from "records.ts" to parent
+expose-src invocationRecords, InvocationRecords from "committed.ts" to parent
+expose-src contextPolicySchema from "context-records.ts" to parent

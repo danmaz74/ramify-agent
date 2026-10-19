@@ -6,7 +6,7 @@ import { workItemOutlineSchema } from '../../subs/work-coordination/src/work/rec
 import { iterationAssignmentSchema } from '../../subs/work-coordination/src/work/iterations.js';
 import { committedRecords } from './committed-records.js';
 import { CommittedRecordError } from '../../../../src/jobs/committed-reader.js';
-import { gateAttemptSchema, gateAuditOutcomeSchema } from './records.js';
+import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../subs/acceptance/src/gate-records.js';
 import { entryAssignmentsSchema } from '../../subs/planning/src/records.js';
 
 // Durable families admitted by the harness. This was formerly held by the

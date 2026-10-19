@@ -3,9 +3,9 @@ import { posix } from 'node:path';
 import type { CheckFindingLocation, CheckFindingReportCredibility } from '../../check-findings/src/interfaces/check-findings.js';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import type { ArchitectIndex, ModuleEntry } from '../../evidence/src/views.js';
-import { ownerOf } from '../../../src/measurement/owners.js';
+import { ownerOf } from '../../kpi/src/measurement/owners.js';
 import type { CandidateSnapshot } from './snapshot.js';
-import { parseModuleHeader } from '../../autonomous/src/run/module-header.js';
+import { parseModuleHeader } from '../../evidence/src/module-header.js';
 
 /*
  * What the harness binds to a reviewer's concern besides its words: the

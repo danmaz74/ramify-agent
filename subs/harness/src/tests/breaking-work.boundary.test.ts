@@ -2,7 +2,7 @@ import { stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { gateDiagnostics } from '../checks/diagnostics.js';
+import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
 
 
 

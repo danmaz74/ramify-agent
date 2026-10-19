@@ -7,7 +7,7 @@ import { ProjectionError } from '../../../subs/projections/src/inputs.js';
 import { commitRecord } from '../../jobs/commit.js';
 import { RunLog } from '../../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
-import { authenticateRepairHistory, RepairHistoryError } from '../../../subs/autonomous/src/run/repair-history.js';
+import { authenticateRepairHistory, RepairHistoryError } from '../../../subs/autonomous/subs/work-coordination/src/repair/repair-history.js';
 import { repairIncidentRecordSchema } from '../../interfaces/protocol/repairs.js';
 import { runRepairExportCommandWith } from '../../../subs/autonomous/src/run/repair-export-command.js';
 import { repairExportPayloadPath } from '../../../subs/autonomous/src/run/repair-export.js';

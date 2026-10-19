@@ -1,0 +1,368 @@
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import type { BuiltinTool, WriteTool } from '../../../agent/src/interfaces/port.js';
+import { piBuiltinDeclarations } from '../../../agent/subs/pi/src/session-operations.js';
+import { effectiveBlocks } from '../../../task-execution/src/delivery/blocks.js';
+import { composeWorkflowOperationPacket as composeOperationPacket } from '../../../../src/prompts/session-adapter.js';
+import { type PointContext } from '../../../task-execution/src/session-operations.js';
+import { loadPromptPackages } from '../../../../src/prompts/packages.js';
+import { runLayout } from '../../../autonomous/src/run/records.js';
+import { runStepCommand } from '../steps/command.js';
+import { constructStep } from '../steps/construct.js';
+import { constructEngineerStep } from '../steps/engineer.js';
+import { inputsFromRun } from '../steps/from-run.js';
+import { parseStepInputs, serializeStepInputs, type StepInputs } from '../steps/inputs.js';
+import { renderStep } from '../steps/render.js';
+import { repairContinuationRun, type RepairRun } from '../../../../src/tests/helpers/repair-run.js';
+import { runEventsOnDisk, runPath } from '../../../../src/tests/helpers/runs.js';
+
+/*
+ * S03: one engineer invocation imported from a run, from the inputs the run
+ * recorded. S04: `render` prints what a step's session receives, without a
+ * lock or a write.
+ */
+
+const cleanups: Array<() => Promise<void>> = [];
+afterAll(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
+
+let run: RepairRun;
+let directory: string;
+let freshId: string;
+let repairId: string;
+let architectId: string;
+let scratch: string;
+beforeAll(async () => {
+  run = await repairContinuationRun(cleanups);
+  directory = runPath(run.root, run.planId, run.runId);
+  const started = (await runEventsOnDisk(run.root, run.planId, run.runId)).flatMap(event => event.type === 'invocation-started' ? [event.data] : []);
+  [freshId, repairId] = started.filter(item => item.role === 'engineer').map(item => item.invocation) as [string, string];
+  architectId = started.find(item => item.role === 'local-architect')!.invocation;
+  scratch = await mkdtemp(join(tmpdir(), 'ramify-agent-steps-'));
+  cleanups.push(() => rm(scratch, { recursive: true, force: true }));
+}, 300_000);
+
+const imported = (invocation: string, options: { role?: string; runDirectory?: string } = {}) => inputsFromRun({
+  role: options.role ?? 'engineer', runDirectory: options.runDirectory ?? directory, invocation, builtinDeclarations: piBuiltinDeclarations,
+});
+
+/** Every file beneath a directory with its size and modification time. */
+async function tree(root: string): Promise<string[]> {
+  const entries = await readdir(root, { recursive: true, withFileTypes: true });
+  return Promise.all(entries.filter(entry => entry.isFile() || entry.isSymbolicLink()).map(async entry => {
+    const path = join(entry.parentPath, entry.name);
+    const info = await stat(path).catch(() => null);
+    return `${path} ${info?.size ?? 'dangling'} ${info?.mtimeMs ?? ''}`;
+  })).then(items => items.sort());
+}
+
+describe('S03: inputs from a run', () => {
+  test('fresh and continued capability engineers retain explicit binding-discovery limitations even without assigned features', async () => {
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
+    for (const invocation of [freshId, repairId]) {
+      const result = await imported(invocation);
+      if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected recorded engineer inputs');
+      const inputs = { ...result.recorded, capabilityWorkflow: true, assignment: { ...result.recorded.assignment, obligations: ['cap-001.case.binding'] },
+        focused: { featurePaths: [], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'No exact assigned feature files were selected' } } };
+      const step = constructEngineerStep(inputs, { projectRoot: run.root, packages });
+      const discovery = step.brief.sections.find(section => section.key === 'support:cucumber-discovery');
+      expect(discovery?.text).toContain('Configuration/support discovery evidence unavailable: No exact assigned feature files were selected');
+      expect(discovery?.text).toContain('declared check/configuration pointers');
+      expect(JSON.parse(step.brief.environment.cucumberConfiguration!)).toEqual({ kind: 'unavailable', reason: 'No exact assigned feature files were selected' });
+      expect(step.prompt).toContain('Cucumber feature check unavailable: No exact assigned feature files were selected');
+      expect(step.start.mode).toBe(invocation === freshId ? 'fresh' : 'continue');
+    }
+  });
+
+  test('captured exact feature selection retains provenance and meaning when rendered standalone', async () => {
+    const result = await imported(freshId);
+    if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected engineer inputs');
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
+    const file = 'src/tests/features/entry-preview.feature';
+    const featureSelection = { files: [file], reason: 'Pending preview capability evidence' };
+    const inputs = { ...result.recorded, capabilityWorkflow: true,
+      assignment: { ...result.recorded.assignment, featureSelection, obligations: ['cap-001'] },
+      known: { ...result.recorded.known, projectFeatureRegistry: [{ project: file }], scenarioFeatures: [{ project: file }] },
+      focused: { featurePaths: [{ project: file }], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'Unsupported declared wrapper' } } };
+    const step = constructEngineerStep(parseStepInputs(serializeStepInputs(inputs)), { projectRoot: run.root, packages });
+    expect(step.inputs.assignment.featureSelection).toEqual(featureSelection);
+    expect(step.prompt).toContain(featureSelection.reason);
+    expect(step.prompt).toContain('Assignment authority:');
+    expect(step.prompt).toContain('Unsupported declared wrapper');
+    expect(step.prompt).toContain('zero executed cases establishes no scenario acceptance');
+    expect(() => constructEngineerStep({ ...inputs, known: { ...inputs.known, projectFeatureRegistry: [], scenarioFeatures: [] } }, { projectRoot: run.root, packages })).toThrow('unknown or stale');
+    expect(() => constructEngineerStep({ ...inputs, focused: { ...inputs.focused, featurePaths: [] } }, { projectRoot: run.root, packages })).toThrow('omit an explicitly selected');
+    expect(() => constructEngineerStep({ ...inputs, focused: { ...inputs.focused, featurePaths: [{ project: file }, { project: 'src/tests/features/unselected.feature' }] } }, { projectRoot: run.root, packages })).toThrow('not selected by the assignment');
+  });
+
+  test('capability binding discovery exposes known global support through the existing current configuration facts', async () => {
+    const result = await imported(freshId);
+    if (result.status !== 'imported' || result.recorded.role !== 'engineer') throw new Error('Expected recorded engineer inputs');
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: true });
+    const configurationIdentity = 'a'.repeat(64);
+    const step = constructEngineerStep({ ...result.recorded, capabilityWorkflow: true, focused: {
+      featurePaths: [], sourceFiles: { 'cucumber.json': 'b'.repeat(64) },
+      command: { kind: 'available', cwd: run.root, environment: {}, argv: ['cucumber-js'], shellCommand: 'cucumber-js',
+        configPath: join(run.root, 'focused.json'), configText: '{}', configurationIdentity, sourceIdentity: 'b'.repeat(64),
+        selection: { cwd: run.root, config: join(run.root, 'focused.json'), profile: 'focused', paths: [], configurationIdentity },
+        support: { import: ['src/tests/support/**/*.ts'], loader: ['tsx'], worldParameters: {} } },
+    } }, { projectRoot: run.root, packages });
+    expect(step.brief.sections.find(section => section.key === 'support:cucumber-discovery')?.text).toContain('globally loaded support/world/loader pointers');
+    const facts = JSON.parse(step.brief.environment.cucumberConfiguration!);
+    expect(facts.sourceFiles['cucumber.json']).toBe('b'.repeat(64));
+    expect(facts).not.toHaveProperty('argv');
+    expect(facts.support).toEqual({ import: ['src/tests/support/**/*.ts'], loader: ['tsx'], worldParameters: {} });
+    const fresh = await renderStep(step, { projectRoot: run.root, packages, builtinDeclarations: piBuiltinDeclarations, operationId: 'discovery-fresh' });
+    expect(fresh.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain('src/tests/support/**/*.ts');
+    expect(fresh.packet.message.split('\ncucumber-js\n')).toHaveLength(2);
+    expect(fresh.packet.message).toContain('# Prepared Cucumber feature check');
+    expect(fresh.packet.message).toContain('It selects whole files, so it can also run cases outside your assignment.');
+    expect(fresh.packet.message).toContain('sourceFiles contains hashes, not file contents');
+    const repair = await imported(repairId);
+    if (repair.status !== 'imported' || repair.recorded.role !== 'engineer') throw new Error('Expected repair engineer inputs');
+    const inheritedPackages = (await loadPromptPackages({ capabilityWorkflow: repair.recorded.capabilityWorkflow })).packages;
+    const continuedStep = constructEngineerStep({ ...step.inputs, capabilityWorkflow: repair.recorded.capabilityWorkflow, start: repair.recorded.start, failedGate: repair.recorded.failedGate }, { projectRoot: run.root, packages: inheritedPackages });
+    const continued = await renderStep(continuedStep, { projectRoot: run.root, packages: inheritedPackages, builtinDeclarations: piBuiltinDeclarations, operationId: 'discovery-repair',
+      sessionOperations: join(run.root, 'plans', '.harness', 'session-operations') });
+    expect(continued.rendered).toBe('continuation');
+    expect(continued.packet.additions.some(item => item.kind === 'role-instructions')).toBe(false);
+    expect(continued.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain(configurationIdentity);
+
+    const point = { sessionId: 'discovery-session', kind: 'turn' as const, turn: 1, checkpoint: 'discovery-1' };
+    const compose = (current: typeof step, operationId: string, prior: PointContext | null) => composeOperationPacket({
+      runId: run.runId, operationId, loaded: current.loaded, brief: current.brief, role: current.role,
+      mode: prior === null ? 'fresh' : 'continue', workingDirectory: current.equipment.workingDirectory,
+      builtinDeclarations: piBuiltinDeclarations(current.equipment.builtinTools, current.equipment.workingDirectory),
+      tools: current.equipment.tools, submissionName: current.submission.toolName, source: prior?.point ?? null, prior,
+    });
+    const first = compose(step, 'discovery-available', null);
+    const prior: PointContext = { point, inherited: first.packet.additions, history: first.history, revision: first.current.revision };
+    const repairInputs = { ...step.inputs, assignment: { ...step.inputs.assignment, obligations: ['cap-001.case.binding'] }, focused: { featurePaths: [], sourceFiles: {}, command: { kind: 'unavailable' as const, reason: 'Current configuration cannot be read' } } };
+    const unavailable = constructEngineerStep(repairInputs, { projectRoot: run.root, packages });
+    const withdrawn = compose(unavailable, 'discovery-unavailable', prior);
+    expect(withdrawn.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.text).toContain('Current configuration cannot be read');
+    const unavailableBlocks = effectiveBlocks([...prior.inherited, ...withdrawn.packet.additions]);
+    expect(unavailableBlocks.get('environment:cucumberConfiguration')?.text).not.toContain('src/tests/support/**/*.ts');
+    expect(unavailableBlocks.get('brief:support:cucumber-discovery')?.text).toContain('Current configuration cannot be read');
+    expect([...unavailableBlocks.values()].map(item => item.text).join('\n')).not.toContain('# Prepared Cucumber feature check');
+    const inapplicable = constructEngineerStep({ ...repairInputs, scenarios: undefined, assignment: { ...repairInputs.assignment, obligations: [] } }, { projectRoot: run.root, packages });
+    expect(inapplicable.brief.environment.cucumberConfiguration).toBeNull();
+    expect(inapplicable.prompt).not.toContain('Cucumber feature check unavailable');
+    expect(inapplicable.brief.sections.some(section => section.key === 'support:cucumber-discovery')).toBe(false);
+    // Current role remains pinned; the inapplicable environment withdraws old discovery facts.
+    const updatedPrior: PointContext = { point, inherited: [...prior.inherited, ...withdrawn.packet.additions], history: withdrawn.history, revision: withdrawn.current.revision };
+    const removed = compose(inapplicable, 'discovery-inapplicable', updatedPrior);
+    expect(removed.packet.additions.find(item => item.key === 'environment:cucumberConfiguration')?.block?.effect).toBe('remove');
+    const currentBlocks = effectiveBlocks([...updatedPrior.inherited, ...removed.packet.additions]);
+    expect(currentBlocks.has('environment:cucumberConfiguration')).toBe(false);
+    expect(currentBlocks.has('brief:support:cucumber-discovery')).toBe(false);
+    const effectiveText = [...currentBlocks.values()].map(item => item.text).join('\n');
+    expect(effectiveText).not.toContain('# Prepared Cucumber feature check');
+    expect(effectiveText).not.toContain('Cucumber feature check unavailable');
+
+
+  });
+
+  test('a fresh invocation is imported from its recorded inputs and renders equal', async () => {
+    const result = await imported(freshId);
+    if (result.status !== 'imported') throw new Error(result.reason);
+    expect(result.projectRoot).toBe(run.root);
+    expect(result.comparison).toEqual({ status: 'equal' });
+    expect(result.recorded).toEqual(parseStepInputs(await readFile(join(directory, runLayout.stepInputs(freshId)), 'utf8')));
+    expect(result.inputs.start).toEqual({ kind: 'fresh' });
+    if (result.inputs.role === 'engineer') {
+      expect(result.inputs.consultation?.assigning).toBeUndefined();
+      expect(result.inputs.consultation?.provenance?.assigning).toEqual(result.recorded.role === 'engineer' ? result.recorded.consultation?.assigning : undefined);
+      expect(result.inputs.consultation?.unavailable).toContain('import no architect provider history');
+    }
+    expect(result.inputs.provenance).toEqual({ run: result.recorded.run, invocation: freshId, record: { run: runLayout.stepInputs(freshId) }, originalStart: 'fresh' });
+  });
+
+  test('an imported continuation is a complete fresh briefing with its original start as provenance and no provider history', async () => {
+    const result = await imported(repairId);
+    if (result.status !== 'imported') throw new Error(result.reason);
+    // The recorded start renders the delivery the run made.
+    expect(result.comparison).toEqual({ status: 'equal' });
+    expect(result.recorded.start.kind).toBe('repair-continuation');
+    if (result.recorded.start.kind === 'fresh') throw new Error('unreachable');
+    expect(result.inputs.start).toEqual({ kind: 'fresh' });
+    expect(result.inputs.provenance).toMatchObject({ invocation: repairId, originalStart: 'repair-continuation', originalPoint: result.recorded.start.point });
+    if (result.inputs.role !== 'engineer' || result.recorded.role !== 'engineer') throw new Error('unreachable');
+    expect(result.inputs.failedGate).toEqual(result.recorded.failedGate);
+
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: result.inputs.capabilityWorkflow });
+    const rendered = await renderStep(constructEngineerStep(result.inputs, { projectRoot: run.root, packages }), {
+      projectRoot: run.root, packages, builtinDeclarations: piBuiltinDeclarations, operationId: repairId,
+      sessionOperations: join(run.root, 'plans', '.harness', 'session-operations'),
+    });
+    expect(rendered.rendered).toBe('fresh');
+    expect(rendered.packet.manifest.inheritedPoint ?? null).toBeNull();
+    expect(rendered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(true);
+    // The failed gate the repair continued from is part of the complete briefing.
+    expect(rendered.packet.message).toContain('## The gate did not pass');
+    expect(rendered.packet.message).toContain('Attempt `ga-0002` (check-failed)');
+  });
+
+  test('a differing rendering is reported, never a reason to refuse the import', async () => {
+    const scripted = (names: readonly (BuiltinTool | WriteTool)[]) => names.map(name => ({ name, description: `Scripted ${name}`, inputSchema: { type: 'object' }, mutating: false }));
+    const result = await inputsFromRun({ role: 'engineer', runDirectory: directory, invocation: freshId, builtinDeclarations: scripted });
+    expect(result.status).toBe('imported');
+    if (result.status !== 'imported') return;
+    expect(result.comparison).toEqual({ status: 'different', sections: ['message: environment:availableTools', 'tool declaration: read', 'tool declaration: grep', 'tool declaration: ls', 'tool declaration: edit', 'tool declaration: write', 'tool declaration: subagent (removed)'] });
+  });
+
+  test('other roles, unknown invocations and incomplete task records are refused with the reason', async () => {
+    expect(await imported(freshId, { role: 'failure-analyst' })).toEqual({ status: 'refused', reason: expect.stringContaining('no step inputs are defined for the role "failure-analyst"') });
+    expect(await imported(architectId)).toEqual({ status: 'refused', reason: expect.stringContaining(`invocation ${architectId} is a local-architect invocation, not engineer`) });
+    expect(await imported('inv-9999')).toEqual({ status: 'refused', reason: 'the run records no invocation inv-9999' });
+    expect(await imported('../inv-0001')).toEqual({ status: 'refused', reason: expect.stringContaining('is not an invocation id') });
+    expect(await imported(freshId, { runDirectory: run.root })).toEqual({ status: 'refused', reason: expect.stringContaining('is not a run directory') });
+    const path = join(directory, runLayout.stepInputs(freshId));
+    const bytes = await readFile(path, 'utf8');
+    await rm(path);
+    try {
+      expect(await imported(freshId)).toEqual({ status: 'refused', reason: expect.stringMatching(/^incomplete task records: invocation .* has no recorded step inputs/u) });
+      await writeFile(path, bytes.replace('"engineer"', '"reviewer"'));
+      expect(await imported(freshId)).toEqual({ status: 'refused', reason: expect.stringMatching(/^incomplete task records: .* is not valid step inputs/u) });
+    } finally {
+      await writeFile(path, bytes);
+    }
+  });
+
+  test('the command writes the imported inputs and prints the comparison', async () => {
+    const out = join(scratch, 'imported.json');
+    const result = await runStepCommand({ command: 'inputs', role: 'engineer', fromRun: directory, invocation: repairId, out });
+    expect(result.exitStatus).toBe(0);
+    expect(result.stderr).toContain('original start repair-continuation');
+    expect(result.stderr).toContain('Recorded delivery: equal');
+    const written = parseStepInputs(await readFile(out, 'utf8'));
+    expect(written.start.kind).toBe('fresh');
+    const refused = await runStepCommand({ command: 'inputs', role: 'failure-analyst', fromRun: directory, invocation: architectId });
+    expect(refused).toMatchObject({ exitStatus: 2, stdout: '', stderr: expect.stringMatching(/^Refused: no step inputs are defined for the role "failure-analyst"/u) });
+  });
+});
+
+describe('S08: local architect and reviewer inputs from a run', () => {
+  test('orientation, selection and work turns import as complete fresh starts that keep their original start as provenance', async () => {
+    const started = (await runEventsOnDisk(run.root, run.planId, run.runId)).flatMap(event => event.type === 'invocation-started' ? [event.data] : []);
+    const starts: string[] = [];
+    for (const { invocation, role } of started.filter(item => item.role === 'local-architect' || item.role === 'context-selector')) {
+      const result = await imported(invocation, { role });
+      if (result.status !== 'imported') throw new Error(result.reason);
+      expect(result.comparison, invocation).toEqual({ status: 'equal' });
+      const recorded = result.recorded;
+      starts.push(`${recorded.role}/${'phase' in recorded ? recorded.phase : 'selection'}/${recorded.start.kind}`);
+      expect(result.inputs.start.kind).toBe('fresh');
+      expect(result.inputs.provenance).toMatchObject({ invocation, originalStart: recorded.start.kind,
+        ...(recorded.start.kind === 'fresh' ? {} : { originalPoint: recorded.start.point }) });
+      const { packages } = await loadPromptPackages({ capabilityWorkflow: result.inputs.capabilityWorkflow });
+      const constructed = constructStep(result.inputs, { projectRoot: run.root, packages });
+      const rendered = await renderStep(constructed, {
+        projectRoot: run.root, packages, builtinDeclarations: piBuiltinDeclarations, operationId: invocation,
+        sessionOperations: join(run.root, 'plans', '.harness', 'session-operations'),
+      });
+      // The imported turn delivers the complete briefing, whatever the original start delivered.
+      expect(rendered.rendered).toBe('fresh');
+      expect(rendered.packet.additions.some(item => item.kind === 'role-instructions')).toBe(true);
+      if (recorded.role === 'context-selector') {
+        // The selector's workspace is empty, so the captured plan is named by its absolute path.
+        const captured = `the captured file is \`${join(directory, runLayout.capturedPlan)}\``;
+        expect(constructed.prompt).toContain(captured);
+        expect((constructed as { freshPrompt?: string }).freshPrompt).toContain(captured);
+      }
+      if (recorded.role === 'context-selector' && recorded.start.kind === 'fork') {
+        // A fork's imported start is briefed from the complete packet, not the fork's update.
+        expect(constructed.brief.retainInheritedSections).toBeUndefined();
+        expect(constructed.prompt).toContain((recorded as { packet: string }).packet);
+      }
+    }
+    expect(starts).toEqual(expect.arrayContaining(['local-architect/orientation/fresh', 'context-selector/selection/fork', 'local-architect/work-turn/continued']));
+  });
+
+  test('a work turn given its orientation\'s views lists them as the orientation does', async () => {
+    const started = (await runEventsOnDisk(run.root, run.planId, run.runId)).flatMap(event => event.type === 'invocation-started' ? [event.data] : []);
+    const inputs: StepInputs[] = [];
+    for (const { invocation } of started.filter(item => item.role === 'local-architect')) {
+      const result = await imported(invocation, { role: 'local-architect' });
+      if (result.status !== 'imported') throw new Error(result.reason);
+      inputs.push(result.inputs);
+    }
+    const orientation = inputs.find(item => 'phase' in item && item.phase === 'orientation') as Extract<StepInputs, { phase: 'orientation' }>;
+    const turn = inputs.find(item => 'phase' in item && item.phase === 'work-turn') as Extract<StepInputs, { phase: 'work-turn' }>;
+    const { packages } = await loadPromptPackages({ capabilityWorkflow: turn.capabilityWorkflow });
+    const environment = { projectRoot: run.root, packages };
+    const views = [{ path: { project: 'subs/reviews/src/.ramify/external' }, revision: 'rev/1:r:2', modules: ['app/reviews'],
+      coverage: ['one source-analysis limit that may have left a received API out of this view, so absence is not proof of unavailability', 'cut: 1, one record with truncated detail: `a.ts#A` (signature)'] }];
+    const oriented = constructStep({ ...orientation, architectView: views }, environment);
+    const given = constructStep({ ...turn, architectView: views }, environment);
+    expect(given.brief.environment.views).toEqual(oriented.brief.environment.views);
+    expect(given.brief.environment.views[0]!.path).toBe(join(run.root, 'subs/reviews/src/.ramify/external'));
+    // Inputs without the listing keep the briefing's views, each coverage count stated as what it means.
+    const briefed = constructStep(turn, environment);
+    const evidence = turn.briefing.views.evidence as { views: { path: string; coverage: number | null }[] } | null;
+    expect(briefed.brief.environment.views.map(view => view.path)).toEqual((evidence?.views ?? []).map(view => view.path));
+    for (const view of briefed.brief.environment.views) expect(view.coverage.every(line => !/^\d+ coverage limits$/u.test(line))).toBe(true);
+  });
+
+  test('a role or a start outside the first set is refused with its reason', async () => {
+    const started = (await runEventsOnDisk(run.root, run.planId, run.runId)).flatMap(event => event.type === 'invocation-started' ? [event.data] : []);
+    const initial = started.find(item => item.role === 'initial-architect')!.invocation;
+    expect(await imported(initial, { role: 'initial-architect' })).toEqual({ status: 'refused', reason: expect.stringContaining('no step inputs are defined for the role "initial-architect"') });
+    const orientation = architectId;
+    const path = join(directory, runLayout.stepInputs(orientation));
+    const bytes = await readFile(path, 'utf8');
+    try {
+      // An orientation is a fresh start only.
+      const recorded = JSON.parse(bytes) as { start: unknown };
+      await writeFile(path, JSON.stringify({ ...recorded, start: { kind: 'continued', point: 'not-a-point' } }));
+      expect(await imported(orientation, { role: 'local-architect' })).toEqual({ status: 'refused', reason: expect.stringContaining('start.kind: expected one of "fresh"') });
+    } finally {
+      await writeFile(path, bytes);
+    }
+  });
+});
+
+describe('S04: render', () => {
+  test('a fresh start prints its role instructions, message, every tool declaration and the submission schema, writing nothing', async () => {
+    const result = await imported(repairId);
+    if (result.status !== 'imported') throw new Error(result.reason);
+    const file = join(scratch, 'fresh.json');
+    await writeFile(file, serializeStepInputs(result.inputs));
+    const before = await tree(run.root);
+    const printed = await runStepCommand({ command: 'render', inputs: file, projectRoot: run.root });
+    expect(await tree(run.root)).toEqual(before);
+    expect(printed.exitStatus).toBe(0);
+    const text = printed.stdout;
+    for (const heading of ['==== Role instructions ====', '==== Message ====', '==== Tool declarations (8) ====', '==== Submission schema (submit_iteration_result) ====']) {
+      expect(text).toContain(heading);
+    }
+    for (const tool of ['read', 'grep', 'ls', 'edit', 'write', 'subagent', 'shell', 'submit_iteration_result']) expect(text).toContain(`--- ${tool}`);
+    expect(text).toContain('Attempt `ga-0002` (check-failed)');
+    expect(text).not.toContain('Continuation additions only');
+  });
+
+  test('a continuation prints its additions alone, marked as such', async () => {
+    const file = join(scratch, 'continuation.json');
+    const recorded: StepInputs = parseStepInputs(await readFile(join(directory, runLayout.stepInputs(repairId)), 'utf8'));
+    await writeFile(file, serializeStepInputs(recorded));
+    const before = await tree(run.root);
+    const printed = await runStepCommand({ command: 'render', inputs: file, projectRoot: run.root, invocation: repairId });
+    expect(await tree(run.root)).toEqual(before);
+    expect(printed.stdout).toContain('==== Continuation additions only');
+    expect(printed.stdout).not.toContain('==== Role instructions ====');
+    expect(printed.stdout).not.toContain('==== Tool declarations');
+    expect(printed.stdout).toContain('==== Submission schema (submit_iteration_result) ====');
+    // Without the session's recorded ancestry the continuation renders as the fresh start the run would fall back to.
+    const elsewhere = await runStepCommand({ command: 'render', inputs: file, projectRoot: scratch, invocation: repairId });
+    expect(elsewhere.stdout).toContain('Rendered as the complete fresh start the run falls back to');
+    expect(elsewhere.stdout).toContain('==== Role instructions ====');
+  });
+
+  test('invalid inputs are refused', async () => {
+    const file = join(scratch, 'invalid.json');
+    await writeFile(file, JSON.stringify({ schema: 'ramify-agent.step-inputs/1', role: 'engineer', start: { kind: 'fresh' } }));
+    expect(await runStepCommand({ command: 'render', inputs: file, projectRoot: run.root })).toMatchObject({ exitStatus: 2, stderr: expect.stringContaining('Refused: Invalid step inputs') });
+    expect(await runStepCommand({ command: 'render', inputs: join(scratch, 'missing.json'), projectRoot: run.root })).toMatchObject({ exitStatus: 2 });
+  });
+});

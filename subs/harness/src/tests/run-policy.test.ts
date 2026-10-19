@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { ramifyExecutable } from '../../subs/evidence/src/ramify-cli.js';
-import { checkpointPolicies, diagnosisChecks } from '../checks/checkpoint.js';
+import { checkpointPolicies, diagnosisChecks } from '../../subs/autonomous/subs/acceptance/src/checks/checkpoint.js';
 import { commandTimeouts, defaultLimits, defaultRunPolicy } from '../run/policy.js';
 import { runPolicySchema } from '../../subs/autonomous/src/run/records.js';
 import { RunService, type RunServiceOptions } from '../run/lifecycle.js';

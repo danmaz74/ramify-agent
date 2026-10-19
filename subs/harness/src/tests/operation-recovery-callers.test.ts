@@ -20,13 +20,12 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
-import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
+import { nfrBoundaries } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/nonfunctional-boundaries.js';
 import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
-import { reviewScript, reviewTarget, candidates as reviewCandidates, revisionGates, base as reviewBase,
-  materialized as reviewMaterialized, store, notes, attemptRecord } from './helpers/reviews.js';
-import { gateGit, gateScenariosCommitFixture as gateScenariosCommit } from './helpers/gate-git.js';
-import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
+import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
+import { reviewScript, reviewTarget, candidates as reviewCandidates, revisionGates, base as reviewBase, materialized as reviewMaterialized, store, notes, attemptRecord } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
+import { gateGit, gateScenariosCommitFixture as gateScenariosCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
+import { scriptedCandidates, testReviewPolicy } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { copyCapabilityFixture, openCapabilityRuns } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { capabilityFlowBoundaries } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability-flow-boundaries.js';

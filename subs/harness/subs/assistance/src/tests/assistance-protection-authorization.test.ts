@@ -11,7 +11,7 @@ import { finalizeApproval } from '../approval.js';
 import { createAssessor } from '../assessment.js';
 import { AssistanceService } from '../service.js';
 import type { AssistedProtection } from '../contracts.js';
-import { scriptedCandidates, type ScriptedCommit } from '../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 
 const baseline = 'a'.repeat(40), edited = 'b'.repeat(40), retained = 'c'.repeat(40);
 const diverged = 'd'.repeat(40), restored = 'e'.repeat(40);

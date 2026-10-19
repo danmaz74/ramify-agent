@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TreeEntry } from '../../../evidence/src/git.js';
 import { collectReviewDiffPayload } from '../diff-payload.js';
 import type { CandidateSnapshot } from '../snapshot.js';
-import { scratchCandidateReplies } from '../../../../src/tests/helpers/scratch-candidate-replies.js';
+import { scratchCandidateReplies } from '../../../autonomous/subs/acceptance/src/tests/helpers/scratch-candidate-replies.js';
 
 const root = '/scripted/project';
 

@@ -6,20 +6,20 @@ import type { ScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { replayCheckFindingEvents } from '../../subs/check-findings/src/replay.js';
 import { selectCheckFindings } from '../../subs/check-findings/src/queries.js';
 import { carriedCheckFindings, type RunEvent } from '../../subs/autonomous/src/run/log.js';
-import type { ReconciliationBasis } from '../reviews/reconciliation.js';
+import type { ReconciliationBasis } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { runLayout, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
-import { reconciliationLayout } from '../reviews/reconciliation.js';
+import { reconciliationLayout } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import {
   compositionCommits, compositionGates, compositionScenario, compositionTarget, concerns, disposition, principles, reconcile, review, submission, summariesOf, tagLimit,
   tags, tagsReadme,
 } from './helpers/check-findings-composition.js';
 import { compositionMeasurements } from './helpers/check-findings-measurements.js';
-import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
+import { scriptedCandidates, testReviewPolicy } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { identityOf, logLines, recordText, runDirectory } from './helpers/composition.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { mockGit } from './helpers/mock-git.js';
-import { eventsOf, gate, notes, plan, reviewRun, tool } from './helpers/reviews.js';
+import { reviewEventsOf as eventsOf, gate, notes, plan, reviewRun, tool } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, testPolicy, until } from './helpers/runs.js';
 
 vi.mock('node:child_process', async original =>

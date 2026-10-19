@@ -1,174 +1,472 @@
-import type { OutlinePublicationInput, AssignmentPublicationInput } from './work/publication.js';
-import type { WorkItemOutline } from './work/records.js';
-import type { ObligationRegistration, ObligationReport } from './work/obligations.js';
-import type { ReviewRequestState } from '../../../../../src/reviews/state.js';
-import type { CheckFindingPlan, CheckFindingCommit } from '../../../../../src/check-findings/transition.js';
+import { Acceptance } from '../../acceptance/src/acceptance.js';
 
-import { localViewInputsOf } from './work/view-inputs.js';
-import { repairPreparationSchema, repairDeltaSchema, type RepairPreparation, type RepairDelta } from '../../../src/run/repair-preparation.js';
-import { type RepairIncidentRecord } from '../../../../../src/interfaces/protocol/repairs.js';
-import { type RepairResult, type RepairIncidentStage } from '../../../../../src/interfaces/protocol/repairs.js';
 
-import { checkContinuationScope } from './work/inherited-scope.js';
-import { OwnershipUnavailableError } from '../../../../evidence/src/ownership-evidence.js';
-import { OwnershipAuthorityError, ownershipAuthorityFor } from '../../../../../src/work/ownership-authority.js';
-import { captureGlobalTarget, localConsultationInputs } from '../../../../../src/consultations/targets.js';
+import type { CapabilityInput } from './capability/ledger.js';
 
-import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from './capability/authorization.js';
+import { viewIdentityOf as projectViewIdentity } from './project-facts.js';
+import type { BriefAppend } from '../../acceptance/src/completion.js';
+import { writeOnce, readIfExists } from '../../../src/run/artifacts.js';
+import { rootModuleOf } from './context.js';
 
-import { declaredCheckInputs, type StartingPointGroup } from './work/starting-inputs.js';
+import type { RunWrite } from '../../../src/run/log.js';
+
+
+
+
+
+
+
+import { repairPreparationSchema } from './repair/repair-preparation.js';
+import { type RepairExportConfiguration } from '../../../src/run/repair-export.js';
+import { ownershipAuthorityFor } from '../../../../../src/work/ownership-authority.js';
 import type { ProvisionalSourceGit } from '../../../../evidence/src/provisional-git.js';
 
 import { type CommandRunner } from '../../../../evidence/src/run-command.js';
 import { z } from 'zod';
-
-import { mkdir, readFile, stat } from 'node:fs/promises';
-import { join, relative, resolve, sep } from 'node:path';
-import type { AgentPort, JsonSchema, ToolDefinition } from '../../../../agent/src/interfaces/port.js';
+import { compactionReviewSchema } from './compaction-review.js';
+import { mkdir, readFile } from 'node:fs/promises';
+import { dirname, join, relative, resolve } from 'node:path';
+import type { AgentPort, JsonSchema } from '../../../../agent/src/interfaces/port.js';
 import { type CandidateSource, type GitService } from '../../../../evidence/src/git.js';
 import type { RamifyCli } from '../../../../evidence/src/ramify-cli.js';
-import { projectConfigurationFile } from '../../../../evidence/src/project-configuration.js';
-import { findModule, type ArchitectIndex } from '../../../../evidence/src/views.js';
-import type { GateAttempt, GateRuleRecord, TestSelectionPolicy } from '../../../../../src/checks/records.js';
-import { acceptedCommit } from '../../../../../src/checks/accepted.js';
+import { type ArchitectIndex } from '../../../../evidence/src/views.js';
 
-import type { GuardedScope } from '../../../../../src/guard/write-guard.js';
 
-import type { CheckFindingId, CheckFindingState } from '../../../../check-findings/src/interfaces/check-findings.js';
 
-import { type ReconciliationBasis, type UnresolvedReason } from '../../../../../src/reviews/reconciliation.js';
+
+
+
+import { type CheckFindingCommit } from '../../../../../src/check-findings/transition.js';
+
 
 import { outsideScope } from '../../../../../src/run/mutations.js';
-import { captureProvisionalSource } from './capability/source.js';
-import { capabilityHandbackGuidance } from './capability/delivery.js';
-import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, capabilityLayout, type CapabilityNeedInput, type CapabilityRequest, type CapabilityTask, type CapabilityPlan, type CapabilityExchange, type CapabilityHandback } from './capability/records.js';
-import { supportedCapabilityPolicy, captureCapabilityLimits } from './capability/policy.js';
 
-import { qualificationActionSchema, capabilityActionSchema, capabilityPlanUpdateSchema, buildCapabilityPlanRevision, unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type QualificationAction, type CapabilityAction } from './capability/submission.js';
-import { capabilityHandbackReadiness, replayCapabilityState } from './capability/state.js';
+import { capabilityLayout } from './capability/records.js';
+import { supportedCapabilityPolicy } from './capability/policy.js';
+
+
+
+
 
 import { canonicalJson } from '../../../../../src/jobs/commands.js';
-import { reviewLayout } from '../../../../../src/reviews/records.js';
 
-import { type CandidateSnapshot } from '../../../../reviews/src/snapshot.js';
-import { reviewStateOf } from '../../../../../src/reviews/state.js';
+import { snapshotTools } from '../../../../reviews/src/snapshot.js';
+import { reviewStateOf } from '../../acceptance/src/reviews/state.js';
+
 
 import type { ViewIdentity } from '../../../../../src/interfaces/protocol/evidence.js';
-import { type Role, type RunFailureReason } from '../../../../../src/interfaces/protocol/runs.js';
+import { roleDisplayName, type Role, type RunFailureReason } from '../../../../../src/interfaces/protocol/runs.js';
 
 import { type RecordRef as CommitRecord } from '../../../../../src/jobs/commit.js';
 
-import { planPath } from '../../../../../src/plans/discover.js';
 
-import { type ElementCatalog, type PackageCitation, type PackageDeviation } from '../../../../plan-evidence/src/interfaces/catalog.js';
+
+
+
+
 
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../planning/src/evidence.js';
 
-import { assessedElements } from '../../../src/nonfunctional/submissions.js';
 
-import { readRecordedContextSelection, type RecordedContextSelection } from './context-selection/recorded.js';
-import { citePackage, deliverPackage } from './context-selection/delivery.js';
-import { orientationPacket, prepareContextSelection, workOrientationSubmissionSchema, workOrientationToolName, type ContextSelectorSubmission, type SelectionSource, type WorkOrientationSubmission } from './context-selection/submissions.js';
-import { documentChanges, readCapturedDocuments } from '../../../src/run/document-inputs.js';
+import { workOrientationToolName } from './context-selection/submissions.js';
+import { documentChanges, readCapturedDocuments } from '../../planning/src/documents.js';
 
-import { type RecoveryBoundary } from '../../../src/run/records.js';
+
+import { type OperationRecovery, type RecoveryBoundary } from '../../../src/run/records.js';
 
 import type { InterruptionEvidence } from '../../../../agent/src/interfaces/port.js';
-import { type KnownProjectFacts } from '../../../src/run/task-brief.js';
 
-import { committedBody, invocationRecord, type InvocationRequest } from '../../../../../src/steps/runner.js';
+import { committedBody, invocationRecord, type InvocationRequest } from '../../../../task-workflow/src/steps/runner.js';
 import { finished, kept, type InvocationResult } from '../../../../task-execution/src/results.js';
-import { knownFactsInputs } from '../../../../../src/steps/constructed.js';
-import { projectPath, stepInputsSchemaId, validateSelectorInputs, validateWorkTurnInputs, type KnownFactsInputs, type OrientationStepInputs, type ProjectPath, type StepInputs } from '../../../../../src/steps/inputs.js';
-import { constructStep, freshFallback } from '../../../../../src/steps/construct.js';
-import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs, type ConstructedWorkTurnStep } from '../../../../../src/steps/local-architect.js';
+import { loadPromptPackages, sha256, type LoadedPackage } from '../../../../../src/prompts/packages.js';
+import { rootModuleOfSnapshot } from '../../../../kpi/src/capture.js';
 
-import { renderContractPrompt, renderEngineerPrompt, renderGlobalForkPrompt, renderLocalArchitectPrompt, sha256, renderCapabilityArchitectPrompt, type LoadedPackage } from '../../../../../src/prompts/packages.js';
-import { baselineScope, rootModuleOfSnapshot } from '../../../../kpi/src/capture.js';
-import { readScopeMeasurement, writeScopeMeasurement } from '../../../../../src/measurement/inputs.js';
 
-import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../../../kpi/src/lines.js';
-import { writeFileAtomic } from '../../../../ledger/src/atomic.js';
-import { acceptDecision } from './architecture/accept.js';
-import { briefText, globalContext, type GlobalContext } from './architecture/context.js';
-import { architectureLayout, architectureSchemas, globalDecisionId, localDecisionId, placementRequestSchema, requestId, type PlacementDecision, type PlacementRequest } from './architecture/records.js';
-import { forkMessage, unresolvedForkMessage } from './architecture/session.js';
-import { defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation, planDeviationId, planDeviationSchema, unresolvedRequestId, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest } from '../../../src/deviations/records.js';
-import { deviationCommands, nextCheckFinding } from '../../../src/deviations/finding.js';
+import { globalContext } from './architecture/context.js';
 
-import { environmentCommands, environmentOptions } from '../../../src/deviations/environment.js';
-import { forkJsonSchema, forkSubmissionSchema, forkToolName, validateFork, type ForkSubmission, type PlacementRequestBody } from './architecture/submission.js';
-import { registerContract, registrationNeeded, type AttachedConsumer } from './contracts/accept.js';
-import { cycleClosedBy, cycleIdentity, type DependencyCycle, type DependencyEdge } from './contracts/graph.js';
-import { fakeNamingViolations, type NamedFile } from './contracts/naming.js';
-
-import { contractId, contractOfObligation, contractsLayout, obligationId, requirementId, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from './contracts/records.js';
-import { bindingKey, conformanceKey, nextWorkItem, openRequirements, providerItemOf, type ScheduleState } from './contracts/schedule.js';
-import { reopenEvidence } from './contracts/revision.js';
-import { contractMessage, type RevisionBriefing } from './contracts/session.js';
-import { contractJsonSchema, contractToolName, validateContract, type ContractSubmission, type EstablishedContract, type NeedAsBehavior } from './contracts/submission.js';
-
-import type { Hypothesis, RegistryEntry } from '../../planning/src/records.js';
-
-import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from './work/assignment.js';
-import { engineerEquipment, type EngineerEquipment, type ShellCallRecord } from './work/engineer-equipment.js';
-
-import { createGitInspectionTool } from './work/git-inspection.js';
-import { engineerSubmissionSchema, type AssignedObligation, type EngineerSubmission } from './work/engineer.js';
-import { iterationAssignmentSchema, iterationId, iterationLayout, type IterationAssignment, type IterationResult } from './work/iterations.js';
+import { nonfunctionalEquipment } from '../../acceptance/src/nonfunctional/equipment.js';
+import { type IterationAssignment, type IterationResult } from './work/iterations.js';
 import { type WriteScope } from '../../../../../src/work/scope.js';
 
-import { resolveRealTarget } from '../../../../../src/guard/resolve-contained-path.js';
-import { scopeConfigurationPaths, missingHistoricalAuthority, captureGuardedFiles, deniedFiles, injectionSiteRule, moduleOwning, resolveWriteScope, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles } from '../../../../../src/work/scope.js';
+import { deniedFiles, protectedScopeOf } from '../../../../../src/work/scope.js';
 import { committedRecords } from '../../../src/run/committed-records.js';
-import { refOf } from '../../../../../src/jobs/committed-reader.js';
-import { obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection } from './work/obligations.js';
-import { hypothesesFor } from './work/frontier.js';
-import { integrationScenarioOf, originKindOf, workLayout, workItemId, type WorkItem } from './work/records.js';
-import { apiViewsOf, defaultWriteScopeSection, onboardingOf, type DelegationBriefing, type WorkItemBriefing, type ReconciliationBriefing } from './work/session.js';
-import { localArchitectToolName, type LocalArchitectSubmission } from './work/submission.js';
-import { type GateAudience } from '../../../../../src/checks/diagnostics.js';
-
-import { authorizedScope, requiredArtifacts } from './work/publication.js';
-import { assignedCount, completionBlockers, evidenceFor, bindingsOf, integrationItemsDue, obligationOwedBy, obligationProjection, openRequirementsOf, pendingCorrection, verifiedRequirements } from './work/history.js';
-
+import { iterationApiViews } from './work/session.js';
+import { AfterHandling } from '../../acceptance/src/after-handling.js';
+import { obligationProjection, pendingCorrection, verifiedRequirements } from './work/history.js';
+import { CandidateDriftError, CommittingGates } from '../../acceptance/src/committing-gate.js';
 import { EvidenceUnavailableError } from '../../../src/run/inputs.js';
 
-import type { RenderedFeatureFile } from '../../../../scenarios/src/rendering.js';
-import { type RunEvent, type RunEventInput, type RunEventOf } from '../../../src/run/log.js';
+import { type RunEvent, type RunEventInput } from '../../../src/run/log.js';
+import { ObservationLog } from '../../../../task-execution/src/observations.js';
 
-import { contextPolicyOf, engineerBoundsOf, type EngineerBounds } from '../../../../../src/run/policy.js';
-import { moduleTestAreas, type TestArea } from '../../../../../src/run/project-config.js';
 
-import { commitForScenarios, expectedFeatureFiles, expectedFeatureHashes, rewordedTrailerValue, rewordingMessage, scenarioNameOf, trackedScenarios } from '../../../src/run/feature-files.js';
-import type { ScenarioState } from '../../../../scenarios/src/states.js';
-import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../../../scenarios/src/records.js';
-import { integrationBriefing, type IntegrationBriefing } from './work/integration.js';
-import { entryScenariosOf, type EngineerScenarios } from './work/scenario-briefing.js';
+
 
 import { declaredModuleDirectories } from '../../../../../src/run/project-config.js';
-import { assignmentStartingPointsOf, auditPreparationPathsOf, declaredCheckFacts, defaultWriteScopesOf, engineerBoundsFor, iterationAssignmentOf, knownProjectFactsOf, obligationBriefingOf, ownedTestAreasOf, unauthorizedGuardedOf, viewIdentityOf as projectViewIdentity } from '../../../src/run/project-facts.js';
 import { assertScratchSafe } from './work/scratch.js';
-import { gateAttemptSchema, measurementSnapshotSchema, runDirectory, runLayout, snapshotId, type LineEventSummary, type MeasurementSnapshot, type RunPolicy, type RunRecord } from '../../../src/run/records.js';
-import { globalForkSourceSchema, invocationOutcomeSchema, invocationSchema, type Invocation, type InvocationOutcome, type DurableRecordRef as RecordRef, type ArchitectRef, type ContinueReason, type RequestRelation, type SessionFinishReason, type SessionId } from '../../../../task-execution/src/records.js';
+import { gateAttemptSchema } from '../../acceptance/src/gate-records.js';
+import { runDirectory } from '../../../src/run/records.js';
+import { measurementSnapshotSchema, snapshotId, type MeasurementSnapshot } from '../../../../kpi/src/run-records.js';
+import { runLayout, type RunPolicy, type RunRecord } from '../../../src/run/records.js';
+import { invocationOutcomeSchema, type Invocation, type InvocationOutcome, type DurableRecordRef as RecordRef, type ContinueReason, type SessionFinishReason, type SessionId } from '../../../../task-execution/src/records.js';
+
 
 import { recordAppend } from '../../../../task-execution/src/transcripts/recorder.js';
+
 
 import { validateAgainst } from '../../../../task-execution/src/submissions.js';
 
 import { HarnessSessionOperations } from '../../../../../src/prompts/session-adapter.js';
 import { readSessionPointReference } from '../../../../task-execution/src/session-operations.js';
 
-import type { ParentSession, CompletionBasis, Reconciled, ReconciliationOwner, BriefAppend } from '../../../src/run/completion.js';
-import { writeOnce, readIfExists } from '../../../src/run/artifacts.js';
-import { declarationsBetween, placementEvidenceOf, sameView, identityOf, directoryOf, rootModuleOf, architectRefOf, failedWithoutResult } from './context.js';
+
+import type { ScenarioResult } from '../../acceptance/src/checks/scenario-results.js';
+
+
+import { refOf } from '../../../../../src/jobs/committed-reader.js';
+
+
+import type { ParentSession, CompletionBasis, Reconciled, ReconciliationOwner } from '../../acceptance/src/completion.js';
+
+import { failedWithoutResult } from './context.js';
+
+
+
+
+
+
+
+
+
+import { automaticRepairAssignmentSchema, repairDeltaSchema, repairAttemptSchema, captureRepairFiles, captureRepairSource, repairChanges, declarationPaths, unchangedRepairPaths, type AutomaticRepairAssignment, type RepairPreparation, type RepairDelta } from './repair/repair-preparation.js';
+import { repairIncidentRecordSchema, repairResultSchema, type RepairIncidentRecord } from '../../../../../src/interfaces/protocol/repairs.js';
+import { repairIncidentId } from './repair/repair-records.js';
+import { type RepairResult, type RepairIncidentStage } from '../../../../../src/interfaces/protocol/repairs.js';
+import { createRepairExportPayload, exportRepairIncident, repairExportPayloadPath, repairExternalRef, repairProjectKey } from '../../../src/run/repair-export.js';
+import { verifiedRepairDeltas } from '../../acceptance/src/repair-gate.js';
+import { checkpointPolicies } from '../../acceptance/src/checks/checkpoint.js';
+import { OwnershipUnavailableError } from '../../../../evidence/src/ownership-evidence.js';
+import { OwnershipAuthorityError } from '../../../../../src/work/ownership-authority.js';
+import { engineerConsultationInputs } from './consultations/targets.js';
+
+import { type StartingPointGroup } from './work/starting-inputs.js';
+
+
+import { runCommand } from '../../../../evidence/src/run-command.js';
+
+
+
+
+import { posix } from 'node:path';
+import type { SessionStart, ToolDefinition } from '../../../../agent/src/interfaces/port.js';
+
+
+
+import type { GateAttempt } from '../../acceptance/src/checks/records.js';
+import { acceptedCommit } from '../../acceptance/src/checks/accepted.js';
+
+
+import { decideWrite } from '../../../../../src/guard/write-guard.js';
+
+
+import type { CheckFindingId, CheckFindingState } from '../../../../check-findings/src/interfaces/check-findings.js';
+
+
+
+import { type ReconciliationBasis, type UnresolvedReason } from '../../acceptance/src/reviews/reconciliation.js';
+
+
+
+
+import { capabilityHandbackGuidance } from './capability/delivery.js';
+import { type CapabilityRequest, type CapabilityTask, type CapabilityPlan } from './capability/records.js';
+
+
+
+import { type CapabilityAction } from './capability/submission.js';
+import { replayCapabilityState } from './capability/state.js';
+
+
+
+
+import { reviewLayout } from '../../acceptance/src/reviews/records.js';
+
+
+
+
+import { type CandidateSnapshot } from '../../../../reviews/src/snapshot.js';
+
+
+
+
+import { type FailureAnalysis } from '../../../../../src/interfaces/protocol/runs.js';
+
+
+
+
+
+import { planPath } from '../../../../../src/plans/discover.js';
+
+
+import { type ElementCatalog } from '../../../../plan-evidence/src/interfaces/catalog.js';
+
+
+import { type Candidate } from '../../../../nonfunctional/src/interfaces/contracts.js';
+
+
+
+import { assessedElements } from '../../acceptance/src/nonfunctional/submissions.js';
+
+
+
+
+
+
+
+
+
+import { constructEngineerStep, engineerStepInputsOf, type ConstructedEngineerStep } from '../../../../task-workflow/src/steps/engineer.js';
+
+
+import { stepInputsSchemaId, type EngineerStepInputs } from '../../../../task-workflow/src/steps/inputs.js';
+import { type ConstructedWorkTurnStep } from '../../../../task-workflow/src/steps/local-architect.js';
+
+import { renderFailureAnalystPrompt, renderGlobalForkPrompt } from '../../../../../src/prompts/packages.js';
+
+import { readScopeMeasurement, writeScopeMeasurement } from '../../../../kpi/src/measurement/inputs.js';
+
+import { lineEvents, takeLineSnapshot, type LineSnapshot } from '../../../../kpi/src/lines.js';
+import { writeFileAtomic } from '../../../../ledger/src/atomic.js';
+
+import { nextCheckFinding } from '../../acceptance/src/deviations/finding.js';
+
+
+import { contractsLayout, obligationId, type ConsumerRequirement } from './contracts/records.js';
+import { conformanceKey } from './contracts/schedule.js';
+import { type EstablishedContract } from './contracts/submission.js';
+
+import { assignedFeaturePaths } from './work/feature-selection.js';
+import { type ShellCallRecord } from './work/engineer-equipment.js';
+
+
+import { engineerWorkingDirectory } from './work/engineer-directory.js';
+import { engineerSubmissionSchema, iterationAcceptance, type AssignedObligation, validateEngineerWithOwnership, type EngineerSubmission, type IterationApiViews } from './work/engineer.js';
+import { iterationAssignmentSchema, iterationLayout, type FailureDigest } from './work/iterations.js';
+
+import { digestLines, failureAnalysisJsonSchema, failureAnalysisMessage, failureAnalysisSubmissionDescription, failureAnalysisToolName, failureDigest, validateFailureAnalysis, type AnalysisEvidence as FailureEvidence, type DigestShellCall, type FailureAnalysisSubmission } from './work/failure.js';
+
+import { scopeConfigurationPaths, captureGuardedFiles, guardedScopeOf, resolveWriteScope } from '../../../../../src/work/scope.js';
+
+import { workLayout, workItemId, type WorkItem } from './work/records.js';
+import { prepareAssignedCucumber, type ReconciliationBriefing } from './work/session.js';
+import { type GateAudience } from '../../acceptance/src/checks/diagnostics.js';
+import { scenarioResultsOf } from '../../acceptance/src/checks/scenario-results.js';
+
+
+
+import { requiredArtifacts } from './work/publication.js';
+
+
+
+
+import type { RenderedFeatureFile } from '../../../../scenarios/src/rendering.js';
+import { type RunEventOf } from '../../../src/run/log.js';
+
+import { contextPolicyOf, engineerBoundsOf, type EngineerBounds } from '../../../../../src/run/policy.js';
+
+
+import { expectedFeatureFiles, expectedFeatureHashes, trackedScenarios } from '../../acceptance/src/feature-files.js';
+import { type EngineerScenarios } from './work/scenario-briefing.js';
+
+
+import { scratchSafetyRule } from './work/scratch.js';
+
+
+import { lineEventSummarySchema, type LineEventSummary } from '../../../../kpi/src/run-records.js';
+
+import { type ArchitectRef } from '../../../../task-execution/src/records.js';
+
+
+
+
+
+
+
+
+
+
+
+import type { OutlinePublicationInput, AssignmentPublicationInput } from './work/publication.js';
+import type { WorkItemOutline } from './work/records.js';
+import type { ObligationRegistration, ObligationReport } from './work/obligations.js';
+import type { ReviewRequestState } from '../../acceptance/src/reviews/state.js';
+import type { CheckFindingPlan } from '../../../../../src/check-findings/transition.js';
+
+import { localViewInputsOf } from './work/view-inputs.js';
+
+
+
+
+import { checkContinuationScope } from './work/inherited-scope.js';
+
+
+import { captureGlobalTarget, localConsultationInputs } from './consultations/targets.js';
+
+import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from './capability/authorization.js';
+
+import { declaredCheckInputs } from './work/starting-inputs.js';
+
+
+
+
+
+import { stat } from 'node:fs/promises';
+import { sep } from 'node:path';
+
+
+
+import { projectConfigurationFile } from '../../../../evidence/src/project-configuration.js';
+import { findModule } from '../../../../evidence/src/views.js';
+import type { GateRuleRecord, TestSelectionPolicy } from '../../acceptance/src/checks/records.js';
+
+
+import type { GuardedScope } from '../../../../../src/guard/write-guard.js';
+
+
+
+
+
+
+import { captureProvisionalSource } from './capability/source.js';
+
+import { capabilityRequestId, capabilityTaskId, capabilityAssignmentId, identifyCapabilityNeed, type CapabilityNeedInput, type CapabilityExchange, type CapabilityHandback } from './capability/records.js';
+import { captureCapabilityLimits } from './capability/policy.js';
+
+import { qualificationActionSchema, capabilityActionSchema, capabilityPlanUpdateSchema, buildCapabilityPlanRevision, unreportedByHandback, validateCapabilityAction, validateCapabilityPlanUpdate, type QualificationAction } from './capability/submission.js';
+import { capabilityHandbackReadiness } from './capability/state.js';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { type PackageCitation, type PackageDeviation } from '../../../../plan-evidence/src/interfaces/catalog.js';
+
+
+
+
+
+import { readRecordedContextSelection, type RecordedContextSelection } from './context-selection/recorded.js';
+import { citePackage, deliverPackage } from './context-selection/delivery.js';
+import { orientationPacket, prepareContextSelection, workOrientationSubmissionSchema, type ContextSelectorSubmission, type SelectionSource, type WorkOrientationSubmission } from './context-selection/submissions.js';
+
+
+
+
+
+import { type KnownProjectFacts } from '../../../../task-workflow/src/task-brief.js';
+
+
+
+import { knownFactsInputs } from '../../../../task-workflow/src/steps/constructed.js';
+import { projectPath, validateSelectorInputs, validateWorkTurnInputs, type KnownFactsInputs, type OrientationStepInputs, type ProjectPath, type StepInputs } from '../../../../task-workflow/src/steps/inputs.js';
+import { constructStep, freshFallback } from '../../../../task-workflow/src/steps/construct.js';
+import { assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs } from '../../../../task-workflow/src/steps/local-architect.js';
+
+import { renderContractPrompt, renderEngineerPrompt, renderLocalArchitectPrompt, renderCapabilityArchitectPrompt } from '../../../../../src/prompts/packages.js';
+import { baselineScope } from '../../../../kpi/src/capture.js';
+
+
+
+
+import { acceptDecision } from './architecture/accept.js';
+import { briefText, type GlobalContext } from './architecture/context.js';
+import { architectureLayout, architectureSchemas, globalDecisionId, localDecisionId, placementRequestSchema, requestId, type PlacementDecision, type PlacementRequest } from './architecture/records.js';
+import { forkMessage, unresolvedForkMessage } from './architecture/session.js';
+import { defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation, planDeviationId, planDeviationSchema, unresolvedRequestId, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest } from '../../acceptance/src/deviations/records.js';
+import { deviationCommands } from '../../acceptance/src/deviations/finding.js';
+
+import { environmentCommands, environmentOptions } from '../../acceptance/src/deviations/environment.js';
+import { forkJsonSchema, forkSubmissionSchema, forkToolName, validateFork, type ForkSubmission, type PlacementRequestBody } from './architecture/submission.js';
+import { registerContract, registrationNeeded, type AttachedConsumer } from './contracts/accept.js';
+import { cycleClosedBy, cycleIdentity, type DependencyCycle, type DependencyEdge } from './contracts/graph.js';
+import { fakeNamingViolations, type NamedFile } from './contracts/naming.js';
+
+import { contractId, contractOfObligation, requirementId, type ContractRecord, type ProviderObligation } from './contracts/records.js';
+import { bindingKey, nextWorkItem, openRequirements, providerItemOf, type ScheduleState } from './contracts/schedule.js';
+import { reopenEvidence } from './contracts/revision.js';
+import { contractMessage, type RevisionBriefing } from './contracts/session.js';
+import { contractJsonSchema, contractToolName, validateContract, type ContractSubmission, type NeedAsBehavior } from './contracts/submission.js';
+
+import type { Hypothesis, RegistryEntry } from '../../planning/src/records.js';
+
+import { assignmentBodySchema, assignmentErrors, type AssignmentBody } from './work/assignment.js';
+import { engineerEquipment, type EngineerEquipment } from './work/engineer-equipment.js';
+
+import { createGitInspectionTool } from './work/git-inspection.js';
+
+import { iterationId } from './work/iterations.js';
+
+
+import { resolveRealTarget } from '../../../../../src/guard/resolve-contained-path.js';
+import { missingHistoricalAuthority, injectionSiteRule, moduleOwning, testPolicyOf, type DefaultWriteScope, type GuardedScenarioFiles } from '../../../../../src/work/scope.js';
+
+
+import { obligationBriefingLines, obligationsOwnedBy, reportSourceLines, type ObligationActor, type ObligationProjection } from './work/obligations.js';
+import { hypothesesFor } from './work/frontier.js';
+import { integrationScenarioOf, originKindOf } from './work/records.js';
+import { apiViewsOf, defaultWriteScopeSection, onboardingOf, type DelegationBriefing, type WorkItemBriefing } from './work/session.js';
+import { localArchitectToolName, type LocalArchitectSubmission } from './work/submission.js';
+
+
+import { authorizedScope } from './work/publication.js';
+import { assignedCount, completionBlockers, evidenceFor, bindingsOf, integrationItemsDue, obligationOwedBy, openRequirementsOf } from './work/history.js';
+
+
+
+
+
+
+
+import { moduleTestAreas, type TestArea } from '../../../../../src/run/project-config.js';
+
+import { commitForScenarios, rewordedTrailerValue, rewordingMessage, scenarioNameOf } from '../../acceptance/src/feature-files.js';
+import type { ScenarioState } from '../../../../scenarios/src/states.js';
+import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../../../scenarios/src/records.js';
+import { integrationBriefing, type IntegrationBriefing } from './work/integration.js';
+import { entryScenariosOf } from './work/scenario-briefing.js';
+
+
+import { assignmentStartingPointsOf, auditPreparationPathsOf, declaredCheckFacts, defaultWriteScopesOf, engineerBoundsFor, iterationAssignmentOf, knownProjectFactsOf, obligationBriefingOf, ownedTestAreasOf, unauthorizedGuardedOf } from './project-facts.js';
+
+
+import { globalForkSourceSchema, invocationSchema, type RequestRelation } from '../../../../task-execution/src/records.js';
+
+
+
+
+
+
+
+
+
+
+import { declarationsBetween, placementEvidenceOf, sameView, identityOf, directoryOf, architectRefOf } from './context.js';
 import { eventsOf, eventOf, type CoordinationHistory } from './work/history.js';
 
 import type { EffectSpec } from '../../../../ledger/src/effects.js';
-import type { CapabilityInput } from './capability/ledger.js';
+
 import type { SessionState } from '../../../src/run/sessions.js';
 
-import type { RunWrite } from '../../../src/run/log.js';
+
 import { withSelectionReasons } from './selection-reasons.js';
 export interface ContractOutcome {
   readonly findings: string[];
@@ -261,20 +559,32 @@ export interface CoordinationInputs {
  readonly projectRoot: string; readonly directory: string; readonly base: string;
  readonly record: Pick<RunRecord, 'jobId' | 'planId' | 'baseline' | 'manifest' | 'auditConfiguration' | 'projectConfig'>;
  readonly workflow: 'capability-coordination/1' | null;
- readonly options: { readonly ramify: RamifyCli; readonly rootModule?: string | undefined; readonly commandExecution?: CommandRunner | undefined; readonly provisionalSourceGit?: ProvisionalSourceGit | undefined };
+ readonly options: { readonly ramify: RamifyCli; readonly rootModule?: string | undefined; readonly commandExecution?: CommandRunner | undefined; readonly provisionalSourceGit?: ProvisionalSourceGit | undefined; readonly skillDirectory?: string | undefined };
  readonly git: GitService;
  readonly candidates: CandidateSource;
+ readonly repairIncidentExport?: RepairExportConfiguration | undefined;
 }
 export type CoordinationEffect<T> = Omit<EffectSpec<RunEventInput, T>, 'serialize'> & { readonly serialization: 'whole' | 'records' };
 export interface CoordinationPorts {
+ runParallelReview<T>(agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>>;
+ readonly acceptance: Pick<import('../../acceptance/src/acceptance.js').Acceptance, 'dischargeEvidence' | 'diagnosticsOf' | 'readGate'>;
+ restoreInvocation(id: string): void;
+ renderInvocationTranscript(session: SessionId, invocation: string): Promise<string>;
+ operations(agent: AgentPort): Promise<HarnessSessionOperations>;
+ invocationRefusal(): string | null;
+ latestOperationRecovery(): OperationRecovery | undefined;
+
  readonly commitFinding: (build: (current: { readonly history: CoordinationHistory; readonly state: CheckFindingState }) => CheckFindingPlan | { readonly stale: string }, at?: Date) => Promise<CheckFindingCommit>;
  readonly gates: {
+  iterationGate: CommittingGates['iterationGate'];
   workItemGate(item: WorkItem, invocation: string, repairRound: number, summary: string, taskOwner?: string, replayed?: boolean): Promise<GateAttempt | null>;
   validateFeatureTargets(expected: readonly RenderedFeatureFile[], ownership?: Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>>): Promise<Awaited<ReturnType<RamifyCli['queryOwnershipAnswer']>> | undefined>;
   expectedFeatures(): RenderedFeatureFile[];
   writtenFeatures(): RenderedFeatureFile[];
  };
  readonly handling: {
+  recordBindings: AfterHandling['recordBindings'];
+  requestReviews: AfterHandling['requestReviews'];
   closeIteration(item: WorkItem, number: number, assignment: IterationAssignment, body: { readonly outcome: IterationResult['outcome']; readonly invocations: readonly string[]; readonly findings: readonly string[]; readonly gate: string | null; readonly commit: string | null; readonly recommendation?: string | undefined; readonly failure?: IterationResult['failure'] | undefined }): Promise<IterationResult>;
   recordAssignment(input: AssignmentPublicationInput): Promise<IterationAssignment | null>;
   reviseOutline(input: OutlinePublicationInput): Promise<{ readonly outline: WorkItemOutline; readonly written: boolean; readonly unchanged: boolean } | null>;
@@ -288,14 +598,11 @@ export interface CoordinationPorts {
  readonly sessionState: (session: SessionId) => SessionState | undefined;
  readonly hasSessionPoint: (agent: AgentPort, runId: string, point: string) => Promise<boolean>;
  readonly appendSession: (agent: AgentPort, ...args: Parameters<HarnessSessionOperations['append']>) => ReturnType<HarnessSessionOperations['append']>;
- readonly recordAppend: (session: SessionId, note: Parameters<typeof recordAppend>[1], sequence: number) => Promise<void>;
+ readonly recordAppend: (session: SessionId, note: Parameters<typeof recordAppend>[1], sequence: number | null) => Promise<void>;
  readonly commitCapability: (input: CapabilityInput, records: readonly import('../../../../ledger/src/ledger.js').RecordBody[], qualification?: CapabilityHandbackBasis) => Promise<RunEvent>;
  readonly effect: <T>(spec: CoordinationEffect<T>) => Promise<T>;
- readonly writer: { readonly requireSettled: (reason: string) => void; readonly register: (invocation: string, pid: number) => void; readonly blocked: () => unknown; readonly unsettled: () => boolean };
+ readonly writer: { readonly requireSettled: (reason: string) => void; readonly register: (invocation: string, pid: number) => void; readonly blocked: () => string | null; readonly unsettled: () => boolean };
   afterWrite(write: RunWrite, runId: string): Promise<void>;
-  automaticProjectRepair(agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot,
-    preparation: RepairPreparation, obstruction: unknown, prepare: ((report: RepairResult) => Promise<ConstructedWorkTurnStep>) | null):
-    Promise<{ step: ConstructedWorkTurnStep | null; incident: RepairIncidentRecord; delta: RepairDelta } | { refusal: string } | null>;
   committedBody(path: string): unknown;
   completeWorkItem(item: WorkItem, gate: GateAttempt, basis: CompletionBasis): Promise<'completed' | 'ended' | { readonly refused: string }>;
   contractGate(
@@ -309,50 +616,20 @@ export interface CoordinationPorts {
   effectiveInvocationOutcome(id: string): InvocationOutcome | undefined;
   engineerGuard(assignment: IterationAssignment): Promise<GuardedScope>;
   fail(reason: RunFailureReason, text: string, evidence?: readonly string[]): Promise<void>;
-  failureOf(
-    agent: AgentPort,
-    packages: ReadonlyMap<string, LoadedPackage>,
-    subject: {
-      readonly item: WorkItem;
-      readonly assignment: IterationAssignment;
-      readonly number: number;
-      readonly role: Role;
-      readonly result: InvocationResult<unknown>;
-      readonly bounds: EngineerBounds;
-      readonly lines: LineEventSummary | null;
-      readonly after: LineSnapshot;
-      readonly shellLog: readonly ShellCallRecord[];
-    },
-  ): Promise<NonNullable<IterationResult['failure']> | null>;
   finishSession(session: SessionId | undefined, reason: SessionFinishReason): Promise<void>;
   ignoring(): boolean;
   invocationRecord(id: string): { readonly revision: number; readonly body: Invocation };
   latestBasis(workItem: string): ReconciliationBasis | undefined;
-  latestRepairIncident(): { incident: RepairIncidentRecord; stage: RepairIncidentStage } | undefined;
   now(): Date;
   ownershipAuthority(assignment: { readonly scope: WriteScope }): ReturnType<typeof ownershipAuthorityFor>;
-  passedScenarioLines(result: IterationResult): Promise<string[]>;
   pendingCorrection(workItem: string): string | undefined;
-  persistRepairIncident(incident: RepairIncidentRecord, stage: RepairIncidentStage,
-    additional?: readonly CommitRecord[]): Promise<RepairIncidentRecord>;
   previewCandidateTree(): ReturnType<GitService['previewCandidateTree']>;
   reconcileWorkItem(agent: AgentPort, loaded: LoadedPackage, item: WorkItem, parent: ParentSession,
     owner?: ReconciliationOwner): Promise<Reconciled | null>;
   reconciliationBriefing(reconciliation: string, undelivered: readonly string[]): ReconciliationBriefing | undefined;
-  recordRepairPreparation(item: WorkItem, attempt: number,
-    assignment: IterationAssignment | undefined, result: IterationResult): Promise<RepairPreparation>;
   refreshIndex(): Promise<ArchitectIndex | null>;
   renderProducerFeatures(expected: readonly RenderedFeatureFile[], isolated?: boolean): Promise<void>;
   runInvocation<T>(agent: AgentPort, request: InvocationRequest<T>): Promise<InvocationResult<T>>;
-  takeIteration(
-    agent: AgentPort,
-    packages: ReadonlyMap<string, LoadedPackage>,
-    baseline: MeasurementSnapshot,
-    item: WorkItem,
-    assignment: IterationAssignment,
-    assignedIndex: ArchitectIndex | null,
-    resume?: { readonly session: SessionId; readonly point: string; readonly guidance: string; readonly priorInvocation: string },
-  ): Promise<IterationOutcome | null>;
   unresolvedOf(workItem: string, state: CheckFindingState): Array<{ readonly checkFinding: CheckFindingId; readonly reason: UnresolvedReason }>;
   verifyCapabilityHandback(
     agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, item: WorkItem, task: CapabilityTask,
@@ -1119,7 +1396,7 @@ export class WorkCoordination {
         if (answer === null || answer.kind === 'delegated') return null;
         session = answer.parent.session; sessionRef = answer.parent.point || undefined;
         lastAssignment = assignment;
-        let resumed = await this.ports.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
+        let resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
           session: suspended.session, point: suspended.point, priorInvocation: suspended.invocation, guidance: answer.guidance,
         });
         if (resumed === null) return null;
@@ -1128,7 +1405,7 @@ export class WorkCoordination {
             { session, point: sessionRef, workingDirectory });
           if (next === null || next.kind === 'delegated') return null;
           session = next.parent.session; sessionRef = next.parent.point || undefined;
-          resumed = await this.ports.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
+          resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: next.guidance,
           });
           if (resumed === null) return null;
@@ -1157,7 +1434,7 @@ export class WorkCoordination {
           capabilityHandbackGuidance(this.path('.'), handback),
           `Continue ${assignment.id} from its current candidate. Its original goal remains unfinished.`,
         ].join('\n');
-        let resumed = await this.ports.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
+        let resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
           session: pending.continuation.session, point: pending.continuation.point ?? '',
           priorInvocation: pending.invocation, guidance,
         });
@@ -1167,7 +1444,7 @@ export class WorkCoordination {
             { session, point: sessionRef, workingDirectory });
           if (answer === null || answer.kind === 'delegated') return null;
           session = answer.parent.session; sessionRef = answer.parent.point || undefined;
-          resumed = await this.ports.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
+          resumed = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
             session: resumed.session, point: resumed.point, priorInvocation: resumed.invocation, guidance: answer.guidance,
           });
           if (resumed === null) return null;
@@ -1242,7 +1519,7 @@ export class WorkCoordination {
       // finds them, and what the last accepted iteration's gate bound.
       const scenarioLedger = trackedScenarios(this.observe().history.lines);
       const scenarios = entryScenariosOf(scenarioLedger.records, scenarioLedger.states, 'entry' in item.origin ? item.origin.entry : null);
-      const lastScenarios = lastResult === undefined ? [] : await this.ports.passedScenarioLines(lastResult);
+      const lastScenarios = lastResult === undefined ? [] : await this.passedScenarioLines(lastResult);
       let briefing: WorkItemBriefing = {
         item,
         setup: await this.checkInputSection(),
@@ -1351,11 +1628,11 @@ export class WorkCoordination {
       const projection = this.obligationProjection();
       const plain = <V>(value: V): V => JSON.parse(JSON.stringify(value)) as V;
       let step: ConstructedWorkTurnStep;
-      const retainedRepair = this.ports.latestRepairIncident();
+      const retainedRepair = this.latestRepairIncident();
       const pendingRepair = retainedRepair?.incident.workItem === item.id && retainedRepair.incident.verification?.verified === true
         && retainedRepair.incident.continuation?.delivered !== true ? retainedRepair.incident : undefined;
       const preparation = pendingRepair ? repairPreparationSchema.parse(this.ports.committedBody(pendingRepair.preparation.path))
-        : lastResult?.outcome !== 'partial' ? undefined : await this.ports.recordRepairPreparation(item, attempt, lastAssignment, lastResult);
+        : lastResult?.outcome !== 'partial' ? undefined : await this.recordRepairPreparation(item, attempt, lastAssignment, lastResult);
       let repaired: { incident: RepairIncidentRecord; delta: RepairDelta } | undefined;
       if (pendingRepair) {
         repaired = { incident: { ...pendingRepair, revision: pendingRepair.revision + 1 },
@@ -1419,10 +1696,10 @@ export class WorkCoordination {
             await this.ports.fail('inputs-changed', `The work-item package of ${item.id} cannot be rendered: ${message(error)}`);
             return null;
           }
-          let answer: Awaited<ReturnType<CoordinationPorts['automaticProjectRepair']>> | undefined;
+          let answer: Awaited<ReturnType<WorkCoordination['automaticProjectRepair']>> | undefined;
           if (preparation !== undefined && !externallyRetried) {
             try {
-              answer = await this.ports.automaticProjectRepair(agent, packages, baseline, preparation, error, async report => {
+              answer = await this.automaticProjectRepair(agent, packages, baseline, preparation, error, async report => {
                 // Prepared assignments and old action sessions are not reused after repair.
                 sessionRef = undefined; session = undefined; originalLocalInvocation = undefined;
                 packageUndelivered = true;
@@ -1435,10 +1712,10 @@ export class WorkCoordination {
               });
             } catch (repairError) {
               if (!this.ports.ignoring()) {
-                const active = this.ports.latestRepairIncident();
+                const active = this.latestRepairIncident();
                 if (active !== undefined && ['admitted', 'running'].includes(active.stage)) {
                   const started = this.events('invocation-started').find(event => event.data.work.automaticRepair === active.incident.incidentId);
-                  await this.ports.persistRepairIncident({ ...active.incident, revision: active.incident.revision + 1,
+                  await this.persistRepairIncident({ ...active.incident, revision: active.incident.revision + 1,
                     invocation: started?.data.invocation ?? null, session: started?.data.session ?? null, endedAt: this.ports.now().toISOString(),
                     verification: { verified: false, reason: `Repair workflow could not settle: ${message(repairError)}`, evidence: [] },
                     continuation: { delivered: false, reason: 'Repair workflow failed before verified handback; manual attention required', evidence: [] } }, 'unverified');
@@ -1546,7 +1823,7 @@ export class WorkCoordination {
       session = sessionRef === undefined ? undefined : result.session;
 
       if (repaired !== undefined && result.id !== '') {
-        await this.ports.persistRepairIncident({ ...repaired.incident,
+        await this.persistRepairIncident({ ...repaired.incident,
           continuation: { delivered: true, reason: 'Fresh responsible architect received the original partial result and current candidate', evidence: [runLayout.invocation(result.id)] } }, 'continued',
           [{ path: runLayout.repairDelta(repaired.incident.incidentId), id: repaired.incident.incidentId, revision: 1, body: repaired.delta }]);
       }
@@ -1644,7 +1921,7 @@ export class WorkCoordination {
           continuing = 'iteration-closed';
           continue;
         }
-        let outcome = await this.ports.takeIteration(agent, packages, baseline, item, assigned, index);
+        let outcome = await this.takeIteration(agent, packages, baseline, item, assigned, index);
         if (outcome === null) return null;
         while (outcome.kind === 'capability-needed') {
           const answer = await this.coordinateCapabilityNeed(agent, packages, baseline, item, assigned, outcome, contextPackage,
@@ -1652,7 +1929,7 @@ export class WorkCoordination {
           if (answer === null) return null;
           if (answer.kind === 'delegated') return 'reported';
           session = answer.parent.session; sessionRef = answer.parent.point || undefined;
-          outcome = await this.ports.takeIteration(agent, packages, baseline, item, assigned, index, {
+          outcome = await this.takeIteration(agent, packages, baseline, item, assigned, index, {
             session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: answer.guidance,
           });
           if (outcome === null) return null;
@@ -4032,7 +4309,7 @@ export class WorkCoordination {
       }
     }
     let outcome: IterationOutcome | null = already === undefined
-      ? await this.ports.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), recoveredReturn)
+      ? await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), recoveredReturn)
       : { kind: 'closed', result: already };
     while (outcome?.kind === 'capability-needed') {
       const suspended: InvocationResult<EngineerSubmission> = {
@@ -4044,7 +4321,7 @@ export class WorkCoordination {
       if (nested === null) return null;
       coordinatorAfterNested = { point: nested.coordinatorPoint, session: nested.coordinatorSession,
         invocation: nested.coordinatorInvocation };
-      outcome = await this.ports.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
+      outcome = await this.takeIteration(agent, packages, baseline, item, assignment, await this.ports.refreshIndex(), {
         session: outcome.session, point: outcome.point, priorInvocation: outcome.invocation, guidance: nested.guidance,
       });
     }
@@ -4547,7 +4824,7 @@ export class WorkCoordination {
           return null;
         }
         findings.push(`${failedWithoutResult('contract-engineer', assignment.id, result)}; nothing was registered`);
-        const failure = await this.ports.failureOf(agent, packages, {
+        const failure = await this.failureOf(agent, packages, {
           item, assignment, number: subject.number, role: 'contract-engineer', result, bounds, lines, after, shellLog: tools.shellLog(),
         });
         if (failure === null) return null;
@@ -5370,6 +5647,1082 @@ export class WorkCoordination {
     const captured = [...this.observe().records.assignments.values()].flatMap(assignment => scopeConfigurationPaths(assignment.scope));
     return auditPreparationPathsOf(this.options.ramify, this.projectRoot, this.input.record.auditConfiguration, captured, reason => this.ports.warn(reason));
   }
+  async takeIteration(
+    agent: AgentPort,
+    packages: ReadonlyMap<string, LoadedPackage>,
+    baseline: MeasurementSnapshot,
+    item: WorkItem,
+    assignment: IterationAssignment,
+    assignedIndex: ArchitectIndex | null,
+    resume?: { readonly session: SessionId; readonly point: string; readonly guidance: string; readonly priorInvocation: string },
+  ): Promise<IterationOutcome | null> {
+    // The capability owner already delivered this accepted request to its child.
+    // Its handback continues the unfinished assignment with a new engineer turn.
+    if (resume !== undefined) this.ports.restoreInvocation(resume.priorInvocation);
+    const savedResult = this.observe().records.results.get(assignment.id);
+    if (this.observe().restoring && savedResult) {
+      for (const invocation of [...savedResult.invocations].reverse()) {
+        const outcome = this.ports.effectiveInvocationOutcome(invocation);
+        if (!outcome?.settled.confirmed) throw new Error('Original iteration outcome has no confirmed settlement');
+        if (!outcome.submission) continue;
+        const bytes = await readIfExists(this.path(runLayout.submission(invocation)));
+        if (!bytes || sha256(bytes) !== outcome.submission.hash) throw new Error('Original iteration destination changed');
+        const { schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+        if (schema !== 'ramify-agent.engineer-submission/1') throw new Error('Original iteration destination schema changed');
+        const parsed = engineerSubmissionSchema.parse(body);
+        if (parsed.kind === 'contract-needed') return { kind: 'closed', result: savedResult, need: { need: parsed.need, suggestedProvider: parsed.suggestedProvider, injectionSites: parsed.injectionSites, invocation } };
+      }
+      return { kind: 'closed', result: savedResult };
+    }
+    if (packages.get('engineer') === undefined) {
+      await this.ports.fail('internal', 'No prompt package is loaded for the module engineer');
+      return null;
+    }
+    const number = assignment.coordination?.kind === 'capability-task'
+      ? assignment.coordination.sequence : Number.parseInt(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2), 10);
+    // Every module engineer invocation of the iteration, a budget return's too,
+    // runs under the bounds its assignment raised, and its prompt states the
+    // longest a command may run.
+    const bounds = this.engineerBounds(assignment);
+    const workingDirectory = await engineerWorkingDirectory(this.projectRoot, assignment.scope, this.observe().index, this.git);
+    // What the assignment gave it to write: its base modules, included
+    // subtrees, bootstrapped modules and extra locations.
+    const measurementScope = writeScopeMeasurement(assignment.scope);
+
+    const priorStarts = this.events('invocation-started').filter(event =>
+      event.data.role === 'engineer' && event.data.work.iteration === assignment.id);
+    const invocations: string[] = priorStarts.map(event => event.data.invocation);
+    const findings: string[] = [];
+    let sessionRef: string | undefined = resume?.point || undefined;
+    /** The module engineer's session while the harness keeps it; `sessionRef` is its executor's point. */
+    let session: SessionId | undefined = resume?.session;
+    /** A lost session the next one is reconstructed in place of. */
+    let replacing: SessionId | undefined;
+    let handoff: { done: string[]; unfinished: string[] } | undefined;
+    let failedGate: { id: string; cause: string | null; summary: string[] } | undefined;
+    let firstCause: { gate: string; cause: string | null } | undefined;
+    const priorGates = this.events('gate-attempted').flatMap(event => {
+      const parsed = gateAttemptSchema.safeParse(this.ports.committedBody(runLayout.gate(event.data.gate)));
+      return parsed.success && parsed.data.subject.iteration === assignment.id ? [parsed.data] : [];
+    });
+    let replay: InvocationResult<EngineerSubmission> | undefined;
+    let resourceRestartPredecessor: string | undefined;
+    const latestStart = priorStarts.at(-1);
+    if (latestStart !== undefined && resume?.priorInvocation !== latestStart.data.invocation &&
+      !priorGates.some(gate => gate.proposedBy === latestStart.data.invocation)) {
+      const ended = this.events('invocation-ended').find(event => event.data.invocation === latestStart.data.invocation);
+      const recorded = this.ports.effectiveInvocationOutcome(latestStart.data.invocation);
+      if (ended !== undefined && recorded !== undefined && recorded.settled.confirmed) {
+        const bytes = recorded.submission === null ? undefined : await readIfExists(this.path(runLayout.submission(latestStart.data.invocation)));
+        if (bytes !== undefined && sha256(bytes) !== recorded.submission?.hash) {
+          await this.ports.fail('recovery-exhausted', `Engineer ${latestStart.data.invocation} has changed submission bytes`);
+          return null;
+        }
+        const raw = bytes === undefined ? null : JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+        const parsed = raw === null ? null : engineerSubmissionSchema.safeParse((({ schema: _schema, ...body }) => body)(raw));
+        if (recorded.ended === 'submitted' && (raw?.schema !== 'ramify-agent.engineer-submission/1' || !parsed?.success)) {
+          await this.ports.fail('recovery-exhausted', `Engineer ${latestStart.data.invocation} has no valid committed submission`);
+          return null;
+        }
+        const resourceRestart = this.observe().restoring && !this.event('stop-requested')
+          && (['stopped', 'resource-pending', 'context-budget-reached'].includes(recorded.ended) || recorded.ended === 'failed' && recorded.interruption !== undefined);
+        if (resourceRestart) resourceRestartPredecessor = latestStart.data.invocation;
+        else replay = { id: latestStart.data.invocation, ended: recorded.ended,
+          value: parsed?.success ? parsed.data : undefined,
+          ref: recorded.session?.ref ?? '', session: latestStart.data.session, kept: ended.data.kept,
+          outcomeKind: recorded.ended, ...(recorded.interruption === undefined ? {} : { interruption: recorded.interruption }),
+          ...(recorded.error === undefined ? {} : { error: recorded.error }), elapsedMs: recorded.elapsedMs,
+          ...(recorded.checkpointReason === undefined ? {} : { checkpointReason: recorded.checkpointReason }),
+          actual: recorded.session?.mode === 'continued' ? 'continue' : recorded.session?.mode,
+          inFlight: [], lastText: null };
+      }
+    }
+    let repairRound = priorGates.filter(gate => gate.next === 'repair').length;
+    let attempt = priorStarts.length;
+    let guidancePending = resume?.guidance;
+    const priorRepair = [...priorGates].reverse().find(gate => gate.next === 'repair');
+    if (priorRepair !== undefined) failedGate = await this.ports.acceptance.diagnosticsOf(priorRepair);
+    if (priorGates.length > 0) firstCause = { gate: priorGates[0]!.id, cause: priorGates[0]!.cause };
+
+    // Closing the iteration closes the work of a session still kept for it.
+    const close = async (outcome: IterationResult['outcome'], extra: Partial<IterationResult> = {}): Promise<ClosedIterationOutcome> => {
+      const result = await this.ports.handling.closeIteration(item, number, assignment, {
+        outcome, invocations, findings, gate: null, commit: null, ...extra,
+      });
+      await this.ports.finishSession(session, 'work-closed');
+      return { kind: 'closed', result };
+    };
+
+    // A crash after the gate's immutable success and before its iteration
+    // result reuses that exact gate. No second engineer or audit runs.
+    const passed = [...priorGates].reverse().find(gate => gate.verdict === 'passed' && gate.audited !== null);
+    if (passed !== undefined) {
+      if (await this.candidates.commitTree(this.projectRoot, passed.audited!) !== (await this.ports.previewCandidateTree()).tree) throw new CandidateDriftError('Original engineer gate candidate changed before handback');
+      const closed = await this.ports.handling.closeIteration(item, number, assignment, {
+        outcome: 'accepted', invocations, findings: [], gate: passed.id, commit: passed.audited,
+      });
+      if (closed.commit !== null) await this.ports.handling.requestReviews({ workItem: assignment.coordination?.kind === 'capability-task'
+        ? assignment.coordination.id : item.id, iteration: assignment.id, gate: passed.id, commit: closed.commit });
+      await this.ports.finishSession(session, 'work-closed');
+      if (!await this.ports.acceptance.dischargeEvidence(item, assignment, passed.id, closed)) return null;
+      return { kind: 'closed', result: closed };
+    }
+
+    for (;;) {
+      if (this.ports.ignoring()) return null;
+
+      // A session the implementation can no longer read is reconstructed from
+      // records rather than continued, and the counters are kept.
+      let start: SessionStart = { mode: 'fresh' };
+      let degraded: InvocationRequest<EngineerSubmission>['degraded'];
+      if (sessionRef !== undefined) {
+        const note = `Continuing iteration ${assignment.id}.`;
+        const appended = await (await this.ports.operations(agent)).append(sessionRef, `${assignment.id}:${attempt}`, note);
+        if (appended.outcome !== 'appended' && appended.outcome !== 'already-present') {
+          if (appended.outcome === 'conflict') throw new Error(`The module engineer session did not take its note: ${appended.reason}`);
+          await this.ports.finishSession(session, 'lost');
+          degraded = { requested: 'continued', reason: 'The retained engineer session is unavailable; using the ordinary task brief' };
+          replacing = undefined;
+          sessionRef = undefined;
+          session = undefined;
+        } else {
+          start = { mode: 'continue', ref: appended.ref };
+          if (appended.outcome === 'appended' && session !== undefined) {
+            const kept = session;
+            await this.ports.recordAppend(kept, { kind: 'note-appended', text: note }, null)
+              .catch(error => this.ports.warn(`Run ${this.input.record.jobId}: the note continuing ${kept} is missing from its transcript: ${message(error)}`));
+          }
+        }
+      }
+
+      attempt += 1;
+      const beforeTree = assignment.coordination?.kind === 'capability-task'
+        ? (await this.ports.previewCandidateTree()).tree : undefined;
+      const before = await takeLineSnapshot(this.projectRoot, this.accepted(), this.git);
+      // A capability-task iteration is told only the obligations its
+      // assignment names; a work item's iteration also sees its scenarios.
+      const briefedScenarios = assignment.coordination?.kind === 'capability-task'
+        ? undefined : await this.engineerScenarios(item);
+      const assignedObligations = this.assignedObligations(assignment.obligations ?? []);
+      // The assignment package reaches a session once: a continued session
+      // holds it from its first prompt.
+      let assignmentPackage: string | undefined;
+      try {
+        if (assignment.source !== undefined) assignmentPackage = await this.packageText(assignment.source, assignment.workItem);
+      } catch (error) {
+        await this.ports.fail('inputs-changed', `The assignment package of ${assignment.id} cannot be delivered: ${message(error)}`);
+        return null;
+      }
+      const featurePaths = assignedFeaturePaths(assignment, trackedScenarios(this.observe().history.lines).records);
+      const focused = await prepareAssignedCucumber({ projectRoot: this.projectRoot, scratchDirectory: join(workingDirectory, 'tmp', 'ramify-focused', assignment.id),
+        featurePaths, checks: this.input.record.auditConfiguration && 'config' in this.input.record.auditConfiguration ? this.input.record.auditConfiguration.config.checks : [],
+        runner: this.options.commandExecution ?? runCommand });
+      const invocationViews = replay === undefined ? await this.iterationViews(assignment) : [];
+
+      // The invocation is built from its inputs by the module engineer step's own
+      // constructor, which `step render` uses too; the inputs are validated
+      // here and written beside the invocation before it starts.
+      let step: ConstructedEngineerStep;
+      try {
+        step = constructEngineerStep(await this.engineerStepInputs({
+          item, assignment, attempt, workingDirectory, bounds, beforeTree, views: invocationViews, scenarios: briefedScenarios,
+          obligations: assignedObligations, assignmentPackage, featurePaths, focused, failedGate,
+          handoff: handoff === undefined ? undefined : { ...handoff, returns: this.budgetReturns(assignment.id) },
+          guidance: guidancePending,
+          start: start.mode === 'continue'
+            ? { kind: resume === undefined ? 'repair-continuation' : 'resumed-after-handback', session: session ?? '', point: start.ref }
+            : { kind: 'fresh', ...(degraded === undefined || degraded.requested !== 'continued' ? {} : { degraded: { requested: 'continued', reason: degraded.reason } }) },
+        }), { projectRoot: this.projectRoot, packages });
+      } catch (error) {
+        await this.ports.fail('internal', `The module engineer of ${assignment.id} cannot be constructed from its inputs: ${message(error)}`);
+        return null;
+      }
+      const guarded = await protectedScopeOf(this.projectRoot, assignment.scope, step.equipment.protectedFiles, this.options.ramify, this.ports.ownershipAuthority(assignment));
+      const tools = this.implementationTools({
+        workingDirectory: step.equipment.workingDirectory,
+        scopeRevision: step.equipment.scopeRevision,
+        guarded,
+        commandTimeoutMs: step.equipment.commandTimeoutMs,
+        submissions: step.equipment.submissions,
+        focusedCommands: step.equipment.focusedCommands,
+      });
+
+      const result = replay ?? await this.ports.runInvocation<EngineerSubmission>(agent, {
+        role: step.role,
+        ...(resourceRestartPredecessor === undefined ? {} : { recoveryPredecessor: resourceRestartPredecessor }),
+        originalInvocation: this.observe().restoring && latestStart && !this.events('invocation-ended').some(event => event.data.invocation === latestStart.data.invocation) ? latestStart.data.invocation : undefined,
+        task: step.task,
+        brief: step.brief,
+        context: step.context,
+        stepInputs: step.before.inputs, consultationPackages: packages,
+        workingDirectory: step.equipment.workingDirectory,
+        work: step.work,
+        attempt: step.attempt,
+        loaded: step.loaded,
+        systemPrompt: step.systemPrompt,
+        prompt: step.prompt,
+        start: step.start.mode === 'continue' ? { mode: 'continue', ref: step.start.ref } : { mode: 'fresh' },
+        session,
+        // The module engineer is kept only after a proposed completion, and
+        // continued only for the repair its failing gate asks for. The
+        // harness point is its previous invocation's end: the note appended
+        // before it is the executor's, and no other session starts from it.
+        continuing: step.start.mode === 'continue' ? step.start.continuing : resume === undefined ? 'repair' : 'capability-returned',
+        ...(replacing === undefined ? {} : { replaces: { session: replacing, reason: 'reconstructed' } }),
+        ...(degraded === undefined ? {} : { degraded }),
+        // A proposed completion is kept for the repair its gate may ask for.
+        // Resource returns retain the assignment through recovery regardless of count.
+        keep: (ended, value) => {
+          if (ended === 'context-budget-reached') {
+            return finished('not-kept');
+          }
+          if (ended !== 'submitted' || value === undefined) return finished('not-kept');
+          return value.kind === 'completion-proposed' || (value.kind === 'capability-needed' && this.workflow !== null)
+            ? kept : finished('work-closed');
+        },
+        toolName: step.submission.toolName,
+        description: step.submission.description,
+        inputSchema: step.submission.inputSchema,
+        submissionSchema: step.submission.submissionSchema,
+        // A claimed completion is checked afresh over the write scope
+        // before it is judged, because the hook checks saw only the
+        // mutations they covered.
+        beforeSubmission: async (input, signal) => { await tools.findingsAtCompletion(input, signal); },
+        validate: async input => {
+          const validated = await validateEngineerWithOwnership(input, {
+            capabilityWorkflow: step.validator.capabilityWorkflow,
+            obligation: step.validator.obligation,
+            kind: step.validator.kind,
+            openFindings: tools.openFindings(),
+            submissions: tools.submissions,
+            assigned: step.validator.assigned,
+            seams: {
+              index: this.observe().index,
+              consumer: step.validator.consumer,
+              providerOf: capability => this.observe().records.registry.find(entry => entry.capability === capability)?.owner,
+            },
+          }, paths => this.options.ramify.queryOwnershipAnswer(this.projectRoot, paths),
+          () => new Map(this.observe().records.registry.map(entry => [entry.capability, entry])));
+          // A capability-needed submission captures a provisional candidate
+          // immediately after this invocation. Refuse unsafe scratch here so
+          // the same engineer session can repair it before a tree is read.
+          if (validated.ok && validated.value.kind === 'capability-needed') {
+            const safety = await scratchSafetyRule(this.projectRoot, await declaredModuleDirectories(this.projectRoot), this.git);
+            if (safety.outcome === 'failed') return { ok: false, errors: safety.violations.map(violation => ({
+              path: 'scratch', message: `${violation.path}: ${violation.detail}`,
+            })) };
+          }
+          return validated;
+        },
+        acceptedText: value => {
+          const check = tools.completionCheck();
+          return iterationAcceptance(value.kind, check?.kind === 'not-checked' ? check.reason : null);
+        },
+        scope: {
+          write: assignment.scope.revision,
+          measurement: this.input.record.baseline && 'measurement' in this.input.record.baseline ? this.input.record.baseline.measurement : null,
+          size: null,
+        },
+        measured: { snapshot: baseline, scope: measurementScope, readScope: readScopeMeasurement(assignment.scope) },
+        writer: true,
+        ...(beforeTree === undefined ? {} : { candidateBefore: beforeTree }),
+        guarded,
+        readModules: assignment.scope.read,
+        equip: tools.equip, previewEquipment: tools.preview,
+        bounds: step.bounds,
+      });
+      const replayed = replay !== undefined;
+      replay = undefined;
+      resourceRestartPredecessor = undefined;
+      if (!replayed && !invocations.includes(result.id)) invocations.push(result.id);
+      guidancePending = undefined;
+      sessionRef = result.kept && result.ref !== '' ? result.ref : undefined;
+      session = sessionRef === undefined ? undefined : result.session;
+      replacing = undefined;
+
+      // The line events of this writer: its net change, from the two
+      // snapshots around it. A change made and put back between them,
+      // through any tool, delivered nothing and is rightly not counted.
+      const after = await takeLineSnapshot(this.projectRoot, this.accepted(), this.git);
+      const savedLines = replayed ? await readIfExists(this.path(runLayout.lineEvents(result.id))) : undefined;
+      const parsedLines = savedLines === undefined ? null : lineEventSummarySchema.safeParse(JSON.parse(savedLines.toString('utf8')));
+      const lines = parsedLines?.success ? parsedLines.data : replayed ? null
+        : await this.recordLineEvents(result.id, before, after);
+      if (this.ports.ignoring()) return null;
+
+      if (result.ended === 'checkpoint-pending' && !this.ports.writer.unsettled()) {
+        findings.push(`Architect handoff after compaction: ${result.checkpointReason ?? 'Reconsider the unfinished assignment.'}`,
+          `No engineer submission was accepted. Retained context: ${this.path(runLayout.transcript(result.session))}`);
+        return close('partial');
+      }
+
+      // An unfinished engineer returns its retained work to its architect.
+      // Unknown writer settlement must still be resolved before another writer starts.
+      if (result.ended !== 'submitted' || result.value === undefined) {
+        if (this.ports.writer.unsettled()) {
+          await this.ports.fail(result.ended === 'invalid-submission' ? 'invalid-submission' : result.ended === 'failed' ? 'agent-failed' : 'internal',
+            `The module engineer of ${assignment.id} ended without a result (${result.ended})`,
+            [runLayout.outcome(result.id)],
+          );
+          return null;
+        }
+        findings.push(`${failedWithoutResult('engineer', assignment.id, result)}; nothing of it was committed, and what it wrote stays uncommitted in the tree`);
+        const failure = await this.failureOf(agent, packages, {
+          item, assignment, number, role: 'engineer', result, bounds, lines, after, shellLog: tools.shellLog(),
+        });
+        if (failure === null) return null;
+        return close('partial', { failure });
+      }
+
+      if (result.value.kind === 'partial') {
+        findings.push(...result.value.done.map(entry => `done: ${entry}`), ...result.value.findings, ...result.value.unfinished.map(entry => `unfinished: ${entry}`));
+        return close('partial');
+      }
+      if (result.value.kind === 'unsuitable') {
+        findings.push(`unsuitable (${result.value.reason}): ${result.value.detail}`);
+        // The provider cannot meet the agreement as it stands. The harness
+        // derives the obligation from the assignment, the writer has settled
+        // with the invocation, the iteration closes here, and the report
+        // reaches the consumer's architect. Nothing of the agreement changes.
+        if (result.value.reason === 'provider-cannot-conform') {
+          const closed = await close('unsuitable');
+          const reported = await this.reportRevisionNeeded(item, assignment, result.value.detail);
+          return reported === null ? null : { ...closed, reportedRevision: true };
+        }
+        return close('unsuitable');
+      }
+
+      // The behavior this iteration needs is owned elsewhere. Its turn ends
+      // here: no nested live session is started, the iteration closes with
+      // what it did, and the harness answers with a contract iteration of
+      // its own whose outcome is in the records.
+      if (result.value.kind === 'contract-needed') {
+        const need = result.value.need;
+        findings.push(`the behavior needed for "${need.capability}" is owned outside this scope: ${result.value.summary}`);
+        const closed = await close('partial');
+        return {
+          kind: 'closed',
+          result: closed.result,
+          need: {
+            need,
+            ...(result.value.suggestedProvider === undefined ? {} : { suggestedProvider: result.value.suggestedProvider }),
+            ...(result.value.injectionSites === undefined ? {} : { injectionSites: result.value.injectionSites }),
+            invocation: result.id,
+          },
+        };
+      }
+
+      if (result.value.kind === 'capability-needed') {
+        if (this.workflow === null || this.ports.writer.unsettled()) {
+          await this.ports.fail('internal', 'The requesting module engineer could not be retained after its writer settled');
+          return null;
+        }
+        return { kind: 'capability-needed', summary: result.value.summary, need: result.value.request,
+          invocation: result.id, session: result.session, point: result.ref };
+      }
+
+      const proposal = result.value;
+      // The proposal's bindings apply at its acceptance, before the gate:
+      // that gate's commit drops a bound scenario's pending tag, and the gate
+      // selects it by identity. No gate outcome undoes a binding.
+      if (!await this.ports.handling.recordBindings(result.id, proposal.bindings)) return null;
+      let infrastructureAttempt = 0;
+      for (;;) {
+        const gate = await this.ports.gates.iterationGate(item, assignment, result.id, repairRound, infrastructureAttempt, proposal.summary);
+        if (gate === null) return null;
+        firstCause ??= { gate: gate.id, cause: gate.cause };
+
+        if (gate.verdict === 'passed') {
+          findings.push(...proposal.findings);
+          const closed = await this.ports.handling.closeIteration(item, number, assignment, {
+            outcome: 'accepted',
+            invocations,
+            findings,
+            gate: gate.id,
+            commit: gate.audited,
+            ...(proposal.recommendation === undefined ? {} : { recommendation: proposal.recommendation }),
+          });
+          // The candidate's reviews are requested before the driver passes
+          // it; they run beside the next iteration's writer.
+          if (closed.commit !== null) await this.ports.handling.requestReviews({ workItem: assignment.coordination?.kind === 'capability-task'
+            ? assignment.coordination.id : item.id, iteration: assignment.id, gate: gate.id, commit: closed.commit });
+          await this.ports.finishSession(session, 'work-closed');
+          // The evidence this acceptance discharges: a provider that ran the
+          // agreed suite against the real implementation has conformed, and a
+          // verification that replaced every fake injection closes its
+          // requirement.
+          if (!await this.ports.acceptance.dischargeEvidence(item, assignment, gate.id, closed)) return null;
+          return { kind: 'closed', result: closed };
+        }
+
+        if (gate.next === 'retry-infrastructure') {
+          infrastructureAttempt += 1;
+          continue;
+        }
+        if (gate.next === 'exhausted') {
+          findings.push(...proposal.findings);
+          findings.push(`the gate did not pass; the first cause was ${firstCause.cause ?? 'unknown'} at gate ${firstCause.gate}`);
+          return close('exhausted');
+        }
+        if (gate.next === 'return-to-local-architect') {
+          findings.push(...proposal.findings);
+          findings.push(`the gate returned to the module architect: ${gate.cause ?? 'unknown'} at gate ${gate.id}`);
+          // The architect can only record a revision for a change it can
+          // name, so the guarded paths the attempt found go with the cause.
+          for (const change of gate.guardedChanges) {
+            if (change.authorizedBy !== null) continue;
+            findings.push(`no record authorizes the change to the guarded file "${change.path}"${change.after === null ? ', which this iteration deleted' : ''}`);
+          }
+          // What failed and what it reported travel with the outcome: a
+          // cause alone was read as a write outside the assignment, the
+          // architect narrowed the file list, and the same failure returned.
+          const returnedGate = await this.ports.acceptance.diagnosticsOf(gate, 'local-architect');
+          return { ...await close(gate.cause === 'check-failed' ? 'partial' : 'unsuitable'), returnedGate };
+        }
+        // One repair round: the rerun runs the gate's complete required set.
+        repairRound += 1;
+        failedGate = await this.ports.acceptance.diagnosticsOf(gate);
+        break;
+      }
+    }
+  }
+
+  private async engineerStepInputs(collected: {
+    readonly item: WorkItem;
+    readonly assignment: IterationAssignment;
+    readonly attempt: number;
+    readonly workingDirectory: string;
+    readonly bounds: EngineerBounds;
+    readonly beforeTree: string | undefined;
+    readonly views: readonly IterationApiViews[];
+    readonly scenarios: EngineerScenarios | undefined;
+    readonly obligations: readonly AssignedObligation[];
+    readonly assignmentPackage: string | undefined;
+    readonly featurePaths: readonly string[];
+    readonly focused: Awaited<ReturnType<typeof prepareAssignedCucumber>>;
+    readonly failedGate: { readonly id: string; readonly cause: string | null; readonly summary: readonly string[] } | undefined;
+    readonly handoff: { readonly done: readonly string[]; readonly unfinished: readonly string[]; readonly returns: number } | undefined;
+    readonly guidance: string | undefined;
+    readonly start: EngineerStepInputs['start'];
+  }): Promise<EngineerStepInputs> {
+    const { assignment } = collected;
+    const record = this.observe().records.assignments.get(assignment.id);
+    const known = await this.knownProjectFacts('module' in assignment.scope.base ? [assignment.scope.base.module] : assignment.scope.base.modules);
+    const records = this.observe().records;
+    const priorResult = [...records.results.values()].filter(result => {
+      if (result.iteration === assignment.id) return false;
+      const prior = records.assignments.get(result.iteration);
+      return prior !== undefined && (assignment.coordination?.kind === 'capability-task'
+        ? prior.coordination?.kind === 'capability-task' && prior.coordination.id === assignment.coordination.id
+        : prior.coordination?.kind !== 'capability-task' && prior.workItem === assignment.workItem);
+    }).at(-1);
+    const priorPartials = priorResult?.outcome === 'partial' ? [priorResult] : [];
+    const retainedWork = priorPartials.length === 0 ? undefined : [
+      '## Retained partial work', '',
+      'Earlier reports retain their original assignment basis. Inspect the retained candidate edits and these source/test pointers; the current assignment and acceptance determine what remains authorized.',
+      ...priorPartials.flatMap(result => {
+        const prior = records.assignments.get(result.iteration)!;
+        const owner = prior.coordination?.kind === 'capability-task' ? prior.coordination.id : prior.workItem;
+        const sequence = prior.coordination?.kind === 'capability-task' ? prior.coordination.sequence
+          : Number.parseInt(prior.id.slice(prior.id.lastIndexOf('.i') + 2), 10);
+        return [
+          `- Earlier assignment: ${result.iteration}; engineer invocations: ${result.invocations.join(', ')}.`,
+          `- Durable assignment: ${this.path(iterationLayout.assignment(owner, sequence))}; result: ${this.path(iterationLayout.result(owner, sequence))}.`,
+          ...result.invocations.filter(invocation => records.outcomes.get(invocation)?.submission != null)
+            .map(invocation => `- Durable engineer report: ${this.path(runLayout.submission(invocation))}.`),
+          ...result.findings.map(finding => `- ${finding}`),
+          ...(result.startingPoints ?? []).map(point => `- Source/test pointer: ${JSON.stringify(point)}.`),
+        ];
+      }),
+    ].join('\n');
+    return engineerStepInputsOf({
+      ...collected,
+      guidance: [collected.guidance, retainedWork].filter(text => text !== undefined).join('\n\n') || undefined,
+      consultation: engineerConsultationInputs(this.observe().history.events, { planId: this.input.record.planId, runId: this.input.record.jobId }, assignment.id),
+      run: { planId: this.input.record.planId, runId: this.input.record.jobId },
+      base: this.accepted(),
+      capabilityWorkflow: this.workflow !== null,
+      capabilityPolicy: supportedCapabilityPolicy(this.observe().policy.version),
+      workingDirectory: this.projectRelative(collected.workingDirectory),
+      testAreas: await this.ownedTestAreas(assignment.gate.tests),
+      startingPoints: record === undefined ? null : this.assignmentStartingPoints(record),
+      known,
+      protectedFiles: await this.protectedFiles(assignment),
+      limits: this.observe().policy.limits,
+      context: contextPolicyOf(this.observe().policy, 'engineer'),
+    });
+  }
+
+  async failureOf(
+    agent: AgentPort,
+    packages: ReadonlyMap<string, LoadedPackage>,
+    subject: {
+      readonly item: WorkItem;
+      readonly assignment: IterationAssignment;
+      readonly number: number;
+      readonly role: Role;
+      readonly result: InvocationResult<unknown>;
+      readonly bounds: EngineerBounds;
+      readonly lines: LineEventSummary | null;
+      readonly after: LineSnapshot;
+      readonly shellLog: readonly ShellCallRecord[];
+    },
+  ): Promise<NonNullable<IterationResult['failure']> | null> {
+    const digest = await this.failureDigestOf(subject);
+    const analysis = await this.analyzeFailure(agent, packages, subject, digest);
+    if (this.ports.ignoring()) return null;
+    return { digest, analysis };
+  }
+
+  private async failureDigestOf(
+    subject: {
+      readonly role: Role;
+      readonly result: InvocationResult<unknown>;
+      readonly bounds: EngineerBounds;
+      readonly lines: LineEventSummary | null;
+      readonly after: LineSnapshot;
+      readonly shellLog: readonly ShellCallRecord[];
+    },
+  ): Promise<FailureDigest> {
+    const { result } = subject;
+    const rejections = await ObservationLog.open(this.path(runLayout.observations(result.id)))
+      .then(log => log.observations.flatMap(observation => (observation.type === 'rejection' ? [observation.data] : [])))
+      .catch(() => []);
+    const shellCalls: DigestShellCall[] = subject.shellLog.map(call => ({
+      callId: call.callId,
+      command: call.command,
+      timeoutMs: call.timeoutMs,
+      output: relative(this.input.directory, call.outputFile).split('\\').join('/'),
+    }));
+    // The complete output of each shell call in flight, which its tail is read from.
+    const outputs = new Map<string, string>();
+    for (const call of result.inFlight ?? []) {
+      const shell = subject.shellLog.find(entry => entry.callId === call.callId);
+      if (shell === undefined) continue;
+      const text = await readFile(shell.outputFile, 'utf8').catch(() => undefined);
+      if (text !== undefined) outputs.set(call.callId, text);
+    }
+    return failureDigest({
+      invocation: result.id,
+      role: subject.role,
+      ended: result.ended,
+      interruption: result.interruption,
+      error: result.error,
+      elapsedMs: result.elapsedMs ?? 0,
+      bounds: subject.bounds,
+      rejections,
+      inFlight: result.inFlight ?? [],
+      shellCalls,
+      outputs,
+      lines: subject.lines,
+      uncommitted: subject.after.available ? subject.after.changes.length : null,
+      lastMessage: result.lastText ?? null,
+      transcript: runLayout.transcript(result.session),
+    });
+  }
+
+  private async analyzeFailure(
+    agent: AgentPort,
+    packages: ReadonlyMap<string, LoadedPackage>,
+    subject: { readonly item: WorkItem; readonly assignment: IterationAssignment; readonly number: number; readonly result: InvocationResult<unknown> },
+    digest: FailureDigest,
+  ): Promise<FailureAnalysis> {
+    const unavailable = (reason: string, invocation: string | null = null): FailureAnalysis => ({ outcome: 'unavailable', invocation, reason });
+    const loaded = packages.get('failure-analyst');
+    if (loaded === undefined) return unavailable('no prompt package is loaded for the failure analyst');
+    if (this.observe().policy.context['failure-analyst'] === undefined) return unavailable(`the run's policy (${this.observe().policy.version}) has no context policy for the failure analyst`);
+    if (this.ports.ignoring()) return unavailable('the run is ending');
+    try {
+      const recordOwner = subject.assignment.coordination?.kind === 'capability-task'
+        ? subject.assignment.coordination.id : subject.item.id;
+      const workspace = this.path(join(dirname(iterationLayout.result(recordOwner, subject.number)), 'failure-evidence'));
+      const evidence = await this.failureEvidence(workspace, subject.result, digest);
+      const attempt = this.events('invocation-started')
+        .filter(event => event.data.role === 'failure-analyst' && event.data.work.iteration === subject.assignment.id).length + 1;
+      const result = await this.ports.runInvocation<FailureAnalysisSubmission>(agent, {
+        role: 'failure-analyst',
+        work: { workItem: subject.item.id, iteration: subject.assignment.id },
+        attempt,
+        loaded,
+        systemPrompt: renderFailureAnalystPrompt(loaded, workspace),
+        prompt: failureAnalysisMessage({
+          iteration: subject.assignment.id,
+          goal: subject.assignment.goal,
+          projectRoot: this.projectRoot,
+          runDirectory: this.input.directory,
+          digest,
+          evidence,
+        }),
+        start: { mode: 'fresh' },
+        toolName: failureAnalysisToolName,
+        description: failureAnalysisSubmissionDescription,
+        inputSchema: failureAnalysisJsonSchema,
+        submissionSchema: 'ramify-agent.failure-analysis-submission/1',
+        validate: input => validateFailureAnalysis(input),
+        keep: () => finished('work-closed'),
+        scope: { write: null, measurement: null, size: null },
+        reader: true,
+        workingDirectory: workspace,
+        absoluteMs: failureAnalysisMs,
+        equip: () => ({ builtinTools: ['read', 'grep', 'ls'], tools: [] }),
+      });
+      if (result.id === '') return unavailable('the run\'s bounds refused its invocation');
+      if (result.ended === 'submitted' && result.value !== undefined) {
+        return { outcome: 'analyzed', invocation: result.id, ...result.value, evidence: [...result.value.evidence] };
+      }
+      const why = [result.interruption, result.error].filter(part => part !== undefined && part !== '').join(': ');
+      return unavailable(`the analysis ended \`${result.ended}\`${why === '' ? '' : ` (${why})`}`, result.id);
+    } catch (error) {
+      this.ports.warn(`Run ${this.input.record.jobId}: the failure analysis of ${subject.assignment.id} could not be run: ${message(error)}`);
+      return unavailable(`it could not be run: ${message(error)}`);
+    }
+  }
+
+  private async failureEvidence(workspace: string, result: InvocationResult<unknown>, digest: FailureDigest): Promise<FailureEvidence> {
+    const files: Array<{ path: string; holds: string }> = [];
+    const missing: string[] = [];
+    await mkdir(join(workspace, 'outputs'), { recursive: true });
+    await writeFileAtomic(join(workspace, 'digest.md'), `${digestLines(digest, this.input.directory).join('\n')}\n`);
+    files.push({ path: 'digest.md', holds: 'the digest above' });
+    try {
+      const text = await this.ports.renderInvocationTranscript(result.session, result.id);
+      await writeFileAtomic(join(workspace, 'transcript.md'), text === '' ? '(the transcript holds no entry of this invocation)\n' : `${text}\n`);
+      files.push({ path: 'transcript.md', holds: `the invocation's transcript, numbered as \`${digest.transcript}\` numbers it; a long one keeps its start and its end` });
+    } catch (error) {
+      missing.push(`the transcript, which could not be read: ${message(error)}`);
+    }
+    for (const output of digest.outputs) {
+      const name = `outputs/${output.split('/').slice(-3).join('-')}`;
+      try {
+        const text = await readFile(this.path(output), 'utf8');
+        await writeFileAtomic(join(workspace, name), text.length <= failureOutputCharacters ? text : `… ${text.length - failureOutputCharacters} characters of its start are left out …\n${text.slice(-failureOutputCharacters)}`);
+        files.push({ path: name, holds: `the complete output of \`${output}\`` });
+      } catch (error) {
+        missing.push(`the output \`${output}\`, which could not be read: ${message(error)}`);
+      }
+    }
+    try {
+      const patch = await this.git.worktreePatch(this.projectRoot, this.accepted());
+      await writeFileAtomic(join(workspace, 'diff.patch'), patch);
+      files.push({ path: 'diff.patch', holds: `the patch of the tracked files against the last accepted commit \`${this.accepted()}\`${patch === '' ? '; it is empty' : ''}` });
+    } catch (error) {
+      missing.push(`the patch of the uncommitted work, which Git could not give: ${message(error)}`);
+    }
+    return { directory: workspace, files, missing };
+  }
+
+  private async iterationViews(assignment: IterationAssignment): Promise<IterationApiViews[]> {
+    return iterationApiViews(this.options.ramify, this.projectRoot, this.observe().index, assignment.scope.base, assignment.scope.extra);
+  }
+
+  private budgetReturns(iteration: string): number {
+    const records = this.observe().records;
+    return this.events('invocation-ended')
+      .filter(event => event.data.ended === 'context-budget-reached')
+      .filter(event => records.invocations.get(event.data.invocation)?.work.iteration === iteration)
+      .length;
+  }
+
+  async captureAutomaticRepairAssignment(invocation: string,
+    delegation: AutomaticRepairAssignment['delegation']): Promise<boolean> {
+    try {
+      const captured = automaticRepairAssignmentSchema.safeParse(this.ports.committedBody(runLayout.contingentRepairAssignment));
+      if (captured.success) {
+        if (captured.data.invocation !== invocation || JSON.stringify(captured.data.delegation) !== JSON.stringify(delegation)) throw new Error('A different contingent assignment is already recorded');
+        return true;
+      }
+      const current = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
+      const root = current.scope.ownership.modules.find(module => module.parent === null);
+      if (root?.id !== delegation.root) throw new Error('Contingent repair must name the verified project root');
+      const scope = await resolveWriteScope({ projectRoot: this.projectRoot, ramify: this.options.ramify,
+        index: this.observe().index, view: this.input.record.manifest.architectView, revision: 1,
+        base: { module: delegation.root, included: delegation.included }, extra: [], read: [], bootstrap: [], rationale: delegation.instructions });
+      const declarations = scope.resolved.ownership.modules.map(module => posix.join(module.directory === '.' ? '' : module.directory, 'module.ramify'));
+      const assignment = automaticRepairAssignmentSchema.parse({ schema: 'ramify-agent.automatic-repair-assignment/1',
+        id: 'root-repair', invocation, delegation, scope,
+        guarded: await captureGuardedFiles(this.projectRoot, [...this.requiredArtifacts(this.observe().records).map(artifact => artifact.path), ...declarations],
+          await this.guardedScenarioFiles(), [...await this.auditPreparationPaths(), ...scopeConfigurationPaths(scope)]) });
+      if (await this.ports.write({ type: 'repair-assignment-recorded', data: { assignment: assignment.id, invocation } },
+        [{ path: runLayout.contingentRepairAssignment, id: assignment.id, revision: 1, body: assignment }]) === 'ended') return false;
+      // Store a successful provider observation before any later preparation failure.
+      await this.ports.ownershipAuthority(assignment).retain(current, current.paths.map(path => ({ path: path.path, allowed: path.status === 'owned' })));
+      await this.ports.afterWrite('repair-assignment-recorded', this.input.record.jobId);
+      return true;
+    } catch (error) {
+      await this.ports.fail('invalid-submission', `Contingent root repair assignment cannot be captured: ${message(error)}`);
+      return false;
+    }
+  }
+
+  async recordRepairPreparation(item: WorkItem, attempt: number,
+    assignment: IterationAssignment | undefined, result: IterationResult): Promise<RepairPreparation> {
+    const pending = [...this.events('repair-preparation-recorded')].reverse().find(event => event.data.workItem === item.id
+      && !this.events('repair-preparation-consumed').some(consumed => consumed.data.preparation === event.data.preparation));
+    if (pending) {
+      const retained = repairPreparationSchema.parse(this.ports.committedBody(runLayout.repairPreparation(pending.data.preparation)));
+      if (retained.originalAssignment === (assignment?.id ?? null) && retained.originalInvocation === (result.invocations.at(-1) ?? null)) return retained;
+    }
+    const id = `prep-${String(this.events('repair-preparation-recorded').length + 1).padStart(4, '0')}`;
+    const number = assignment === undefined ? 0 : Number.parseInt(assignment.id.slice(assignment.id.lastIndexOf('.i') + 2), 10);
+    let candidate: { head: string; tree: string } | null = null;
+    let candidatePaths: string[] = [], candidateFailure: string | null = null;
+    if (this.observe().policy.recovery || this.event('repair-assignment-recorded') !== undefined) {
+      try {
+        candidate = await this.ports.previewCandidateTree();
+        candidatePaths = await this.git.changedPaths(this.projectRoot, this.accepted());
+      } catch (error) { candidateFailure = message(error); }
+    }
+    const preparation = repairPreparationSchema.parse({ schema: 'ramify-agent.repair-preparation/1', id,
+      operation: 'prepare-local-architect', workItem: item.id, attempt, recordedAt: this.ports.now().toISOString(),
+      ledgerSequence: this.observe().history.events.at(-1)?.sequence ?? 0, acceptedCommit: this.accepted(),
+      candidateBefore: candidate === null ? null : { head: candidate.head, tree: candidate.tree }, candidateFailure, candidatePaths,
+      repairAssignment: this.event('repair-assignment-recorded')?.data.assignment ?? null,
+      originalAssignment: assignment?.id ?? null, originalResult: assignment === undefined ? null : iterationLayout.result(item.id, number),
+      originalInvocation: result.invocations.at(-1) ?? null,
+      inputReferences: [runLayout.capturedPlan, runLayout.documentManifest,
+        ...(assignment === undefined ? [] : [iterationLayout.assignment(item.id, number), iterationLayout.result(item.id, number)]),
+        ...result.invocations.map(invocation => runLayout.submission(invocation))] });
+    const written = await this.ports.write({ type: 'repair-preparation-recorded', data: { preparation: id, workItem: item.id, attempt } },
+      [{ path: runLayout.repairPreparation(id), id, revision: 1, body: preparation }]);
+    if (written === 'ended') throw new Error('The run ended before its preparation target was durable');
+    await this.ports.afterWrite('repair-preparation-recorded', this.input.record.jobId);
+    return preparation;
+  }
+
+  latestRepairIncident(): { incident: RepairIncidentRecord; stage: RepairIncidentStage } | undefined {
+    const event = this.events('repair-incident-recorded').at(-1);
+    if (event === undefined) return undefined;
+    const latest = [...this.events('repair-incident-recorded'), ...this.events('repair-export-recorded')].filter(item => item.data.incidentId === event.data.incidentId).sort((left, right) => left.sequence - right.sequence).at(-1)!;
+    const record = this.observe().history.lines.flatMap(line => line.transaction.records)
+      .find(record => record.path === runLayout.repairIncident(latest.data.incidentId, latest.data.revision));
+    return { incident: repairIncidentRecordSchema.parse(record?.body), stage: event.data.stage };
+  }
+
+  async persistRepairIncident(incident: RepairIncidentRecord, stage: RepairIncidentStage,
+    additional: readonly CommitRecord[] = []): Promise<RepairIncidentRecord> {
+    const payload = createRepairExportPayload(this.projectRoot, this.input.record.jobId, incident);
+    const written = await this.ports.write({ type: 'repair-incident-recorded', data: { incidentId: incident.incidentId, revision: incident.revision, stage } },
+      [{ path: runLayout.repairIncident(incident.incidentId, incident.revision), id: incident.incidentId, revision: incident.revision, body: incident },
+        { path: repairExportPayloadPath(incident.incidentId, incident.revision), id: incident.incidentId, revision: incident.revision, body: payload }, ...additional]);
+    if (written === 'ended') throw new Error('The run ended before the repair incident could be persisted');
+    await this.ports.afterWrite('repair-incident-recorded', this.input.record.jobId);
+    if (this.input.repairIncidentExport !== undefined && ['refused', 'blocked', 'unverified', 'continued', 'interrupted'].includes(stage)) {
+      try {
+        const exported = await exportRepairIncident(payload, this.input.repairIncidentExport, this.options.commandExecution, this.ports.now);
+        const next = { ...incident, revision: incident.revision + 1, export: exported };
+        const exportWritten = await this.ports.write({ type: 'repair-export-recorded', data: { incidentId: incident.incidentId, revision: next.revision, state: exported.state } },
+          [{ path: runLayout.repairIncident(next.incidentId, next.revision), id: next.incidentId, revision: next.revision, body: next },
+            { path: repairExportPayloadPath(next.incidentId, next.revision), id: next.incidentId, revision: next.revision, body: createRepairExportPayload(this.projectRoot, this.input.record.jobId, next) }]);
+        if (exportWritten === 'ended') {
+          this.ports.warn(`Automatic repair incident ${incident.incidentId} export completed after the run ended; its retained pending payload must be reconciled before reporting delivery`);
+          return incident;
+        }
+        return next;
+      } catch (error) { this.ports.warn(`Automatic repair incident ${incident.incidentId} export remains pending: ${message(error)}`); }
+    }
+    return incident;
+  }
+
+  async automaticProjectRepair(agent: AgentPort, packages: ReadonlyMap<string, LoadedPackage>, baseline: MeasurementSnapshot,
+    preparation: RepairPreparation, obstruction: unknown, prepare: ((report: RepairResult) => Promise<ConstructedWorkTurnStep>) | null):
+    Promise<{ step: ConstructedWorkTurnStep | null; incident: RepairIncidentRecord; delta: RepairDelta } | { refusal: string } | null> {
+    const retainedIncident = this.latestRepairIncident();
+    const resumedIncident = this.observe().restoring && retainedIncident?.incident.preparation.id === preparation.id && ['admitted', 'running', 'interrupted'].includes(retainedIncident.stage) ? retainedIncident : undefined;
+    const id = resumedIncident?.incident.incidentId ?? repairIncidentId(new Set(this.events('repair-incident-recorded').map(event => event.data.incidentId)).size + 1);
+    const sourcePath = posix.join('repairs', 'sources', `${id}.json`);
+    const originalSource = resumedIncident === undefined ? undefined : this.ports.committedBody(sourcePath) as { before: Awaited<ReturnType<typeof captureRepairFiles>>; protectedBefore: Awaited<ReturnType<typeof captureRepairFiles>>; head: string; tree: string; dirty: string[] } | undefined;
+    const assignment = automaticRepairAssignmentSchema.safeParse(this.ports.committedBody(runLayout.contingentRepairAssignment));
+    const original = preparation.originalAssignment === null ? undefined : this.observe().records.assignments.get(preparation.originalAssignment);
+    const originalOutcome = preparation.originalInvocation === null ? undefined : this.ports.effectiveInvocationOutcome(preparation.originalInvocation);
+    let reason: string | null = resumedIncident && !originalSource ? 'The original automatic repair source evidence is unavailable; restore its retained before-state before continuation' : this.ports.ignoring() ? 'Stop or terminal run prevents automatic repair'
+      : this.ports.writer.blocked() ?? this.ports.invocationRefusal();
+    const durableTarget = repairPreparationSchema.safeParse(this.ports.committedBody(runLayout.repairPreparation(preparation.id)));
+    if (reason === null && (!durableTarget.success || JSON.stringify(durableTarget.data) !== JSON.stringify(preparation)
+      || this.events('repair-preparation-recorded').at(-1)?.data.preparation !== preparation.id
+      || this.events('repair-preparation-consumed').some(event => event.data.preparation === preparation.id))) reason = 'Preparation target is missing, mismatched or already consumed';
+    if (!this.observe().policy.recovery && !resumedIncident && reason === null && this.events('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) reason = 'The run has spent its one automatic repair invocation';
+    if (!this.observe().policy.recovery && reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) reason = 'No matching architect-recorded contingent root assignment is available';
+    if (reason === null && (original === undefined || originalOutcome === undefined || originalOutcome.ended !== 'submitted' ||
+      (!this.observe().policy.recovery && originalOutcome.outsideScope.length > 0) || (originalOutcome.unknownPlacement?.length ?? 0) > 0 || !originalOutcome.settled.confirmed)) reason = 'Original partial candidate has unavailable or refused assignment provenance';
+    const previousWriters = this.events('writer-acquired');
+    if (reason === null && previousWriters.some(writer => {
+      const release = this.events('writer-released').filter(event => event.data.invocation === writer.data.invocation);
+      return !this.ports.latestOperationRecovery()?.reconciledInvocations?.includes(writer.data.invocation) && (release.length !== 1 || release[0]!.data.confirmed !== true);
+    })) reason = 'A previous writer has no unique confirmed settlement';
+    if (reason === null && (obstruction instanceof OwnershipUnavailableError || obstruction instanceof OwnershipAuthorityError || obstruction instanceof z.ZodError)) reason = 'Typed ownership or input validation outcomes continue through ordinary handling';
+    let dirty: string[] = [], tree: string | null = null, head: string | null = null;
+    let before: Awaited<ReturnType<typeof captureRepairFiles>> = [];
+    let protectedBefore: Awaited<ReturnType<typeof captureRepairFiles>> = [];
+    try {
+      dirty = await this.git.changedPaths(this.projectRoot, this.accepted());
+      head = await this.git.currentHead(this.projectRoot);
+      tree = (await this.ports.previewCandidateTree()).tree;
+      if (reason === null && !resumedIncident && (preparation.candidateBefore === null || tree !== preparation.candidateBefore.tree || head !== preparation.candidateBefore.head)) reason = 'Candidate changed after the recorded preparation target';
+      if (reason === null && original !== undefined) {
+        const guarded = resumedIncident && assignment.success
+          ? guardedScopeOf(assignment.data.scope, await deniedFiles(this.projectRoot, await this.deniedFiles()), this.options.ramify, undefined, this.ports.ownershipAuthority(assignment.data))
+          : await this.ports.engineerGuard(original);
+        const retainedRepairPaths = new Set<string>();
+        if (this.observe().policy.recovery) {
+          const ledger = this.observe().history.lines;
+          for (const repair of verifiedRepairDeltas(ledger).filter(repair => !ledger.some(entry => entry.sequence > repair.sequence
+            && entry.transaction.event.type === 'gate-attempted' && entry.transaction.event.data.verdict === 'passed'
+            && Object.entries(checkpointPolicies).some(([checkpoint, policy]) => entry.transaction.event.type === 'gate-attempted'
+              && entry.transaction.event.data.checkpoint === checkpoint && policy.committing)))) {
+            const repairGuard = guardedScopeOf(repair.assignment.scope, await deniedFiles(this.projectRoot,
+              [...await this.deniedFiles(), ...repair.assignment.guarded.map(file => file.path)]), this.options.ramify, undefined, this.ports.ownershipAuthority(repair.assignment));
+            for (const path of await unchangedRepairPaths(this.projectRoot, repair.delta)) {
+              if ((await decideWrite(repairGuard, this.projectRoot, { kind: 'write', paths: [path] })).verdict === 'allowed') retainedRepairPaths.add(path);
+            }
+          }
+        }
+        if (originalOutcome?.outsideScope.some(path => !retainedRepairPaths.has(path))) reason = 'Original partial candidate has unavailable or refused assignment provenance';
+        for (const path of dirty) {
+          const decision = await decideWrite(guarded, this.projectRoot, { kind: 'write', paths: [path] });
+          if (reason === null && decision.verdict !== 'allowed' && !retainedRepairPaths.has(path)) { reason = `Pre-repair candidate ${path} is outside its original assignment: ${decision.reason}`; break; }
+        }
+      }
+      if (reason === null && assignment.success) {
+        const current = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
+        if (JSON.stringify(current.scope.ownership.modules) !== JSON.stringify(assignment.data.scope.resolved.ownership.modules)) reason = 'Recorded repair topology differs from current ownership';
+        const protecting = [...assignment.data.guarded.map(file => file.path), ...await this.harnessFiles(),
+          ...this.requiredArtifacts(this.observe().records).map(artifact => artifact.path), ...declarationPaths(assignment.data),
+          ...await this.auditPreparationPaths(), ...scopeConfigurationPaths(assignment.data.scope)];
+        protectedBefore = await captureRepairFiles(this.projectRoot, protecting);
+        before = [...new Map([...await captureRepairSource(this.projectRoot, assignment.data.scope), ...await captureRepairFiles(this.projectRoot, dirty)].map(file => [file.path, file])).values()].sort((a, b) => a.path.localeCompare(b.path));
+      }
+    } catch (error) { reason ??= `Candidate and repair authority cannot be established: ${message(error)}`; }
+    // Replacement attribution starts from the settled current candidate.
+    // Preserve the original protected-input witness independently of source edits.
+    if (originalSource) protectedBefore = originalSource.protectedBefore;
+    let eligibleRefusal = !!resumedIncident && !originalSource;
+    if (reason === null && !resumedIncident && this.events('invocation-started').some(event => event.data.work.automaticRepair !== undefined)) {
+      reason = 'The run has spent its one automatic repair invocation';
+      const previous = this.latestRepairIncident();
+      eligibleRefusal = previous?.stage === 'continued' && previous.incident.verification?.verified === true && previous.incident.continuation?.delivered === true;
+    }
+    if (reason === null && (!assignment.success || assignment.data.id !== preparation.repairAssignment)) {
+      reason = 'No matching architect-recorded contingent root assignment is available';
+      // A malformed committed assignment is corrupt state, not missing authority.
+      eligibleRefusal = this.ports.committedBody(runLayout.contingentRepairAssignment) === undefined;
+    }
+    let incident = repairIncidentRecordSchema.parse({ schema: 'ramify-agent.repair-incident/1', incidentId: id, revision: 1,
+      createdAt: this.ports.now().toISOString(), preparation: { id: preparation.id, path: runLayout.repairPreparation(preparation.id) },
+      operation: preparation.operation, workItem: preparation.workItem, originalInvocation: preparation.originalInvocation,
+      originalAssignment: preparation.originalAssignment, originalResult: preparation.originalResult,
+      harnessError: { name: obstruction instanceof Error ? obstruction.name : 'Error', message: message(obstruction),
+        stack: obstruction instanceof Error ? obstruction.stack ?? null : null, evidence: preparation.inputReferences },
+      admission: { admitted: reason === null, reason: reason ?? 'Matching pure preparation, valid explicit root delegation, settled writer and remaining budget' },
+      authority: { assignment: assignment.success ? assignment.data.id : null, scopeEvidence: assignment.success ? [runLayout.contingentRepairAssignment] : [] },
+      candidateBefore: { head, tree, changedPaths: dirty, staged: [], unstaged: [], untracked: [], evidence: [`Aggregate candidate paths: ${JSON.stringify(dirty)}; index categories are not separately inferred`, runLayout.repairPreparation(preparation.id)] },
+      candidateAfter: null, invocation: null, session: null, result: null, verification: null, continuation: null,
+      startedAt: null, endedAt: null, elapsedMs: null, usage: null, versions: { ramify: assignment.success ? assignment.data.scope.resolved.ownership.ramifyVersion : 'unavailable' },
+      export: { externalRef: repairExternalRef(repairProjectKey(this.projectRoot), this.input.record.jobId, id), state: 'pending', issueId: null, reason: 'Not exported', attemptedAt: null } });
+    if (resumedIncident) incident = { ...resumedIncident.incident, revision: resumedIncident.incident.revision + 1, candidateBefore: incident.candidateBefore, continuation: null };
+    incident = await this.persistRepairIncident(incident, reason === null ? 'admitted' : 'refused', reason !== null || originalSource ? [] : [{
+      path: sourcePath, id, revision: 1, body: { schema: 'ramify-agent.automatic-repair-source/1', before, protectedBefore, head, tree, dirty } }]);
+    if (reason !== null || !assignment.success || original === undefined) {
+      if (this.observe().policy.recovery && eligibleRefusal && reason !== null) return { refusal: reason };
+      await this.ports.fail('inputs-changed', `Architect preparation failed: ${message(obstruction)}. Automatic repair refused: ${reason}`);
+      return null;
+    }
+    const assigned = assignment.data;
+    const guarded = guardedScopeOf(assigned.scope, await deniedFiles(this.projectRoot,
+      [...await this.deniedFiles(), ...protectedBefore.map(file => file.path)]), this.options.ramify, undefined, this.ports.ownershipAuthority(assigned));
+    const bounds = engineerBoundsOf(this.observe().policy.limits).defaults;
+    const absoluteMs = bounds.absoluteMs;
+    if (this.ports.ignoring()) {
+      await this.persistRepairIncident({ ...incident, revision: incident.revision + 1, endedAt: this.ports.now().toISOString() }, 'blocked');
+      return null;
+    }
+    const toolName = 'submit_automatic_repair';
+    const tools = this.implementationTools({ workingDirectory: this.projectRoot, scopeRevision: assigned.scope.revision,
+      guarded, commandTimeoutMs: bounds.commandTimeoutMs, submissions: { legalOutcomes: ['ready', 'blocked'], completionOutcome: null } });
+    const loaded = packages.get('engineer');
+    if (loaded === undefined) throw new Error('Engineer prompt package is unavailable for automatic repair');
+    const prompt = ['Restore only the named architect preparation operation so its responsible architect can continue.',
+      'Preserve useful partial work, the plan, acceptance, accepted behavior and every module declaration. Do not create, remove or re-parent modules.',
+      'Use the supplied root subtree assignment and normal guarded tools. A shell is no exception to denied edits. Do not edit harness code, progress records or Git history.',
+      'If the repair requires unavailable authority or a change to the running harness, report blocked.',
+      `Submit ready or blocked through ${toolName}; ready is a judgment pending harness verification, never plan completion.`,
+      `Active work item: ${preparation.workItem}. Original partial assignment: ${this.path(iterationLayout.assignment(preparation.workItem, Number.parseInt(original.id.split('.i').at(-1)!, 10)))}.`,
+      `Preparation and input references: ${this.path(runLayout.repairPreparation(preparation.id))}.`,
+      `Full incident diagnostics: ${this.path(runLayout.repairIncident(id, incident.revision))}.`,
+      `Root assignment: ${this.path(runLayout.contingentRepairAssignment)}. Instructions: ${assigned.delegation.instructions}.`,
+      `Captured engineer bounds: ${JSON.stringify({ ...bounds, absoluteMs })}. Candidate ${tree}; accepted commit ${preparation.acceptedCommit}; dirty paths ${JSON.stringify(dirty)}.`,
+      this.planPackage(await this.frozenCatalog()),
+    ].join('\n\n');
+    incident = await this.persistRepairIncident({ ...incident, revision: incident.revision + 1, startedAt: this.ports.now().toISOString() }, 'running');
+    const linesBefore = await takeLineSnapshot(this.projectRoot, this.accepted(), this.git);
+    const result = await this.ports.runInvocation<RepairResult>(agent, {
+      role: 'engineer', work: { workItem: preparation.workItem, automaticRepair: id }, attempt: 1, loaded,
+      task: { kind: 'automatic-repair', goal: 'Restore blocked architect preparation', modules: [assigned.delegation.root],
+        requirements: [this.planPackage(await this.frozenCatalog())] },
+      systemPrompt: `You are the bounded automatic project repair engineer. Work only under the captured root assignment. ${prompt}`,
+      prompt, start: { mode: 'fresh' }, toolName, description: 'Report preparation repair readiness, evidence and remaining implementation work.',
+      inputSchema: z.toJSONSchema(repairResultSchema) as JsonSchema, submissionSchema: 'ramify-agent.automatic-repair-result/1', validate: input => validateAgainst(repairResultSchema, input),
+      bounds: { idleMs: Math.min(bounds.idleMs, absoluteMs), absoluteMs, commandTimeoutMs: bounds.commandTimeoutMs },
+      context: contextPolicyOf(this.observe().policy, 'engineer'), keep: () => finished('work-closed'),
+      scope: { write: assigned.scope.revision, measurement: this.baselineReference(), size: null },
+      measured: { snapshot: baseline, scope: writeScopeMeasurement(assigned.scope), readScope: readScopeMeasurement(assigned.scope) },
+      writer: true, guarded, readModules: [], workingDirectory: this.projectRoot, equip: tools.equip, previewEquipment: tools.preview,
+    });
+    await this.recordLineEvents(result.id, linesBefore, await takeLineSnapshot(this.projectRoot, this.accepted(), this.git));
+    const outcome = result.id === '' ? undefined : this.ports.effectiveInvocationOutcome(result.id);
+    const started = this.events('invocation-started').find(event => event.data.invocation === result.id);
+    incident = { ...incident, revision: incident.revision + 1, invocation: result.id || null, session: started?.data.session ?? null,
+      result: result.value ?? null, endedAt: this.ports.now().toISOString(), elapsedMs: outcome?.elapsedMs ?? null,
+      usage: outcome?.usage !== undefined && 'total' in outcome.usage ? { inputTokens: outcome.usage.input, outputTokens: outcome.usage.output, totalTokens: outcome.usage.total, cost: null } : null };
+    if (!this.ports.ignoring()) {
+      const evidencePath = posix.join('repairs', 'attempts', `${id}.json`);
+      let afterFiles: Awaited<ReturnType<typeof captureRepairFiles>> = [], afterPaths: string[] = [], diagnosticFailure: string | null = null;
+      try {
+        afterPaths = await this.git.changedPaths(this.projectRoot, this.accepted());
+        const afterSource = await captureRepairSource(this.projectRoot, assigned.scope);
+        afterFiles = await captureRepairFiles(this.projectRoot, [...before.map(file => file.path), ...afterSource.map(file => file.path), ...afterPaths]);
+      } catch (error) { diagnosticFailure = message(error); }
+      incident = { ...incident, candidateAfter: { head: await this.git.currentHead(this.projectRoot), tree: null, changedPaths: afterPaths,
+        staged: [], unstaged: [], untracked: [], evidence: [evidencePath, ...(diagnosticFailure === null ? [] : [diagnosticFailure])] } };
+      incident = await this.persistRepairIncident(incident, 'running', [{ path: evidencePath, id, revision: 1,
+        body: repairAttemptSchema.parse({ schema: 'ramify-agent.automatic-repair-attempt/1', incidentId: id, invocation: result.id || 'not-started', before, after: afterFiles,
+          changes: repairChanges(before, afterFiles), protectedBefore, failure: diagnosticFailure }) }]);
+      incident = { ...incident, revision: incident.revision + 1 };
+    }
+    const blocked = async (why: string, stage: 'blocked' | 'unverified' = 'unverified'): Promise<null> => {
+      await this.persistRepairIncident({ ...incident, verification: { verified: false, reason: why, evidence: [] }, continuation: { delivered: false, reason: why, evidence: [] } }, stage);
+      if (!this.ports.ignoring()) await this.ports.fail('inputs-changed', `Original architect obstruction: ${message(obstruction)}. Automatic repair: ${why}`);
+      return null;
+    };
+    if (result.ended !== 'submitted' || result.value === undefined || result.value.outcome === 'blocked') return blocked(`Repair ended ${result.ended}${result.value === undefined ? '' : `: ${result.value.summary}`}`, 'blocked');
+    if (this.ports.ignoring() || this.ports.writer.blocked() !== undefined || outcome?.settled.confirmed !== true) return blocked('Repair writer settlement is unverified');
+    if (outcome.outsideScope.length > 0 || (outcome.unknownPlacement?.length ?? 0) > 0) return blocked('Repair outcome records outside-scope writes or unknown placement');
+    try {
+      const documentFaults = await documentChanges(this.projectRoot, this.input.record.planId, this.input.directory, this.input.record.manifest);
+      if (documentFaults.length > 0) return blocked(`Protected captured documents changed: ${documentFaults.join('; ')}`);
+      const protectedNow = await captureRepairFiles(this.projectRoot, protectedBefore.map(file => file.path));
+      if (protectedNow.some(file => { const original = protectedBefore.find(original => original.path === file.path); return file.hash !== original?.hash || file.mode !== original.mode; })) return blocked('Protected configuration, accepted artifacts or module declarations changed');
+      const ownership = await this.options.ramify.queryOwnershipAnswer(this.projectRoot, ['.']);
+      if (JSON.stringify(ownership.scope.ownership.modules) !== JSON.stringify(assigned.scope.resolved.ownership.modules)) return blocked('Repair changed the module structure');
+      const afterDirty = await this.git.changedPaths(this.projectRoot, this.accepted());
+      const afterSource = await captureRepairSource(this.projectRoot, assigned.scope);
+      const after = await captureRepairFiles(this.projectRoot, [...before.map(file => file.path), ...afterSource.map(file => file.path), ...afterDirty]);
+      const changes = repairChanges(before, after);
+      if ((await outsideScope(this.projectRoot, guarded, changes.map(change => change.path))).length > 0) return blocked('Repair delta violates captured or current authority');
+      const delta = repairDeltaSchema.parse({ schema: 'ramify-agent.automatic-repair-delta/1', incidentId: id,
+        assignment: assigned.id, originalAssignment: original.id, acceptedCommit: preparation.acceptedCommit, invocation: result.id,
+        beforeValidated: true, beforeDirtyPaths: dirty, before, after, changes,
+        structure: protectedBefore.filter(file => declarationPaths(assigned).includes(file.path)).map(file => ({ path: file.path, hash: file.hash })) });
+      const afterCandidate = await this.ports.previewCandidateTree();
+      if (afterCandidate.head !== head) return blocked('Repair changed Git history or HEAD');
+      incident = { ...incident, candidateAfter: { head: afterCandidate.head, tree: afterCandidate.tree, changedPaths: afterDirty, staged: [], unstaged: [], untracked: [], evidence: [`Aggregate candidate paths: ${JSON.stringify(afterDirty)}`, runLayout.repairDelta(id)] },
+        verification: { verified: true, reason: prepare === null ? 'Settled guarded delta preserves protected inputs and declarations; ordinary parent preparation remains pending' : 'Settled guarded delta preserves protected inputs and declarations; pure preparation repeated successfully', evidence: [runLayout.repairDelta(id)] } };
+      const step = prepare === null ? null : await prepare(result.value);
+      return { step, incident, delta };
+    } catch (error) { return blocked(`Preparation remains unavailable or repair cannot be verified: ${message(error)}`); }
+  }
+
+  async passedScenarioLines(result: IterationResult): Promise<string[]> {
+    if (result.outcome !== 'accepted' || result.gate === null) return [];
+    const gate = await this.ports.acceptance.readGate(result.gate);
+    if (gate === null) return [];
+    const { records } = trackedScenarios(this.observe().history.lines);
+    return groupedPassedScenarioLines(scenarioResultsOf(gate), new Map(records.map(record => [record.id, record.name])));
+  }
+  async reviewCompaction<T>( agent: AgentPort, engineer: InvocationRequest<T>,
+    checkpoint: { invocation: string; ordinal: number; reason: string }, signal: AbortSignal): Promise<z.infer<typeof compactionReviewSchema>> {
+    const matches = (data: { invocation: string; ordinal: number }) => data.invocation === checkpoint.invocation && data.ordinal === checkpoint.ordinal;
+    const recorded = this.events('compaction-reviewed').find(event => matches(event.data));
+    if (recorded) return { action: recorded.data.action, reason: recorded.data.reason };
+    const records = this.observe().records;
+    const assignment = engineer.work.iteration === undefined ? undefined : records.assignments.get(engineer.work.iteration);
+    const role = engineer.role === 'nonfunctional-repair-engineer' ? 'nonfunctional-coordinator'
+      : assignment?.coordination?.kind === 'capability-task' || engineer.work.capabilityTask !== undefined ? 'capability-architect' : 'local-architect';
+    if (!this.events('compaction-review-started').some(event => matches(event.data))) {
+      await this.ports.write( { type: 'compaction-review-started', data: { invocation: checkpoint.invocation, ordinal: checkpoint.ordinal, role } });
+    }
+    if (signal.aborted || this.ports.ignoring()) throw new Error('Compaction review stopped');
+    const packages = engineer.consultationPackages ?? (await loadPromptPackages({
+      ...(this.options.skillDirectory === undefined ? {} : { skillDirectory: this.options.skillDirectory }), capabilityWorkflow: this.workflow !== null,
+    })).packages;
+    const loaded = packages.get(role);
+    if (!loaded) throw new Error(`Compaction review requires ${role}`);
+    const key = `compaction:${checkpoint.invocation}:${checkpoint.ordinal}`;
+    const prior = this.events('invocation-started').filter(event => event.data.work.request === key);
+    let accepted: { id: string; value: z.infer<typeof compactionReviewSchema> } | undefined;
+    for (const start of prior) {
+      const end = this.events('invocation-ended').find(event => event.data.invocation === start.data.invocation);
+      if (end?.data.ended !== 'submitted' || end.data.submission === null) continue;
+      const bytes = await readIfExists(this.path(runLayout.submission(start.data.invocation)));
+      if (!bytes || sha256(bytes) !== end.data.submission) throw new Error('Compaction assessment submission is unavailable');
+      const { schema: _schema, ...body } = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      accepted = { id: start.data.invocation, value: compactionReviewSchema.parse(body) };
+    }
+    if (!accepted) {
+      const original = this.events('invocation-started').find(event => event.data.invocation === checkpoint.invocation);
+      if (original === undefined) throw new Error('Compaction review has no originating invocation');
+      const toolName = 'submit_compaction_review';
+      // This review is already beside an active engineer. A failed review hands the
+      // task back; it must not enter a recovery wait that waits on that engineer.
+      const result = await this.ports.runParallelReview( agent, {
+        role, work: { ...engineer.work, request: key }, task: { kind: 'compaction-review', goal: engineer.task?.goal ?? assignment?.goal ?? engineer.description,
+          requirements: [`Review the engineer's assignment and recorded work at ${this.path(runLayout.invocation(checkpoint.invocation))}. Continue useful work; request handoff when the evidence calls for reconsideration or further refinement has diminishing returns. Compaction alone is not evidence of failure.`] },
+        attempt: prior.length + 1, loaded,
+        systemPrompt: `You are the responsible ${roleDisplayName(role)} reviewing an engineer during native compaction. Inspect evidence and decide whether the engineer should continue or hand the unfinished task back for reconsideration. Use ${toolName} with its supplied schema. This review assesses work; leave implementation changes to the engineer.`,
+        prompt: [
+          `Engineer ${checkpoint.invocation} is compacting (${checkpoint.reason}). Compaction alone establishes neither failure nor diminishing returns.`,
+          'Continue when the approach is useful. Request handoff when the evidence calls for a different approach, a missing decision, or ending unnecessary refinement after requirements are satisfied.',
+          'Consider unresolved correctness, expected benefit and cost of more refinement, and whether better context or guidance is needed. Explain the next useful contribution or the reason for reconsideration.',
+          `Task: ${engineer.task?.goal ?? assignment?.goal ?? engineer.description}`,
+          `Assignment: ${assignment === undefined ? 'See the invocation records.' : JSON.stringify(assignment)}`,
+          `Invocation: ${this.path(runLayout.invocation(checkpoint.invocation))}`,
+          `Transcript: ${this.path(runLayout.transcript(original.data.session))}`,
+          `Tool and validation observations: ${this.path(runLayout.observations(checkpoint.invocation))}`,
+        ].join('\n\n'),
+        start: { mode: 'fresh' }, keep: () => finished('work-closed'), reader: true, signal,
+        toolName, description: 'Decide whether useful work should continue after compaction or the unfinished task should return to its architect.',
+        inputSchema: z.toJSONSchema(compactionReviewSchema) as JsonSchema, submissionSchema: 'ramify-agent.compaction-review/1',
+        validate: input => validateAgainst(compactionReviewSchema, input), scope: { write: null, measurement: null, size: null },
+        equip: session => ({ ...nonfunctionalEquipment({ projectRoot: this.projectRoot, snapshotTools: [],
+          commandExecution: this.options.commandExecution, rejectedToolInputsPerTurn: this.observe().policy.limits.rejectedToolInputsPerTurn,
+          outputFile: call => this.path(runLayout.shellOutput(session.invocation, call)) }, session),
+          builtinTools: ['read', 'write', 'edit', 'grep', 'find', 'ls'] }),
+      });
+      if (signal.aborted || this.ports.ignoring()) throw new Error('Compaction review stopped');
+      if (result.ended !== 'submitted' || result.value === undefined) {
+        return { action: 'handoff', reason: `Architect review ended ${result.ended}; reconsider the unfinished task with retained work and context.` };
+      }
+      accepted = { id: result.id, value: result.value };
+    }
+    if (signal.aborted || this.ports.ignoring()) throw new Error('Compaction review stopped');
+    await this.ports.write( { type: 'compaction-reviewed', data: { invocation: checkpoint.invocation,
+      ordinal: checkpoint.ordinal, reviewer: accepted.id, ...accepted.value } });
+    return accepted.value;
+  }
 }
 
 const message = (error: unknown): string => error instanceof Error ? error.message : String(error);
+
+const failureAnalysisMs = 600_000;
+
+const failureOutputCharacters = 400_000;
+
+export function groupedPassedScenarioLines(results: readonly ScenarioResult[], names: ReadonlyMap<string, string> = new Map()): string[] {
+  const title = (id: string) => (names.has(id) ? `\`${id}\` "${names.get(id)}"` : `\`${id}\``);
+  const groups = new Map<string, ScenarioResult[]>();
+  for (const result of results.filter(entry => entry.status === 'passed')) {
+    const key = JSON.stringify([result.id, result.check, result.file, result.binding.map(binding => binding.definition)]);
+    groups.set(key, [...groups.get(key) ?? [], result]);
+  }
+  return [...groups.values()].flatMap(group => {
+    const [first] = group as [ScenarioResult, ...ScenarioResult[]];
+    const bound = first.binding.length === 0 ? ', with no step bound.' : ', bound by:';
+    const where = group.length === 1
+      ? `at \`${first.file}:${first.line}\``
+      : `${group.length} examples, at \`${first.file}\` lines ${group.map(entry => entry.line).join(', ')}`;
+    return [
+      `- ${title(first.id)} passed in \`${first.check}\`, ${where}${bound}`,
+      ...first.binding.map(binding => `  - \`${binding.step}\` → \`${binding.definition}\``),
+      ...(group.length > 1 && first.binding.length > 0 ? [`  The step texts are line ${first.line}'s; the other examples differ only in their example values.`] : []),
+    ];
+  });
+}

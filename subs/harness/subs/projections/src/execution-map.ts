@@ -5,8 +5,8 @@ import type {
 } from '../../../src/interfaces/protocol/execution-map.js';
 import { gateCheckpointSchema, roleDisplayName } from '../../../src/interfaces/protocol/runs.js';
 import type { ScenarioRecord } from '../../scenarios/src/records.js';
-import type { GateAttempt } from '../../../src/checks/records.js';
-import { scenarioResultsOf } from '../../../src/checks/scenario-results.js';
+import type { GateAttempt } from '../../autonomous/subs/acceptance/src/checks/records.js';
+import { scenarioResultsOf } from '../../autonomous/subs/acceptance/src/checks/scenario-results.js';
 import { capabilityProgressOf } from './progress.js';
 import { gatesByScenario, scenariosOf } from './scenarios.js';
 import { runSessionViews } from './sessions.js';

@@ -12,7 +12,7 @@ import { addModule, assign, byRole, completionProposed, installMiniRunner, outli
 import { openRuns, runEventsOnDisk, runPath, startRun, type OpenRunsOptions } from './runs.js';
 import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import { declaringScenarios } from './declarations.js';
-import { finalCandidate } from './final-candidate.js';
+import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 
 /*
  * One scripted run whose sessions take every relation a run records: a

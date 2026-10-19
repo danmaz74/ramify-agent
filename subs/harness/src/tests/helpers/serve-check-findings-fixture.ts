@@ -6,16 +6,14 @@ import { protocolPaths } from '../../interfaces/protocol/paths.js';
 import { commandResponseSchema } from '../../interfaces/protocol/jobs.js';
 import { checkFindingDetailSchema } from '../../interfaces/protocol/check-findings.js';
 import { snapshotToolNames } from '../../../subs/reviews/src/snapshot.js';
-import { scriptedCandidates, testReviewPolicy, type ScriptedCommit } from './candidates.js';
+import { scriptedCandidates, testReviewPolicy, type ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { concern, disposition, reconcile, review, submission } from './check-findings-composition.js';
 import { declaringScenarios } from './declarations.js';
 import { createPassingCheckExecution } from './direct-check-execution.js';
 import { FakeRamifyCli } from './fake-ramify.js';
-import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { completionProposed, submit, treeInputs, write } from './iterations.js';
-import {
-  base, candidates, limit, materialized, notesDirectory, plan, reviewScript, reviewTarget, revisionGates, store, tool, unchanged,
-} from './reviews.js';
+import { base, candidates, limit, materialized, notesDirectory, plan, reviewScript, reviewTarget, revisionGates, store, tool, reviewUnchangedCommit as unchanged } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { startRun, testPolicy, until } from './runs.js';
 import { passingAudit } from './direct-check-execution.js';
 

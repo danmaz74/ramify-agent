@@ -1,7 +1,7 @@
 import type { AgentPort } from '../../subs/agent/src/interfaces/port.js';
 import { TaskSessionOperations, composeOperationPacket, type PreparedOperationInput, type HarnessTaskBrief } from '../../subs/task-execution/src/session-operations.js';
 import type { LoadedPackage } from './packages.js';
-import { prepareTaskPackage } from './tasks.js';
+import { prepareTaskPackage } from '../../subs/task-workflow/src/prompts/tasks.js';
 import { isInspectableShellCheck } from '../tools/shell-tests.js';
 
 export interface HarnessOperationInput extends Omit<PreparedOperationInput, 'prepare'> { readonly loaded: LoadedPackage }

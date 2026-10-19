@@ -3,7 +3,8 @@ import type { ModuleTree } from '../../../src/interfaces/protocol/evidence.js';
 import type {
   ExecutionLineSummary, ExecutionModuleMap, ExecutionModuleRelation, ExecutionNode, ExecutionSourceRef,
 } from '../../../src/interfaces/protocol/execution-map.js';
-import { lineEventSummarySchema, runLayout, type LineEventSummary } from '../../autonomous/src/run/records.js';
+import { lineEventSummarySchema, type LineEventSummary } from '../../kpi/src/run-records.js';
+import { runLayout } from '../../autonomous/src/run/records.js';
 import { invocationSchema } from '../../task-execution/src/records.js';
 import { readRunFile, type RunView } from './inputs.js';
 

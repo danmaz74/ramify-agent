@@ -1,7 +1,7 @@
 import { gitService, type GitService } from '../../evidence/src/git.js';
 import type { ArchitectIndex } from '../../evidence/src/views.js';
-import { ownerOf } from '../../../src/measurement/owners.js';
-import { lineEventSummarySchema, type LineEventSummary } from '../../autonomous/src/run/records.js';
+import { ownerOf } from './measurement/owners.js';
+import { lineEventSummarySchema, type LineEventSummary } from './run-records.js';
 
 /*
  * The line events of one writer invocation, captured when the observation

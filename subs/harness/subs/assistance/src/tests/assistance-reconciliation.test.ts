@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
 import { applyCheckFindingEvent, emptyCheckFindingState } from '../../../check-findings/src/replay.js';
 import { report, failure } from '../../../../src/tests/helpers/check-findings.js';
-import { validateReconciliation } from '../../../../src/reviews/reconciliation.js';
+import { validateReconciliation } from '../../../autonomous/subs/acceptance/src/reviews/reconciliation.js';
 import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 
 describe('shared reconciliation authority', () => {

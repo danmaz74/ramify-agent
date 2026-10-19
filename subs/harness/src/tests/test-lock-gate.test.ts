@@ -5,9 +5,9 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { testLockedRunner } from '../../subs/audit/src/test-lock.js';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
 import type { ConfiguredAuditResult } from '../../subs/audit/src/check-execution.js';
-import { createInPlaceCheckExecution } from '../checks/execution.js';
-import { executeConfiguredGate, prepareGate, runGate, type ConfiguredGateAudit } from '../checks/gate.js';
-import { checkCommand } from '../checks/records.js';
+import { createInPlaceCheckExecution } from '../../subs/autonomous/subs/acceptance/src/checks/execution.js';
+import { executeConfiguredGate, prepareGate, runGate, type ConfiguredGateAudit } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { checkCommand } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import { createShellTool } from '../tools/shell.js';
 
 const cleanups: string[] = [];

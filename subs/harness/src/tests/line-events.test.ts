@@ -1,10 +1,11 @@
 import { scenariosCommit, scriptedGit } from './helpers/scripted-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import type { LineChange } from '../../subs/kpi/src/lines.js';
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { runLayout, type LineEventSummary } from '../../subs/autonomous/src/run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type LineEventSummary } from '../../subs/kpi/src/run-records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';

@@ -8,13 +8,14 @@ import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/su
 import { capabilityEngineerSubmissionSchema, engineerSubmissionSchema, validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { iterationAssignmentSchema, iterationResultSchema, iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { startingPointSchema } from '../../subs/autonomous/subs/work-coordination/src/work/starting-points.js';
-import { gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
+import { gateAttemptSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
 import { installTestRunner, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, until, freeze } from './helpers/runs.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import type { Role } from '../interfaces/protocol/runs.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { declaringScenarios } from './helpers/declarations.js';

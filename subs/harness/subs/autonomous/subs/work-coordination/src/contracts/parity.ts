@@ -1,5 +1,5 @@
 import type { ArchitectIndex, ExposureChannel, ModuleEntry, SymbolRecord } from '../../../../../evidence/src/views.js';
-import type { GateRuleRecord } from '../../../../../../src/checks/records.js';
+import type { GateRuleRecord } from '../../../acceptance/src/checks/records.js';
 import { exportedNames } from './naming.js';
 import type { ExposureChain, StandsFor } from './records.js';
 

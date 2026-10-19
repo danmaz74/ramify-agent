@@ -1,9 +1,9 @@
-import { scratchCandidateReplies } from './helpers/scratch-candidate-replies.js';
+import { scratchCandidateReplies } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/scratch-candidate-replies.js';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
-import { runSingleSession } from '../sessions/single.js';
+import { runSingleSession } from '../../subs/task-workflow/src/sessions/single.js';
 import { declaredModuleDirectories } from '../run/project-config.js';
 import { copyFixture } from './helpers/fixture.js';
 import { readDeclaredTree, unsuitableScope } from './helpers/iterations.js';

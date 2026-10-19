@@ -16,9 +16,8 @@ expose-src isProjectLockError from "store/lock.ts" to parent
 // line and the run policy stay internal. The named types the summary
 // mentions are exposed with it, since a symbol's signature is part of what
 // its receiver must be able to name.
-expose-src runSessionCommand, SessionCommandOptions, SessionAgentChoice from "sessions/command.ts" to parent
-expose-src SingleSessionResult, SessionSummary, SessionProgress, SessionGateResult from "sessions/single.ts" to parent
-expose-sub EngineerSubmission, engineerSubmissionSchema from autonomous to parent
+expose-sub runSessionCommand, SessionCommandOptions, SessionAgentChoice, SingleSessionResult, SessionSummary, SessionProgress, SessionGateResult, runStepCommand, StepCommandOptions, StepCommandResult from task-workflow to parent
+expose-sub EngineerSubmission, engineerSubmissionSchema, runConsultationsCommand, ConsultationCommandOptions, ConsultationCommandResult, runRepairExportCommand, RepairExportCommandOptions, RepairExportCommandResult, RepairExportConfiguration from autonomous to parent
 expose-src HookFinding from "hooks/post-write.ts" to parent
 expose-sub InvocationOutcome, invocationOutcomeSchema from task-execution to parent
 
@@ -26,10 +25,6 @@ expose-sub InvocationOutcome, invocationOutcomeSchema from task-execution to par
 // a run, and rendering what a step's session receives. The constructor, the
 // inputs schema and the rendering stay internal; the root receives the plain
 // options it parses and the text it prints.
-expose-src runStepCommand, StepCommandOptions, StepCommandResult from "steps/command.ts" to parent
-expose-src runConsultationsCommand, ConsultationCommandOptions, ConsultationCommandResult from "consultations/command.ts" to parent
-expose-sub runRepairExportCommand, RepairExportCommandOptions, RepairExportCommandResult from autonomous to parent
-expose-sub RepairExportConfiguration from autonomous to parent
 expose-test rootDescription from "helpers/root-description.ts" to descendants
 
 // The public contracts of the behavior this module implements: the
@@ -65,163 +60,89 @@ expose-src * from "interfaces/protocol/sessions.ts" tagged [browser] to parent
 // verifies that publication does not disturb repository cleanliness. The git
 // behavior and process execution remain owned by evidence; harness relays the
 // narrow contracts the audit adapter implements rather than duplicating them.
-expose-src CheckExecutionPort, CheckExecutionRequest, CheckExecutionContext, CheckExecutionResult, checkOutputPath, GateCommandStart, GateCommandStarted, commandStart, notRun from "checks/execution.ts" to descendants
-expose-src PlannedCheck from "checks/verify.ts" to descendants
-expose-src Checkpoint, GateCommandRecord, GateEvidence, GateRuleRecord, TestSelectionPolicy, CheckCommand, CheckCommandKind, NotVerified, TypeCheckOutput, checkCommandEnvironment from "checks/records.ts" to descendants
+expose-sub CheckExecutionPort, CheckExecutionRequest, CheckExecutionContext, CheckExecutionResult, checkOutputPath, GateCommandStart, GateCommandStarted, commandStart, notRun, PlannedCheck, Checkpoint, GateCommandRecord, GateEvidence, GateRuleRecord, TestSelectionPolicy, CheckCommand, CheckCommandKind, NotVerified, TypeCheckOutput, checkCommandEnvironment, authenticateRepairHistory, RepairHistoryError, RepairHistoryEntry, ValidatedRepairIncident, RunEvent, runEventSchema, Incorporation, incorporationSchema, AcceptedEvidence, readAcceptedEvidence, Hypothesis, RegistryEntry, hypothesisSchema, registryEntrySchema, PlacementDecision, PlacementRequest, placementDecisionSchema, placementRequestSchema, CapabilityExchange, CapabilityHandback, CapabilityPlan, CapabilityRequest, CapabilityTask, capabilityExchangeSchema, capabilityHandbackSchema, capabilityPlanSchema, capabilityRequestSchema, capabilityTaskSchema, ReplayedCapabilityState, CapabilityTaskState, CapabilityTaskStatus, replayCapabilityState, AcceptedBoundaryLine, acceptedCommit, AcceptedCommit, GateAttempt, GateAttemptId, GateAuditCountBucket, GateAuditProjectRecord, GateAuditRecord, GateCause, GateNext, RecordReference, ScenarioResult, ScenarioResultStatus, scenarioResultsOf, ConsultationOutcome, ConsultationStart, consultationId, consultationLayout, consultationOutcomeSchema, consultationStartSchema, architectAnswerSchema, Delivery, deliverPackage, ConsumerRequirement, ContractRecord, ProviderObligation, consumerRequirementSchema, contractRecordSchema, providerObligationSchema, deviationHash, NonfunctionalDeviation, nonfunctionalDeviationHash, CurrentDeviationDecision, currentDeviationDecision, PlanDeviation, environmentProblemSchema, packageDeviation, planDeviationSchema, assessedElements, NotVerifiedReason, ReviewAttempt, ReviewRequest, notVerifiedReasonSchema, reviewAttemptSchema, reviewRequestSchema, ReviewAttemptState, ReviewCoverage, ReviewRequestState, reviewCoverage, reviewStateOf, CommittedHistoryError, HistoryEntry, unsupportedCommittedVersion, validateCommittedHistory, ScenarioLedgerLine, TrackedScenarios, trackedScenarios, RunEventOf, RunEventType, terminalRunEvents, DeviationOrigin, FinalAuditFacts, MergeReadinessInput, ReadinessDeviation, projectMergeReadiness, CommittedNonfunctionalPhase, NonfunctionalPhaseReplay, replayNonfunctionalPhase, MergeReadiness, NonfunctionalRepairAssignment, deviationOriginSchema, mergeReadinessSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema, roles, EntryAssignments, ModuleProposal, ReviewKind, RunPolicy, RunRecord, entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema, moduleProposalSchema, reviewKindSchema, runLayout, runPolicySchema, runRecordSchema, InvalidSessionTransitionError, RunSession, RunSessions, RunSessionMoment, SessionState, SessionTransitionFrom, invocationSessions, pointLabel, reduceSessions, DurableRunNotice, DurableRunSnapshot, runSnapshot, CommittedRecords, committedRecords, capabilityEngineerSubmissionKinds, engineerSubmissionKinds, engineerSubmissionSchema, digestLines, capabilityOf, FailureDigest, IterationAssignment, IterationResult, failureDigestSchema, iterationAssignmentSchema, iterationResultSchema, testSelectionPolicySchema, Obligation, ObligationEventLine, ObligationKind, ObligationProjection, ObligationResponsible, ObligationSources, ObligationStatus, RecordedBinding, RecordedReport, obligationsOf, WorkItem, WorkItemOriginKind, WorkItemOutline, integrationScenarioOf, originKindOf, workItemOutlineSchema, workItemSchema, scratchIgnoreRule, scriptedCandidates, ScriptedCommit, ScriptedCandidates, scratchCandidateReplies, capabilityProjectionLines, capabilityContractRun, ReviewPolicy, reviewPolicySchema, reviewPolicyVersion, validateReconciliation, ReconciliationContext, acceptedAnalysisReferences, localDecision, registryChange, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, Seam, forkDecision, requestPlacement, finalCandidate, reviewLayout, checkpointPolicies, installOperation, setupChecks, configuredAuditRecord, checkCommand, concernKey, ReviewResult, ReviewSubmissionRecord, captureGlobalTarget, localConsultationInputs, engineerConsultationInputs, PreparedGate, attentionAt, basisChange, briefText, needsLaterRound, reconciliationAssessmentSchema, reconciliationBasisSchema, reconciliationId, reconciliationLayout, BasisRequest, BriefAppendOutcome, ReconciliationAssessment, ReconciliationBasis, UnresolvedReason, reconciliationMessage, ReconciliationPacket, reviewAttemptId, reviewOrientationSchema, ForkPoint, ReviewOrientation, unsettledRequests, gateDiagnostics, GateAudience, pendingBindingEvidence, reviewRequestId, diagnosisChecks, SetupDeclaration, executePreparedGate, prepareGate, GateRequest, consultationTargetSchema, reviewAttemptFinishedFields, reviewAttemptStartedDataSchema, reviewOrientationRecordedDataSchema, reviewRequestRecordedDataSchema, reconciliationAssessedFields, reconciliationBriefAppendedDataSchema, reconciliationIdSchema, reconciliationRefusedDataSchema, reconciliationStartedDataSchema, unresolvedField, executeConfiguredGate, ConfiguredGateAudit, ProjectCommands, placementDecisionFixture, StartingPointGroup, InitialAnalysisSubmission, LocalArchitectSubmission, RunInputs, AssignmentBody, LocalArchitectSubmissionInput, LocalDecisionBody, RegistryChange, DecisionBody, ForkSubmission, PlacementRequestBody, CapabilityWorkflow, RunRecoveryReport, CheckpointPolicy, CheckCommandRequest, RunLog, reviewResultSchema, reviewSubmissionRecordSchema, GlobalContext, ConsultationTarget, ConsultationInputs, ReconciliationSource, basisRequestSchema, briefAppendOutcomeSchema, unresolvedReasonSchema, forkPointSchema, consultationAvailability, consultArchitectDeclaration, engineerBuiltinTools, EngineerEvidence, RunEventInput, WorkItemBriefing, IterationKind, GateDiagnostics, StartingPoint, initialAnalysisSubmissionSchema, localArchitectSubmissionSchema, assignmentBodySchema, localArchitectInputSchema, localDecisionSchema, registryChangeSchema, decisionBodySchema, forkSubmissionSchema, placementRequestBodySchema, consultationInputsSchema, reconciliationSourceSchema, AssignedObligation, EngineerScenarios, IterationApiViews, WorkOrientationSubmission, ContextSelectorSubmission, SelectionSource, SelectionIdentity, EnvironmentProblem, DelegationBriefing, IntegrationBriefing, BriefedScenario, Onboarding, ApiViewResult, ReconciliationBriefing, iterationKindSchema, AutonomousRunService, AutonomousRunOptions, AcceptedAnalysisReferences, prepareAssignedCucumber, startingPointSchema, RepairExportConfiguration, workOrientationSubmissionSchema, contextSelectorSubmissionSchema, IntegrationScope, planningRecords, RecoveryRuntime, RunWrite, FocusedScenarioCommand, CheckFindingCarrierType, recoveryRuntimeSchema, PlanningRecords, gateGit, gateScenariosCommitFixture, GateCommit, GateGit, GateGitOptions, GateFixtureGitChange, GitCall, TrailedCommit, taskSupportSections, declaredCheckInputs, moduleInputPointers, startingPointsSection, extensionIsANewCapability, forkJsonSchema, forkToolName, validateFork, PlacementEvidence, validateLocalArchitect, placementRequest, iterationLayout, workLayout, passedScenarioLines, assignmentErrors, iterationMessage, entryScenariosOf, apiCoverageStatement, workItemMessage, engineerWorkingDirectory, apiViewsOf, iterationApiViews, groupedPassedScenarioLines, withSelectionReasons, capturedPlanBlock, planPointer, engineerJsonSchema, engineerToolName, validateEngineer, architectAnswerName, architectAnswerJsonSchema, compactionReviewSchema, finalCorrectionSchema, qualificationActionSchema, initialAnalysisToolName, intakeToolName, principleToolName, checkToolName, localArchitectToolName, contractToolName, failureAnalysisToolName, workOrientationToolName, contextSelectorToolName, coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorAssessmentToolName, coordinatorInvestigationJsonSchema, coordinatorInvestigationToolName, nonfunctionalRepairToolName, inPlaceCheckExecution, runCheckpoint, architectRunInputs, gateAttemptId, engineerEquipment, ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths, capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, validateEngineerWithOwnership, EngineerSubmission, ReviewCommit, AcceptanceJournal, coordinationHistory, AfterHandling, CommittingGates, capabilityRunPolicyVersion, verificationKey, completionBlockers, verifiedRequirements, readinessAuditOutcome, writeScopePaths, incompleteScenarios, runReadiness, obligationProjection, assignmentStartingPointsOf, declaredCheckFacts, engineerBoundsFor, knownProjectFactsOf, ownedTestAreasOf, unauthorizedGuardedOf, assignedSourceDirectory, integrationBriefing, assignedFeaturePaths, recoveryHash, operationRecoverySchema, runDirectory, planRefSchema, contextSelectionSchema, preparedCandidateSchema, automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema, repairExportPayloadSchema, externalRepairAdmissionSchema, recoveryIdentitySchema, consultationTool, consultationOutcome, recordConsultationDelivery, invocationId, sessionId, capabilityRequestId, captureProvisionalSource, authorizedScope, requiredArtifacts, assignedCount, evidenceFor, expectedFeatureHashes, auditPreparationPathsOf, iterationAssignmentOf, iterationId, pendingBindingsOf, concernBindings, finishReview, requestedStartOf, reviewOutcome, unavailableConsultation, iterationAcceptance, createGitInspectionTool, consultationContext, contextSelectorMessage, workOrientationMessage, contextSelectorJsonSchema, prepareContextSelection, workOrientationJsonSchema, creationAuthority, checkContinuationScope, capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, unreportedByCompletion, WorkEvidence, defaultWriteScopesOf, obligationBriefingOf, viewIdentityOf, onboardingOf, obligationBriefingLines, obligationsOwnedBy, featureSelectionErrors, focusedCommandPendingNote, focusedScenarioFacts, ForkQuestion, AssignmentEvidence, IterationBriefing, ContextSelection, CheckpointRequest, ArchitectRunInputsOptions, EngineerEquipment, EngineerEquipmentInputs, CoordinationHistory, ReviewInputs, ObligationReport, ObligationRegistration, HandlingHost, OutlineBody, ObligationActor, ObligationBinding, FeatureRerendering, ModuleNotice, GateHost, StandIn, RequirementId, IncompleteScenario, ReadinessRequest, ReadinessResult, FeatureSelection, ProvisionalSource, WorkItemId, IterationId, PreparedSelection, ObligationContext, CommittedOutline, RepairExportPayload, FailureAnalysisSubmission, ShellCallRecord, CompletionCheck, obligationReportSchema, obligationRegistrationSchema, outlineBodySchema, obligationBindingSchema, moduleNoticeSchema, StandsFor, ReadinessAttempt, CheckExecutionObstruction, featureSelectionSchema, provisionalSourceSchema, failureAnalysisSubmissionSchema, AcceptedProposal, PreparedFindingPublication, AcceptanceIdentity, AcceptanceEffect, AcceptanceReading, ConsultationEquipmentInputs, standsForSchema, readinessAttemptSchema, AcceptanceTransaction from autonomous to descendants
 expose-src PausableDeadline from "run/pausable-deadline.ts" to descendants
 
 // Repair authentication is run authority, independent of response presentation.
 // Descendants receive committed inputs and validated facts, not writable services.
-expose-sub authenticateRepairHistory, RepairHistoryError, RepairHistoryEntry, ValidatedRepairIncident from autonomous to descendants
 // Decoded reading data only; RunLog and its writable collaborators stay private.
-expose-sub RunEvent, runEventSchema from autonomous to descendants
-expose-src RepairIncidentRecord, RepairIncidentStage, RepairIncidentId, RepairCandidate, RepairResult, RepairExportState, repairIncidentRecordSchema, repairIncidentStageSchema, repairIncidentIdSchema, repairCandidateSchema, repairResultSchema, repairExportStateSchema from "interfaces/protocol/repairs.ts" to descendants
-
-expose-sub commitAccepted, createRunBranch, isCleanRepository from evidence to descendants
-expose-sub runCommand, childEnvironment, outputTailBytes, CommandRequest, CommandRun, CommandOutcome, CommandOutput, CommandRunner from evidence to descendants
+expose-src RepairIncidentRecord, RepairIncidentStage, RepairIncidentId, RepairCandidate, RepairResult, RepairExportState, repairIncidentRecordSchema, repairIncidentStageSchema, repairIncidentIdSchema, repairCandidateSchema, repairResultSchema, repairExportStateSchema, AutomaticRepairs, RepairIncidentView, automaticRepairsSchema, repairIncidentViewSchema from "interfaces/protocol/repairs.ts" to descendants
+expose-sub commitAccepted, createRunBranch, isCleanRepository, runCommand, childEnvironment, outputTailBytes, CommandRequest, CommandRun, CommandOutcome, CommandOutput, CommandRunner, ChangeHistory, ChangedFile, GitLineRange, LineCommit, ModuleEntry, loadModuleTree, GitService, gitService, CommitTrailer, IgnoreStatus, IgnoreRule, CandidateTreePreview, commonDirectory, isAncestor, recoveryStatus, trackedPaths, ignoreStatus, previewCandidateTree, currentHead, inspectRunBranch, findCommitByTrailer, findCommitByTrailers, changedPaths, changedEntries, diffNameStatus, diffNumstat, commitNameStatus, worktreeLineChanges, worktreePatch, ArchitectIndex, SymbolRecord, ExposureChannel, readMeasurement, MeasurementRead, MeasurementDocument, ModuleMeasurement, documentSchema, moduleSchema, architectViewDirectory, RamifyCli, RamifyRun, RamifyCheckResult, CheckProvider, MaterializeResult, OwnershipQueryResult, OwnershipAnswer, OwnershipPath, RawOwnershipEvidence, ProviderFailureEvidence, RecoveryEvidence, CandidateSource, TreeEntry, TreeMatch, commitTree, treeEntries, readBlob, grepTree, diffPatch, verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError, parseModuleHeader, gitCandidateSource, resolveCommit, symbolRecords, isTestingModule, coverageRecordsOf, describeCoverageLimits, findModule, productionSourceGit, ProvisionalSourceGit, GitError, runBranchName, coverageLimitsOf, loadArchitectIndex, readArchitectMeta, ramifyVersion, OwnershipUnavailableError, gitChangeHistory, projectConfigurationFile, processGroupIdentity, apiViewDirectoriesOf, inspectGit, CucumberConfigurationResult, loadCucumberConfiguration, readApiView, ApiViewSnapshot, SourceArea, CoverageRecord, ArchitectMeta, ApiViewDirectory, GitInspection, EffectiveCucumberConfiguration, CucumberConfigurationSelection, OwnershipCancelledError, ScriptedCli, guardedFilesHash, environmentNames, privateRamify, CliReply from evidence to descendants
 
 // Selected reading dependencies for the projections child. These named
 // declarations apply to the whole subtree; no writer, executor or persistence
 // entry point is added. Browser/public parent declarations above are unchanged.
-expose-sub Incorporation, incorporationSchema from autonomous to descendants
-expose-sub AcceptedEvidence, readAcceptedEvidence from autonomous to descendants
-expose-sub Hypothesis, RegistryEntry, hypothesisSchema, registryEntrySchema from autonomous to descendants
-expose-sub PlacementDecision, PlacementRequest, placementDecisionSchema, placementRequestSchema from autonomous to descendants
-expose-sub CapabilityExchange, CapabilityHandback, CapabilityPlan, CapabilityRequest, CapabilityTask, capabilityExchangeSchema, capabilityHandbackSchema, capabilityPlanSchema, capabilityRequestSchema, capabilityTaskSchema from autonomous to descendants
-expose-sub ReplayedCapabilityState, CapabilityTaskState, CapabilityTaskStatus, replayCapabilityState from autonomous to descendants
-expose-src replayCheckFindingState from "check-findings/state.ts" to descendants
-expose-src AcceptedBoundaryLine, acceptedCommit from "checks/accepted.ts" to descendants
-expose-src AcceptedCommit, GateAttempt, GateAttemptId, GateAuditCountBucket, GateAuditProjectRecord, GateAuditRecord, GateCause, GateNext, RecordReference from "checks/records.ts" to descendants
-expose-src ScenarioResult, ScenarioResultStatus, scenarioResultsOf from "checks/scenario-results.ts" to descendants
-expose-src ConsultationOutcome, ConsultationStart, consultationId, consultationLayout, consultationOutcomeSchema, consultationStartSchema from "consultations/records.ts" to descendants
-expose-src architectAnswerSchema from "consultations/submissions.ts" to descendants
-expose-sub Delivery, deliverPackage from autonomous to descendants
-expose-sub ConsumerRequirement, ContractRecord, ProviderObligation, consumerRequirementSchema, contractRecordSchema, providerObligationSchema from autonomous to descendants
-expose-sub deviationHash from autonomous to descendants
-expose-sub NonfunctionalDeviation, nonfunctionalDeviationHash from autonomous to descendants
-expose-sub CurrentDeviationDecision, currentDeviationDecision from autonomous to descendants
-expose-sub PlanDeviation, environmentProblemSchema, packageDeviation, planDeviationSchema from autonomous to descendants
+expose-src replayCheckFindingState, checkFindingStateOf, CommittedLines from "check-findings/state.ts" to descendants
 expose-src CapabilityTaskView, CapabilityTasksResponse, capabilityTaskViewSchema, capabilityTasksResponseSchema from "interfaces/protocol/capability-tasks.ts" to descendants
-expose-src CheckFindingActorView, CheckFindingAttemptLink, CheckFindingCountsView, CheckFindingDecisionView, CheckFindingDetail, CheckFindingListResponse, CheckFindingModuleCounts, CheckFindingRepairLink, CheckFindingReportView, CheckFindingSelect, CheckFindingSettlement, CheckFindingSummaryView, PendingUserDecision, PlanDeviationView, ReviewCoverageView, ReviewListResponse, ReviewRequestView, UnresolvedReasonView, UserCheckFindingCommandKind, checkFindingActorViewSchema, checkFindingAttemptLinkSchema, checkFindingCountsSchema, checkFindingDecisionViewSchema, checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, checkFindingProtocolVersion, checkFindingRepairLinkSchema, checkFindingReportViewSchema, checkFindingSelectSchema, checkFindingSettlementSchema, checkFindingSummarySchema, checkFindingWireLimits, pendingUserDecisionSchema, planDeviationViewSchema, reviewCoverageSchema, reviewListResponseSchema, reviewRequestViewSchema, unresolvedReasonViewSchema, userCheckFindingCommandKindSchema from "interfaces/protocol/check-findings.ts" to descendants
-expose-src ModuleTree, ModuleTreeResponse, ViewIdentity, isWithin, modulePathSchema, moduleTreeResponseSchema, sha256Schema, viewIdentitySchema from "interfaces/protocol/evidence.ts" to descendants
+expose-src CheckFindingActorView, CheckFindingAttemptLink, CheckFindingCountsView, CheckFindingDecisionView, CheckFindingDetail, CheckFindingListResponse, CheckFindingModuleCounts, CheckFindingRepairLink, CheckFindingReportView, CheckFindingSelect, CheckFindingSettlement, CheckFindingSummaryView, PendingUserDecision, PlanDeviationView, ReviewCoverageView, ReviewListResponse, ReviewRequestView, UnresolvedReasonView, UserCheckFindingCommandKind, checkFindingActorViewSchema, checkFindingAttemptLinkSchema, checkFindingCountsSchema, checkFindingDecisionViewSchema, checkFindingDetailSchema, checkFindingListResponseSchema, checkFindingModuleCountsSchema, checkFindingProtocolVersion, checkFindingRepairLinkSchema, checkFindingReportViewSchema, checkFindingSelectSchema, checkFindingSettlementSchema, checkFindingSummarySchema, checkFindingWireLimits, pendingUserDecisionSchema, planDeviationViewSchema, reviewCoverageSchema, reviewListResponseSchema, reviewRequestViewSchema, unresolvedReasonViewSchema, userCheckFindingCommandKindSchema, CheckFindingUserCommand from "interfaces/protocol/check-findings.ts" to descendants
+expose-src ModuleTree, ModuleTreeResponse, ViewIdentity, isWithin, modulePathSchema, moduleTreeResponseSchema, sha256Schema, viewIdentitySchema, citationSchema, InputManifest, inputManifestSchema, CapturedInputManifest from "interfaces/protocol/evidence.ts" to descendants
 expose-src ExecutionCapabilityDetail, ExecutionLineSummary, ExecutionLink, ExecutionMapPage, ExecutionModuleMap, ExecutionModuleRelation, ExecutionNode, ExecutionScenarioDetail, ExecutionScenarioResult, ExecutionSourceRef, executionCapabilityDetailSchema, executionLineSummarySchema, executionLinkSchema, executionMapLimits, executionMapPageSchema, executionMapQuerySchema, executionModuleMapSchema, executionModuleRelationSchema, executionNodeSchema, executionScenarioDetailSchema, executionScenarioResultSchema, executionSourceRefSchema from "interfaces/protocol/execution-map.ts" to descendants
 expose-src jobIdSchema, planIdSchema from "interfaces/protocol/ids.ts" to descendants
-expose-src JobState, jobStateSchema from "interfaces/protocol/jobs.ts" to descendants
+expose-src JobState, jobStateSchema, acceptedCommandSchema, commandIdSchema, commandResponseSchema, AcceptedCommand, Receipt, ApiViewEvidence, apiViewEvidenceSchema from "interfaces/protocol/jobs.ts" to descendants
 expose-src PlanDecisionWait, planDecisionWaitSchema from "interfaces/protocol/queries.ts" to descendants
-expose-src AutomaticRepairs, RepairIncidentView, automaticRepairsSchema, repairIncidentViewSchema from "interfaces/protocol/repairs.ts" to descendants
-expose-src AnalysisResponse, AnalysisScenario, BreakpointSelector, CapabilityListResponse, CapabilityProgress, DecisionListResponse, DecisionView, GateAuditView, GateResponse, GateScenarioResultView, GateView, HypothesisView, InitialAssociation, InvocationEfficiency, InvocationEvaluation, LineageMetric, MergeReadinessResponse, Metric, MetricsResponse, ModuleCapabilities, ModuleCapabilityComparisonResponse, ModuleCapabilityRow, ObligationView, OwnershipPreflight, ProjectedRunEvent, Role, RunDecisionRequests, RunEnvironmentProblem, RunEventPage, RunEventRefKind, RunFailureReason, RunListResponse, RunNotice, RunPhase, RunPlanDeviations, RunResponse, RunReview, RunSnapshot, ScenarioGateResult, ScenarioListResponse, ScenarioOriginView, ScenarioView, ScenarioWarningView, SearchCountsView, WorkItemListResponse, WorkItemResponse, WorkItemSummary, analysisResponseSchema, analysisScenarioSchema, breakpointSelectorSchema, capabilityListResponseSchema, capabilityProgressSchema, decisionListResponseSchema, decisionViewSchema, deliveredManifestViewSchema, gateAuditViewSchema, gateCheckpointSchema, gateResponseSchema, gateScenarioResultViewSchema, gateViewSchema, hypothesisViewSchema, initialAssociationSchema, invocationEfficiencySchema, invocationEvaluationSchema, lineageMetricSchema, mergeReadinessResponseSchema, metricSchema, metricsResponseSchema, moduleCapabilitiesSchema, moduleCapabilityComparisonResponseSchema, moduleCapabilityRowSchema, obligationViewSchema, operationIdentitySchema, ownershipPreflightSchema, projectedRunEventSchema, recordedChargeSchema, roleDisplayName, roleSchema, runAgentSchema, runDecisionRequestsSchema, runEnvironmentProblemSchema, runEventPageSchema, runEventRefKindSchema, runFailureReasonSchema, runListResponseSchema, runNoticeSchema, runPhaseSchema, runPlanDeviationsSchema, runQueryLimits, runResponseSchema, runReviewSchema, runSnapshotSchema, scenarioGateResultSchema, scenarioListResponseSchema, scenarioOriginViewSchema, scenarioViewSchema, scenarioWarningViewSchema, scopeSizeViewSchema, searchCountsSchema, workItemListResponseSchema, workItemResponseSchema, workItemSummarySchema from "interfaces/protocol/runs.ts" to descendants
+expose-src AnalysisResponse, AnalysisScenario, BreakpointSelector, CapabilityListResponse, CapabilityProgress, DecisionListResponse, DecisionView, GateAuditView, GateResponse, GateScenarioResultView, GateView, HypothesisView, InitialAssociation, InvocationEfficiency, InvocationEvaluation, LineageMetric, MergeReadinessResponse, Metric, MetricsResponse, ModuleCapabilities, ModuleCapabilityComparisonResponse, ModuleCapabilityRow, ObligationView, OwnershipPreflight, ProjectedRunEvent, Role, RunDecisionRequests, RunEnvironmentProblem, RunEventPage, RunEventRefKind, RunFailureReason, RunListResponse, RunNotice, RunPhase, RunPlanDeviations, RunResponse, RunReview, RunSnapshot, ScenarioGateResult, ScenarioListResponse, ScenarioOriginView, ScenarioView, ScenarioWarningView, SearchCountsView, WorkItemListResponse, WorkItemResponse, WorkItemSummary, analysisResponseSchema, analysisScenarioSchema, breakpointSelectorSchema, capabilityListResponseSchema, capabilityProgressSchema, decisionListResponseSchema, decisionViewSchema, deliveredManifestViewSchema, gateAuditViewSchema, gateCheckpointSchema, gateResponseSchema, gateScenarioResultViewSchema, gateViewSchema, hypothesisViewSchema, initialAssociationSchema, invocationEfficiencySchema, invocationEvaluationSchema, lineageMetricSchema, mergeReadinessResponseSchema, metricSchema, metricsResponseSchema, moduleCapabilitiesSchema, moduleCapabilityComparisonResponseSchema, moduleCapabilityRowSchema, obligationViewSchema, operationIdentitySchema, ownershipPreflightSchema, projectedRunEventSchema, recordedChargeSchema, roleDisplayName, roleSchema, runAgentSchema, runDecisionRequestsSchema, runEnvironmentProblemSchema, runEventPageSchema, runEventRefKindSchema, runFailureReasonSchema, runListResponseSchema, runNoticeSchema, runPhaseSchema, runPlanDeviationsSchema, runQueryLimits, runResponseSchema, runReviewSchema, runSnapshotSchema, scenarioGateResultSchema, scenarioListResponseSchema, scenarioOriginViewSchema, scenarioViewSchema, scenarioWarningViewSchema, scopeSizeViewSchema, searchCountsSchema, workItemListResponseSchema, workItemResponseSchema, workItemSummarySchema, explorationObservationSchema, runCommandSchema, startRunCommandSchema, externalRepairDeclarationSchema, ExternalRepairDeclaration, BreakpointState, DebugExchange, DebugInspection, FailureAnalysis, RunCommand, recoveryInspectionSchema, restartInspectionSchema, RestartInspection, RecoveryInspection, debugExchangeSchema, failureCauseSchema, failureAnalysisSchema, repairIncidentRecordSchema, RepairIncidentRecord, RepairIncidentStage, FailureCause from "interfaces/protocol/runs.ts" to descendants
 expose-src RunSessionResponse, RunSessionView, RunSessionsResponse, SessionAppend, SessionBodyResponse, SessionCursor, SessionInvocation, SessionListEntry, SessionListResponse, SessionReach, SessionRef, SessionSuspension, SessionTranscriptResponse, SessionUpdatesResponse, ShownSessionState, StandaloneSessionResponse, TranscriptPage, UnservedSessionSource, runSessionResponseSchema, runSessionViewSchema, runSessionsResponseSchema, sessionAppendSchema, sessionBodyHashSchema, sessionBodyResponseSchema, sessionCursorSchema, sessionInvocationSchema, sessionListEntrySchema, sessionListResponseSchema, sessionQueryLimits, sessionReachSchema, sessionRefSchema, sessionStateSchema, sessionSuspensionSchema, sessionTranscriptResponseSchema, sessionUpdatesResponseSchema, standaloneSessionIdSchema, standaloneSessionResponseSchema, transcriptPageSchema, unservedSessionSourceSchema from "interfaces/protocol/sessions.ts" to descendants
-expose-src TranscriptBody, TranscriptEntry, transcriptBodySchema, transcriptEntrySchema from "interfaces/protocol/transcripts.ts" to descendants
-expose-src jobSchemaVersion, jobsDirectory from "jobs/records.ts" to descendants
-expose-sub DeclaredScope, baselineScope, rootModuleOfSnapshot, scopeSize from kpi to descendants
-expose-sub deliveredChange, DeliveredChange, DeliveredChangeRequest, HarnessLineIdentities from kpi to descendants
-expose-sub InvocationTiming, invocationTiming from kpi to descendants
-expose-sub ExplorationMetrics, ExplorationObservation, SearchCount, SearchCounts, explorationDetails from kpi to descendants
-expose-sub GuardVerdictCounts, GuardingReport, guardingReport from kpi to descendants
-expose-sub LineageInputs, SegmentFacts, SegmentUsage, StartKind, lineageMetrics, lineagePolicyVersion from kpi to descendants
-expose-sub InvocationFacts, MetricInputs, ScopeComparison, comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion from kpi to descendants
-expose-sub RecordedSetupDelta, SetupAddedLineFact, SetupCandidatePartition, SetupDeletedLineFact, SetupLineIdentityInput, SetupLineMappingFacts, SetupSourceLine, verifySetupLineIdentities from kpi to descendants
-expose-sub assessedElements from autonomous to descendants
-expose-src NotVerifiedReason, ReviewAttempt, ReviewRequest, notVerifiedReasonSchema, reviewAttemptSchema, reviewRequestSchema from "reviews/records.ts" to descendants
-expose-src ReviewAttemptState, ReviewCoverage, ReviewRequestState, reviewCoverage, reviewStateOf from "reviews/state.ts" to descendants
-expose-sub CommittedHistoryError, HistoryEntry, unsupportedCommittedVersion, validateCommittedHistory from autonomous to descendants
-expose-sub ScenarioLedgerLine, TrackedScenarios, trackedScenarios from autonomous to descendants
-expose-sub RunEventOf, RunEventType, terminalRunEvents from autonomous to descendants
-expose-sub DeviationOrigin, FinalAuditFacts, MergeReadinessInput, ReadinessDeviation, projectMergeReadiness from autonomous to descendants
-expose-sub CommittedNonfunctionalPhase, NonfunctionalPhaseReplay, replayNonfunctionalPhase from autonomous to descendants
-expose-sub MergeReadiness, NonfunctionalRepairAssignment, deviationOriginSchema, mergeReadinessSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema from autonomous to descendants
-expose-sub Observation, observationSchema, rawOutputGapKinds, CoverageGapKind, ObservationOf, ObservationType from task-execution to descendants
+expose-src TranscriptBody, TranscriptEntry, transcriptBodySchema, transcriptEntrySchema, TranscriptAssistantBlock, TranscriptContentBlock, TranscriptHarnessDecision, TranscriptToolAction, transcriptWorkSchema from "interfaces/protocol/transcripts.ts" to descendants
+expose-src jobSchemaVersion, jobsDirectory, listJobDirectories, newJobId, planStateDirectory, readJobDocument, declaredSchemaOf from "jobs/records.ts" to descendants
+expose-sub DeclaredScope, baselineScope, rootModuleOfSnapshot, scopeSize, deliveredChange, DeliveredChange, DeliveredChangeRequest, HarnessLineIdentities, InvocationTiming, invocationTiming, ExplorationMetrics, ExplorationObservation, SearchCount, SearchCounts, explorationDetails, GuardVerdictCounts, GuardingReport, guardingReport, LineageInputs, SegmentFacts, SegmentUsage, StartKind, lineageMetrics, lineagePolicyVersion, InvocationFacts, MetricInputs, ScopeComparison, comparableScopeMetrics, kpiMetrics, kpiPolicyVersion, measurementPolicyVersion, RecordedSetupDelta, SetupAddedLineFact, SetupCandidatePartition, SetupDeletedLineFact, SetupLineIdentityInput, SetupLineMappingFacts, SetupSourceLine, verifySetupLineIdentities, SnapshotId, LineEventSummary, MeasurementSnapshot, lineEventSummarySchema, measurementSnapshotSchema, ownerOf, ChargeInput, RecordedCharge, estimateRecordedCharge, captureSnapshot, revisionMismatch, supportDocument, readScopeMeasurement, writeScopeMeasurement, cachedChangeHistory, lineEvents, takeLineSnapshot, LineSnapshot, SnapshotRequest, LineEventRequest, LineChange, snapshotId, DeliveredScopeInputs, invocationReadSize, invocationScopeSize, invocationScopeFailure, deliveredScopeInputs, invocationScope, declaredRoots, deliveredManifestScopeInputs, InvocationScopeDeclaration, DeliveredSupportEntry, DeliveredSupportSource from kpi to descendants
+expose-sub Observation, observationSchema, rawOutputGapKinds, CoverageGapKind, ObservationOf, ObservationType, replaceReasonSchema, ContinueReason, DegradeRelation, ForkRelation, Invocation, InvocationOutcome, InvocationWork, ReplaceRelation, RequestRelation, ScopeComponent, ScopeSize, SessionFinishReason, SessionId, SessionPoint, continueReasonSchema, degradeRelationSchema, forkRelationSchema, invocationOutcomeSchema, invocationSchema, invocationWorkSchema, replaceRelationSchema, requestRelationSchema, scopeComponentSchema, scopeSizeSchema, runSessionFinishReasonSchema, sessionPointSchema, PageBounds, TranscriptPageRead, TranscriptPages, ContentReader, openContentReader, TranscriptRead, readBody, readTranscript, schemaErrors, SubmissionError, SubmissionValidation, ContinueRelation, continueRelationSchema, rejectionAnswer, invocationUsageSchema, validateAgainst, recordRefSchema, finished, kept, SessionKeeping, InvocationResult, globalForkSourceSchema, TaskEnvironment, HarnessTaskBrief, ArchitectRef, InvocationId, architectRefSchema, forkReasonSchema, interruptionEvidenceSchema, requestReasonSchema, sessionIdSchema, sessionModeSchema, sessionOperationLinkSchema, EquipContext, Equipment, ObservationLog, InvocationTranscript, recordAppend, ContentStore, TranscriptWriter, nodeProcessGroups, WriterBlockedError, WriterOwnership, ProcessGroups, TreeObserver, readSessionPointReference, CallInFlight, ToolInputJudge, DurableRecordRef, TaskSessionMode, InvocationProgress, BriefingRevision, TranscriptNotes, ObservationInput, InvocationStart, InvocationEnd, HarnessNote, StoredContent, TranscriptBuild, TranscriptWriterOptions, WriterOwnershipOptions, Settlement, PreparedOperationInput, TaskSessionOperations, PostWriteCheckNote, TranscriptEntryInput, TranscriptBodies, PreparedTaskPackage, TaskPacket, PointContext, EnvironmentField, DeliveredManifest, DeliveredInput, DeliveredManifestEntry, InvocationBounds, InvocationLimits, readPointContext, readRecordedOperation, exactInputHash, effectiveBlocks, replacementBanner, invocationRecords, InvocationRecords, blobsIn, buildBriefingDelivery, taskBriefingRevision, assertTaskProcedureSelection, buildPreparedTaskPacket, BriefingDelivery, stoppedOutcome, contextPolicySchema, executePreparedTask, executeWithContextFallback, ReusableSessionUnavailableError, operationDeclarations, settleSessionEquipment, TranscriptWriters, PreparedTask, TaskExecutionPorts, composeOperationPacket, PreparedTaskRequest from task-execution to descendants
+
 // KPI reading vocabulary only; durable schemas and role authority remain here.
-expose-sub roles from autonomous to descendants
-expose-sub replaceReasonSchema from task-execution to descendants
-expose-src runPolicyVersion from "run/policy.ts" to descendants
-expose-sub SnapshotId from autonomous to descendants
-expose-sub EntryAssignments, LineEventSummary, MeasurementSnapshot, ModuleProposal, ReviewKind, RunPolicy, RunRecord, entryAssignmentsSchema, gateAttemptSchema, gateAuditOutcomeSchema, lineEventSummarySchema, manualRunRecordSchema, measurementSnapshotSchema, moduleProposalSchema, reviewKindSchema, runLayout, runPolicySchema, runRecordSchema from autonomous to descendants
-expose-sub ContinueReason, DegradeRelation, ForkRelation, Invocation, InvocationOutcome, InvocationWork, ReplaceRelation, RequestRelation, ScopeComponent, ScopeSize, SessionFinishReason, SessionId, SessionPoint, continueReasonSchema, degradeRelationSchema, forkRelationSchema, invocationOutcomeSchema, invocationSchema, invocationWorkSchema, replaceRelationSchema, requestRelationSchema, scopeComponentSchema, scopeSizeSchema, runSessionFinishReasonSchema, sessionPointSchema from task-execution to descendants
-expose-sub InvalidSessionTransitionError, RunSession, RunSessions, RunSessionMoment, SessionState, SessionTransitionFrom, invocationSessions, pointLabel, reduceSessions from autonomous to descendants
-expose-sub DurableRunNotice, DurableRunSnapshot, runSnapshot from autonomous to descendants
-expose-sub PageBounds, TranscriptPageRead, TranscriptPages from task-execution to descendants
-expose-sub ContentReader, openContentReader from task-execution to descendants
-expose-sub TranscriptRead, readBody, readTranscript from task-execution to descendants
-expose-sub CommittedRecords, committedRecords from autonomous to descendants
-expose-sub capabilityEngineerSubmissionKinds, engineerSubmissionKinds, engineerSubmissionSchema from autonomous to descendants
-expose-sub digestLines from autonomous to descendants
-expose-sub capabilityOf from autonomous to descendants
-expose-sub FailureDigest, IterationAssignment, IterationResult, failureDigestSchema, iterationAssignmentSchema, iterationResultSchema, testSelectionPolicySchema from autonomous to descendants
-expose-src writeScopeSchema from "work/scope.ts" to descendants
-expose-sub Obligation, ObligationEventLine, ObligationKind, ObligationProjection, ObligationResponsible, ObligationSources, ObligationStatus, RecordedBinding, RecordedReport, obligationsOf from autonomous to descendants
-expose-sub WorkItem, WorkItemOriginKind, WorkItemOutline, integrationScenarioOf, originKindOf, workItemOutlineSchema, workItemSchema from autonomous to descendants
-expose-sub scratchIgnoreRule from autonomous to descendants
+expose-src runPolicyVersion, defaultReviewPolicy, contextPolicyOf, defaultContextPolicies, defaultRunPolicy, engineerBoundsOf, withProjectTimeouts, EngineerBounds, RunPolicyOptions, invocationLimits from "run/policy.ts" to descendants
+expose-sub manualRunRecordSchema, InvocationRequest, TaskKind, constructEngineerStep, engineerStepInputsOf, ConstructedEngineerStep, committedBody, invocationRecord, InvocationRunner, LiveInvocation, RunnerHost, RunnerRun, knownFactsInputs, projectPath, stepInputsSchemaId, validateReviewInputs, validateSelectorInputs, validateWorkTurnInputs, EngineerStepInputs, KnownFactsInputs, OrientationStepInputs, ProjectPath, StepInputs, constructStep, freshFallback, assignmentBootstrap, constructOrientationStep, constructSelectorStep, constructWorkTurnStep, judgeWorkTurn, workBriefingInputs, ConstructedWorkTurnStep, constructDesignOrientationStep, constructReviewStep, deliveredSupportPaths, manualRunLocationOf, StepEnvironment, EngineerInputFacts, EngineerStepStart, RestoredInvocation, RunnerWrite, KnownProjectFacts, ReviewStepInputs, SelectorStepInputs, WorkTurnStepInputs, engineerStepInputsSchema, knownFactsSchema, orientationSchema, projectPathSchema, ReviewerStepInputs, LocalArchitectStepInputs, ConstructedStepCommon, validateStepInputs, ConstructedOrientationStep, ConstructedSelectorStep, WorkTurnJudgement, WorkBriefingInputs, ConstructedDesignOrientationStep, ConstructedReviewStep, StartedInvocation, reviewForkSchema, reviewFreshSchema, selectorForkSchema, selectorFreshSchema, workTurnContinuedSchema, workTurnFreshSchema, DesignOrientationStepInputs, StepToolDeclaration, ConstructedStart, workBriefingSchema, designOrientationSchema, parseStepInputs, composeTaskBrief, serializeStepInputs, inputsFromRun, reviewInputsFromRequest, runStepCommandWith, runStepAfter, StepAfterOptions, runStepGate, StepGateOptions, runStep, StepRunOptions, StepRunResult, taskKindFor, StepCommandOptions, StepCommandResult, TaskBriefFacts, InputsFromRunOptions, InputsFromRunResult, ReviewInputsFromRequestOptions, ReviewInputsFromRequestResult, AuthoringPorts, StepAfterResult, StepGateResult, StepGateCheckpoint, StepRunProgress, StepRunSummary, RenderedStep, AuthoredFiles, AuthoringContext, RenderEnvironment, DeliveryComparison, stepGateCheckpoints, StepRunStart from task-workflow to descendants
+expose-src writeScopeSchema, guardedConfigurationFiles, injectionSiteRule, moduleOwning, scopePaths, scopeConfigurationPaths, missingHistoricalAuthority, captureGuardedFiles, deniedFiles, guardedScopeOf, protectedScopeOf, resolveWriteScope, testPolicyOf, DefaultWriteScope, GuardedScenarioFiles, auditPreparationPaths, checkpointOf, defaultWriteScopeOf, WriteScope, directoryOf, extraPurposeSchema, checkWriteScope, within, ScopeCapture, WriteScopeCheckResult, includedConfigurationPaths from "work/scope.ts" to descendants
 
 // Relays of selected direct-child reading contracts, with recursive named
 // companions. Existing CandidateSource and tree-operation relays stay below.
-expose-sub CheckFindingAction, CheckFindingActionKind, CheckFindingActor, CheckFindingAwaiting, CheckFindingCounts, CheckFindingCredibility, CheckFindingDecision, CheckFindingDecisionId, CheckFindingEntry, CheckFindingGroup, CheckFindingId, CheckFindingIngestion, CheckFindingOwner, CheckFindingProducer, CheckFindingReason, CheckFindingRejection, CheckFindingRejectionCode, CheckFindingRelation, CheckFindingRepair, CheckFindingReport, CheckFindingReportId, CheckFindingRisk, CheckFindingSource, CheckFindingStanding, CheckFindingState, CheckFindingVerification, checkFindingActionSchema, checkFindingActorSchema, checkFindingAwaitingSchema, checkFindingCredibilitySchema, checkFindingDecisionIdSchema, checkFindingDecisionSchema, checkFindingIdSchema, checkFindingOwnerSchema, checkFindingProducerSchema, checkFindingReasonSchema, checkFindingRejectionCodeSchema, checkFindingRelationSchema, checkFindingRepairSchema, checkFindingReportIdSchema, checkFindingReportSchema, checkFindingSourceSchema, checkFindingStandingSchema, checkFindingVerificationSchema, checkFindingViewVersion from check-findings to descendants
+expose-sub CheckFindingAction, CheckFindingActionKind, CheckFindingActor, CheckFindingAwaiting, CheckFindingCounts, CheckFindingCredibility, CheckFindingDecision, CheckFindingDecisionId, CheckFindingEntry, CheckFindingGroup, CheckFindingId, CheckFindingIngestion, CheckFindingOwner, CheckFindingProducer, CheckFindingReason, CheckFindingRejection, CheckFindingRejectionCode, CheckFindingRelation, CheckFindingRepair, CheckFindingReport, CheckFindingReportId, CheckFindingRisk, CheckFindingSource, CheckFindingStanding, CheckFindingState, CheckFindingVerification, checkFindingActionSchema, checkFindingActorSchema, checkFindingAwaitingSchema, checkFindingCredibilitySchema, checkFindingDecisionIdSchema, checkFindingDecisionSchema, checkFindingIdSchema, checkFindingOwnerSchema, checkFindingProducerSchema, checkFindingReasonSchema, checkFindingRejectionCodeSchema, checkFindingRelationSchema, checkFindingRepairSchema, checkFindingReportIdSchema, checkFindingReportSchema, checkFindingSourceSchema, checkFindingStandingSchema, checkFindingVerificationSchema, checkFindingViewVersion, ReportedCheckFindingMaterialChoice, CheckFindingSummary, CheckFindingDetailView, CheckFindingListView, CheckFindingSelection, CheckFindingQueryInput, CheckFindingQuery, checkFindingQuerySchema, checkFindingQueryLimits, selectCheckFindings, checkFindingLocationSchema, checkFindingRiskSchema, decideCheckFindingChange, applyCheckFindingEvent, emptyCheckFindingState, CheckFindingCommand, CheckFindingEvent, CheckFindingChange, CheckFindingApplied, CheckFindingDecisionInput, CheckFindingReportInput, checkFindingCommandSchema, checkFindingEventSchema, checkFindingDecisionInputSchema, checkFindingReportInputSchema, CheckFindingAt, CheckFindingAuthority, CheckFindingConflict, CheckFindingEvidence, CheckFindingGround, CheckFindingLocation, CheckFindingReplay, CheckFindingReportCredibility, checkFindingAtSchema, checkFindingAuthoritySchema, checkFindingCommunicationSchema, checkFindingConflictSchema, checkFindingEvidenceSchema, checkFindingGroundSchema, checkFindingOptionSchema, checkFindingRelationKindSchema, checkFindingReportCredibilitySchema, replayCheckFindingEvents from check-findings to descendants
+
 // The owner-local alias preserves the original material-choice interface without
 // colliding with the harness's distinct public wire contract.
-expose-sub ReportedCheckFindingMaterialChoice, CheckFindingSummary, CheckFindingDetailView, CheckFindingListView, CheckFindingSelection, CheckFindingQueryInput, CheckFindingQuery, checkFindingQuerySchema, checkFindingQueryLimits, selectCheckFindings from check-findings to descendants
 // GitLineRange binds evidence's original tuple without displacing agent LineRange.
-expose-sub ChangeHistory, ChangedFile, GitLineRange, LineCommit, ModuleEntry, loadModuleTree from evidence to descendants
 // Per-invocation collection uses the original acquisition and ownership contracts.
-expose-sub GitService, gitService, CommitTrailer, IgnoreStatus, IgnoreRule, CandidateTreePreview, commonDirectory, isAncestor, recoveryStatus, trackedPaths, ignoreStatus, previewCandidateTree, currentHead, isCleanRepository, createRunBranch, inspectRunBranch, commitAccepted, findCommitByTrailer, findCommitByTrailers, changedPaths, changedEntries, diffNameStatus, diffNumstat, commitNameStatus, worktreeLineChanges, worktreePatch from evidence to descendants
-expose-sub ArchitectIndex, SymbolRecord, ExposureChannel from evidence to descendants
-expose-src ownerOf from "measurement/owners.ts" to descendants
 expose-test architectIndex, moduleEntry from "helpers/views.ts" to descendants
-expose-test mockGit from "helpers/mock-git.ts" to descendants
+expose-test mockGit, fixtureScratchGit, scriptedScratchGit, ScratchGitScript from "helpers/mock-git.ts" to descendants
+
 // Snapshot acquisition reads the evidence producer; no new executor or writer.
-expose-sub readMeasurement, MeasurementRead, MeasurementDocument, ModuleMeasurement, documentSchema, moduleSchema, architectViewDirectory, RamifyCli, RamifyRun, RamifyCheckResult, CheckProvider, MaterializeResult, OwnershipQueryResult, OwnershipAnswer, OwnershipPath, RawOwnershipEvidence, ProviderFailureEvidence, RecoveryEvidence from evidence to descendants
-expose-sub JsonLines, LedgerEntry, RecordBody, Transaction, readJsonLines from ledger to descendants
-expose-sub Assessment, Candidate, ClosedRound, Outcome, Phase, RoundDecision, RoundDecisionInput, assessmentSchema, candidateSchema, decideNonfunctionalRound, roundSchema from nonfunctional to descendants
-expose-sub DocumentManifest, ElementCatalog, PackageCitation, PackageDeviation, documentManifestSchema, elementCatalogSchema, elementKinds, packageCitationSchema, packageDeviationSchema from plan-evidence to descendants
-expose-sub ScenarioId, ScenarioRecord, ScenarioState, ScenarioStates, scenarioIdSchema, scenarioRecordSchema, scenarioSourceHash, scenarioStateSchema from scenarios to descendants
+expose-sub JsonLines, LedgerEntry, RecordBody, Transaction, readJsonLines, openLedger, Ledger, OpenLedgerOptions, RecordSchema, RecordRead, EffectSpec, PendingEffect, LedgerFileSystem, LedgerFileHandle, LedgerOpenFlags, writeFileAtomic, writeFileExclusive, ExclusiveWrite, syncDirectory, appendJsonLine, discardPartialLine, withJsonLineAppender, LedgerCorruptError, maximumLineBytes from ledger to descendants
+expose-sub Assessment, Candidate, ClosedRound, Outcome, Phase, RoundDecision, RoundDecisionInput, assessmentSchema, candidateSchema, decideNonfunctionalRound, roundSchema, assessmentCoverage, assessedCandidateMatches, assessmentResultSchema from nonfunctional to descendants
+expose-sub DocumentManifest, ElementCatalog, PackageCitation, PackageDeviation, documentManifestSchema, elementCatalogSchema, elementKinds, packageCitationSchema, packageDeviationSchema, deviationNotice, DiscoveredDocuments, DocumentDiscoveryOptions, DocumentReader, OutsideDocumentReference, UnreadableDocumentReference, discoverDocuments, acceptElements, submittedElementSchema, ElementKind, ElementReferenceList, createPackage, elementRewriteSchema, resolveCitations, reviseCatalog, elementIdSchema, openElementCatalog, serializeElementCatalog, CatalogElement, verifyDocumentBytes, ElementAcceptance, PackageRequest, Package, CatalogRevision, catalogElementSchema, CapturedDocument, ElementRewrite, capturedDocumentSchema, SubmittedElement from plan-evidence to descendants
+expose-sub ScenarioId, ScenarioRecord, ScenarioState, ScenarioStates, scenarioIdSchema, scenarioRecordSchema, scenarioSourceHash, scenarioStateSchema, extractDocumentScenarios, PlanScenario, PlanScenarioExtraction, integrationScenarioSubmissionSchema, scenarioSubmissionSchema, validateScenarioForm, nonBehavioralAcceptanceSchema, ScenarioFormResult, ScenarioViewNames, extractPlanScenarios, assignScenarioIds, ScenarioModule, scenarioIdOf, applyScenarioEvent, countScenarioStates, initialScenarioStates, scenarioEventTypes, ScenarioEvent, planScenarioExtractionSchema, RenderedFeatureFile, renderFeatureFiles, boundState, reportedState, ScenarioFormWarningKind, planScenarioSchema, ScenarioFormEntry, ScenarioFormEvidence, ScenarioFormSubmission, ScenarioFormRule, AcceptedScenarioForm, ScenarioWarning, ScenarioIdContext, AssignedScenarios, FeatureRenderingRun, NonBehavioralAcceptance, ScenarioElementRef, scenarioFormSubmissionSchema, FormScenario, FormIntegration, scenarioElementRefSchema from scenarios to descendants
 
 // Temporary local guards forward to root enforcement in Plan 22 iteration 6.
-expose-test guardedChildProcess, spawnAttempts from "helpers/process-guard.ts" to descendants
+expose-test guardedChildProcess, spawnAttempts, resetSpawnAttempts from "helpers/process-guard.ts" to descendants
 
 // Native request evidence is projected by its Pi owner. Root qualification
 // reads validated plain artifacts; opaque continuation encoding stays in Pi.
-expose-sub readPiNativeRequestArtifact, PiNativeRequestArtifact from agent to parent
+expose-sub readPiNativeRequestArtifact, PiNativeRequestArtifact, createPiAgentOn, decodePreservedTranscript, SessionExecutionBindings, SessionExecutionPolicy, SessionOperationReceipt, CompactionCheckpoint, ContextPolicy, SessionEffectRecord, AgentSessionId, SessionOutcome, GuardDecision, SubmissionVerdict, SessionExecutionIdentity, CompactionDecision, AgentSessionPoint, SessionOperationKey, ToolDefinition, ToolResult, AgentEvent, SettledMutation, GuardedCall, SessionTaskInput, AgentPort, SessionStore, SessionStoreRecord, SessionStoreCommit, ToolAction, JsonSchema, AssistantBlock, AgentEventObservation, MessageDetail, TokenUsage, CompactionReason, ContextNativeObservation, ContentBlock, ExecutorSupport, BuiltinTool, WriteTool, SessionOperations, SessionToolDeclaration, SessionOperationId, InterruptionEvidence, PiRuntimeSource, PreservedPiTranscript, TranscriptPayloadId, SessionStoreExpected, LineRange, StopSessionInput, TextBlock, ForkSessionInput, OtherBlock, Availability, CacheWrites, MessageCost, AgentSessionSnapshot, ThinkingBlock, ReconcileSessionEffectsInput, ToolCallBlock, CreateSessionInput, StopReason, RetrySessionInput, AppendSessionContextInput, SessionOperationHandle, ContinueSessionInput, ChangeSessionToolsInput, NativePrefix, PiTranscriptTool, PiTranscriptMessage, ThinkingVisibility, SessionToolChange, SessionContextAddition, AgentSessionLineage, SessionTranscriptEntry from agent to parent
 
 // Exact setup-line attribution: the pure verifier the root's trial scripts
 // run over their own collected Git facts, with the types its signature names,
 // and the one guard every trial's evidence destination passes.
-expose-sub HarnessLineIdentities from kpi to parent
-expose-sub verifySetupLineIdentities, SetupLineIdentityInput, SetupCandidatePartition, RecordedSetupDelta from kpi to parent
-expose-sub SetupSourceLine, SetupLineMappingFacts, SetupAddedLineFact, SetupDeletedLineFact from kpi to parent
+expose-sub HarnessLineIdentities, verifySetupLineIdentities, SetupLineIdentityInput, SetupCandidatePartition, RecordedSetupDelta, SetupSourceLine, SetupLineMappingFacts, SetupAddedLineFact, SetupDeletedLineFact from kpi to parent
 expose-src trialReportDestination from "qualification/trial-report.ts" to parent
 
 // Production ledger reopening belongs to the descendant Pi native witness.
 // Only the store contract and its signature companions cross this boundary.
 expose-sub openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from session-store to descendants
-expose-sub SessionStore, SessionStoreRecord, SessionStoreCommit, SessionStoreExpected, TranscriptPayloadId from agent to descendants
+expose-sub SessionStore, SessionStoreRecord, SessionStoreCommit, SessionStoreExpected, TranscriptPayloadId, JsonSchema, ToolAction, ToolDefinition, ToolResult, LineRange, SessionRecordUnavailableError, SessionDriverUnavailableError, AgentEvent, AgentEventObservation, AgentPort, AgentSessionId, AgentSessionLineage, AgentSessionPoint, AgentSessionSnapshot, AppendSessionContextInput, AssistantBlock, Availability, BuiltinTool, CacheWrites, ChangeSessionToolsInput, CompactionReason, ContentBlock, ContextNativeObservation, ContextPolicy, ContinueSessionInput, CreateSessionInput, ExecutorSupport, ForkSessionInput, GuardDecision, GuardedCall, InterruptionEvidence, MessageCost, MessageDetail, OtherBlock, PiAgentOptions, ReconcileSessionEffectsInput, RetrySessionInput, SessionContextAddition, SessionEffectRecord, SessionExecutionBindings, SessionExecutionIdentity, SessionExecutionPolicy, SessionOperationHandle, SessionOperationId, SessionOperationKey, SessionOperationReceipt, SessionOperations, SessionOutcome, SessionTaskInput, SessionToolChange, SessionToolDeclaration, SessionTranscriptEntry, SettledMutation, StopReason, StopSessionInput, TextBlock, ThinkingBlock, ThinkingVisibility, TokenUsage, ToolCallBlock, WriteTool, createPiAgent, CompactionCheckpoint, CompactionDecision, ScriptStep, SessionDriverInvocation, SessionDriverRuntime, SessionExecutionOwner, SessionOperationDriver, SessionOperationsOptions, SessionScript, SessionScriptStep, SubmissionVerdict, createScriptedSessionDriver, createSessionOperations, ActualStart, AgentSession, AppendOutcome, MessageEvent, SessionEffectOwnerReceipt, SessionMode, AgentSessionRef, SessionScope, SessionSpec, SessionStart, SubmissionTool, interruptionEvidence, piBuiltinDeclarations, assistantText, noMessageDetail, createScriptedAgent, Script, ScriptedAgentOptions, ScriptedAgent, ScriptedSessionRecord, ScriptedToolResult, piReadiness from agent to descendants
 
 // Fixed live qualification owns its runtime; root receives plain options/results.
 expose-src runPlan23LiveSession, Plan23LiveSessionOptions, Plan23LiveSessionResult from "qualification/live-session.ts" to parent
 
 // Review evidence uses the existing candidate and tool ports through parent composition.
-expose-sub CandidateSource, TreeEntry, TreeMatch, commitTree, treeEntries, readBlob, grepTree, diffPatch, diffNameStatus from evidence to descendants
-expose-sub JsonSchema, ToolAction, ToolDefinition, ToolResult, LineRange from agent to descendants
-expose-sub checkFindingIdSchema, checkFindingLocationSchema, checkFindingRiskSchema from check-findings to descendants
-expose-sub deviationNotice from plan-evidence to descendants
-expose-sub schemaErrors, SubmissionError, SubmissionValidation from task-execution to descendants
-expose-src canonicalJson from "jobs/commands.ts" to descendants
-expose-test scriptedCandidates, ScriptedCommit, ScriptedCandidates from "helpers/candidates.ts" to descendants
-expose-test scratchCandidateReplies from "helpers/scratch-candidate-replies.ts" to descendants
+expose-src canonicalJson, Admission, CommandLedger, CommandLike, CommandRejection from "jobs/commands.ts" to descendants
 
 // Constructed committed-input witnesses for focused child query regressions.
 // Signature companions are the selected reading records exposed above and
 // CommittedRun/CommittedLine received from projections (never writer ports).
-expose-sub CommittedRun, CommittedLine from projections to descendants
+expose-sub CommittedRun, CommittedLine, RunQueries, CheckFindingListQuery, RunSource, readConsultations, consultationText, ConsultationInspectionOptions, ConsultationInspection from projections to descendants
 expose-test at, constructedRun, constructedRecord, forecast, runId, hash, item, obligation, registered, requirement, reviews, Line from "helpers/constructed.ts" to descendants
-// Exact shared capability query fixtures; no private projector or writable authority.
-expose-sub capabilityProjectionLines, capabilityContractRun from autonomous to descendants
 
+// Exact shared capability query fixtures; no private projector or writable authority.
 // Selected pure replay and fixture contracts for child-owned reading witnesses.
-expose-sub decideCheckFindingChange, applyCheckFindingEvent, emptyCheckFindingState, CheckFindingCommand, CheckFindingEvent, CheckFindingChange, CheckFindingApplied, CheckFindingDecisionInput, CheckFindingReportInput, checkFindingCommandSchema, checkFindingEventSchema, checkFindingDecisionInputSchema, checkFindingReportInputSchema from check-findings to descendants
-expose-src CheckFindingCause, checkFindingCauseSchema from "check-findings/records.ts" to descendants
-expose-src BoundReport from "check-findings/report.ts" to descendants
-expose-src defaultReviewPolicy from "run/policy.ts" to descendants
-expose-sub ReviewPolicy, reviewPolicySchema, reviewPolicyVersion from autonomous to descendants
-expose-sub ContinueRelation, continueRelationSchema from task-execution to descendants
+expose-src CheckFindingCause, checkFindingCauseSchema, checkFindingEventsField from "check-findings/records.ts" to descendants
+expose-src BoundReport, reportCommand from "check-findings/report.ts" to descendants
 expose-test concern, ConcernOptions, decision, dispose, failure, producerCause, report from "helpers/check-findings.ts" to descendants
 expose-test size, usage, find from "helpers/metric-fixtures.ts" to descendants
 expose-test plan from "helpers/integration-scenario.ts" to descendants
@@ -233,774 +154,87 @@ expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23R
 // Executable composition of assisted Pi assessment; the root owns process lifetime.
 expose-sub startAssistanceServer, AssistanceServerOptions, AssistanceServer from assistance to parent
 
-expose-sub verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from evidence to descendants
-
 // Session persistence consumes the existing lock and ledger mechanisms through
 // their supported contracts; workflow completion remains with workflow owners.
-expose-src acquireSessionStoreLock, SessionStoreLock from "store/lock.ts" to descendants
-expose-sub SessionRecordUnavailableError, SessionDriverUnavailableError from agent to descendants
-expose-sub openLedger, Ledger, OpenLedgerOptions, RecordSchema, RecordRead, EffectSpec, PendingEffect, LedgerFileSystem, LedgerFileHandle, LedgerOpenFlags, writeFileAtomic, writeFileExclusive, ExclusiveWrite, syncDirectory from ledger to descendants
+expose-src acquireSessionStoreLock, SessionStoreLock, LockRecord, ProjectLock, acquireProjectLock, lockRecordSchema, lockPath, ProjectLockError from "store/lock.ts" to descendants
 
 // Assistance and shared review providers receive selected sibling and common host contracts.
-expose-src checkFindingEventsField from "check-findings/records.ts" to descendants
-expose-src reportCommand from "check-findings/report.ts" to descendants
 expose-src CheckFindingDecided, CheckFindingOutcome, CheckFindingRefusal, FindingComposition, FindingPlan, FindingTransaction, decideFindingTransaction from "check-findings/transaction.ts" to descendants
-expose-src acceptedCommandSchema, commandIdSchema from "interfaces/protocol/jobs.ts" to descendants
-expose-src Admission, CommandLedger, CommandLike, CommandRejection from "jobs/commands.ts" to descendants
-expose-src Commit, CommitOutcome, CommitRecovery, CommittedEvent, RecordRef, commitRecord, recoverCommits from "jobs/commit.ts" to descendants
-expose-src listJobDirectories, newJobId, planStateDirectory, readJobDocument from "jobs/records.ts" to descendants
-expose-src DiscoveredPlan, readPlan from "plans/discover.ts" to descendants
+expose-src Commit, CommitOutcome, CommitRecovery, CommittedEvent, RecordRef, commitRecord, recoverCommits, readCommitted, CommittedSchema from "jobs/commit.ts" to descendants
+expose-src DiscoveredPlan, readPlan, planPath from "plans/discover.ts" to descendants
 expose-src createAuditWorkspaceOwnership from "run/audit-workspaces.ts" to descendants
-expose-sub parseModuleHeader from autonomous to descendants
-expose-sub rejectionAnswer from task-execution to descendants
-expose-src LockRecord, ProjectLock, acquireProjectLock, lockRecordSchema from "store/lock.ts" to descendants
-expose-src StateDirectoryOptions, ensureStateDirectory from "store/state-directory.ts" to descendants
-expose-src guardedConfigurationFiles from "work/scope.ts" to descendants
-expose-sub AgentEvent, AgentEventObservation, AgentPort, AgentSessionId, AgentSessionLineage, AgentSessionPoint, AgentSessionSnapshot, AppendSessionContextInput, AssistantBlock, Availability, BuiltinTool, CacheWrites, ChangeSessionToolsInput, CompactionReason, ContentBlock, ContextNativeObservation, ContextPolicy, ContinueSessionInput, CreateSessionInput, ExecutorSupport, ForkSessionInput, GuardDecision, GuardedCall, InterruptionEvidence, MessageCost, MessageDetail, OtherBlock, PiAgentOptions, ReconcileSessionEffectsInput, RetrySessionInput, SessionContextAddition, SessionEffectRecord, SessionExecutionBindings, SessionExecutionIdentity, SessionExecutionPolicy, SessionOperationHandle, SessionOperationId, SessionOperationKey, SessionOperationReceipt, SessionOperations, SessionOutcome, SessionTaskInput, SessionToolChange, SessionToolDeclaration, SessionTranscriptEntry, SettledMutation, StopReason, StopSessionInput, TextBlock, ThinkingBlock, ThinkingVisibility, TokenUsage, ToolCallBlock, WriteTool, createPiAgent from agent to descendants
-expose-sub AuditCheckExecutionOptions, AuditInvocationProject, AuditInvocationReceipt, AuditWorkspaceOwnershipRecorder, CommittedAuditConfiguration, ConfiguredAuditInput, ConfiguredAuditMode, ConfiguredAuditPort, ConfiguredAuditResult, ConfiguredAuditReuse, ConfiguredCountBucket, ConfiguredNestedDiscovery, ConfiguredProjectResult, IntendedAuditWorkspace, TestLockOverride, createConfiguredAudit from audit to descendants
-expose-sub CheckFindingAt, CheckFindingAuthority, CheckFindingConflict, CheckFindingEvidence, CheckFindingGround, CheckFindingLocation, CheckFindingReplay, CheckFindingReportCredibility, checkFindingAtSchema, checkFindingAuthoritySchema, checkFindingCommunicationSchema, checkFindingConflictSchema, checkFindingEvidenceSchema, checkFindingGroundSchema, checkFindingOptionSchema, checkFindingRelationKindSchema, checkFindingReportCredibilitySchema, replayCheckFindingEvents from check-findings to descendants
-expose-sub gitCandidateSource, resolveCommit from evidence to descendants
-expose-sub DiscoveredDocuments, DocumentDiscoveryOptions, DocumentReader, OutsideDocumentReference, UnreadableDocumentReference, discoverDocuments from plan-evidence to descendants
-expose-sub AssistedRequirement, AssistedReviewBriefing, AssistedReviewPreparation, AssistedReviewSubmission, AttentionEntry, BoundReconciliation, CandidateChange, CandidateSnapshot, ConcernBinding, ConcernContext, ExecutionReconciliationContext, PacketRequest, PreparedReview, ReconciliationFacts, ReconciliationFactsContent, ReconciliationSubmission, ReviewQueue, ReviewQueueOptions, ReviewSubmission, SnapshotComparison, SnapshotDenial, SnapshotPath, SnapshotTools, assistedReviewSubmissionSchema, bindCandidateConcerns, boundReconciliationConflictsSchema, openCandidateSnapshot, prepareAssistedReview, reconciliationFactsMessage, reconciliationSubmissionSchema, resolveSnapshotPath, reviewSubmissionSchema, snapshotTools, validateReconciliationForExecution, verifySnapshotEvidence from reviews to descendants
-// Shared authority comparison and agent-engine witnesses used by assisted tests.
-expose-src validateReconciliation, ReconciliationContext from "reviews/reconciliation.ts" to descendants
-expose-sub CompactionCheckpoint, CompactionDecision, ScriptStep, SessionDriverInvocation, SessionDriverRuntime, SessionExecutionOwner, SessionOperationDriver, SessionOperationsOptions, SessionScript, SessionScriptStep, SubmissionVerdict, createScriptedSessionDriver, createSessionOperations from agent to descendants
+expose-src StateDirectoryOptions, ensureStateDirectory, stateGitignore, stateMarker from "store/state-directory.ts" to descendants
+expose-sub AuditCheckExecutionOptions, AuditInvocationProject, AuditInvocationReceipt, AuditWorkspaceOwnershipRecorder, CommittedAuditConfiguration, ConfiguredAuditInput, ConfiguredAuditMode, ConfiguredAuditPort, ConfiguredAuditResult, ConfiguredAuditReuse, ConfiguredCountBucket, ConfiguredNestedDiscovery, ConfiguredProjectResult, IntendedAuditWorkspace, TestLockOverride, createConfiguredAudit, configuredFullRecovery, sameAuditPolicy, ConfiguredFullAuditResult, dispatchHarnessCommand, readCommittedAuditConfiguration from audit to descendants
+expose-sub AssistedRequirement, AssistedReviewBriefing, AssistedReviewPreparation, AssistedReviewSubmission, AttentionEntry, BoundReconciliation, CandidateChange, CandidateSnapshot, ConcernBinding, ConcernContext, ExecutionReconciliationContext, PacketRequest, PreparedReview, ReconciliationFacts, ReconciliationFactsContent, ReconciliationSubmission, ReviewQueue, ReviewQueueOptions, ReviewSubmission, SnapshotComparison, SnapshotDenial, SnapshotPath, SnapshotTools, assistedReviewSubmissionSchema, bindCandidateConcerns, boundReconciliationConflictsSchema, openCandidateSnapshot, prepareAssistedReview, reconciliationFactsMessage, reconciliationSubmissionSchema, resolveSnapshotPath, reviewSubmissionSchema, snapshotTools, validateReconciliationForExecution, verifySnapshotEvidence, reconciliationToolName, groundCredibility, reconciliationJsonSchema, reconciliationSubmissionDescription, CapturedInput, prepareReview, orientationToolName, orientationKey, readGuidance, OrientationSubmission, GroundProvenance, ReviewPreparation, orientationSubmissionSchema, ReviewBriefing, ReviewQuestion, ReviewIntent, snapshotToolNames, reviewMessage, candidateModuleIndex, concernModules, reviewToolName, nextOf, reviewGroundSchema, reviewConcernSchema, ReviewGround, ReviewConcern, needsDisposition, orientationMessage, snapshotToolDeclarations, orientationJsonSchema, orientationSubmissionDescription, reviewJsonSchema, reviewSubmissionDescription, validateOrientation, ReviewMessageInputs, ReconciliationAction, ReconciliationNext, SnapshotToolDeclaration, reconciliationActionSchema from reviews to descendants
 
+// Shared authority comparison and agent-engine witnesses used by assisted tests.
 // Task execution receives immutable protocol data and selected provider mechanisms.
-expose-src isContained from "guard/resolve-contained-path.ts" to descendants
-expose-src GuardedScope from "guard/write-guard.ts" to descendants
-expose-src explorationObservationSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src TranscriptAssistantBlock, TranscriptContentBlock, TranscriptHarnessDecision, TranscriptToolAction from "interfaces/protocol/transcripts.ts" to descendants
+expose-src isContained, resolveRealTarget, resolveContainedPath, RealTarget, Containment from "guard/resolve-contained-path.ts" to descendants
+expose-src GuardedScope, decideWrite, placementPaths, blockExplanation, GuardDecisionRecord, GuardVerdict, placementOutcome, placementDecisions from "guard/write-guard.ts" to descendants
 expose-src activityOf from "jobs/activity.ts" to descendants
-expose-src MutationSnapshot from "run/mutations.ts" to descendants
-expose-sub invocationUsageSchema from task-execution to descendants
-expose-sub ActualStart, AgentSession, AppendOutcome, MessageEvent, SessionEffectOwnerReceipt, SessionMode, AgentSessionRef, SessionScope, SessionSpec, SessionStart, SubmissionTool, interruptionEvidence, piBuiltinDeclarations from agent to descendants
-expose-sub ChargeInput, RecordedCharge, estimateRecordedCharge from kpi to descendants
-expose-sub appendJsonLine, discardPartialLine, withJsonLineAppender from ledger to descendants
+expose-src MutationSnapshot, outsideScope, MutationPlacementUnavailableError, classifyMutations, takeMutationSnapshot, recordSettledSnapshot, MutationSnapshotRequest from "run/mutations.ts" to descendants
 
 // Exact test fixtures for moved runtime witnesses; no process guard bypass.
-expose-test temporaryDirectory from "helpers/fixture.ts" to descendants
-expose-test architectIndex, moduleEntry from "helpers/views.ts" to descendants
-expose-sub assistantText, noMessageDetail from agent to descendants
-expose-src OwnershipEvidenceReference, ownershipEvidenceRetainedSchema from "work/ownership-authority.ts" to descendants
-expose-sub acceptedAnalysisReferences from autonomous to descendants
-expose-sub symbolRecords from evidence to descendants
-expose-src citationSchema from "interfaces/protocol/evidence.ts" to descendants
-expose-sub validateAgainst from task-execution to descendants
-expose-sub extractDocumentScenarios from scenarios to descendants
-expose-sub PlanScenario from scenarios to descendants
-expose-sub PlanScenarioExtraction from scenarios to descendants
-expose-sub acceptElements from plan-evidence to descendants
-expose-sub submittedElementSchema from plan-evidence to descendants
-expose-sub ElementKind from plan-evidence to descendants
-expose-sub ElementReferenceList from plan-evidence to descendants
-expose-sub integrationScenarioSubmissionSchema from scenarios to descendants
-expose-sub scenarioSubmissionSchema from scenarios to descendants
-expose-sub validateScenarioForm from scenarios to descendants
-expose-sub nonBehavioralAcceptanceSchema from scenarios to descendants
-expose-sub ScenarioFormResult from scenarios to descendants
-expose-sub ScenarioViewNames from scenarios to descendants
-expose-sub createPackage from plan-evidence to descendants
-expose-sub elementRewriteSchema from plan-evidence to descendants
-expose-sub resolveCitations from plan-evidence to descendants
-expose-sub reviseCatalog from plan-evidence to descendants
-expose-sub extractPlanScenarios from scenarios to descendants
-expose-src InputManifest from "interfaces/protocol/evidence.ts" to descendants
-expose-sub isTestingModule from evidence to descendants
-expose-sub assignScenarioIds from scenarios to descendants
-expose-sub ScenarioModule from scenarios to descendants
-expose-sub recordRefSchema from task-execution to descendants
-expose-sub elementIdSchema from plan-evidence to descendants
-expose-sub coverageRecordsOf from evidence to descendants
-expose-sub describeCoverageLimits from evidence to descendants
-expose-sub findModule from evidence to descendants
-expose-sub openElementCatalog from plan-evidence to descendants
-expose-sub serializeElementCatalog from plan-evidence to descendants
-expose-sub finished from task-execution to descendants
-expose-sub kept from task-execution to descendants
-expose-sub SessionKeeping from task-execution to descendants
-expose-sub captureSnapshot from kpi to descendants
-expose-sub revisionMismatch from kpi to descendants
-expose-src InvocationRequest from "steps/runner.ts" to descendants
-expose-src LoadedPackage from "prompts/packages.ts" to descendants
-expose-src ExtractionTurn from "prompts/packages.ts" to descendants
-expose-src sha256 from "prompts/packages.ts" to descendants
-expose-sub InvocationResult from task-execution to descendants
-expose-src parseCommittedRecord from "jobs/committed-reader.ts" to descendants
-expose-src ReplayedLine from "jobs/committed-reader.ts" to descendants
-expose-test openUnchangedRuns from "helpers/unchanged-run.ts" to descendants
-expose-test assertUnchangedGit from "helpers/unchanged-run.ts" to descendants
-expose-test scenariosCommit from "helpers/scripted-git.ts" to descendants
-expose-test expectNoProcesses from "helpers/external-tools.ts" to descendants
-expose-test forgetExternalTools from "helpers/external-tools.ts" to descendants
-expose-test copyFixture from "helpers/fixture.ts" to descendants
-expose-test analysis from "helpers/analysis.ts" to descendants
-expose-test architectScenario from "helpers/analysis.ts" to descendants
-expose-test entry from "helpers/analysis.ts" to descendants
-expose-test requestCompletion from "helpers/analysis.ts" to descendants
-expose-test installTestRunner from "helpers/runs.ts" to descendants
-expose-test onlyRun from "helpers/runs.ts" to descendants
-expose-test runEventsOnDisk from "helpers/runs.ts" to descendants
-expose-test runPath from "helpers/runs.ts" to descendants
-expose-test shapeOnlyInputs from "helpers/runs.ts" to descendants
-expose-test startRun from "helpers/runs.ts" to descendants
-expose-src loadPromptPackages from "prompts/packages.ts" to descendants
-expose-test fixtureRoot from "helpers/fixture.ts" to descendants
-expose-test emptyAnalysis from "helpers/runs.ts" to descendants
-expose-test elementsOf from "helpers/analysis.ts" to descendants
-expose-src demonstrationScript from "http/server.ts" to descendants
-expose-sub RunQueries from projections to descendants
+expose-test temporaryDirectory, copyFixture, fixtureRoot from "helpers/fixture.ts" to descendants
+expose-src OwnershipEvidenceReference, ownershipEvidenceRetainedSchema, OwnershipAuthorityError, ownershipAuthorityFor, assignmentAuthorityIdentity, OwnershipAuthority, OwnershipAuthorityInputs, RetainableOwnershipAnswer, RetainedOwnership from "work/ownership-authority.ts" to descendants
+expose-src LoadedPackage, ExtractionTurn, sha256, loadPromptPackages, renderContractPrompt, renderEngineerPrompt, renderFailureAnalystPrompt, renderGlobalForkPrompt, renderLocalArchitectPrompt, renderReconciliationPrompt, renderNonfunctionalCoordinatorPrompt, renderNonfunctionalRepairPrompt, renderCapabilityArchitectPrompt, renderPackagePrompt, PackageFile, PromptPackageOptions, inputsHash, renderOrientationPrompt, renderReviewerPrompt, renderContextSelectorPrompt, renderWorkOrientationPrompt from "prompts/packages.ts" to descendants
+expose-src parseCommittedRecord, ReplayedLine, CommittedRecordError, refOf, recordHash, committedBodyOf from "jobs/committed-reader.ts" to descendants
+expose-test openUnchangedRuns, assertUnchangedGit, unchangedGit, UnchangedRunsOptions from "helpers/unchanged-run.ts" to descendants
+expose-test scenariosCommit, GitCheckpoint, ScriptedGit, GitScript, scriptedGit from "helpers/scripted-git.ts" to descendants
+expose-test expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses, FakedRuns from "helpers/external-tools.ts" to descendants
+expose-test analysis, architectScenario, entry, requestCompletion, elementsOf, hypothesis, ProposedModule, unresolved from "helpers/analysis.ts" to descendants
+expose-test installTestRunner, onlyRun, runEventsOnDisk, runPath, shapeOnlyInputs, startRun, emptyAnalysis, openRuns, stopRun, until, staleCrashLock, freeze, OpenRunsOptions, approveRun, scriptedConfiguredAudit, testPolicy, TestPolicyOptions, git, initRepository from "helpers/runs.ts" to descendants
+expose-src demonstrationScript, startServerWith, RunningServer, ServerSettings, ServerOptions, AgentChoice from "http/server.ts" to descendants
 expose-src createQuerySource from "http/query-source.ts" to descendants
-expose-test openRuns from "helpers/runs.ts" to descendants
-expose-test stopRun from "helpers/runs.ts" to descendants
-expose-test until from "helpers/runs.ts" to descendants
-expose-test unchangedGit from "helpers/unchanged-run.ts" to descendants
-expose-test staleCrashLock from "helpers/runs.ts" to descendants
-expose-test freeze from "helpers/runs.ts" to descendants
-expose-test modified from "helpers/recovery-git.ts" to descendants
-expose-test scenarioGit from "helpers/recovery-git.ts" to descendants
-expose-test untracked from "helpers/recovery-git.ts" to descendants
-expose-test CommitResponse from "helpers/recovery-git.ts" to descendants
-expose-test RecoveredCommit from "helpers/recovery-git.ts" to descendants
-expose-test ScenarioGit from "helpers/recovery-git.ts" to descendants
-expose-test addModule from "helpers/iterations.ts" to descendants
-expose-test assign from "helpers/iterations.ts" to descendants
-expose-test byRole from "helpers/iterations.ts" to descendants
-expose-test byWork from "helpers/iterations.ts" to descendants
-expose-test completionProposed from "helpers/iterations.ts" to descendants
-expose-test installMiniRunner from "helpers/iterations.ts" to descendants
-expose-test outline from "helpers/iterations.ts" to descendants
-expose-test shell from "helpers/iterations.ts" to descendants
-expose-test submit from "helpers/iterations.ts" to descendants
-expose-test treeInputs from "helpers/iterations.ts" to descendants
-expose-test write from "helpers/iterations.ts" to descendants
-expose-sub localDecision from autonomous to descendants
-expose-sub registryChange from autonomous to descendants
-expose-sub consumerStub from autonomous to descendants
-expose-sub consumerTest from autonomous to descendants
-expose-sub contractNeeded from autonomous to descendants
-expose-sub contractWrites from autonomous to descendants
-expose-sub established from autonomous to descendants
-expose-sub paths from autonomous to descendants
-expose-sub Seam from autonomous to descendants
-expose-sub forkDecision from autonomous to descendants
-expose-sub requestPlacement from autonomous to descendants
-expose-sub createScriptedAgent from agent to descendants
-expose-sub Script from agent to descendants
-expose-test declaringScenarios from "helpers/declarations.ts" to descendants
-expose-test OpenRunsOptions from "helpers/runs.ts" to descendants
-expose-test FakeRamifyCli from "helpers/fake-ramify.ts" to descendants
-expose-test statedCommands from "helpers/composition.ts" to descendants
-expose-test finalCandidate from "helpers/final-candidate.ts" to descendants
+expose-test modified, scenarioGit, untracked, CommitResponse, RecoveredCommit, ScenarioGit, GitChange, GitResponses, CommitCall from "helpers/recovery-git.ts" to descendants
+expose-test addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, shell, submit, treeInputs, write, Turn, FixtureEngineerSubmission, partialReport, edit, readDeclaredTree, read, unsuitableScope, failureAnalystFake from "helpers/iterations.ts" to descendants
+expose-test declaringScenarios, withDefaultTurns, defaultTurn from "helpers/declarations.ts" to descendants
+expose-test FakeRamifyCli, RamifyCall from "helpers/fake-ramify.ts" to descendants
+expose-test statedCommands, ScenarioCommands, StatedCommand from "helpers/composition.ts" to descendants
 expose-src errorResponseSchema from "interfaces/protocol/errors.ts" to descendants
-expose-src commandResponseSchema from "interfaces/protocol/jobs.ts" to descendants
 expose-src protocolPaths from "interfaces/protocol/paths.ts" to descendants
-expose-src runCommandSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src startRunCommandSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src startServerWith from "http/server.ts" to descendants
-expose-src RunningServer from "http/server.ts" to descendants
-expose-test createPassingCheckExecution from "helpers/direct-check-execution.ts" to descendants
-expose-test approveRun from "helpers/runs.ts" to descendants
-expose-test scriptedConfiguredAudit from "helpers/runs.ts" to descendants
-expose-test testPolicy from "helpers/runs.ts" to descendants
-expose-test fixtureScratchGit from "helpers/mock-git.ts" to descendants
-expose-test withDefaultTurns from "helpers/declarations.ts" to descendants
-expose-test passingAudit from "helpers/direct-check-execution.ts" to descendants
-expose-sub globalForkSourceSchema from task-execution to descendants
-expose-sub CatalogElement from plan-evidence to descendants
-expose-src declaredModuleDirectories from "run/project-config.ts" to descendants
-expose-sub productionSourceGit from evidence to descendants
-expose-sub ProvisionalSourceGit from evidence to descendants
-expose-sub TaskEnvironment from task-execution to descendants
-expose-src reviewLayout from "reviews/records.ts" to descendants
-expose-src injectionSiteRule from "work/scope.ts" to descendants
-expose-src moduleOwning from "work/scope.ts" to descendants
-expose-src scopePaths from "work/scope.ts" to descendants
-expose-sub scenarioIdOf from scenarios to descendants
-expose-sub applyScenarioEvent from scenarios to descendants
-expose-sub countScenarioStates from scenarios to descendants
-expose-sub initialScenarioStates from scenarios to descendants
-expose-sub scenarioEventTypes from scenarios to descendants
-expose-sub ScenarioEvent from scenarios to descendants
-expose-sub reconciliationToolName from reviews to descendants
-expose-sub configuredFullRecovery from audit to descendants
-expose-sub sameAuditPolicy from audit to descendants
-expose-sub ConfiguredFullAuditResult from audit to descendants
-expose-src checkpointPolicies from "checks/checkpoint.ts" to descendants
-expose-src installOperation from "checks/checkpoint.ts" to descendants
-expose-src setupChecks from "checks/checkpoint.ts" to descendants
-expose-src configuredAuditRecord from "checks/gate.ts" to descendants
-expose-src checkCommand from "checks/records.ts" to descendants
-expose-sub GitError from evidence to descendants
-expose-sub runBranchName from evidence to descendants
-expose-src TaskKind from "prompts/tasks.ts" to descendants
-expose-src TestArea from "run/project-config.ts" to descendants
-expose-sub HarnessTaskBrief from task-execution to descendants
-expose-src externalRepairDeclarationSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src ExternalRepairDeclaration from "interfaces/protocol/runs.ts" to descendants
-expose-sub ArchitectRef from task-execution to descendants
-expose-sub InvocationId from task-execution to descendants
-expose-sub architectRefSchema from task-execution to descendants
-expose-sub forkReasonSchema from task-execution to descendants
-expose-sub interruptionEvidenceSchema from task-execution to descendants
-expose-sub requestReasonSchema from task-execution to descendants
-expose-sub sessionIdSchema from task-execution to descendants
-expose-sub sessionModeSchema from task-execution to descendants
-expose-sub sessionOperationLinkSchema from task-execution to descendants
-expose-src inputManifestSchema from "interfaces/protocol/evidence.ts" to descendants
-expose-sub planScenarioExtractionSchema from scenarios to descendants
-expose-sub coverageLimitsOf from evidence to descendants
-expose-sub loadArchitectIndex from evidence to descendants
-expose-sub readArchitectMeta from evidence to descendants
-expose-sub ramifyVersion from evidence to descendants
-expose-src CapturedInputManifest from "interfaces/protocol/evidence.ts" to descendants
-expose-src planPath from "plans/discover.ts" to descendants
-expose-src commitCheckFindingChange from "check-findings/transition.ts" to descendants
-expose-src CheckFindingTarget from "check-findings/transition.ts" to descendants
-expose-src concernKey from "reviews/records.ts" to descendants
-expose-src ReviewResult from "reviews/records.ts" to descendants
-expose-src ReviewSubmissionRecord from "reviews/records.ts" to descendants
-expose-sub groundCredibility from reviews to descendants
-expose-sub decideTaskReentry from recovery to descendants
-expose-sub mayRetryTask from recovery to descendants
-expose-sub taskInterruption from recovery to descendants
-expose-sub taskRetryDelay from recovery to descendants
-expose-sub OwnershipUnavailableError from evidence to descendants
-expose-src OwnershipAuthorityError from "work/ownership-authority.ts" to descendants
-expose-src ownershipAuthorityFor from "work/ownership-authority.ts" to descendants
-expose-src captureGlobalTarget from "consultations/targets.ts" to descendants
-expose-src localConsultationInputs from "consultations/targets.ts" to descendants
-expose-src engineerConsultationInputs from "consultations/targets.ts" to descendants
-expose-sub gitChangeHistory from evidence to descendants
-expose-sub projectConfigurationFile from evidence to descendants
-expose-src PreparedGate from "checks/gate.ts" to descendants
-expose-src decideWrite from "guard/write-guard.ts" to descendants
-expose-src checkFindingStateOf from "check-findings/state.ts" to descendants
-expose-src decideCheckFindingTransaction from "check-findings/transition.ts" to descendants
-expose-src CheckFindingBuild from "check-findings/transition.ts" to descendants
-expose-src CheckFindingCommit from "check-findings/transition.ts" to descendants
-expose-src attentionAt from "reviews/reconciliation.ts" to descendants
-expose-src basisChange from "reviews/reconciliation.ts" to descendants
-expose-src briefText from "reviews/reconciliation.ts" to descendants
-expose-src needsLaterRound from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationAssessmentSchema from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationBasisSchema from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationId from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationLayout from "reviews/reconciliation.ts" to descendants
-expose-src BasisRequest from "reviews/reconciliation.ts" to descendants
-expose-src BriefAppendOutcome from "reviews/reconciliation.ts" to descendants
-expose-src ReconciliationAssessment from "reviews/reconciliation.ts" to descendants
-expose-src ReconciliationBasis from "reviews/reconciliation.ts" to descendants
-expose-src UnresolvedReason from "reviews/reconciliation.ts" to descendants
-expose-sub reconciliationJsonSchema from reviews to descendants
-expose-sub reconciliationSubmissionDescription from reviews to descendants
-expose-src reconciliationMessage from "reviews/reconciliation-message.ts" to descendants
-expose-src ReconciliationPacket from "reviews/reconciliation-message.ts" to descendants
-expose-src outsideScope from "run/mutations.ts" to descendants
-expose-src userCheckFindingChange from "check-findings/user-commands.ts" to descendants
-expose-src userRejectionCode from "check-findings/user-commands.ts" to descendants
-expose-src CheckFindingUserCommand from "interfaces/protocol/check-findings.ts" to descendants
-expose-src reviewAttemptId from "reviews/records.ts" to descendants
-expose-src reviewOrientationSchema from "reviews/records.ts" to descendants
-expose-src ForkPoint from "reviews/records.ts" to descendants
-expose-src ReviewOrientation from "reviews/records.ts" to descendants
-expose-sub CapturedInput from reviews to descendants
-expose-sub prepareReview from reviews to descendants
-expose-src unsettledRequests from "reviews/state.ts" to descendants
-expose-sub orientationToolName from reviews to descendants
-expose-src AcceptedCommand from "interfaces/protocol/jobs.ts" to descendants
-expose-src Receipt from "interfaces/protocol/jobs.ts" to descendants
-expose-src BreakpointState from "interfaces/protocol/runs.ts" to descendants
-expose-src DebugExchange from "interfaces/protocol/runs.ts" to descendants
-expose-src DebugInspection from "interfaces/protocol/runs.ts" to descendants
-expose-src FailureAnalysis from "interfaces/protocol/runs.ts" to descendants
-expose-src RunCommand from "interfaces/protocol/runs.ts" to descendants
-expose-src readCommitted from "jobs/commit.ts" to descendants
-expose-src Mutex from "jobs/mutex.ts" to descendants
-expose-src PriorityMutex from "jobs/mutex.ts" to descendants
-expose-src declaredSchemaOf from "jobs/records.ts" to descendants
-expose-sub verifyDocumentBytes from plan-evidence to descendants
-expose-src recoveryInspectionSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src restartInspectionSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src RestartInspection from "interfaces/protocol/runs.ts" to descendants
-expose-src RecoveryInspection from "interfaces/protocol/runs.ts" to descendants
-expose-src constructEngineerStep from "steps/engineer.ts" to descendants
-expose-src engineerStepInputsOf from "steps/engineer.ts" to descendants
-expose-src ConstructedEngineerStep from "steps/engineer.ts" to descendants
-expose-src committedBody from "steps/runner.ts" to descendants
-expose-src invocationRecord from "steps/runner.ts" to descendants
-expose-src InvocationRunner from "steps/runner.ts" to descendants
-expose-src LiveInvocation from "steps/runner.ts" to descendants
-expose-src RunnerHost from "steps/runner.ts" to descendants
-expose-src RunnerRun from "steps/runner.ts" to descendants
-expose-src knownFactsInputs from "steps/constructed.ts" to descendants
-expose-src projectPath from "steps/inputs.ts" to descendants
-expose-src stepInputsSchemaId from "steps/inputs.ts" to descendants
-expose-src validateReviewInputs from "steps/inputs.ts" to descendants
-expose-src validateSelectorInputs from "steps/inputs.ts" to descendants
-expose-src validateWorkTurnInputs from "steps/inputs.ts" to descendants
-expose-src EngineerStepInputs from "steps/inputs.ts" to descendants
-expose-src KnownFactsInputs from "steps/inputs.ts" to descendants
-expose-src OrientationStepInputs from "steps/inputs.ts" to descendants
-expose-src ProjectPath from "steps/inputs.ts" to descendants
-expose-src StepInputs from "steps/inputs.ts" to descendants
-expose-src constructStep from "steps/construct.ts" to descendants
-expose-src freshFallback from "steps/construct.ts" to descendants
-expose-src assignmentBootstrap from "steps/local-architect.ts" to descendants
-expose-src constructOrientationStep from "steps/local-architect.ts" to descendants
-expose-src constructSelectorStep from "steps/local-architect.ts" to descendants
-expose-src constructWorkTurnStep from "steps/local-architect.ts" to descendants
-expose-src judgeWorkTurn from "steps/local-architect.ts" to descendants
-expose-src workBriefingInputs from "steps/local-architect.ts" to descendants
-expose-src ConstructedWorkTurnStep from "steps/local-architect.ts" to descendants
-expose-src constructDesignOrientationStep from "steps/reviewer.ts" to descendants
-expose-src constructReviewStep from "steps/reviewer.ts" to descendants
-expose-src renderContractPrompt from "prompts/packages.ts" to descendants
-expose-src renderEngineerPrompt from "prompts/packages.ts" to descendants
-expose-src renderFailureAnalystPrompt from "prompts/packages.ts" to descendants
-expose-src renderGlobalForkPrompt from "prompts/packages.ts" to descendants
-expose-src renderLocalArchitectPrompt from "prompts/packages.ts" to descendants
-expose-src renderReconciliationPrompt from "prompts/packages.ts" to descendants
-expose-src renderNonfunctionalCoordinatorPrompt from "prompts/packages.ts" to descendants
-expose-src renderNonfunctionalRepairPrompt from "prompts/packages.ts" to descendants
-expose-src renderCapabilityArchitectPrompt from "prompts/packages.ts" to descendants
-expose-src supportDocument from "measurement/inputs.ts" to descendants
-expose-src readScopeMeasurement from "measurement/inputs.ts" to descendants
-expose-src writeScopeMeasurement from "measurement/inputs.ts" to descendants
-expose-sub cachedChangeHistory from kpi to descendants
-expose-sub lineEvents from kpi to descendants
-expose-sub takeLineSnapshot from kpi to descendants
-expose-sub LineSnapshot from kpi to descendants
-expose-sub EquipContext from task-execution to descendants
-expose-sub Equipment from task-execution to descendants
-expose-src resolveRealTarget from "guard/resolve-contained-path.ts" to descendants
-expose-src scopeConfigurationPaths from "work/scope.ts" to descendants
-expose-src missingHistoricalAuthority from "work/scope.ts" to descendants
-expose-src captureGuardedFiles from "work/scope.ts" to descendants
-expose-src deniedFiles from "work/scope.ts" to descendants
-expose-src guardedScopeOf from "work/scope.ts" to descendants
-expose-src protectedScopeOf from "work/scope.ts" to descendants
-expose-src resolveWriteScope from "work/scope.ts" to descendants
-expose-src testPolicyOf from "work/scope.ts" to descendants
-expose-src DefaultWriteScope from "work/scope.ts" to descendants
-expose-src GuardedScenarioFiles from "work/scope.ts" to descendants
-expose-src gateDiagnostics from "checks/diagnostics.ts" to descendants
-expose-src GateAudience from "checks/diagnostics.ts" to descendants
-expose-sub RenderedFeatureFile from scenarios to descendants
-expose-sub ObservationLog from task-execution to descendants
-expose-src contextPolicyOf from "run/policy.ts" to descendants
-expose-src defaultContextPolicies from "run/policy.ts" to descendants
-expose-src defaultRunPolicy from "run/policy.ts" to descendants
-expose-src engineerBoundsOf from "run/policy.ts" to descendants
-expose-src withProjectTimeouts from "run/policy.ts" to descendants
-expose-src EngineerBounds from "run/policy.ts" to descendants
-expose-src captureProjectConfig from "run/project-config.ts" to descendants
-expose-src resolveBeadsProjectConfig from "run/project-config.ts" to descendants
-expose-src moduleTestAreas from "run/project-config.ts" to descendants
-expose-src BeadsSessions from "run/beads-sessions.ts" to descendants
-expose-sub InvocationTranscript from task-execution to descendants
-expose-sub recordAppend from task-execution to descendants
-expose-sub ContentStore from task-execution to descendants
-expose-sub TranscriptWriter from task-execution to descendants
-expose-sub nodeProcessGroups from task-execution to descendants
-expose-sub WriterBlockedError from task-execution to descendants
-expose-sub WriterOwnership from task-execution to descendants
-expose-sub ProcessGroups from task-execution to descendants
-expose-sub TreeObserver from task-execution to descendants
-expose-src HarnessSessionOperations from "prompts/session-adapter.ts" to descendants
-expose-sub readSessionPointReference from task-execution to descendants
-expose-src deliveredSupportPaths from "prompts/tasks.ts" to descendants
-expose-sub processGroupIdentity from evidence to descendants
-expose-sub orientationKey from reviews to descendants
-expose-sub readGuidance from reviews to descendants
-expose-src pendingBindingEvidence from "reviews/binding-evidence.ts" to descendants
-expose-src reviewRequestId from "reviews/records.ts" to descendants
-expose-sub renderFeatureFiles from scenarios to descendants
-expose-src resolveContainedPath from "guard/resolve-contained-path.ts" to descendants
-expose-sub assessmentCoverage from nonfunctional to descendants
-expose-src diagnosisChecks from "checks/checkpoint.ts" to descendants
-expose-src SetupDeclaration from "checks/checkpoint.ts" to descendants
-expose-src executePreparedGate from "checks/gate.ts" to descendants
-expose-src prepareGate from "checks/gate.ts" to descendants
-expose-src GateRequest from "checks/gate.ts" to descendants
-expose-src auditPreparationPaths from "work/scope.ts" to descendants
-expose-src checkpointOf from "work/scope.ts" to descendants
-expose-src defaultWriteScopeOf from "work/scope.ts" to descendants
-expose-sub assessedCandidateMatches from nonfunctional to descendants
-expose-src consultationTargetSchema from "consultations/targets.ts" to descendants
-expose-src debugExchangeSchema from "interfaces/protocol/runs.ts" to descendants
-expose-sub LedgerCorruptError from ledger to descendants
-expose-src reviewAttemptFinishedFields from "reviews/records.ts" to descendants
-expose-src reviewAttemptStartedDataSchema from "reviews/records.ts" to descendants
-expose-src reviewOrientationRecordedDataSchema from "reviews/records.ts" to descendants
-expose-src reviewRequestRecordedDataSchema from "reviews/records.ts" to descendants
-expose-src reconciliationAssessedFields from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationBriefAppendedDataSchema from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationIdSchema from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationRefusedDataSchema from "reviews/reconciliation.ts" to descendants
-expose-src reconciliationStartedDataSchema from "reviews/reconciliation.ts" to descendants
-expose-src unresolvedField from "reviews/reconciliation.ts" to descendants
-expose-src WriteScope from "work/scope.ts" to descendants
-expose-src CommittedRecordError from "jobs/committed-reader.ts" to descendants
-expose-src manualRunLocationOf from "steps/manual.ts" to descendants
-expose-src executeConfiguredGate from "checks/gate.ts" to descendants
-expose-src ConfiguredGateAudit from "checks/gate.ts" to descendants
-expose-src placementPaths from "guard/write-guard.ts" to descendants
-expose-src MutationPlacementUnavailableError from "run/mutations.ts" to descendants
-expose-src directoryOf from "work/scope.ts" to descendants
-expose-sub apiViewDirectoriesOf from evidence to descendants
-expose-src failureCauseSchema from "interfaces/protocol/runs.ts" to descendants
-expose-sub CallInFlight from task-execution to descendants
-expose-sub inspectGit from evidence to descendants
-expose-src failureAnalysisSchema from "interfaces/protocol/runs.ts" to descendants
-expose-src extraPurposeSchema from "work/scope.ts" to descendants
-expose-sub CucumberConfigurationResult from evidence to descendants
+expose-test createPassingCheckExecution, passingAudit, DirectCheckStep, DirectCheckScript, ScriptedAudit, ScriptedScenario, DirectCheckInvocation, ScriptedCheckContext, ScriptedCheck, localCommandAudit, mappedAudit, LocalAuditCommands, ScriptedAuditOptions, announcingAudit, createMappedCheckExecution, createDirectCheckExecution, MappedCheckExecutionOptions, DirectCheckExecutionOptions, ScriptedCheckExecution from "helpers/direct-check-execution.ts" to descendants
+expose-src declaredModuleDirectories, TestArea, captureProjectConfig, resolveBeadsProjectConfig, moduleTestAreas, ResolvedBeadsProjectConfig from "run/project-config.ts" to descendants
+expose-src commitCheckFindingChange, CheckFindingTarget, decideCheckFindingTransaction, CheckFindingBuild, CheckFindingCommit, CheckFindingTransitionOptions, CheckFindingTransaction, CheckFindingBasis, CheckFindingPlan, CheckFindingComposition, CheckFindingCarrierInput from "check-findings/transition.ts" to descendants
+expose-sub decideTaskReentry, mayRetryTask, taskInterruption, taskRetryDelay, TaskReentryFacts, TaskReentry, waitForTaskRetry from recovery to descendants
+expose-src userCheckFindingChange, userRejectionCode, UserCheckFindingChange from "check-findings/user-commands.ts" to descendants
+expose-src Mutex, PriorityMutex from "jobs/mutex.ts" to descendants
+expose-src BeadsSessions, BeadsSessionsOptions from "run/beads-sessions.ts" to descendants
+expose-src HarnessSessionOperations, HarnessOperationInput, composeWorkflowOperationPacket from "prompts/session-adapter.ts" to descendants
 expose-src FocusedCucumberSelection from "tools/shell-tests.ts" to descendants
-expose-sub loadCucumberConfiguration from evidence to descendants
-expose-sub readApiView from evidence to descendants
-expose-sub ApiViewSnapshot from evidence to descendants
-expose-sub SourceArea from evidence to descendants
-expose-src ApiViewEvidence from "interfaces/protocol/jobs.ts" to descendants
-expose-src ProjectCommands from "checks/checkpoint.ts" to descendants
-expose-src blockExplanation from "guard/write-guard.ts" to descendants
-expose-src GuardDecisionRecord from "guard/write-guard.ts" to descendants
-expose-src completionCheckDeadlineMs from "hooks/post-write.ts" to descendants
-expose-src FindingsSeen from "hooks/post-write.ts" to descendants
-expose-src findingsOf from "hooks/post-write.ts" to descendants
-expose-src runHookCheck from "hooks/post-write.ts" to descendants
-expose-src HookCheck from "hooks/post-write.ts" to descendants
-expose-src HookFinding from "hooks/post-write.ts" to descendants
-expose-src HookCheckReservation from "hooks/post-write.ts" to descendants
-expose-src HookSubmissionPolicy from "hooks/post-write.ts" to descendants
-expose-src changesBetween from "hooks/mutation-order.ts" to descendants
-expose-src sharedMutationOrder from "hooks/mutation-order.ts" to descendants
-expose-src MutationChange from "hooks/mutation-order.ts" to descendants
-expose-src MutationLease from "hooks/mutation-order.ts" to descendants
-expose-sub ToolInputJudge from task-execution to descendants
-expose-src createShellTool from "tools/shell.ts" to descendants
-expose-src shellInputSchemaFor from "tools/shell.ts" to descendants
-expose-src shellMaxTimeoutMs from "tools/shell.ts" to descendants
-expose-src shellToolName from "tools/shell.ts" to descendants
-expose-src shellToolDeclaration from "tools/shell.ts" to descendants
-expose-src ShellTool from "tools/shell.ts" to descendants
-expose-src ShellOptions from "tools/shell.ts" to descendants
-expose-src assignmentAuthorityIdentity from "work/ownership-authority.ts" to descendants
-expose-src checkWriteScope from "work/scope.ts" to descendants
-expose-src within from "work/scope.ts" to descendants
-expose-src ScopeCapture from "work/scope.ts" to descendants
-expose-src WriteScopeCheckResult from "work/scope.ts" to descendants
-expose-src openFindingsMessage from "hooks/post-write.ts" to descendants
-expose-sub boundState from scenarios to descendants
-expose-sub reportedState from scenarios to descendants
-expose-src includedConfigurationPaths from "work/scope.ts" to descendants
-expose-sub assessmentResultSchema from nonfunctional to descendants
-expose-sub ScenarioFormWarningKind from scenarios to descendants
-expose-sub DurableRecordRef from task-execution to descendants
-expose-sub placementDecisionFixture from autonomous to descendants
-expose-src RunService from "run/lifecycle.ts" to descendants
-expose-sub TaskSessionMode from task-execution to descendants
-expose-sub OrientationSubmission from reviews to descendants
-expose-src HookMutationSnapshot from "hooks/mutation-order.ts" to descendants
-expose-src renderPackagePrompt from "prompts/packages.ts" to descendants
-expose-src usageSchema from "interfaces/protocol/jobs.ts" to parent
-expose-src sessionFinishReasonSchema from "interfaces/protocol/sessions.ts" to parent
-expose-sub planScenarioSchema from scenarios to descendants
-expose-sub ElementAcceptance from plan-evidence to descendants
-expose-sub ScenarioFormEntry from scenarios to descendants
-expose-sub ScenarioFormEvidence from scenarios to descendants
-expose-sub ScenarioFormSubmission from scenarios to descendants
-expose-sub ScenarioFormRule from scenarios to descendants
-expose-sub AcceptedScenarioForm from scenarios to descendants
-expose-sub ScenarioWarning from scenarios to descendants
-expose-sub PackageRequest from plan-evidence to descendants
-expose-sub Package from plan-evidence to descendants
-expose-sub CatalogRevision from plan-evidence to descendants
-expose-sub ScenarioIdContext from scenarios to descendants
-expose-sub AssignedScenarios from scenarios to descendants
-expose-sub CoverageRecord from evidence to descendants
-expose-sub SnapshotRequest from kpi to descendants
-expose-sub StartingPointGroup from autonomous to descendants
-expose-sub InvocationProgress from task-execution to descendants
-expose-src PackageFile from "prompts/packages.ts" to descendants
-expose-test UnchangedRunsOptions from "helpers/unchanged-run.ts" to descendants
-expose-test GitCheckpoint from "helpers/scripted-git.ts" to descendants
-expose-sub InitialAnalysisSubmission from autonomous to descendants
-expose-test hypothesis from "helpers/analysis.ts" to descendants
-expose-test ProposedModule from "helpers/analysis.ts" to descendants
-expose-sub LocalArchitectSubmission from autonomous to descendants
-expose-sub RunInputs from autonomous to descendants
-expose-sub PromptPackageManifest from autonomous to descendants
-expose-src PromptPackageOptions from "prompts/packages.ts" to descendants
-expose-sub CheckFindingListQuery from projections to descendants
-expose-sub RunSource from projections to descendants
-expose-test ScriptedGit from "helpers/scripted-git.ts" to descendants
-expose-test GitScript from "helpers/scripted-git.ts" to descendants
-expose-test GitChange from "helpers/recovery-git.ts" to descendants
-expose-test GitResponses from "helpers/recovery-git.ts" to descendants
-expose-test CommitCall from "helpers/recovery-git.ts" to descendants
-expose-sub AssignmentBody from autonomous to descendants
-expose-sub LocalArchitectSubmissionInput from autonomous to descendants
-expose-test Turn from "helpers/iterations.ts" to descendants
-expose-test FixtureEngineerSubmission from "helpers/iterations.ts" to descendants
-expose-sub LocalDecisionBody from autonomous to descendants
-expose-sub RegistryChange from autonomous to descendants
-expose-sub DecisionBody from autonomous to descendants
-expose-sub ForkSubmission from autonomous to descendants
-expose-sub PlacementRequestBody from autonomous to descendants
-expose-sub ScriptedAgentOptions from agent to descendants
-expose-sub ScriptedAgent from agent to descendants
-expose-src RunServiceOptions from "run/lifecycle.ts" to descendants
-expose-test DirectCheckStep from "helpers/direct-check-execution.ts" to descendants
-expose-test DirectCheckScript from "helpers/direct-check-execution.ts" to descendants
-expose-sub CapabilityWorkflow from autonomous to descendants
-expose-test RamifyCall from "helpers/fake-ramify.ts" to descendants
-expose-test ScenarioCommands from "helpers/composition.ts" to descendants
-expose-test StatedCommand from "helpers/composition.ts" to descendants
-expose-src ServerSettings from "http/server.ts" to descendants
-expose-sub RunRecoveryReport from autonomous to descendants
-expose-test TestPolicyOptions from "helpers/runs.ts" to descendants
-expose-test ScriptedAudit from "helpers/direct-check-execution.ts" to descendants
-expose-sub catalogElementSchema from plan-evidence to descendants
-expose-src CheckpointPolicy from "checks/checkpoint.ts" to descendants
-expose-src CheckCommandRequest from "checks/records.ts" to descendants
-expose-sub BriefingRevision from task-execution to descendants
-expose-sub ArchitectMeta from evidence to descendants
-expose-src CheckFindingTransitionOptions from "check-findings/transition.ts" to descendants
-expose-sub RunLog from autonomous to descendants
-expose-src reviewResultSchema from "reviews/records.ts" to descendants
-expose-src reviewSubmissionRecordSchema from "reviews/records.ts" to descendants
-expose-sub GroundProvenance from reviews to descendants
-expose-sub TaskReentryFacts from recovery to descendants
-expose-sub TaskReentry from recovery to descendants
-expose-src OwnershipAuthority from "work/ownership-authority.ts" to descendants
-expose-sub GlobalContext from autonomous to descendants
-expose-src ConsultationTarget from "consultations/targets.ts" to descendants
-expose-src ConsultationInputs from "consultations/targets.ts" to descendants
-expose-src CommittedLines from "check-findings/state.ts" to descendants
-expose-src CheckFindingTransaction from "check-findings/transition.ts" to descendants
-expose-src CheckFindingBasis from "check-findings/transition.ts" to descendants
-expose-src CheckFindingPlan from "check-findings/transition.ts" to descendants
-expose-src ReconciliationSource from "reviews/reconciliation.ts" to descendants
-expose-src basisRequestSchema from "reviews/reconciliation.ts" to descendants
-expose-src briefAppendOutcomeSchema from "reviews/reconciliation.ts" to descendants
-expose-src unresolvedReasonSchema from "reviews/reconciliation.ts" to descendants
-expose-src UserCheckFindingChange from "check-findings/user-commands.ts" to descendants
-expose-src forkPointSchema from "reviews/records.ts" to descendants
-expose-sub ReviewPreparation from reviews to descendants
-expose-src CommittedSchema from "jobs/commit.ts" to descendants
-expose-sub CapturedDocument from plan-evidence to descendants
-expose-src StepEnvironment from "steps/engineer.ts" to descendants
-expose-src EngineerInputFacts from "steps/engineer.ts" to descendants
-expose-src consultationAvailability from "consultations/targets.ts" to descendants
-expose-src consultArchitectDeclaration from "consultations/submissions.ts" to descendants
-expose-src EngineerStepStart from "steps/engineer.ts" to descendants
-expose-sub engineerBuiltinTools from autonomous to descendants
-expose-sub EngineerEvidence from autonomous to descendants
-expose-sub RunEventInput from autonomous to descendants
-expose-src RestoredInvocation from "steps/runner.ts" to descendants
-expose-src RunnerWrite from "steps/runner.ts" to descendants
-expose-sub KnownProjectFacts from autonomous to descendants
-expose-src ReviewStepInputs from "steps/inputs.ts" to descendants
-expose-src SelectorStepInputs from "steps/inputs.ts" to descendants
-expose-src WorkTurnStepInputs from "steps/inputs.ts" to descendants
-expose-src engineerStepInputsSchema from "steps/inputs.ts" to descendants
-expose-src knownFactsSchema from "steps/inputs.ts" to descendants
-expose-src orientationSchema from "steps/inputs.ts" to descendants
-expose-src projectPathSchema from "steps/inputs.ts" to descendants
-expose-src ReviewerStepInputs from "steps/inputs.ts" to descendants
-expose-src LocalArchitectStepInputs from "steps/inputs.ts" to descendants
-expose-src ConstructedStepCommon from "steps/constructed.ts" to descendants
-expose-src validateStepInputs from "steps/inputs.ts" to descendants
-expose-src ConstructedOrientationStep from "steps/local-architect.ts" to descendants
-expose-src ConstructedSelectorStep from "steps/local-architect.ts" to descendants
-expose-src WorkTurnJudgement from "steps/local-architect.ts" to descendants
-expose-src WorkBriefingInputs from "steps/inputs.ts" to descendants
-expose-sub WorkItemBriefing from autonomous to descendants
-expose-src ConstructedDesignOrientationStep from "steps/reviewer.ts" to descendants
-expose-src ConstructedReviewStep from "steps/reviewer.ts" to descendants
-expose-sub LineEventRequest from kpi to descendants
-expose-sub LineChange from kpi to descendants
-expose-sub TranscriptNotes from task-execution to descendants
-expose-src RealTarget from "guard/resolve-contained-path.ts" to descendants
-expose-sub IterationKind from autonomous to descendants
-expose-src GateDiagnostics from "checks/diagnostics.ts" to descendants
-expose-sub ObservationInput from task-execution to descendants
-expose-src RunPolicyOptions from "run/policy.ts" to descendants
-expose-sub CapturedProjectConfig from autonomous to descendants
-expose-src ResolvedBeadsProjectConfig from "run/project-config.ts" to descendants
-expose-sub BeadsProjectConfig from autonomous to descendants
-expose-src BeadsSessionsOptions from "run/beads-sessions.ts" to descendants
-expose-src BeadsRunState from "run/beads-storage.ts" to descendants
-expose-src BeadsStageInput from "run/beads-storage.ts" to descendants
-expose-sub InvocationStart from task-execution to descendants
-expose-sub InvocationEnd from task-execution to descendants
-expose-sub HarnessNote from task-execution to descendants
-expose-sub StoredContent from task-execution to descendants
-expose-sub TranscriptBuild from task-execution to descendants
-expose-sub TranscriptWriterOptions from task-execution to descendants
-expose-sub WriterOwnershipOptions from task-execution to descendants
-expose-sub Settlement from task-execution to descendants
-expose-sub PreparedOperationInput from task-execution to descendants
-expose-sub TaskSessionOperations from task-execution to descendants
-expose-src HarnessOperationInput from "prompts/session-adapter.ts" to descendants
-expose-sub FeatureRenderingRun from scenarios to descendants
-expose-src Containment from "guard/resolve-contained-path.ts" to descendants
-expose-sub ApiViewDirectory from evidence to descendants
-expose-sub GitInspection from evidence to descendants
-expose-sub EffectiveCucumberConfiguration from evidence to descendants
-expose-sub CucumberConfigurationSelection from evidence to descendants
-expose-src GuardVerdict from "guard/write-guard.ts" to descendants
-expose-src HookNotice from "hooks/post-write.ts" to descendants
-expose-src HookOutcome from "hooks/post-write.ts" to descendants
-expose-src HookCheckOptions from "hooks/post-write.ts" to descendants
-expose-src HookMode from "hooks/post-write.ts" to descendants
-expose-src HookPathDisposition from "hooks/post-write.ts" to descendants
-expose-src ShellResult from "tools/shell.ts" to descendants
-expose-src ShellCall from "tools/shell.ts" to descendants
-expose-src ShellMutationOptions from "tools/shell.ts" to descendants
-expose-sub orientationSubmissionSchema from reviews to descendants
-expose-sub NonBehavioralAcceptance from scenarios to descendants
-expose-sub ScenarioElementRef from scenarios to descendants
-expose-sub scenarioFormSubmissionSchema from scenarios to descendants
-expose-sub FormScenario from scenarios to descendants
-expose-sub FormIntegration from scenarios to descendants
-expose-sub ElementRewrite from plan-evidence to descendants
-expose-sub StartingPoint from autonomous to descendants
-expose-sub initialAnalysisSubmissionSchema from autonomous to descendants
-expose-sub localArchitectSubmissionSchema from autonomous to descendants
-expose-sub promptPackageManifestSchema from autonomous to descendants
+expose-src completionCheckDeadlineMs, FindingsSeen, findingsOf, runHookCheck, HookCheck, HookFinding, HookCheckReservation, HookSubmissionPolicy, openFindingsMessage, HookNotice, HookOutcome, HookCheckOptions, HookMode, HookPathDisposition, HookGap, sentenceOf from "hooks/post-write.ts" to descendants
+expose-src changesBetween, sharedMutationOrder, MutationChange, MutationLease, HookMutationSnapshot, MutationOrder from "hooks/mutation-order.ts" to descendants
+expose-src createShellTool, shellInputSchemaFor, shellMaxTimeoutMs, shellToolName, shellToolDeclaration, ShellTool, ShellOptions, ShellResult, ShellCall, ShellMutationOptions from "tools/shell.ts" to descendants
+expose-src RunService, RunServiceOptions from "run/lifecycle.ts" to descendants
+expose-src usageSchema, AcceptedCommand, acceptedCommandSchema, commandResponseSchema, jobStateSchema, Receipt, apiViewEvidenceSchema, commandIdSchema from "interfaces/protocol/jobs.ts" to parent
+expose-src sessionFinishReasonSchema, sessionQueryLimits, sessionRefSchema, SessionRef, sessionStateSchema, ShownSessionState, SessionReach, sessionListEntrySchema, SessionListEntry, unservedSessionSourceSchema, UnservedSessionSource, sessionListResponseSchema, SessionListResponse, sessionInvocationSchema, SessionInvocation, sessionAppendSchema, SessionAppend, sessionSuspensionSchema, SessionSuspension, runSessionsResponseSchema, RunSessionsResponse, transcriptPageSchema, runSessionResponseSchema, RunSessionResponse, TranscriptPage, sessionTranscriptResponseSchema, SessionTranscriptResponse, sessionCursorSchema, SessionCursor, sessionUpdatesResponseSchema, SessionUpdatesResponse, sessionBodyResponseSchema, SessionBodyResponse, sessionBodyHashSchema, standaloneSessionResponseSchema, StandaloneSessionResponse, RunSessionView, runSessionViewSchema from "interfaces/protocol/sessions.ts" to parent
+expose-src PromptPackageManifest, promptPackageManifestSchema from "prompts/records.ts" to descendants
+expose-src CapturedProjectConfig, BeadsProjectConfig, capturedProjectConfigSchema, beadsProjectConfigSchema, committedAuditConfigurationSchema, CommittedAuditConfigurationRecord from "run/project-records.ts" to descendants
+expose-src BeadsRunState, BeadsStageInput, BeadsMutation, BeadsStage, BeadsBinding, beadsStageInputSchema from "run/beads-storage.ts" to descendants
 expose-test ScratchGitScript from "helpers/scratch-git.ts" to descendants
-expose-sub assignmentBodySchema from autonomous to descendants
-expose-sub localArchitectInputSchema from autonomous to descendants
-expose-sub localDecisionSchema from autonomous to descendants
-expose-sub registryChangeSchema from autonomous to descendants
-expose-sub decisionBodySchema from autonomous to descendants
-expose-sub forkSubmissionSchema from autonomous to descendants
-expose-sub placementRequestBodySchema from autonomous to descendants
-expose-sub ScriptedSessionRecord from agent to descendants
-expose-test ScriptedScenario from "helpers/direct-check-execution.ts" to descendants
-expose-test DirectCheckInvocation from "helpers/direct-check-execution.ts" to descendants
-expose-src ServerOptions from "http/server.ts" to descendants
-expose-src AgentChoice from "http/server.ts" to descendants
-expose-src OwnershipAuthorityInputs from "work/ownership-authority.ts" to descendants
-expose-src RetainableOwnershipAnswer from "work/ownership-authority.ts" to descendants
-expose-src RetainedOwnership from "work/ownership-authority.ts" to descendants
-expose-src consultationInputsSchema from "consultations/targets.ts" to descendants
-expose-src CheckFindingComposition from "check-findings/transition.ts" to descendants
-expose-src reconciliationSourceSchema from "reviews/reconciliation.ts" to descendants
-expose-sub ReviewBriefing from reviews to descendants
-expose-sub capturedDocumentSchema from plan-evidence to descendants
-expose-sub AssignedObligation from autonomous to descendants
-expose-sub EngineerScenarios from autonomous to descendants
-expose-sub IterationApiViews from autonomous to descendants
-expose-src StartedInvocation from "steps/runner.ts" to descendants
-expose-src reviewForkSchema from "steps/inputs.ts" to descendants
-expose-src reviewFreshSchema from "steps/inputs.ts" to descendants
-expose-src selectorForkSchema from "steps/inputs.ts" to descendants
-expose-src selectorFreshSchema from "steps/inputs.ts" to descendants
-expose-src workTurnContinuedSchema from "steps/inputs.ts" to descendants
-expose-src workTurnFreshSchema from "steps/inputs.ts" to descendants
-expose-src DesignOrientationStepInputs from "steps/inputs.ts" to descendants
-expose-src StepToolDeclaration from "steps/constructed.ts" to descendants
-expose-src ConstructedStart from "steps/constructed.ts" to descendants
-expose-sub WorkOrientationSubmission from autonomous to descendants
-expose-sub ContextSelectorSubmission from autonomous to descendants
-expose-sub SelectionSource from autonomous to descendants
-expose-sub SelectionIdentity from autonomous to descendants
-expose-src workBriefingSchema from "steps/inputs.ts" to descendants
-expose-sub EnvironmentProblem from autonomous to descendants
-expose-sub DelegationBriefing from autonomous to descendants
-expose-sub IntegrationBriefing from autonomous to descendants
-expose-sub BriefedScenario from autonomous to descendants
-expose-sub Onboarding from autonomous to descendants
-expose-sub ApiViewResult from autonomous to descendants
-expose-sub ReconciliationBriefing from autonomous to descendants
-expose-sub iterationKindSchema from autonomous to descendants
-expose-sub capturedProjectConfigSchema from autonomous to descendants
-expose-sub beadsProjectConfigSchema from autonomous to descendants
-expose-src BeadsMutation from "run/beads-storage.ts" to descendants
-expose-src BeadsStage from "run/beads-storage.ts" to descendants
-expose-src BeadsBinding from "run/beads-storage.ts" to descendants
-expose-src beadsStageInputSchema from "run/beads-storage.ts" to descendants
-expose-sub PostWriteCheckNote from task-execution to descendants
-expose-sub TranscriptEntryInput from task-execution to descendants
-expose-sub TranscriptBodies from task-execution to descendants
-expose-sub PreparedTaskPackage from task-execution to descendants
-expose-sub TaskPacket from task-execution to descendants
-expose-sub PointContext from task-execution to descendants
-expose-src HookGap from "hooks/post-write.ts" to descendants
-expose-src MutationOrder from "hooks/mutation-order.ts" to descendants
-
-expose-sub AutonomousRunService, AutonomousRunOptions from autonomous to descendants
-expose-sub AcceptedAnalysisReferences from autonomous to descendants
-expose-sub prepareAssignedCucumber from autonomous to descendants
-expose-sub scenarioElementRefSchema from scenarios to descendants
-expose-sub startingPointSchema from autonomous to descendants
-expose-sub ScriptedToolResult from agent to descendants
-expose-test ScriptedCheckContext from "helpers/direct-check-execution.ts" to descendants
-expose-test ScriptedCheck from "helpers/direct-check-execution.ts" to descendants
-expose-sub RepairExportConfiguration from autonomous to descendants
-expose-src CheckFindingCarrierInput from "check-findings/transition.ts" to descendants
-expose-sub ReviewQuestion from reviews to descendants
-expose-sub ReviewIntent from reviews to descendants
-expose-src designOrientationSchema from "steps/inputs.ts" to descendants
-expose-sub workOrientationSubmissionSchema from autonomous to descendants
-expose-sub contextSelectorSubmissionSchema from autonomous to descendants
-expose-sub IntegrationScope from autonomous to descendants
-expose-sub EnvironmentField from task-execution to descendants
-expose-sub DeliveredManifest from task-execution to descendants
-expose-sub DeliveredInput from task-execution to descendants
-expose-sub planningRecords from autonomous to descendants
-expose-sub RecoveryRuntime from autonomous to descendants
-expose-sub RunWrite from autonomous to descendants
-expose-sub FocusedScenarioCommand from autonomous to descendants
-expose-sub CheckFindingCarrierType from autonomous to descendants
-expose-sub DeliveredManifestEntry from task-execution to descendants
-expose-test resetSpawnAttempts from "helpers/process-guard.ts" to descendants
 expose-test commandResult from "helpers/command-result.ts" to descendants
-expose-test partialReport from "helpers/iterations.ts" to descendants
-expose-sub InvocationBounds from task-execution to descendants
-expose-sub recoveryRuntimeSchema from autonomous to descendants
-expose-sub InvocationLimits from task-execution to descendants
-expose-sub PlanningRecords from autonomous to descendants
-expose-test git from "helpers/runs.ts" to descendants
-expose-test initRepository from "helpers/runs.ts" to descendants
-expose-test unresolved from "helpers/analysis.ts" to descendants
 expose-test recoveryBoundaries from "helpers/recovery-boundaries.ts" to descendants
-expose-test edit from "helpers/iterations.ts" to descendants
-expose-sub readPointContext from task-execution to descendants
-expose-sub readRecordedOperation from task-execution to descendants
-expose-sub exactInputHash from task-execution to descendants
-expose-sub effectiveBlocks from task-execution to descendants
-expose-src parseStepInputs from "steps/inputs.ts" to descendants
-expose-test scriptedGit from "helpers/scripted-git.ts" to descendants
-expose-test openRunsWithoutProcesses from "helpers/external-tools.ts" to descendants
 expose-test runAcceptedHandback from "helpers/acceptance-flow.ts" to descendants
-expose-test runDependencyGate from "helpers/dependency-flow.ts" to descendants
-expose-test readDeclaredTree from "helpers/iterations.ts" to descendants
-expose-test localCommandAudit from "helpers/direct-check-execution.ts" to descendants
-expose-sub SubmittedElement from plan-evidence to descendants
-expose-sub replacementBanner from task-execution to descendants
-expose-test defaultTurn from "helpers/declarations.ts" to descendants
-expose-test runDependencyScheduling from "helpers/dependency-flow.ts" to descendants
-expose-test runDependencyDecision from "helpers/dependency-flow.ts" to descendants
-expose-test read from "helpers/iterations.ts" to descendants
-expose-test gateGit from "helpers/gate-git.ts" to descendants
-expose-test gateScenariosCommitFixture from "helpers/gate-git.ts" to descendants
-expose-test GateCommit from "helpers/gate-git.ts" to descendants
-expose-test mappedAudit from "helpers/direct-check-execution.ts" to descendants
+expose-test runDependencyGate, runDependencyScheduling, runDependencyDecision from "helpers/dependency-flow.ts" to descendants
 expose-test recoveryInitialFiles from "helpers/recovery-files.ts" to descendants
-expose-test scriptedScratchGit from "helpers/mock-git.ts" to descendants
-expose-test ScratchGitScript from "helpers/mock-git.ts" to descendants
-expose-test FakedRuns from "helpers/external-tools.ts" to descendants
-expose-test LocalAuditCommands from "helpers/direct-check-execution.ts" to descendants
-expose-test GateGit from "helpers/gate-git.ts" to descendants
-expose-test GateGitOptions from "helpers/gate-git.ts" to descendants
-expose-test GateFixtureGitChange from "helpers/gate-git.ts" to descendants
-expose-test ScriptedAuditOptions from "helpers/direct-check-execution.ts" to descendants
-expose-test GitCall from "helpers/gate-git.ts" to descendants
-expose-test TrailedCommit from "helpers/gate-git.ts" to descendants
-expose-src refOf from "jobs/committed-reader.ts" to descendants
-expose-src recordHash from "jobs/committed-reader.ts" to descendants
-expose-sub invocationRecords from task-execution to descendants
-expose-sub InvocationRecords from task-execution to descendants
+expose-src ModuleTree, ModuleTreeResponse, ViewIdentity, citationSchema, inputManifestSchema, isWithin, modulePathSchema, moduleTreeResponseSchema, sha256Schema from "interfaces/protocol/evidence.ts" to parent
+expose-src planDecisionWaitSchema, PlanDecisionWait, planListResponseSchema, planResponseSchema, projectResponseSchema, PlanDocument, PlanEntry, ProjectResponse from "interfaces/protocol/queries.ts" to parent
+expose-src checkFindingProtocolVersion, checkFindingWireLimits, unresolvedReasonViewSchema, UnresolvedReasonView, checkFindingActorViewSchema, CheckFindingActorView, checkFindingSettlementSchema, CheckFindingSettlement, planDeviationViewSchema, PlanDeviationView, UserCheckFindingCommandKind, checkFindingSummarySchema, CheckFindingSummaryView, checkFindingCountsSchema, CheckFindingCountsView, checkFindingSelectSchema, CheckFindingSelect, CheckFindingListResponse, checkFindingModuleCountsSchema, CheckFindingModuleCounts, checkFindingReportViewSchema, CheckFindingReportView, checkFindingDecisionViewSchema, CheckFindingDecisionView, CheckFindingAttemptLink, checkFindingRepairLinkSchema, CheckFindingRepairLink, checkFindingDetailSchema, CheckFindingDetail, reviewRequestViewSchema, ReviewRequestView, reviewListResponseSchema, ReviewListResponse, CheckFindingUserCommand, checkFindingListResponseSchema from "interfaces/protocol/check-findings.ts" to parent
+expose-src executionSourceRefSchema, ExecutionSourceRef, executionModuleRelationSchema, ExecutionModuleRelation, executionNodeSchema, ExecutionNode, executionCapabilityDetailSchema, ExecutionCapabilityDetail, executionScenarioDetailSchema, ExecutionScenarioDetail, executionMapPageSchema, ExecutionLink, ExecutionMapPage from "interfaces/protocol/execution-map.ts" to parent
+expose-src capabilityTasksResponseSchema, CapabilityTasksResponse, capabilityTaskViewSchema, CapabilityTaskView from "interfaces/protocol/capability-tasks.ts" to parent
+expose-src recoveryInspectionSchema, RecoveryInspection, restartInspectionSchema, RestartInspection, externalRepairDeclarationSchema, ExternalRepairDeclaration, roleDisplayName, startRunCommandSchema, runReviewSchema, RunReview, runPhaseSchema, RunPhase, runQueryLimits, runDecisionRequestsSchema, RunDecisionRequests, runPlanDeviationsSchema, RunPlanDeviations, runEnvironmentProblemSchema, RunEnvironmentProblem, runSnapshotSchema, RunSnapshot, runListResponseSchema, RunListResponse, runResponseSchema, RunResponse, breakpointSelectorSchema, BreakpointSelector, debugExchangeSchema, DebugExchange, mergeReadinessResponseSchema, MergeReadinessResponse, runEventRefKindSchema, RunEventRefKind, projectedRunEventSchema, ProjectedRunEvent, runEventPageSchema, RunEventPage, hypothesisViewSchema, HypothesisView, analysisResponseSchema, AnalysisResponse, DecisionView, DecisionListResponse, workItemSummarySchema, WorkItemSummary, workItemListResponseSchema, WorkItemListResponse, WorkItemResponse, capabilityProgressSchema, CapabilityProgress, capabilityListResponseSchema, CapabilityListResponse, gateViewSchema, InitialAssociation, moduleCapabilityRowSchema, ModuleCapabilityRow, moduleCapabilitiesSchema, ModuleCapabilities, ModuleCapabilityComparisonResponse, GateView, gateResponseSchema, GateResponse, lineageMetricSchema, LineageMetric, invocationEvaluationSchema, InvocationEvaluation, metricsResponseSchema, MetricsResponse, scenarioWarningViewSchema, ScenarioWarningView, analysisScenarioSchema, AnalysisScenario, gateScenarioResultViewSchema, GateScenarioResultView, scenarioGateResultSchema, ScenarioGateResult, scenarioViewSchema, ScenarioView, scenarioListResponseSchema, ScenarioListResponse, obligationViewSchema, ObligationView, operationIdentitySchema, deliveredManifestViewSchema, scopeSizeViewSchema, explorationObservationSchema, recordedChargeSchema, invocationEfficiencySchema, InvocationEfficiency, debugExchangeResponseSchema, debugInspectionResponseSchema, debugStateResponseSchema, runCommandSchema, RunCommandInput, Role, decisionListResponseSchema, moduleCapabilityComparisonResponseSchema, workItemResponseSchema, DebugExchangeResponse, DebugInspectionResponse, DebugStateResponse, breakpointStateSchema, debugInterventionSchema, BreakpointState, DebugIntervention, recoveryResumeCommandSchema, prepareRestartCommandSchema from "interfaces/protocol/runs.ts" to parent
+expose-src repairIncidentViewSchema, RepairIncidentView from "interfaces/protocol/repairs.ts" to parent
+expose-src transcriptBodySchema, TranscriptBody, TranscriptHarnessDecision, transcriptEntrySchema, TranscriptEntry, TranscriptPoint, transcriptWorkSchema from "interfaces/protocol/transcripts.ts" to parent
+expose-test inPlaceReplies from "helpers/in-place-replies.ts" to descendants
+expose-test auditDefinition, commandCheck, privateConfiguredAudit, DefinedCommand from "helpers/configured-repository.ts" to descendants
+expose-test disposition, reconcile, submission from "helpers/check-findings-composition.ts" to descendants
+expose-test repairExportFixture from "helpers/repair-export-fixture.ts" to descendants
+expose-test repairContinuationRun, RepairRun from "helpers/repair-run.ts" to descendants
+expose-test stepDeliveries, engineerDeliveries, StepDelivery, EngineerDelivery from "helpers/step-equality.ts" to descendants
+expose-src protocolPaths, CheckFindingPathQuery from "interfaces/protocol/paths.ts" to parent
+expose-test recordsOf from "helpers/session-records.ts" to descendants
+expose-test changedResult from "helpers/check-payloads.ts" to descendants
+expose-test literalOwnershipRamify, externalResponseRecorder, strictSessionCommand, sessionHookPaths from "helpers/settlement-boundaries.ts" to descendants
+expose-src errorResponseSchema, ErrorCode from "interfaces/protocol/errors.ts" to parent
+expose-sub describeCoverageLimits, CoverageRecord, ArchitectIndex, ModuleEntry, SymbolRecord, ExposureChannel from evidence to parent
+expose-sub openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from session-store to parent

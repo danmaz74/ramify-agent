@@ -10,7 +10,7 @@ import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.
 import { assign, edit, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../../../src/tests/helpers/runs.js';
 import type { IterationAssignment } from '../work/iterations.js';
-import { parseStepInputs } from '../../../../../../src/steps/inputs.js';
+import { parseStepInputs } from '../../../../../task-workflow/src/steps/inputs.js';
 import { runLayout } from '../../../../src/run/records.js';
 import { placementDecisionFixture as decision, forkDecision } from './helpers/placement.js';
 

@@ -5,7 +5,7 @@ import { ExcursionWatcher } from '../../../subs/task-execution/src/excursions.js
 import { ObservationLog, type Observation } from '../../../subs/task-execution/src/observations.js';
 import { PortEventRecorder } from '../../../subs/task-execution/src/port-events.js';
 import { openCandidateSnapshot, snapshotTools } from '../../../subs/reviews/src/snapshot.js';
-import { scriptedCandidates } from './candidates.js';
+import { scriptedCandidates } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { temporaryDirectory } from './fixture.js';
 
 /** The original deliberately partial Plan23 evidence, not a durable Invocation. */

@@ -7,7 +7,8 @@ import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.
 import { jobSchemaVersion, jobsDirectory } from '../../../src/jobs/records.js';
 import { runPolicyVersion } from '../../../src/run/policy.js';
 import type { RunEvent } from '../../autonomous/src/run/log.js';
-import { gateAttemptSchema, gateAuditOutcomeSchema, runLayout, runRecordSchema, type RunRecord } from '../../autonomous/src/run/records.js';
+import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../autonomous/subs/acceptance/src/gate-records.js';
+import { runLayout, runRecordSchema, type RunRecord } from '../../autonomous/src/run/records.js';
 import { type EntryAssignments } from '../../autonomous/subs/planning/src/records.js';
 import { committedRecords, type CommittedRecords } from '../../autonomous/src/run/committed-records.js';
 import { validateCommittedHistory, CommittedHistoryError, unsupportedCommittedVersion } from '../../autonomous/src/run/committed-history.js';

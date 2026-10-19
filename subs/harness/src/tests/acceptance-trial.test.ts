@@ -2,13 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
-import type { GateAttempt } from '../checks/records.js';
-import { scenarioResultsOf } from '../checks/scenario-results.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import { scenarioResultsOf } from '../../subs/autonomous/subs/acceptance/src/checks/scenario-results.js';
 import { scenarioListResponseSchema } from '../interfaces/protocol/runs.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
-import { runLayout, type ReadinessAttempt } from '../../subs/autonomous/src/run/records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
+import { type ReadinessAttempt } from '../../subs/autonomous/subs/acceptance/src/readiness-records.js';
 import { requestCompletion } from './helpers/analysis.js';
 import {
   badgeAnalysis, badgeFeature, badgeImplementation, badgePlan, badgeStepFile, badgeSteps, sharedUi,
@@ -26,7 +27,7 @@ import {
 import { addModule, assign, byWork, completionProposed, outline, partialReport, submit, treeInputs, write } from './helpers/iterations.js';
 import { localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { approveRun, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 
 /*
  * The scripted acceptance trial, Plan 10's runnable outcome: one run on a

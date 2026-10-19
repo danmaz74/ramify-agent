@@ -1,7 +1,7 @@
 import { lstat, mkdir, readFile, readdir, rm, rmdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { GitService, IgnoreRule } from '../../../../../evidence/src/git.js';
-import type { GateRuleRecord } from '../../../../../../src/checks/records.js';
+import type { GateRuleRecord } from '../../../acceptance/src/checks/records.js';
 
 /** The general project rule also covers modules introduced after setup. */
 export const scratchIgnoreRule = '**/src/tmp/';

@@ -5,13 +5,14 @@ import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import type { ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
 import { copyFixture } from './helpers/fixture.js';
 import { fixtureScratchGit, mockGit } from './helpers/mock-git.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { emptyAnalysis, openRuns, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { commandResult } from './helpers/command-result.js';
-import { gateDiagnostics } from '../checks/diagnostics.js';
-import { gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
+import { gateDiagnostics } from '../../subs/autonomous/subs/acceptance/src/checks/diagnostics.js';
+import { gateAttemptSchema } from '../../subs/autonomous/subs/acceptance/src/gate-records.js';
+import { runLayout } from '../../subs/autonomous/src/run/records.js';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });

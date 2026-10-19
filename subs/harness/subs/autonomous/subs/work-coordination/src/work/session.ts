@@ -11,7 +11,7 @@ import type { RamifyCli } from '../../../../../evidence/src/ramify-cli.js';
 import type { ApiViewEvidence } from '../../../../../../src/interfaces/protocol/jobs.js';
 import type { RegistryEntry, Hypothesis } from '../../../planning/src/records.js';
 import type { PlacementDecision } from '../architecture/records.js';
-import type { EnvironmentProblem } from '../../../../src/deviations/records.js';
+import type { EnvironmentProblem } from '../../../acceptance/src/deviations/records.js';
 import type { IterationApiViews } from './engineer.js';
 import type { IntegrationBriefing } from './integration.js';
 import { scenarioBodyLines, type BriefedScenario } from './scenario-briefing.js';

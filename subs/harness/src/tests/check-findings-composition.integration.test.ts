@@ -4,14 +4,14 @@ import { afterEach, describe, expect, test } from 'vitest';
 import type { ScriptStep } from '../../subs/agent/src/scripted.js';
 import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { gitService } from '../../subs/evidence/src/git.js';
-import { reconciliationLayout, type ReconciliationBasis } from '../reviews/reconciliation.js';
-import { reviewLayout, type ReviewRequest } from '../reviews/records.js';
+import { reconciliationLayout, type ReconciliationBasis } from '../../subs/autonomous/subs/acceptance/src/reviews/reconciliation.js';
+import { reviewLayout, type ReviewRequest } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
-import { testReviewPolicy } from './helpers/candidates.js';
+import { testReviewPolicy } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { afterFinished, concern, disposition, reconcile, review, submission } from './helpers/check-findings-composition.js';
 import { assign, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { eventsOf, limit, notes, notesDirectory, plan, reviewScript, reviewTarget, store } from './helpers/reviews.js';
+import { reviewEventsOf as eventsOf, limit, notes, notesDirectory, plan, reviewScript, reviewTarget, store } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { git, initRepository, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, testPolicy } from './helpers/runs.js';
 
 /*

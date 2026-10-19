@@ -6,10 +6,10 @@ import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
 import type { RunService } from '../../run/lifecycle.js';
 import { snapshotToolNames } from '../../../subs/reviews/src/snapshot.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
-import type { ScriptedCommit } from './candidates.js';
-import type { GateCommit } from './gate-git.js';
+import type { ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
+import type { GateCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { addModule, assign, completionProposed, outline, submit, write } from './iterations.js';
-import { notes, notesDirectory, plan, reviewTarget, store, tool, unchanged, type ReviewRun } from './reviews.js';
+import { notes, notesDirectory, plan, reviewTarget, store, tool, reviewUnchangedCommit as unchanged, type ReviewRun } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { runEventsOnDisk } from './runs.js';
 
 /*

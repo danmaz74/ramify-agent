@@ -1,9 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 import { afterEach, expect, test } from 'vitest';
-import { reviewLayout, type ReviewRequest } from '../reviews/records.js';
+import { reviewLayout, type ReviewRequest } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
 import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';
-import { attemptRecord, eventsOf, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store } from './helpers/reviews.js';
+import { attemptRecord, reviewEventsOf as eventsOf, limit, notes, notesDirectory, plan, reviewRun, reviewTarget, store } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/reviews.js';
 import { runEventsOnDisk, runPath } from './helpers/runs.js';
 
 const cleanups: Array<() => Promise<void>> = [];

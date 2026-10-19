@@ -1,6 +1,6 @@
 import childProcess from 'node:child_process';
 import { describe, expect, test, vi } from 'vitest';
-import { commitForGate } from '../../subs/autonomous/src/run/gates.js';
+import { commitForGate } from '../../subs/autonomous/subs/acceptance/src/gates.js';
 import { createProcessGuard, ProcessSpawnGuardError } from '../../../../src/tests/helpers/process-guard.js';
 
 describe('external boundary controls', () => {

@@ -9,7 +9,7 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import { SessionQueries } from '../../subs/projections/src/session-queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { runEventSchema, type RunEvent } from '../../subs/autonomous/src/run/log.js';
-import { authenticateRepairHistory, type RepairHistoryEntry } from '../../subs/autonomous/src/run/repair-history.js';
+import { authenticateRepairHistory, type RepairHistoryEntry } from '../../subs/autonomous/subs/work-coordination/src/repair/repair-history.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { treeInputs } from './helpers/iterations.js';
@@ -180,7 +180,7 @@ describe('a projection never writes, and no query appends an event', () => {
       fileURLToPath(new URL('../../subs/kpi/src/metrics.ts', import.meta.url)),
       fileURLToPath(new URL('../../subs/kpi/src/guarding.ts', import.meta.url)),
       fileURLToPath(new URL('../../subs/kpi/src/lines.ts', import.meta.url)),
-      fileURLToPath(new URL('../measurement/owners.ts', import.meta.url)),
+      fileURLToPath(new URL('../../subs/kpi/src/measurement/owners.ts', import.meta.url)),
     ];
     expect(files.length).toBeGreaterThan(5);
     // The comparison's projection and the tree load it shares with the module-tree query are among them.

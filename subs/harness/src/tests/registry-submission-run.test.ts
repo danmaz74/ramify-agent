@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { afterEach, expect, test } from 'vitest';
 import { localArchitectInputSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
-import { judgeWorkTurn } from '../steps/local-architect.js';
-import type { WorkTurnStepInputs } from '../steps/inputs.js';
+import { judgeWorkTurn } from '../../subs/task-workflow/src/steps/local-architect.js';
+import type { WorkTurnStepInputs } from '../../subs/task-workflow/src/steps/inputs.js';
 import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';

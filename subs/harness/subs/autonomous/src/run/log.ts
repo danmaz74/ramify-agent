@@ -1,5 +1,5 @@
 import { runPolicySchema } from './records.js';
-import { consultationTargetSchema } from '../../../../src/consultations/targets.js';
+import { consultationTargetSchema } from '../../subs/work-coordination/src/consultations/targets.js';
 import { debugExchangeSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { repairIncidentIdSchema, repairIncidentStageSchema } from '../../../../src/interfaces/protocol/repairs.js';
 import { dirname } from 'node:path';
@@ -23,11 +23,11 @@ import { checkFindingAtSchema } from '../../../check-findings/src/interfaces/che
 import { checkFindingCauseSchema, checkFindingEventsField } from '../../../../src/check-findings/records.js';
 import {
   reviewAttemptFinishedFields, reviewAttemptStartedDataSchema, reviewOrientationRecordedDataSchema, reviewRequestRecordedDataSchema,
-} from '../../../../src/reviews/records.js';
+} from '../../subs/acceptance/src/reviews/records.js';
 import {
   reconciliationAssessedFields, reconciliationBriefAppendedDataSchema, reconciliationIdSchema, reconciliationRefusedDataSchema,
   reconciliationStartedDataSchema, reconciliationBasisSchema, basisRequestSchema, unresolvedField,
-} from '../../../../src/reviews/reconciliation.js';
+} from '../../subs/acceptance/src/reviews/reconciliation.js';
 
 /*
  * The run log, `events.jsonl`: state transitions only, and the canonical

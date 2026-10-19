@@ -1,4 +1,4 @@
-import { finalCandidate } from '../../../../src/tests/helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/acceptance/src/tests/helpers/final-candidate.js';
 import { openUnchangedRuns as openRuns, assertUnchangedGit } from '../../../../src/tests/helpers/unchanged-run.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../src/tests/helpers/external-tools.js';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';

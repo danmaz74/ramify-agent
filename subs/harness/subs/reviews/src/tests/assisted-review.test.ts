@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { prepareAssistedReview } from '../assisted.js';
 import { openCandidateSnapshot } from '../snapshot.js';
 

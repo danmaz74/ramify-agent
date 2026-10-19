@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
-import { pendingBindingEvidence } from '../reviews/binding-evidence.js';
+import { pendingBindingEvidence } from '../../subs/autonomous/subs/acceptance/src/reviews/binding-evidence.js';
 import { ScriptedCli } from '../../subs/evidence/src/tests/helpers/scripted-cli.js';
 import { changedDocument } from './helpers/check-payloads.js';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { coordinatorAssessmentToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { coordinatorAssessmentToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import { copyFixture } from './helpers/fixture.js';
 import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
@@ -28,11 +28,11 @@ import { taskSupportSections } from '../../subs/autonomous/subs/work-coordinatio
 import { prepareAssignedCucumber, focusedScenarioFacts } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 import { createShellTool } from '../tools/shell.js';
 import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from '../../subs/autonomous/subs/work-coordination/src/capability/authorization.js';
-import { boundedNonfunctionalTools } from '../../subs/autonomous/src/nonfunctional/submissions.js';
-import { coordinatorAssessmentPrompt } from '../../subs/autonomous/src/nonfunctional/prompts.js';
+import { boundedNonfunctionalTools } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
+import { coordinatorAssessmentPrompt } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/prompts.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { commandResult } from './helpers/command-result.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';
 vi.mock('node:child_process', async original => (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 const cleanup: (() => Promise<unknown>)[] = [];

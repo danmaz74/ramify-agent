@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { repairIncidentRecordSchema } from '../../../../src/interfaces/protocol/repairs.js';
 import { runEventSchema } from '../../../autonomous/src/run/log.js';
 import { runLayout } from '../../../autonomous/src/run/records.js';
-import { authenticateRepairHistory, RepairHistoryError } from '../../../autonomous/src/run/repair-history.js';
+import { authenticateRepairHistory, RepairHistoryError } from '../../../autonomous/subs/work-coordination/src/repair/repair-history.js';
 import { automaticRepairsOf } from '../repairs.js';
 import { ProjectionError, runView, type CommittedLine } from '../inputs.js';
 import { committedRun } from './helpers/committed.js';

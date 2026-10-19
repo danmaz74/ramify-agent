@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { OwnershipCancelledError, OwnershipUnavailableError, type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
-import { auditPreparationPathsOf, defaultWriteScopesOf } from '../../subs/autonomous/src/run/project-facts.js';
+import { auditPreparationPathsOf, defaultWriteScopesOf } from '../../subs/autonomous/subs/work-coordination/src/project-facts.js';
 
 class FailedOwnership extends RamifyCli {
   calls = 0;

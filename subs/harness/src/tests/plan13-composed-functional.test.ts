@@ -8,7 +8,7 @@ import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { createPackage, elementCatalogSchema } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
-import { coordinatorAssessmentToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
+import { coordinatorAssessmentToolName } from '../../subs/autonomous/subs/acceptance/src/nonfunctional/submissions.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
@@ -18,7 +18,7 @@ import { defaultTurn, withDefaultTurns } from './helpers/declarations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, completionProposed, outline, submit, treeInputs } from './helpers/iterations.js';
 import { openRunsWithoutProcesses, expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import { scriptedCandidates } from './helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { scriptedGit, scenariosCommit } from './helpers/scripted-git.js';
 import { installTestRunner, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 

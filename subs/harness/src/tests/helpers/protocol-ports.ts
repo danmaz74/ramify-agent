@@ -1,4 +1,4 @@
-import { finalCandidate } from './final-candidate.js';
+import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';

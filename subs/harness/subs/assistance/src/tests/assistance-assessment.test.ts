@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { SessionOperations } from '../../../agent/src/interfaces/session-operations.js';
 import type { ConfiguredAuditResult } from '../../../audit/src/check-execution.js';
-import { scriptedCandidates, type ScriptedCommit } from '../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
 import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 import type { AssistedReviewSubmission } from '../../../reviews/src/assisted.js';

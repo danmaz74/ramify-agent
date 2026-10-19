@@ -5,7 +5,7 @@ import type { CandidateSource } from '../../../../../../evidence/src/git.js';
 import type { ProvisionalSourceGit } from '../../../../../../evidence/src/provisional-git.js';
 import { completionCheckDeadlineMs } from '../../../../../../../src/hooks/post-write.js';
 import { mockGit } from '../../../../../../../src/tests/helpers/mock-git.js';
-import { scriptedCandidates } from '../../../../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../../../acceptance/src/tests/helpers/candidates.js';
 import { mappedAudit } from '../../../../../../../src/tests/helpers/direct-check-execution.js';
 import { FakeRamifyCli } from '../../../../../../../src/tests/helpers/fake-ramify.js';
 import { recoveryInitialFiles } from '../../../../../../../src/tests/helpers/recovery-files.js';

@@ -7,7 +7,7 @@ import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byWork, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
-import { finalCandidate } from '../../../../../../src/tests/helpers/final-candidate.js';
+import { finalCandidate } from '../../../acceptance/src/tests/helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>

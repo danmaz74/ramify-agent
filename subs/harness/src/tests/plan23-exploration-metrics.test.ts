@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { declaredRoots } from '../measurement/inputs.js';
+import { declaredRoots } from '../../subs/kpi/src/measurement/inputs.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 
 // Pure recorded-call, timing and charge cases live in the KPI child;

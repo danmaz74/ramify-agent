@@ -5,7 +5,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, expect, test } from 'vitest';
-import type { GateAttempt } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';

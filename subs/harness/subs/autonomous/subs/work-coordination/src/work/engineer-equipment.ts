@@ -7,14 +7,14 @@ import { basename, join, relative, sep } from 'node:path';
 import type { BuiltinTool, WriteTool } from '../../../../../agent/src/interfaces/port.js';
 import type { RamifyCli } from '../../../../../evidence/src/ramify-cli.js';
 import type { ArchitectIndex } from '../../../../../evidence/src/views.js';
-import type { ProjectCommands } from '../../../../../../src/checks/checkpoint.js';
+import type { ProjectCommands } from '../../../acceptance/src/checks/checkpoint.js';
 import { resolveRealTarget } from '../../../../../../src/guard/resolve-contained-path.js';
 import { blockExplanation, decideWrite, type GuardedScope, type GuardDecisionRecord } from '../../../../../../src/guard/write-guard.js';
 import {
   completionCheckDeadlineMs, FindingsSeen, findingsOf, runHookCheck, type HookCheck, type HookFinding, type HookCheckReservation, type HookSubmissionPolicy,
 } from '../../../../../../src/hooks/post-write.js';
 import { changesBetween, sharedMutationOrder, type MutationChange, type MutationLease, type HookMutationSnapshot as MutationSnapshot } from '../../../../../../src/hooks/mutation-order.js';
-import { ownerOf } from '../../../../../../src/measurement/owners.js';
+import { ownerOf } from '../../../../../kpi/src/measurement/owners.js';
 
 import { ToolInputJudge, validateAgainst } from '../../../../../task-execution/src/submissions.js';
 import { createShellTool, shellInputSchemaFor, shellMaxTimeoutMs, shellToolName, shellToolDeclaration, type ShellTool, type ShellOptions } from '../../../../../../src/tools/shell.js';

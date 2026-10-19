@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { mockGit } from './mock-git.js';
-import { scriptedCandidates, type ScriptedCommit } from './candidates.js';
+import { scriptedCandidates, type ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { mappedAudit } from './direct-check-execution.js';
 import { FakeRamifyCli } from './fake-ramify.js';
 import { completionCheckDeadlineMs } from '../../hooks/post-write.js';

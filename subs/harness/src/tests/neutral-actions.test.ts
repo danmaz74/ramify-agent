@@ -15,10 +15,10 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, read, submit, treeInputs, write } from './helpers/iterations.js';
 import { declaringScenarios } from './helpers/declarations.js';
-import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { installTestRunner, onlyRun, openRuns, runPath, startRun } from './helpers/runs.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 
 /*
  * Neutral tool actions. What a call does reaches the harness as its action,

@@ -5,7 +5,7 @@ import type { TaskEnvironment } from '../../../../../task-execution/src/delivery
 import type { IterationApiViews } from '../work/engineer.js';
 import { apiCoverageStatement } from '../work/session.js';
 import { runLayout } from '../../../../src/run/records.js';
-import { reviewLayout } from '../../../../../../src/reviews/records.js';
+import { reviewLayout } from '../../../acceptance/src/reviews/records.js';
 
 /** Consumer evidence supplements existing qualified navigation with its own revision and coverage. */
 export function capabilityViewInputs(existing: TaskEnvironment['views'], consumers: readonly IterationApiViews[]): TaskEnvironment['views'] {

@@ -399,7 +399,7 @@ export async function verifyRow(row: RecoveryRow & { readonly name: string; read
     const jobRecord = await readFile(join(runDirectory(root, runId), 'job.json'), 'utf8');
     // A producer recovery needs explicit immutable Git-object answers from
     // this boundary's stated committed paths and captured rendered bytes.
-    const producers: Record<string, import('./candidates.js').ScriptedCommit> = {};
+    const producers: Record<string, import('../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js').ScriptedCommit> = {};
     if (row.name === 'scenarios-committed') {
       const producer = scenario.git.commits.find(commit => commit.commit === materialized)!;
       const files = Object.fromEntries(await Promise.all((producer.changes ?? []).map(async change => [change.path, await readFile(join(root, change.path), 'utf8')] as const)));

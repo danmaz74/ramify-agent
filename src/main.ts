@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { SessionProgress, SessionSummary } from '../subs/harness/src/sessions/single.js';
-import { runConsultationsCommand } from '../subs/harness/src/consultations/command.js';
+import type { SessionProgress, SessionSummary } from '../subs/harness/subs/task-workflow/src/sessions/single.js';
+import { runConsultationsCommand } from '../subs/harness/subs/autonomous/subs/work-coordination/src/consultations/command.js';
 import { isProjectLockError } from '../subs/harness/src/store/lock.js';
 import { parseCommandLine, usage, UsageError, type CommandLine } from './cli.js';
 import { runRestartCommand } from './restart-client.js';
@@ -85,7 +85,7 @@ export async function main(argv: readonly string[]): Promise<number> {
 
 /** One `step` command: its text on standard output, its diagnostics and refusals on standard error. */
 async function step(commandLine: Extract<CommandLine, { command: 'step' }>): Promise<number> {
-  const { runStepCommand } = await import('../subs/harness/src/steps/command.js');
+  const { runStepCommand } = await import('../subs/harness/subs/task-workflow/src/steps/command.js');
   if (commandLine.step.command === 'run') return stepRun(commandLine.step);
   // A gate or an after-handling prints each transition as it happens.
   const live = commandLine.step.command === 'gate' || commandLine.step.command === 'after' ? { onLine: (line: string) => console.log(line) } : {};
@@ -97,7 +97,7 @@ async function step(commandLine: Extract<CommandLine, { command: 'step' }>): Pro
 
 /** One `step run`, printed as it happens. The first interrupt stops the invocation; a second one exits at once. */
 async function stepRun(options: Extract<Extract<CommandLine, { command: 'step' }>['step'], { command: 'run' }>): Promise<number> {
-  const { runStepCommand } = await import('../subs/harness/src/steps/command.js');
+  const { runStepCommand } = await import('../subs/harness/subs/task-workflow/src/steps/command.js');
   const controller = new AbortController();
   const interrupt = () => {
     console.log('\nStopping the step; interrupt again to exit at once.');
@@ -117,7 +117,7 @@ async function stepRun(options: Extract<Extract<CommandLine, { command: 'step' }
 
 /** One engineer session, printed as it happens. The first interrupt stops the session; a second one exits at once. */
 async function session(commandLine: Extract<CommandLine, { command: 'session' }>): Promise<number> {
-  const { runSessionCommand } = await import('../subs/harness/src/sessions/command.js');
+  const { runSessionCommand } = await import('../subs/harness/subs/task-workflow/src/sessions/command.js');
   let prompt: string;
   if ('text' in commandLine.prompt) prompt = commandLine.prompt.text;
   else {

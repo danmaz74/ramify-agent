@@ -25,12 +25,13 @@ import { architectureLayout } from '../../subs/work-coordination/src/architectur
 import { analysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
 import { placementDecisionFixture as decisionBody, forkDecision, requestPlacement } from '../../subs/work-coordination/src/tests/helpers/placement.js';
 import { createScriptedAgent, type Script } from '../../../agent/src/scripted.js';
-import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js';
+import { scriptedCandidates } from '../../subs/acceptance/src/tests/helpers/candidates.js';
 import { declaringScenarios } from '../../../../src/tests/helpers/declarations.js';
 import type { OpenRunsOptions } from '../../../../src/tests/helpers/runs.js';
 import type { SessionSpec } from '../../../agent/src/interfaces/port.js';
 import { FakeRamifyCli } from '../../../../src/tests/helpers/fake-ramify.js';
-import { gateAttemptSchema, runLayout } from '../run/records.js';
+import { gateAttemptSchema } from '../../subs/acceptance/src/gate-records.js';
+import { runLayout } from '../run/records.js';
 import { type InvocationOutcome } from '../../../task-execution/src/records.js';
 import type { RunWrite } from '../run/log.js';
 import type { RunEvent } from '../run/log.js';

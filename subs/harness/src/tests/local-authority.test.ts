@@ -12,7 +12,7 @@ import { localDecision, registryChange, requestPlacement } from '../../subs/auto
 import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { answeredGit, scenariosCommitted, unchanged } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>

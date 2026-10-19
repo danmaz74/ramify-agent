@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { mockGit, fixtureScratchGit } from './mock-git.js';
-import { scriptedCandidates, type ScriptedCommit } from './candidates.js';
+import { scriptedCandidates, type ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { mappedAudit } from './direct-check-execution.js';
 import { acceptanceInitialFiles } from './acceptance-files.js';
 import { completionCheckDeadlineMs } from '../../hooks/post-write.js';

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { architectAnswerSchema, consultationMessageSchema, consultationTool } from '../consultations/tools.js';
-import { consultationId, consultationLayout } from '../consultations/records.js';
-import { consultationOutcome } from '../consultations/store.js';
+import { architectAnswerSchema, consultationMessageSchema, consultationTool } from '../../subs/autonomous/subs/work-coordination/src/consultations/tools.js';
+import { consultationId, consultationLayout } from '../../subs/autonomous/subs/work-coordination/src/consultations/records.js';
+import { consultationOutcome } from '../../subs/autonomous/subs/work-coordination/src/consultations/store.js';
 import { readSessionPointReference, sessionPointReference } from '../../subs/task-execution/src/session-operations.js';
 import { readTranscript } from '../../subs/task-execution/src/transcripts/writer.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';

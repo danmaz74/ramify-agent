@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { runGate } from '../checks/gate.js';
-import { checkCommand } from '../checks/records.js';
-import type { PlannedCheck } from '../checks/verify.js';
+import { runGate } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { checkCommand } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import type { PlannedCheck } from '../../subs/autonomous/subs/acceptance/src/checks/verify.js';
 import { createDirectCheckExecution, createMappedCheckExecution, type DirectCheckStep } from './helpers/direct-check-execution.js';
 
 const cleanups: string[] = [];

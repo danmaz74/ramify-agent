@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
-import { finalCandidate } from '../../../../../../src/tests/helpers/final-candidate.js';
+import { finalCandidate } from '../../../acceptance/src/tests/helpers/final-candidate.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byWork, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
@@ -15,7 +15,7 @@ import {
 } from './helpers/contracts.js';
 import { contractsLayout, type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../contracts/records.js';
 import { runLayout } from '../../../../src/run/records.js';
-import type { GateAttempt } from '../../../../../../src/checks/records.js';
+import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
 import { workLayout, type WorkItem } from '../work/records.js';
 import { iterationLayout, type IterationAssignment } from '../work/iterations.js';
 import type { RunEvent } from '../../../../src/run/log.js';

@@ -3,7 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import { dispatchCheck, type ProcessExecutorPort } from 'ramify-audit';
 import { childEnvironment, runCommand } from '../../evidence/src/run-command.js';
 import type { CommandRun, CommandRunner } from '../../evidence/src/run-command.js';
-import type { CheckCommand } from '../../../src/checks/records.js';
+import type { CheckCommand } from '../../autonomous/subs/acceptance/src/checks/records.js';
 
 /**
  * One command of a standalone session's in-place diagnosis, dispatched by the

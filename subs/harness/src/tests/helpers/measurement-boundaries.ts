@@ -5,7 +5,7 @@ import type { OwnershipAnswer } from '../../../subs/evidence/src/ownership-evide
 import { RamifyCli, type RamifyRun } from '../../../subs/evidence/src/ramify-cli.js';
 import { architectViewDirectory } from '../../../subs/evidence/src/views.js';
 import { mockGit } from './mock-git.js';
-import { scriptedCandidates } from './candidates.js';
+import { scriptedCandidates } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { mappedAudit } from './direct-check-execution.js';
 import { shapeOnlyInputs } from './runs.js';
 import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';

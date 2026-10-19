@@ -34,7 +34,7 @@ export interface MutationSnapshot {
   readonly failure: string | null;
 }
 
-export interface SnapshotRequest {
+export interface MutationSnapshotRequest {
   readonly projectRoot: string;
   /** What `git status` reports; the caller supplies it so that the tree is read in one place. */
   readonly changed: () => Promise<readonly string[]>;
@@ -47,7 +47,7 @@ export interface SnapshotRequest {
  * leaves its reason, and neither an empty list nor an empty `outsideScope`
  * is then reported as evidence.
  */
-export async function takeMutationSnapshot(request: SnapshotRequest): Promise<MutationSnapshot> {
+export async function takeMutationSnapshot(request: MutationSnapshotRequest): Promise<MutationSnapshot> {
   let paths: readonly string[];
   try {
     paths = await request.changed();
@@ -100,7 +100,7 @@ export function toRelative(projectRoot: string, path: string): string {
  * could not be read. It is the only observation that sees a write no guard
  * saw, and nothing here blocks anything.
  */
-export async function recordSettledSnapshot(request: SnapshotRequest, observations: ObservationLog): Promise<MutationSnapshot> {
+export async function recordSettledSnapshot(request: MutationSnapshotRequest, observations: ObservationLog): Promise<MutationSnapshot> {
   const snapshot = await takeMutationSnapshot(request);
   if (snapshot.failure !== null) {
     await observations.record({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { scenarioRecordSchema, scenarioSourceHash } from '../../../scenarios/src/records.js';
-import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../../autonomous/src/run/records.js';
+import { gateAttemptSchema, gateAuditOutcomeSchema } from '../../../autonomous/subs/acceptance/src/gate-records.js';
 import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';
 import { iterationAssignmentSchema, iterationResultSchema } from '../../../autonomous/subs/work-coordination/src/work/iterations.js';
 import { executionCapabilityDetailSchema, executionNodeSchema, executionScenarioDetailSchema } from '../../../../src/interfaces/protocol/execution-map.js';

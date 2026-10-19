@@ -6,7 +6,7 @@ import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
 import type { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import type { ArchitectIndex, ModuleEntry } from '../../../subs/evidence/src/views.js';
 import { architectRunInputs, type RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
-import { parseModuleHeader } from '../../../subs/autonomous/src/run/module-header.js';
+import { parseModuleHeader } from '../../../subs/evidence/src/module-header.js';
 import type { AssignmentBody } from '../../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
 import type { z } from 'zod';
 import type { engineerSubmissionSchema } from '../../../subs/autonomous/subs/work-coordination/src/work/engineer.js';

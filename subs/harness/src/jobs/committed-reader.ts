@@ -30,3 +30,12 @@ export function recordHash(body: unknown): string {
 export function refOf(id: string, revision: number, body: unknown): RecordRef {
   return { id, revision, hash: recordHash(body) };
 }
+
+/** Exact retained body, newest accepted record first; no mutable journal is needed. */
+export function committedBodyOf(lines: readonly ReplayedLine[], path: string): unknown {
+ for (let index = lines.length - 1; index >= 0; index--) {
+  const record = lines[index]!.transaction.records.find(record => record.path === path);
+  if (record !== undefined) return record.body;
+ }
+ return undefined;
+}

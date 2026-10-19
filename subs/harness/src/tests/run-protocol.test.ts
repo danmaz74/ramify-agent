@@ -1,4 +1,4 @@
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import type { GitCheckpoint } from './helpers/scripted-git.js';
 import { protocolPorts } from './helpers/protocol-ports.js';

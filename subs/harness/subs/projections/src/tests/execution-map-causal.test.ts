@@ -3,7 +3,7 @@ import { contractRecordSchema } from '../../../autonomous/subs/work-coordination
 import { executionCoreOf } from '../execution-map.js';
 import { runView } from '../inputs.js';
 import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';
-import { gateAttemptSchema } from '../../../autonomous/src/run/records.js';
+import { gateAttemptSchema } from '../../../autonomous/subs/acceptance/src/gate-records.js';
 import { at, constructedRun, hash, item, obligation, registered, requirement, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 
 const provider = 'shared-provider';

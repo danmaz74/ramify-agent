@@ -1,5 +1,5 @@
 import { localArchitectToolName } from '../work/submission.js';
-import { finalCandidate } from '../../../../../../src/tests/helpers/final-candidate.js';
+import { finalCandidate } from '../../../acceptance/src/tests/helpers/final-candidate.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -9,7 +9,7 @@ import type { Script } from '../../../../../agent/src/scripted.js';
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { analysis, entry, requestCompletion } from '../../../../../../src/tests/helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, outline, read, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
-import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit } from '../../../../../../src/tests/helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit } from '../../../acceptance/src/tests/helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { FakeRamifyCli } from '../../../../../../src/tests/helpers/fake-ramify.js';
 import { installTestRunner, onlyRun, openRuns, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';

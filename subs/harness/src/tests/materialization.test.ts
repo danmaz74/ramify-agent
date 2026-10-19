@@ -2,13 +2,13 @@ import { createHash } from 'node:crypto';
 import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { GateAttempt } from '../checks/records.js';
-import { runGate } from '../checks/gate.js';
-import { checkCommand } from '../checks/records.js';
+import type { GateAttempt } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import { runGate } from '../../subs/autonomous/subs/acceptance/src/checks/gate.js';
+import { checkCommand } from '../../subs/autonomous/subs/acceptance/src/checks/records.js';
 import {
   commitForMaterialization, contentHash, expectedFeatureFiles, expectedFeatureHashes, materializationMessage, rerenderFeatureFiles,
   trackedScenarios,
-} from '../../subs/autonomous/src/run/feature-files.js';
+} from '../../subs/autonomous/subs/acceptance/src/feature-files.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { auditPreparationPaths, captureGuardedFiles } from '../work/scope.js';
@@ -19,7 +19,7 @@ import { statedCommands } from './helpers/composition.js';
 import { createPassingCheckExecution } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture, temporaryDirectory } from './helpers/fixture.js';
-import { gateGit, gateScenariosCommitFixture as gateScenariosCommit, type GateCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as gateScenariosCommit, type GateCommit } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/gate-git.js';
 import {
   addModule, assign, byRole, completionProposed, installMiniRunner, outline, shell, submit, treeInputs, write,
 } from './helpers/iterations.js';
@@ -27,7 +27,7 @@ import { mockGit } from './helpers/mock-git.js';
 import { emptyAnalysis, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { assertUnchangedGit, openUnchangedRuns } from './helpers/unchanged-run.js';
-import { finalCandidate } from './helpers/final-candidate.js';
+import { finalCandidate } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 
 /*
  * The feature files on the run branch, architecture §5 and §12.

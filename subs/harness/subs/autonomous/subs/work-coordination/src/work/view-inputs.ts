@@ -1,7 +1,7 @@
 import { apiViewDirectoriesOf, coverageLimitsOf, coverageRecordsOf, describeCoverageLimits, findModule, readArchitectMeta, type ArchitectIndex } from '../../../../../evidence/src/views.js';
-import { projectPath } from '../../../../../../src/steps/inputs.js';
+import { projectPath } from '../../../../../task-workflow/src/steps/inputs.js';
 import type { InputManifest } from '../../../../../../src/interfaces/protocol/evidence.js';
-import type { OrientationStepInputs } from '../../../../../../src/steps/inputs.js';
+import type { OrientationStepInputs } from '../../../../../task-workflow/src/steps/inputs.js';
 import { apiCoverageStatement } from './session.js';
 
 /** Current local view references, with architect detail identity independent of API-view identity. */

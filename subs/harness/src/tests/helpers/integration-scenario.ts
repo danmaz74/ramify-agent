@@ -1,8 +1,8 @@
-import { finalCandidate } from './final-candidate.js';
+import { finalCandidate } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/final-candidate.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { GateAttempt } from '../../checks/records.js';
-import { scenarioResultsOf, type ScenarioResult } from '../../checks/scenario-results.js';
+import type { GateAttempt } from '../../../subs/autonomous/subs/acceptance/src/checks/records.js';
+import { scenarioResultsOf, type ScenarioResult } from '../../../subs/autonomous/subs/acceptance/src/checks/scenario-results.js';
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { analysis, entry, requestCompletion } from './analysis.js';

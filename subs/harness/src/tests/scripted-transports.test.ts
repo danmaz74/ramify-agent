@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { childEnvironment, type CommandRequest } from '../../subs/evidence/src/run-command.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 import { inPlaceReplies } from './helpers/in-place-replies.js';
-import { scratchCandidateReplies } from './helpers/scratch-candidate-replies.js';
+import { scratchCandidateReplies } from '../../subs/autonomous/subs/acceptance/src/tests/helpers/scratch-candidate-replies.js';
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });
