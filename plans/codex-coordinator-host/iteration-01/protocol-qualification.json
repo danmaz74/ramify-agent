@@ -1,0 +1,32 @@
+{
+  "cliVersion": "codex-cli 0.161.0",
+  "pythonVersion": "Python 3.11.2",
+  "kernel": "Linux 6.8.0-85-generic",
+  "toolkitVersion": "0.5.2",
+  "command": "codex app-server generate-ts --experimental --out /tmp/ramify-codex-i1-protocol",
+  "officialDocumentation": "https://learn.chatgpt.com/docs/app-server",
+  "schemaSha256": {
+    "InitializeParams.ts": "bfc13b4fc9e37f629ee67b42d6e7f342ba38668ff528e738a911de5ebcfd545f",
+    "InitializeResponse.ts": "4feabcb66d4bf01869d2780beaec1838d41b30213cdf57de175298aed01f5379",
+    "InitializeCapabilities.ts": "dee58273861971585e0615804eaf50ba4690cd4846f02ed352ed211887a022a5",
+    "ServerRequest.ts": "1c5837adbfbdd005f387478ba87840808d1353b47b82dcf63739a78bb1c8d3be",
+    "ServerNotification.ts": "5e0d56b131445f17424d88bf26f33135cd3c4c2c0fc2a1c84b4cc528d0a224de",
+    "v2/ThreadStartParams.ts": "dc8bebec4181a5502fc141b0122cc48e066b3b5c77d9fd2a4de875fcd6d66a68",
+    "v2/ThreadStartResponse.ts": "62762558532dab6b3113a8e9385e282b05a7a1e68b9a31bb508a5d9acff45f26",
+    "v2/ThreadResumeParams.ts": "6ea6561448792277f9b52ac9d920d71ef8c9be6e43621ee6329fb948329e8ff7",
+    "v2/ThreadResumeResponse.ts": "080196e4c158212de187a0d3331de28bf8a62df17d90663cf5d1fc2665dd8177",
+    "v2/ThreadReadParams.ts": "c24743cb5655b4c71a853a2a290412d78e1a27e0278f2a0cde9bd9d9b78118a8",
+    "v2/Thread.ts": "1f9dc096a3c6735956ce38cbb7527e35b13e9ed663254ee13dba7414eab6d28c",
+    "v2/TurnStartParams.ts": "98b22de9a34a8da4308f55b2f79191e789f80da525303925c3e273ce127499bb",
+    "v2/Turn.ts": "a304905165c888f74ea402b6083175a27d100eab164657dd62a38e0965e28536",
+    "v2/ToolRequestUserInputParams.ts": "0e3063b70a99b815e170b3c157416924315308a1c8af201dcc2f3fb459e4144a",
+    "v2/ToolRequestUserInputResponse.ts": "39e4959095a1b31de3f7bf28422a6536d51d651581ad1f50bc5e30c02140498b",
+    "v2/CommandExecutionRequestApprovalParams.ts": "531eaecb38d8c93ed389ada2482f6e2d7d6fa5351adf423706bf6e6eeddf60dc",
+    "v2/CommandExecutionApprovalDecision.ts": "9283d7206bc8df353c4fcc9a14682b5f69f7f288d666f975356762ed49d5bc6b",
+    "v2/FileChangeRequestApprovalParams.ts": "32ec2fef83e1e17db98ea0b9b86baaa5c8bf2e8979988f5ad8fef3a93ab15074",
+    "v2/ServerRequestResolvedNotification.ts": "e428ba289071d7b2e04cedc8b3cd7e6adbe57409dbbc333c38178b316f122ec5",
+    "v2/Model.ts": "dfd08785a85631da29a50f495b8271ef0f8b9f2f140ab69155debfeba2ea70cf",
+    "v2/ExperimentalFeature.ts": "2de02b9c1426f552df38b289f638a4f41bc0395477532fdffe36ea390be078fa",
+    "v2/ListMcpServerStatusParams.ts": "8f769ff4fc224f9ac29ea76d568500bb07b3d959ecc3cc67abf203e753ea616e"
+  }
+}

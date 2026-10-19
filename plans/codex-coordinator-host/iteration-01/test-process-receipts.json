@@ -1,0 +1,99 @@
+[
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 3948654,
+    "startedAt": "2026-10-19T19:29:10.527Z",
+    "finishedAt": "2026-10-19T19:29:10.731Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": false,
+    "pid": 3948655,
+    "startedAt": "2026-10-19T19:29:10.527Z",
+    "finishedAt": "2026-10-19T19:29:10.715Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [],
+    "refused": []
+  },
+  {
+    "file": "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts",
+    "projectRoot": "/workspaces/worktrees/codex-coordinator-host",
+    "native": true,
+    "pid": 3947316,
+    "startedAt": "2026-10-19T19:25:26.065Z",
+    "finishedAt": "2026-10-19T19:25:26.675Z",
+    "guardSha256": "af06ff2a7e01558bb334f12694d81ae7b703c501eee11afd62c6d0fa3da7806d",
+    "registrySha256": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+    "allowed": [
+      {
+        "api": "spawn",
+        "argv": [
+          "/usr/local/bin/node",
+          "-e",
+          "setInterval(() => {}, 1000)"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "/usr/local/bin/node",
+          "-e",
+          "setInterval(() => {}, 1000)"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      },
+      {
+        "api": "spawn",
+        "argv": [
+          "python3",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/agent/subs/codex/src/supervisor.py",
+          "/workspaces/worktrees/codex-coordinator-host/subs/harness/subs/assistance/src/tests/native-provider.py",
+          "app-server",
+          "--listen",
+          "stdio://"
+        ]
+      }
+    ],
+    "refused": []
+  }
+]

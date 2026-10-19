@@ -243,3 +243,7 @@ expose-test consultationJournal from "helpers/consultation-journal.ts" to descen
 
 expose-sub inspectCandidate from evidence to descendants
 expose-sub candidateShell, candidateShellDeclaration from reviews to descendants
+
+// Assistance composes the dedicated provider through the agent boundary.
+expose-sub CodexProcessIdentity, CodexProvider, CodexProviderOptions, CodexProviderError, CodexThreadSettings, CodexThreadSession, CodexReadiness, CodexEquipment, CodexEvent, CodexPendingRequest, CodexResponse, CodexSettlement, CodexInterrupt, CodexThread, CodexTurn, CodexTurnStatus, CodexMessage, CodexWorkItem, CodexApprovalChoice, CodexRequestIdentity, createCodexProvider from agent to descendants
+expose-sub ScriptedCodexFrame, ScriptedCodex, testThread, testTurn, testSession from agent to descendants

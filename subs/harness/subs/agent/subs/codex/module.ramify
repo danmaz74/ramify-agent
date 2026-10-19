@@ -1,0 +1,8 @@
+ramify 1
+module codex
+
+// The dedicated app-server and its wire format remain private. Assistance
+// receives only conversation operations, observations and owned settlement.
+expose-src createCodexProvider from "provider.ts" to parent
+expose-src * from "interfaces/provider.ts" to parent
+expose-test ScriptedCodexFrame, ScriptedCodex, testThread, testTurn, testSession from "scripted.ts" to parent

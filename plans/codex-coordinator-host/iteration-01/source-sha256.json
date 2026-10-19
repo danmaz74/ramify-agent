@@ -1,0 +1,20 @@
+{
+  "plans/codex-coordinator-host/iteration-01/live-provider.mjs": "a695f48c26b9a719c35148cce191395ab6e84b2493f0db2e660c143756ae8b84",
+  "src/tests/test-boundaries.json": "305db353ae0b5622012f38cfbd7029d5f7f2fcdb50e1456907a3fc42849093b0",
+  "subs/harness/module.ramify": "fbd345fe9ff15c91332df07877d792b74bfa9ea9f94c7a8814bb248581193ef3",
+  "subs/harness/subs/agent/README.md": "0049918cf75f6ca043c831a5bbea320f339546aa870032d9449783b8f3ddd7d5",
+  "subs/harness/subs/agent/module.ramify": "6bef4efad369747eb7cf9287e47220c233733377bc3046c9c9be5c3b4e4672a3",
+  "subs/harness/subs/agent/subs/codex/README.md": "15c519e42a28b907a537af3074fd9073fd90f3dc27df29f310d75243557d8c2c",
+  "subs/harness/subs/agent/subs/codex/module.ramify": "199c84e00d3c0117b07a3379417cf860f2b6bb99fd0adc168f4755b0c5558ab3",
+  "subs/harness/subs/agent/subs/codex/src/connection.ts": "6e719b4086d91f2c83f9fa874bcab6a29580e0df32b3b288d872b651bf7f8286",
+  "subs/harness/subs/agent/subs/codex/src/interfaces/provider.ts": "afc4ee4c3a297a7e789195c54199f74d5991f59e8788c50fb836a14988e08988",
+  "subs/harness/subs/agent/subs/codex/src/projection.ts": "640223b4e9a3a61c37aa2f49936111008963e6b556eb5577fe382f636cdd7ea6",
+  "subs/harness/subs/agent/subs/codex/src/provider.ts": "b746e68beeedbe49a374a220a144572059016b6c98aada58040f5a8db6a2c117",
+  "subs/harness/subs/agent/subs/codex/src/supervisor.py": "9f61571f551918b6d00d4f1e587ca9ec061e6b0eaf15fe65892c0e13e1018711",
+  "subs/harness/subs/agent/subs/codex/src/tests/provider.test.ts": "80351c91342daca5a3fb2190339de9381505a90fe6204f3b7003f5fc717bc970",
+  "subs/harness/subs/agent/subs/codex/src/tests/scripted.ts": "d3dd8596dd88b8d117238420469f35016b708e4e4e1b5a7d03ff6c37796f3f25",
+  "subs/harness/subs/assistance/src/coordinator-provider.ts": "c6dee3736b1cf93126698afeb52275e876655ace9e43529ef631ae1d3c77dcaa",
+  "subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts": "ce3675376735d0f2e1ed3fffe27bd724552b3ac6cbdc7ebddfcb4dbb39914e0d",
+  "subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts": "3dc00dbd075868c19d170d38bac9defb386dec81a4569ae9ca1c9fd5124a6496",
+  "subs/harness/subs/assistance/src/tests/native-provider.py": "e84bdd690c70652ab28b971f947c404cec67a1e544a099dc1b4f90fdfbb3c88a"
+}

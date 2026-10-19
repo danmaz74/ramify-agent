@@ -1,9 +1,14 @@
 # agent
 
-Defines the neutral session operations through which the harness drives agents,
+Defines the neutral session operations through which the harness drives RA-managed agents,
 and implements them with an injected scripted driver. Its child Pi owns model
 selection, native transport and opaque provider encoding. The harness owns the
 store and current executable authority, validators and publication destinations.
+
+Its [Codex child](subs/codex/README.md) separately owns persistent coordinator
+conversations through a dedicated app-server and Linux subreaper. Assistance
+receives its typed operations and observations through this module; Codex keeps
+its own history and native worker scheduling.
 
 ## Durable session operations
 

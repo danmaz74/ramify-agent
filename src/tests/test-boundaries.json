@@ -607,6 +607,15 @@
       "owningCases": [
         "shell inspects the pinned candidate and compressed evidence from a nested project while preserving the working checkout"
       ]
+    },
+    {
+      "file": "subs/harness/subs/assistance/src/tests/coordinator-provider.boundary.test.ts",
+      "boundary": "Dedicated Codex supervisor owns, kills and reaps native setsid orphan descendants across provider exit, preserving unrelated processes and persistent fixture history",
+      "whyFakeCannotProve": "Requires Linux PR_SET_CHILD_SUBREAPER adoption, actual process ancestry and start identities, kernel PID disappearance, independent unrelated execution and a new provider reading persisted history. Scripted transport outcomes cannot establish descendant settlement.",
+      "owningCases": [
+        "assistance settles a setsid orphan after active while preserving unrelated execution and persistent history",
+        "assistance settles a setsid orphan after provider-exit while preserving unrelated execution and persistent history"
+      ]
     }
   ]
 }

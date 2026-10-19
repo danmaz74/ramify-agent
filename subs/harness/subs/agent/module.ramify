@@ -1,7 +1,7 @@
 ramify 1
 module agent
 
-// The port the harness core drives every agent through, and the scripted
+// The port the harness core drives RA-managed sessions through, and the scripted
 // fake that implements it. How a session is driven stays behind the port.
 // The port also reaches the implementations beneath this module.
 expose-src * from "interfaces/port.ts" to parent
@@ -15,3 +15,6 @@ expose-src createSessionOperations from "session-operations.ts" to parent
 expose-src AgentEvent, ToolDefinition, ToolResult, AgentPort, ExecutorSupport, JsonSchema, ToolAction, assistantText, noMessageDetail, AgentEventObservation, BuiltinTool, SessionOutcome, WriteTool, SubmissionVerdict from "interfaces/port.ts" to descendants
 expose-src SessionExecutionBindings, SessionExecutionIdentity, SessionOperationKey, SessionOperations, SessionToolDeclaration, SessionStore, SessionDriverUnavailableError, ContinueSessionInput, SessionDriverInvocation, SessionDriverRuntime, SessionOperationHandle, SessionOperationReceipt, AgentSessionPoint, AgentSessionSnapshot, SessionExecutionPolicy, SessionTaskInput, SessionStoreCommit, SessionStoreRecord from "interfaces/session-operations.ts" to descendants
 expose-src createSessionOperations from "session-operations.ts" to descendants
+
+// Persistent Codex conversations are a separate provider from Pi sessions.
+expose-sub * from codex to parent
