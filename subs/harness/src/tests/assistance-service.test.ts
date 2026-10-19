@@ -410,3 +410,124 @@ describe('native iteration records', () => {
     expect(service.assessmentDetail('sample', job.jobId, admission.assessmentId)).toMatchObject({ requestedAt: '2026-10-18T12:01:00.000Z', completedAt: '2026-10-18T12:10:00.000Z' });
   });
 });
+
+/** Hold real assessment transitions while tests control completion and observer time. */
+async function waitingAssessment() {
+  let enter!: (context: Parameters<Assessor>[0]) => void;
+  const entered = new Promise<Parameters<Assessor>[0]>(resolve => { enter = resolve; });
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const { open } = await fixture(async context => {
+    enter(context);
+    await Promise.race([held, new Promise<void>(resolve => context.signal.addEventListener('abort', () => resolve(), { once: true }))]);
+    return { gate: 'clear', summary: 'Verified', repairs: [], decisions: [], gaps: [], evidence: [] };
+  });
+  const service = await open();
+  const job = await service.planStart({ planId: 'sample', commandId: 'start-wait' });
+  const { assessmentId } = await service.iterationAssess(request(job.jobId));
+  const context = await entered;
+  const ids = ['sample', job.jobId, assessmentId] as const;
+  return { service, context, ids, release };
+}
+
+describe('blocking assessment observation', () => {
+  it('keeps default waiters asleep through stage progress and wakes all on completion', async () => {
+    const { service, context, ids, release } = await waitingAssessment();
+    const completed = vi.fn();
+    const first = service.assessmentWait(...ids).then(result => { completed(); return result; });
+    const second = service.assessmentWait(...ids);
+    await context.checkpoint('audit', { passed: true });
+    expect(completed).not.toHaveBeenCalled();
+    release();
+    for (const result of await Promise.all([first, second])) {
+      expect(result).toMatchObject({ reason: 'settled', status: 'completed', stages: ['audit'] });
+    }
+    expect(await service.assessmentWait(...ids)).toMatchObject({ reason: 'settled', status: 'completed' });
+  });
+
+  it('allows progress observation and detects a revision that changed before subscription', async () => {
+    const { service, context, ids, release } = await waitingAssessment();
+    const before = service.assessmentStatus(...ids).revision;
+    const progress = service.assessmentWait(...ids, { afterRevision: before });
+    await context.checkpoint('audit', { passed: true });
+    expect(await progress).toMatchObject({ reason: 'changed', status: 'running', revision: before + 1 });
+    expect(await service.assessmentWait(...ids, { afterRevision: before })).toMatchObject({ reason: 'changed', revision: before + 1 });
+    release();
+    await service.assessmentWait(...ids);
+  });
+
+  it('returns current status at the 15-minute deadline without writing or cancelling', async () => {
+    const { service, context, ids, release } = await waitingAssessment();
+    const before = service.assessmentDetail(...ids);
+    vi.useFakeTimers();
+    try {
+      const observed = vi.fn();
+      const waiting = service.assessmentWait(...ids).then(result => { observed(); return result; });
+      await vi.advanceTimersByTimeAsync(899_999);
+      expect(observed).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await waiting).toEqual({ ...service.assessmentStatus(...ids), reason: 'timeout' });
+      expect(service.assessmentDetail(...ids)).toEqual(before);
+      expect(context.signal.aborted).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); release(); }
+    expect(await service.assessmentWait(...ids)).toMatchObject({ status: 'completed' });
+  });
+
+  it('aborts one observation without affecting other waiters or the assessment', async () => {
+    const { service, context, ids, release } = await waitingAssessment();
+    const controller = new AbortController();
+    const waiting = service.assessmentWait(...ids, {}, controller.signal);
+    const rejected = expect(waiting).rejects.toThrow('Stop observing');
+    const other = service.assessmentWait(...ids);
+    controller.abort(new Error('Stop observing'));
+    await rejected;
+    expect(context.signal.aborted).toBe(false);
+    await expect(service.assessmentWait(...ids, {}, controller.signal)).rejects.toThrow('Stop observing');
+    release();
+    expect(await other).toMatchObject({ reason: 'settled', status: 'completed' });
+  });
+
+  it('wakes on explicit assessment cancellation', async () => {
+    const { service, ids } = await waitingAssessment();
+    const waiting = service.assessmentWait(...ids);
+    await service.assessmentCancel(...ids);
+    expect(await waiting).toMatchObject({ reason: 'settled', status: 'cancelled' });
+  });
+
+  it('wakes on assessment failure', async () => {
+    let fail!: (error: Error) => void;
+    const held = new Promise<never>((_resolve, reject) => { fail = reject; });
+    let enter!: () => void;
+    const entered = new Promise<void>(resolve => { enter = resolve; });
+    const { open } = await fixture(async () => { enter(); return held; });
+    const service = await open();
+    const job = await service.planStart({ planId: 'sample', commandId: 'start-failure' });
+    const { assessmentId } = await service.iterationAssess(request(job.jobId));
+    const ids = ['sample', job.jobId, assessmentId] as const;
+    const waiting = service.assessmentWait(...ids);
+    await entered;
+    fail(new Error('Provider failed'));
+    expect(await waiting).toMatchObject({ reason: 'settled', status: 'interrupted', error: 'Provider failed' });
+  });
+
+  it('rejects outstanding observations on shutdown and preserves interrupted recovery', async () => {
+    const { service, ids } = await waitingAssessment();
+    const waiting = expect(service.assessmentWait(...ids)).rejects.toThrow('Assistance service closed');
+    await service.close();
+    await waiting;
+    expect(service.assessmentStatus(...ids).status).toBe('interrupted');
+    await expect(service.assessmentWait(...ids)).rejects.toThrow('Assistance service closed');
+  });
+
+  it('validates identities and bounded wait options without starting work', async () => {
+    const { service, ids, release } = await waitingAssessment();
+    for (const options of [{ timeoutMs: -1 }, { timeoutMs: 900_001 }, { timeoutMs: 0.5 }, { afterRevision: 0 }]) {
+      await expect(service.assessmentWait(...ids, options)).rejects.toThrow();
+    }
+    await expect(service.assessmentWait(ids[0], ids[1], 'as-9999')).rejects.toThrow('does not belong');
+    expect(await service.assessmentWait(...ids, { timeoutMs: 0 })).toMatchObject({ reason: 'timeout', status: 'running' });
+    release();
+    await service.assessmentWait(...ids);
+  });
+});

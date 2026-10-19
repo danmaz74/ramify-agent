@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { z } from 'zod';
-import type { AssistanceService } from './service.js';
+import { assessmentWaitOptionsSchema, type AssistanceService } from './service.js';
 
 /** Thin MCP transport. Every operation delegates to the harness-owned service. */
 export function createAssistanceMcpServer(service: AssistanceService): McpServer {
@@ -63,6 +63,11 @@ export function createAssistanceMcpServer(service: AssistanceService): McpServer
     commandId: args.command_id })));
   server.registerTool('assessment_status', { description: 'Read concise assessment status without starting work.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentStatus(args.plan_id, args.job_id, args.assessment_id)));
+  server.registerTool('assessment_wait', { description: 'Wait up to 15 minutes for completion, interruption or cancellation without polling. Returns early when settled. Routine stage progress wakes only when after_revision is supplied. Timeout does not cancel assessment.',
+    inputSchema: z.object({ ...assessmentId, timeout_ms: assessmentWaitOptionsSchema.shape.timeoutMs,
+      after_revision: assessmentWaitOptionsSchema.shape.afterRevision }).strict() },
+  (args, context) => answer(() => service.assessmentWait(args.plan_id, args.job_id, args.assessment_id,
+    { timeoutMs: args.timeout_ms, ...(args.after_revision === undefined ? {} : { afterRevision: args.after_revision }) }, context.mcpReq.signal)));
   server.registerTool('assessment_result', { description: 'Read the effective compact gate result and any retained approval finalization when assessment completed.', inputSchema: z.object(assessmentId) },
   args => answer(() => service.assessmentResult(args.plan_id, args.job_id, args.assessment_id)));
   server.registerTool('assessment_detail', { description: 'Read the original retained assessment and any append-only approval finalizations on demand.', inputSchema: z.object(assessmentId) },

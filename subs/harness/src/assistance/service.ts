@@ -36,6 +36,12 @@ export type ProtectionAcceptRequest = z.infer<typeof protectionAcceptSchema>;
 export type PlanStartRequest = z.infer<typeof planStartSchema>;
 export interface PlanStartResponse { readonly planId: string; readonly jobId: string; readonly planHash: string }
 export interface AssessmentAdmission { readonly planId: string; readonly jobId: string; readonly assessmentId: string; readonly status: AssistedAssessment['status'] }
+export type AssessmentStatus = Pick<AssistedAssessment, 'id' | 'status' | 'revision' | 'error'> & { stages: string[] };
+export const assessmentWaitOptionsSchema = z.object({
+  timeoutMs: z.number().int().min(0).max(900_000).default(900_000),
+  afterRevision: z.number().int().min(1).optional(),
+}).strict();
+export type AssessmentWaitResult = AssessmentStatus & { reason: 'settled' | 'changed' | 'timeout' };
 export interface ExecutionSummary { readonly planId: string; readonly jobId: string; readonly kind: 'assisted' | 'manual' | 'implementation'; readonly createdAt: string; readonly detail: string }
 
 /** One configured project writer. Closing it releases the existing project lock. */
@@ -47,6 +53,8 @@ export class AssistanceService {
   private readonly commands = new CommandLedger();
   private readonly controllers = new Map<string, AbortController>();
   private readonly executions = new Set<Promise<void>>();
+  private readonly assessmentObservers = new Map<string, Set<() => void>>();
+  private readonly observationController = new AbortController();
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
   private closing: Promise<void> | undefined;
@@ -69,6 +77,7 @@ export class AssistanceService {
 
   private async shutdown(): Promise<void> {
     this.closed = true;
+    this.observationController.abort(new Error('Assistance service closed'));
     for (const controller of this.controllers.values()) controller.abort();
     await Promise.allSettled([...this.executions]);
     try {
@@ -335,6 +344,8 @@ export class AssistanceService {
       if (!current || current.status === 'cancelled' || current.status === 'completed') return;
       const assessment: AssistedAssessment = { ...update(current), revision: current.revision + 1 };
       await store.record({ type: 'assessment-transition', assessment }, assessment);
+      const key = this.key(store.job.planId, store.job.jobId) + '\0' + id;
+      for (const observe of this.assessmentObservers.get(key) ?? []) observe();
     }, true);
   }
 
@@ -374,9 +385,44 @@ export class AssistanceService {
   }
 
   /** Observation is read only; it never resumes or starts assessment work. */
-  assessmentStatus(planId: string, jobId: string, assessmentId: string): Pick<AssistedAssessment, 'id' | 'status' | 'revision' | 'error'> & { stages: string[] } {
+  assessmentStatus(planId: string, jobId: string, assessmentId: string): AssessmentStatus {
     const assessment = this.requireAssessment(planId, jobId, assessmentId);
     return { id: assessment.id, status: assessment.status, revision: assessment.revision, error: assessment.error, stages: assessment.stages.map(stage => stage.name) };
+  }
+
+  /** Wait without polling or changing assessment state. Progress wake-ups are opt-in. */
+  async assessmentWait(planId: string, jobId: string, assessmentId: string,
+    options: z.input<typeof assessmentWaitOptionsSchema> = {}, signal?: AbortSignal): Promise<AssessmentWaitResult> {
+    const { timeoutMs, afterRevision } = assessmentWaitOptionsSchema.parse(options);
+    const observationSignal = signal ? AbortSignal.any([signal, this.observationController.signal]) : this.observationController.signal;
+    observationSignal.throwIfAborted();
+    this.assessmentStatus(planId, jobId, assessmentId); // Reject unknown identities before registering a waiter.
+    const key = this.key(planId, jobId) + '\0' + assessmentId;
+    return new Promise((resolveWait, reject) => {
+      const observers = this.assessmentObservers.get(key) ?? new Set<() => void>();
+      const cleanup = () => {
+        clearTimeout(timer);
+        observationSignal.removeEventListener('abort', abort);
+        observers.delete(observe);
+        if (observers.size === 0) this.assessmentObservers.delete(key);
+      };
+      const finish = (reason: AssessmentWaitResult['reason'], status: AssessmentStatus) => {
+        cleanup();
+        resolveWait({ ...status, reason });
+      };
+      const observe = () => {
+        const status = this.assessmentStatus(planId, jobId, assessmentId);
+        if (status.status !== 'queued' && status.status !== 'running') finish('settled', status);
+        else if (afterRevision !== undefined && status.revision > afterRevision) finish('changed', status);
+      };
+      const abort = () => { cleanup(); reject(observationSignal.reason); };
+      const timer = setTimeout(() => finish('timeout', this.assessmentStatus(planId, jobId, assessmentId)), timeoutMs);
+      this.assessmentObservers.set(key, observers);
+      observers.add(observe);
+      observationSignal.addEventListener('abort', abort, { once: true });
+      // No await between subscription and this check: a prior transition cannot be missed.
+      observe();
+    });
   }
 
   assessmentResult(planId: string, jobId: string, assessmentId: string): (AssistedOutcome & { completedAt?: string; finalization?: ApprovalFinalization }) | null {

@@ -57,7 +57,7 @@ End inherits the stored base, brief and advisory focus, and returns `{planId, jo
 
 For cumulative acceptance, separately call `iteration_assess` with `kind: "final"`, the registered IDs, explicit `base` and `candidate`, whole-plan `brief` and `acceptance`, a fresh `command_id` and `plan_baseline` equal to the original execution baseline. Final review compares the whole plan with the current candidate; an iteration base never replaces that baseline.
 
-`assessment_status` reports queued, running, interrupted, cancelled or completed state without starting work. Poll at a useful interval. A completed assessment has an `assessment_result` with `gate`, concise summary, repairs, decisions, gaps, evidence references and `completedAt` when recorded. `assessment_detail` also retains `requestedAt` and optional `completedAt`. Use `assessment_detail` when the compact result lacks evidence needed to act. `assessment_resume` explicitly resumes an interrupted assessment using retained stages. `assessment_cancel` stops only the named assessment. Retain the same command ID when retrying a request; do not submit a new candidate merely because a transport response was lost.
+`assessment_status` reports queued, running, interrupted, cancelled or completed state without starting work. Prefer `assessment_wait` for passive observation as described below. A completed assessment has an `assessment_result` with `gate`, concise summary, repairs, decisions, gaps, evidence references and `completedAt` when recorded. `assessment_detail` also retains `requestedAt` and optional `completedAt`. Use `assessment_detail` when the compact result lacks evidence needed to act. `assessment_resume` explicitly resumes an interrupted assessment using retained stages. `assessment_cancel` stops only the named assessment. Retain the same command ID when retrying a request; do not submit a new candidate merely because a transport response was lost.
 
 `finding_list` shows retained findings and pending choices for the assisted job. `finding_answer` records an already-authorized user's selection of one offered option for an existing pending request. Supply its `assessment_id`, `check_finding`, `request`, `option`, actual `user_name`, governing `authority` reference and a retryable `command_id`. Use it only after the user has made that choice and the cited record actually authorizes it. It records the answer; it neither edits source nor waives a required check. Material choices without authority remain for the user.
 
@@ -66,6 +66,34 @@ When a completed assessment reports a protected change that the user explicitly 
 The `clear` gate means required checks and assessment completed for that submitted candidate with no remaining material action under the declared policy. `action-required` names established repairs or decisions. `incomplete` names required evidence that was unavailable or invalid and may also retain established defects. A failed required audit and an unresolved protected change prevent `clear`. Pi's review does not authorize a protected edit or a weaker requirement. An exact accepted decision must identify the before and after Git entries; it does not change the original baseline. A repair is a new candidate and assessment, not a relabeling of old evidence.
 
 Native workers may edit across modules when the task requires it. Module focus concentrates context but adds no write boundary. The project decides whether and how candidate commits are authorized; assistance only inspects committed source and does not commit, merge, publish or update a tracker. The optional [coordinator skill](../.agents/skills/ramify-agent-coordinate/SKILL.md) and [module-work skill](../.agents/skills/ramify-agent-module-work/SKILL.md) capture this division of work.
+
+## Passive waiting
+
+Use a maximum 15-minute wait, returning early when work needs attention. The native coordinator waits on worker messages/completion with `wait_agent`; workers use interruptible process waits for local verification. When a host caps process waits below 15 minutes, use its longest supported wait instead of repeated one-second checks. Worker handoff ends the worker turn; only the coordinator observes the RA assessment. A deadline triggers a status/health check, not automatic cancellation, restart or acceptance.
+
+Call `assessment_wait` with the same `plan_id`, `job_id` and `assessment_id` as status reads. `timeout_ms` defaults to `900000` and accepts integers from zero to `900000`; zero is an immediate observation. The result includes the status fields (`id`, `status`, `revision`, `error`, `stages`) and `reason`: `settled` for completed, interrupted or cancelled work, or `timeout` with the current status. Routine stage progress does not end the default wait. For explicit progress observation, supply `after_revision`; a newer revision returns `changed` immediately, including if it was recorded before the call. A settled assessment always returns `settled`. After completion, retrieve `assessment_result` for the effective gate and any decisions; settled does not mean clear. Decisions become available with the completed result, not through speculative mid-review notifications.
+
+The service waits on committed transitions without polling or launching work. Cancelling the MCP request releases only that observation; `assessment_cancel` remains the explicit assessment cancellation operation. Closing the service rejects pending observations and retains the existing interruption/recovery behavior. Reconnect using the same job and assessment IDs.
+
+Configure the client deadline above the server wait. In Codex, add `tool_timeout_sec = 930` to the existing `[mcp_servers.<your-ra-server>]` entry. An official SDK client uses `client.callTool(request, { timeout: 930000 })`. A wrapper must also allow that duration. These are observation deadlines, not audit or provider execution limits. See the [official Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+Codex's periodic-commentary instructions may otherwise encourage minute-by-minute wake-ups. Add this to top-level `developer_instructions` in the effective Codex configuration, preserving any existing instructions:
+
+```toml
+developer_instructions = """
+During passive waiting for commands, subagents or assessments, the periodic
+commentary requirement and guidance to avoid waits longer than 60 seconds do
+not apply. Use interruptible waits of up to 15 minutes, returning early on
+completion, actionable messages, errors or user input where supported. Respect
+tool limits; use the longest supported wait when it is shorter. Do not wake
+solely to narrate unchanged status. On a 15-minute timeout, inspect status and
+investigate concrete signs of trouble; continue waiting when healthy. Timeout
+alone never authorizes cancellation or restart. Report meaningful changes,
+blockers, decisions and completion. Keep normal updates during active work.
+"""
+```
+
+Reload the client/start a fresh session and verify the effective coordinator and worker instructions. Existing sessions may retain their captured instructions. This is a host preference; the skills cannot override higher-priority instructions. The service tests verify early return, timeout and cancellation behavior, not whether a particular Codex client honors this preference or saves tokens.
 
 ## Evidence and current limits
 

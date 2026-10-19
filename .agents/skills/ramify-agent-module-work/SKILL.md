@@ -31,6 +31,12 @@ Consult the coordinator when design uncertainty needs a decision, another worker
 
 Preserve behavioral contracts and Ramify importability. Verify consumer/provider behavior together where it matters; local mocks alone do not demonstrate integration. When repairing an RA finding, use its evidence and acceptance to address the cause and relevant regressions, rather than changing the requirement or merely removing the reported symptom. Run checks appropriate to the change; RA performs the iteration audit.
 
+## Wait for verification
+
+Wait for commands to finish using an interruptible process wait, with a maximum of 15 minutes where the host supports it. Completion should return early. Use the longest supported wait if the tool has a shorter limit; avoid repeated one-second checks and separate sleep/status loops. At the deadline, inspect status and investigate concrete evidence of a problem, then continue waiting if healthy. A timeout alone does not justify stopping or restarting work. Keep detailed output in command logs and retrieve what is needed to diagnose failures.
+
+Send the coordinator meaningful changes, blockers and the engineering result, rather than unchanged-status messages or routine acknowledgments. After the handoff, finish the worker turn; the coordinator observes RA and can resume you for repairs. See [passive-wait setup](../../../docs/agent-assistance.md#passive-waiting) for host configuration; a skill cannot override conflicting higher-priority commentary instructions.
+
 ## Return a concise engineering result
 
 Report the changed behavior and interfaces, checks with their outcomes, any remaining integration work or uncertainty, and protected changes needing a decision. Mention other owners touched when useful for integration; no per-edit telemetry is required. Include a commit ID if the coordinator assigned candidate preparation, otherwise identify the working changes.

@@ -43,6 +43,39 @@ afterEach(async () => {
 });
 
 describe('official MCP client over linked transport', () => {
+  it('waits through MCP, keeps other calls available, and cancels observation independently', async () => {
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const { open } = await fixture(async context => {
+      await Promise.race([held, new Promise<void>(resolve => context.signal.addEventListener('abort', () => resolve(), { once: true }))]);
+      return { gate: 'clear', summary: 'Verified', repairs: [], decisions: [], gaps: [], evidence: [] };
+    });
+    const service = await open();
+    const { client, call } = await connect(service);
+    const job = await call('plan_start', { plan_id: 'sample', command_id: 'start-wait' }) as { jobId: string };
+    const submitted = await call('iteration_assess', { plan_id: 'sample', job_id: job.jobId, base: baseline, candidate,
+      brief: 'Held assessment', command_id: 'assess-wait' }) as { assessmentId: string };
+    const ids = { plan_id: 'sample', job_id: job.jobId, assessment_id: submitted.assessmentId };
+    const observe = vi.spyOn(service, 'assessmentWait');
+    const controller = new AbortController();
+    const waiting = client.callTool({ name: 'assessment_wait', arguments: ids }, { signal: controller.signal, timeout: 930_000 });
+    const rejected = expect(waiting).rejects.toThrow();
+    await vi.waitFor(() => expect(observe).toHaveBeenCalledTimes(1));
+    const signal = observe.mock.calls[0]![4]!;
+    expect(signal.aborted).toBe(false);
+    expect(await call('assessment_status', ids)).toMatchObject({ status: 'running' });
+    controller.abort();
+    await rejected;
+    await vi.waitFor(() => expect(signal.aborted).toBe(true));
+    expect(await call('assessment_status', ids)).toMatchObject({ status: 'running' });
+    expect(await call('assessment_wait', { ...ids, timeout_ms: 0 })).toMatchObject({ reason: 'timeout', status: 'running' });
+    await expect(call('assessment_wait', { ...ids, timeout_ms: 900_001 })).rejects.toThrow();
+    const completed = call('assessment_wait', ids);
+    release();
+    expect(await completed).toMatchObject({ reason: 'settled', status: 'completed' });
+    expect(await call('assessment_result', ids)).toMatchObject({ gate: 'clear' });
+  });
+
   it('initializes, discovers tools, registers once, observes a result and reconnects to the same job', async () => {
     let assessments = 0;
     const { open } = await fixture(async () => { assessments++; return { gate: 'incomplete', summary: 'Review unavailable', repairs: [], decisions: [], gaps: ['review'], evidence: [] }; });
