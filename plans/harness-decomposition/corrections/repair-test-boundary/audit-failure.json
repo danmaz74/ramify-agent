@@ -1,0 +1,13 @@
+{
+  "schema": "harness-decomposition.audit-repair/1",
+  "assessment": "as-0004",
+  "assessedCandidate": "e30a881d661736bdb597c45564d7db683ac9fe4a",
+  "auditEvidenceSha256": "e4a691805977d7f558d36b99cbab84a66d68716fc48ce06765ea67bfbac715fc",
+  "reportCommit": "b846d426347454020caa8d330cfb0ec083bb1cb4",
+  "runRef": "refs/audited/runs/2026-10-19T08-01-18Z-e30a881d6",
+  "checkStatus": "fail",
+  "diagnostic": "FAIL   node  subs/harness/src/tests/automatic-project-repair.test.ts > second supported preparation fault refuses after one repair invocation\nError: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\n \u276f subs/harness/src/tests/automatic-project-repair.test.ts:274:1\n    272| });\n    273|\n    274| test('second supported preparation fault refuses after one repair invo\u2026\n       | ^\n    275|   const subject = await scenario({ secondFault: true });\n    276|   const { events, latest, incident } = await incidents(subject);\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[1/1]\u23af",
+  "repairBase": "693ed890f2cc3844482b355b0fe071fcbdc4c443",
+  "status": "local repair verified; configured reassessment pending",
+  "repair": "Separate five actual missing/corrupt-payload restart witnesses from ordinary repair workflows. Ordinary file now uses the existing configured memory store; all case titles/behavior and timeout values retained. No production code or test-runner change."
+}

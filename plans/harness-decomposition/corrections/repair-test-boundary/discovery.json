@@ -1,0 +1,17 @@
+{
+  "command": "node_modules/.bin/vitest list --filesOnly --json",
+  "cwd": "/workspaces/worktrees/harness-decomposition",
+  "completeOutputSha256": "15e7042081c58c276b9d4d6582b77dc17a5fbc1856981230e743d279f31f7032",
+  "configuredFileCount": 476,
+  "selectedFiles": [
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/automatic-project-repair-persistence.test.ts",
+      "projectName": "node"
+    },
+    {
+      "file": "/workspaces/worktrees/harness-decomposition/subs/harness/src/tests/automatic-project-repair.test.ts",
+      "projectName": "node"
+    }
+  ],
+  "selection": "Both exact automatic-project-repair files, preserved ordinary guarded project; helper is not a discovered test file."
+}

@@ -47,3 +47,11 @@ The user rejected fixed review time limits on 2026-10-19: “there should be no 
 - Base: `ed9a61330fa6e3f7d72d34197e7fb840beffc13c`; dirty provenance reflects coordinator execution-note changes only.
 - Worker: `/root/session_store`; assistance extraction has not begun.
 - The already-running `as-0003` remains untouched while the source correction is prepared. The temporary 30-minute bootstrap is superseded by this user requirement and must be retired when the corrected assessor is qualified.
+
+## Current continuation (after broader review correction)
+
+- Session-store assessment `as-0003` completed `incomplete`: no source repairs or decisions; remaining gaps were inspection of oversized/compressed structural evidence. Independent native investigation now fully verifies those inputs and supplies bounded artifacts at `corrections/evidence-access/`.
+- Corrective candidate `e30a881d661736bdb597c45564d7db683ac9fe4a` was assessed as `as-0004`, completed `action-required`: Pi accepted the corrective behavior, but configured audit has an outstanding agent-tests failure. The worker is investigating its exact diagnostic before resubmission.
+- Broader joint candidate `693ed890f2cc3844482b355b0fe071fcbdc4c443` removes review silence stops across managed/manual/reconciliation/NFR assessment/investigation, retains non-review watchdogs and historical schema readers, and includes independently verified evidence. Local checks passed; it is not yet assessed.
+- Retain both original iteration IDs. Next: resolve the audit diagnostic, reassess the corrective iteration with `previous_assessment: as-0004`, reassess session-store with `previous_assessment: as-0003`, then switch the idle assessor to a qualified immutable corrected checkout before assistance extraction.
+- All assessments are currently settled. No execution is complete; five decomposition outcomes remain after session-store acceptance.
