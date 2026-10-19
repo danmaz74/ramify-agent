@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSessionOperations } from '../../subs/agent/src/session-operations.js';
 import { createScriptedSessionDriver } from '../../subs/agent/src/scripted.js';
-import type { SessionStore, SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
+import type { SessionDriverRuntime, SessionStore, SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
 import { runPiAssessment } from '../assistance/pi.js';
 
 function memoryStore(): SessionStore {
@@ -27,6 +27,13 @@ const base = { runId: 'assisted-job-1', operationId: 'review-1', projectRoot: '/
     validate: (value: unknown) => value && typeof value === 'object' && 'answer' in value && value.answer === 'supported'
       ? { ok: true as const, value: { answer: 'supported' } } : { ok: false as const, errors: [{ path: 'answer', message: 'Need supported answer' }] } },
 };
+
+afterEach(() => { vi.useRealTimers(); });
+
+function deferred() {
+  let resolve!: () => void; const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
 
 describe('assisted Pi assessment', () => {
   it('runs read-only snapshot tools, returns only a validated submission and retains operation evidence', async () => {
@@ -57,6 +64,57 @@ describe('assisted Pi assessment', () => {
     ]) });
     const result = await runPiAssessment({ ...base, operationId: 'review-2', operations });
     expect(result).toMatchObject({ status: 'incomplete', operationId: 'review-2' });
+  });
+
+  it.each(['submit', 'fail'] as const)('keeps a review pending beyond prior elapsed limits until the provider can %s', async outcome => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const entered = deferred(); const release = deferred();
+    let runtime!: SessionDriverRuntime;
+    const store = memoryStore();
+    const operations = createSessionOperations({ sessionStore: store, driver: { async dispatch(_input, current) {
+      runtime = current; entered.resolve(); await release.promise;
+      if (outcome === 'fail') return { kind: 'failed', error: 'Provider unavailable' };
+      const verdict = await current.submit('report', { answer: 'supported' });
+      expect(verdict.accepted).toBe(true);
+      return { kind: 'submitted', input: { answer: 'supported' } };
+    } } });
+    let ended = false;
+    const pending = runPiAssessment({ ...base, operations }).then(value => { ended = true; return value; });
+    await entered.promise;
+    // Cross both the former ten-minute review limit and its settlement grace.
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(ended).toBe(false);
+    expect(runtime.signal.aborted).toBe(false);
+    expect((await store.read(base.runId, 'operation:review-1'))?.body['phase']).not.toBe('terminal');
+    release.resolve();
+    const result = await pending;
+    expect(result.status).toBe(outcome === 'submit' ? 'submitted' : 'incomplete');
+    if (outcome === 'submit') expect(result).toMatchObject({ value: { answer: 'supported' } });
+    else expect(result).toMatchObject({ reason: expect.stringContaining('Pi assessment failed:') });
+  });
+
+  it('explicit cancellation still stops a long review and waits for the provider to settle', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    const entered = deferred(); const aborted = deferred(); const release = deferred();
+    const controller = new AbortController(); let accepted = 0;
+    const operations = createSessionOperations({ sessionStore: memoryStore(), driver: { async dispatch(_input, runtime) {
+      runtime.signal.addEventListener('abort', aborted.resolve, { once: true }); entered.resolve();
+      await aborted.promise; await release.promise;
+      expect((await runtime.submit('late-report', { answer: 'supported' })).accepted).toBe(false);
+      return { kind: 'ended' };
+    } } });
+    let ended = false;
+    const pending = runPiAssessment({ ...base, operations, signal: controller.signal,
+      onSubmitted: async () => { accepted++; } }).then(value => { ended = true; return value; });
+    await entered.promise;
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(ended).toBe(false);
+    controller.abort(); await aborted.promise;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(ended).toBe(false);
+    release.resolve();
+    expect(await pending).toMatchObject({ status: 'incomplete', reason: expect.stringContaining('stopped') });
+    expect(accepted).toBe(0);
   });
 
   it('refuses a mutating assessment tool before starting a session', async () => {

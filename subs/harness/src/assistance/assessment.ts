@@ -30,7 +30,6 @@ export interface AssessmentDependencies {
   readonly protection?: typeof compareProtection;
   readonly review?: (input: AssistedPiReviewInput) => Promise<PiAssessmentResult<AssistedReviewSubmission>>;
   readonly reconcile?: (input: PiAssessmentInput<BoundReconciliation>) => Promise<PiAssessmentResult<BoundReconciliation>>;
-  readonly timeoutMs?: number;
 }
 interface ReviewEvidence {
   readonly result: PiAssessmentResult<AssistedReviewSubmission>;
@@ -219,7 +218,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const operations = await dependencies.operations();
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
-        candidate: snapshot.commit, tree: snapshot.tree, prepared: withEvidence, signal, timeoutMs: dependencies.timeoutMs,
+        candidate: snapshot.commit, tree: snapshot.tree, prepared: withEvidence, signal,
         onSubmitted: async (value, evidence) => {
           const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => gaps.push(message) },
             snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');
@@ -277,7 +276,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       reconciliation = await (dependencies.reconcile ?? runPiAssessment)({ operations, runId: job.jobId,
         operationId: `${assessment.id}-reconciliation-${assessment.revision}`, projectRoot, candidate: snapshot.commit, tree: snapshot.tree,
         message, systemPrompt: 'Investigate and reconcile the supplied findings using the pinned candidate evidence. Submit one disposition for each requested finding and evidence-backed relations. Inspect relevant code, tests and consumers before fixing or superseding a concern. Required checks and protection conflicts remain factual obligations. Use submit_reconciliation.',
-        tools: [...tools.definitions, retainedEvidence], signal, timeoutMs: dependencies.timeoutMs,
+        tools: [...tools.definitions, retainedEvidence], signal,
         onSubmitted: async (value, evidence) => record('reconciliation-accepted', { status: 'submitted', value, ...evidence, exactSourceReads: [...tools.read().keys()] }),
         submission: { name: 'submit_reconciliation', description: 'Submit the reconciled judgments and remaining action brief.',
           inputSchema: z.toJSONSchema(reconciliationSubmissionSchema) as JsonSchema,

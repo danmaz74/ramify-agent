@@ -26,8 +26,24 @@ Iteration 1: shared durable session persistence and all real consumers.
 - Focus: `subs/harness/subs/session-store`.
 - Native Sol implementation worker: `/root/session_store`.
 - Independent Sol evaluation worker: `/root/evaluation`, restricted to comparison evidence under `evaluation/`.
-- Candidate: `7e399e6b13ada2214b41a82c6eddfb03636da953`.
-- Submitted assessment: `as-0001`; awaiting completed compact result.
+- Candidate: `ed9a61330fa6e3f7d72d34197e7fb840beffc13c`.
+- Current assessment: `as-0003`, linked to `as-0002` (audit/protection passed; review exceeded its configured deadline); awaiting compact result.
 - Local verification: 218 ordinary tests, 8 native cases, TypeScript and Ramify structural checks passed. No protected changes reported.
 
-Follow the six ordered outcomes in the captured plan. The implementation worker owns cross-owner integration; the coordinator submits each candidate and observes RA. Independent evaluation does not authorize a dependent extraction before the current gate. Next: retrieve the completed compact result for `as-0001`; repair within the same iteration if required, otherwise start iteration 2 assistance extraction. Worker `/root/session_store` is available for related outcomes; evaluation worker completed its baseline artifacts.
+Follow the six ordered outcomes in the captured plan. The implementation worker owns cross-owner integration; the coordinator submits each candidate and observes RA. Independent evaluation does not authorize a dependent extraction before the current gate. Next: retrieve the completed compact result for `as-0003`; repair within the same iteration if required, otherwise start iteration 2 assistance extraction. Worker `/root/session_store` is available for related outcomes; evaluation worker completed its baseline artifacts.
+
+Assessor startup now explicitly selects `openai/gpt-6-astra:high`; offline readiness verifies preservation capabilities. Same stable code, target, execution and original baseline retained.
+
+The stable runtime now receives `timeoutMs: 1800000` through `/tmp/harness-decomposition-mcp/assessor-30min.mjs`, using unchanged service/runtime/MCP composition and shutdown order. Observer waits remain 15 minutes. No assessment was cancelled or accepted on elapsed time.
+
+Iteration 2 read-only reconnaissance identified a cohesive move of all 13 assistance files and 12 related tests. Candidate concern binding, reconciliation core, review scheduling and generic finding transactions need separation from autonomous wrappers. Shared job/command/lock/audit-workspace mechanisms retain explicit support ownership. No protected configuration change is currently expected. No iteration 2 source edits have begun.
+
+## User correction: review has no elapsed-time cancellation
+
+The user rejected fixed review time limits on 2026-10-19: “there should be no such thing.” Remove review execution deadlines rather than increasing them. Observation waits remain bounded and do not cancel work; explicit cancellation and genuine failures remain meaningful.
+
+- Corrective iteration: `it-4e134ddb-6972-4282-9fa2-b15b0bab201a`.
+- Started: `2026-10-19T07:36:25.002Z` (UTC).
+- Base: `ed9a61330fa6e3f7d72d34197e7fb840beffc13c`; dirty provenance reflects coordinator execution-note changes only.
+- Worker: `/root/session_store`; assistance extraction has not begun.
+- The already-running `as-0003` remains untouched while the source correction is prepared. The temporary 30-minute bootstrap is superseded by this user requirement and must be retired when the corrected assessor is qualified.

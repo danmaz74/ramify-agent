@@ -1,0 +1,12 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/src/tests/assisted-pi.test.ts subs/harness/src/tests/assistance-service.test.ts subs/harness/src/tests/assistance-mcp.test.ts subs/harness/src/tests/assistance-assessment.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+
+ Test Files  4 passed (4)
+      Tests  65 passed (65)
+   Start at  07:37:53
+   Duration  5.83s (transform 2.37s, setup 230ms, import 5.73s, tests 5.44s, environment 0ms)

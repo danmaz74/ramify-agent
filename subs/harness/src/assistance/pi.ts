@@ -29,7 +29,6 @@ export interface PiAssessmentInput<T> {
   /** Persist the validated report before Pi receives an accepted submission verdict. */
   readonly onSubmitted?: ((value: T, evidence: { readonly sessionId: string; readonly operationId: string; readonly eventCount: number }) => Promise<void>) | undefined;
   readonly onEvent?: ((event: AgentEvent) => void) | undefined;
-  readonly timeoutMs?: number | undefined;
   readonly signal?: AbortSignal | undefined;
 }
 
@@ -49,8 +48,6 @@ export async function runPiAssessment<T>(input: PiAssessmentInput<T>): Promise<P
     status: 'incomplete', reason, operationId: input.operationId, ...(sessionId ? { sessionId } : {}), eventCount,
   });
   if (input.signal?.aborted) return incomplete('Assessment was cancelled before Pi started', 0);
-  const timeoutMs = input.timeoutMs ?? 10 * 60_000;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error('Pi assessment timeout must be a positive safe integer');
   const declarations: SessionToolDeclaration[] = [
     ...input.tools.map(tool => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, mutating: tool.mutating ?? false })),
     { name: input.submission.name, description: input.submission.description, inputSchema: input.submission.inputSchema, mutating: false },
@@ -85,23 +82,10 @@ export async function runPiAssessment<T>(input: PiAssessmentInput<T>): Promise<P
   const stop = () => { void handle.stop(); };
   input.signal?.addEventListener('abort', stop, { once: true });
   if (input.signal?.aborted) stop();
-  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    const finished = handle.settled();
-    const receipt = await Promise.race([
-      finished,
-      new Promise<null>(resolve => { timeout = setTimeout(() => resolve(null), timeoutMs); }),
-    ]);
-    if (receipt === null) {
-      let stopTimer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          handle.stop(),
-          new Promise<never>((_, reject) => { stopTimer = setTimeout(() => reject(new Error(`Pi assessment ${input.operationId} did not confirm settlement after timeout`)), 30_000); }),
-        ]);
-      } finally { if (stopTimer) clearTimeout(stopTimer); }
-      return incomplete(`Pi assessment exceeded ${timeoutMs} ms`, eventCount, sessionId);
-    }
+    // Review lifetime follows actual provider settlement or explicit cancellation.
+    // Observation deadlines belong to assessment_wait and do not stop this work.
+    const receipt = await handle.settled();
     if (receipt.status !== 'completed' || receipt.outcome?.kind !== 'submitted') {
       return incomplete(`Pi assessment ${receipt.status}: ${receipt.reason ?? receipt.outcome?.kind ?? 'no accepted submission'}`, eventCount, sessionId);
     }
@@ -109,7 +93,6 @@ export async function runPiAssessment<T>(input: PiAssessmentInput<T>): Promise<P
     if (accepted === undefined) return incomplete('Pi submitted in a prior operation; the accepted report must be read from its retained assessment record', eventCount, sessionId);
     return { status: 'submitted', value: accepted, operationId: input.operationId, sessionId, eventCount };
   } finally {
-    if (timeout) clearTimeout(timeout);
     input.signal?.removeEventListener('abort', stop);
   }
 }

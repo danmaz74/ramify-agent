@@ -8,14 +8,14 @@ import { AssistanceService } from './service.js';
 import { serveAssistanceStdio } from './mcp.js';
 
 /** The executable composes the existing Pi store lazily, after obtaining project ownership. */
-export function createAssistanceRuntime(options: { projectRoot: string; model?: string; timeoutMs?: number }): {
+export function createAssistanceRuntime(options: { projectRoot: string; model?: string }): {
   readonly assessor: Assessor;
   close(): Promise<void>;
 } {
   let store: LedgerSessionStore | undefined;
   let operations: Promise<SessionOperations> | undefined;
   return {
-    assessor: createAssessor({ timeoutMs: options.timeoutMs, operations: () => operations ??= (async () => {
+    assessor: createAssessor({ operations: () => operations ??= (async () => {
       store = await openSessionStore({ directory: join(options.projectRoot, 'plans', '.harness', 'session-operations', 'store') });
       return createPiAgent({ model: options.model }).bindSessionStore!(store);
     })() }),

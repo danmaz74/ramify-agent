@@ -1,0 +1,39 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/src/tests/assisted-pi.test.ts subs/harness/src/tests/assistance-service.test.ts subs/harness/src/tests/assistance-mcp.test.ts subs/harness/src/tests/assistance-assessment.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+ ❯ |node| subs/harness/src/tests/assisted-pi.test.ts (7 tests | 1 failed) 67ms
+     × keeps a review pending beyond prior elapsed limits until the provider can fail 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |node| subs/harness/src/tests/assisted-pi.test.ts > assisted Pi assessment > keeps a review pending beyond prior elapsed limits until the provider can fail
+AssertionError: expected { status: 'incomplete', …(4) } to match object { reason: StringContaining{…} }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "reason": StringContaining "Provider unavailable",
++   "reason": "Pi assessment failed: Provider completion interrupted; point unavailable",
+  }
+
+ ❯ subs/harness/src/tests/assisted-pi.test.ts:93:25
+     91|     expect(result.status).toBe(outcome === 'submit' ? 'submitted' : 'i…
+     92|     if (outcome === 'submit') expect(result).toMatchObject({ value: { …
+     93|     else expect(result).toMatchObject({ reason: expect.stringContainin…
+       |                         ^
+     94|   });
+     95|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 64 passed (65)
+   Start at  07:37:31
+   Duration  6.75s (transform 2.26s, setup 230ms, import 5.27s, tests 6.77s, environment 0ms)
