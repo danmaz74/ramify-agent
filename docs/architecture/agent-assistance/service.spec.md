@@ -81,7 +81,7 @@ surrounding behavior. If prior acceptance was met and no open findings or protec
 conflicts remain, passing configured checks can finish a correction without another
 semantic invocation. Otherwise the reviewer receives a focused follow-up brief.
 A nonempty `review_reason` explicitly requests another broad review and records why.
-`review-policy` stage evidence records broad, focused-follow-up or not-run work;
+`review-policy` stage evidence records broad iteration, final-plan, focused-follow-up or not-run work;
 not-run work is never represented as a completed review. The first final assessment
 receives the complete plan, including applicable fixed and nonfunctional requirements.
 A subsequent final request naming that final assessment follows selected repairs and
@@ -90,6 +90,40 @@ complete catalog by default. The original plan remains available on demand, and
 inspection may broaden for concrete changed circumstances. A prior iteration
 assessment does not replace the first complete-plan assessment. All final comparisons
 retain the original registered plan baseline and exact candidate.
+
+### Final plan review
+
+The assisted final review is distinct from the broad iteration code/scope review.
+It assesses whole-plan completeness, cross-iteration integration, remaining fixed
+and nonfunctional obligations, unresolved findings and limitations, and
+architectural quality: clean modularity without unnecessary complexity. An
+architectural concern names a concrete practical consequence and the smallest
+useful correction; speculative redesign, style preferences and reopening settled
+decisions without new evidence are not useful final findings.
+
+The first packet contains the complete captured plan, final audit/protection
+state, known finding dispositions, changed file/module hints, and compact earlier
+iteration outcomes, boundaries, candidates, conclusions and evidence references.
+At most 30 recent assessment summaries are inline; the original records remain
+available on demand. No cumulative patch is eagerly collected or embedded. Full
+assessments, individual iteration diffs, the cumulative diff and candidate source
+are available through ordinary inspection and `assessment_evidence`.
+
+Completed, successfully submitted iteration reviews may support requirement
+answers through optional `evidenceRefs`; `explanation` states why they apply to the
+final candidate. References must name supplied accepted review stage records from
+before this assessment. Final, future, interrupted, unavailable or unsubmitted
+reviews cannot be invented as accepted iteration evidence. An action-required
+assessment can supply accepted review evidence while its unmet/uncertain answers
+and protection status remain explicit; accepted submission does not mean the plan
+passed. A citation alone cannot resolve an unmet obligation.
+
+Reuse these conclusions without fresh source inspection merely to repeat them.
+Revisit behavior when later changes, conflicting evidence, unresolved limitations
+or a concrete integration concern warrant it. The reviewer explains any resolution
+of earlier unmet or uncertain answers. Exact protection authority and failed
+required checks retain their meaning. Subsequent final repairs keep focused
+follow-up; no evidence cache, automatic invalidation graph or new ledger is added.
 
 A failed configured audit returns its diagnostic evidence after factual finding
 and protection ingestion. It does not invoke semantic review or reconciliation.

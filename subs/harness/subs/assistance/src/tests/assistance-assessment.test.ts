@@ -829,6 +829,73 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(result.outcome.repairs.join(' ')).toContain('Material behavior 20 is incorrect');
   });
 
+  it('retains unmet answers when a completed accepted iteration report remains action-required', async () => {
+    const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const report = { ...reviewReport(input.candidate), requirements: reviewReport(input.candidate).requirements.map(answer => ({ ...answer,
+          outcome: 'unmet' as const, explanation: 'The feature remains 1; no later correction resolved it.', evidencePaths: [],
+          ...(input.kind === 'final' ? { evidenceRefs: ['assessments/as-0001/stages/review.json'] } : {}) })) };
+        if (input.kind === 'final') {
+          expect(input.prepared.message).toContain('"gate":"action-required"');
+          expect(input.prepared.message).toContain('acceptance-1 unmet');
+          expect(input.prepared.validate(report).ok).toBe(true);
+        }
+        return { status: 'submitted', value: report, operationId: input.operationId, sessionId: 'partial-review', eventCount: 1 };
+      },
+    });
+    expect((await assess(first, baseline, 'unmet-iteration')).outcome.gate).toBe('action-required');
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, kind: 'final', base: baseline, candidate: first,
+      planBaseline: baseline, brief: 'Complete plan.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'unmet-final' });
+    const result = await outcome(service, job.jobId, admitted.assessmentId);
+    expect(result.gate).toBe('action-required');
+    expect(result.repairs.join(' ')).toContain('The feature remains 1');
+  });
+
+  it('uses real prior iteration evidence in a compact final packet without treating unavailable reports as accepted', async () => {
+    let reviews = 0;
+    let finalMessage = '';
+    const { service, job, assess, candidates } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline),
+      [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        reviews++;
+        if (reviews === 2) return { status: 'incomplete', reason: 'Advisory provider unavailable.', operationId: input.operationId, eventCount: 1 };
+        if (input.kind !== 'final') return { status: 'submitted', value: reviewReport(input.candidate), operationId: input.operationId, sessionId: 'iteration-review', eventCount: 1 };
+        finalMessage = input.prepared.message;
+        expect(candidates.calls.filter(call => call.startsWith('diffPatch'))).toEqual(patchesBeforeFinal);
+        expect(finalMessage).toContain('Advisory provider unavailable.');
+        expect(finalMessage).toContain('whole-plan completeness');
+        const accepted = 'assessments/as-0001/stages/review.json';
+        const report = { ...reviewReport(input.candidate), inspected: [], requirements: reviewReport(input.candidate).requirements.map(answer => ({ ...answer,
+          evidencePaths: [], evidenceRefs: [accepted], explanation: 'The accepted iteration assessed these exact implementation bytes; the later unavailable review made no contrary judgment. The final audit and integration evidence are consistent.' })) };
+        expect(input.prepared.validate(report).ok).toBe(true);
+        for (const ref of ['assessments/as-0002/stages/review.json', 'assessments/as-0003/stages/review.json', 'assessments/as-9999/stages/review.json'])
+          expect(input.prepared.validate({ ...report, requirements: report.requirements.map(answer => ({ ...answer, evidenceRefs: [ref] })) }).ok).toBe(false);
+        const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
+        const retained = JSON.parse((await tool.execute({ ref: 'assessments/as-0001' }, new AbortController().signal)).text);
+        expect(JSON.parse(retained.content)).toMatchObject({ status: 'completed', request: { candidate: first } });
+        const diff = JSON.parse((await tool.execute({ ref: 'assessments/as-0001/diff' }, new AbortController().signal)).text);
+        expect(diff.content).toContain('feature');
+        const cumulative = JSON.parse((await tool.execute({ ref: 'cumulative-diff' }, new AbortController().signal)).text);
+        expect(cumulative.content).toContain('feature');
+        return { status: 'submitted', value: report, operationId: input.operationId, sessionId: 'final-review', eventCount: 1 };
+      },
+    });
+    let patchesBeforeFinal: string[] = [];
+    expect((await assess(first, baseline, 'accepted-iteration')).outcome.gate).toBe('clear');
+    expect((await assess(repaired, first, 'unavailable-iteration')).outcome.gate).toBe('incomplete');
+    patchesBeforeFinal = candidates.calls.filter(call => call.startsWith('diffPatch'));
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, kind: 'final', base: first, candidate: repaired,
+      planBaseline: baseline, brief: 'Assess the whole plan and integration.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'compact-final' });
+    expect((await outcome(service, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(finalMessage).toContain('# Plan');
+    expect(finalMessage).toContain(first); expect(finalMessage).toContain(repaired);
+    expect(finalMessage).not.toContain('export const feature');
+    expect(service.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'review-policy')?.evidence)
+      .toMatchObject({ mode: 'final-plan' });
+  });
+
   it('finishes final repair through focused follow-up while retaining the complete plan on demand', async () => {
     const messages: string[] = [];
     const plan = '# Plan\nThe feature returns 2.\nKeep the unchanged dependency.\n';
@@ -871,7 +938,7 @@ describe('assisted assessment pipeline with real service records', () => {
       [repaired]: source('2', first, { comparisons: { [baseline]: { changes: [{ status: 'M', path: 'src/feature.ts' }] } } }) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
-        reviewBases.push(input.prepared.message.match(/Base: ([a-f0-9]+); candidate/u)?.[1] ?? 'missing');
+        reviewBases.push(input.prepared.message.match(/base commit: ([a-f0-9]+)/u)?.[1] ?? input.prepared.message.match(/Base: ([a-f0-9]+); candidate/u)?.[1] ?? 'missing');
         const read = await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!.execute({ path: 'src/dependency.ts' }, new AbortController().signal);
         dependencyReads.push(read.text);
         const validated = input.prepared.validate(reviewReport(input.candidate));

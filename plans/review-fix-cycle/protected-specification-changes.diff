@@ -1,8 +1,8 @@
 diff --git a/docs/architecture/agent-assistance/service.spec.md b/docs/architecture/agent-assistance/service.spec.md
-index 122f14ae..d21ffa13 100644
+index 122f14ae..f104982b 100644
 --- a/docs/architecture/agent-assistance/service.spec.md
 +++ b/docs/architecture/agent-assistance/service.spec.md
-@@ -47,0 +48,78 @@ Observation subscribes to committed transitions and checks the current state wit
+@@ -47,0 +48,112 @@ Observation subscribes to committed transitions and checks the current state wit
 +
 +## Focused assessment preparation
 +
@@ -39,7 +39,7 @@ index 122f14ae..d21ffa13 100644
 +conflicts remain, passing configured checks can finish a correction without another
 +semantic invocation. Otherwise the reviewer receives a focused follow-up brief.
 +A nonempty `review_reason` explicitly requests another broad review and records why.
-+`review-policy` stage evidence records broad, focused-follow-up or not-run work;
++`review-policy` stage evidence records broad iteration, final-plan, focused-follow-up or not-run work;
 +not-run work is never represented as a completed review. The first final assessment
 +receives the complete plan, including applicable fixed and nonfunctional requirements.
 +A subsequent final request naming that final assessment follows selected repairs and
@@ -48,6 +48,40 @@ index 122f14ae..d21ffa13 100644
 +inspection may broaden for concrete changed circumstances. A prior iteration
 +assessment does not replace the first complete-plan assessment. All final comparisons
 +retain the original registered plan baseline and exact candidate.
++
++### Final plan review
++
++The assisted final review is distinct from the broad iteration code/scope review.
++It assesses whole-plan completeness, cross-iteration integration, remaining fixed
++and nonfunctional obligations, unresolved findings and limitations, and
++architectural quality: clean modularity without unnecessary complexity. An
++architectural concern names a concrete practical consequence and the smallest
++useful correction; speculative redesign, style preferences and reopening settled
++decisions without new evidence are not useful final findings.
++
++The first packet contains the complete captured plan, final audit/protection
++state, known finding dispositions, changed file/module hints, and compact earlier
++iteration outcomes, boundaries, candidates, conclusions and evidence references.
++At most 30 recent assessment summaries are inline; the original records remain
++available on demand. No cumulative patch is eagerly collected or embedded. Full
++assessments, individual iteration diffs, the cumulative diff and candidate source
++are available through ordinary inspection and `assessment_evidence`.
++
++Completed, successfully submitted iteration reviews may support requirement
++answers through optional `evidenceRefs`; `explanation` states why they apply to the
++final candidate. References must name supplied accepted review stage records from
++before this assessment. Final, future, interrupted, unavailable or unsubmitted
++reviews cannot be invented as accepted iteration evidence. An action-required
++assessment can supply accepted review evidence while its unmet/uncertain answers
++and protection status remain explicit; accepted submission does not mean the plan
++passed. A citation alone cannot resolve an unmet obligation.
++
++Reuse these conclusions without fresh source inspection merely to repeat them.
++Revisit behavior when later changes, conflicting evidence, unresolved limitations
++or a concrete integration concern warrant it. The reviewer explains any resolution
++of earlier unmet or uncertain answers. Exact protection authority and failed
++required checks retain their meaning. Subsequent final repairs keep focused
++follow-up; no evidence cache, automatic invalidation graph or new ledger is added.
 +
 +A failed configured audit returns its diagnostic evidence after factual finding
 +and protection ingestion. It does not invoke semantic review or reconciliation.
@@ -82,7 +116,7 @@ index 122f14ae..d21ffa13 100644
 +that authority. Both command orders preserve original receipts and assessment
 +records across reload. This is ordinary coordinator authority, not user approval.
 diff --git a/docs/architecture/plan-context-catalog.spec.md b/docs/architecture/plan-context-catalog.spec.md
-index cf1bbbaa..e206b788 100644
+index cf1bbbaa..c61d979c 100644
 --- a/docs/architecture/plan-context-catalog.spec.md
 +++ b/docs/architecture/plan-context-catalog.spec.md
 @@ -213,6 +213,9 @@ in this module. These rules govern that judgement:
@@ -101,8 +135,20 @@ index cf1bbbaa..e206b788 100644
 +  again. Retained satisfied judgments keep their evidence and provenance; actual
 +  unmet or undetermined requirements remain explicit until answered. A repair
 +  module engineer receives the subset the coordinator cites. The coordinator
+@@ -270,0 +274,11 @@ yet decided. Plan 14 records the choice.
++
++
++Assisted final plan assessment receives the complete captured plan with compact
++iteration outcomes and references to existing accepted review evidence. It judges
++completeness, cross-iteration integration, remaining fixed/nonfunctional obligations
++and architectural quality, rather than repeating every iteration's code review.
++Earlier accepted conclusions can support explained final answers; their original
++candidate identities, unmet/uncertain results and limitations remain visible.
++Source and full records are inspected on demand when changed behavior or concrete
++integration evidence warrants reconsideration. This adds no per-requirement proof
++cache or automatic invalidation model.
 diff --git a/docs/harness.spec.md b/docs/harness.spec.md
-index 3a01dad9..c921f65a 100644
+index 3a01dad9..94a8d89c 100644
 --- a/docs/harness.spec.md
 +++ b/docs/harness.spec.md
 @@ -302 +302,3 @@ with that final gate as its origin, preserving earlier accepted work. After
@@ -142,7 +188,7 @@ index 3a01dad9..c921f65a 100644
 +starting points selected by the assigning architect for this task. A principles
 +filename alone does not make a document an initial review obligation. Other
 +relevant guidance remains available through candidate inspection. Relevant specification obligations
-@@ -744,0 +758,42 @@ require adding every specification to recurring design guidance.
+@@ -744,0 +758,55 @@ require adding every specification to recurring design guidance.
 +
 +
 +### Review Once, Select Useful Repairs
@@ -185,3 +231,16 @@ index 3a01dad9..c921f65a 100644
 +of those elements. An unanswered unmet or undetermined requirement cannot become
 +satisfied. The original baseline, prepared candidate identities and final
 +configured checks remain in force; no separate proof cache is required.
++
++
++Assisted final review uses accepted iteration reports as evidence for plan
++completeness, integration, remaining obligations and architectural quality. Its
++initial packet carries the complete captured plan and compact recorded outcomes,
++with candidate source, full assessments and individual/cumulative diffs on demand.
++It does not eagerly collect a cumulative patch or repeat iteration code review.
++The reviewer explains why earlier evidence applies and revisits behavior for
++later changes, conflicting evidence, unresolved limitations or concrete
++integration concerns. Architectural findings identify practical consequences and
++the smallest useful correction. Accepted submissions can retain unmet obligations;
++missing or unavailable reviews cannot become accepted evidence. Protection
++authority remains independent. Later selected repairs keep focused follow-up.

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { scriptedCandidates } from '../../../autonomous/subs/acceptance/src/tests/helpers/candidates.js';
 import { prepareAssistedReview } from '../assisted.js';
 import { openCandidateSnapshot } from '../snapshot.js';
@@ -10,6 +10,37 @@ const source = () => scriptedCandidates(root, { base: { tree: 'tree-0', base: 'b
 } });
 
 describe('assisted review preparation', () => {
+  it('prepares a compact final integration review without fetching a huge cumulative patch and validates accepted evidence references', async () => {
+    const candidates = source();
+    const diff = vi.spyOn(candidates, 'diffPatch').mockResolvedValue('huge cumulative patch\n'.repeat(10000));
+    const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });
+    const accepted = 'assessments/as-0001/stages/review.json';
+    const prepared = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
+      briefing: { id: 'final-1', kind: 'final', iteration: 'final-1', snapshot, outcome: 'Complete the captured plan.',
+        audit: { status: 'passed' }, principles: [], requirements: [{ ref: 'plan', text: 'The complete captured plan.' }],
+        finalContext: { total: 1, acceptedReviewRefs: [accepted], protection: 'No unauthorized protected differences.', iterations: [{
+          id: 'as-0001', iteration: 'it-1', goal: 'Implement feature.', base: 'base', candidate: 'candidate', status: 'completed', gate: 'action-required',
+          conclusion: 'Feature complete; exact protection authority remains pending.', remaining: ['Protected contract change requires authority.'], evidenceRefs: [accepted] }] } } });
+    expect(diff).not.toHaveBeenCalled();
+    expect(prepared.message).toContain('Final plan review');
+    expect(prepared.message).not.toContain('huge cumulative patch');
+    expect(prepared.message).not.toContain('Combined code and scope review');
+    for (const phrase of ['whole-plan completeness', 'cross-iteration integration', 'fixed and nonfunctional', 'architectural quality',
+      'unnecessary complexity', 'clean modularity', 'smallest useful correction', 'conflicting evidence', 'on demand']) expect(prepared.message).toContain(phrase);
+    const report = { concerns: [], codeAssessment: 'Reviewed integration.', scopeAssessment: 'Plan complete.',
+      design: { needed: false, reason: 'Existing module boundaries remain appropriate.', assessment: 'No unnecessary indirection.' },
+      requirements: [{ ref: 'plan', outcome: 'met', explanation: 'The accepted iteration verified the feature; no later change affects that behavior.', evidencePaths: [], evidenceRefs: [accepted] }] };
+    expect(prepared.validate(report).ok).toBe(true);
+    expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], evidenceRefs: ['assessments/as-9999/stages/review.json'] }] }).ok).toBe(false);
+    expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], explanation: '' }] }).ok).toBe(false);
+    const ordinary = await prepareAssistedReview({ source: candidates, projectRoot: root, maxConcerns: 4,
+      briefing: { id: 'iteration', iteration: 'it-1', snapshot, outcome: 'Implement feature.', audit: { status: 'passed' },
+        principles: [], requirements: [{ ref: 'plan', text: 'Implement feature.' }] } });
+    expect(diff).toHaveBeenCalled();
+    expect(ordinary.message).toContain('Combined code and scope review');
+    expect(ordinary.validate(report).ok).toBe(false);
+  });
+
   it('renders factual audit state and requires answers for behavior absent from the diff', async () => {
     const candidates = source();
     const snapshot = await openCandidateSnapshot(candidates, root, { commit: 'candidate', base: 'base' });

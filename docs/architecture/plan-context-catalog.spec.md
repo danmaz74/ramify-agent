@@ -271,3 +271,14 @@ turn. Whether that extraction is guided by the plan's goal, so that only
 requirements bearing on this plan become elements, or extracts every rule of
 a document once and is cached by the document's hash across runs, is not
 yet decided. Plan 14 records the choice.
+
+
+Assisted final plan assessment receives the complete captured plan with compact
+iteration outcomes and references to existing accepted review evidence. It judges
+completeness, cross-iteration integration, remaining fixed/nonfunctional obligations
+and architectural quality, rather than repeating every iteration's code review.
+Earlier accepted conclusions can support explained final answers; their original
+candidate identities, unmet/uncertain results and limitations remain visible.
+Source and full records are inspected on demand when changed behavior or concrete
+integration evidence warrants reconsideration. This adds no per-requirement proof
+cache or automatic invalidation model.

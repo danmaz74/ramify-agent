@@ -797,3 +797,16 @@ prior assessment and IDs actually reviewed. Retained judgments are not fresh rev
 of those elements. An unanswered unmet or undetermined requirement cannot become
 satisfied. The original baseline, prepared candidate identities and final
 configured checks remain in force; no separate proof cache is required.
+
+
+Assisted final review uses accepted iteration reports as evidence for plan
+completeness, integration, remaining obligations and architectural quality. Its
+initial packet carries the complete captured plan and compact recorded outcomes,
+with candidate source, full assessments and individual/cumulative diffs on demand.
+It does not eagerly collect a cumulative patch or repeat iteration code review.
+The reviewer explains why earlier evidence applies and revisits behavior for
+later changes, conflicting evidence, unresolved limitations or concrete
+integration concerns. Architectural findings identify practical consequences and
+the smallest useful correction. Accepted submissions can retain unmet obligations;
+missing or unavailable reviews cannot become accepted evidence. Protection
+authority remains independent. Later selected repairs keep focused follow-up.

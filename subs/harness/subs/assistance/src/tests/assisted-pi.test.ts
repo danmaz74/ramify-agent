@@ -1,8 +1,9 @@
+import { assistedReviewSubmissionSchema } from '../../../reviews/src/assisted.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSessionOperations } from '../../../agent/src/session-operations.js';
 import { createScriptedSessionDriver } from '../../../agent/src/scripted.js';
 import type { SessionDriverRuntime, SessionStore, SessionStoreRecord } from '../../../agent/src/interfaces/session-operations.js';
-import { runPiAssessment } from '../pi.js';
+import { runPiAssessment, runAssistedPiReview } from '../pi.js';
 
 function memoryStore(): SessionStore {
   const records = new Map<string, SessionStoreRecord>(); const payloads = new Map<string, Uint8Array>();
@@ -36,6 +37,24 @@ function deferred() {
 }
 
 describe('assisted Pi assessment', () => {
+  it('delivers distinct final integration and architecture instructions to the real Pi task boundary', async () => {
+    const store = memoryStore();
+    const report = { concerns: [], codeAssessment: 'Integration holds.', scopeAssessment: 'Complete plan assessed.',
+      design: { needed: false, reason: 'Existing decomposition suffices.', assessment: 'Clean module boundaries.' }, requirements: [] };
+    const operations = createSessionOperations({ sessionStore: store, driver: createScriptedSessionDriver([{ kind: 'submit', input: report }]) });
+    const result = await runAssistedPiReview({ runId: base.runId, operationId: 'final-review', projectRoot: base.projectRoot,
+      candidate: base.candidate, tree: base.tree, operations, kind: 'final', prepared: {
+        message: 'Complete captured plan and accepted iteration summaries.', candidateDiff: 'Diffs on demand.',
+        tools: { definitions: [], read: () => new Map(), inspected: () => new Set(), denials: () => [] },
+        validate: value => { const checked = assistedReviewSubmissionSchema.safeParse(value); return checked.success
+          ? { ok: true, value: checked.data } : { ok: false, errors: [{ path: 'report', message: 'Invalid report' }] }; },
+      } });
+    expect(result.status).toBe('submitted');
+    const recorded = JSON.stringify((await store.read(base.runId, 'operation:final-review'))?.body);
+    for (const phrase of ['final plan completeness', 'cross-iteration integration', 'architectural quality', 'smallest useful correction', 'accepted iteration evidence']) expect(recorded).toContain(phrase);
+    expect(recorded).not.toContain('Review code and intended scope together.');
+  });
+
   it('runs read-only snapshot tools, returns only a validated submission and retains operation evidence', async () => {
     const store = memoryStore();
     const operations = createSessionOperations({ sessionStore: store, driver: createScriptedSessionDriver([

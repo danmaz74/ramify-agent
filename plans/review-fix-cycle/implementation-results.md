@@ -147,3 +147,30 @@ It contains only the requested review-policy contract changes, including the
 bounded audit retention and unavailable-advisory completion behavior. Exact user
 protection authority remains pending until the cumulative final assessment has
 completed. All other implementation work is locally committed.
+
+## Assisted final review refinement
+
+The final assisted review now assesses whole-plan completeness, integration across
+iterations, remaining fixed and nonfunctional obligations, unresolved limitations
+and architectural quality. Its initial packet includes the complete captured plan,
+compact iteration outcomes and boundaries, known findings and dispositions, and
+current audit/protection evidence. It does not collect or embed a cumulative patch;
+full assessment records and individual/cumulative diffs remain available on demand.
+
+Requirement answers may cite an existing, completed, successfully submitted and
+validated iteration review with an explanation of why its evidence applies. The
+reference validator rejects unavailable, missing, current and future reviews.
+Accepted submissions may still have action-required gates; those gates and prior
+unmet/uncertain answers remain visible and are not converted into satisfied
+requirements by citation. Final repair follow-ups remain focused, and iteration
+review behavior retains its existing code/scope contract. Architectural findings
+must identify a concrete practical consequence and the smallest useful correction.
+
+Focused regressions cover compact packets despite a large available patch,
+reference validation and on-demand inspection, retained unmet requirements, final
+system instructions, unchanged iteration behavior, final repair follow-ups and
+protection authority. The four focused test files pass all 68 tests. Type-check and
+`check:self` passed; the latter reported 0 errors, 0 warnings and the existing
+777 analysis limits. The exact protected
+specification patch is regenerated against the original registered baseline; exact
+user protection authority remains with the coordinator's final workflow.

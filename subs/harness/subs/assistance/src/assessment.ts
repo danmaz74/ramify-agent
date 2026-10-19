@@ -1,3 +1,4 @@
+import { finalIterationContext } from './final-context.js';
 import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -208,21 +209,30 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       return compactOutcome({ gate: 'clear', summary: 'Repair candidate verified; broad review deliberately not repeated.',
         repairs: [], decisions: [], gaps: [], evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`) });
     }
-    if (!stages('review-policy')) await record('review-policy', { mode: focused ? 'focused-follow-up' : 'broad',
-      reason: request.reviewReason ?? (focused ? 'Verify selected repairs and relevant surrounding behavior.' : 'Initial assessment.'), previousAssessment: previous?.id ?? null });
+    if (!stages('review-policy')) await record('review-policy', { mode: focused ? 'focused-follow-up' : request.kind === 'final' ? 'final-plan' : 'broad',
+      reason: request.reviewReason ?? (focused ? 'Verify selected repairs and relevant surrounding behavior.' : request.kind === 'final' ? 'Assess whole-plan completeness, integration and architectural quality using retained iteration evidence.' : 'Initial assessment.'), previousAssessment: previous?.id ?? null });
     const intendedOutcome = request.brief
       + (request.focusModule === undefined ? '' : `\nDeclared module focus: ${request.focusModule ?? 'broader assignment'}. Focus is advisory; cross-module changes are allowed.`)
       + (request.additionalContext === undefined ? '' : `\nAdditional context:\n${request.additionalContext}`);
-    const followUp = previous === undefined ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nRetained requirement judgments: ${JSON.stringify(retainedRequirementAnswers(previous, context.assessments()))}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Previous inspection is not evidence for this candidate.`;
+    const followUp = previous === undefined || request.kind === 'final' && !focused ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nRetained requirement judgments: ${JSON.stringify(retainedRequirementAnswers(previous, context.assessments()))}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Earlier conclusions retain their original provenance; explain why they still apply or inspect behavior affected by the repair.`;
     // The immutable candidate makes both unchanged dependencies and changed files inspectable.
     const principles = request.requirementDocuments.map(document => ({ path: document.path, note: `Selected by the coordinator at ${document.revision}; filename alone does not establish adoption.` }));
     const baselineEntries = await source.treeEntries(projectRoot, baseline);
+    const allAssessments = context.assessments();
+    const currentIndex = allAssessments.findIndex(item => item.id === assessment.id);
+    const priorAssessments = currentIndex < 0 ? [] : allAssessments.slice(0, currentIndex);
+    const availableAssessments = () => context.assessments().filter(item => item.id === assessment.id || priorAssessments.some(prior => prior.id === item.id));
+    const finalContext = request.kind === 'final' ? finalIterationContext(assessment, allAssessments,
+      `${protection.changes.length} protected differences; ${protection.violations.length} lack exact authority. Full current evidence: assessments/${assessment.id}/stages/protection.json.`) : undefined;
     const retainedEvidence = createAssessmentEvidenceTool({
       list: () => [
         { ref: 'captured-plan', description: 'Complete original captured plan' },
         { ref: `baseline:${job.plan.path}`, description: 'Original captured plan' },
         ...request.requirementDocuments.map((document, index) => ({ ref: `requirement-document-${index + 1}`, description: `${document.path} at ${document.revision}` })),
-        ...context.assessments().flatMap(item => item.stages.map(stage => ({ ref: `assessments/${item.id}/stages/${stage.name}.json`, description: `${stage.name} evidence for candidate ${item.request.candidate}` }))),
+        ...(request.kind === 'final' ? [{ ref: 'cumulative-diff', description: `Cumulative diff ${snapshot.base} to ${snapshot.commit}` },
+          ...priorAssessments.flatMap(item => [{ ref: `assessments/${item.id}`, description: `Full ${item.request.kind} assessment of ${item.request.candidate}` },
+            { ref: `assessments/${item.id}/diff`, description: `Diff at assessment ${item.id}'s original boundaries` }])] : []),
+        ...availableAssessments().flatMap(item => item.stages.map(stage => ({ ref: `assessments/${item.id}/stages/${stage.name}.json`, description: `${stage.name} evidence for candidate ${item.request.candidate}` }))),
         ...baselineEntries.filter(entry => entry.path !== job.plan.path && `baseline:${entry.path}`.length <= 500 && (entry.kind === 'file' || entry.kind === 'executable')).map(entry => ({ ref: `baseline:${entry.path}`, description: `Original at ${baseline}; inspect when relevant` })),
       ],
       read: async ref => {
@@ -232,8 +242,13 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
           const document = request.requirementDocuments[Number(required[1]) - 1]!;
           return source.readBlob(projectRoot, document.revision, document.path, signal);
         }
+        if (request.kind === 'final' && ref === 'cumulative-diff') return source.diffPatch(projectRoot, snapshot.base, snapshot.commit, undefined, signal);
+        if (request.kind === 'final') for (const item of priorAssessments) {
+          if (ref === `assessments/${item.id}`) return item;
+          if (ref === `assessments/${item.id}/diff`) return source.diffPatch(projectRoot, item.request.kind === 'final' ? baseline : item.request.base, item.request.candidate, undefined, signal);
+        }
         if (ref.startsWith('baseline:')) return source.readBlob(projectRoot, baseline, ref.slice('baseline:'.length), signal);
-        for (const item of context.assessments()) for (const stage of item.stages)
+        for (const item of availableAssessments()) for (const stage of item.stages)
           if (`assessments/${item.id}/stages/${stage.name}.json` === ref) {
             if (stage.name === 'audit') return readAuditEvidence(stage.evidence, context.readEvidence);
             if (stage.name !== 'documents') return stage.evidence;
@@ -253,13 +268,13 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     }
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
-        briefing: { id: assessment.id, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
+        briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
           requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
-        candidate: snapshot.commit, tree: snapshot.tree, prepared: withEvidence, signal,
+        candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, prepared: withEvidence, signal,
         onSubmitted: async (value, evidence) => {
           const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => limitations.push(message) },
             snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');

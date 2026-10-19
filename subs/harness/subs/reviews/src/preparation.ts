@@ -31,6 +31,8 @@ export interface CandidateReviewPreparation<T> {
   readonly snapshot: ReviewBriefing['snapshot'];
   readonly maxConcerns: number;
   readonly signal?: AbortSignal;
+  /** Final integration review retrieves patches only when useful. Ordinary iteration review still delivers them. */
+  readonly includeDiff?: boolean;
   readonly message: (diffPayload: string) => string;
   readonly validate: (value: unknown, evidence: {
     readonly snapshot: ReviewBriefing['snapshot'];
@@ -46,7 +48,9 @@ export async function prepareCandidateReview<T>(input: CandidateReviewPreparatio
   readonly validate: (value: unknown) => SubmissionValidation<T>;
 }> {
   const tools = snapshotTools(input.snapshot, input.source, input.projectRoot);
-  const diff = await collectReviewDiffPayload(input.snapshot, input.source, input.projectRoot, input.signal);
+  const diff = input.includeDiff === false
+    ? { text: 'Cumulative and individual iteration diffs are available on demand through snapshot_diff, shell and assessment_evidence. No patch is embedded in this final review packet.', inlinePaths: [] }
+    : await collectReviewDiffPayload(input.snapshot, input.source, input.projectRoot, input.signal);
   const deliveredPatches = new Set(diff.inlinePaths);
   return {
     message: input.message(diff.text),

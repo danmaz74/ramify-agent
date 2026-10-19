@@ -114,3 +114,17 @@ verification alone when no semantic repair remains. `review-policy` distinguishe
 broad, focused-follow-up and deliberately not-run work. `review_continue` can
 record the coordinator's reason to continue an unavailable advisory review while
 retaining that unavailable result and substantive unresolved obligations.
+
+
+Final review is a separate plan-level assessment of completeness, integration,
+remaining fixed/nonfunctional obligations and architectural quality. It starts
+with the complete captured plan and compact recorded iteration outcomes, not an
+embedded cumulative patch. Full earlier reports, iteration diffs, the cumulative
+diff and source remain available on demand. The reviewer can cite supplied accepted
+iteration review `evidenceRefs` with an explanation of applicability instead of
+re-inspecting unchanged behavior. Accepted review evidence can still contain unmet
+requirements or pending protection choices; those do not disappear through
+citation. Later changes, conflicting evidence, unresolved limitations or concrete
+integration concerns justify revisiting earlier behavior. Architectural findings
+should name practical consequences and the smallest useful correction. Final
+repair follow-ups remain focused.
