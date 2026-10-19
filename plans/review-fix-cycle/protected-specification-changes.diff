@@ -2,10 +2,7 @@ diff --git a/docs/architecture/agent-assistance/service.spec.md b/docs/architect
 index 122f14ae..d21ffa13 100644
 --- a/docs/architecture/agent-assistance/service.spec.md
 +++ b/docs/architecture/agent-assistance/service.spec.md
-@@ -45,3 +45,81 @@ Elapsed intervals can be derived from these records: first linked `requestedAt`
- The result contains the same `id`, `status`, `revision`, `error` and `stages` as `assessment_status`, plus `reason`. Completed, interrupted and cancelled assessments return `settled` immediately. Otherwise, an explicit `after_revision` below the current revision returns `changed`. A deadline returns `timeout` with the current status; it does not imply failure. A zero timeout observes immediately. Settled state takes precedence over revision progress. Callers retrieve the effective gate separately through `assessment_result`; a completed assessment can require decisions or repairs or retain evidence gaps.
- 
- Observation subscribes to committed transitions and checks the current state without an intervening asynchronous gap, so a transition preceding subscription is not missed. Multiple observers are independent. Waits write no records and do not restart, resume or cancel assessments. Timers and subscriptions are released on return or request cancellation. Aborting an observation affects only that observation. Service shutdown rejects pending observations and preserves ordinary assessment interruption/recovery. A client deadline must exceed the requested wait; transport expiry is not an assessment outcome.
+@@ -47,0 +48,78 @@ Observation subscribes to committed transitions and checks the current state wit
 +
 +## Focused assessment preparation
 +
@@ -88,10 +85,7 @@ diff --git a/docs/architecture/plan-context-catalog.spec.md b/docs/architecture/
 index cf1bbbaa..e206b788 100644
 --- a/docs/architecture/plan-context-catalog.spec.md
 +++ b/docs/architecture/plan-context-catalog.spec.md
-@@ -210,12 +210,15 @@ in this module. These rules govern that judgement:
-   module engineer, the module engineer working on a contract and the scope reviewer of that iteration
-   receive exactly that subset, rendered by the same function, and a
-   contract iteration inherits its requester's subset.
+@@ -213,6 +213,9 @@ in this module. These rules govern that judgement:
 -- **Assessment is not selected.** When the functional work is done, the
 -  non-functional coordinator receives every non-functional element of the
 -  catalog, from the plan and from principles alike, and assesses each
@@ -107,39 +101,21 @@ index cf1bbbaa..e206b788 100644
 +  again. Retained satisfied judgments keep their evidence and provenance; actual
 +  unmet or undetermined requirements remain explicit until answered. A repair
 +  module engineer receives the subset the coordinator cites. The coordinator
-   has ordinary file inspection and shell tools to inspect Git history, run
-   records, audit refs, command logs and generated views. Its context supplies
-   the project root, run directory and candidate identity. Investigation scopes
 diff --git a/docs/harness.spec.md b/docs/harness.spec.md
 index 3a01dad9..c921f65a 100644
 --- a/docs/harness.spec.md
 +++ b/docs/harness.spec.md
-@@ -299,7 +299,9 @@ A nonpassing final verification remains evidence in the same run. The plan
- architect receives the diagnostics and report locations and chooses the module
- architect and next correction goal. The harness records an ordinary work item
- with that final gate as its origin, preserving earlier accepted work. After
+@@ -302 +302,3 @@ with that final gate as its origin, preserving earlier accepted work. After
 -correction, it obtains fresh candidate assessment and final verification.
 +correction, it obtains focused candidate assessment of the repair and relevant
 +surrounding behavior, followed by final verification. Earlier complete-plan
 +results remain available; a concrete changed circumstance can broaden inspection.
- Neither the failure count nor a former repair allowance ends the run. Accepted
- correction decisions and created work items are reused after interruption.
- 
-@@ -700,8 +702,8 @@ architects assess semantic completion.
- 
- The harness child `reviews` prepares fixed candidate evidence and validates reviewer
- submissions; harness retains agent invocation, cancellation, durable records and
+@@ -703,2 +705,2 @@ submissions; harness retains agent invocation, cancellation, durable records and
 -CheckFinding coordination. Its preparation API binds delivered patches and observed
 -tool answers to one validator.
 +CheckFinding coordination. Its preparation API supplies candidate tools and validates
 +submission shape and candidate references. Reviewers choose relevant inspection.
- 
- Before invoking a code, scope or design reviewer, collect patches through the
- candidate source between the request's fixed base and audited candidate. Apply
-@@ -713,11 +715,20 @@ needed per-file patches through `snapshot_diff` against the same fixed commits.
- The complete canonical changed-path list remains supplied separately.
- 
- Record the diff payload once as a literal delivered input, including its hash
+@@ -716,5 +718,14 @@ Record the diff payload once as a literal delivered input, including its hash
 -and byte count in the invocation's delivery manifest. A complete patch delivered
 -in the current review message can establish inspection coverage without another
 -tool call. A summary, unavailable patch or omitted patch cannot. Concern grounds
@@ -159,21 +135,14 @@ index 3a01dad9..c921f65a 100644
 +partial or create required work. A concern's source reference must identify a
 +candidate file; the harness binds its identity independently of the tool used.
 +Unavailable review execution remains distinct from a supported review conclusion.
- 
- ### Principles And Specifications Are Captured And Sealed
- 
-@@ -738,7 +749,51 @@ as plan material. The current credibility classifier downgrades a concern ground
- in a specification, as the [CheckFinding specification](check-findings.spec.md#credibility-follows-provenance)
- records. These contracts do not establish runtime support.
- 
+@@ -741,2 +752,4 @@ records. These contracts do not establish runtime support.
 -Continuing design reviews select principles and relevant READMEs as guidance.
 -They do not receive the whole specification set. Relevant specification obligations
 +Continuing design reviews receive affected-owner README context and document
 +starting points selected by the assigning architect for this task. A principles
 +filename alone does not make a document an initial review obligation. Other
 +relevant guidance remains available through candidate inspection. Relevant specification obligations
- must reach implementation and review through the reviewed plan; this does not
- require adding every specification to recurring design guidance.
+@@ -744,0 +758,42 @@ require adding every specification to recurring design guidance.
 +
 +
 +### Review Once, Select Useful Repairs
