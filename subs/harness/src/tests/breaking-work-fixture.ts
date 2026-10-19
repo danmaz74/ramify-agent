@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 
 import type { GateAttempt } from '../checks/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 
 
@@ -13,7 +13,7 @@ import { copyFixture } from './helpers/fixture.js';
 import { addModule, byRole, installMiniRunner, read, shell, treeInputs, write } from './helpers/iterations.js';
 import { openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
 import { localCommandAudit } from './helpers/direct-check-execution.js';
-import { gateGit, scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit, type GateGitOptions } from './helpers/gate-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 
 /*

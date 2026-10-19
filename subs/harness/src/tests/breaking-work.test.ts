@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 
-import { iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 
-import { workLayout } from '../../subs/autonomous/src/work/records.js';
-import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 
 import { analysis, entry } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, read, submit, treeInputs, write } from './helpers/iterations.js';

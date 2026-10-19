@@ -3,7 +3,7 @@ import { runView } from '../inputs.js';
 import { reachOf } from '../sessions.js';
 import type { RunSession } from '../../../autonomous/src/run/sessions.js';
 import { constructedRun } from '../../../../src/tests/helpers/constructed.js';
-import { capabilityProjectionLines as lines, capabilityContractRun } from '../../../../src/tests/helpers/capability-projection.js';
+import { capabilityProjectionLines as lines, capabilityContractRun } from '../../../autonomous/subs/work-coordination/src/tests/helpers/capability-projection.js';
 
 test('CA24: registry/contract decoding keeps its contract records', () => {
   const run = capabilityContractRun();

@@ -8,7 +8,7 @@ import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
 import { assign, outline, partialReport, submit, treeInputs, write } from './iterations.js';
 import { copyFixture } from './fixture.js';
-import { gateGit, scenariosCommit } from './gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './gate-git.js';
 import { scriptedCandidates } from './candidates.js';
 import { freeze, installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, testPolicy, until } from './runs.js';
 

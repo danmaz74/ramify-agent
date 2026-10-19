@@ -10,8 +10,8 @@ import { extractDocumentScenarios, type PlanScenario } from '../../subs/scenario
 import { applyCheck, checkMessage, type CheckState, type CheckSubmission, type ExtractionInputs } from '../../subs/autonomous/subs/planning/src/extraction.js';
 import { acceptArchitectElements, initialAnalysisSubmissionSchema, validateInitialAnalysis, type AnalysisEvidence } from '../../subs/autonomous/subs/planning/src/submission.js';
 import { acceptAnalysis } from '../../subs/autonomous/subs/planning/src/accept.js';
-import { briefed, engineerScenarioSection } from '../../subs/autonomous/src/work/scenario-briefing.js';
-import { architectScenarioSections } from '../../subs/autonomous/src/work/session.js';
+import { briefed, engineerScenarioSection } from '../../subs/autonomous/subs/work-coordination/src/work/scenario-briefing.js';
+import { architectScenarioSections } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 import { loadPromptPackages, type LoadedPackage } from '../prompts/packages.js';
 import { stableRoleInstructions } from '../prompts/tasks.js';
 import type { Role } from '../interfaces/protocol/runs.js';

@@ -13,13 +13,13 @@ import { deviationLayout, packageDeviation, type PlanDeviation } from '../../sub
 import { createPackage } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
 import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/records.js';
-import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
-import { forkDecision, forkDeviation, forkNothingPossible, registryChange, unresolved } from './helpers/placement.js';
+import { forkDecision, forkDeviation, forkNothingPossible, registryChange, unresolved } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun, testPolicy, until } from './helpers/runs.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { eventsOf, limit, notes, notesDirectory, plan as reviewPlan, reviewRun, reviewTarget, store, tool } from './helpers/reviews.js';
@@ -420,7 +420,7 @@ describe('an unresolved request answered otherwise', () => {
   }, 120_000);
 
   test('a placement request is never answered with a deviation', async () => {
-    const { validateFork } = await import('../../subs/autonomous/src/architecture/submission.js');
+    const { validateFork } = await import('../../subs/autonomous/subs/work-coordination/src/architecture/submission.js');
     const evidence = { index: null, registry: new Map(), hypotheses: new Map(), decisions: new Map(), workItems: new Set<string>() };
     expect(validateFork(forkDeviation(), evidence)).toMatchObject({ ok: false, errors: [{ path: 'kind' }] });
     const question = { kind: 'unresolved' as const, elements: new Set(['fr-001', 'fr-002']), workItems: new Set(['wi-001']), scenarios: new Map([['sc-001', 'done']]) };

@@ -7,7 +7,7 @@ import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import type { CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { gateAttemptSchema, manualRunRecordSchema } from '../../subs/autonomous/src/run/records.js';
 import { invocationSchema } from '../../subs/task-execution/src/records.js';
-import { engineerSubmissionSchema } from '../../subs/autonomous/src/work/engineer.js';
+import { engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { sessionAcceptance, type SessionProgress } from '../sessions/single.js';
 import { acquireProjectLock, lockPath } from '../store/lock.js';
 import type { AgentPort } from '../../subs/agent/src/interfaces/port.js';

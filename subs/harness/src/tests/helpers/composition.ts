@@ -6,7 +6,7 @@ import { expect } from 'vitest';
 import { createScriptedAgent, type Script } from '../../../subs/agent/src/scripted.js';
 import { declaringScenarios } from './declarations.js';
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
-import type { RunWrite } from '../../../subs/autonomous/src/run/service.js';
+import type { RunWrite } from '../../../subs/autonomous/src/run/log.js';
 import type { RunService } from '../../run/lifecycle.js';
 import type { CommandRunner } from '../../../subs/evidence/src/run-command.js';
 import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
@@ -14,13 +14,13 @@ import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import {
   consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, providerWrites,
   type Seam,
-} from './contracts.js';
+} from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts.js';
 import { copyFixture } from './fixture.js';
 import {
   addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, partialReport, read, shell, submit, treeInputs,
   write, type Turn,
 } from './iterations.js';
-import { placementDecisionFixture as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from './placement.js';
+import { placementDecisionFixture as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { commandResult } from './command-result.js';
 import { deleted, modified, scenarioGit, untracked, type GitResponses, type ScenarioGit } from './recovery-git.js';
 import { scriptedCandidates, type ScriptedCommit } from './candidates.js';

@@ -6,7 +6,7 @@ import { scenarioResultsOf, type ScenarioResult } from '../../checks/scenario-re
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
-import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged, type CommitResponse } from './contracts-git.js';
+import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged, type CommitResponse } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import type { DirectCheckScript } from './direct-check-execution.js';
 import { copyFixture } from './fixture.js';
 import { addModule, assign, byWork, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';

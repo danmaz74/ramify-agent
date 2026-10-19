@@ -1,7 +1,7 @@
 import type { Hypothesis } from '../../autonomous/subs/planning/src/records.js';
 import { runQueryLimits, type AnalysisResponse, type DecisionView, type HypothesisView } from '../../../src/interfaces/protocol/runs.js';
 import { runLayout } from '../../autonomous/src/run/records.js';
-import { capabilityOf } from '../../autonomous/src/work/frontier.js';
+import { capabilityOf } from '../../autonomous/subs/work-coordination/src/work/frontier.js';
 import { publicSequence, readRunFile, type RunView } from './inputs.js';
 import { analysisScenariosOf } from './scenarios.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../autonomous/subs/planning/src/evidence.js';

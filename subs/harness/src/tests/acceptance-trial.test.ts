@@ -15,8 +15,8 @@ import {
 } from './helpers/badge-scenarios.js';
 import {
   consumerAgainstReal, consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, providerWrites, type Seam,
-} from './helpers/contracts.js';
-import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged, type CommitResponse } from './helpers/contracts-git.js';
+} from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts.js';
+import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged, type CommitResponse } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import type { DirectCheckScript, ScriptedScenario } from './helpers/direct-check-execution.js';
 import { copyFixture } from './helpers/fixture.js';
 import {
@@ -24,7 +24,7 @@ import {
   notesModule, plan, planScenario, reviews, tagFeature, tagSteps, tagStepFile, tags, tagsDirectory, tagsModule,
 } from './helpers/integration-scenario.js';
 import { addModule, assign, byWork, completionProposed, outline, partialReport, submit, treeInputs, write } from './helpers/iterations.js';
-import { localDecision, registryChange } from './helpers/placement.js';
+import { localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { approveRun, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 

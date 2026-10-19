@@ -10,7 +10,7 @@ import { type ReviewSubmission } from '../../../reviews/src/interfaces/submissio
 import { groundCredibility } from '../../../reviews/src/signals.js';
 import { reviewStateOf } from '../../../../src/reviews/state.js';
 import type { InvocationResult } from '../../../task-execution/src/results.js';
-import { committedRecords } from '../work/committed.js';
+import { committedRecords } from './committed-records.js';
 import { trackedScenarios } from './feature-files.js';
 
 /*

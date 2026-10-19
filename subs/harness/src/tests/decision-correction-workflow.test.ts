@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import type { Script } from '../../subs/agent/src/scripted.js';
 import { analysis, entry } from './helpers/analysis.js';
-import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
-import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
+import { copyCapabilityFixture, openCapabilityRuns } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
+import { capabilityFlowBoundaries } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability-flow-boundaries.js';
 import { assign, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
-import { forkDeviation, forkEnvironment, unresolved } from './helpers/placement.js';
+import { forkDeviation, forkEnvironment, unresolved } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { commandResult } from './helpers/command-result.js';
 

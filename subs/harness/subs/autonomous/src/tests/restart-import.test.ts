@@ -3,7 +3,8 @@
 
 import { expect, test } from 'vitest';
 import { restartWorkflowEntries, validateRestartImport } from '../run/restart-import.js';
-import { committedRecords, recordHash } from '../work/committed.js';
+import { committedRecords } from '../run/committed-records.js';
+import { recordHash } from '../../../../src/jobs/committed-reader.js';
 import { recoveryHash, type RecoveryIdentity } from '../run/recovery-admission.js';
 import { invocationSchema } from '../../../task-execution/src/records.js';
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';

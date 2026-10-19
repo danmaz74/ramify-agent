@@ -11,7 +11,7 @@ import {
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { requestCompletion } from './helpers/analysis.js';
-import { accepted, modified, unchanged } from './helpers/contracts-git.js';
+import { accepted, modified, unchanged } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import type { DirectCheckScript, ScriptedScenario } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import {

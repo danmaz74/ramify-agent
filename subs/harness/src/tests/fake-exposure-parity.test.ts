@@ -4,19 +4,19 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
-import { localDecision, registryChange } from './helpers/placement.js';
+import { localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, readDeclaredTree, submit, treeInputs, write } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
-import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
+import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 import type { ArchitectIndex, ModuleEntry, SymbolRecord } from '../../subs/evidence/src/views.js';
-import { fakeExposureParity, type StandIn } from '../../subs/autonomous/src/contracts/parity.js';
-import { validateContract } from '../../subs/autonomous/src/contracts/submission.js';
-import { registerContract } from '../../subs/autonomous/src/contracts/accept.js';
+import { fakeExposureParity, type StandIn } from '../../subs/autonomous/subs/work-coordination/src/contracts/parity.js';
+import { validateContract } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
+import { registerContract } from '../../subs/autonomous/subs/work-coordination/src/contracts/accept.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
 import type { RunInputs } from '../../subs/autonomous/src/run/inputs.js';

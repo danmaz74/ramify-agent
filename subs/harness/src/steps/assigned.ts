@@ -1,11 +1,12 @@
+import { coordinationHistory } from '../../subs/autonomous/src/run/coordination-history.js';
 import { engineerConsultationInputs } from '../consultations/targets.js';
 import { readFile } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import { loadArchitectIndex, type ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { runCommand } from '../../subs/evidence/src/run-command.js';
-import { capabilityRunPolicyVersion } from '../../subs/autonomous/src/capability/policy.js';
+import { capabilityRunPolicyVersion } from '../../subs/autonomous/subs/work-coordination/src/capability/policy.js';
 import { acceptedCommit } from '../checks/accepted.js';
-import { obligationProjection } from '../../subs/autonomous/src/run/after-handling.js';
+import { obligationProjection } from '../../subs/autonomous/subs/work-coordination/src/work/history.js';
 import { trackedScenarios } from '../../subs/autonomous/src/run/feature-files.js';
 import { contextPolicyOf } from '../run/policy.js';
 import {
@@ -13,15 +14,15 @@ import {
 } from '../../subs/autonomous/src/run/project-facts.js';
 import { captureProjectConfig } from '../run/project-config.js';
 import { committedAuditConfigurationSchema, runLayout, type CommittedAuditConfigurationRecord } from '../../subs/autonomous/src/run/records.js';
-import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
-import { assignedSourceDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
-import { integrationBriefing } from '../../subs/autonomous/src/work/integration.js';
-import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
-import { integrationScenarioOf, type WorkItem } from '../../subs/autonomous/src/work/records.js';
-import { entryScenariosOf, type EngineerScenarios } from '../../subs/autonomous/src/work/scenario-briefing.js';
-import { assignedFeaturePaths } from '../../subs/autonomous/src/work/feature-selection.js';
-import { iterationApiViews, prepareAssignedCucumber } from '../../subs/autonomous/src/work/session.js';
-import { localArchitectSubmissionSchema } from '../../subs/autonomous/src/work/submission.js';
+import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
+import { assignedSourceDirectory } from '../../subs/autonomous/subs/work-coordination/src/work/engineer-directory.js';
+import { integrationBriefing } from '../../subs/autonomous/subs/work-coordination/src/work/integration.js';
+import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { integrationScenarioOf, type WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { entryScenariosOf, type EngineerScenarios } from '../../subs/autonomous/subs/work-coordination/src/work/scenario-briefing.js';
+import { assignedFeaturePaths } from '../../subs/autonomous/subs/work-coordination/src/work/feature-selection.js';
+import { iterationApiViews, prepareAssignedCucumber } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
+import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { existingViews, type AuthoringPorts } from './authoring.js';
 import { engineerStepInputsOf } from './engineer.js';
 import { parseStepInputs, projectPath, validateWorkTurnInputs, type EngineerStepInputs, type WorkTurnStepInputs } from './inputs.js';
@@ -140,7 +141,7 @@ async function collect(run: ManualRun, projectRoot: string, subject: {
     scenarios = entry.length === 0 ? undefined : { kind: 'entry', scenarios: entry };
   }
   const assignedIds = assignment.obligations ?? [];
-  const { obligations } = obligationProjection(run.log);
+  const { obligations } = obligationProjection(coordinationHistory(run.log));
   const names = new Map(tracked.records.map(record => [record.id, record.name]));
   const assignedObligations = assignedIds.map(id => {
     const obligation = obligations.get(id);

@@ -13,24 +13,24 @@ import { runSchemas } from '../../subs/autonomous/src/run/records.js';
 
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
 import { analysisSchemas } from '../../subs/autonomous/subs/planning/src/records.js';
-import { workSchemas } from '../../subs/autonomous/src/work/records.js';
-import { iterationSchemas } from '../../subs/autonomous/src/work/iterations.js';
-import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { workSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { iterationSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import type { IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { resolveWriteScope } from '../work/scope.js';
-import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
-import { fixtureTask } from './helpers/capability.js';
-import { contractSchemas } from '../../subs/autonomous/src/contracts/records.js';
-import { architectureSchemas } from '../../subs/autonomous/src/architecture/records.js';
+import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
+import { fixtureTask } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
+import { contractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
+import { architectureSchemas } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
 import { reviewSchemas } from '../reviews/records.js';
 import { reconciliationSchemas } from '../reviews/reconciliation.js';
 import { deviationSchemas } from '../../subs/autonomous/src/deviations/records.js';
 import { initialAnalysisSubmissionSchema } from '../../subs/autonomous/subs/planning/src/submission.js';
 import { checkSubmissionSchema, intakeSubmissionSchema, principleSubmissionSchema } from '../../subs/autonomous/subs/planning/src/extraction.js';
-import { localArchitectSubmissionSchema } from '../../subs/autonomous/src/work/submission.js';
-import { engineerSubmissionSchema } from '../../subs/autonomous/src/work/engineer.js';
-import { forkSubmissionSchema } from '../../subs/autonomous/src/architecture/submission.js';
-import { contractSubmissionSchema } from '../../subs/autonomous/src/contracts/submission.js';
-import { failureAnalysisSubmissionSchema } from '../../subs/autonomous/src/work/failure.js';
+import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import { engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { forkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
+import { contractSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/contracts/submission.js';
+import { failureAnalysisSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/failure.js';
 import { shellInputSchema } from '../tools/shell.js';
 import {
   analysisResponseSchema, capabilityListResponseSchema, decisionListResponseSchema, gateResponseSchema, metricsResponseSchema,

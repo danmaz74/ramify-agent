@@ -9,7 +9,7 @@ import { runLayout, runRecordSchema } from '../../subs/autonomous/src/run/record
 import type { RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { createPackage } from '../../subs/plan-evidence/src/interfaces/catalog.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../subs/autonomous/subs/planning/src/evidence.js';
-import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationAssignmentSchema, iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import type { ScriptedCommit } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';

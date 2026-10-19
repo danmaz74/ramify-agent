@@ -1,40 +1,40 @@
+import { prepareOutlinePublication, prepareAssignmentPublication } from '../../subs/work-coordination/src/work/publication.js';
+import { obligationProjection, integrationItemsDue } from '../../subs/work-coordination/src/work/history.js';
+import { coordinationHistory } from './coordination-history.js';
 import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import type { CandidateSource, GitService } from '../../../evidence/src/git.js';
 import type { PackageCitation } from '../../../plan-evidence/src/interfaces/catalog.js';
 import { orientationKey, readGuidance } from '../../../reviews/src/inputs.js';
 import { openCandidateSnapshot, type CandidateSnapshot } from '../../../reviews/src/snapshot.js';
-import { capabilityCompletionBlockers, replayCapabilityState } from '../capability/state.js';
-import { type ConsumerRequirement, type ContractRecord, type ProviderObligation } from '../contracts/records.js';
-import { bindingKey, conformanceKey, openRequirements, verificationKey } from '../contracts/schedule.js';
+
+import { type ContractRecord } from '../../subs/work-coordination/src/contracts/records.js';
+
 import { isContained, resolveRealTarget } from '../../../../src/guard/resolve-contained-path.js';
 import type { RunFailureReason } from '../../../../src/interfaces/protocol/runs.js';
-import { canonicalJson } from '../../../../src/jobs/commands.js';
+
 import { commitRecord, type RecordRef as CommitRecord } from '../../../../src/jobs/commit.js';
 import { sha256 } from '../../../../src/prompts/packages.js';
 import { pendingBindingEvidence } from '../../../../src/reviews/binding-evidence.js';
 import { reviewLayout, reviewRequestId, reviewRequestSchema, type ForkPoint, type ReviewRequest } from '../../../../src/reviews/records.js';
 import { reviewStateOf } from '../../../../src/reviews/state.js';
 import { committedBody } from '../../../../src/steps/runner.js';
-import { committedRecords, refOf } from '../work/committed.js';
-import { engineerSubmissionSchema } from '../work/engineer.js';
-import { dueIntegrations, integrationWorkItem } from '../work/integration.js';
-import { iterationAssignmentSchema, iterationLayout, iterationResultSchema, workItemOfIteration, type IterationAssignment, type IterationResult } from '../work/iterations.js';
+import { committedRecords } from './committed-records.js';
+import { engineerSubmissionSchema } from '../../subs/work-coordination/src/work/engineer.js';
+
+import { iterationAssignmentSchema, iterationLayout, iterationResultSchema, type IterationAssignment, type IterationResult } from '../../subs/work-coordination/src/work/iterations.js';
 import { type WriteScope } from '../../../../src/work/scope.js';
-import {
-  bindingEventsToRecord, obligationEventsToRecord, obligationsOf,
-  type ObligationActor, type ObligationBinding, type ObligationProjection, type ObligationRegistration, type ObligationReport,
-} from '../work/obligations.js';
-import { workItemOutlineSchema, workLayout, type WorkItem, type WorkItemOutline } from '../work/records.js';
-import { unchangedOutlineReason, type OutlineBody } from '../work/submission.js';
-import { releasableScratchModules, removeScratchDirectories } from '../work/scratch.js';
+import { bindingEventsToRecord, obligationEventsToRecord, type ObligationActor, type ObligationBinding, type ObligationRegistration, type ObligationReport } from '../../subs/work-coordination/src/work/obligations.js';
+import { type WorkItem, type WorkItemOutline } from '../../subs/work-coordination/src/work/records.js';
+import { type OutlineBody } from '../../subs/work-coordination/src/work/submission.js';
+import { releasableScratchModules, removeScratchDirectories } from '../../subs/work-coordination/src/work/scratch.js';
 import type { CommittingGates, GateRun } from './committing-gate.js';
-import { expectedFeatureFiles, trackedScenarios, writtenScenarios } from './feature-files.js';
-import type { RunEventInput, RunEventOf, RunLog } from './log.js';
+import { expectedFeatureFiles, writtenScenarios } from './feature-files.js';
+import type { RunEventInput, RunEventOf } from './log.js';
 import { declaredModuleDirectories } from '../../../../src/run/project-config.js';
 import { gateAttemptSchema, runLayout, type ReviewKind } from './records.js';
 import { type ArchitectRef, type DurableRecordRef as RecordRef } from '../../../task-execution/src/records.js';
-import type { RunWrite } from './service.js';
+import type { RunWrite } from './log.js';
 
 /*
  * What the harness records after an accepted submission, as far as it is a
@@ -54,13 +54,6 @@ const message = (error: unknown): string => (error instanceof Error ? error.mess
  * harness gives a completion that carried no outline. A new reason states a
  * revision.
  */
-function standsOn(outline: OutlineBody, committed: WorkItemOutline): boolean {
-  const plan = (body: OutlineBody | WorkItemOutline) => canonicalJson({
-    changes: body.changes, decomposition: body.decomposition, reuse: body.reuse, breakingChanges: body.breakingChanges, stages: body.stages,
-  });
-  return plan(outline) === plan(committed)
-    && (outline.revisionReason === committed.revisionReason || outline.revisionReason === unchangedOutlineReason(committed.revision));
-}
 
 /** What one review question binds besides the candidate. */
 export type ReviewInputs = Pick<ReviewRequest, 'guidance' | 'forkPoint'> & Partial<Pick<ReviewRequest, 'inputsUnavailable' | 'source'>>;
@@ -329,10 +322,10 @@ export class AfterHandling<R extends GateRun> {
       await this.host.fail(run, 'internal', `Invocation ${invocation} reported obligations without a recorded accepted submission`, [runLayout.outcome(invocation)]);
       return false;
     }
-    for (const input of obligationEventsToRecord(submission, actor, { by: invocation, submission: hash }, obligationProjection(run.log), run.log.events)) {
+    for (const input of obligationEventsToRecord(submission, actor, { by: invocation, submission: hash }, obligationProjection(coordinationHistory(run.log)), run.log.events)) {
       // A done report that makes every sub-scenario of an integration
       // scenario done commits that scenario's work item with it.
-      const due = input.type === 'obligation-reported' && input.data.judgment === 'done' ? integrationItemsDue(run.log, input.data.id) : [];
+      const due = input.type === 'obligation-reported' && input.data.judgment === 'done' ? integrationItemsDue(coordinationHistory(run.log), input.data.id) : [];
       if (await this.host.write(run, input, due) === 'ended') return false;
       // A crash between two reports of one submission leaves the rest to
       // the replay, which records each once.
@@ -383,33 +376,11 @@ export class AfterHandling<R extends GateRun> {
     /** The architect's pinned point a completion request records with its revision; absent for an assignment's. */
     readonly architectRef?: ArchitectRef | null | undefined;
   }): Promise<{ readonly outline: WorkItemOutline; readonly written: boolean; readonly unchanged: boolean } | null> {
-    const { item, invocation } = input;
-    const prior = run.log.all('outline-revised').find(event => event.data.workItem === item.id && event.data.invocation === invocation);
-    if (prior !== undefined) {
-      const outline = workItemOutlineSchema.parse(committedBody(run, workLayout.outline(item.id, prior.data.revision)));
-      const unchanged = prior.data.unchanged === true;
-      if (!unchanged && outline.invocation !== invocation) throw new Error(`The outline revision ${prior.data.revision} of ${item.id} no longer names ${invocation}`);
-      return { outline, written: false, unchanged };
-    }
-    const committed = committedRecords(run.log.ledger.replay()).outlines.get(item.id) ?? [];
-    const standing = committed.at(-1);
-    if (input.architectRef !== undefined && standing !== undefined && standsOn(input.outline, standing)) {
-      await this.host.write(run, { type: 'outline-revised', data: { workItem: item.id, revision: standing.revision, invocation,
-        architectRef: input.architectRef, unchanged: true } });
-      await this.host.afterWrite('outline-revised', run.jobId);
-      return this.host.ignoring(run) ? null : { outline: standing, written: true, unchanged: true };
-    }
-    const revision = committed.length + 1;
-    const outline = workItemOutlineSchema.parse({
-      schema: 'ramify-agent.work-item-outline/1', workItem: item.id, revision, invocation, ...input.outline,
-      hypothesesSeen: input.hypothesesSeen.map(ref => ({ ...ref })),
-    } satisfies WorkItemOutline);
-    await this.host.write(run, { type: 'outline-revised', data: { workItem: item.id, revision, invocation,
-      ...(input.architectRef === undefined ? {} : { architectRef: input.architectRef }) } }, [
-      { path: workLayout.outline(item.id, revision), id: item.id, revision, body: outline },
-    ]);
+    const { transition, ...result } = prepareOutlinePublication(coordinationHistory(run.log), input);
+    if (transition === undefined) return result;
+    await this.host.write(run, transition.event, transition.records);
     await this.host.afterWrite('outline-revised', run.jobId);
-    return this.host.ignoring(run) ? null : { outline, written: true, unchanged: false };
+    return this.host.ignoring(run) ? null : result;
   }
 
   /**
@@ -427,24 +398,10 @@ export class AfterHandling<R extends GateRun> {
     readonly localRecords: readonly CommitRecord[];
     readonly architectRef: ArchitectRef | null;
   }): Promise<IterationAssignment | null> {
-    const { item, assignment } = input;
-    const corrects = pendingCorrection(run.log, item.id);
-    // The architect's pinned point that produced this assignment is
-    // committed with it: the iteration's scope review forks it. The first
-    // assignment after a reconciliation chose a correction resolves that
-    // reconciliation's repair intent.
-    await this.host.write(run, {
-      type: 'iteration-assigned',
-      data: {
-        workItem: item.id, iteration: assignment.id, kind: assignment.kind, scopeRevision: assignment.scope.revision, invocation: input.invocation,
-        decisions: [...input.decisions], architectRef: input.architectRef, ...(corrects === undefined ? {} : { corrects }),
-      },
-    }, [
-      { path: iterationLayout.assignment(item.id, input.number), id: assignment.id, revision: 1, body: assignment },
-      ...input.localRecords,
-    ]);
+    const transition = prepareAssignmentPublication(coordinationHistory(run.log), input);
+    await this.host.write(run, transition.event, transition.records);
     await this.host.afterWrite('iteration-assigned', run.jobId);
-    return this.host.ignoring(run) ? null : assignment;
+    return this.host.ignoring(run) ? null : input.assignment;
   }
 }
 
@@ -488,27 +445,10 @@ export async function pendingBindingsOf(run: Pick<GateRun, 'log' | 'planId' | 'j
  * engineer may write through the guarded tools, recorded beside the scope it
  * widens by that one file.
  */
-export async function authorizedScope(projectRoot: string, scope: WriteScope, authorizations: readonly { readonly path: string }[]): Promise<WriteScope> {
-  for (const authorization of authorizations) {
-    const target = await resolveRealTarget(projectRoot, authorization.path);
-    if (target.ok && !scope.resolved.files.includes(target.resolved)) scope.resolved.files.push(target.resolved);
-  }
-  return scope;
-}
+
 
 /** The contract artifacts in force, each with the agreement that names it: the guarded set an assignment captures. */
-export function requiredArtifacts(committed: ReturnType<typeof committedRecords>): Array<{ path: string; contract: ContractRecord }> {
-  const artifacts: Array<{ path: string; contract: ContractRecord }> = [];
-  for (const contract of committed.contracts.values()) {
-    const paths = [
-      ...contract.artifacts.interface.map(entry => entry.path),
-      ...contract.artifacts.conformance.map(entry => entry.path),
-      ...contract.artifacts.fake.map(entry => entry.path),
-    ];
-    for (const path of paths) artifacts.push({ path, contract });
-  }
-  return artifacts;
-}
+
 
 /**
  * Registered evidence an iteration must satisfy, derived and never
@@ -516,139 +456,6 @@ export function requiredArtifacts(committed: ReturnType<typeof committedRecords>
  * implementation, and a verification runs its consumer's tests with the fake
  * replaced.
  */
-export function evidenceFor(log: RunLog, item: WorkItem, kind: IterationAssignment['kind'], records: ReturnType<typeof committedRecords>): IterationAssignment['evidenceObligations'] {
-  const evidence: IterationAssignment['evidenceObligations'] = [];
-  const obligation = obligationOwedBy(log, item, records);
-  if (obligation !== null) {
-    evidence.push({ obligation: refOf(obligation.id, obligation.revision, obligation), suite: [...obligation.evidence.conformance], against: 'real' });
-  }
-  if (kind === 'verification') {
-    for (const requirement of openRequirementsOf(log, records, item.id)) {
-      const owed = records.obligations.get(requirement.obligation);
-      evidence.push({ requirement: refOf(requirement.id, requirement.revision, requirement), suite: [...(owed?.evidence.conformance ?? [])], against: 'real' });
-    }
-  }
-  return evidence;
-}
-
-/** The one obligation projection: scenario records, delegated outcomes and the accepted registrations and reports. */
-export function obligationProjection(log: RunLog): ObligationProjection {
-  const lines = log.ledger.replay();
-  return obligationsOf({ scenarios: trackedScenarios(lines).records, workItems: committedRecords(lines).workItems, events: log.events });
-}
-
-/**
- * The integration work items a done report of one scenario makes due: each
- * integration whose every sub-scenario is then done.
- */
-export function integrationItemsDue(log: RunLog, scenario: string): CommitRecord[] {
-  const lines = log.ledger.replay();
-  const tracked = trackedScenarios(lines);
-  if (!tracked.states.has(scenario)) return [];
-  const after = new Map(tracked.states);
-  after.set(scenario, 'done');
-  const items = [...committedRecords(lines).workItems];
-  const records: CommitRecord[] = [];
-  for (const integration of dueIntegrations(tracked.records, after, items)) {
-    if (!integration.subScenarios.includes(scenario)) continue;
-    const item = integrationWorkItem(integration, items.length);
-    items.push(item);
-    records.push({ path: workLayout.item(item.id), id: item.id, revision: 1, body: item });
-  }
-  return records;
-}
-
-/**
- * Which work item each obligation and requirement revision is bound to: a
- * registered agreement binds its own, and a revision records its bindings
- * itself.
- */
-export function bindingsOf(log: RunLog): Map<string, string> {
-  const bindings = new Map<string, string>();
-  for (const event of log.events) {
-    if (event.type === 'contract-registered') {
-      if (event.data.obligation !== null && event.data.providerWorkItem !== null) {
-        bindings.set(bindingKey(event.data.obligation, event.data.revision), event.data.providerWorkItem);
-      }
-      const consumer = workItemOfIteration(event.data.iteration);
-      if (consumer !== null) {
-        for (const requirement of event.data.requirements) bindings.set(bindingKey(requirement, event.data.revision), consumer);
-      }
-      continue;
-    }
-    if (event.type !== 'evidence-reopened') continue;
-    for (const binding of event.data.bindings) bindings.set(bindingKey(binding.subject.id, binding.subject.revision), binding.workItem);
-  }
-  return bindings;
-}
-
-/** The requirement revisions a `requirement-verified` has closed. */
-export function verifiedRequirements(log: RunLog): Set<string> {
-  return new Set(log.all('requirement-verified').map(event => verificationKey(event.data.requirement, event.data.revision)));
-}
-
-/** The requirements one work item owes that no `requirement-verified` has closed, by the scheduling binding. */
-export function openRequirementsOf(log: RunLog, records: ReturnType<typeof committedRecords>, workItem: string): ConsumerRequirement[] {
-  return openRequirements(records.requirements, verifiedRequirements(log), workItem, bindingsOf(log));
-}
-
-/** The obligation one provider work item currently owes: the latest revision of its own obligation bound to it. */
-export function obligationOwedBy(log: RunLog, item: WorkItem, records: ReturnType<typeof committedRecords>): ProviderObligation | null {
-  if (!('obligation' in item.origin)) return null;
-  const obligation = records.obligations.get(item.origin.obligation.id);
-  if (obligation === undefined) return null;
-  const bound = bindingsOf(log).get(bindingKey(obligation.id, obligation.revision)) ?? null;
-  if (bound !== null) return bound === item.id ? obligation : null;
-  return item.origin.obligation.revision === obligation.revision ? obligation : null;
-}
-
-/** The unresolved capability work that blocks a work item's completion in the capability workflow. */
-export function capabilityBlockersOf(log: RunLog, workItem: string): string[] {
-  const accepted = new Set(log.all('iteration-closed').filter(event => event.data.outcome === 'accepted').map(event => event.data.iteration));
-  return capabilityCompletionBlockers(replayCapabilityState(log.events), workItem, accepted);
-}
-
-/**
- * Why a work item's completion request is refused now, or nothing: in the
- * contract workflow, an open requirement and an owed obligation not yet
- * conformed; in the capability workflow, its unresolved capability work.
- */
-export function completionBlockers(log: RunLog, item: WorkItem, capabilityWorkflow: boolean): {
-  readonly blocked: string[];
-  readonly open: ConsumerRequirement[];
-  readonly owed: ProviderObligation | null;
-} {
-  const records = committedRecords(log.ledger.replay());
-  const open = openRequirementsOf(log, records, item.id);
-  const conformed = new Set(log.all('provider-conformed').map(event => conformanceKey(event.data.obligation, event.data.revision)));
-  const owing = obligationOwedBy(log, item, records);
-  const owed = owing !== null && !conformed.has(conformanceKey(owing.id, owing.revision)) ? owing : null;
-  const capability = capabilityWorkflow ? capabilityBlockersOf(log, item.id) : [];
-  const blocked = [
-    ...(capabilityWorkflow ? [] : open).map(requirement => {
-      const obligation = records.obligations.get(requirement.obligation);
-      return `${requirement.id} is open: ${obligation?.capability ?? requirement.forCapability} is still held by the fake at ${requirement.evidence.fakeInjections.join(', ')}`;
-    }),
-    ...(capabilityWorkflow || owed === null ? [] : [`${owed.id} is owed: the agreed conformance suite has not passed against the real provider yet`]),
-    ...capability,
-  ];
-  return { blocked, open: capabilityWorkflow ? [] : open, owed: capabilityWorkflow ? null : owed };
-}
-
-/** The reconciliation an assignment of this work item corrects, while none has resolved it. */
-export function pendingCorrection(log: RunLog, workItem: string): string | undefined {
-  const assessed = log.all('reconciliation-assessed').filter(event => event.data.workItem === workItem).at(-1);
-  if (assessed === undefined || assessed.data.next !== 'correct') return undefined;
-  const resolved = log.all('iteration-assigned').some(event => event.data.corrects === assessed.data.reconciliation) ||
-    log.all('capability-assigned').some(event => event.data.corrects === assessed.data.reconciliation);
-  return resolved ? undefined : assessed.data.reconciliation;
-}
-
-/** The count of iterations this work item has been assigned, contract sub-sessions included. */
-export function assignedCount(log: RunLog, workItem: string): number {
-  return log.all('iteration-assigned').filter(event => event.data.workItem === workItem).length
-    + log.all('contract-requested').filter(event => event.data.workItem === workItem).length;
-}
 
 async function readIfExists(path: string): Promise<Buffer | undefined> {
   try {

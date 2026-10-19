@@ -15,11 +15,11 @@ import {
 import { installTestRunner, onlyRun, runPath, startRun, testPolicy } from './helpers/runs.js';
 import { scenariosCommit } from './helpers/scripted-git.js';
 import { assertUnchangedGit, openUnchangedRuns as openRuns } from './helpers/unchanged-run.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { type RunPolicy } from '../../subs/autonomous/src/run/records.js';
 import { engineerBoundsOf } from '../run/policy.js';
 import { InvocationBounds } from '../../subs/task-execution/src/port-events.js';
-import { validateLocalArchitect, type LocalArchitectSubmission } from '../../subs/autonomous/src/work/submission.js';
+import { validateLocalArchitect, type LocalArchitectSubmission } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { createShellTool, shellToolName } from '../tools/shell.js';
 
 /*

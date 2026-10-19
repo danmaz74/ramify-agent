@@ -1,8 +1,8 @@
 import { classifyMutations } from '../run/mutations.js';
 import { OwnershipUnavailableError, OwnershipCancelledError } from '../../subs/evidence/src/ownership-evidence.js';
 import { ownershipAuthorityFor } from '../work/ownership-authority.js';
-import { taskSupportSections } from '../../subs/autonomous/src/work/task-support.js';
-import { declaredCheckInputs, moduleInputPointers } from '../../subs/autonomous/src/work/starting-inputs.js';
+import { taskSupportSections } from '../../subs/autonomous/subs/work-coordination/src/work/task-support.js';
+import { declaredCheckInputs, moduleInputPointers } from '../../subs/autonomous/subs/work-coordination/src/work/starting-inputs.js';
 import { randomBytes } from 'node:crypto';
 import { mkdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
@@ -29,18 +29,18 @@ import { defaultRunPolicy } from '../run/policy.js';
 import { gateAttemptId, gateAttemptSchema, runLayout, type RunPolicy } from '../../subs/autonomous/src/run/records.js';
 import { invocationOutcomeSchema, type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { acquireProjectLock, ProjectLockError, type ProjectLock } from '../store/lock.js';
-import { engineerBuiltinTools, engineerEquipment } from '../../subs/autonomous/src/work/engineer-equipment.js';
+import { engineerBuiltinTools, engineerEquipment } from '../../subs/autonomous/subs/work-coordination/src/work/engineer-equipment.js';
 import { shellToolName } from '../tools/shell.js';
 import { manualRunner, openManualRun, settleManualAttempts, recordManualResourceIntent, readManualResourceResult, recordManualResourceResult, waitManualResourceResult } from '../steps/manual.js';
 import { committedBody } from '../steps/runner.js';
 import { finished } from '../../subs/task-execution/src/results.js';
-import { engineerWorkingDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
-import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../../subs/autonomous/src/work/scratch.js';
-import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../../subs/autonomous/src/work/engineer.js';
-import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
-import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { engineerWorkingDirectory } from '../../subs/autonomous/subs/work-coordination/src/work/engineer-directory.js';
+import { ensureScratchRule, removeScratchDirectories, scratchSafetyRule, trackedScratchPaths } from '../../subs/autonomous/subs/work-coordination/src/work/scratch.js';
+import { capabilityEngineerJsonSchema, capabilityEngineerSubmissionSchema, engineerSubmissionDescription, engineerToolName, iterationMessage, validateEngineerWithOwnership, type EngineerSubmission } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
+import type { IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { auditPreparationPaths, scopeConfigurationPaths, captureGuardedFiles, deniedFiles, guardedScopeOf, resolveWriteScope, scopePaths, testPolicyOf } from '../work/scope.js';
-import { iterationApiViews } from '../../subs/autonomous/src/work/session.js';
+import { iterationApiViews } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 
 /*
  * One engineer session on one module, from a prompt a person writes.

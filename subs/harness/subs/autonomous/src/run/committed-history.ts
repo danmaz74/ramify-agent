@@ -1,10 +1,10 @@
 import { join } from 'node:path';
 import { z } from 'zod';
 import { hypothesisSchema } from '../../subs/planning/src/records.js';
-import { contractRecordSchema } from '../contracts/records.js';
-import { workItemOutlineSchema } from '../work/records.js';
-import { iterationAssignmentSchema } from '../work/iterations.js';
-import { committedRecords } from '../work/committed.js';
+import { contractRecordSchema } from '../../subs/work-coordination/src/contracts/records.js';
+import { workItemOutlineSchema } from '../../subs/work-coordination/src/work/records.js';
+import { iterationAssignmentSchema } from '../../subs/work-coordination/src/work/iterations.js';
+import { committedRecords } from './committed-records.js';
 import { CommittedRecordError } from '../../../../src/jobs/committed-reader.js';
 import { gateAttemptSchema, gateAuditOutcomeSchema } from './records.js';
 import { entryAssignmentsSchema } from '../../subs/planning/src/records.js';

@@ -301,3 +301,7 @@ export function gateGit(root: string, options: GateGitOptions): GateGit {
 export function operationsOf(gate: GateGit): string[] {
   return [...new Set(gate.calls.map(call => call.operation).filter(operation => operation !== 'mark'))].sort();
 }
+
+export { scenariosCommit as gateScenariosCommitFixture };
+
+export type { GitChange as GateFixtureGitChange };

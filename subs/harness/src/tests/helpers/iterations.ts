@@ -7,13 +7,13 @@ import type { RamifyCli } from '../../../subs/evidence/src/ramify-cli.js';
 import type { ArchitectIndex, ModuleEntry } from '../../../subs/evidence/src/views.js';
 import { architectRunInputs, type RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 import { parseModuleHeader } from '../../../subs/autonomous/src/run/module-header.js';
-import type { AssignmentBody } from '../../../subs/autonomous/src/work/assignment.js';
+import type { AssignmentBody } from '../../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
 import type { z } from 'zod';
-import type { engineerSubmissionSchema } from '../../../subs/autonomous/src/work/engineer.js';
-import type { LocalArchitectSubmission, LocalArchitectSubmissionInput } from '../../../subs/autonomous/src/work/submission.js';
+import type { engineerSubmissionSchema } from '../../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import type { LocalArchitectSubmission, LocalArchitectSubmissionInput } from '../../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { defaultTurn } from './declarations.js';
 import type { FailureCause } from '../../interfaces/protocol/runs.js';
-import type { FailureAnalysisSubmission } from '../../../subs/autonomous/src/work/failure.js';
+import type { FailureAnalysisSubmission } from '../../../subs/autonomous/subs/work-coordination/src/work/failure.js';
 import { installScriptedCucumber } from './project-config.js';
 
 /** A module engineer submission as an agent sends it: a declaration's `scenarios` may be left out. */

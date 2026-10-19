@@ -9,11 +9,11 @@ import { acceptedCommandSchema } from '../../../../src/interfaces/protocol/jobs.
 import { roleSchema, runFailureReasonSchema } from '../../../../src/interfaces/protocol/runs.js';
 import { modulePathSchema, viewIdentitySchema } from '../../../../src/interfaces/protocol/evidence.js';
 import { architectRefSchema, continueRelationSchema, degradeRelationSchema, forkRelationSchema, invocationWorkSchema, recordRefSchema, replaceRelationSchema, requestRelationSchema, runSessionFinishReasonSchema as sessionFinishReasonSchema, sessionIdSchema } from '../../../task-execution/src/records.js';
-import { moduleNoticeSchema } from '../work/iterations.js';
+import { moduleNoticeSchema } from '../../subs/work-coordination/src/work/iterations.js';
 import { ownershipEvidenceRetainedSchema } from '../../../../src/work/ownership-authority.js';
 import { catalogFindingSchema, scenarioWarningSchema } from '../../subs/planning/src/records.js';
 import { scenarioIdSchema } from '../../../scenarios/src/records.js';
-import { obligationBoundDataSchema, obligationRegisteredDataSchema, obligationReportedDataSchema } from '../work/obligations.js';
+import { obligationBoundDataSchema, obligationRegisteredDataSchema, obligationReportedDataSchema } from '../../subs/work-coordination/src/work/obligations.js';
 import { LedgerCorruptError, openLedger, type Ledger } from '../../../ledger/src/ledger.js';
 import type { LedgerEntry } from '../../../ledger/src/ledger.js';
 import type { LedgerFileSystem } from '../../../ledger/src/fs.js';
@@ -948,3 +948,75 @@ function terminalOf(events: readonly RunEvent[]): RunEvent | undefined {
   }
   return ended;
 }
+
+export type RunWrite =
+  | 'repair-assignment-recorded'
+  | 'repair-preparation-recorded'
+  | 'repair-preparation-consumed'
+  | 'repair-incident-recorded'
+  | 'job-created'
+  | 'debug-exchange-admitted'
+  | 'contract-requested'
+  | 'contract-registered'
+  | 'work-item-yielded'
+  | 'work-item-resumed'
+  | 'provider-conformed'
+  | 'requirement-verified'
+  | 'evidence-reopened'
+  | 'revision-needed'
+  | 'dependency-cycle-detected'
+  | 'restart-staged'
+  | 'restart-prepared'
+  | 'session-opened'
+  | 'invocation-started'
+  | 'invocation-ended'
+  | 'session-finished'
+  | 'analysis-accepted'
+  | 'analysis-evidence-staged'
+  | 'work-orientation-recorded'
+  | 'context-selection-recorded'
+  | 'context-package-append-requested'
+  | 'context-package-appended'
+  | 'readiness-attempted'
+  | 'scratch-setting-up'
+  | 'scratch-rule-appended'
+  | 'scratch-committed'
+  | 'scratch-setup-complete'
+  | 'scenarios-materializing'
+  | 'scenarios-committed'
+  | 'scenarios-materialized'
+  | 'work-item-started'
+  | 'hypotheses-delivered'
+  | 'placement-requested'
+  | 'view-refreshed'
+  | 'fork-returned-partial'
+  | 'decision-accepted'
+  | 'brief-appending'
+  | 'brief-appended'
+  | 'decision-delivered'
+  | 'outline-revised'
+  | 'obligation-reported'
+  | 'iteration-assigned'
+  | 'writer-acquired'
+  | 'writer-process-registered'
+  | 'writer-released'
+  | 'nonfunctional-phase-started'
+  | 'nonfunctional-repair-assigned'
+  | 'nonfunctional-repair-committed'
+  | 'nonfunctional-assessed'
+  | 'capability-coordinator-resumed'
+  | 'capability-verification-started'
+  | 'capability-source-captured'
+  | 'capability-exchange-opened'
+  | 'capability-exchange-answered'
+  | 'capability-gate-recorded'
+  | 'capability-handed-back'
+  | 'capability-assignment-settled'
+  | 'capability-assigned'
+  | 'candidate-prepared'
+  | 'iteration-closed'
+  | 'work-item-completed'
+  | 'gate-attempted'
+  | 'gate-committing'
+  | 'gate-committed'
+  | 'job-completed';

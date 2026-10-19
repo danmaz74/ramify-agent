@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { verifySetupLineIdentities, type RecordedSetupDelta, type SetupAddedLineFact, type SetupCandidatePartition, type SetupDeletedLineFact, type SetupLineMappingFacts } from '../../kpi/src/setup-attribution.js';
-import { scratchIgnoreRule } from '../../autonomous/src/work/scratch.js';
+import { scratchIgnoreRule } from '../../autonomous/subs/work-coordination/src/work/scratch.js';
 import type { CandidateSource, ChangeHistory, LineCommit } from '../../evidence/src/git.js';
 import { acceptedCommit } from '../../../src/checks/accepted.js';
 import { deliveredManifestViewSchema, operationIdentitySchema, scopeSizeViewSchema, recordedChargeSchema, type InvocationEvaluation, type InvocationEfficiency, type MetricsResponse, type Role, type SearchCountsView } from '../../../src/interfaces/protocol/runs.js';

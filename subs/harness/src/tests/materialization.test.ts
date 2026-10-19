@@ -10,7 +10,7 @@ import {
   trackedScenarios,
 } from '../../subs/autonomous/src/run/feature-files.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { auditPreparationPaths, captureGuardedFiles } from '../work/scope.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { initialScenarioStates } from '../../subs/scenarios/src/states.js';
@@ -19,7 +19,7 @@ import { statedCommands } from './helpers/composition.js';
 import { createPassingCheckExecution } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture, temporaryDirectory } from './helpers/fixture.js';
-import { gateGit, scenariosCommit as gateScenariosCommit, type GateCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as gateScenariosCommit, type GateCommit } from './helpers/gate-git.js';
 import {
   addModule, assign, byRole, completionProposed, installMiniRunner, outline, shell, submit, treeInputs, write,
 } from './helpers/iterations.js';

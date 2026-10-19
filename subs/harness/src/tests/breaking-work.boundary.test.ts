@@ -6,7 +6,7 @@ import { gateDiagnostics } from '../checks/diagnostics.js';
 
 
 
-import { workLayout } from '../../subs/autonomous/src/work/records.js';
+import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 
 
 import { analysis, entry } from './helpers/analysis.js';

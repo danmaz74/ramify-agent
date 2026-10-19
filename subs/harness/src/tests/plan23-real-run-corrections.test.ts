@@ -22,12 +22,12 @@ import type { SessionExecutionPolicy, SessionExecutionBindings, SessionTaskInput
 import { openSessionStore } from '../../subs/session-store/src/session-store.js';
 import { settleSessionEquipment } from '../../subs/task-execution/src/session-operations.js';
 import { ObservationLog } from '../../subs/task-execution/src/observations.js';
-import { engineerEquipment, projectMutationSnapshot } from '../../subs/autonomous/src/work/engineer-equipment.js';
+import { engineerEquipment, projectMutationSnapshot } from '../../subs/autonomous/subs/work-coordination/src/work/engineer-equipment.js';
 import { changesBetween } from '../hooks/mutation-order.js';
-import { taskSupportSections } from '../../subs/autonomous/src/work/task-support.js';
-import { prepareAssignedCucumber, focusedScenarioFacts } from '../../subs/autonomous/src/work/session.js';
+import { taskSupportSections } from '../../subs/autonomous/subs/work-coordination/src/work/task-support.js';
+import { prepareAssignedCucumber, focusedScenarioFacts } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 import { createShellTool } from '../tools/shell.js';
-import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from '../../subs/autonomous/src/capability/authorization.js';
+import { capabilityGuardedPolicy, capabilityAuthorizationErrors } from '../../subs/autonomous/subs/work-coordination/src/capability/authorization.js';
 import { boundedNonfunctionalTools } from '../../subs/autonomous/src/nonfunctional/submissions.js';
 import { coordinatorAssessmentPrompt } from '../../subs/autonomous/src/nonfunctional/prompts.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';

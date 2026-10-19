@@ -1,3 +1,4 @@
+import { coordinationHistory } from '../../subs/autonomous/src/run/coordination-history.js';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createConfiguredAudit, type ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
@@ -6,14 +7,16 @@ import type { ProvisionalSourceGit } from '../../subs/evidence/src/provisional-g
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { writeFileAtomic } from '../../subs/ledger/src/atomic.js';
-import { capabilityRunPolicyVersion } from '../../subs/autonomous/src/capability/policy.js';
-import { capabilityRequestId } from '../../subs/autonomous/src/capability/records.js';
-import { captureProvisionalSource } from '../../subs/autonomous/src/capability/source.js';
+import { capabilityRunPolicyVersion } from '../../subs/autonomous/subs/work-coordination/src/capability/policy.js';
+import { capabilityRequestId } from '../../subs/autonomous/subs/work-coordination/src/capability/records.js';
+import { captureProvisionalSource } from '../../subs/autonomous/subs/work-coordination/src/capability/source.js';
 import { acceptedCommit } from '../checks/accepted.js';
 import type { GateAttempt } from '../checks/records.js';
 import { placementPaths } from '../guard/write-guard.js';
 import { canonicalJson } from '../jobs/commands.js';
-import { assignedCount, authorizedScope, completionBlockers, evidenceFor, requiredArtifacts, type AfterHandling } from '../../subs/autonomous/src/run/after-handling.js';
+import { type AfterHandling } from '../../subs/autonomous/src/run/after-handling.js';
+import { authorizedScope, requiredArtifacts } from '../../subs/autonomous/subs/work-coordination/src/work/publication.js';
+import { assignedCount, completionBlockers, evidenceFor } from '../../subs/autonomous/subs/work-coordination/src/work/history.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
 import type { CommittingGates } from '../../subs/autonomous/src/run/committing-gate.js';
 import { expectedFeatureHashes } from '../../subs/autonomous/src/run/feature-files.js';
@@ -22,11 +25,12 @@ import { auditPreparationPathsOf, engineerBoundsFor, iterationAssignmentOf } fro
 import { committedAuditConfigurationSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 import { invocationOutcomeSchema, type ArchitectRef, type DurableRecordRef as RecordRef } from '../../subs/task-execution/src/records.js';
 import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
-import { committedRecords, refOf } from '../../subs/autonomous/src/work/committed.js';
-import { engineerSubmissionSchema, type EngineerSubmission } from '../../subs/autonomous/src/work/engineer.js';
-import { iterationId, iterationLayout, type IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
-import { integrationScenarioOf, originKindOf, workLayout, type WorkItem } from '../../subs/autonomous/src/work/records.js';
-import { localArchitectSubmissionSchema, type LocalArchitectSubmission } from '../../subs/autonomous/src/work/submission.js';
+import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
+import { refOf } from '../jobs/committed-reader.js';
+import { engineerSubmissionSchema, type EngineerSubmission } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { iterationId, iterationLayout, type IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { integrationScenarioOf, originKindOf, workLayout, type WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { localArchitectSubmissionSchema, type LocalArchitectSubmission } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { parseStepInputs, serializeStepInputs, validateWorkTurnInputs, type WorkTurnStepInputs } from './inputs.js';
 import { judgeWorkTurn } from './local-architect.js';
 import { openLockedManualRun, type ManualRun } from './manual.js';
@@ -280,7 +284,7 @@ async function afterAssign(handling: Handling, item: WorkItem, inputs: WorkTurnS
   if (existing !== undefined) {
     handling.applied(`nothing more: ${existing.data.iteration} was already assigned by ${invocation}`);
   } else {
-    const number = assignedCount(run.log, item.id) + 1;
+    const number = assignedCount(coordinationHistory(run.log), item.id) + 1;
     // The submission is judged again against the turn's inputs and the project as it stands, which captures its scope.
     const index = await refreshedIndex(handling);
     const judged = await judgeWorkTurn({ inputs }, submission, { index, ramify: context.ramify, projectRoot });
@@ -304,7 +308,7 @@ async function afterAssign(handling: Handling, item: WorkItem, inputs: WorkTurnS
     const id = iterationId(item.id, number);
     const assignment = await iterationAssignmentOf(projectRoot, {
       id, item, basis: outlineRef, coordination: { kind: 'work-item', id: item.id }, body, scope,
-      evidenceObligations: evidenceFor(run.log, item, body.kind, committed),
+      evidenceObligations: evidenceFor(coordinationHistory(run.log), item, body.kind, committed),
       authorizations: (body.authorizations ?? []).map(entry => ({ path: entry.path, rationale: entry.rationale, by: outlineRef })),
       guardedPaths: artifacts.map(artifact => artifact.path),
     }, {
@@ -322,7 +326,7 @@ async function afterCompletionRequest(handling: Handling, item: WorkItem,
   submission: Extract<LocalArchitectSubmission, { kind: 'request-completion' }>): Promise<void> {
   const { run, invocation } = handling;
   await recordReports(handling, item, submission);
-  const blockers = completionBlockers(run.log, item, run.record.policy.version === capabilityRunPolicyVersion);
+  const blockers = completionBlockers(coordinationHistory(run.log), item, run.record.policy.version === capabilityRunPolicyVersion);
   if (blockers.blocked.length > 0) {
     handling.notRun(`${item.id}'s completion, which is refused while: ${blockers.blocked.join('; ')}; a run continues the architect's session with these blockers`);
     return;

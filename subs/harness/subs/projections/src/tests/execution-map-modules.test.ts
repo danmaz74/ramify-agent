@@ -8,7 +8,7 @@ import { capturedLinesOf, executionModuleMapOf } from '../execution-modules.js';
 import { currentLifecycleEvents, runView } from '../inputs.js';
 import { lineEventSummarySchema, runLayout } from '../../../autonomous/src/run/records.js';
 import { invocationSchema } from '../../../task-execution/src/records.js';
-import { iterationAssignmentSchema } from '../../../autonomous/src/work/iterations.js';
+import { iterationAssignmentSchema } from '../../../autonomous/subs/work-coordination/src/work/iterations.js';
 import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
 import { executionMapFixtureNodes, executionMapFixturePage } from './helpers/execution-map-fixture.js';
 

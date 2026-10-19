@@ -14,9 +14,9 @@ import type { TaskKind } from '../prompts/tasks.js';
 import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { readTranscript, readBody } from '../../subs/task-execution/src/transcripts/writer.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
-import { taskSupportSections } from '../../subs/autonomous/src/run/service.js';
+import { taskSupportSections } from '../../subs/autonomous/subs/work-coordination/src/work/task-support.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { qualificationActionSchema } from '../../subs/autonomous/src/capability/submission.js';
+import { qualificationActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 
 import { copyFixture } from './helpers/fixture.js';
 import { emptyAnalysis, freeze, installTestRunner, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, until } from './helpers/runs.js';

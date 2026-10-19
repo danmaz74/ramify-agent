@@ -19,7 +19,7 @@ import { assign, byRole, completionProposed, outline, submit, treeInputs, write 
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { scriptedCandidates } from './helpers/candidates.js';
-import { gateGit, scenariosCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './helpers/gate-git.js';
 import { notes, notesDirectory, reviewTarget, store } from './helpers/reviews.js';
 import { onlyRun, openRuns, runEventsOnDisk, startRun, testPolicy, runPath } from './helpers/runs.js';
 import { testReviewPolicy } from './helpers/candidates.js';

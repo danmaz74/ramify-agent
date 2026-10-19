@@ -6,7 +6,7 @@ import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { analysisLayout, hypothesisSchema } from '../../subs/autonomous/subs/planning/src/records.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
-import { workLayout } from '../../subs/autonomous/src/work/records.js';
+import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { expectNoProcesses, forgetExternalTools, openRunsWithoutProcesses } from './helpers/external-tools.js';
 import { analysis, entry, hypothesis, requestCompletion } from './helpers/analysis.js';

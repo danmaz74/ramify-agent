@@ -3,15 +3,15 @@ import { scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/sr
 import type { ScenarioState } from '../../subs/scenarios/src/states.js';
 import { gateDiagnostics, passedScenarioLines } from '../checks/diagnostics.js';
 import type { GateAttempt } from '../checks/records.js';
-import { assignmentErrors, type AssignmentBody } from '../../subs/autonomous/src/work/assignment.js';
-import { iterationMessage } from '../../subs/autonomous/src/work/engineer.js';
-import type { IntegrationBriefing } from '../../subs/autonomous/src/work/integration.js';
-import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
-import { obligationsOf } from '../../subs/autonomous/src/work/obligations.js';
-import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
-import { entryScenariosOf } from '../../subs/autonomous/src/work/scenario-briefing.js';
-import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../../subs/autonomous/src/work/session.js';
-import { validateLocalArchitect } from '../../subs/autonomous/src/work/submission.js';
+import { assignmentErrors, type AssignmentBody } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
+import { iterationMessage } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import type { IntegrationBriefing } from '../../subs/autonomous/subs/work-coordination/src/work/integration.js';
+import type { IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
+import type { WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { entryScenariosOf } from '../../subs/autonomous/subs/work-coordination/src/work/scenario-briefing.js';
+import { apiCoverageStatement, workItemMessage, type WorkItemBriefing } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
+import { validateLocalArchitect } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 
 /*

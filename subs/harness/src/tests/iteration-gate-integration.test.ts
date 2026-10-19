@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { GateAttempt } from '../checks/records.js';
-import { iterationLayout, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout, type LineEventSummary } from '../../subs/autonomous/src/run/records.js';
 import { changedPaths, diffNumstat } from '../../subs/evidence/src/git.js';
 import { childEnvironment, runCommand } from '../../subs/evidence/src/run-command.js';

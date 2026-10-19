@@ -10,9 +10,9 @@ import { viewIdentitySchema } from '../interfaces/protocol/evidence.js';
 import { contextPolicySchema, runPolicySchema } from '../../subs/autonomous/src/run/records.js';
 import { continueReasonSchema, sessionIdSchema } from '../../subs/task-execution/src/records.js';
 import { readSessionPointReference } from '../../subs/task-execution/src/session-operations.js';
-import { iterationAssignmentSchema } from '../../subs/autonomous/src/work/iterations.js';
-import { workItemOutlineSchema, workItemSchema } from '../../subs/autonomous/src/work/records.js';
-import { startingPointSchema } from '../../subs/autonomous/src/work/starting-points.js';
+import { iterationAssignmentSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { workItemOutlineSchema, workItemSchema } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { startingPointSchema } from '../../subs/autonomous/subs/work-coordination/src/work/starting-points.js';
 
 /*
  * The inputs of one harness step: everything a role's invocation is built

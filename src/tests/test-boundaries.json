@@ -130,7 +130,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/capability-acceptance.boundary.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-acceptance.boundary.test.ts",
       "boundary": "Composed actual Git, test failure, repair, review and handback",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -138,7 +138,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/capability-dependencies.boundary.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-dependencies.boundary.test.ts",
       "boundary": "Actual accepted dependency commits and produced tests",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -146,7 +146,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/capability-delegation.boundary.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-delegation.boundary.test.ts",
       "boundary": "Actual composed delegated module creation and commits",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -176,7 +176,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/capability-recovery.boundary.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/capability-recovery.boundary.test.ts",
       "boundary": "Actual Git commit idempotency and crash/recovery object history",
       "whyFakeCannotProve": "The owning cases assert actual installed tool, published report/Git object or kernel process behavior; a scripted answer cannot establish that boundary.",
       "owningCases": [
@@ -518,7 +518,7 @@
       ]
     },
     {
-      "file": "subs/harness/src/tests/contract-delegation-integration.test.ts",
+      "file": "subs/harness/subs/autonomous/subs/work-coordination/src/tests/contract-delegation-integration.test.ts",
       "boundary": "Consumer tests enforce delegated provider conformance",
       "whyFakeCannotProve": "The fixture Vitest assertions observe the consumer/providing module relation, including a conforming fake and the actual implementation. Scripted gate replies cannot prove those assertions execute.",
       "owningCases": [

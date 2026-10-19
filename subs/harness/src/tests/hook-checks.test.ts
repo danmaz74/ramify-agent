@@ -7,7 +7,7 @@ import { FindingsSeen, findingIdentities, runHookCheck, type HookCheck } from '.
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import type { Observation } from '../../subs/task-execution/src/observations.js';
-import { iterationLayout, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { capturedCheck, capturedFinding, changedDocument } from './helpers/check-payloads.js';

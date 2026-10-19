@@ -4,7 +4,7 @@ import { isTestingModule, type ArchitectIndex } from '../../../../evidence/src/v
 import { type RunRecord } from '../../../src/run/records.js';
 import { entryAssignmentsSchema, type EntryAssignments } from './records.js';
 import { runLayout } from '../../../src/run/records.js';
-import { workItemId, workItemSchema, workLayout, type WorkItem } from '../../../src/work/records.js';
+import { workItemId, workItemSchema, workLayout, type WorkItem } from '../../work-coordination/src/work/records.js';
 import type { PlanScenario } from '../../../../scenarios/src/extraction.js';
 import { assignScenarioIds, scenarioRecordSchema, type ScenarioModule, type ScenarioRecord } from '../../../../scenarios/src/records.js';
 import {

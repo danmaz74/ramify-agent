@@ -8,21 +8,21 @@ import {
   runEventsOnDisk, runPath, startRun, stopRun, until } from '../../../../src/tests/helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../src/tests/helpers/external-tools.js';
 import { modified, scenarioGit, untracked, type CommitResponse, type RecoveredCommit, type ScenarioGit } from '../../../../src/tests/helpers/recovery-git.js';
-import { workLayout } from '../work/records.js';
-import { type IterationAssignment, iterationLayout } from '../work/iterations.js';
+import { workLayout } from '../../subs/work-coordination/src/work/records.js';
+import { type IterationAssignment, iterationLayout } from '../../subs/work-coordination/src/work/iterations.js';
 import {
   addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, shell,
   submit as submitStep, treeInputs, write,
 } from '../../../../src/tests/helpers/iterations.js';
 import { analysisLayout } from '../../subs/planning/src/records.js';
-import { contractsLayout } from '../contracts/records.js';
-import { localDecision, registryChange } from '../../../../src/tests/helpers/placement.js';
+import { contractsLayout } from '../../subs/work-coordination/src/contracts/records.js';
+import { localDecision, registryChange } from '../../subs/work-coordination/src/tests/helpers/placement.js';
 import {
   consumerStub, consumerTest, contractNeeded, contractWrites, established, paths, type Seam,
-} from '../../../../src/tests/helpers/contracts.js';
-import { architectureLayout } from '../architecture/records.js';
+} from '../../subs/work-coordination/src/tests/helpers/contracts.js';
+import { architectureLayout } from '../../subs/work-coordination/src/architecture/records.js';
 import { analysis, entry, requestCompletion } from '../../../../src/tests/helpers/analysis.js';
-import { placementDecisionFixture as decisionBody, forkDecision, requestPlacement } from '../../../../src/tests/helpers/placement.js';
+import { placementDecisionFixture as decisionBody, forkDecision, requestPlacement } from '../../subs/work-coordination/src/tests/helpers/placement.js';
 import { createScriptedAgent, type Script } from '../../../agent/src/scripted.js';
 import { scriptedCandidates } from '../../../../src/tests/helpers/candidates.js';
 import { declaringScenarios } from '../../../../src/tests/helpers/declarations.js';
@@ -31,7 +31,7 @@ import type { SessionSpec } from '../../../agent/src/interfaces/port.js';
 import { FakeRamifyCli } from '../../../../src/tests/helpers/fake-ramify.js';
 import { gateAttemptSchema, runLayout } from '../run/records.js';
 import { type InvocationOutcome } from '../../../task-execution/src/records.js';
-import type { RunWrite } from '../run/service.js';
+import type { RunWrite } from '../run/log.js';
 import type { RunEvent } from '../run/log.js';
 import { reduceSessions } from '../run/sessions.js';
 import { readTranscript } from '../../../task-execution/src/transcripts/writer.js';

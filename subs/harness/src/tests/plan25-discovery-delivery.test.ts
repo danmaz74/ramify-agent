@@ -11,7 +11,7 @@ import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.j
 import type { TaskPacket } from '../../subs/task-execution/src/delivery/packet.js';
 import type { BriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import type { DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
-import { startingPointsSection, type StartingPointGroup } from '../../subs/autonomous/src/work/starting-inputs.js';
+import { startingPointsSection, type StartingPointGroup } from '../../subs/autonomous/subs/work-coordination/src/work/starting-inputs.js';
 import { nonfunctionalSourceAllows } from '../../subs/autonomous/src/nonfunctional/submissions.js';
 import type { CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
 import { assign, completionProposed, outline, submit, write } from './helpers/iterations.js';

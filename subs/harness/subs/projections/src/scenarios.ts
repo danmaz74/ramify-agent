@@ -7,9 +7,9 @@ import {
 import type { GateAttempt } from '../../../src/checks/records.js';
 import { scenarioResultsOf } from '../../../src/checks/scenario-results.js';
 import { trackedScenarios, type TrackedScenarios } from '../../autonomous/src/run/feature-files.js';
-import { capabilityOf } from '../../autonomous/src/work/frontier.js';
-import { integrationScenarioOf } from '../../autonomous/src/work/records.js';
-import { obligationsOf } from '../../autonomous/src/work/obligations.js';
+import { capabilityOf } from '../../autonomous/subs/work-coordination/src/work/frontier.js';
+import { integrationScenarioOf } from '../../autonomous/subs/work-coordination/src/work/records.js';
+import { obligationsOf } from '../../autonomous/subs/work-coordination/src/work/obligations.js';
 import { publicSequence, type RunView } from './inputs.js';
 
 /*

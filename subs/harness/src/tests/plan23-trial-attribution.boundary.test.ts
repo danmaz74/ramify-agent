@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { ensureScratchRule } from '../../subs/autonomous/src/work/scratch.js';
-import { engineerWorkingDirectory } from '../../subs/autonomous/src/work/engineer-directory.js';
+import { ensureScratchRule } from '../../subs/autonomous/subs/work-coordination/src/work/scratch.js';
+import { engineerWorkingDirectory } from '../../subs/autonomous/subs/work-coordination/src/work/engineer-directory.js';
 import type { WriteScope } from '../work/scope.js';
 import { gitCandidateSource, gitChangeHistory, gitService } from '../../subs/evidence/src/git.js';
 import { verifySetupLineIdentities } from '../../subs/kpi/src/setup-attribution.js';

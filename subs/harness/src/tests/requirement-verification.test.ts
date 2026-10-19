@@ -3,17 +3,17 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
-import { localDecision, registryChange } from './helpers/placement.js';
+import { localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
-import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
+import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
-import { remainingInjections } from '../../subs/autonomous/src/contracts/verification.js';
-import type { ContractRecord } from '../../subs/autonomous/src/contracts/records.js';
+import { remainingInjections } from '../../subs/autonomous/subs/work-coordination/src/contracts/verification.js';
+import type { ContractRecord } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { GateAttempt } from '../checks/records.js';
 

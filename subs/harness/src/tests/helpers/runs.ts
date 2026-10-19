@@ -20,7 +20,7 @@ import type { RunPolicy } from '../../../subs/autonomous/src/run/records.js';
 import type { RunInputs } from '../../../subs/autonomous/src/run/inputs.js';
 import { RunService, type RunServiceOptions } from '../../run/lifecycle.js';
 import type { ConfiguredAuditPort } from '../../../subs/audit/src/check-execution.js';
-import type { CapabilityWorkflow } from '../../../subs/autonomous/src/capability/workflow.js';
+import type { CapabilityWorkflow } from '../../../subs/autonomous/subs/work-coordination/src/capability/workflow.js';
 import { acquireProjectLock, lockPath } from '../../store/lock.js';
 import { FakeRamifyCli } from './fake-ramify.js';
 import { fixtureScratchGit } from './scratch-git.js';

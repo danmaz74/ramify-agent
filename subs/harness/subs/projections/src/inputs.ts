@@ -9,11 +9,11 @@ import { runPolicyVersion } from '../../../src/run/policy.js';
 import type { RunEvent } from '../../autonomous/src/run/log.js';
 import { gateAttemptSchema, gateAuditOutcomeSchema, runLayout, runRecordSchema, type RunRecord } from '../../autonomous/src/run/records.js';
 import { type EntryAssignments } from '../../autonomous/subs/planning/src/records.js';
-import { committedRecords, type CommittedRecords } from '../../autonomous/src/work/committed.js';
+import { committedRecords, type CommittedRecords } from '../../autonomous/src/run/committed-records.js';
 import { validateCommittedHistory, CommittedHistoryError, unsupportedCommittedVersion } from '../../autonomous/src/run/committed-history.js';
-import { workItemOutlineSchema, type WorkItemOutline } from '../../autonomous/src/work/records.js';
-import { contractRecordSchema, type ContractRecord } from '../../autonomous/src/contracts/records.js';
-import { iterationAssignmentSchema, type IterationAssignment } from '../../autonomous/src/work/iterations.js';
+import { workItemOutlineSchema, type WorkItemOutline } from '../../autonomous/subs/work-coordination/src/work/records.js';
+import { contractRecordSchema, type ContractRecord } from '../../autonomous/subs/work-coordination/src/contracts/records.js';
+import { iterationAssignmentSchema, type IterationAssignment } from '../../autonomous/subs/work-coordination/src/work/iterations.js';
 
 /*
  * What every projection of a run is computed from: the run's `job.json`, the

@@ -7,7 +7,7 @@ import { RunQueries } from '../../subs/projections/src/queries.js';
 import type { Observation } from '../../subs/task-execution/src/observations.js';
 import { gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 import { invocationOutcomeSchema, invocationSchema } from '../../subs/task-execution/src/records.js';
-import { iterationAssignmentSchema, iterationResultSchema } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationAssignmentSchema, iterationResultSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { constructedRecord, constructedRun, hash, item, reviews } from './helpers/constructed.js';
 
 const paths = ['subs/validation/README.md', 'subs/validation/module.ramify'];

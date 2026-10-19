@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect } from 'vitest';
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
-import type { RunWrite } from '../../../subs/autonomous/src/run/service.js';
+import type { RunWrite } from '../../../subs/autonomous/src/run/log.js';
 import { reduceSessions } from '../../../subs/autonomous/src/run/sessions.js';
 import {
   crashAt, committedGates, compositionCandidates, fileHashes, identityOf, logLines, materialized, plan, recordText, recoveryCompletions, removeRecordFiles,
@@ -16,9 +16,9 @@ import { HarnessSessionOperations } from '../../prompts/session-adapter.js';
 import { readSessionPointReference } from '../../../subs/task-execution/src/session-operations.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences } from '../../../subs/autonomous/subs/planning/src/evidence.js';
 import { runRecordSchema } from '../../../subs/autonomous/src/run/records.js';
-import { readRecordedContextSelection } from '../../../subs/autonomous/src/context-selection/recorded.js';
-import { architectureLayout, placementDecisionSchema } from '../../../subs/autonomous/src/architecture/records.js';
-import { briefText } from '../../../subs/autonomous/src/architecture/context.js';
+import { readRecordedContextSelection } from '../../../subs/autonomous/subs/work-coordination/src/context-selection/recorded.js';
+import { architectureLayout, placementDecisionSchema } from '../../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
+import { briefText } from '../../../subs/autonomous/subs/work-coordination/src/architecture/context.js';
 
 /*
  * The recovery tables of the ten state machines, composed into one table

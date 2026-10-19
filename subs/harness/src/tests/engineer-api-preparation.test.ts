@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, expect, test, vi } from 'vitest';
 import { RamifyCli, type MaterializeResult } from '../../subs/evidence/src/ramify-cli.js';
 import { loadArchitectIndex } from '../../subs/evidence/src/views.js';
-import { apiViewsOf, iterationApiViews } from '../../subs/autonomous/src/work/session.js';
+import { apiViewsOf, iterationApiViews } from '../../subs/autonomous/subs/work-coordination/src/work/session.js';
 import { temporaryDirectory } from './helpers/fixture.js';
 
 const cleanups: Array<() => Promise<void>> = [];

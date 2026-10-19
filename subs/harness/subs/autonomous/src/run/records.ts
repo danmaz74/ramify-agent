@@ -14,7 +14,7 @@ import { documentManifestSchema } from '../../../plan-evidence/src/interfaces/co
 import { elementCatalogSchema, elementIdSchema } from '../../../plan-evidence/src/interfaces/catalog.js';
 import { assessmentSchema, roundSchema } from '../../../nonfunctional/src/interfaces/contracts.js';
 import { incorporationSchema } from '../../subs/planning/src/evidence-contracts.js';
-import { contextSelectionSchema } from '../context-selection/contracts.js';
+import { contextSelectionSchema } from '../../subs/work-coordination/src/context-selection/contracts.js';
 import { preparedCandidateSchema, nonfunctionalDeviationSchema, nonfunctionalRepairAssignmentSchema } from './nonfunctional-records.js';
 import { repairIncidentRecordSchema } from '../../../../src/interfaces/protocol/repairs.js';
 import { automaticRepairAssignmentSchema, repairPreparationSchema, repairDeltaSchema, repairAttemptSchema } from './repair-preparation.js';

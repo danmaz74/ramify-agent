@@ -11,7 +11,7 @@ import { checkCommand, type Checkpoint } from '../../checks/records.js';
 import type { ConfiguredAuditInput } from '../../../subs/audit/src/check-execution.js';
 import { localCommandAudit, mappedAudit } from './direct-check-execution.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
-import { copyCapabilityFixture, openCapabilityRuns } from './capability.js';
+import { copyCapabilityFixture, openCapabilityRuns } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { assign, edit, installMiniRunner, outline, submit, treeInputs, write } from './iterations.js';
 import { rootDescription } from './root-description.js';
 import { runLayout } from '../../../subs/autonomous/src/run/records.js';
@@ -34,7 +34,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   'gate-restart' | 'gate-intent-restart' | 'gate-committing-restart' |
   'review-restart' | 'review-submission-restart' | 'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>, realBoundary = false,
   /** Inspects the settled run of the full revision flow. */
-  inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false): Promise<void> {
+  inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false, handbackCommitDrift = false): Promise<void> {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   if (realBoundary) {
     await mkdir(join(fixture.root, 'subs/a/src/tests/steps'), { recursive: true });
@@ -319,10 +319,14 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         await writeFile(declaration, declared);
         inheritedAuthorityChecked = true;
       }
-      if (mode === 'drift' && write === 'gate-committed' && gate?.type === 'gate-attempted' &&
+      if (mode === 'drift' && !handbackCommitDrift && write === 'gate-committed' && gate?.type === 'gate-attempted' &&
         gate.data.checkpoint === 'work-item' && gate.data.verdict === 'passed') {
         external?.stage('drift');
         writeFileSync(join(fixture.root, 'subs/b/src/fact.ts'), `${readFileSync(join(fixture.root, 'subs/b/src/fact.ts'), 'utf8')}\n// concurrent source edit after the passing gate\n`);
+      }
+      if (handbackCommitDrift && write === 'capability-verification-started') {
+        external?.stage('drift');
+        writeFileSync(join(fixture.root, 'subs/b/src/fact.ts'), `${readFileSync(join(fixture.root, 'subs/b/src/fact.ts'), 'utf8')}\n// concurrent source edit after accepted verification\n`);
       }
       // Independent review events may advance the ledger tail before this
       // write observer runs. Identify the submitted reviewer by its invocation,
@@ -529,7 +533,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     await reopened.service.settled('need', receipt.jobId);
     return;
   }
-  await until(() => mode === 'drift' ? driftFeedback.length > 0
+  await until(() => mode === 'drift' && !handbackCommitDrift ? driftFeedback.length > 0
     : mode === 'repair-exhaustion' ? (opened.service.events('need', receipt.jobId) ?? []).filter(event =>
       event.type === 'gate-attempted' && event.data.verdict === 'failed').length >= 4
     : (opened.service.events('need', receipt.jobId) ?? []).some(event =>
@@ -567,6 +571,17 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     expect(failedGateIds.length).toBeGreaterThanOrEqual(4);
     expect(attempts.every(attempt => attempt.cause !== null)).toBe(true);
     await stopStable(opened.service, receipt.jobId);
+    await opened.service.settled('need', receipt.jobId);
+    return;
+  }
+  if (handbackCommitDrift) {
+    const verified = events.find(event => event.type === 'capability-verification-started');
+    expect(verified).toBeDefined();
+    expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
+    expect(events.filter(event => event.type === 'job-failed')).toEqual([expect.objectContaining({
+      data: expect.objectContaining({ message: expect.stringContaining('candidate changed before its atomic handback') }),
+    })]);
+    expect(events.filter(event => event.type === 'invocation-started' && event.sequence > verified!.sequence)).toEqual([]);
     await opened.service.settled('need', receipt.jobId);
     return;
   }

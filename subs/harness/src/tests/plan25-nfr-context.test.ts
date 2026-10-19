@@ -10,7 +10,7 @@ import { copyFixture } from './helpers/fixture.js';
 import { assign, byRole, completionProposed, outline, submit, treeInputs, write } from './helpers/iterations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { mockGit } from './helpers/mock-git.js';
-import { gateGit, scenariosCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './helpers/gate-git.js';
 import { notes, notesDirectory, reviewTarget, store } from './helpers/reviews.js';
 import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun, until } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';

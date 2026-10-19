@@ -4,7 +4,7 @@ import { mockGit } from './mock-git.js';
 import { scriptedGit } from './scripted-git.js';
 import { scenarioGit } from './recovery-git.js';
 import { gateGit } from './gate-git.js';
-import { answeredGit } from './contracts-git.js';
+import { answeredGit } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 
 const root = '/fixture/project';
 const preview: CandidateTreePreview = { repositoryRoot: root, head: 'source-01', tree: 'tree-01' };

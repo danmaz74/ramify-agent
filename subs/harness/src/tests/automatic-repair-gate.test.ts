@@ -6,7 +6,7 @@ import { type RunLog } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { automaticRepairAssignmentSchema, captureRepairFiles, repairChanges, repairDeltaSchema } from '../../subs/autonomous/src/run/repair-preparation.js';
 import { verifiedRepairDeltas } from '../../subs/autonomous/src/run/repair-gate.js';
-import { iterationAssignmentSchema } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationAssignmentSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { type WriteScope } from '../work/scope.js';
 import { type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence.js';
 import { temporaryDirectory } from './helpers/fixture.js';

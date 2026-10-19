@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { createScriptedAgent } from '../../subs/agent/src/scripted.js';
 import { consultationAvailability, consultationInputsSchema, consultationTargetSchema, captureGlobalTarget, engineerConsultationInputs, localConsultationInputs, unavailableConsultation } from '../consultations/targets.js';
-import { globalContext } from '../../subs/autonomous/src/architecture/context.js';
+import { globalContext } from '../../subs/autonomous/subs/work-coordination/src/architecture/context.js';
 import { RunLog, type RunEventOf } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { HarnessSessionOperations, type HarnessOperationInput } from '../prompts/session-adapter.js';

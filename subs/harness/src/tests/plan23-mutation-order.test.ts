@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { completionCheckFileLimit, FindingsSeen, openFindingsMessage, runHookCheck, type HookCheckReservation } from '../hooks/post-write.js';
 import { changesBetween, MutationOrder, type MutationChange, type HookMutationSnapshot as MutationSnapshot } from '../hooks/mutation-order.js';
 import { createShellTool, type ShellResult } from '../tools/shell.js';
-import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
+import { validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { ScriptedCli } from '../../subs/evidence/src/tests/helpers/scripted-cli.js';
 import type { CommandRun, CommandRunner } from '../../subs/evidence/src/run-command.js';
 import { changedDocument } from './helpers/check-payloads.js';

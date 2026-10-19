@@ -1,3 +1,4 @@
+import { coordinationHistory } from '../../subs/autonomous/src/run/coordination-history.js';
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { createConfiguredAudit, type ConfiguredAuditPort } from '../../subs/audit/src/check-execution.js';
@@ -5,12 +6,12 @@ import { gitCandidateSource, gitService, type CandidateSource, type GitService }
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { selectCheckFindings } from '../../subs/check-findings/src/queries.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
-import { capabilityRunPolicyVersion } from '../../subs/autonomous/src/capability/policy.js';
+import { capabilityRunPolicyVersion } from '../../subs/autonomous/subs/work-coordination/src/capability/policy.js';
 import { checkFindingStateOf } from '../check-findings/state.js';
 import { inPlaceCheckExecution, type CheckExecutionPort } from '../checks/execution.js';
 import type { GateAttempt } from '../checks/records.js';
-import { verificationKey } from '../../subs/autonomous/src/contracts/schedule.js';
-import { completionBlockers, verifiedRequirements } from '../../subs/autonomous/src/run/after-handling.js';
+import { verificationKey } from '../../subs/autonomous/subs/work-coordination/src/contracts/schedule.js';
+import { completionBlockers, verifiedRequirements } from '../../subs/autonomous/subs/work-coordination/src/work/history.js';
 import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
 import { readinessAuditOutcome, writeScopePaths } from '../../subs/autonomous/src/run/committing-gate.js';
 import { incompleteScenarios, trackedScenarios } from '../../subs/autonomous/src/run/feature-files.js';
@@ -21,12 +22,12 @@ import { runReadiness } from '../../subs/autonomous/src/run/readiness.js';
 import { committedAuditConfigurationSchema, gateAttemptId, gateAttemptSchema, runLayout } from '../../subs/autonomous/src/run/records.js';
 import type { ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { unsettledRequests } from '../reviews/state.js';
-import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
-import { engineerSubmissionSchema } from '../../subs/autonomous/src/work/engineer.js';
-import type { IterationAssignment } from '../../subs/autonomous/src/work/iterations.js';
-import { localArchitectSubmissionSchema } from '../../subs/autonomous/src/work/submission.js';
-import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
-import { scratchSafetyRule } from '../../subs/autonomous/src/work/scratch.js';
+import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
+import { engineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import type { IterationAssignment } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import type { WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
+import { scratchSafetyRule } from '../../subs/autonomous/subs/work-coordination/src/work/scratch.js';
 import { declaredModuleDirectories } from '../run/project-config.js';
 import { openLockedManualRun, type ManualRun } from './manual.js';
 import { committedBody } from './runner.js';
@@ -99,7 +100,7 @@ interface Subject {
   readonly invocation: string | null;
   readonly summary?: string | undefined;
   /** The module engineer's proposal's bindings, applied before an iteration's audit. */
-  readonly bindings?: readonly import('../../subs/autonomous/src/work/obligations.js').ObligationBinding[] | undefined;
+  readonly bindings?: readonly import('../../subs/autonomous/subs/work-coordination/src/work/obligations.js').ObligationBinding[] | undefined;
 }
 
 class Refused extends Error {}
@@ -378,14 +379,14 @@ function workItemPrerequisites(run: ManualRun, item: WorkItem): void {
   if (items.length > 0) {
     throw new Refused(`${items.length} CheckFinding${items.length === 1 ? '' : 's'} of ${item.id} need${items.length === 1 ? 's' : ''} attention (${items.map(entry => entry.id).join(', ')}), which a run reconciles before the work item's gate; a manual run does not run reconciliation`);
   }
-  const blockers = completionBlockers(run.log, item, run.record.policy.version === capabilityRunPolicyVersion);
+  const blockers = completionBlockers(coordinationHistory(run.log), item, run.record.policy.version === capabilityRunPolicyVersion);
   if (blockers.blocked.length > 0) throw new Refused(`${item.id}'s completion is blocked: ${blockers.blocked.join('; ')}`);
 }
 
 /** What a run requires before its final gate, none of it waived. */
 function finalPrerequisites(run: ManualRun): void {
   const records = committedRecords(run.log.ledger.replay());
-  const verified = verifiedRequirements(run.log);
+  const verified = verifiedRequirements(coordinationHistory(run.log));
   const open = [...records.requirements.values()].filter(requirement => !verified.has(verificationKey(requirement.id, requirement.revision)));
   if (open.length > 0) throw new Refused(`${open.map(requirement => `${requirement.id} of ${requirement.consumer} is still held by its fake`).join('; ')}`);
   const incomplete = incompleteScenarios(trackedScenarios(run.log.ledger.replay()));

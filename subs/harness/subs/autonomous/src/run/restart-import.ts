@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { LedgerEntry } from '../../../ledger/src/ledger.js';
 
-import { committedRecords, recordHash } from '../work/committed.js';
-import { localArchitectToolName } from '../work/submission.js';
+import { committedRecords } from './committed-records.js';
+import { recordHash } from '../../../../src/jobs/committed-reader.js';
+import { localArchitectToolName } from '../../subs/work-coordination/src/work/submission.js';
 
 import { reconciliationToolName } from '../../../reviews/src/reconciliation.js';
 import { carriedCheckFindings, runEventSchema, type RunEvent } from './log.js';

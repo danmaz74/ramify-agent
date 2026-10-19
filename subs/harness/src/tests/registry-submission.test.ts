@@ -2,12 +2,12 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
 import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
-import type { PlacementDecision } from '../../subs/autonomous/src/architecture/records.js';
-import { validateFork } from '../../subs/autonomous/src/architecture/submission.js';
-import { localArchitectInputSchema, validateLocalArchitect, type WorkEvidence } from '../../subs/autonomous/src/work/submission.js';
-import type { Obligation } from '../../subs/autonomous/src/work/obligations.js';
+import type { PlacementDecision } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
+import { validateFork } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
+import { localArchitectInputSchema, validateLocalArchitect, type WorkEvidence } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import type { Obligation } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
 import { assign, outline, treeInputs } from './helpers/iterations.js';
-import { placementDecisionFixture as decision, forkDecision, localDecision, registryChange } from './helpers/placement.js';
+import { placementDecisionFixture as decision, forkDecision, localDecision, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import { fixtureRoot } from './helpers/fixture.js';
 

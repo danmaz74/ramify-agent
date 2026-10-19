@@ -9,22 +9,22 @@ import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
-import { workLayout } from '../../subs/autonomous/src/work/records.js';
+import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import {
   capabilityLocalArchitectJsonSchema, localArchitectJsonSchema, localArchitectToolName, unchangedOutlineReason, unreportedByCompletion, validateLocalArchitect,
-} from '../../subs/autonomous/src/work/submission.js';
+} from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { assign, outline } from './helpers/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { copyFixture } from './helpers/fixture.js';
 import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { analysis, entry, requestCompletion, unresolved } from './helpers/analysis.js';
-import { forkNothingPossible } from './helpers/placement.js';
+import { forkNothingPossible } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, onlyRun, runEventsOnDisk, runPath, startRun } from './helpers/runs.js';
-import { localContext, registered as registeredEvent, reported, submissionHash } from './helpers/obligations.js';
-import { obligationsOf } from '../../subs/autonomous/src/work/obligations.js';
+import { localContext, registered as registeredEvent, reported, submissionHash } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/obligations.js';
+import { obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
 import { trackedScenarios } from '../../subs/autonomous/src/run/feature-files.js';
-import { committedRecords } from '../../subs/autonomous/src/work/committed.js';
+import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
 import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { readPointContext, readRecordedOperation } from '../../subs/task-execution/src/session-operations.js';
 import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';

@@ -9,8 +9,8 @@ import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-exe
 import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 import { exactInputHash } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
 import { classifyShellTestRun } from '../tools/shell-tests.js';
-import { moduleInputPointers } from '../../subs/autonomous/src/work/starting-inputs.js';
-import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
+import { moduleInputPointers } from '../../subs/autonomous/subs/work-coordination/src/work/starting-inputs.js';
+import { validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 
 let packages: ReadonlyMap<Role, LoadedPackage>;
 let discovery: string;

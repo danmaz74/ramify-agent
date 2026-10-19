@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
 import type { AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
-import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/src/context-selection/submissions.js';
-import { localArchitectToolName } from '../../subs/autonomous/src/work/submission.js';
+import { contextSelectorToolName, workOrientationToolName } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
+import { localArchitectToolName } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type InvocationOutcome } from '../../subs/task-execution/src/records.js';
 import { announcingAudit } from './helpers/direct-check-execution.js';
@@ -25,11 +25,11 @@ import { intakeToolName } from '../../subs/autonomous/subs/planning/src/extracti
 import { coordinatorAssessmentToolName, coordinatorActionToolName, nonfunctionalRepairToolName } from '../../subs/autonomous/src/nonfunctional/submissions.js';
 import { reviewScript, reviewTarget, candidates as reviewCandidates, revisionGates, base as reviewBase,
   materialized as reviewMaterialized, store, notes, attemptRecord } from './helpers/reviews.js';
-import { gateGit, scenariosCommit as gateScenariosCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as gateScenariosCommit } from './helpers/gate-git.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
-import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
-import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
+import { copyCapabilityFixture, openCapabilityRuns } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
+import { capabilityFlowBoundaries } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability-flow-boundaries.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { scenarioGit } from './helpers/recovery-git.js';

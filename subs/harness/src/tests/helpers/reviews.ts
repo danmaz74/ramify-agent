@@ -3,13 +3,13 @@ import type { ScriptedAgent, ScriptedAgentOptions, ScriptStep } from '../../../s
 import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
 import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import type { ReviewPolicy, RunPolicy } from '../../../subs/autonomous/src/run/records.js';
-import type { RunWrite } from '../../../subs/autonomous/src/run/service.js';
+import type { RunWrite } from '../../../subs/autonomous/src/run/log.js';
 import type { ConfiguredAuditPort } from '../../../subs/audit/src/check-execution.js';
 import { reviewLayout, type ReviewAttempt } from '../../reviews/records.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
 import { scriptedCandidates, testReviewPolicy, type ScriptedCandidates, type ScriptedCommit } from './candidates.js';
 import { copyFixture } from './fixture.js';
-import { gateGit, scenariosCommit, type GateCommit } from './gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, type GateCommit } from './gate-git.js';
 import { addModule, assign, byRole, byWork, outline, submit, treeInputs } from './iterations.js';
 import { installTestRunner, openRuns, runEventsOnDisk, runPath, startRun, testPolicy } from './runs.js';
 

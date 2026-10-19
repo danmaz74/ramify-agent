@@ -44,8 +44,8 @@ import { InvocationTranscript } from '../../subs/task-execution/src/transcripts/
 import type { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 import { readTranscript, TranscriptWriter, TranscriptWriters } from '../../subs/task-execution/src/transcripts/writer.js';
 import type { EquipContext, Equipment } from '../../subs/task-execution/src/equipment.js';
-import type { StartingPointGroup } from '../../subs/autonomous/src/work/starting-inputs.js';
-import { scratchSafetyRule } from '../../subs/autonomous/src/work/scratch.js';
+import type { StartingPointGroup } from '../../subs/autonomous/subs/work-coordination/src/work/starting-inputs.js';
+import { scratchSafetyRule } from '../../subs/autonomous/subs/work-coordination/src/work/scratch.js';
 import { serializeStepInputs, type StepInputs } from './inputs.js';
 
 /*

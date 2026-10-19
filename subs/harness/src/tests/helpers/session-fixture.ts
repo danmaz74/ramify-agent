@@ -12,7 +12,7 @@ import { readTranscript } from '../../../subs/task-execution/src/transcripts/wri
 import { analysis, entry, hypothesis, requestCompletion } from './analysis.js';
 import { openRunsWithoutProcesses } from './external-tools.js';
 import { assign, byRole, completionProposed, outline, read, submit, treeInputs } from './iterations.js';
-import { forkDecision, registryChange, requestPlacement } from './placement.js';
+import { forkDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { sharedUi, writeArchitectTreeFixture } from './progress-fixture.js';
 import { emptyAnalysis, runPath, scriptedConfiguredAudit, startRun, stopRun, testPolicy, until } from './runs.js';
 import { declaringScenarios } from './declarations.js';

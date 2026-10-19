@@ -4,7 +4,7 @@ import { runLayout } from './records.js';
 import { preparedCandidateSchema, nonfunctionalRepairAssignmentSchema, type NonfunctionalRepairAssignment } from './nonfunctional-records.js';
 import { assessmentCoverage, assessmentSchema, roundSchema, type Assessment, type Candidate } from '../../../nonfunctional/src/interfaces/contracts.js';
 import { decideNonfunctionalRound, type ClosedRound, type RoundDecisionInput } from '../../../nonfunctional/src/rounds.js';
-import { workItemSchema, workLayout } from '../work/records.js';
+import { workItemSchema, workLayout } from '../../subs/work-coordination/src/work/records.js';
 
 export interface CommittedNonfunctionalPhase {
   /** Only committed facts enter the pure round transition rule. */

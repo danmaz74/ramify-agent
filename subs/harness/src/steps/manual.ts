@@ -20,8 +20,8 @@ import { HarnessSessionOperations } from '../prompts/session-adapter.js';
 import { nodeProcessGroups, WriterOwnership, type ProcessGroups } from '../../subs/task-execution/src/writer.js';
 import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js';
 
-import { iterationLayout } from '../../subs/autonomous/src/work/iterations.js';
-import { integrationScenarioOf, originKindOf, workLayout } from '../../subs/autonomous/src/work/records.js';
+import { iterationLayout } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { integrationScenarioOf, originKindOf, workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { authoredOutlineInvocation } from './authoring.js';
 import type { EngineerStepInputs } from './inputs.js';
 import { committedBody, InvocationRunner, type LiveInvocation, type RunnerRun } from './runner.js';

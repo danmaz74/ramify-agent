@@ -42,3 +42,6 @@ test('CA19: a submitted reviewer concern replays into one exact pending attempt 
   () => runAcceptedHandback('concern-submission-restart', cleanups), 180_000);
 test('CA26: failed combined gates retain their causes and permit correction past the captured repair count',
   () => runAcceptedHandback('repair-exhaustion', cleanups), 180_000);
+
+test('candidate drift after verification starts is fenced by the atomic handback commit',
+  () => runAcceptedHandback('drift', cleanups, false, undefined, false, true), 150_000);

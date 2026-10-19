@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { GateAttempt } from '../checks/records.js';
-import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationAssignment, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { ObservationLog, type Observation, type ObservationOf } from '../../subs/task-execution/src/observations.js';
 import { scriptedCandidates } from './helpers/candidates.js';
@@ -11,7 +11,7 @@ import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import {
   addModule, assign, byRole, completionProposed, outline, submit, treeInputs, write,
 } from './helpers/iterations.js';
-import { gateGit, scenariosCommit, operationsOf, type GateCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit, operationsOf, type GateCommit } from './helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { installTestRunner, onlyRun, openRuns, runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 

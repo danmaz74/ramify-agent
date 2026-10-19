@@ -2,8 +2,8 @@ import type { TaskEnvironment } from '../../../task-execution/src/delivery/packe
 import type { TaskKind } from '../../../../src/prompts/tasks.js';
 import type { TestArea } from '../../../../src/run/project-config.js';
 import type { HarnessTaskBrief } from '../../../task-execution/src/session-operations.js';
-import { taskSupportSections } from '../work/task-support.js';
-import { declaredCheckInputs, moduleInputPointers, startingPointsSection, type StartingPointGroup } from '../work/starting-inputs.js';
+import { taskSupportSections } from '../../subs/work-coordination/src/work/task-support.js';
+import { declaredCheckInputs, moduleInputPointers, startingPointsSection, type StartingPointGroup } from '../../subs/work-coordination/src/work/starting-inputs.js';
 
 /*
  * The task brief of one invocation, composed from facts the caller already

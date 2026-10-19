@@ -1,6 +1,6 @@
 import type { Script, ScriptStep } from '../../../subs/agent/src/scripted.js';
 import type { SessionSpec } from '../../../subs/agent/src/interfaces/port.js';
-import { contextSelectorToolName, workOrientationToolName } from '../../../subs/autonomous/src/context-selection/submissions.js';
+import { contextSelectorToolName, workOrientationToolName } from '../../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
 import { checkToolName, intakeToolName, principleToolName } from '../../../subs/autonomous/subs/planning/src/extraction.js';
 
 /*

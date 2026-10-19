@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/src/work/assignment.js';
-import { assignedFeaturePaths, featureSelectionErrors } from '../../subs/autonomous/src/work/feature-selection.js';
+import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
+import { assignedFeaturePaths, featureSelectionErrors } from '../../subs/autonomous/subs/work-coordination/src/work/feature-selection.js';
 import { assign, outline } from './helpers/iterations.js';
-import { capabilityActionSchema } from '../../subs/autonomous/src/capability/submission.js';
+import { capabilityActionSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
 
 const files = ['subs/consumer/src/tests/features/entry-preview.feature', 'subs/provider/src/tests/features/entry-value.feature'];
 const records = files.map((file, index) => ({ id: `sc-00${index + 1}`, file }));

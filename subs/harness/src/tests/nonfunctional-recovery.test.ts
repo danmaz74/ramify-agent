@@ -14,7 +14,7 @@ import { emptyAnalysis, freeze, onlyRun, openRuns,
   runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, until } from './helpers/runs.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { type Invocation } from '../../subs/task-execution/src/records.js';
-import type { RunWrite } from '../../subs/autonomous/src/run/service.js';
+import type { RunWrite } from '../../subs/autonomous/src/run/log.js';
 
 import { nfrBoundaries } from './helpers/nonfunctional-boundaries.js';
 import { resetSpawnAttempts, spawnAttempts } from './helpers/process-guard.js';

@@ -7,15 +7,15 @@ import { scenarioResultsOf, type ScenarioResult } from '../checks/scenario-resul
 import { incompleteScenarios } from '../../subs/autonomous/src/run/feature-files.js';
 import { runEventSchema, type RunEvent } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { bindingErrors, bindingEventsToRecord, obligationsOf } from '../../subs/autonomous/src/work/obligations.js';
+import { bindingErrors, bindingEventsToRecord, obligationsOf } from '../../subs/autonomous/subs/work-coordination/src/work/obligations.js';
 import { scenarioRecordSchema, scenarioSourceHash, type ScenarioRecord } from '../../subs/scenarios/src/records.js';
 import { reduceScenarioStates, scenarioEventTypes, type ScenarioEvent } from '../../subs/scenarios/src/states.js';
-import { fixtureProjection, line, reported, scenarioRecord, submissionHash } from './helpers/obligations.js';
+import { fixtureProjection, line, reported, scenarioRecord, submissionHash } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/obligations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
-import { consumerStub, consumerTest } from './helpers/contracts.js';
+import { consumerStub, consumerTest } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts.js';
 import {
   accepted, added, answeredGit, modified, unchanged, scenariosCommitted, type AnsweredGit, type CommitResponse,
-} from './helpers/contracts-git.js';
+} from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import type { DirectCheckScript, DirectCheckStep, ScriptedScenario } from './helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { copyFixture } from './helpers/fixture.js';

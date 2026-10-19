@@ -4,11 +4,11 @@ import {
   type GateAuditView, type GateView, type WorkItemResponse, type WorkItemSummary,
 } from '../../../src/interfaces/protocol/runs.js';
 import type { GateAttempt } from '../../../src/checks/records.js';
-import { digestLines } from '../../autonomous/src/work/failure.js';
-import { originKindOf, type WorkItem } from '../../autonomous/src/work/records.js';
-import type { IterationAssignment } from '../../autonomous/src/work/iterations.js';
+import { digestLines } from '../../autonomous/subs/work-coordination/src/work/failure.js';
+import { originKindOf, type WorkItem } from '../../autonomous/subs/work-coordination/src/work/records.js';
+import type { IterationAssignment } from '../../autonomous/subs/work-coordination/src/work/iterations.js';
 import { readAcceptedEvidence, acceptedAnalysisReferences, type AcceptedEvidence } from '../../autonomous/subs/planning/src/evidence.js';
-import { deliverPackage } from '../../autonomous/src/context-selection/delivery.js';
+import { deliverPackage } from '../../autonomous/subs/work-coordination/src/context-selection/delivery.js';
 import { packageDeviation, planDeviationSchema } from '../../autonomous/src/deviations/records.js';
 import type { PackageDeviation } from '../../plan-evidence/src/interfaces/catalog.js';
 import { ProjectionError, type RunView } from './inputs.js';

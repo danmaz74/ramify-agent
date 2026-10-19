@@ -1,7 +1,7 @@
 import { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
 import { placementDecisions } from '../guard/write-guard.js';
 import { outsideScope } from '../run/mutations.js';
-import { scopeBodySchema } from '../../subs/autonomous/src/work/assignment.js';
+import { scopeBodySchema } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
 import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { afterEach, expect, test } from 'vitest';

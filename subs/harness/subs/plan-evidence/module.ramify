@@ -35,3 +35,4 @@ expose-src catalogElementSchema from "interfaces/catalog.ts" to parent
 expose-src CapturedDocument from "interfaces/contracts.ts" to parent
 expose-src ElementRewrite from "interfaces/catalog.ts" to parent
 expose-src capturedDocumentSchema from "interfaces/contracts.ts" to parent
+expose-src SubmittedElement from "interfaces/catalog.ts" to parent

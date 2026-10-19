@@ -8,17 +8,17 @@ import type { CandidateSnapshot } from '../../../reviews/src/snapshot.js';
 import type { ScenarioRecord } from '../../../scenarios/src/records.js';
 import type { TestSelectionPolicy } from '../../../../src/checks/records.js';
 import type { ViewIdentity } from '../../../../src/interfaces/protocol/evidence.js';
-import type { AssignmentBody } from '../work/assignment.js';
-import type { committedRecords } from '../work/committed.js';
-import { stepDirectoryOf, stepFilesIn } from '../work/integration.js';
-import { iterationAssignmentSchema, type IterationAssignment } from '../work/iterations.js';
+import type { AssignmentBody } from '../../subs/work-coordination/src/work/assignment.js';
+import type { committedRecords } from './committed-records.js';
+import { stepDirectoryOf, stepFilesIn } from '../../subs/work-coordination/src/work/integration.js';
+import { iterationAssignmentSchema, type IterationAssignment } from '../../subs/work-coordination/src/work/iterations.js';
 import { type WriteScope } from '../../../../src/work/scope.js';
-import type { WorkItem } from '../work/records.js';
+import type { WorkItem } from '../../subs/work-coordination/src/work/records.js';
 import {
   auditPreparationPaths, captureGuardedFiles, checkpointOf, defaultWriteScopeOf, scopeConfigurationPaths, testPolicyOf,
   type DefaultWriteScope, type GuardedScenarioFiles,
 } from '../../../../src/work/scope.js';
-import type { StartingPointGroup } from '../work/starting-inputs.js';
+import type { StartingPointGroup } from '../../subs/work-coordination/src/work/starting-inputs.js';
 import { engineerBoundsOf, type EngineerBounds } from '../../../../src/run/policy.js';
 import { moduleTestAreas, type TestArea } from '../../../../src/run/project-config.js';
 import type { RunPolicy, RunRecord } from './records.js';

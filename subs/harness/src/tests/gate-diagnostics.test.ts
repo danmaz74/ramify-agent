@@ -1,7 +1,7 @@
 import { mockGit } from './helpers/mock-git.js';
 import { finalCandidate } from './helpers/final-candidate.js';
 
-import { engineerToolName } from '../../subs/autonomous/src/work/engineer.js';
+import { engineerToolName } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -12,7 +12,7 @@ import { runGate } from '../checks/gate.js';
 import { checkCommand, type GateAttempt, type GateAuditRecord } from '../checks/records.js';
 import type { PlannedCheck } from '../checks/verify.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
-import { iterationLayout, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { addModule, assign, byRole, completionProposed, edit, installMiniRunner, outline, submit, treeInputs } from './helpers/iterations.js';

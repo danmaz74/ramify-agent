@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contractRecordSchema } from '../../../autonomous/src/contracts/records.js';
+import { contractRecordSchema } from '../../../autonomous/subs/work-coordination/src/contracts/records.js';
 import { executionCoreOf } from '../execution-map.js';
 import { runView } from '../inputs.js';
 import { entryAssignmentsSchema } from '../../../autonomous/subs/planning/src/records.js';

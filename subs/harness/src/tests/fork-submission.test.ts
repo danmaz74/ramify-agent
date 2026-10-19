@@ -2,10 +2,10 @@ import { describe, expect, test } from 'vitest';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import type { Hypothesis, RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';
-import { extensionIsANewCapability, type PlacementDecision } from '../../subs/autonomous/src/architecture/records.js';
-import { forkJsonSchema, forkToolName, validateFork, type PlacementEvidence } from '../../subs/autonomous/src/architecture/submission.js';
-import { validateLocalArchitect } from '../../subs/autonomous/src/work/submission.js';
-import { placementDecisionFixture as decision, forkDecision, placementRequest, registryChange } from './helpers/placement.js';
+import { extensionIsANewCapability, type PlacementDecision } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
+import { forkJsonSchema, forkToolName, validateFork, type PlacementEvidence } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
+import { validateLocalArchitect } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
+import { placementDecisionFixture as decision, forkDecision, placementRequest, registryChange } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 
 /*
  * Everything a placement fork tells the harness is validated JSON, and so is

@@ -213,7 +213,7 @@ expose-test scratchCandidateReplies from "helpers/scratch-candidate-replies.ts" 
 expose-sub CommittedRun, CommittedLine from projections to descendants
 expose-test at, constructedRun, constructedRecord, forecast, runId, hash, item, obligation, registered, requirement, reviews, Line from "helpers/constructed.ts" to descendants
 // Exact shared capability query fixtures; no private projector or writable authority.
-expose-test capabilityProjectionLines, capabilityContractRun from "helpers/capability-projection.ts" to descendants
+expose-sub capabilityProjectionLines, capabilityContractRun from autonomous to descendants
 
 // Selected pure replay and fixture contracts for child-owned reading witnesses.
 expose-sub decideCheckFindingChange, applyCheckFindingEvent, emptyCheckFindingState, CheckFindingCommand, CheckFindingEvent, CheckFindingChange, CheckFindingApplied, CheckFindingDecisionInput, CheckFindingReportInput, checkFindingCommandSchema, checkFindingEventSchema, checkFindingDecisionInputSchema, checkFindingReportInputSchema from check-findings to descendants
@@ -374,17 +374,17 @@ expose-test shell from "helpers/iterations.ts" to descendants
 expose-test submit from "helpers/iterations.ts" to descendants
 expose-test treeInputs from "helpers/iterations.ts" to descendants
 expose-test write from "helpers/iterations.ts" to descendants
-expose-test localDecision from "helpers/placement.ts" to descendants
-expose-test registryChange from "helpers/placement.ts" to descendants
-expose-test consumerStub from "helpers/contracts.ts" to descendants
-expose-test consumerTest from "helpers/contracts.ts" to descendants
-expose-test contractNeeded from "helpers/contracts.ts" to descendants
-expose-test contractWrites from "helpers/contracts.ts" to descendants
-expose-test established from "helpers/contracts.ts" to descendants
-expose-test paths from "helpers/contracts.ts" to descendants
-expose-test Seam from "helpers/contracts.ts" to descendants
-expose-test forkDecision from "helpers/placement.ts" to descendants
-expose-test requestPlacement from "helpers/placement.ts" to descendants
+expose-sub localDecision from autonomous to descendants
+expose-sub registryChange from autonomous to descendants
+expose-sub consumerStub from autonomous to descendants
+expose-sub consumerTest from autonomous to descendants
+expose-sub contractNeeded from autonomous to descendants
+expose-sub contractWrites from autonomous to descendants
+expose-sub established from autonomous to descendants
+expose-sub paths from autonomous to descendants
+expose-sub Seam from autonomous to descendants
+expose-sub forkDecision from autonomous to descendants
+expose-sub requestPlacement from autonomous to descendants
 expose-sub createScriptedAgent from agent to descendants
 expose-sub Script from agent to descendants
 expose-test declaringScenarios from "helpers/declarations.ts" to descendants
@@ -696,7 +696,7 @@ expose-src includedConfigurationPaths from "work/scope.ts" to descendants
 expose-sub assessmentResultSchema from nonfunctional to descendants
 expose-sub ScenarioFormWarningKind from scenarios to descendants
 expose-sub DurableRecordRef from task-execution to descendants
-expose-test placementDecisionFixture from "helpers/placement.ts" to descendants
+expose-sub placementDecisionFixture from autonomous to descendants
 expose-src RunService from "run/lifecycle.ts" to descendants
 expose-sub TaskSessionMode from task-execution to descendants
 expose-sub OrientationSubmission from reviews to descendants
@@ -963,3 +963,44 @@ expose-sub InvocationBounds from task-execution to descendants
 expose-sub recoveryRuntimeSchema from autonomous to descendants
 expose-sub InvocationLimits from task-execution to descendants
 expose-sub PlanningRecords from autonomous to descendants
+expose-test git from "helpers/runs.ts" to descendants
+expose-test initRepository from "helpers/runs.ts" to descendants
+expose-test unresolved from "helpers/analysis.ts" to descendants
+expose-test recoveryBoundaries from "helpers/recovery-boundaries.ts" to descendants
+expose-test edit from "helpers/iterations.ts" to descendants
+expose-sub readPointContext from task-execution to descendants
+expose-sub readRecordedOperation from task-execution to descendants
+expose-sub exactInputHash from task-execution to descendants
+expose-sub effectiveBlocks from task-execution to descendants
+expose-src parseStepInputs from "steps/inputs.ts" to descendants
+expose-test scriptedGit from "helpers/scripted-git.ts" to descendants
+expose-test openRunsWithoutProcesses from "helpers/external-tools.ts" to descendants
+expose-test runAcceptedHandback from "helpers/acceptance-flow.ts" to descendants
+expose-test runDependencyGate from "helpers/dependency-flow.ts" to descendants
+expose-test readDeclaredTree from "helpers/iterations.ts" to descendants
+expose-test localCommandAudit from "helpers/direct-check-execution.ts" to descendants
+expose-sub SubmittedElement from plan-evidence to descendants
+expose-sub replacementBanner from task-execution to descendants
+expose-test defaultTurn from "helpers/declarations.ts" to descendants
+expose-test runDependencyScheduling from "helpers/dependency-flow.ts" to descendants
+expose-test runDependencyDecision from "helpers/dependency-flow.ts" to descendants
+expose-test read from "helpers/iterations.ts" to descendants
+expose-test gateGit from "helpers/gate-git.ts" to descendants
+expose-test gateScenariosCommitFixture from "helpers/gate-git.ts" to descendants
+expose-test GateCommit from "helpers/gate-git.ts" to descendants
+expose-test mappedAudit from "helpers/direct-check-execution.ts" to descendants
+expose-test recoveryInitialFiles from "helpers/recovery-files.ts" to descendants
+expose-test scriptedScratchGit from "helpers/mock-git.ts" to descendants
+expose-test ScratchGitScript from "helpers/mock-git.ts" to descendants
+expose-test FakedRuns from "helpers/external-tools.ts" to descendants
+expose-test LocalAuditCommands from "helpers/direct-check-execution.ts" to descendants
+expose-test GateGit from "helpers/gate-git.ts" to descendants
+expose-test GateGitOptions from "helpers/gate-git.ts" to descendants
+expose-test GateFixtureGitChange from "helpers/gate-git.ts" to descendants
+expose-test ScriptedAuditOptions from "helpers/direct-check-execution.ts" to descendants
+expose-test GitCall from "helpers/gate-git.ts" to descendants
+expose-test TrailedCommit from "helpers/gate-git.ts" to descendants
+expose-src refOf from "jobs/committed-reader.ts" to descendants
+expose-src recordHash from "jobs/committed-reader.ts" to descendants
+expose-sub invocationRecords from task-execution to descendants
+expose-sub InvocationRecords from task-execution to descendants

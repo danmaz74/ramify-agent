@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { findingsOf } from '../hooks/post-write.js';
 import { requestCompletion } from './helpers/analysis.js';
-import { unchanged } from './helpers/contracts-git.js';
+import { unchanged } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import {
   ancestorSteps, ancestorStepFile, bindAtAncestor, bindCommit, bindTurn, entryCommits, entryTurns, finalSubject, integrationFeature,
   integrationProject, noteSteps, notesModule, plan, runIntegration, tagSteps, tagsModule, type Cleanups,

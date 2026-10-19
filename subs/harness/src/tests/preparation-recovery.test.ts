@@ -11,7 +11,7 @@ import { repairIncidentRecordSchema } from '../interfaces/protocol/repairs.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, outline, partialReport, submit, treeInputs, write } from './helpers/iterations.js';
 import { copyFixture } from './helpers/fixture.js';
-import { gateGit, scenariosCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './helpers/gate-git.js';
 import { scriptedCandidates } from './helpers/candidates.js';
 import { declaringScenarios } from './helpers/declarations.js';
 import { installTestRunner, openRuns, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';

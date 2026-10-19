@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import type { Script } from '../../subs/agent/src/scripted.js';
 import { analysis, entry } from './helpers/analysis.js';
-import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
+import { copyCapabilityFixture, openCapabilityRuns } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
 import { assign, outline, submit, treeInputs } from './helpers/iterations.js';
 import { recoveryBoundaries } from './helpers/recovery-boundaries.js';
 import { startRun, stopRun, until } from './helpers/runs.js';

@@ -10,12 +10,12 @@ import { ContentStore } from '../../subs/task-execution/src/transcripts/store.js
 import { RunLog } from '../../subs/autonomous/src/run/log.js';
 import { OwnershipAuthority, assignmentAuthorityIdentity } from '../work/ownership-authority.js';
 import { decodeOwnershipEvidenceAnswer } from '../../subs/evidence/src/ownership-evidence.js';
-import { iterationLayout, type IterationResult } from '../../subs/autonomous/src/work/iterations.js';
+import { iterationLayout, type IterationResult } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { copyFixture } from './helpers/fixture.js';
 import { addModule, assign, byRole, completionProposed, edit, outline, read, submit, treeInputs, write } from './helpers/iterations.js';
 import { declaringScenarios } from './helpers/declarations.js';
-import { gateGit, scenariosCommit } from './helpers/gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './helpers/gate-git.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { installTestRunner, onlyRun, openRuns, runPath, startRun } from './helpers/runs.js';
 import { finalCandidate } from './helpers/final-candidate.js';

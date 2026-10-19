@@ -7,10 +7,10 @@ import type { RunEvent } from '../../../subs/autonomous/src/run/log.js';
 import type { RunService, RunServiceOptions } from '../../run/lifecycle.js';
 import { analysis, entry, requestCompletion } from './analysis.js';
 import { copyFixture } from './fixture.js';
-import { placementDecisionFixture as decisionBody, forkDecision, localDecision, registryChange, requestPlacement } from './placement.js';
+import { placementDecisionFixture as decisionBody, forkDecision, localDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write, type Turn } from './iterations.js';
 import { openRuns, runEventsOnDisk, runPath, startRun, type OpenRunsOptions } from './runs.js';
-import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged } from './contracts-git.js';
+import { accepted, added, answeredGit, modified, scenariosCommitted, unchanged } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/contracts-git.js';
 import { declaringScenarios } from './declarations.js';
 import { finalCandidate } from './final-candidate.js';
 

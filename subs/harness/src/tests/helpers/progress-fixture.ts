@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { analysis, entry, hypothesis, requestCompletion, unresolved } from './analysis.js';
 import { copyFixture } from './fixture.js';
 import { byRole, readDeclaredTree, submit, treeInputs } from './iterations.js';
-import { forkDecision, registryChange, requestPlacement } from './placement.js';
+import { forkDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { installTestRunner, openRuns, startRun } from './runs.js';
 import { scenariosCommit, scriptedGit, type GitCheckpoint } from './scripted-git.js';
 import { FakeRamifyCli } from './fake-ramify.js';

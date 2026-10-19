@@ -1,5 +1,5 @@
 import { repairIncidentRecordSchema, type RepairIncidentRecord } from '../../../../src/interfaces/protocol/repairs.js';
-import { type RepairIncidentStage } from './repair-records.js';
+import { type RepairIncidentStage } from '../../../../src/interfaces/protocol/repairs.js';
 import type { RunEvent } from './log.js';
 import { runLayout } from './records.js';
 

@@ -11,7 +11,7 @@ import { concern, disposition, reconcile, review, submission } from './check-fin
 import { declaringScenarios } from './declarations.js';
 import { createPassingCheckExecution } from './direct-check-execution.js';
 import { FakeRamifyCli } from './fake-ramify.js';
-import { gateGit, scenariosCommit } from './gate-git.js';
+import { gateGit, gateScenariosCommitFixture as scenariosCommit } from './gate-git.js';
 import { completionProposed, submit, treeInputs, write } from './iterations.js';
 import {
   base, candidates, limit, materialized, notesDirectory, plan, reviewScript, reviewTarget, revisionGates, store, tool, unchanged,

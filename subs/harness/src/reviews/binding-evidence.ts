@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { capabilityEngineerSubmissionSchema } from '../../subs/autonomous/src/work/engineer.js';
+import { capabilityEngineerSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 
 /** Committed acceptance supplies identity; exact candidate/rendering bytes supply attribution. */
 export function pendingBindingEvidence(input: { readonly path: string; readonly scenario: string; readonly invocation: string;

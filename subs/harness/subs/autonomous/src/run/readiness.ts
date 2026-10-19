@@ -15,7 +15,7 @@ import type { RamifyCli } from '../../../evidence/src/ramify-cli.js';
 import type { ArchitectIndex } from '../../../evidence/src/views.js';
 import type { RunFailureReason } from '../../../../src/interfaces/protocol/runs.js';
 import { declaredModuleDirectories } from '../../../../src/run/project-config.js';
-import { removeScratchDirectories, trackedScratchPaths } from '../work/scratch.js';
+import { removeScratchDirectories, trackedScratchPaths } from '../../subs/work-coordination/src/work/scratch.js';
 import {
   readinessAttemptSchema, infrastructureRecoverySchema,
   type CapturedProjectConfig, type InfrastructureRecovery, type ReadinessAttempt, type ReadinessStep, type RecoveryId, type RunPolicy,

@@ -1,5 +1,5 @@
 import type { InitialAnalysisSubmission } from '../../../subs/autonomous/subs/planning/src/submission.js';
-import type { LocalArchitectSubmission } from '../../../subs/autonomous/src/work/submission.js';
+import type { LocalArchitectSubmission } from '../../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 
 /*
  * The two submissions a run of this iteration accepts, as a test writes

@@ -9,7 +9,7 @@ import { defaultRunPolicy } from '../run/policy.js';
 import { constructOrientationStep } from '../steps/local-architect.js';
 import { renderStep } from '../steps/render.js';
 import { consultationFixture, answer, ask } from './helpers/consultations.js';
-import { localViewInputsOf } from '../../subs/autonomous/src/work/view-inputs.js';
+import { localViewInputsOf } from '../../subs/autonomous/subs/work-coordination/src/work/view-inputs.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });

@@ -5,7 +5,7 @@ import { runEventSchema } from '../../subs/autonomous/src/run/log.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { replayNonfunctionalPhase } from '../../subs/autonomous/src/run/nonfunctional-phase.js';
 import { decideNonfunctionalRound } from '../../subs/nonfunctional/src/rounds.js';
-import { workLayout } from '../../subs/autonomous/src/work/records.js';
+import { workLayout } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 
 const oid = (character: string) => character.repeat(40);
 const hash = 'e'.repeat(64);

@@ -2,7 +2,7 @@ import type { ToolDefinition } from '../../../agent/src/interfaces/port.js';
 import { runCommand, type CommandRunner } from '../../../evidence/src/run-command.js';
 import { ToolInputJudge, validateAgainst } from '../../../task-execution/src/submissions.js';
 import { createShellTool, shellInputSchemaFor, shellMaxTimeoutMs, shellToolName } from '../../../../src/tools/shell.js';
-import { heldCommands } from '../work/engineer-equipment.js';
+import { heldCommands } from '../../subs/work-coordination/src/work/engineer-equipment.js';
 import { type EquipContext, type Equipment } from '../../../task-execution/src/equipment.js';
 
 /** Ordinary inspection equipment, with optional conveniences for the pinned candidate. */

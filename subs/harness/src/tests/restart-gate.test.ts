@@ -3,7 +3,7 @@ import { CommittingGates, type GateHost, type GateRun } from '../../subs/autonom
 import { gateAttemptSchema } from '../../subs/autonomous/src/run/records.js';
 import { defaultRunPolicy } from '../run/policy.js';
 import { constructedRecord, constructedRun } from './helpers/constructed.js';
-import type { WorkItem } from '../../subs/autonomous/src/work/records.js';
+import type { WorkItem } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 
 test.each([true, false])('restored gate reuse requires current evidence applicability (applicable=%s)', async applicable => {
   const old = gateAttemptSchema.parse({ schema: 'ramify-agent.gate-attempt/3', id: 'ga-0001', checkpoint: 'work-item', subject: { workItem: 'wi-001' },

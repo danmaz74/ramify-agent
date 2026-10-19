@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { isAbsolute, join } from 'node:path';
-import { buildFocusedScenarioCommand } from '../../subs/autonomous/src/work/focused-scenarios.js';
-import { focusedCommandPendingNote } from '../../subs/autonomous/src/work/engineer.js';
+import { buildFocusedScenarioCommand } from '../../subs/autonomous/subs/work-coordination/src/work/focused-scenarios.js';
+import { focusedCommandPendingNote } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
 import { classifyShellTestRun } from '../tools/shell-tests.js';
 import { loadCucumberConfiguration } from '../../subs/evidence/src/cucumber-configuration.js';
 import type { CommandRun } from '../../subs/evidence/src/run-command.js';

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import type { DurableRecordRef as RecordRef } from '../../subs/task-execution/src/records.js';
 import { z } from 'zod';
 /** A record the log holds whose body no longer satisfies its schema. */
 export class CommittedRecordError extends Error {
@@ -20,4 +22,11 @@ export function parseCommittedRecord<T>(schema: z.ZodType<T>, body: unknown, pat
   const result = schema.safeParse(body);
   if (result.success) return result.data;
   throw new CommittedRecordError(path, result.error.issues.map(issue => `${issue.path.map(String).join('.') || '<root>'}: ${issue.message}`));
+}
+
+export function recordHash(body: unknown): string {
+  return createHash('sha256').update(`${JSON.stringify(body, null, 2)}\n`).digest('hex');
+}
+export function refOf(id: string, revision: number, body: unknown): RecordRef {
+  return { id, revision, hash: recordHash(body) };
 }

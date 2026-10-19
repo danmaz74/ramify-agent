@@ -3,14 +3,14 @@ import { join, resolve } from 'node:path';
 import { readJsonLines } from '../../subs/ledger/src/jsonl.js';
 import type { ArchitectIndex } from '../../subs/evidence/src/views.js';
 import type { RamifyCli } from '../../subs/evidence/src/ramify-cli.js';
-import { contextSelectorSubmissionSchema, prepareContextSelection } from '../../subs/autonomous/src/context-selection/submissions.js';
+import { contextSelectorSubmissionSchema, prepareContextSelection } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
 import { reviewRequestSchema } from '../reviews/records.js';
 import { runLayout } from '../../subs/autonomous/src/run/records.js';
 import { validateAgainst } from '../../subs/task-execution/src/submissions.js';
-import { iterationAssignmentSchema } from '../../subs/autonomous/src/work/iterations.js';
-import { workItemOutlineSchema, workItemSchema } from '../../subs/autonomous/src/work/records.js';
+import { iterationAssignmentSchema } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
+import { workItemOutlineSchema, workItemSchema } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { checkpointOf, testPolicyOf } from '../work/scope.js';
-import { localArchitectSubmissionSchema } from '../../subs/autonomous/src/work/submission.js';
+import { localArchitectSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { parseStepInputs, validateStepInputs, type StepInputs } from './inputs.js';
 import { judgeWorkTurn } from './local-architect.js';
 

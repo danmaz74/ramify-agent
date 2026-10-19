@@ -26,9 +26,11 @@ Iteration 2 is accepted at `0297b979be5378faca81834655ef02a4aaf77e94`: 180 focus
 
 Iteration 3 is accepted at `a4e0a85b36b14d4984547a881d4197c204794058`. Focused guarded checks, three native writer cases, type-check, structure and patch checks passed; native reviewer `/root/review_task_execution` found no material issues. No RA assessment was launched. Its start record is `it-7d0f5bcf-ab1e-4fe4-a5fc-2dfa4226058a`, base `0297b979`.
 
-Iteration 4: autonomous lifecycle and planning. Start record `it-ee290e1c-c2a5-4f0c-8473-813a9d77f133`, base `a4e0a85b36b14d4984547a881d4197c204794058`, started `2026-10-19T10:09:03.812Z` (UTC), clean. `/root/session_store` owns implementation and all consumer integration. `/root/evaluation` is doing read-only preparation for work-coordination/acceptance seams.
+Iteration 4 is accepted at `5b5aa2a6db3e6907626eeed7f7189e719dfed414`. Focused guarded checks, six exact native witnesses, type-check/structure/patch passed; `/root/review_planning` found no material issues. Its start record is `it-ee290e1c-c2a5-4f0c-8473-813a9d77f133`, base `a4e0a85b`; no RA assessment launched.
 
-Preserve atomic accepted analysis and restart semantics, shared runtime independence, narrow child contracts and read-only public consumers. One native review follows the committed candidate. The coordinator owns these notes. Remaining outcomes after this: work coordination and acceptance/final integration, with grouping adapted to actual interface discovery.
+Iteration 5: work coordination. Start `it-ca671cd9-52f3-47f4-9204-4691beed720c`, base `5b5aa2a6db3e6907626eeed7f7189e719dfed414`, started `2026-10-19T10:33:01.854Z` (UTC), clean. `/root/session_store` owns implementation and consumer integration; coordinator owns these notes. Preserve real frontier/placement/assignment/contract/capability decisions and atomic candidate-bound handback. Acceptance remains explicitly autonomous-local until iteration 6, with joint discovery of handback/closure interfaces to avoid a false boolean-only boundary. One native review follows the candidate.
+
+Remaining after this: acceptance and final integration, full remainder allocation, concise final before/after evaluation, final configured audit and whole-plan native review. Preserve the original baseline and no-time-limit correction.
 
 ## RA connection if needed
 

@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
-import { capabilityNeedInputSchema } from '../../subs/autonomous/src/capability/records.js';
-import { capabilityActionSchema, validateCapabilityAction } from '../../subs/autonomous/src/capability/submission.js';
-import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/src/work/assignment.js';
-import { validateEngineer } from '../../subs/autonomous/src/work/engineer.js';
-import { capabilityLocalArchitectJsonSchema } from '../../subs/autonomous/src/work/submission.js';
+import { capabilityNeedInputSchema } from '../../subs/autonomous/subs/work-coordination/src/capability/records.js';
+import { capabilityActionSchema, validateCapabilityAction } from '../../subs/autonomous/subs/work-coordination/src/capability/submission.js';
+import { assignmentBodySchema, assignmentErrors } from '../../subs/autonomous/subs/work-coordination/src/work/assignment.js';
+import { validateEngineer } from '../../subs/autonomous/subs/work-coordination/src/work/engineer.js';
+import { capabilityLocalArchitectJsonSchema } from '../../subs/autonomous/subs/work-coordination/src/work/submission.js';
 import { architectIndex, moduleEntry } from './helpers/views.js';
 import { assign, outline } from './helpers/iterations.js';
 import type { RegistryEntry } from '../../subs/autonomous/subs/planning/src/records.js';

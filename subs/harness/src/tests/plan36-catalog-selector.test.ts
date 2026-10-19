@@ -12,8 +12,8 @@ import { type TaskEnvironment } from '../../subs/task-execution/src/delivery/pac
 import { buildBriefingDelivery, taskBriefingRevision } from '../../subs/task-execution/src/delivery/briefings.js';
 import { effectiveBlocks } from '../../subs/task-execution/src/delivery/blocks.js';
 import { exactInputHash, type DeliveredInput } from '../../subs/task-execution/src/delivery/delivered-manifest.js';
-import { contextSelectorMessage } from '../../subs/autonomous/src/context-selection/prompts.js';
-import { contextSelectorSubmissionSchema, prepareContextSelection } from '../../subs/autonomous/src/context-selection/submissions.js';
+import { contextSelectorMessage } from '../../subs/autonomous/subs/work-coordination/src/context-selection/prompts.js';
+import { contextSelectorSubmissionSchema, prepareContextSelection } from '../../subs/autonomous/subs/work-coordination/src/context-selection/submissions.js';
 import type { Role } from '../interfaces/protocol/runs.js';
 
 const hash = (text: string) => createHash('sha256').update(text).digest('hex');

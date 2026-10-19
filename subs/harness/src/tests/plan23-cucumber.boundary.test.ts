@@ -7,8 +7,8 @@ import { afterEach, expect, it } from 'vitest';
 import { loadCucumberConfiguration } from '../../subs/evidence/src/cucumber-configuration.js';
 import { childEnvironment, runCommand } from '../../subs/evidence/src/run-command.js';
 import { classifyShellTestRun } from '../tools/shell-tests.js';
-import { assignedFeaturePaths } from '../../subs/autonomous/src/work/feature-selection.js';
-import { buildFocusedScenarioCommand } from '../../subs/autonomous/src/work/focused-scenarios.js';
+import { assignedFeaturePaths } from '../../subs/autonomous/subs/work-coordination/src/work/feature-selection.js';
+import { buildFocusedScenarioCommand } from '../../subs/autonomous/subs/work-coordination/src/work/focused-scenarios.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const directories: string[] = [];
