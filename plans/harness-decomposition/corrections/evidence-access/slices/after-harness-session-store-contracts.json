@@ -1,0 +1,47 @@
+{
+  "summarySha256": "d3f02ac1a1e1647e5461d8c0ae9fa87a5de1a7c4f1821fa7cab92a18a3e5c6b0",
+  "module": "ramify-agent/harness/session-store",
+  "declaration": {
+    "path": "subs/harness/subs/session-store/module.ramify",
+    "sha256": "babfd35835c942806416946c4970a083588cc87f4b10a8d15c99f18679da6248",
+    "text": "ramify 1\nmodule session-store\n\n// Durable session records and immutable payloads through the authoritative ledger.\n// The parent composes workflow callers; this child decides no workflow outcome.\nexpose-src openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from \"session-store.ts\" to parent\n\n// Workflow tests replace only persistence, retaining real session/workflow logic.\nexpose-test openMemorySessionStore, forgetMemorySessionStores from \"helpers/memory-session-store.ts\" to parent\n"
+  },
+  "architecture": {
+    "parent": "ramify-agent/harness",
+    "children": [],
+    "symbols": {
+      "exposed": 3,
+      "internal": 0,
+      "supporting": 2,
+      "unknown": 0
+    },
+    "uses": [
+      {
+        "module": "ramify-agent/harness/ledger",
+        "behavioral": 3,
+        "nonBehavioral": 0
+      },
+      {
+        "module": "ramify-agent/harness/agent",
+        "behavioral": 2,
+        "nonBehavioral": 3
+      },
+      {
+        "module": "ramify-agent/harness",
+        "behavioral": 1,
+        "nonBehavioral": 1
+      }
+    ],
+    "usedBy": [
+      {
+        "module": "ramify-agent/harness",
+        "behavioral": 1,
+        "nonBehavioral": 1
+      }
+    ],
+    "tests": {
+      "suites": 8,
+      "titles": 48
+    }
+  }
+}

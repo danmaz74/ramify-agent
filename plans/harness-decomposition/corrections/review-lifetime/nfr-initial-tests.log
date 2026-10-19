@@ -1,0 +1,61 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/src/tests/nonfunctional-repair.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+ ❯ |node| subs/harness/src/tests/nonfunctional-repair.test.ts (3 tests | 1 failed) 5223ms
+   × one authorized repair edits two modules from the chosen src, then reassesses every NFR ({"debug":false,"noResult":false}) 963ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |node| subs/harness/src/tests/nonfunctional-repair.test.ts > one authorized repair edits two modules from the chosen src, then reassesses every NFR ({"debug":false,"noResult":false})
+AssertionError: [{"outcome":{"kind":"submitted","input":{"kind":"assessment","results":[{"nfr":"nfr-001","result":"undetermined","inspectedScope":["subs/workspace/subs/reviews/subs/core/src","subs/workspace/subs/catalog/src"],"evidence":["Intermediate trace unavailable"],"uncertainty":"Need an intermediate trace"},{"nfr":"nfr-002","result":"not-satisfied","inspectedScope":["subs/workspace/subs/catalog/src"],"evidence":["Catalog source inspected"],"uncertainty":""},{"nfr":"fix-001","result":"satisfied","inspectedScope":["subs/workspace/subs/reviews/subs/core/src"],"evidence":["Author is recorded"],"uncertainty":""}]}},"results":[{"callId":"call-1","tool":"shell","text":"$ git merge-base --is-ancestor prerequisite HEAD && cat plans/review-notes/.harness/jobs/*/job.json\nExit 0.\nElapsed 0.0 s. Complete output: /tmp/ramify-agent-GP3xrt/collection-review/plans/review-notes/.harness/jobs/20261019T075903Z-118f32/invocations/inv-0006/shell/001.log (58 bytes).\n\nprerequisite ancestry and captured run plan hash inspected","isError":false},{"callId":"call-2","tool":"submit_nonfunctional_assessment","text":"The submission was accepted.","isError":false}]},{"outcome":{"kind":"submitted","input":{"kind":"investigate","nfrs":["nfr-001"],"question":"Inspect the intermediate audit trace","scope":[".git","plans/review-notes/.harness","/external/evidence"]}},"results":[{"callId":"call-1","tool":"shell","text":"$ git merge-base --is-ancestor prerequisite HEAD && cat plans/review-notes/.harness/jobs/*/job.json\nExit 0.\nElapsed 0.0 s. Complete output: /tmp/ramify-agent-GP3xrt/collection-review/plans/review-notes/.harness/jobs/20261019T075903Z-118f32/invocations/inv-0007/shell/001.log (58 bytes).\n\nprerequisite ancestry and captured run plan hash inspected","isError":false},{"callId":"call-2","tool":"submit_nonfunctional_action","text":"The submission was accepted.","isError":false}]},{"outcome":{"kind":"submitted","input":{"kind":"investigation-result","summary":"Intermediate trace is absent","findings":[{"nfr":"nfr-001","inspectedScope":["src/"],"evidence":["No trace writer found"],"uncertainty":"The trace was not observed"}]}},"results":[{"callId":"call-1","tool":"shell","text":"$ git merge-base --is-ancestor prerequisite HEAD && cat plans/review-notes/.harness/jobs/*/job.json\nExit 0.\nElapsed 0.0 s. Complete output: /tmp/ramify-agent-GP3xrt/collection-review/plans/review-notes/.harness/jobs/20261019T075903Z-118f32/invocations/inv-0008/shell/001.log (58 bytes).\n\nprerequisite ancestry and captured run plan hash inspected","isError":false},{"callId":"call-2","tool":"submit_nonfunctional_investigation","text":"The submission was accepted.","isError":false}]}]: expected { reason: 'internal', …(2) } to be null
+
+- Expected:
+null
+
++ Received:
+{
+  "evidence": [],
+  "message": "[
+  {
+    \"origin\": \"number\",
+    \"code\": \"too_small\",
+    \"minimum\": 0,
+    \"inclusive\": true,
+    \"path\": [
+      \"elapsedMs\"
+    ],
+    \"message\": \"Too small: expected number to be >=0\"
+  }
+]",
+  "reason": "internal",
+}
+
+ ❯ subs/harness/src/tests/nonfunctional-repair.test.ts:170:197
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  |node| subs/harness/src/tests/nonfunctional-repair.test.ts > one authorized repair edits two modules from the chosen src, then reassesses every NFR ({"debug":false,"noResult":false})
+AssertionError: required final-audit answer consumed exactly once: expected undefined to be 1 // Object.is equality
+
+- Expected:
+1
+
++ Received:
+undefined
+
+ ❯ Object.assertComplete subs/harness/src/tests/helpers/nonfunctional-boundaries.ts:274:194
+
+ ❯ subs/harness/src/tests/nonfunctional-repair.test.ts:29:56
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  07:58:57
+   Duration  10.58s (transform 3.37s, setup 88ms, import 5.12s, tests 5.22s, environment 0ms)

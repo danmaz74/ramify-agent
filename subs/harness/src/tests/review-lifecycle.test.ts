@@ -25,7 +25,7 @@ vi.mock('node:child_process', async original =>
 
 /*
  * The lifecycle of review readers (Plan 12 iteration 3): a stop and the
- * reviews' settlement bound own every live reader and settle or fence each
+ * explicit shutdown own every live reader and settle or fence each
  * attempt before the run's terminal event; a crash between a passing gate
  * and its request, or while a reader runs, is recovered once from the log;
  * a result committed before a crash is rebuilt without a reviewer; and a
@@ -147,25 +147,33 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 2, complete: 0, partial: 0, notVerified: 2, pending: 0 });
   }, 60_000);
 
-  test('the settlement bound stops a reader that never answers, and the run completes with no reader left', async () => {
+  test('a quiet reader outlives historical idle and settlement limits and completes before the final gate', async () => {
     const root = await reviewTarget(cleanups);
-    const run = await reviewRun(root, cleanups, {
-      policy: { settleMs: 300 },
-      engineer: engineers(),
-      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': [never()] },
-    });
-    const { events, service, runId } = run;
-    expect(onlyRun(service, plan).state).toBe('completed');
-    const finished = eventsOf(events, 'review-attempt-finished').sort((a, b) => (a.data.attempt < b.data.attempt ? -1 : 1));
-    expect(finished.map(event => [event.data.attempt, event.data.result, event.data.reason])).toEqual([
-      ['rq-0001.a01', 'complete', null], ['rq-0002.a01', 'complete', null], ['rq-0003.a01', 'not-verified', 'deadline'],
-    ]);
-    const completed = events.find(event => event.type === 'job-completed')!;
-    expect(finished.every(event => event.sequence < completed.sequence)).toBe(true);
-    expect((await attemptRecord(root, runId, 'rq-0003.a01')).result).toMatchObject({ reason: 'deadline', detail: expect.stringContaining('settlement bound') });
-    // No session of the run is left live or suspended.
-    expect([...reduceSessions(events).values()].filter(session => session.state !== 'finished')).toEqual([]);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 2, partial: 0, notVerified: 1, pending: 0 });
+    const entered = gate(); const release = gate(); const completion = gate(); let revisions = 0;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      const pending = reviewRun(root, cleanups, {
+        policy: { settleMs: 300 },
+        afterWrite: async write => { if (write === 'outline-revised' && ++revisions === 2) completion.open(); },
+        engineer: engineers(),
+        reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': [
+          { kind: 'await', until: () => { entered.open(); return release.opened; } },
+          tool(snapshotToolNames.diff, { path: store }), tool(snapshotToolNames.diff, { path: `${notesDirectory}/src/index.ts` }),
+          { kind: 'submit', input: { inspected: [store, `${notesDirectory}/src/index.ts`], missing: [], concerns: [] } },
+        ] },
+      });
+      await Promise.all([entered.opened, completion.opened]);
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      release.open();
+      const run = await pending;
+      const { events, service, runId } = run;
+      expect(onlyRun(service, plan).state).toBe('completed');
+      const finished = eventsOf(events, 'review-attempt-finished');
+      expect(finished).toHaveLength(3);
+      expect(finished.every(event => event.data.result === 'complete' && event.data.reason === null)).toBe(true);
+      const completed = events.find(event => event.type === 'job-completed')!;
+      expect(finished.every(event => event.sequence < completed.sequence)).toBe(true);
+      expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
     // Each reviewer's evaluation names the review request it served.
     const metrics = await new RunQueries(createQuerySource(service)).metrics(plan, runId);
     const served = new Map(eventsOf(events, 'review-attempt-started').map(event => [event.data.invocation, event.data.request]));
@@ -173,7 +181,8 @@ describe('CF07: a stop owns every live reader, and a late result is fenced', () 
     expect(reviewers).toHaveLength(3);
     expect(reviewers.map(evaluation => evaluation.request).sort()).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
     for (const evaluation of reviewers) expect(evaluation.request).toBe(served.get(evaluation.invocation));
-    run.git.assertComplete();
+      run.git.assertComplete();
+    } finally { release.open(); vi.useRealTimers(); }
   }, 60_000);
 });
 

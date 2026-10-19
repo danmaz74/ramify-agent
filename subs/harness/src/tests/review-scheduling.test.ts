@@ -200,7 +200,7 @@ describe('a driven run', () => {
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 6, complete: 3, partial: 0, notVerified: 3, pending: 0 });
   }, 120_000);
 
-  test('after the completion request, a waiting request that could not finish before the work item\'s deadline is finished at once', async () => {
+  test('waiting reviews remain eligible when the captured attempt allowance exceeds the historical settlement allowance', async () => {
     const root = await reviewTarget(cleanups);
     const completionRequested = gate();
     let revisions = 0;
@@ -214,6 +214,7 @@ describe('a driven run', () => {
       engineer: engineers(),
       reviewers: {
         'rq-0001': [{ kind: 'await', until: () => completionRequested.opened }, ...clean(changed[1])],
+        'rq-0002': clean(changed[2]), 'rq-0003': clean(changed[3]),
       },
     });
     const { service, runId, events } = run;
@@ -221,17 +222,11 @@ describe('a driven run', () => {
     const finished = eventsOf(events, 'review-attempt-finished');
     expect(finished.map(event => [event.data.attempt, event.data.result, event.data.reason])).toEqual(expect.arrayContaining([
       ['rq-0001.a01', 'complete', null],
-      ['rq-0002.a01', 'not-verified', 'no-time-before-deadline'],
-      ['rq-0003.a01', 'not-verified', 'no-time-before-deadline'],
+      ['rq-0002.a01', 'complete', null],
+      ['rq-0003.a01', 'complete', null],
     ]));
-    const completion = eventsOf(events, 'outline-revised').find(event => event.data.architectRef !== undefined)!;
-    for (const attempt of ['rq-0002.a01', 'rq-0003.a01']) {
-      const record = await attemptRecord(root, runId, attempt);
-      expect(record).toMatchObject({ startedAt: null, invocation: null, settles: true, result: { detail: expect.stringContaining('60000 ms') } });
-      expect(Date.parse(record.finishedAt)).toBeGreaterThanOrEqual(Date.parse(completion.at));
-    }
-    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001']);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 1, partial: 0, notVerified: 2, pending: 0 });
+    expect(eventsOf(events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
   }, 120_000);
 });

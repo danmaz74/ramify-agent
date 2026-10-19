@@ -489,8 +489,6 @@ class Run implements RunnerRun {
   readonly reviewPreparations = new Map<string, AbortController>();
   /** Why the run stopped its readers, which a reader stopped for it records as its attempt's reason. */
   readerStop: NotVerifiedReason | undefined;
-  /** When the run's reviews must be settled by, once its final settlement began; epoch milliseconds. */
-  settleDeadline: number | undefined;
   /** The design orientations being made, by key, so that two attempts of one key make it once. */
   readonly orienting = new Map<string, Promise<ReviewOrientation>>();
   /** The commit-and-audit effect in flight, which the run's terminal event waits for. */
@@ -860,14 +858,6 @@ export class RunService {
       overflow: async request => {
         await this.finishUnsettledReviews(run, () => ({ reason: 'queue-overflow', detail: `More than ${policy.queue} review requests were waiting; this one was not run` }), [request]);
       },
-      deadline: request => this.rawReviewDeadline(run, request),
-      attemptMs: policy.attemptMs,
-      expire: async request => {
-        await this.finishUnsettledReviews(run, () => ({
-          reason: 'no-time-before-deadline',
-          detail: `An attempt may run ${policy.attemptMs} ms, and its reviews must be settled by ${new Date(this.reviewDeadline(run, request) ?? 0).toISOString()}; none was started`,
-        }), [request]);
-      },
       now: () => this.now().getTime(),
       warn: text => this.warn(`Run ${run.record.jobId}: ${text}`),
     });
@@ -895,45 +885,6 @@ export class RunService {
     const guidance = boundInputs(request.guidance.map((entry, index) => ({ ref: entry.ref, hash: sha256(texts[index]!), text: texts[index]! })), request.guidance);
     if (this.closed || this.ignoring(run) || run.reviews?.accepting !== true) return;
     await this.orientation(run, agent, loaded, request, guidance);
-  }
-
-  /**
-   * When a request must be settled by: its work item's first completion
-   * request after it was recorded, plus the policy's settlement bound, or
-   * the run's own settlement deadline once that began, whichever is
-   * earlier. Null while neither applies. Read from the log each time.
-   */
-  private reviewDeadline(run: Run, id: string): number | null {
-    return run.reviews === undefined ? this.rawReviewDeadline(run, id) : run.reviews.deadline(id);
-  }
-
-  private rawReviewDeadline(run: Run, id: string): number | null {
-    if (run.policy.continuity) return null;
-    const policy = run.policy.reviews;
-    if (policy === undefined) return null;
-    const recorded = run.log.all('review-request-recorded').find(event => event.data.request === id);
-    if (recorded === undefined) return null;
-    // Only the revision that commits a completion request carries the
-    // architect's point after it, null or not.
-    const completion = run.log.all('outline-revised')
-      .find(event => event.data.workItem === recorded.data.workItem && event.sequence > recorded.sequence && event.data.architectRef !== undefined);
-    const deadlines = [
-      ...(completion === undefined ? [] : [Date.parse(completion.at) + policy.settleMs]),
-      ...(run.settleDeadline === undefined ? [] : [run.settleDeadline]),
-    ];
-    if (deadlines.length === 0) return null;
-    let pausedAt: number | undefined; let credit = 0;
-    for (const event of run.log.events) {
-      if (event.type === 'operation-recovery-paused') {
-        const record = operationRecoverySchema.parse(this.committedBody(run, runLayout.operationRecovery(event.data.occurrenceId, event.data.revision)));
-        if (record.waitingReviews?.some(waiting => waiting.request === id)) pausedAt = Date.parse(event.at);
-      }
-      if ((event.type === 'operation-recovery-resumed' || ['job-stopped', 'job-failed', 'job-interrupted', 'job-completed'].includes(event.type)) && pausedAt !== undefined) {
-        credit += Math.max(0, Date.parse(event.at) - pausedAt); pausedAt = undefined;
-      }
-    }
-    if (pausedAt !== undefined) credit += Math.max(0, this.now().getTime() - pausedAt);
-    return Math.min(...deadlines) + credit;
   }
 
   /**
@@ -1084,8 +1035,8 @@ export class RunService {
     let start: Awaited<ReturnType<RunService['reviewStart']>>;
     try { start = await this.reviewStart(run, agent, loaded, request, guidance); }
     catch (error) { return await unavailable(`The recorded review source is unavailable: ${message(error)}`) === 'committed'; }
-    // An orientation made first may have met a stop or the deadline, and
-    // its work item's deadline may have settled the request meanwhile.
+    // An orientation made first may have met an explicit stop; the request
+    // can already be settled when its prepared orientation returns.
     if (this.closed || this.ignoring(run) || run.reviews?.accepting !== true) return false;
     if (reviewStateOf(run.log.events).get(id)?.settledBy !== null) return false;
 
@@ -1115,9 +1066,6 @@ export class RunService {
     const planDocument = snapshot.entries.get(planPath(run.record.planId))?.kind === 'file' ? planPath(run.record.planId) : null;
     let prepared: PreparedReview;
     const preparation = new AbortController();
-    const preparationStarted = Date.now();
-    const preparationTimer = run.policy.continuity ? undefined : setTimeout(() => preparation.abort(new Error('Review patch preparation exceeded its attempt bound')), policy.attemptMs);
-    preparationTimer?.unref?.();
     run.reviewPreparations.set(id, preparation);
     try {
       prepared = await prepareReview({
@@ -1150,7 +1098,6 @@ export class RunService {
       }
       return await unavailable(`The audited candidate's patches could not be collected: ${message(error)}`) === 'committed';
     } finally {
-      clearTimeout(preparationTimer);
       run.reviewPreparations.delete(id);
     }
     if (this.ignoring(run) || run.reviews?.accepting !== true || reviewStateOf(run.log.events).get(id)?.settledBy !== null) return false;
@@ -1175,7 +1122,7 @@ export class RunService {
         },
         ...(discovery === undefined ? {} : { discovery }),
         workspace: { run: workspace },
-        bounds: { absoluteMs: Math.max(1, policy.attemptMs - (Date.now() - preparationStarted)) },
+        bounds: { absoluteMs: policy.attemptMs },
         start: start.start.mode === 'fork' && start.fork !== undefined && 'invocation' in start.fork.from
           ? { kind: 'fork', session: start.fork.from.session, invocation: start.fork.from.invocation, point: start.start.from, reason: start.fork.reason, briefs: [...start.fork.briefs] }
           : { kind: 'fresh', ...(start.degraded === undefined ? {} : { degraded: start.degraded }) },
@@ -1218,7 +1165,7 @@ export class RunService {
       absoluteMs: step.bounds.absoluteMs,
       equip: () => ({ builtinTools: [...step.equipment.builtinTools], tools: [...prepared.tools.definitions] }),
       // The start is recorded only for a request still unsettled, under the
-      // mutex its deadline settles it under; a settled one's reader never starts.
+      // same mutex that settles it; a settled reader never starts.
       onStarted: async (invocation, session) => {
         const at = this.now();
         const recorded = await run.mutex.run(async () => {
@@ -1557,96 +1504,25 @@ export class RunService {
     return finishedIds;
   }
 
-  /**
-   * Waits for the run's reviews before its final gate, at most the policy's
-   * settlement bound, then stops what is still running and finishes it as
-   * not verified at the deadline, so the run completes with every request
-   * settled and no reader left.
-   */
+  /** Waits for every admitted review; only explicit stop or shutdown cancels readers. */
   private async settleReviews(run: Run): Promise<void> {
-    const policy = run.policy.reviews;
-    if (policy === undefined || run.reviews === undefined) return;
-    if (run.policy.continuity) { run.reviews.wake(); await run.reviews.settled(); return; }
-    // From here every waiting request has a deadline, and one that could not
-    // finish by it is finished at once rather than started.
-    run.settleDeadline = this.now().getTime() + policy.settleMs;
+    if (run.policy.reviews === undefined || run.reviews === undefined) return;
     run.reviews.wake();
-    let timer: NodeJS.Timeout | undefined;
-    await Promise.race([
-      run.reviews.settled(),
-      new Promise<void>(resolve => { timer = setTimeout(resolve, policy.settleMs); }),
-    ]);
-    clearTimeout(timer);
-    await this.stopReaders(run, 'deadline', run.policy.limits.stopSettleMs);
+    await run.reviews.settled();
   }
 
-  /**
-   * Settles one work item's review requests at its completion request: it
-   * waits for them until their deadline, the completion request plus the
-   * policy's settlement bound, and then finishes what is left as not
-   * verified at the deadline and stops its readers. The run's queue stays
-   * open for the rest of the run. Answers false once the run has ended.
-   */
+  /** Keeps a work item's requests pending until their actual outcomes or an explicit stop. */
   private async settleWorkItemReviews(run: Run, workItem: string): Promise<boolean> {
-    const policy = run.policy.reviews;
     const queue = run.reviews;
-    if (policy === undefined || queue === undefined) return !this.ignoring(run);
+    if (run.policy.reviews === undefined || queue === undefined) return !this.ignoring(run);
     for (;;) {
       if (this.ignoring(run)) return false;
-      // Both waits are registered before the log is read, so an attempt that
-      // ends, or a stop that lands, in between still wakes this one.
       const ended = queue.changed();
       const stopped = run.changed();
-      const unsettled = unsettledRequests(run.log.events).filter(request => request.workItem === workItem);
-      if (unsettled.length === 0) return true;
-      if (run.policy.continuity) { queue.wake(); await Promise.race([ended, stopped]); continue; }
-      const deadlines = unsettled.map(request => this.reviewDeadline(run, request.id)).filter((deadline): deadline is number => deadline !== null);
-      const deadline = deadlines.length === 0 ? this.now().getTime() + policy.settleMs : Math.max(...deadlines);
-      const remaining = deadline - this.now().getTime();
-      if (remaining <= 0) {
-        await this.stopWorkItemReaders(run, workItem, run.policy.limits.stopSettleMs);
-        return !this.ignoring(run);
-      }
+      if (unsettledRequests(run.log.events).every(request => request.workItem !== workItem)) return true;
       queue.wake();
-      let timer: NodeJS.Timeout | undefined;
-      await Promise.race([ended, stopped, new Promise<void>(resolve => { timer = setTimeout(resolve, remaining); })]);
-      clearTimeout(timer);
+      await Promise.race([ended, stopped]);
     }
-  }
-
-  /**
-   * The deadline of one work item's reviews. Every request of it still
-   * unsettled is finished as not verified at the deadline, which fences any
-   * later result of its attempt, and each reader still running for one is
-   * asked to stop and awaited at most `grace`; the harness owns its cleanup
-   * until it settles. The queue, and every other work item's requests, are
-   * left as they are.
-   */
-  private async stopWorkItemReaders(run: Run, workItem: string, grace: number): Promise<void> {
-    const unsettled = unsettledRequests(run.log.events).filter(request => request.workItem === workItem);
-    if (unsettled.length === 0) return;
-    const running = unsettled.flatMap(request => request.attempts
-      .filter(attempt => attempt.started !== null && attempt.finished === null)
-      .map(attempt => attempt.started!.invocation));
-    await this.finishUnsettledReviews(run, (_request, open) => ({
-      reason: 'deadline',
-      detail: open
-        ? `${workItem}'s reviews had to settle by its completion request plus the settlement bound; this attempt was still running, and its reader was stopped`
-        : `${workItem}'s reviews had to settle by its completion request plus the settlement bound; this review had not run`,
-    }), unsettled.map(request => request.id));
-    for (const request of unsettled) run.reviewPreparations.get(request.id)?.abort();
-    const readers = running.flatMap(invocation => {
-      const live = run.live.get(invocation);
-      return live === undefined ? [] : [live];
-    });
-    if (readers.length === 0) return;
-    for (const reader of readers) void reader.session?.stop().catch(() => undefined);
-    let timer: NodeJS.Timeout | undefined;
-    await Promise.race([
-      Promise.all(readers.map(reader => reader.done)),
-      new Promise<void>(resolve => { timer = setTimeout(resolve, grace); }),
-    ]);
-    clearTimeout(timer);
   }
 
   /** The run's review requests and coverage, from its log; undefined for an unknown run. */
@@ -4372,10 +4248,8 @@ export class RunService {
     await run.mutex.run(async () => {
       if (this.ignoring(run)) return;
       recovery.state = 'paused'; recovery.revision++; recovery.pausedAt = this.now().toISOString();
-      recovery.waitingReviews = unsettledRequests(run.log.events).filter(request => !run.reviews?.active.includes(request.id)).flatMap(request => {
-        const deadline = this.reviewDeadline(run, request.id); const remainingMs = deadline === null ? null : deadline - this.now().getTime();
-        return remainingMs !== null && remainingMs >= (run.policy.reviews?.attemptMs ?? 0) ? [{ request: request.id, remainingMs }] : [];
-      });
+      // Historical waiting budgets remain readable, but review authority never expires.
+      recovery.waitingReviews = [];
       await commitRecord(run.log.ledger, { event: run.log.next({ type: 'operation-recovery-paused', data: { occurrenceId: id, revision: recovery.revision } }, this.now()),
         records: [{ path: runLayout.operationRecovery(id, recovery.revision), id, revision: recovery.revision, body: recovery }] });
     });

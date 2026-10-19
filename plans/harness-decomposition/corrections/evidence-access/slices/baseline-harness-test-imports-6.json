@@ -1,0 +1,16 @@
+{
+  "module": "ramify-agent/harness",
+  "part": 6,
+  "totalPaths": 409,
+  "paths": [
+    "subs/web/src/tests/plan23-session-metrics.test.tsx",
+    "subs/web/src/tests/recovery.test.tsx",
+    "subs/web/src/tests/restart.test.tsx",
+    "subs/web/src/tests/run-page.test.tsx",
+    "subs/web/src/tests/session-marks.test.tsx",
+    "subs/web/src/tests/session-page.test.tsx",
+    "subs/web/src/tests/session-timeline.test.tsx",
+    "subs/web/src/tests/sessions-page.test.tsx",
+    "subs/web/src/tests/transcript-workspace.test.tsx"
+  ]
+}

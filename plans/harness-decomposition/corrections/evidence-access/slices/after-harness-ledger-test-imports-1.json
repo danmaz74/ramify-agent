@@ -1,0 +1,22 @@
+{
+  "module": "ramify-agent/harness/ledger",
+  "part": 1,
+  "totalPaths": 15,
+  "paths": [
+    "subs/harness/src/tests/helpers/check-findings.ts",
+    "subs/harness/src/tests/helpers/commit.ts",
+    "subs/harness/src/tests/helpers/runs.ts",
+    "subs/harness/src/tests/nonfunctional-phase.test.ts",
+    "subs/harness/src/tests/steps-gate-after.test.ts",
+    "subs/harness/src/tests/union-values.test.ts",
+    "subs/harness/subs/ledger/src/tests/corrupt-log.test.ts",
+    "subs/harness/subs/ledger/src/tests/helpers/killed-writer-child.ts",
+    "subs/harness/subs/ledger/src/tests/helpers/ledger.ts",
+    "subs/harness/subs/ledger/src/tests/jsonl-appender.test.ts",
+    "subs/harness/subs/ledger/src/tests/ledger.test.ts",
+    "subs/harness/subs/ledger/src/tests/record-read.test.ts",
+    "subs/harness/subs/ledger/src/tests/store.test.ts",
+    "subs/harness/subs/session-store/src/tests/plan23-session-store-cache.stress.ts",
+    "subs/harness/subs/session-store/src/tests/plan23-session-store-cache.test.ts"
+  ]
+}

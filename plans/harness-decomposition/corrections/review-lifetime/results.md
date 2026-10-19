@@ -71,3 +71,67 @@ carry `attemptMs` into their invocation bound inputs. These paths use the shared
 invocation/recovery machinery, distinct from the removed assistance timer. They
 were inspected and reported to the coordinator; this correction changes none of
 those captured policies or general invocation/command budgets.
+
+## Broader managed and manual correction
+
+The subsequent review-path trace found that the common invocation runner still
+applied its five-minute silence watchdog to reviewers, design orientations and
+other semantic review invocations. The runner now awaits actual provider outcome
+for role `reviewer` and these exact submission schemas:
+
+- `ramify-agent.reconciliation-submission/1`
+- `ramify-agent.nonfunctional-assessment-submission/1`
+- `ramify-agent.nonfunctional-investigation/1`
+
+This includes managed and manual reviewer steps and design orientation, managed
+local/capability reconciliation, and NFR assessment/investigation. The NFR paths
+use equipment writer ownership for their read-only tools, so writer/reader flags
+alone cannot identify review work. NFR action/scheduling, repair engineers,
+ordinary engineers and other non-review roles retain their existing progress
+watchdog. Command execution timeouts, explicit stop/shutdown, source authority,
+provider failures, context recovery and actual session settlement stay effective.
+The standalone `session` command is engineer-only; manual `step run` is the
+standalone entry point for reviewer inputs.
+
+Managed review preparation no longer receives an attempt timer. Review queue
+composition no longer supplies deadline/expiry callbacks. Work-item and final
+review settlement now await actual outcomes or explicit stop/shutdown, including
+when historical policy records lack continuity. The obsolete private deadline and
+elapsed waiting-budget derivation were removed. Captured `attemptMs`, `settleMs`
+and invocation-bound fields, old events and schema readers remain compatible;
+none of these fields cancels a review. Generic optional scheduler deadline APIs
+remain for compatibility, but neither production queue construction supplies a
+deadline. No runtime policy override or protected schema edit is required.
+
+The earlier report overstated policy injection as a production path:
+`RunService.open` already rejects caller-supplied policy; only explicit test
+factories inject the retained policy-7 fixtures. Production default and resumed
+continuity paths already skipped the old preparation/settlement branches. Removing
+those branches makes the review rule unconditional, while the shared silence
+watchdog correction changes actual managed/manual execution.
+
+| Additional verification | Result |
+| --- | --- |
+| [Managed preparation, quiet review settlement, legacy queue admission, reconciliation and unchanged non-review watchdogs](broad-focused-tests.log) | 5 files, 42 tests passed |
+| [Manual step suite, including hour-long quiet design-orientation submission and explicit cancellation](manual-review-tests.log) | 1 file, 14 tests passed |
+| [Review attempts/questions/queue plus assisted Pi/service/MCP](additional-review-tests.log) | 6 files, 47 tests passed |
+| [Real NFR assessment and investigation each quiet for an hour before repair/reassessment](nfr-review-tests.log) | 1 file, 3 tests passed |
+| [Final type-check](broad-type-check.log) | Passed |
+| [Final check:self](broad-check-self.log) | Passed; zero errors/denied accesses; partial coverage retained |
+
+The new managed and NFR witnesses advance controlled clocks, rather than waiting
+for wall time or raising limits. Existing deadline assertions were migrated to
+actual completion and candidate-bound evidence under the explicit user correction.
+The initial migrated reports omitted a changed index file; source validation
+correctly rejected them, and the tests now inspect/report all required changed
+paths. One NFR test initially restored real time before its fake-clock operation
+persisted, causing the existing nonnegative elapsed-time validator to reject the
+fixture; controlled time is now retained through settlement. Initial failed test
+outputs remain in `broad-initial-tests.log` and `nfr-initial-tests.log`; no validation
+rule was relaxed. No new skips, retries, native exemptions or timeout increases.
+
+The independent [evidence-access report](../evidence-access/README.md) addresses
+large-artifact inspection through complete decompression/verification and bounded
+readable projections. Those artifacts do not change source behavior or rewrite
+the original extraction measurements. This joint candidate requires configured
+reassessment; existing live assessments were not cancelled or restarted.

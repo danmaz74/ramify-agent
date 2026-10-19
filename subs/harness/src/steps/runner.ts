@@ -1014,7 +1014,14 @@ export class InvocationRunner<R extends RunnerRun> {
     // whether another owner may safely continue its pending task.
     let outcome: Awaited<AgentSession['outcome']>;
     try {
-      outcome = await bounds.outcome(agentSession);
+      // A quiet reviewer or reconciliation is still authorized review work.
+      // Other roles retain the progress watchdog; explicit caller cancellation
+      // above and actual provider failures remain effective for every role.
+      const review = request.role === 'reviewer' || [
+        'ramify-agent.reconciliation-submission/1', 'ramify-agent.nonfunctional-assessment-submission/1',
+        'ramify-agent.nonfunctional-investigation/1',
+      ].includes(request.submissionSchema);
+      outcome = await (review ? agentSession.outcome : bounds.outcome(agentSession));
     } finally {
       request.signal?.removeEventListener('abort', stop);
     }

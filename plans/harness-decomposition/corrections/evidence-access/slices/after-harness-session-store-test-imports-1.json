@@ -1,0 +1,20 @@
+{
+  "module": "ramify-agent/harness/session-store",
+  "part": 1,
+  "totalPaths": 13,
+  "paths": [
+    "subs/harness/src/tests/beads-sessions.test.ts",
+    "subs/harness/src/tests/execution-breakpoints-conversation.test.ts",
+    "subs/harness/src/tests/plan23-live-session.test.ts",
+    "subs/harness/src/tests/plan23-real-run-corrections.test.ts",
+    "subs/harness/src/tests/plan23-session-store.test.ts",
+    "subs/harness/subs/agent/subs/pi/src/tests/plan23-transport.boundary.test.ts",
+    "subs/harness/subs/session-store/src/tests/helpers/memory-session-store.ts",
+    "subs/harness/subs/session-store/src/tests/plan23-session-store-cache.stress.ts",
+    "subs/harness/subs/session-store/src/tests/plan23-session-store-cache.test.ts",
+    "subs/harness/subs/session-store/src/tests/plan23-session-store.stress.ts",
+    "subs/harness/subs/session-store/src/tests/plan23-session-store.test.ts",
+    "subs/harness/subs/session-store/src/tests/workflow-session-store.test.ts",
+    "subs/harness/subs/session-store/src/tests/writer-exclusion.boundary.test.ts"
+  ]
+}

@@ -1,0 +1,12 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/src/tests/nonfunctional-repair.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  07:59:39
+   Duration  8.69s (transform 2.98s, setup 87ms, import 4.60s, tests 3.84s, environment 0ms)

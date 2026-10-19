@@ -9,6 +9,7 @@ import { invocationOutcomeSchema, invocationSchema, manualRunRecordSchema, runLa
 import { loadPromptPackages } from '../prompts/packages.js';
 import { runStepCommandWith } from '../steps/command.js';
 import { parseStepInputs, serializeStepInputs, type StepInputs } from '../steps/inputs.js';
+import { defaultRunPolicy, contextPolicyOf } from '../run/policy.js';
 import { runStep, type StepRunOptions, type StepRunProgress, type StepRunResult } from '../steps/run.js';
 import { createStepProgressText } from '../steps/run-text.js';
 import { acquireProjectLock } from '../store/lock.js';
@@ -205,6 +206,41 @@ test('a standalone resource return retains partial candidate, scratch and the as
   expect(await readFile(temporary, 'utf8')).toBe('retain the pending repair');
   expect(parseStepInputs(await readFile(summary.records.inputs, 'utf8'))).toMatchObject({ role: 'engineer', assignment: expect.objectContaining({ goal: 'Raise the note limit to 500.' }) });
   expect(invocationOutcomeSchema.parse(await json(summary.records.outcome))).toMatchObject({ ended: 'resource-pending', resource: 'context', submission: null });
+});
+
+test.each(['submit', 'cancel'] as const)('a manual design reviewer can remain quiet past historical budgets and then %s', async finish => {
+  const { root, scratch } = await project();
+  const policy = defaultRunPolicy({ projectRoot: root });
+  const inputs = join(scratch, 'reviewer-inputs.json');
+  await writeFile(inputs, serializeStepInputs({
+    schema: 'ramify-agent.step-inputs/1', role: 'reviewer', question: 'design-orientation',
+    run: { planId, runId: 'authored-review' }, attempt: 1, capabilityWorkflow: true,
+    limits: policy.limits, context: contextPolicyOf(policy, 'reviewer'),
+    work: { workItem: item.id, iteration: 'i01' }, request: 'rq-manual', key: 'guidance-1',
+    guidance: [{ ref: 'docs/design.md', hash: 'a'.repeat(64), text: 'Retain durable state.' }],
+    workspace: { run: 'reviews/orientation-workspace' }, bounds: { absoluteMs: 600_000 },
+    architectView: [], start: { kind: 'fresh' },
+  }));
+  let enter!: () => void; const entered = new Promise<void>(resolve => { enter = resolve; });
+  let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+  const controller = new AbortController();
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+  try {
+    let ended = false;
+    const pending = step(root, inputs, manualRun(root, `m-review-${finish}`), [
+      { kind: 'await', until: () => { enter(); return gate; } },
+      { kind: 'submit', input: { read: ['docs/design.md'], summary: 'Retain durable state.' } },
+    ], scriptedGit({ head: 'base-1', changed: [] }), { signal: controller.signal })
+      .then(value => { ended = true; return value; });
+    await entered;
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(ended).toBe(false);
+    if (finish === 'cancel') controller.abort();
+    else release();
+    const { result, agent } = await pending;
+    expect(finished(result).ended).toBe(finish === 'submit' ? 'submitted' : 'stopped');
+    expect(agent.sessions).toHaveLength(1);
+  } finally { release(); vi.useRealTimers(); }
 });
 
 test('an authored engineer step uses durable source after native compaction fails without consuming its assignment', async () => {

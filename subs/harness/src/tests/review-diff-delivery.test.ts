@@ -163,26 +163,34 @@ describe('precollected candidate patches in actual review invocations', () => {
     run.git.assertComplete();
   }, 60_000);
 
-  test('the attempt deadline aborts patch preparation without starting a reviewer and releases the queue', async () => {
+  test('patch preparation outlives the historical attempt limit and still supplies the candidate', async () => {
     const root = await reviewTarget(cleanups);
-    const entered = gate();
-    const aborted = gate();
-    const run = await reviewRun(root, cleanups, {
-      policy: { concurrency: 1, attemptMs: 1_000 },
-      candidates: source => holdFirstPatch(source, entered, aborted),
-      engineer: engineers(),
-      reviewers: { 'rq-0002': [clean(limit)], 'rq-0003': [clean(store, index)] },
-    });
-    await entered.opened;
-    await aborted.opened;
-    expect(onlyRun(run.service, plan).state).toBe('completed');
-    expect(await attemptRecord(root, run.runId, 'rq-0001.a01')).toMatchObject({
-      invocation: null,
-      result: { result: 'not-verified', reason: 'unavailable', detail: expect.stringContaining('attempt bound') },
-    });
-    expect(eventsOf(run.events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0002', 'rq-0003']);
-    expect(eventsOf(run.events, 'review-attempt-finished').filter(event => event.data.request !== 'rq-0001').every(event => event.data.result === 'complete')).toBe(true);
-    run.git.assertComplete();
+    const entered = gate(); const release = gate();
+    let preparationSignal: AbortSignal | undefined;
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      const pending = reviewRun(root, cleanups, {
+        policy: { concurrency: 1, attemptMs: 1_000 },
+        candidates: source => {
+          const ordinary = source.diffPatch.bind(source);
+          vi.spyOn(source, 'diffPatch').mockImplementation(async (root, base, candidate, path, signal) => {
+            if (candidate === 'revision-01') { preparationSignal = signal; entered.open(); await release.opened; }
+            return ordinary(root, base, candidate, path, signal);
+          });
+        },
+        engineer: engineers(),
+        reviewers: { 'rq-0001': [clean(store)], 'rq-0002': [clean(limit)], 'rq-0003': [clean(store, index)] },
+      });
+      await entered.opened;
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(preparationSignal?.aborted).toBe(false);
+      release.open();
+      const run = await pending;
+      expect(onlyRun(run.service, plan).state).toBe('completed');
+      expect(await attemptRecord(root, run.runId, 'rq-0001.a01')).toMatchObject({ result: { result: 'complete' } });
+      expect(eventsOf(run.events, 'review-attempt-started').map(event => event.data.request)).toEqual(['rq-0001', 'rq-0002', 'rq-0003']);
+      run.git.assertComplete();
+    } finally { release.open(); vi.useRealTimers(); }
   }, 60_000);
 
   test('stopping a run aborts pending patch preparation and settles its request before the terminal event', async () => {

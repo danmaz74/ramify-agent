@@ -1,0 +1,639 @@
+{
+  "schema": "harness-decomposition-readable-comparison/1",
+  "provenance": {
+    "iteration-01/manifest.json": {
+      "storedBytes": 2333,
+      "storedSha256": "cd4cd07d264abba75b2a0c50ed3ec1438930f5e69a1b64a6f441d4f8ad3d9473",
+      "jsonBytes": 2333,
+      "jsonSha256": "cd4cd07d264abba75b2a0c50ed3ec1438930f5e69a1b64a6f441d4f8ad3d9473"
+    },
+    "evaluation/baseline-inputs/manifest.json": {
+      "storedBytes": 540,
+      "storedSha256": "a731138d716dd7dcb1bc5e70f23ff761e268290183e851b1ef35fe4ff41e759d",
+      "jsonBytes": 540,
+      "jsonSha256": "a731138d716dd7dcb1bc5e70f23ff761e268290183e851b1ef35fe4ff41e759d"
+    },
+    "evaluation/baseline-inputs/check.json.gz": {
+      "storedBytes": 5158111,
+      "storedSha256": "4e228a613aa8b91723ab0e8d77aa49654e110de8bea304d2374513d5011ff1df",
+      "jsonBytes": 71227149,
+      "jsonSha256": "d80ea336b4a0cdb401fa77e6e84fa9a6388de18d6dc39f85d435d988457fe3e4"
+    },
+    "iteration-01/before-check.json.gz": {
+      "storedBytes": 5343063,
+      "storedSha256": "fa9eff4dfb0bfe30e62826512760e67d6fd4793f60b62d97773173423e919704",
+      "jsonBytes": 71227009,
+      "jsonSha256": "33d09cc8e9d02686c0a5fd277d810a3de076254e396c6e0c4376a810c5e45b3f"
+    },
+    "iteration-01/after-check.json.gz": {
+      "storedBytes": 5350982,
+      "storedSha256": "1731e926357e1601c7af44722ed82a7b7f4cf9873b873ec47076a4ec39b86cb8",
+      "jsonBytes": 71339729,
+      "jsonSha256": "a590954e50f6cee71b49bf03ec8a3223de9228bf1045860746edc66777b93381"
+    },
+    "evaluation/baseline-inputs/measure.json": {
+      "storedBytes": 170374,
+      "storedSha256": "d2855df507a88cd09d9e5f5acb95f179ef06c1a7dde59e48abba4a36ac16dacb",
+      "jsonBytes": 170374,
+      "jsonSha256": "d2855df507a88cd09d9e5f5acb95f179ef06c1a7dde59e48abba4a36ac16dacb"
+    },
+    "iteration-01/before-measure.json": {
+      "storedBytes": 170354,
+      "storedSha256": "ad2d0472bc29cf6089c1ca9944b4e9bd5bf720e566c65c4a70f4675b540ffd0b",
+      "jsonBytes": 170354,
+      "jsonSha256": "ad2d0472bc29cf6089c1ca9944b4e9bd5bf720e566c65c4a70f4675b540ffd0b"
+    },
+    "iteration-01/after-measure.json": {
+      "storedBytes": 171875,
+      "storedSha256": "877784b3f457087e437c02654bb1a05849077c6497cb9f48cbe4903ef62b2ac4",
+      "jsonBytes": 171875,
+      "jsonSha256": "877784b3f457087e437c02654bb1a05849077c6497cb9f48cbe4903ef62b2ac4"
+    },
+    "evaluation/execution-baseline.json": {
+      "storedBytes": 818895,
+      "storedSha256": "26d4ccacd4cf12e199d0703ea4f15885f875ec100fa4718204999df1796e1713",
+      "jsonBytes": 818895,
+      "jsonSha256": "26d4ccacd4cf12e199d0703ea4f15885f875ec100fa4718204999df1796e1713"
+    },
+    "iteration-01/after-summary.json": {
+      "storedBytes": 830544,
+      "storedSha256": "d3f02ac1a1e1647e5461d8c0ae9fa87a5de1a7c4f1821fa7cab92a18a3e5c6b0",
+      "jsonBytes": 830544,
+      "jsonSha256": "d3f02ac1a1e1647e5461d8c0ae9fa87a5de1a7c4f1821fa7cab92a18a3e5c6b0"
+    },
+    "evaluation/baseline-inputs/affected-session-store.json": {
+      "storedBytes": 193236,
+      "storedSha256": "e850ad4c117f81ae24a4f80f4a3830f65742ee6ef2c3eb35aa0712ceab76068e",
+      "jsonBytes": 193236,
+      "jsonSha256": "e850ad4c117f81ae24a4f80f4a3830f65742ee6ef2c3eb35aa0712ceab76068e"
+    },
+    "iteration-01/before-affected.json": {
+      "storedBytes": 193156,
+      "storedSha256": "3ec52b2c603046c7da8c71d31070ea63730fa37dd9a894bb2a1502276aa8f3f0",
+      "jsonBytes": 193156,
+      "jsonSha256": "3ec52b2c603046c7da8c71d31070ea63730fa37dd9a894bb2a1502276aa8f3f0"
+    },
+    "iteration-01/after-affected.json": {
+      "storedBytes": 193701,
+      "storedSha256": "32e0cbaacc258a8fddbc0f2a0081628600868b5407f61469d5b534054c9d4d3b",
+      "jsonBytes": 193701,
+      "jsonSha256": "32e0cbaacc258a8fddbc0f2a0081628600868b5407f61469d5b534054c9d4d3b"
+    }
+  },
+  "sourceTiming": "After summary was captured with baseline HEAD and dirty source. Independent authentication now verifies all 1101 captured inventory files exactly match candidate ed9a61330fa6e3f7d72d34197e7fb840beffc13c; baseline verifies all 1099 files against 85ed836c. This does not relabel the original capture HEAD or cover later timeout corrections.",
+  "owners": {
+    "before": 16,
+    "after": 17,
+    "added": [
+      "ramify-agent/harness/session-store"
+    ]
+  },
+  "modules": {
+    "ramify-agent/harness": {
+      "baseline": {
+        "exact": {
+          "production": {
+            "sourceFiles": 223,
+            "sourceBytes": 3490588,
+            "resourceFiles": 39,
+            "resourceBytes": 194999
+          },
+          "tests": {
+            "sourceFiles": 424,
+            "sourceBytes": 5542743,
+            "resourceFiles": 27,
+            "resourceBytes": 248389
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 143601
+          },
+          "views": {
+            "ordinaryBytes": 220310,
+            "testsBytes": 223871
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 393,
+          "outboundValueOrSideEffectFilePairs": 220,
+          "externalDependencyFiles": 56,
+          "providers": [
+            "ramify-agent/harness/agent",
+            "ramify-agent/harness/agent/pi",
+            "ramify-agent/harness/audit",
+            "ramify-agent/harness/check-findings",
+            "ramify-agent/harness/evidence",
+            "ramify-agent/harness/kpi",
+            "ramify-agent/harness/ledger",
+            "ramify-agent/harness/nonfunctional",
+            "ramify-agent/harness/plan-evidence",
+            "ramify-agent/harness/projections",
+            "ramify-agent/harness/recovery",
+            "ramify-agent/harness/reviews",
+            "ramify-agent/harness/scenarios"
+          ],
+          "resolvedImportedOriginals": 310,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 226,
+          "externalConsumerFiles": 83,
+          "consumers": [
+            "ramify-agent",
+            "ramify-agent/harness/audit",
+            "ramify-agent/harness/kpi",
+            "ramify-agent/harness/projections",
+            "ramify-agent/harness/reviews",
+            "ramify-agent/web"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 424,
+          "directSourceConsumers": 409,
+          "directConsumersTouchingMultipleProductionOwners": 295
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness",
+              "area": "ordinary",
+              "revision": "rev/1:d09495b7-0193-4b28-b3a4-5782072ab9eb:1",
+              "coverage": 1,
+              "truncated": 4
+            },
+            "physicalBytes": 220310
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness",
+              "area": "tests",
+              "revision": "rev/1:d09495b7-0193-4b28-b3a4-5782072ab9eb:1",
+              "coverage": 28,
+              "truncated": 4
+            },
+            "physicalBytes": 223871
+          }
+        }
+      },
+      "after": {
+        "exact": {
+          "production": {
+            "sourceFiles": 222,
+            "sourceBytes": 3468530,
+            "resourceFiles": 39,
+            "resourceBytes": 194999
+          },
+          "tests": {
+            "sourceFiles": 419,
+            "sourceBytes": 5475547,
+            "resourceFiles": 27,
+            "resourceBytes": 248389
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 144190
+          },
+          "views": {
+            "ordinaryBytes": 220941,
+            "testsBytes": 224733
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 394,
+          "outboundValueOrSideEffectFilePairs": 221,
+          "externalDependencyFiles": 57,
+          "providers": [
+            "ramify-agent/harness/agent",
+            "ramify-agent/harness/agent/pi",
+            "ramify-agent/harness/audit",
+            "ramify-agent/harness/check-findings",
+            "ramify-agent/harness/evidence",
+            "ramify-agent/harness/kpi",
+            "ramify-agent/harness/ledger",
+            "ramify-agent/harness/nonfunctional",
+            "ramify-agent/harness/plan-evidence",
+            "ramify-agent/harness/projections",
+            "ramify-agent/harness/recovery",
+            "ramify-agent/harness/reviews",
+            "ramify-agent/harness/scenarios",
+            "ramify-agent/harness/session-store"
+          ],
+          "resolvedImportedOriginals": 308,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 227,
+          "externalConsumerFiles": 84,
+          "consumers": [
+            "ramify-agent",
+            "ramify-agent/harness/audit",
+            "ramify-agent/harness/kpi",
+            "ramify-agent/harness/projections",
+            "ramify-agent/harness/reviews",
+            "ramify-agent/harness/session-store",
+            "ramify-agent/web"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 419,
+          "directSourceConsumers": 403,
+          "directConsumersTouchingMultipleProductionOwners": 290
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness",
+              "area": "ordinary",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 1,
+              "truncated": 4
+            },
+            "physicalBytes": 220941
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness",
+              "area": "tests",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 28,
+              "truncated": 4
+            },
+            "physicalBytes": 224733
+          }
+        }
+      }
+    },
+    "ramify-agent/harness/session-store": {
+      "after": {
+        "exact": {
+          "production": {
+            "sourceFiles": 1,
+            "sourceBytes": 22661,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "tests": {
+            "sourceFiles": 7,
+            "sourceBytes": 71227,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 1433
+          },
+          "views": {
+            "ordinaryBytes": 306687,
+            "testsBytes": 320766
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 4,
+          "outboundValueOrSideEffectFilePairs": 4,
+          "externalDependencyFiles": 4,
+          "providers": [
+            "ramify-agent/harness",
+            "ramify-agent/harness/agent",
+            "ramify-agent/harness/ledger"
+          ],
+          "resolvedImportedOriginals": 10,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 4,
+          "externalConsumerFiles": 4,
+          "consumers": [
+            "ramify-agent/harness"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 7,
+          "directSourceConsumers": 13,
+          "directConsumersTouchingMultipleProductionOwners": 11
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/session-store",
+              "area": "ordinary",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 40,
+              "truncated": 4
+            },
+            "physicalBytes": 306687
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/session-store",
+              "area": "tests",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 83,
+              "truncated": 4
+            },
+            "physicalBytes": 320766
+          }
+        }
+      }
+    },
+    "ramify-agent/harness/agent": {
+      "baseline": {
+        "exact": {
+          "production": {
+            "sourceFiles": 4,
+            "sourceBytes": 134416,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "tests": {
+            "sourceFiles": 7,
+            "sourceBytes": 181205,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 5812
+          },
+          "views": {
+            "ordinaryBytes": 299357,
+            "testsBytes": 313436
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 0,
+          "outboundValueOrSideEffectFilePairs": 0,
+          "externalDependencyFiles": 0,
+          "providers": [],
+          "resolvedImportedOriginals": 0,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 63,
+          "externalConsumerFiles": 47,
+          "consumers": [
+            "ramify-agent/harness",
+            "ramify-agent/harness/agent/pi",
+            "ramify-agent/harness/reviews"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 7,
+          "directSourceConsumers": 127,
+          "directConsumersTouchingMultipleProductionOwners": 116
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/agent",
+              "area": "ordinary",
+              "revision": "rev/1:d09495b7-0193-4b28-b3a4-5782072ab9eb:1",
+              "coverage": 40,
+              "truncated": 4
+            },
+            "physicalBytes": 299357
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/agent",
+              "area": "tests",
+              "revision": "rev/1:d09495b7-0193-4b28-b3a4-5782072ab9eb:1",
+              "coverage": 83,
+              "truncated": 4
+            },
+            "physicalBytes": 313436
+          }
+        }
+      },
+      "after": {
+        "exact": {
+          "production": {
+            "sourceFiles": 4,
+            "sourceBytes": 134416,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "tests": {
+            "sourceFiles": 7,
+            "sourceBytes": 181205,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 5812
+          },
+          "views": {
+            "ordinaryBytes": 304916,
+            "testsBytes": 318995
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 0,
+          "outboundValueOrSideEffectFilePairs": 0,
+          "externalDependencyFiles": 0,
+          "providers": [],
+          "resolvedImportedOriginals": 0,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 63,
+          "externalConsumerFiles": 47,
+          "consumers": [
+            "ramify-agent/harness",
+            "ramify-agent/harness/agent/pi",
+            "ramify-agent/harness/reviews",
+            "ramify-agent/harness/session-store"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 7,
+          "directSourceConsumers": 128,
+          "directConsumersTouchingMultipleProductionOwners": 117
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/agent",
+              "area": "ordinary",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 40,
+              "truncated": 4
+            },
+            "physicalBytes": 304916
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/agent",
+              "area": "tests",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 83,
+              "truncated": 4
+            },
+            "physicalBytes": 318995
+          }
+        }
+      }
+    },
+    "ramify-agent/harness/ledger": {
+      "baseline": {
+        "exact": {
+          "production": {
+            "sourceFiles": 5,
+            "sourceBytes": 30016,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "tests": {
+            "sourceFiles": 15,
+            "sourceBytes": 66657,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 4867
+          },
+          "views": {
+            "ordinaryBytes": 299523,
+            "testsBytes": 313602
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 0,
+          "outboundValueOrSideEffectFilePairs": 0,
+          "externalDependencyFiles": 0,
+          "providers": [],
+          "resolvedImportedOriginals": 0,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 29,
+          "externalConsumerFiles": 25,
+          "consumers": [
+            "ramify-agent/harness",
+            "ramify-agent/harness/projections"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 15,
+          "directSourceConsumers": 15,
+          "directConsumersTouchingMultipleProductionOwners": 8
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/ledger",
+              "area": "ordinary",
+              "revision": "rev/1:d09495b7-0193-4b28-b3a4-5782072ab9eb:1",
+              "coverage": 40,
+              "truncated": 4
+            },
+            "physicalBytes": 299523
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/ledger",
+              "area": "tests",
+              "revision": "rev/1:d09495b7-0193-4b28-b3a4-5782072ab9eb:1",
+              "coverage": 83,
+              "truncated": 4
+            },
+            "physicalBytes": 313602
+          }
+        }
+      },
+      "after": {
+        "exact": {
+          "production": {
+            "sourceFiles": 5,
+            "sourceBytes": 30016,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "tests": {
+            "sourceFiles": 15,
+            "sourceBytes": 66657,
+            "resourceFiles": 0,
+            "resourceBytes": 0
+          },
+          "documentation": {
+            "files": 2,
+            "bytes": 4867
+          },
+          "views": {
+            "ordinaryBytes": 300990,
+            "testsBytes": 315069
+          }
+        },
+        "productionDependencies": {
+          "outboundFilePairs": 0,
+          "outboundValueOrSideEffectFilePairs": 0,
+          "externalDependencyFiles": 0,
+          "providers": [],
+          "resolvedImportedOriginals": 0,
+          "unresolvedSelectionOccurrences": 0,
+          "inboundFilePairs": 29,
+          "externalConsumerFiles": 25,
+          "consumers": [
+            "ramify-agent/harness",
+            "ramify-agent/harness/projections",
+            "ramify-agent/harness/session-store"
+          ]
+        },
+        "tests": {
+          "ownedSourceFiles": 15,
+          "directSourceConsumers": 15,
+          "directConsumersTouchingMultipleProductionOwners": 8
+        },
+        "apiViews": {
+          "ordinary": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/ledger",
+              "area": "ordinary",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 40,
+              "truncated": 4
+            },
+            "physicalBytes": 300990
+          },
+          "tests": {
+            "meta": {
+              "schema": "ramify.api-view/1",
+              "module": "ramify-agent/harness/ledger",
+              "area": "tests",
+              "revision": "rev/1:6d8da544-3233-4022-bf1c-1335a4be13e5:6",
+              "coverage": 83,
+              "truncated": 4
+            },
+            "physicalBytes": 315069
+          }
+        }
+      }
+    }
+  },
+  "affected": {
+    "baseline": {
+      "selection": "all-modules",
+      "testModules": 16,
+      "widening": [
+        "partial-coverage"
+      ]
+    },
+    "before": {
+      "selection": "all-modules",
+      "testModules": 16,
+      "widening": [
+        "partial-coverage"
+      ]
+    },
+    "after": {
+      "selection": "all-modules",
+      "testModules": 17,
+      "widening": [
+        "partial-coverage"
+      ]
+    }
+  },
+  "limitation": "Structural descriptors only; producer partial coverage persists. Physical source moves do not establish delivered context, productivity, token, speed, cache or audit benefit. No operational task pair is established."
+}

@@ -784,8 +784,8 @@ describe('CF10 and CF11: a crash between the decisions and the brief', () => {
   test('a crash after the parent append is recovered once from the committed assessment, and the repair keeps its intent', () => crashAroundAppend('after'), 60_000);
 });
 
-describe('CF15: a work item\'s review deadline', () => {
-  test('a reader still running at the deadline is fenced and stopped, the queue stays open, and the correction\'s review still runs', async () => {
+describe('CF15: a work item waits for actual review settlement', () => {
+  test('a completed reader enters the reconciliation basis and the correction review still runs', async () => {
     const root = await reviewTarget(cleanups);
     const reading = gate();
     const run = await reviewRun(root, cleanups, {
@@ -799,22 +799,22 @@ describe('CF15: a work item\'s review deadline', () => {
       ],
       reviewers: {
         ...correctionScenario.reviewers,
-        'rq-0003': [tool(snapshotToolNames.diff, { path: store }), { kind: 'await', until: async () => { reading.open(); } }, never()],
+        'rq-0003': [{ kind: 'await', until: async () => { reading.open(); } }, ...review(changed[3])],
       },
     });
     const { service, runId, events } = run;
     expect(onlyRun(service, plan).state).toBe('completed');
     const finished = eventsOf(events, 'review-attempt-finished');
-    expect(finished.find(event => event.data.request === 'rq-0003')!.data).toMatchObject({ result: 'not-verified', reason: 'deadline', settles: true });
+    expect(finished.find(event => event.data.request === 'rq-0003')!.data).toMatchObject({ result: 'complete', reason: null, settles: true });
     const started = eventsOf(events, 'review-attempt-started').find(event => event.data.request === 'rq-0003')!;
-    // Its reader was stopped, and its session is finished.
+    // The reader submitted, and its session is finished.
     const sessions = reduceSessions(events);
     expect(sessions.get(started.data.session)!.state).toBe('finished');
-    // The deadline gap is in the basis, and the correction's own review ran after it.
+    // The actual review result is in the basis before the correction review runs.
     const basis = await committed<ReconciliationBasis>(root, runId, reconciliationLayout.basis('wi-001.rc01'));
-    expect(basis.requests.find(request => request.request === 'rq-0003')).toEqual({ request: 'rq-0003', attempt: 'rq-0003.a01', result: 'not-verified' });
+    expect(basis.requests.find(request => request.request === 'rq-0003')).toEqual({ request: 'rq-0003', attempt: 'rq-0003.a01', result: 'complete' });
     expect(finished.find(event => event.data.request === 'rq-0004')!.data).toMatchObject({ result: 'complete' });
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 4, complete: 3, partial: 0, notVerified: 1, pending: 0 });
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 4, complete: 4, partial: 0, notVerified: 0, pending: 0 });
   }, 60_000);
 });
 

@@ -1,0 +1,48 @@
+{
+  "summarySha256": "d3f02ac1a1e1647e5461d8c0ae9fa87a5de1a7c4f1821fa7cab92a18a3e5c6b0",
+  "module": "ramify-agent/harness/agent",
+  "declaration": {
+    "path": "subs/harness/subs/agent/module.ramify",
+    "sha256": "f039ad868c5719507a6d4c592667d0117fc8197a2044daba62fc759cca7391d9",
+    "text": "ramify 1\nmodule agent\n\n// The port the harness core drives every agent through, and the scripted\n// fake that implements it. How a session is driven stays behind the port.\n// The port also reaches the implementations beneath this module.\nexpose-src * from \"interfaces/port.ts\" to parent, descendants\nexpose-src createScriptedAgent, ScriptStep, Script, ScriptedAgent, ScriptedAgentOptions, ScriptedSessionRecord, ScriptedToolResult, SessionScript, SessionScriptStep, createScriptedSessionDriver from \"scripted.ts\" to parent\n\n// pi, the port's first real implementation, relayed to the harness that\n// chooses it.\nexpose-sub * from pi to parent\n\nexpose-src * from \"interfaces/session-operations.ts\" to parent, descendants\nexpose-src createSessionOperations from \"session-operations.ts\" to parent, descendants\n"
+  },
+  "architecture": {
+    "parent": "ramify-agent/harness",
+    "children": [
+      "ramify-agent/harness/agent/pi"
+    ],
+    "symbols": {
+      "exposed": 8,
+      "internal": 4,
+      "supporting": 94,
+      "unknown": 0
+    },
+    "uses": [],
+    "usedBy": [
+      {
+        "module": "ramify-agent/harness/agent/pi",
+        "behavioral": 3,
+        "nonBehavioral": 22
+      },
+      {
+        "module": "ramify-agent/harness",
+        "behavioral": 2,
+        "nonBehavioral": 39
+      },
+      {
+        "module": "ramify-agent/harness/session-store",
+        "behavioral": 2,
+        "nonBehavioral": 3
+      },
+      {
+        "module": "ramify-agent/harness/reviews",
+        "behavioral": 0,
+        "nonBehavioral": 4
+      }
+    ],
+    "tests": {
+      "suites": 19,
+      "titles": 110
+    }
+  }
+}

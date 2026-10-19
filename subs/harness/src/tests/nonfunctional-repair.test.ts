@@ -23,6 +23,7 @@ const answers: ReturnType<typeof nfrBoundaries>[] = [];
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
+  vi.useRealTimers();
   const errors: unknown[] = [];
   for (const cleanup of cleanups.splice(0).reverse()) try { await cleanup(); } catch (error) { errors.push(error); }
   for (const answer of answers.splice(0)) try { answer.assertComplete(); } catch (error) { errors.push(error); }
@@ -61,6 +62,13 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   const inspectionCommand = 'git merge-base --is-ancestor prerequisite HEAD && cat plans/review-notes/.harness/jobs/*/job.json';
   const inspected: string[] = [];
   let registeredProcesses = 0;
+  const quietReview = !debug && !noResult;
+  const quiet = () => {
+    let enter!: () => void; const entered = new Promise<void>(resolve => { enter = resolve; });
+    let release!: () => void; const released = new Promise<void>(resolve => { release = resolve; });
+    return { entered, release, step: { kind: 'await' as const, until: () => { enter(); return released; } } };
+  };
+  const assessmentWait = quiet(); const investigationWait = quiet();
   const agent = createScriptedAgent(withDefaultTurns(spec => {
     const steps = (() => {
     if (spec.submission.name === intakeToolName) return submit({ goal: 'Keep an audit record of reviews.', elements: [
@@ -105,7 +113,10 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
     expect([...spec.builtinTools, ...spec.tools.map(tool => tool.name)]).toEqual(expect.arrayContaining(['read', 'grep', 'ls', 'find', 'shell']));
     expect(spec.prompt).toContain('runDirectory');
     expect(spec.prompt).not.toContain('Git metadata and run records are excluded');
-    return [{ kind: 'tool', tool: 'shell', input: { command: inspectionCommand } }, ...steps];
+    return [{ kind: 'tool', tool: 'shell', input: { command: inspectionCommand } },
+      ...(quietReview && spec.submission.name === coordinatorAssessmentToolName && assessments === 1 ? [assessmentWait.step] : []),
+      ...(quietReview && spec.submission.name === coordinatorInvestigationToolName ? [investigationWait.step] : []),
+      ...steps];
   }));
   const { service } = await openRuns(fixture.root, { ...boundaryAnswers.options, ramify, agent,
     groups: { alive: () => false, kill: () => { throw new Error('No scripted group remains alive'); } },
@@ -123,8 +134,17 @@ test.each([{ debug: false, noResult: false }, { debug: true, noResult: false }, 
   cleanups.push(() => service.close());
   const start = startRun('review-notes');
   if (start.type !== 'start-run') throw new Error('Unexpected command');
+  if (quietReview) vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
   const receipt = await service.execute({ ...start, payload: { ...start.payload,
     ...(debug ? { breakpoint: 'before-agent:engineer' as const } : {}) } });
+  if (quietReview) {
+    for (const wait of [assessmentWait, investigationWait]) {
+      await wait.entered;
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      expect(onlyRun(service, 'review-notes').state).toBe('running');
+      wait.release();
+    }
+  }
   if (debug) {
     await until(() => service.debugState('review-notes', receipt.jobId)?.state === 'paused');
     const pause = service.debugState('review-notes', receipt.jobId)!;

@@ -1,0 +1,151 @@
+{
+  "schema": "harness-decomposition-independent-verification/1",
+  "verifierSha256": "7b37bee998a9da11542db5af543fe082593aeec1f270eac0f038d8f97ccb5556",
+  "inputs": {
+    "iteration-01/manifest.json": {
+      "storedBytes": 2333,
+      "storedSha256": "cd4cd07d264abba75b2a0c50ed3ec1438930f5e69a1b64a6f441d4f8ad3d9473",
+      "jsonBytes": 2333,
+      "jsonSha256": "cd4cd07d264abba75b2a0c50ed3ec1438930f5e69a1b64a6f441d4f8ad3d9473"
+    },
+    "evaluation/baseline-inputs/manifest.json": {
+      "storedBytes": 540,
+      "storedSha256": "a731138d716dd7dcb1bc5e70f23ff761e268290183e851b1ef35fe4ff41e759d",
+      "jsonBytes": 540,
+      "jsonSha256": "a731138d716dd7dcb1bc5e70f23ff761e268290183e851b1ef35fe4ff41e759d"
+    },
+    "evaluation/baseline-inputs/check.json.gz": {
+      "storedBytes": 5158111,
+      "storedSha256": "4e228a613aa8b91723ab0e8d77aa49654e110de8bea304d2374513d5011ff1df",
+      "jsonBytes": 71227149,
+      "jsonSha256": "d80ea336b4a0cdb401fa77e6e84fa9a6388de18d6dc39f85d435d988457fe3e4"
+    },
+    "iteration-01/before-check.json.gz": {
+      "storedBytes": 5343063,
+      "storedSha256": "fa9eff4dfb0bfe30e62826512760e67d6fd4793f60b62d97773173423e919704",
+      "jsonBytes": 71227009,
+      "jsonSha256": "33d09cc8e9d02686c0a5fd277d810a3de076254e396c6e0c4376a810c5e45b3f"
+    },
+    "iteration-01/after-check.json.gz": {
+      "storedBytes": 5350982,
+      "storedSha256": "1731e926357e1601c7af44722ed82a7b7f4cf9873b873ec47076a4ec39b86cb8",
+      "jsonBytes": 71339729,
+      "jsonSha256": "a590954e50f6cee71b49bf03ec8a3223de9228bf1045860746edc66777b93381"
+    },
+    "evaluation/baseline-inputs/measure.json": {
+      "storedBytes": 170374,
+      "storedSha256": "d2855df507a88cd09d9e5f5acb95f179ef06c1a7dde59e48abba4a36ac16dacb",
+      "jsonBytes": 170374,
+      "jsonSha256": "d2855df507a88cd09d9e5f5acb95f179ef06c1a7dde59e48abba4a36ac16dacb"
+    },
+    "iteration-01/before-measure.json": {
+      "storedBytes": 170354,
+      "storedSha256": "ad2d0472bc29cf6089c1ca9944b4e9bd5bf720e566c65c4a70f4675b540ffd0b",
+      "jsonBytes": 170354,
+      "jsonSha256": "ad2d0472bc29cf6089c1ca9944b4e9bd5bf720e566c65c4a70f4675b540ffd0b"
+    },
+    "iteration-01/after-measure.json": {
+      "storedBytes": 171875,
+      "storedSha256": "877784b3f457087e437c02654bb1a05849077c6497cb9f48cbe4903ef62b2ac4",
+      "jsonBytes": 171875,
+      "jsonSha256": "877784b3f457087e437c02654bb1a05849077c6497cb9f48cbe4903ef62b2ac4"
+    },
+    "evaluation/execution-baseline.json": {
+      "storedBytes": 818895,
+      "storedSha256": "26d4ccacd4cf12e199d0703ea4f15885f875ec100fa4718204999df1796e1713",
+      "jsonBytes": 818895,
+      "jsonSha256": "26d4ccacd4cf12e199d0703ea4f15885f875ec100fa4718204999df1796e1713"
+    },
+    "iteration-01/after-summary.json": {
+      "storedBytes": 830544,
+      "storedSha256": "d3f02ac1a1e1647e5461d8c0ae9fa87a5de1a7c4f1821fa7cab92a18a3e5c6b0",
+      "jsonBytes": 830544,
+      "jsonSha256": "d3f02ac1a1e1647e5461d8c0ae9fa87a5de1a7c4f1821fa7cab92a18a3e5c6b0"
+    },
+    "evaluation/baseline-inputs/affected-session-store.json": {
+      "storedBytes": 193236,
+      "storedSha256": "e850ad4c117f81ae24a4f80f4a3830f65742ee6ef2c3eb35aa0712ceab76068e",
+      "jsonBytes": 193236,
+      "jsonSha256": "e850ad4c117f81ae24a4f80f4a3830f65742ee6ef2c3eb35aa0712ceab76068e"
+    },
+    "iteration-01/before-affected.json": {
+      "storedBytes": 193156,
+      "storedSha256": "3ec52b2c603046c7da8c71d31070ea63730fa37dd9a894bb2a1502276aa8f3f0",
+      "jsonBytes": 193156,
+      "jsonSha256": "3ec52b2c603046c7da8c71d31070ea63730fa37dd9a894bb2a1502276aa8f3f0"
+    },
+    "iteration-01/after-affected.json": {
+      "storedBytes": 193701,
+      "storedSha256": "32e0cbaacc258a8fddbc0f2a0081628600868b5407f61469d5b534054c9d4d3b",
+      "jsonBytes": 193701,
+      "jsonSha256": "32e0cbaacc258a8fddbc0f2a0081628600868b5407f61469d5b534054c9d4d3b"
+    }
+  },
+  "manifestChecks": "All iteration manifest and execution-baseline input manifest stored bytes/hashes match.",
+  "baselineVsBeforeInventory": "Identical complete inventory including source/resource owners and content hashes.",
+  "recomputations": [
+    {
+      "label": "baseline",
+      "checkOutcome": {
+        "execution": "completed",
+        "check": "passed",
+        "coverage": "partial"
+      },
+      "summary": {
+        "complete": true,
+        "owners": 16,
+        "sourceFiles": 1002,
+        "resources": 97,
+        "originals": 4038,
+        "accesses": 19105,
+        "allowed": 14069,
+        "denied": 0,
+        "errors": 0,
+        "warnings": 0,
+        "coverageNotes": 458,
+        "external": 5030
+      },
+      "inventoryFiles": 1099,
+      "measureFileBytesVerified": 13551207,
+      "independentValidation": "Full decompression/JSON parse; exact measured buckets; summary file identities, module measurements, module edges, every dependency/test descriptor and declaration hash recomputed successfully."
+    },
+    {
+      "label": "after",
+      "checkOutcome": {
+        "execution": "completed",
+        "check": "passed",
+        "coverage": "partial"
+      },
+      "summary": {
+        "complete": true,
+        "owners": 17,
+        "sourceFiles": 1004,
+        "resources": 97,
+        "originals": 4040,
+        "accesses": 19129,
+        "allowed": 14073,
+        "denied": 0,
+        "errors": 0,
+        "warnings": 0,
+        "coverageNotes": 458,
+        "external": 5050
+      },
+      "inventoryFiles": 1101,
+      "measureFileBytesVerified": 13556405,
+      "independentValidation": "Full decompression/JSON parse; exact measured buckets; summary file identities, module measurements, module edges, every dependency/test descriptor and declaration hash recomputed successfully."
+    }
+  ],
+  "gitAuthentication": [
+    {
+      "commit": "85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4",
+      "verifiedInventoryFiles": 1099,
+      "mismatches": []
+    },
+    {
+      "commit": "ed9a61330fa6e3f7d72d34197e7fb840beffc13c",
+      "verifiedInventoryFiles": 1101,
+      "mismatches": []
+    }
+  ],
+  "notReproduced": "No re-execution of Ramify, architect/API materialization, audits or model requests. Documentation/API bucket values remain retained measure producer facts; physical API catalog inventory hashes cannot be independently regenerated from this Git-only check. Native operational measures remain unavailable."
+}

@@ -1,0 +1,12 @@
+
+> ramify-agent@0.0.0 test:quick
+> vitest run --project node --project web subs/harness/src/tests/steps-run.test.ts
+
+
+ RUN  v4.1.11 /workspaces/worktrees/harness-decomposition
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  07:55:44
+   Duration  10.20s (transform 3.04s, setup 97ms, import 4.61s, tests 5.32s, environment 0ms)

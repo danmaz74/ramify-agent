@@ -1,0 +1,36 @@
+{
+  "summarySha256": "26d4ccacd4cf12e199d0703ea4f15885f875ec100fa4718204999df1796e1713",
+  "module": "ramify-agent/harness/ledger",
+  "declaration": {
+    "path": "subs/harness/subs/ledger/module.ramify",
+    "sha256": "845f7bef2c8e29e4e4e480a9291e6ea3067fc606cbded9b443a12038e3bbb1bb",
+    "text": "ramify 1\nmodule ledger\n\n// One flushed append is one transaction; record files are materialized copies\n// of the log; an external effect goes from intent to completion under a key.\nexpose-src Ledger, LedgerEntry, RecordSchema, openLedger, OpenLedgerOptions, Transaction, RecordBody, RecordRead, LedgerCorruptError, maximumLineBytes from \"ledger.ts\" to parent\nexpose-src EffectSpec, PendingEffect from \"effects.ts\" to parent\nexpose-src LedgerFileSystem, LedgerFileHandle, LedgerOpenFlags, nodeFileSystem from \"fs.ts\" to parent\nexpose-src writeFileAtomic, writeFileExclusive, syncDirectory, ExclusiveWrite from \"atomic.ts\" to parent\nexpose-src JsonLines, CorruptJsonLinesError, readJsonLines, appendJsonLine, withJsonLineAppender, discardPartialLine from \"jsonl.ts\" to parent\n"
+  },
+  "architecture": {
+    "parent": "ramify-agent/harness",
+    "children": [],
+    "symbols": {
+      "exposed": 11,
+      "internal": 8,
+      "supporting": 18,
+      "unknown": 0
+    },
+    "uses": [],
+    "usedBy": [
+      {
+        "module": "ramify-agent/harness",
+        "behavioral": 8,
+        "nonBehavioral": 7
+      },
+      {
+        "module": "ramify-agent/harness/projections",
+        "behavioral": 1,
+        "nonBehavioral": 0
+      }
+    ],
+    "tests": {
+      "suites": 18,
+      "titles": 69
+    }
+  }
+}
