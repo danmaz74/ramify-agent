@@ -240,3 +240,6 @@ expose-sub describeCoverageLimits, CoverageRecord, ArchitectIndex, ModuleEntry, 
 expose-sub openSessionStore, LedgerSessionStoreOptions, LedgerSessionStore from session-store to parent
 expose-sub recordConsultationStart, recordConsultationOutcome, ConsultationJournal, ConsultationReading from autonomous to descendants
 expose-test consultationJournal from "helpers/consultation-journal.ts" to descendants
+
+expose-sub inspectCandidate from evidence to descendants
+expose-sub candidateShell, candidateShellDeclaration from reviews to descendants

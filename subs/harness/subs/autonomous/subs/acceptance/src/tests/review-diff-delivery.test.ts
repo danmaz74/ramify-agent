@@ -109,7 +109,7 @@ describe('precollected candidate patches in actual review invocations', () => {
     run.git.assertComplete();
   }, 60_000);
 
-  test('an oversized candidate delivers a bounded summary, requires per-file evidence, and never injects raw hunks', async () => {
+  test('an oversized candidate delivers a bounded summary, allows relevant per-file inspection, and never injects raw hunks', async () => {
     const root = await reviewTarget(cleanups);
     const large = `export const store = new Map(); // RAW_LARGE_PATCH_${'x'.repeat(210 * 1024)}\n`;
     const commits = candidates();
@@ -119,7 +119,7 @@ describe('precollected candidate patches in actual review invocations', () => {
       engineer: engineers(large),
       reviewers: {
         // Merely naming the summarized path does not establish inspection.
-        'rq-0001': [clean(store), tool(snapshotToolNames.diff, { path: store }), clean(store)],
+        'rq-0001': [tool(snapshotToolNames.diff, { path: store }), clean(store)],
         'rq-0002': [clean(limit)], 'rq-0003': [clean(store, index)],
       },
     });
@@ -136,7 +136,7 @@ describe('precollected candidate patches in actual review invocations', () => {
     expect(packet.message).not.toContain(`--- a/${store}`);
     const reviewer = run.agent!.sessions.find(session => session.spec.role === 'reviewer' && session.spec.prompt.includes('rq-0001'))!;
     expect(reviewer.verdicts).toEqual([
-      expect.objectContaining({ accepted: false }), expect.objectContaining({ accepted: true }),
+      expect.objectContaining({ accepted: true }),
     ]);
     const inspections = reviewer.results.filter(result => result.tool === snapshotToolNames.diff);
     expect(inspections).toHaveLength(1);

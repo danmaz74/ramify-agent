@@ -700,8 +700,8 @@ architects assess semantic completion.
 
 The harness child `reviews` prepares fixed candidate evidence and validates reviewer
 submissions; harness retains agent invocation, cancellation, durable records and
-CheckFinding coordination. Its preparation API binds delivered patches and observed
-tool answers to one validator.
+CheckFinding coordination. Its preparation API supplies candidate tools and validates
+submission shape and candidate references. Reviewers choose relevant inspection.
 
 Before invoking a code, scope or design reviewer, collect patches through the
 candidate source between the request's fixed base and audited candidate. Apply
@@ -713,11 +713,20 @@ needed per-file patches through `snapshot_diff` against the same fixed commits.
 The complete canonical changed-path list remains supplied separately.
 
 Record the diff payload once as a literal delivered input, including its hash
-and byte count in the invocation's delivery manifest. A complete patch delivered
-in the current review message can establish inspection coverage without another
-tool call. A summary, unavailable patch or omitted patch cannot. Concern grounds
-still require a file read with `snapshot_read` during that review. Patch collection
-supplies evidence; it makes no judgment about correctness, scope or design.
+and byte count in the invocation's delivery manifest. Patches supply evidence;
+there is no exhaustive per-file inspection requirement. Snapshot tools are optional
+inspection conveniences. Ordinary shell inspection runs in a disposable detached
+checkout of the request's intended candidate, preserving nested project cwd and
+supporting compressed or large evidence. Reviewers must not edit source. This is
+instructed shell access, not a write sandbox. Each call starts from the candidate
+and its owned checkout is cleaned after settlement.
+
+Submissions contain conclusions, actionable concerns and meaningful limitations.
+Legacy inspected/missing inventories remain readable without governing acceptance.
+An unread supplemental artifact does not automatically make a completed review
+partial or create required work. A concern's source reference must identify a
+candidate file; the harness binds its identity independently of the tool used.
+Unavailable review execution remains distinct from a supported review conclusion.
 
 ### Principles And Specifications Are Captured And Sealed
 
@@ -738,7 +747,9 @@ as plan material. The current credibility classifier downgrades a concern ground
 in a specification, as the [CheckFinding specification](check-findings.spec.md#credibility-follows-provenance)
 records. These contracts do not establish runtime support.
 
-Continuing design reviews select principles and relevant READMEs as guidance.
-They do not receive the whole specification set. Relevant specification obligations
+Continuing design reviews receive affected-owner README context and document
+starting points selected by the assigning architect for this task. A principles
+filename alone does not make a document an initial review obligation. Other
+relevant guidance remains available through candidate inspection. Relevant specification obligations
 must reach implementation and review through the reviewed plan; this does not
 require adding every specification to recurring design guidance.

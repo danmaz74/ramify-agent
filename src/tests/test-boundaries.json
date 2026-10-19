@@ -599,6 +599,14 @@
       "owningCases": [
         "shared local adapters exclude another process until the last writer closes and then reopen retained records"
       ]
+    },
+    {
+      "file": "subs/harness/subs/reviews/src/tests/candidate-inspection.boundary.test.ts",
+      "boundary": "Native candidate checkout and ordinary shell inspection of compressed evidence",
+      "whyFakeCannotProve": "Requires actual detached Git checkout bytes, shell decompression, nested project cwd and worktree cleanup while another working tree differs.",
+      "owningCases": [
+        "shell inspects the pinned candidate and compressed evidence from a nested project while preserving the working checkout"
+      ]
     }
   ]
 }

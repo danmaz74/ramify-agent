@@ -48,3 +48,6 @@ expose-src ProviderFailureEvidence, RecoveryEvidence from "provider-evidence.ts"
 // Exact UTF-8 text from immutable blobs, authenticated against available entry metadata.
 expose-src verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from "git-text.ts" to parent
 expose-src parseModuleHeader from "module-header.ts" to parent
+
+// Disposable candidate-pinned shell inspection for review callers.
+expose-src inspectCandidate from "candidate-inspection.ts" to parent

@@ -228,7 +228,7 @@ describe('exact protection authorization through an assisted assessment', () => 
 
   it.each([
     [{ plainUnmet: true }, 'action-required'],
-    [{ gap: true }, 'incomplete'],
+    [{ gap: true }, 'clear'],
     [{ auditFailed: true }, 'action-required'],
     [{ reviewMissing: true }, 'incomplete'],
     [{ semantic: true }, 'action-required'],

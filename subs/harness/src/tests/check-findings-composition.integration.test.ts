@@ -60,10 +60,10 @@ describe('the composed CheckFinding path over a real repository', () => {
         submit(completionProposed('Corrected the note limit.'), write('limit.ts', 'export const limit = (text: string) => text.length <= 500;\n')),
       ],
       architect: [
-        submit(assign(notes, { goal: 'Add the note store.' }, outline())),
-        submit(assign(notes, { goal: 'State the note limit.' })),
+        submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'Add the note store.' }, outline())),
+        submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'State the note limit.' })),
         submit(requestCompletion()),
-        submit(assign(notes, { goal: 'Make the note limit 500 characters.', kind: 'repair' })),
+        submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant character limit.' }], goal: 'Make the note limit 500 characters.', kind: 'repair' })),
         submit(requestCompletion()),
       ],
       reviewers: {

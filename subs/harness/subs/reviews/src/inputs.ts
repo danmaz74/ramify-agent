@@ -26,19 +26,8 @@ const hashOf = (text: string): string => createHash('sha256').update(text).diges
 /** The bounds of one design review's guidance selection. */
 export const guidanceLimits = { files: 12, fileBytes: 64 * 1024, totalBytes: 192 * 1024 } as const;
 
-/**
- * The guidance a design review of this candidate is given, by path, in
- * order: every principles document the candidate holds (`*.principles.md`),
- * then the `README.md` of each directory on the way to a changed path, the
- * module prose of what changed and of its ancestors. A generated view, a
- * symbolic link and a file larger than one read are never guidance. The
- * selection stops at the bounds; it is deliberately small, since design is
- * judged against what applies, not against every document.
- */
-export function guidancePaths(snapshot: CandidateSnapshot): string[] {
-  const principles = [...snapshot.entries.keys()]
-    .filter(path => posix.basename(path).endsWith('.principles.md'))
-    .sort();
+/** Relevant owner README context and guidance explicitly selected by the assigning architect. */
+export function guidancePaths(snapshot: CandidateSnapshot, supplied: readonly string[] = []): string[] {
   const readmes = new Set<string>();
   for (const change of snapshot.changes) {
     for (let directory = posix.dirname(change.path); ; directory = posix.dirname(directory)) {
@@ -49,7 +38,7 @@ export function guidancePaths(snapshot: CandidateSnapshot): string[] {
   }
   const selected: string[] = [];
   let total = 0;
-  for (const path of [...principles, ...[...readmes].sort()]) {
+  for (const path of [...supplied, ...[...readmes].sort()]) {
     if (selected.length >= guidanceLimits.files || selected.includes(path)) continue;
     const resolved = resolveSnapshotPath(snapshot, path);
     if (!resolved.ok || resolved.kind !== 'file' || resolved.entry.kind !== 'file') continue;
@@ -62,9 +51,9 @@ export function guidancePaths(snapshot: CandidateSnapshot): string[] {
 }
 
 /** The selected guidance, read from the candidate's objects, each with the hash of its bytes. */
-export async function readGuidance(source: CandidateSource, projectRoot: string, snapshot: CandidateSnapshot, signal?: AbortSignal): Promise<CapturedInput[]> {
+export async function readGuidance(source: CandidateSource, projectRoot: string, snapshot: CandidateSnapshot, signal?: AbortSignal, supplied: readonly string[] = []): Promise<CapturedInput[]> {
   source = verifiedCandidateSource(source, { root: projectRoot, commit: snapshot.commit, entries: snapshot.entries });
-  const paths = guidancePaths(snapshot);
+  const paths = guidancePaths(snapshot, supplied);
   const texts = await Promise.all(paths.map(path => source.readBlob(projectRoot, snapshot.commit, path, signal)));
   return paths.map((path, index) => ({ ref: path, hash: hashOf(texts[index]!), text: texts[index]! }));
 }

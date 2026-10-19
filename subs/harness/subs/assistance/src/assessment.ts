@@ -15,7 +15,7 @@ import type { Assessor, AssistedEvidenceReference, AssistedOutcome, AssistedAsse
 import { auditAssistedCandidate, type AssistedAuditOutcome } from './audit.js';
 import { approvalReadiness } from './approval.js';
 import { compareProtection, type ProtectionComparison } from './protection.js';
-import { captureAssistanceDocuments, qualifyLegacyDocuments, readAssistanceDocument, readCandidateDocument, type AssistanceDocuments } from './documents.js';
+import { captureAssistanceDocuments, readCandidateDocument, type AssistanceDocuments } from './documents.js';
 import { createAssessmentEvidenceTool } from './pi-evidence.js';
 import { runAssistedPiReview, runPiAssessment, type AssistedPiReviewInput, type PiAssessmentInput, type PiAssessmentResult } from './pi.js';
 import { acceptedProtectionExceptions, authorizedProtectionFinding, factualFindingCommands, findingDetails, remainingBriefs, reportReviewConcerns, summaries, unverifiedSemanticClosures } from './findings.js';
@@ -36,7 +36,8 @@ interface ReviewEvidence {
   readonly bindings: readonly ConcernBinding[];
   readonly read: readonly string[];
   readonly inspected: readonly string[];
-  readonly sourceVerification?: 'git-exact-text/1';
+  readonly sourceVerification?: 'git-exact-text/1' | 'candidate-inspection/1';
+  readonly limitations?: readonly string[];
 }
 type ReconciliationEvidence = PiAssessmentResult<BoundReconciliation> & { readonly exactSourceReads?: readonly string[] };
 interface DocumentsReference {
@@ -54,6 +55,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     const { assessment, job, projectRoot, signal } = context;
     const request = assessment.request;
     const gaps: string[] = [];
+    const limitations: string[] = [];
     const evidence: string[] = [];
     const stages = <T>(name: string): T | undefined => context.stages().find(stage => stage.name === name)?.evidence as T | undefined;
     const record = async (name: string, value: unknown) => {
@@ -145,58 +147,41 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         artifact: await context.retainEvidence(documents) } satisfies DocumentsReference);
     }
     if (documents.baselineCommit !== baseline) throw new Error('Retained documents name another baseline');
-    const previousPrincipleGaps = documents.gaps.unreadablePrinciples.length;
-    const previousDocumentGaps = documents.gaps.unreadableDocuments?.length ?? 0;
-    documents = await qualifyLegacyDocuments({ projectRoot, planMarkdown: context.planMarkdown, documents, candidates: source });
-    const legacyEvidenceChanged = documents.gaps.unreadablePrinciples.length !== previousPrincipleGaps
-      || (documents.gaps.unreadableDocuments?.length ?? 0) !== previousDocumentGaps;
-    // Existing finding operation identities cannot be repurposed for another review.
-    const cachedReview = stages<ReviewEvidence>('review-accepted') ?? stages<ReviewEvidence>('review');
-    if (legacyEvidenceChanged && cachedReview?.result.status === 'submitted') {
-      return retainedSourceGap('Retained review predates verification of unavailable historical document evidence; a fresh assessment must determine its applicability.');
-    }
-    gaps.push(...documents.gaps.unreadablePrinciples.map(gap => `Principle evidence ${gap.path} is unavailable: ${gap.reason}`));
-    const referenceQualifications = [
-      ...documents.gaps.missing.map(gap => ({ ...gap, from: documents.manifest.documents.find(document => document.id === gap.from)?.path ?? gap.from })),
-      ...(documents.gaps.outsideProject ?? []),
-      ...(documents.gaps.unreadableDocuments ?? []).map(gap => ({ ...gap, target: gap.path })),
-    ];
-    const discoveryContext = referenceQualifications.length === 0 ? '' : `\nUncaptured document references (retained qualifications, not automatically additional obligations):\n${JSON.stringify(referenceQualifications)}\nA link alone does not establish applicability or binding force. Assess whether these references are required for this outcome, using the captured plan and ordinary candidate and retained-evidence tools. Explain unrelated historical references in scopeAssessment. If applicable required evidence remains unavailable, mark the affected requirement uncertain or report a coverageGap; do not claim clear coverage. Outside-project targets were not read and must not be accessed.`;
     const requirements = [
-      { ref: 'captured-plan', text: `${request.kind === 'final' ? 'Assess every outcome of the complete captured plan against the cumulative candidate.' : 'Assess this iteration against the applicable constraints and outcomes of this captured plan; future iterations are not required to be implemented yet.'}\n${context.planMarkdown}${discoveryContext}` },
+      ...(request.kind === 'final' ? [{ ref: 'captured-plan', text: `Assess every outcome of the complete captured plan against the cumulative candidate.\n${context.planMarkdown}` }]
+        : [{ ref: 'captured-plan', text: 'Assess the current iteration goal and supplied acceptance against applicable plan constraints; future iterations are not due. The complete original plan is available on demand with assessment_evidence ref captured-plan.' }]),
       ...request.acceptance.map((text, index) => ({ ref: `acceptance-${index + 1}`, text })),
+      ...request.requirementDocuments.map((document, index) => ({ ref: `requirement-document-${index + 1}`,
+        text: `Selected guidance: ${document.path} at ${document.revision}. Read exact original on demand with assessment_evidence ref requirement-document-${index + 1}; determine its applicability and adoption status.` })),
     ];
-    for (const [index, document] of request.requirementDocuments.entries()) {
-      try {
-        const entry = (await source.treeEntries(projectRoot, document.revision)).find(entry => entry.path === document.path);
-        if (!entry) throw new Error('No committed document at this revision');
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(await readCandidateDocument(projectRoot, document.revision, entry, source));
-        requirements.push({ ref: `requirement-document-${index + 1}`, text: `${document.path} at ${document.revision}:\n${text}` });
-      } catch (error) { gaps.push(`Required document ${document.path} at ${document.revision} is unavailable: ${errorText(error)}`); }
-    }
     const previous = request.previousAssessment === undefined ? undefined : context.assessments().find(item => item.id === request.previousAssessment);
     const intendedOutcome = request.brief
       + (request.focusModule === undefined ? '' : `\nDeclared module focus: ${request.focusModule ?? 'broader assignment'}. Focus is advisory; cross-module changes are allowed.`)
       + (request.additionalContext === undefined ? '' : `\nAdditional context:\n${request.additionalContext}`);
     const followUp = previous === undefined ? '' : `\nThis follows assessment ${previous.id} of candidate ${previous.request.candidate}. Prior outcome: ${previous.outcome?.gate ?? previous.status}.\n${previous.outcome?.repairs.join('\n') ?? ''}\nInspect repaired behavior and dependencies again, including unchanged consumers whose reasoning the new changes invalidate. Previous inspection is not evidence for this candidate.`;
     // The immutable candidate makes both unchanged dependencies and changed files inspectable.
-    const principles = documents.documents.filter(document => document.kind === 'principle')
-      .map(document => ({ path: document.path, note: `Baseline ${baseline}; adoption undetermined. Assess applicability and status. Read exact text with assessment_evidence ref baseline:${document.path}, continuing chunks through nextOffset. If applicable required text is unavailable or uninspected, report uncertain evidence or a coverageGap.` }));
+    const principles = request.requirementDocuments.map(document => ({ path: document.path, note: `Selected by the coordinator at ${document.revision}; filename alone does not establish adoption.` }));
+    const baselineEntries = await source.treeEntries(projectRoot, baseline);
     const retainedEvidence = createAssessmentEvidenceTool({
       list: () => [
+        { ref: 'captured-plan', description: 'Complete original captured plan' },
+        { ref: `baseline:${job.plan.path}`, description: 'Original captured plan' },
+        ...request.requirementDocuments.map((document, index) => ({ ref: `requirement-document-${index + 1}`, description: `${document.path} at ${document.revision}` })),
         ...context.assessments().flatMap(item => item.stages.map(stage => ({ ref: `assessments/${item.id}/stages/${stage.name}.json`, description: `${stage.name} evidence for candidate ${item.request.candidate}` }))),
-        ...documents.documents.map(document => ({ ref: `baseline:${document.path}`, description: `${document.kind} at ${baseline}; adoption ${document.adoption}` })),
+        ...baselineEntries.filter(entry => entry.path !== job.plan.path && `baseline:${entry.path}`.length <= 500 && (entry.kind === 'file' || entry.kind === 'executable')).map(entry => ({ ref: `baseline:${entry.path}`, description: `Original at ${baseline}; inspect when relevant` })),
       ],
       read: async ref => {
-        const document = documents.documents.find(item => `baseline:${item.path}` === ref);
-        if (document) return { ...document, text: await readAssistanceDocument({ projectRoot, planMarkdown: context.planMarkdown,
-          documents, id: document.id, candidates: source }) };
+        if (ref === 'captured-plan' || ref === `baseline:${job.plan.path}`) return context.planMarkdown;
+        const required = /^requirement-document-(\d+)$/u.exec(ref);
+        if (required) {
+          const document = request.requirementDocuments[Number(required[1]) - 1]!;
+          return source.readBlob(projectRoot, document.revision, document.path, signal);
+        }
+        if (ref.startsWith('baseline:')) return source.readBlob(projectRoot, baseline, ref.slice('baseline:'.length), signal);
         for (const item of context.assessments()) for (const stage of item.stages)
           if (`assessments/${item.id}/stages/${stage.name}.json` === ref) {
             if (stage.name !== 'documents') return stage.evidence;
-            if (item.id === assessment.id) return documents;
-            const historical = isDocumentsReference(stage.evidence) ? await context.readEvidence(stage.evidence.artifact) as AssistanceDocuments : stage.evidence as AssistanceDocuments;
-            return qualifyLegacyDocuments({ projectRoot, planMarkdown: context.planMarkdown, documents: historical, candidates: source });
+            return isDocumentsReference(stage.evidence) ? context.readEvidence(stage.evidence.artifact) : stage.evidence;
           }
         throw new Error('No retained evidence at that reference');
       },
@@ -220,23 +205,21 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
         candidate: snapshot.commit, tree: snapshot.tree, prepared: withEvidence, signal,
         onSubmitted: async (value, evidence) => {
-          const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => gaps.push(message) },
+          const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => limitations.push(message) },
             snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');
-          await record('review-accepted', { result: { status: 'submitted', value, ...evidence }, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'git-exact-text/1' });
+          await record('review-accepted', { result: { status: 'submitted', value, ...evidence }, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'candidate-inspection/1', limitations });
         },
       }));
       const bindings = result.status === 'submitted' ? await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source,
-        warn: message => gaps.push(message) }, snapshot, prepared.tools, result.value, null,
+        warn: message => limitations.push(message) }, snapshot, prepared.tools, result.value, null,
         path => path === null ? 'ungrounded' : 'agent-generated') : [];
-      reviewed = stages<ReviewEvidence>('review-accepted') ?? { result, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'git-exact-text/1' };
+      reviewed = stages<ReviewEvidence>('review-accepted') ?? { result, bindings, read: [...prepared.tools.read().keys()], inspected: [...prepared.tools.inspected()], sourceVerification: 'candidate-inspection/1', limitations };
       await record('review', reviewed);
     }
     if (!stages('review') && reviewed.result.status === 'submitted') await record('review', reviewed);
     if (reviewed.result.status !== 'submitted') gaps.push(`Required review unavailable: ${reviewed.result.reason}`);
     else {
       const report = reviewed.result.value;
-      if (report.coverageGap) gaps.push(`Review coverage incomplete: ${report.coverageGap}`);
-      for (const missing of report.missing) gaps.push(`Review did not inspect ${missing.path}: ${missing.reason}`);
       for (const answer of report.requirements) if (answer.outcome === 'uncertain') gaps.push(`${answer.ref}: ${answer.explanation}`);
       const reports = reportReviewConcerns({ assessment: assessment.id, tree: snapshot.tree, report, bindings: reviewed.bindings,
         evidence: { kind: 'assisted-review', ref: `assessments/${assessment.id}/stages/review.json`, hash: digest(reviewed) } });
@@ -265,7 +248,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       const message = reconciliationFactsMessage({ id, owner: 'assisted execution', round: 1, source: { commit: snapshot.commit, tree: snapshot.tree },
         introduction: `Reconcile concerns for assisted job ${job.jobId}, assessment ${assessment.id}. Investigate uncertain claims using the candidate tools. Deduplicate by the same behavior or obligation, never just location. Do not edit source.`,
         authority: 'You may plan repairs, replace disproved judgments, or verify semantic fixes after inspection. You cannot waive or defer obligations, change protected commitments, or dismiss factual required failures. Leave unresolved material decisions for the coordinator. Do not promote stylistic nits or speculative optional work.',
-        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\nCaptured plan:\n${context.planMarkdown}\nIteration: ${intendedOutcome}`,
+        context: `Audit: ${audit.state}. Protection conflicts: ${protection.violations.length}.\n${request.kind === 'final' ? `Captured plan:\n${context.planMarkdown}\n` : 'Original plan available with assessment_evidence ref captured-plan.\n'}Iteration: ${intendedOutcome}`,
         requests: [{ request: assessment.id, kind: 'code/scope/design', iteration: assessment.id, candidate: snapshot.commit,
           attempt: reviewed.result.operationId, result: reviewed.result.status === 'submitted' ? (gaps.length ? 'partial; see assessment gaps' : 'complete') : `not verified: ${reviewed.result.reason}` }],
         attention, others: details.filter(detail => !entries.has(detail.summary.id)).map(detail => detail.summary),
@@ -342,6 +325,17 @@ async function verifyRetainedReview(review: ReviewEvidence, input: {
 }): Promise<void> {
   if (review.result.status !== 'submitted') throw new Error('Historical settlement has no accepted review');
   const report = review.result.value;
+  if (review.sourceVerification === 'candidate-inspection/1') {
+    // The accepted report belongs to this immutable candidate. Ordinary shell
+    // evidence may be binary and has no snapshot_read receipt to reproduce.
+    // Retained limitations and optional historical inventories impose no reads.
+    for (const path of report.requirements.flatMap(answer => answer.evidencePaths)) {
+      const held = resolveSnapshotPath(input.snapshot, path);
+      if ((!held.ok || held.kind !== 'file') && !input.snapshot.changes.some(change => change.path === path && change.status === 'D'))
+        throw new Error(`Retained candidate evidence ${path} is unavailable`);
+    }
+    return;
+  }
   const paths = [...review.read, ...review.inspected, ...report.inspected, ...report.requirements.flatMap(answer => answer.evidencePaths),
     ...report.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path])];
   if (review.sourceVerification === 'git-exact-text/1') {

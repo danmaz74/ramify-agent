@@ -127,6 +127,34 @@ describe('assisted assessment pipeline with real service records', () => {
     expect(service.assessmentResult('sample', job.jobId, admitted.assessmentId)).toMatchObject({ gate: 'clear', completedAt: expect.any(String) });
   });
 
+  it('resumes a supported report with binary candidate evidence and an unread supplemental artifact without a coverage gate', async () => {
+    const files = { ...source('2', baseline).files, 'evidence.gz': 'opaque\0candidate bytes', 'history.gz': 'unrelated\0history' };
+    const initial = { ...source('0', baseline), files: { ...files, 'src/feature.ts': 'export const feature = 0;\n' } };
+    const { service, job, candidates } = await setup({ [baseline]: initial, [first]: { ...source('2', baseline), files } }, {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        expect(input.prepared.tools.definitions.map(tool => tool.name)).toContain('shell');
+        const report = reviewReport(input.candidate);
+        const checked = input.prepared.validate({ ...report, inspected: [], missing: [{ path: 'history.gz', reason: 'Unrelated historical artifact.' }],
+          limitations: ['Historical artifact was not needed.'], requirements: report.requirements.map(answer => ({ ...answer, evidencePaths: ['evidence.gz'] })) });
+        if (!checked.ok) throw new Error(JSON.stringify(checked.errors));
+        await input.onSubmitted?.(checked.value, { sessionId: 'ordinary-inspection', operationId: input.operationId, eventCount: 1 });
+        throw new Error('Interrupted after accepted ordinary inspection');
+      },
+    });
+    const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'ordinary-inspection' });
+    await vi.waitFor(() => expect(service.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    await service.close();
+    const resumed = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ candidates,
+      operations: unusedOperations, review: async () => { throw new Error('Accepted assessment must be reused'); } }) }); services.push(resumed);
+    const beforeResume = resumed.assessmentStatus('sample', job.jobId, admitted.assessmentId).revision;
+    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(resumed.assessmentStatus('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(beforeResume));
+    expect((await outcome(resumed, job.jobId, admitted.assessmentId)).gate).toBe('clear');
+    expect(candidates.calls.some(call => call.startsWith('readBlob') && /(?:evidence|history)\.gz/u.test(call))).toBe(false);
+  });
+
   it.each(['missing', 'corrupt'] as const)('recovers a compact document checkpoint and complete immutable evidence after restart (%s artifact)', async mode => {
     const companion = '# Companion narrative retained only in immutable Git';
     const principle = '# Principle narrative retained only in immutable Git';
@@ -139,9 +167,10 @@ describe('assisted assessment pipeline with real service records', () => {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
         if (++reviews === 1) throw new Error('Interrupted after compact document checkpoint');
-        expect(input.prepared.message).toContain('baseline:quality.principles.md');
+        expect(input.prepared.message).not.toContain('quality.principles.md');
         expect(input.prepared.message).not.toContain(principle);
-        expect(input.prepared.message).toContain(pinned);
+        expect(input.prepared.message).not.toContain(pinned);
+        expect(input.prepared.message).toContain('docs/pinned.md');
         const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
         const stages = JSON.parse((await tool.execute({ ref: 'assessments/as-0001/stages/documents.json' }, new AbortController().signal)).text) as { content: string };
         expect(JSON.parse(stages.content)).toMatchObject({ storage: 'git-references' });
@@ -149,7 +178,7 @@ describe('assisted assessment pipeline with real service records', () => {
           const first = JSON.parse((await tool.execute({ ref: `baseline:${path}`, limit: 8 }, new AbortController().signal)).text) as { content: string; nextOffset: number };
           const rest = JSON.parse((await tool.execute({ ref: `baseline:${path}`, offset: first.nextOffset }, new AbortController().signal)).text) as { content: string; nextOffset: null };
           expect(rest.nextOffset).toBeNull();
-          expect(JSON.parse(first.content + rest.content).text).toBe(text);
+          expect(first.content + rest.content).toBe(text);
         }
         const report = reviewReport(input.candidate);
         const validated = input.prepared.validate({ ...report, requirements: [...report.requirements,
@@ -235,17 +264,15 @@ describe('assisted assessment pipeline with real service records', () => {
         const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
         const call = (ref: string) => tool.execute({ ref }, new AbortController().signal);
         const capturedPlan = JSON.parse((await call('baseline:plans/sample/plan.md')).text) as { content: string };
-        expect(JSON.parse(capturedPlan.content).text).toBe(planMarkdown);
+        expect(capturedPlan.content).toBe(planMarkdown);
         for (const path of ['docs/companion.md', 'quality.principles.md']) {
           const answer = await call(`baseline:${path}`);
           if (scenario === 'lossy-principle' || lossy && path === 'docs/companion.md') expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('could not be decoded exactly') });
-          else expect(JSON.parse(JSON.parse(answer.text).content).text).toBe(historicalText);
+          else expect(JSON.parse(answer.text).content).toBe(historicalText);
         }
         const documentStage = JSON.parse((await call(`assessments/${admitted.assessmentId}/stages/documents.json`)).text) as { content: string };
         const projection = JSON.parse(documentStage.content) as AssistanceDocuments;
-        expect(projection.documents.every(document => document.text === undefined)).toBe(true);
-        if (scenario === 'lossy-principle') expect(projection.gaps.unreadablePrinciples).toMatchObject([{ path: 'quality.principles.md' }]);
-        if (lossy) expect(projection.gaps.unreadableDocuments).toMatchObject([{ path: 'docs/companion.md' }]);
+        expect(projection).toEqual(legacy);
         const report = reviewReport(input.candidate);
         const checked = input.prepared.validate({ ...report, requirements: report.requirements.map(answer => lossy && answer.ref === 'captured-plan'
           ? { ...answer, outcome: 'uncertain', explanation: 'Required legacy companion text is unavailable.', evidencePaths: [] } : answer) });
@@ -256,10 +283,8 @@ describe('assisted assessment pipeline with real service records', () => {
     await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
     await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(original.revision));
     const result = await outcome(resumed, job.jobId, admitted.assessmentId);
-    expect(result.gate).toBe(lossy ? 'incomplete' : 'clear');
-    if (scenario === 'lossy-principle') expect(result.gaps.join(' ')).toContain('Principle evidence quality.principles.md is unavailable');
-    if (scenario === 'cached-lossy-companion') expect(result.gaps.join(' ')).toContain('Retained review predates verification');
-    else if (lossy) expect(result.gaps.join(' ')).toContain('Required legacy companion text is unavailable');
+    expect(result.gate).toBe(lossy && scenario !== 'cached-lossy-companion' ? 'incomplete' : 'clear');
+    if (lossy && scenario !== 'cached-lossy-companion') expect(result.gaps.join(' ')).toContain('Required legacy companion text is unavailable');
     expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'documents')?.evidence).toEqual(legacy);
   });
 
@@ -533,13 +558,10 @@ describe('assisted assessment pipeline with real service records', () => {
     const { service, job, assess, candidates } = await setup({ [baseline]: baselineSource, [first]: source('2', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
-        expect(input.prepared.message).toContain('/archive/result.json');
-        expect(input.prepared.message).toContain('docs/missing.md');
-        expect(input.prepared.message).toContain('docs/payload.bundle');
-        expect(input.prepared.message).toContain('ambiguous replacement characters without Git blob identity');
-        expect(input.prepared.message).toContain('not automatically additional obligations');
-        expect(input.prepared.message).toContain('mark the affected requirement uncertain');
-        expect(input.prepared.message).toContain('Outside-project targets were not read and must not be accessed');
+        expect(input.prepared.message).not.toContain('/archive/result.json');
+        expect(input.prepared.message).not.toContain('docs/missing.md');
+        expect(input.prepared.message).not.toContain('docs/payload.bundle');
+        expect(input.prepared.message).toContain('original plan is available on demand');
         const report = reviewReport(input.candidate);
         const validated = input.prepared.validate({ ...report,
           scopeAssessment: required ? 'Required supporting evidence is unavailable.' : 'The historical references do not govern this outcome.',
@@ -555,14 +577,22 @@ describe('assisted assessment pipeline with real service records', () => {
     if (required) expect(result.outcome.gaps.join(' ')).toContain('Applicable required evidence');
     const reference = service.assessmentDetail('sample', job.jobId, result.id).stages.find(stage => stage.name === 'documents')!.evidence as { artifact: { path: string } };
     const evidence = JSON.parse(await readFile(join(service.projectRoot, 'plans/sample/.harness/jobs', job.jobId, reference.artifact.path), 'utf8'));
-    expect(evidence).toMatchObject({ gaps: { outsideProject: [{ target: '/archive/result.json', judgment: 'unjudged' }], missing: [{ target: 'docs/missing.md' }], unreadableDocuments: [{ path: 'docs/payload.bundle', judgment: 'unjudged' }] } });
+    expect(evidence).toMatchObject({ gaps: { missing: [], unreadablePrinciples: [] } });
+    expect(candidates.calls.some(call => call.includes('docs/context.md') || call.includes('docs/payload.bundle'))).toBe(false);
   });
 
-  it('keeps an explicitly pinned unreadable document as a required gap despite a submitted review', async () => {
-    const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('2', baseline) }, {
+  it.each(['missing', 'binary'] as const)('reports a meaningful required-guidance limitation after on-demand inspection (%s)', async kind => {
+    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files, ...(kind === 'binary' ? { 'docs/required.md': 'header\0payload' } : {}) } };
+    const { assess } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
-        const validated = input.prepared.validate(reviewReport(input.candidate));
+        expect(input.prepared.message).not.toContain('header\0payload');
+        const tool = input.prepared.tools.definitions.find(tool => tool.name === 'assessment_evidence')!;
+        const answer = await tool.execute({ ref: 'requirement-document-1' }, new AbortController().signal);
+        expect(answer.isError).toBe(true);
+        const report = reviewReport(input.candidate);
+        const validated = input.prepared.validate({ ...report, requirements: [...report.requirements,
+          { ref: 'requirement-document-1', outcome: 'uncertain', explanation: `Required document docs/required.md unavailable: ${answer.text}`, evidencePaths: [] }] });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'pinned-document-review', eventCount: 1 };
       },
@@ -570,26 +600,10 @@ describe('assisted assessment pipeline with real service records', () => {
     const result = await assess(first, baseline, 'assess-pinned', { requirementDocuments: [{ path: 'docs/required.md', revision: baseline }] });
     expect(result.outcome.gate).toBe('incomplete');
     expect(result.outcome.gaps.join(' ')).toContain('Required document docs/required.md');
+    if (kind === 'binary') expect(result.outcome.gaps.join(' ')).toContain('binary NUL bytes');
   });
 
-  it('keeps an explicitly pinned binary requirement unavailable rather than accepting decoded text', async () => {
-    const initial = { ...source('0', baseline), files: { ...source('0', baseline).files, 'docs/required.md': 'header\0payload' } };
-    const { assess } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, {
-      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
-      review: async input => {
-        expect(input.prepared.message).not.toContain('header\0payload');
-        const validated = input.prepared.validate(reviewReport(input.candidate));
-        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
-        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'binary-pinned-review', eventCount: 1 };
-      },
-    });
-    const result = await assess(first, baseline, 'assess-binary-pinned', { requirementDocuments: [{ path: 'docs/required.md', revision: baseline }] });
-    expect(result.outcome.gate).toBe('incomplete');
-    expect(result.outcome.gaps.join(' ')).toContain('Required document docs/required.md');
-    expect(result.outcome.gaps.join(' ')).toContain('binary NUL bytes');
-  });
-
-  it('keeps unreadable principles deterministic even when the review otherwise reports clear', async () => {
+  it('does not make unselected unreadable principles an initial review obligation', async () => {
     const initial = { ...source('0', baseline), files: { ...source('0', baseline).files, 'quality.principles.md': '# Quality' } };
     const { assess, candidates } = await setup({ [baseline]: initial, [first]: source('2', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
@@ -602,11 +616,12 @@ describe('assisted assessment pipeline with real service records', () => {
     });
     candidates.fail('readBlob', baseline);
     const result = await assess(first, baseline, 'assess-unreadable-principle');
-    expect(result.outcome.gate).toBe('incomplete');
-    expect(result.outcome.gaps.join(' ')).toContain('Principle evidence quality.principles.md is unavailable');
+    expect(result.outcome.gate).toBe('clear');
+    expect(result.outcome.gaps).toEqual([]);
+    expect(candidates.calls.some(call => call.includes('quality.principles.md'))).toBe(false);
   });
 
-  it('retains twenty material concerns and gates unfinished review coverage as incomplete', async () => {
+  it('retains twenty material concerns without promoting legacy coverage prose to another required gap', async () => {
     const { assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) }, {
       operations: unusedOperations, audit: async input => audit(input.candidateCommit),
       review: async input => {
@@ -624,7 +639,8 @@ describe('assisted assessment pipeline with real service records', () => {
     });
     const result = await assess(first, baseline, 'assess-overflow');
     expect(result.outcome.gate).toBe('incomplete');
-    expect(result.outcome.gaps.join(' ')).toContain('Further behavior remains unassessed after twenty concerns.');
+    expect(result.outcome.gaps.join(' ')).not.toContain('Further behavior remains unassessed after twenty concerns.');
+    expect(result.outcome.gaps.join(' ')).toContain('Reconciliation unavailable');
     expect(result.outcome.repairs.filter(repair => repair.includes('Material behavior'))).toHaveLength(20);
     expect(result.outcome.repairs.join(' ')).toContain('Material behavior 20 is incorrect');
   });

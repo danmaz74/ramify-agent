@@ -21,10 +21,20 @@ function source(contents: Record<string, string>, read: string[], originals: Rec
 }
 
 describe('assisted document capture', () => {
+  it('retains the original plan without eagerly traversing references or scanning principles', async () => {
+    const read: string[] = [];
+    const planMarkdown = '# Plan\n[historical bundle](../../history.gz)';
+    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
+      planMarkdown, candidates: source({ 'global.principles.md': '# Not selected' }, read) });
+    expect(read).toEqual([]);
+    expect(documents.documents.map(document => document.path)).toEqual(['plans/p47/plan.md']);
+    expect(documents.gaps).toEqual({ missing: [], unreadablePrinciples: [] });
+    expect(await readAssistanceDocument({ projectRoot: '/project', planMarkdown, documents, id: documents.manifest.root })).toBe(planMarkdown);
+  });
   it('uses pinned Git documents with the captured plan text and excludes superseded designs', async () => {
     const read: string[] = [];
     const planMarkdown = '# Current plan\n[design](../../docs/current.md)\n[old](../../docs/.superseded/old.md)';
-    const documents = await captureAssistanceDocuments({
+    const documents = await captureAssistanceDocuments({ discoverReferences: true,
       projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline', planMarkdown,
       candidates: source({
         'plans/p47/plan.md': '# Old committed plan',
@@ -44,7 +54,7 @@ describe('assisted document capture', () => {
   });
 
   it('retains missing companion references as explicit gaps', async () => {
-    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47',
+    const documents = await captureAssistanceDocuments({ discoverReferences: true, projectRoot: '/project', planId: 'p47',
       baselineCommit: 'baseline', planMarkdown: '[requirement](missing.spec.md)',
       candidates: source({}, []),
     });
@@ -55,7 +65,7 @@ describe('assisted document capture', () => {
   it('retains transitive historical absolute and relative escapes without acquiring their targets', async () => {
     const read: string[] = [];
     const context = '# Context\n[history](/archive/result.json) [elsewhere](../../outside.md) [local](missing.md)';
-    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
+    const documents = await captureAssistanceDocuments({ discoverReferences: true, projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
       planMarkdown: '[context](../../docs/context.md) [required](../../docs/current.md)',
       candidates: source({ 'docs/context.md': context, 'docs/current.md': '# Current requirements' }, read) });
     expect(read).toEqual(['docs/context.md', 'docs/current.md']);
@@ -70,7 +80,7 @@ describe('assisted document capture', () => {
   });
   it.each(['sha1', 'sha256'] as const)('qualifies non-text links while authenticating literal replacement text with %s blobs', async algorithm => {
     const read: string[] = [];
-    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
+    const documents = await captureAssistanceDocuments({ discoverReferences: true, projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline',
       planMarkdown: '[evidence](../../docs/payload.bundle) [binary](../../docs/data.dump) [text](../../docs/literal.md) [requirements](../../docs/current.md) [binary format](../../docs/report.pdf)',
       candidates: source({ 'docs/payload.bundle': '\uFFFD', 'docs/data.dump': 'header\0payload',
         'docs/literal.md': 'literal \uFFFD', 'docs/current.md': '# Current requirement', 'docs/report.pdf': '%PDF binary data' }, read,
@@ -97,7 +107,7 @@ describe('assisted document capture', () => {
     const planMarkdown = '[companion](../../docs/companion.md)';
     const companion = '# Complete companion narrative';
     const candidates = source({ 'docs/companion.md': companion }, []);
-    const documents = await captureAssistanceDocuments({ projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline', planMarkdown, candidates });
+    const documents = await captureAssistanceDocuments({ discoverReferences: true, projectRoot: '/project', planId: 'p47', baselineCommit: 'baseline', planMarkdown, candidates });
     const retained = JSON.parse(JSON.stringify(documents)) as typeof documents;
     expect(retained.storage).toBe('git-references');
     expect(JSON.stringify(retained)).not.toContain(companion);

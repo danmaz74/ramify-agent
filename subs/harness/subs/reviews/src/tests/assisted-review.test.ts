@@ -25,10 +25,10 @@ describe('assisted review preparation', () => {
         { ref: 'migration', outcome: 'unmet', explanation: 'No migration exists.', evidencePaths: [] }] };
     expect(prepared.validate(report)).toEqual({ ok: true, value: report });
     expect(prepared.validate({ ...report, requirements: [report.requirements[0]] })).toMatchObject({ ok: false, errors: [{ path: 'requirements', message: 'No answer for acceptance reference migration' }] });
-    expect(prepared.validate({ ...report, inspected: [], missing: [] })).toMatchObject({ ok: false });
+    expect(prepared.validate({ ...report, inspected: [], missing: [] })).toMatchObject({ ok: true });
     expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], evidencePaths: [] }, report.requirements[1]] })).toMatchObject({ ok: false });
     expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], evidencePaths: ['src/unread.ts'] }, report.requirements[1]] })).toMatchObject({ ok: false });
-    expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], evidencePaths: ['README.md'] }, report.requirements[1]] })).toMatchObject({ ok: false });
+    expect(prepared.validate({ ...report, requirements: [{ ...report.requirements[0], evidencePaths: ['README.md'] }, report.requirements[1]] })).toMatchObject({ ok: true });
     expect(prepared.tools.definitions.every(tool => tool.mutating === false)).toBe(true);
   });
 

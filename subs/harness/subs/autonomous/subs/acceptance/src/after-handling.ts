@@ -193,8 +193,10 @@ export class AfterHandling {
     }
     try {
       const snapshot = await openCandidateSnapshot(this.host.candidates, this.host.projectRoot, { commit: closed.commit, base: closed.base });
-      const guidance = (await readGuidance(this.host.candidates, this.host.projectRoot, snapshot)).map(({ ref, hash }) => ({ ref, hash }));
-      if (guidance.length === 0) return { ...none, forkPoint: { kind: 'unavailable', reason: 'The candidate holds no guidance to judge a design against' } };
+      const assignment = iterationAssignmentSchema.parse(bodyAt(this.observe(), closed.assignment));
+      const selected = (assignment.startingPoints ?? []).map(point => point.path).filter(path => /(?:\.md|\.txt)$/u.test(path));
+      const guidance = (await readGuidance(this.host.candidates, this.host.projectRoot, snapshot, undefined, selected)).map(({ ref, hash }) => ({ ref, hash }));
+      if (guidance.length === 0) return none;
       const identity = this.host.orientationIdentity();
       if (typeof identity === 'string') return { guidance, forkPoint: { kind: 'unavailable', reason: identity } };
       const key = orientationKey({

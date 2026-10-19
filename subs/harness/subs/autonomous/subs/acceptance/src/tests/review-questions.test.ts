@@ -93,9 +93,9 @@ const orient = (read: readonly string[]): ScriptStep[] => [{ kind: 'submit', inp
 
 /** The three assignments, each citing elements of the work-item package, and the completion request. */
 const citingArchitect: ReadonlyArray<readonly ScriptStep[]> = [
-  submit(assign(notes, { goal: 'Add the note store.', citedElements: ['fr-001', 'fr-002'] }, outline())),
-  submit(assign(notes, { goal: 'State the note limit.', citedElements: ['fr-001'] })),
-  submit(assign(notes, { goal: 'Export the store.', citedElements: ['fr-002'] })),
+  submit(assign(notes, { goal: 'Add the note store.', citedElements: ['fr-001', 'fr-002'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] }, outline())),
+  submit(assign(notes, { goal: 'State the note limit.', citedElements: ['fr-001'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] })),
+  submit(assign(notes, { goal: 'Export the store.', citedElements: ['fr-002'], startingPoints: [{ path: principles, note: 'Relevant storage constraint.' }] })),
   submit(requestCompletion()),
 ];
 
@@ -297,7 +297,7 @@ describe('three questions over one candidate', () => {
     for (const item of constructed.filter(entry => entry.role === 'reviewer' && 'question' in entry.inputs && entry.inputs.question !== 'design-orientation')) {
       const names = item.rendered.declarations.map(declaration => declaration.name);
       expect(names.at(-1)).toBe(item.rendered.packet.submissionTool);
-      expect(names.slice(0, -1).sort()).toEqual(Object.values(snapshotToolNames).sort());
+      expect(names.slice(0, -1).sort()).toEqual([...Object.values(snapshotToolNames), 'shell'].sort());
     }
     // The design orientation is its own invocation and its own step.
     const oriented = constructed.filter(entry => entry.role === 'reviewer' && 'question' in entry.inputs && entry.inputs.question === 'design-orientation');
@@ -325,7 +325,7 @@ describe('unavailable reusable review context uses ordinary fresh inputs', () =>
       // of wall-clock scheduling while all six review requests are processed.
       now: () => new Date(startedAt),
       commits: guidedCommits(), policy: { kinds: ['scope', 'design'], concurrency: 1, retries: 0 },
-      engineer: engineers(), reviewers: { 'orientation#1': orient([principles, readme]), 'orientation#2': orient([principles, readme]) },
+      engineer: engineers(), reviewers: { 'orientation#1': orient([readme]), 'orientation#2': orient([readme]) },
       agentReady: agent => {
         const bind = agent.bindSessionStore.bind(agent);
         agent.bindSessionStore = store => { const operations = bind(store); return { ...operations,
@@ -360,7 +360,7 @@ describe('unavailable reusable review context uses ordinary fresh inputs', () =>
       engineer: engineers(),
       reviewers: {
         'orientation#1': [{ kind: 'end', message: 'I read it.' }],
-        'orientation#2': orient([principles, readme]),
+        'orientation#2': orient([readme]),
         'rq-0001': clean(changed[1]),
         'rq-0002': clean(changed[2]),
         'rq-0003': clean(changed[3]),
@@ -378,7 +378,7 @@ describe('unavailable reusable review context uses ordinary fresh inputs', () =>
     expect(reviewers.map(session => session.spec.session.mode)).toEqual(['fresh', 'fresh', 'fork']);
     for (const reviewer of reviewers.slice(0, 2)) {
       expect(reviewer.inherited).toEqual([]);
-      expect(reviewer.spec.prompt).toContain(principles);
+      expect(reviewer.spec.prompt).not.toContain(principles);
       expect(reviewer.spec.prompt).toContain(readme);
       expect(reviewer.spec.prompt).toContain('snapshot_read');
     }
@@ -387,20 +387,20 @@ describe('unavailable reusable review context uses ordinary fresh inputs', () =>
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
   }, 120_000);
 
-  test('a candidate without guidance leaves its design review unavailable, never clean', async () => {
+  test('a candidate without initial guidance can receive a supported design assessment', async () => {
     const root = await reviewTarget(cleanups);
     const run = await reviewRun(root, cleanups, {
       policy: { kinds: ['design'] },
       engineer: engineers(),
-      reviewers: {},
+      reviewers: { 'rq-0001': clean(changed[1]), 'rq-0002': clean(changed[2]), 'rq-0003': clean(changed[3]) },
     });
     const { service, runId, events } = run;
     expect(onlyRun(service, plan).state).toBe('completed');
     const request = await requestRecord(root, runId, 'rq-0001');
-    expect(request).toMatchObject({ guidance: [], forkPoint: { kind: 'unavailable', reason: 'The candidate holds no guidance to judge a design against' } });
-    expect(eventsOf(events, 'review-attempt-started')).toEqual([]);
+    expect(request).toMatchObject({ guidance: [], forkPoint: { kind: 'none' } });
+    expect(eventsOf(events, 'review-attempt-started')).toHaveLength(3);
     expect(eventsOf(events, 'review-orientation-recorded')).toEqual([]);
-    expect(await attemptRecord(root, runId, 'rq-0001.a01')).toMatchObject({ result: { result: 'not-verified', reason: 'unavailable', detail: expect.stringContaining('no guidance') } });
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 0, partial: 0, notVerified: 3, pending: 0 });
+    expect(await attemptRecord(root, runId, 'rq-0001.a01')).toMatchObject({ result: { result: 'complete' } });
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
   }, 120_000);
 });

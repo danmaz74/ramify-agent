@@ -201,7 +201,7 @@ import { reviewSubmissionSchema, type OrientationSubmission, type ReviewSubmissi
 import type { CapturedInput } from '../../../../reviews/src/inputs.js';
 import { prepareReview, type PreparedReview } from '../../../../reviews/src/preparation.js';
 import { ReviewQueue } from '../../../../reviews/src/scheduler.js';
-import { verifySnapshotEvidence, openCandidateSnapshot, resolveSnapshotPath, type CandidateSnapshot, type SnapshotComparison, type SnapshotTools } from '../../../../reviews/src/snapshot.js';
+import { openCandidateSnapshot, resolveSnapshotPath, type CandidateSnapshot, type SnapshotComparison, type SnapshotTools } from '../../../../reviews/src/snapshot.js';
 
 
 
@@ -268,7 +268,7 @@ import { workLayout, workItemId, workItemSchema, type WorkItem } from '../../wor
 import { type ReconciliationBriefing } from '../../work-coordination/src/work/session.js';
 import { gateDiagnostics, type GateAudience } from './checks/diagnostics.js';
 
-import { concernBindings, finishReview, requestedStartOf, reviewOutcome, sameWorkItem } from './review-finish.js';
+import { completedReviewResult, concernBindings, finishReview, requestedStartOf, reviewOutcome, sameWorkItem } from './review-finish.js';
 import { type ConcernBinding } from '../../../../reviews/src/concern-binding.js';
 
 
@@ -436,9 +436,6 @@ export class Acceptance {
     const loaded = packages.get('reviewer');
     if (loaded?.reviewer === undefined) return await unavailable('No prompt package is loaded for the reviewer') === 'committed';
     if (request.inputsUnavailable !== undefined) return await unavailable(request.inputsUnavailable) === 'committed';
-    if (kind === 'design' && request.guidance.length === 0) {
-      return await unavailable(request.forkPoint.kind === 'unavailable' ? request.forkPoint.reason : 'No design guidance was selected') === 'committed';
-    }
     let snapshot: CandidateSnapshot;
     let assignmentPackage: string | undefined;
     let guidance: CapturedInput[] = [];
@@ -674,30 +671,13 @@ export class Acceptance {
     const submission = parsed.data;
     const snapshot = await openCandidateSnapshot(this.candidates, this.projectRoot,
       { commit: request.key.candidate, base: request.base });
-    try {
-      await verifySnapshotEvidence(snapshot, this.candidates, this.projectRoot, [...submission.inspected,
-        ...submission.concerns.flatMap(concern => concern.ground === null ? [] : [concern.ground.path])]);
-    } catch (error) {
-      await this.ports.fail('recovery-exhausted', `Reviewer ${invocation}'s historical source evidence is unavailable: ${message(error)}`);
-      return false;
-    }
+    // An authenticated accepted report belongs to the original immutable
+    // candidate. Do not replay exhaustive text reads: ordinary shell evidence
+    // can be binary, and optional legacy inventories are not completion gates.
     const read = new Map<string, string>();
-    for (const concern of submission.concerns) {
-      if (concern.ground === null) continue;
-      const resolved = resolveSnapshotPath(snapshot, concern.ground.path);
-      if (!resolved.ok || resolved.kind !== 'file') {
-        await this.ports.fail('recovery-exhausted', `Reviewer ${invocation}'s accepted ground is unavailable in ${request.key.candidate}`);
-        return false;
-      }
-      const text = await this.candidates.readBlob(this.projectRoot, request.key.candidate, resolved.path);
-      read.set(resolved.path, `sha256:${sha256(text)}`);
-    }
     const bindings = submission.concerns.length === 0 ? []
       : await this.concernBindings(request, snapshot, { read: () => read }, submission);
-    const result: ReviewResult = submission.missing.length === 0
-      ? { result: 'complete', inspected: submission.inspected.map(path => ({ path })), concerns: submission.concerns.length }
-      : { result: 'partial', inspected: submission.inspected.map(path => ({ path })),
-        missing: submission.missing.map(entry => ({ path: entry.path, reason: entry.reason })), concerns: submission.concerns.length };
+    const result: ReviewResult = completedReviewResult(submission);
     const previous = state.attempts.at(-2);
     const attempt = {
       id: pending.id, request: request.id, queuedAt: previous?.finished?.at ?? state.recordedAt,
@@ -723,8 +703,7 @@ export class Acceptance {
     const point = request.forkPoint;
     if (point.kind === 'none') return { start: { mode: 'fresh' } };
     if (point.kind === 'unavailable') {
-      if (request.key.kind === 'scope') return fresh(point.reason);
-      throw new EvidenceUnavailableError(point.reason);
+      return fresh(point.reason);
     }
     let from: { readonly session: SessionId; readonly invocation: string; readonly ref: string; readonly reason: 'scope-review' | 'design-orientation' };
     if (point.kind === 'session') {

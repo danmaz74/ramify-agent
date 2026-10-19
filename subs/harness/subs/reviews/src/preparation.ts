@@ -4,6 +4,7 @@ import type { ReviewSubmission } from './interfaces/submissions.js';
 import { collectReviewDiffPayload } from './diff-payload.js';
 import { reviewMessage, type ReviewBriefing } from './message.js';
 import { snapshotTools, type SnapshotTools } from './snapshot.js';
+import { candidateShell } from './inspection.js';
 import { validateReview } from './submission.js';
 
 export interface ReviewPreparation {
@@ -50,7 +51,7 @@ export async function prepareCandidateReview<T>(input: CandidateReviewPreparatio
   return {
     message: input.message(diff.text),
     candidateDiff: diff.text,
-    tools,
+    tools: { ...tools, definitions: [...tools.definitions, candidateShell(input.projectRoot, input.snapshot.commit)] },
     validate: value => input.validate(value, {
       snapshot: input.snapshot, inspected: tools.inspected(), read: tools.read(), deliveredPatches, maxConcerns: input.maxConcerns,
     }),

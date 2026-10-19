@@ -21,13 +21,13 @@ const requirementAnswerSchema = z.object({
   pendingProtection: z.array(z.string().min(1)).min(1).max(50).optional(),
 }).strict();
 
-/** A combined code/scope report retains legacy concern and changed-path coverage. */
+/** A combined code/scope report with optional legacy inspection records. */
 export const assistedReviewSubmissionSchema = reviewSubmissionSchema.extend({
   codeAssessment: z.string().min(1).max(4000),
   scopeAssessment: z.string().min(1).max(4000),
   design: z.object({ needed: z.boolean(), reason: z.string().min(1).max(4000), assessment: z.string().min(1).max(4000) }).strict(),
   requirements: z.array(requirementAnswerSchema).max(500),
-  /** Material concerns not yet submitted because the bounded report is full. */
+  /** Legacy limitation prose; retained without imposing an automatic coverage gate. */
   coverageGap: z.string().min(1).max(4000).nullable().optional(),
 }).strict();
 export type AssistedReviewSubmission = z.infer<typeof assistedReviewSubmissionSchema>;
@@ -54,20 +54,20 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
     '## Intended outcome', '', input.outcome, '',
     '## Acceptance references', '',
     ...input.requirements.map(item => `- ${item.ref}: ${item.text}`), '',
-    'Answer every acceptance reference, including requirements with no implementation. Mark missing behavior unmet and uncertain evidence uncertain. A met answer needs source evidence actually inspected through a complete delivered patch or snapshot tool. Do not infer an audit pass from pending, failed or unavailable audit evidence.', '',
+    'Answer every acceptance reference, including requirements with no implementation. Mark missing behavior unmet and uncertain evidence uncertain. Support conclusions with relevant candidate evidence selected through ordinary inspection. Do not infer an audit pass from pending, failed or unavailable audit evidence.', '',
     `Unauthorized protected differences: ${JSON.stringify(input.protectionPaths ?? [])}. For an unmet requirement whose implementation and all other obligations are satisfied, pendingProtection may name only these exact paths when their authorization is the sole remaining condition. Keep uncertain evidence uncertain. Do not create a semantic concern solely to duplicate a factual protection choice.`, '',
-    '## Applicable principles', '',
+    '## Selected guidance', '',
     ...(input.principles.length ? input.principles.map(item => `- ${item.path}: ${item.note}`) : ['None supplied.']), '',
     '## Changed paths', '',
     ...(snapshot.changes.length ? snapshot.changes.map(change => `- ${change.status} ${change.path}`) : ['No paths changed.']), '',
     diffPayload, '',
-    'Review code behavior, tests, consumers, intended scope and design together. Scope means intended outcomes, missing behavior and unjustified unrelated work; module boundaries do not restrict edits. Inspect relevant source with snapshot tools. Assess interface, ownership, dependency, protocol and principle-sensitive consequences in design.assessment. Set design.needed when these changes warrant deliberate design attention and explain why; the combined assessment still answers them. Put minor observations and nits in assessment prose, not actionable concerns. If more than 20 material concerns remain, submit the first 20 and state the unfinished coverage in coverageGap; never silently truncate. A clean report still answers every requirement and changed path.',
+    'Review code behavior, tests, consumers, intended scope and design together. Scope means intended outcomes, missing behavior and unjustified unrelated work; module boundaries do not restrict edits. Inspect relevant source with the supplied candidate tools, including shell. Do not edit source. Assess interface, ownership, dependency, protocol and principle-sensitive consequences in design.assessment. Set design.needed when these changes warrant deliberate design attention and explain why; the combined assessment still answers them. Put minor observations and nits in assessment prose, not actionable concerns. If more than 20 material concerns remain, submit the first 20 and state the unfinished coverage in coverageGap; never silently truncate. Answer the supplied acceptance references; choose inspection by relevance. Unread files are not automatically evidence gaps. Report meaningful limitations in assessment prose or limitations.',
   ];
   if (input.previousFindings?.length) lines.push('', '## Earlier findings', '', ...input.previousFindings.map(item => `- ${item.id} (${item.standing}): ${item.title}`));
   return lines.join('\n');
 }
 
-/** Validate both changed-path evidence and complete, source-bound requirement answers. */
+/** Validate supplied acceptance answers and their candidate references without a coverage inventory. */
 export function validateAssistedReview(value: unknown, evidence: ReviewEvidence, requirements: readonly AssistedRequirement[], protectionPaths: readonly string[] = []): SubmissionValidation<AssistedReviewSubmission> {
   const parsed = assistedReviewSubmissionSchema.safeParse(value);
   if (!parsed.success) return { ok: false, errors: schemaErrors(parsed.error) };
@@ -91,11 +91,7 @@ export function validateAssistedReview(value: unknown, evidence: ReviewEvidence,
       const changed = resolveChangedPath(evidence.snapshot, path);
       if (!(resolved.ok && resolved.kind === 'file') && typeof changed !== 'string')
         errors.push({ path: `${where}.evidencePaths.${at}`, message: `The candidate does not contain or delete a file at ${path}` });
-      else {
-        const canonical = resolved.ok && resolved.kind === 'file' ? resolved.path : changed;
-        if (typeof canonical !== 'string' || !evidence.read.has(canonical) && !evidence.inspected.has(canonical) && !evidence.deliveredPatches?.has(canonical))
-          errors.push({ path: `${where}.evidencePaths.${at}`, message: `${path} was not read or supplied as a complete candidate patch` });
-      }
+
     }
   });
   for (const ref of expected) if (!seen.has(ref)) errors.push({ path: 'requirements', message: `No answer for acceptance reference ${ref}` });

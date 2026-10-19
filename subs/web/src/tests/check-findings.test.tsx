@@ -52,13 +52,14 @@ function reviews(coverage: ReviewCoverageView, requests: ReviewListResponse['req
   return reviewListResponseSchema.parse({ protocol: 'check-findings/1', runId, version, coverage, workItem: 'wi-001', total: requests.length, shown: requests.length, next: null, requests });
 }
 
-function request(id: string, kind: 'code' | 'scope' | 'design', result: 'complete' | 'partial' | 'not-verified' | null, attempt: { concerns?: number; missing?: number; reason?: string } = {}) {
+function request(id: string, kind: 'code' | 'scope' | 'design', result: 'complete' | 'partial' | 'not-verified' | null, attempt: { concerns?: number; missing?: number; reason?: string; assessment?: string; limitations?: string[] } = {}) {
   return reviewRequestViewSchema.parse({
     id, workItem: 'wi-001', iteration: 'wi-001.i01', kind, gate: 'ga-0004', base: 'b'.repeat(40), candidate: 'c'.repeat(40), recordedAt: at,
     result, settledBy: result === null ? null : `${id}.a01`,
     attempts: result === null ? [] : [{
       id: `${id}.a01`, state: 'finished', invocation: 'inv-0011', session: 'ses-0005', requestedStart: 'fresh', actualStart: 'fresh',
       result, reason: attempt.reason ?? null, detail: null, inspected: 2, missing: attempt.missing ?? 0, concerns: attempt.concerns ?? 0, settles: true, checkFindings: [],
+      ...(attempt.assessment ? { assessment: attempt.assessment } : {}), ...(attempt.limitations ? { limitations: attempt.limitations } : {}),
     }],
   });
 }
@@ -76,7 +77,7 @@ function renderWorkItem(stub: StubClient) {
 test('review coverage reads clean, complete with concerns, partial, not verified and pending per request, and unavailable is never clean', async () => {
   const complete = client({
     reviews: { 'wi-001': reviews({ state: 'available', requested: 2, complete: 2, partial: 0, notVerified: 0, pending: 0 }, [
-      request('rq-0001', 'code', 'complete'), request('rq-0002', 'scope', 'complete', { concerns: 2 }),
+      request('rq-0001', 'code', 'complete'), request('rq-0002', 'scope', 'complete', { concerns: 2, assessment: 'Relevant scope assessed.', limitations: ['Historical bundle was not needed.'] }),
     ]) },
     checkFindings: { [checkFindingKey({ workItem: 'wi-001', select: 'reported' })]: list([], 'reported') },
   });
@@ -84,6 +85,8 @@ test('review coverage reads clean, complete with concerns, partial, not verified
   expect(await screen.findByLabelText('Review coverage')).toHaveProperty('textContent', expect.stringMatching(/^Review coverage complete: 2 complete/));
   const rows = within(screen.getByRole('table', { name: 'Review requests' })).getAllByRole('row').slice(1);
   expect(rows.map(row => within(row).getAllByRole('cell')[4]!.textContent)).toEqual(['clean', 'complete, 2 concerns']);
+  expect(screen.getByText('Relevant scope assessed.')).toBeTruthy();
+  expect(screen.getByText('Historical bundle was not needed.')).toBeTruthy();
   // A Git object ID is shortened to 12 characters; any other candidate identifier is shown whole.
   expect(within(rows[0]!).getAllByRole('cell')[3]!.textContent).toBe(`${'b'.repeat(12)} → ${'c'.repeat(12)}`);
   cleanup();

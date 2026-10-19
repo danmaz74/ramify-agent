@@ -136,106 +136,37 @@ describe('exact candidate text evidence', () => {
     expect(scripted.calls.filter(call => call.startsWith('diffPatch'))).toEqual(['diffPatch candidate src/literal.ts', 'diffPatch candidate src/literal.ts']);
     const claimed = validateReview({ inspected: ['src/invalid.ts', 'src/literal.ts'], missing: [{ path: 'src/binary.ts', reason: 'binary' }], concerns: [] },
       { snapshot, inspected: tools.inspected(), read: tools.read(), maxConcerns: 2 });
-    expect(claimed.ok).toBe(false);
+    expect(claimed.ok).toBe(true);
   });
 });
 
-describe('a reviewer\'s submission', () => {
-  const concern = (path: string, ground: { path: string; quote?: string } | null = null) => ({
-    summary: 's', consequence: 'c', rationale: 'r', uncertainty: 'u', remedy: 'm', locations: [{ path, startLine: 1, endLine: 2 }], suggests: null,
-    risk: 'medium', ground,
+describe('a reviewer submission', () => {
+  const concern = (path: string, ground: { path: string } | null = null) => ({
+    summary: 'Behavior fails', consequence: 'A caller loses its result', rationale: 'The source returns too early',
+    uncertainty: 'Observed from code', remedy: 'Complete the operation', locations: [{ path, startLine: 1, endLine: 2 }],
+    suggests: null, risk: 'medium', ground,
   });
 
-  test('names every changed path once, inspects only what its tools answered, and points its concerns at the candidate', async () => {
+  test('accepts selected inspection and meaningful limitations without an exhaustive inventory', async () => {
     const { snapshot: candidate } = await snapshot();
-    const inspected = new Set(['src/a.ts', 'src/gone.ts']);
-    const evidence = { snapshot: candidate, inspected, read: new Map([['README.md', 'sha256:1']]), maxConcerns: 2 };
-    const clean = { inspected: ['src/a.ts', 'src/gone.ts'], missing: [{ path: 'src/b.ts', reason: 'out of time' }], concerns: [] };
-    expect(validateReview(clean, evidence)).toEqual({ ok: true, value: clean });
-    expect(validateReview({ ...clean, concerns: [concern('src/a.ts'), concern('src/gone.ts')] }, evidence)).toMatchObject({ ok: true });
-
-    const errors = (input: unknown) => {
-      const judged = validateReview(input, evidence);
-      return judged.ok ? [] : judged.errors.map(error => `${error.path}: ${error.message}`);
-    };
-    expect(errors({ ...clean, inspected: ['src/a.ts', 'src/gone.ts', 'src/b.ts'], missing: [] }))
-      .toEqual([expect.stringMatching(/^inspected\.2: "src\/b\.ts" is named inspected, and no snapshot_read or snapshot_diff call/u)]);
-    expect(errors({ ...clean, missing: [] })).toEqual(['inspected: The changed path "src/b.ts" is named neither inspected nor missing']);
-    expect(errors({ ...clean, inspected: ['src/a.ts', 'src/gone.ts', 'README.md'] }))
-      .toEqual([expect.stringMatching(/^inspected\.2: "README\.md" is not a path the candidate changed/u)]);
-    expect(errors({ ...clean, missing: [{ path: 'src/a.ts', reason: 'twice' }, { path: 'src/b.ts', reason: 'x' }] }))
-      .toEqual(['missing.0.path: "src/a.ts" is already named at inspected.0']);
-    expect(errors({ ...clean, concerns: [concern('/etc/passwd')] })).toEqual([expect.stringMatching(/^concerns\.0\.locations\.0\.path: .*absolute path/u)]);
-    expect(errors({ ...clean, concerns: [concern('src')] })).toEqual(['concerns.0.locations.0.path: "src" is a directory']);
-    expect(errors({ ...clean, concerns: [{ ...concern('src/a.ts'), locations: [{ path: 'src/a.ts', startLine: 5, endLine: 2 }] }] }))
-      .toEqual(['concerns.0.locations.0.endLine: The range ends before it starts']);
-    expect(errors({ ...clean, concerns: [concern('src/a.ts'), concern('src/a.ts'), concern('src/a.ts')] }))
-      .toEqual(['concerns: The run\'s review policy accepts at most 2 concerns in one submission']);
-    expect(errors({ inspected: [], concerns: [] })[0]).toMatch(/^missing/u);
+    const evidence = { snapshot: candidate, inspected: new Set<string>(), read: new Map<string, string>(), maxConcerns: 2 };
+    expect(validateReview({ assessment: 'Relevant behavior is sound.', limitations: ['Optional historical bundle was not read.'], concerns: [] }, evidence))
+      .toMatchObject({ ok: true, value: { inspected: [], missing: [], concerns: [] } });
+    // Legacy records remain valid without enforcing their old exhaustive inventory rule.
+    expect(validateReview({ inspected: ['src/a.ts'], missing: [{ path: 'src/b.ts', reason: 'Unrelated' }], concerns: [] }, evidence).ok).toBe(true);
+    expect(validateReview({ concerns: [concern('src/a.ts', { path: 'README.md' })] }, evidence).ok).toBe(true);
   });
 
-  test('takes a risk level from the reviewer, and a ground only where it read the file with snapshot_read', async () => {
+  test('retains candidate reference, risk and bounded concern validation', async () => {
     const { snapshot: candidate } = await snapshot();
-    const evidence = { snapshot: candidate, inspected: new Set(['src/a.ts', 'src/gone.ts']), read: new Map([['README.md', 'sha256:1']]), maxConcerns: 5 };
-    const clean = { inspected: ['src/a.ts', 'src/gone.ts'], missing: [{ path: 'src/b.ts', reason: 'out of time' }], concerns: [] };
-    const errors = (input: unknown) => {
-      const judged = validateReview(input, evidence);
-      return judged.ok ? [] : judged.errors.map(error => `${error.path}: ${error.message}`);
-    };
-    expect(errors({ ...clean, concerns: [concern('src/a.ts', { path: 'README.md', quote: '# project' }), concern('src/a.ts', { path: './README.md' })] })).toEqual([]);
-    // src/a.ts was answered through its patch only, src/b.ts not at all.
-    expect(errors({ ...clean, concerns: [concern('src/a.ts', { path: 'src/a.ts' }), concern('src/a.ts', { path: 'src/b.ts' })] })).toEqual([
-      expect.stringMatching(/^concerns\.0\.ground\.path: "src\/a\.ts" was not read with snapshot_read during this review/u),
-      expect.stringMatching(/^concerns\.1\.ground\.path: "src\/b\.ts" was not read/u),
-    ]);
-    expect(errors({ ...clean, concerns: [concern('src/a.ts', { path: '/project/README.md' })] })).toEqual([expect.stringMatching(/^concerns\.0\.ground\.path: .*absolute path/u)]);
-    expect(errors({ ...clean, concerns: [concern('src/a.ts', { path: 'src' })] })).toEqual([expect.stringMatching(/^concerns\.0\.ground\.path: "src" was not read/u)]);
-    expect(errors({ ...clean, concerns: [{ ...concern('src/a.ts'), risk: 'critical' }] })).toEqual([expect.stringMatching(/^concerns\.0\.risk: /u)]);
-    const { risk: _risk, ...unrated } = concern('src/a.ts');
-    expect(errors({ ...clean, concerns: [unrated] })).toEqual([expect.stringMatching(/^concerns\.0\.risk: /u)]);
-    // Credibility and modules are the harness's: a reviewer cannot declare them.
-    expect(errors({ ...clean, concerns: [{ ...concern('src/a.ts'), credibility: 'human-reviewed', modules: ['project/other'] }] }))
-      .toEqual([expect.stringMatching(/^concerns\.0: .*credibility.*modules/u)]);
-  });
-
-  test('accepts inspected paths with complete prompt patches, but not paths merely listed or omitted', async () => {
-    const { snapshot: candidate } = await snapshot();
-    const evidence = {
-      snapshot: candidate,
-      inspected: new Set(['src/b.ts']),
-      deliveredPatches: new Set(['src/a.ts', 'src/gone.ts', 'README.md']),
-      read: new Map<string, string>(),
-      maxConcerns: 5,
-    };
-    const complete = { inspected: ['./src/a.ts', 'src/gone.ts', 'src/b.ts'], missing: [], concerns: [] };
-    // Delivered patches and tool answers can cover the same attempt, including a deleted file.
-    expect(validateReview(complete, evidence)).toEqual({ ok: true, value: complete });
-
-    // The canonical changed-path list does not prove its patches were supplied.
-    const omitted = validateReview(complete, { ...evidence, deliveredPatches: new Set(['src/a.ts']) });
-    expect(omitted).toMatchObject({ ok: false, errors: [{ path: 'inspected.1', message: expect.stringContaining('no complete patch was delivered') }] });
-    expect(validateReview({ ...complete, inspected: ['./src/a.ts', 'src/b.ts'], missing: [{ path: 'src/gone.ts', reason: 'Only a summary was supplied' }] },
-      { ...evidence, deliveredPatches: new Set(['src/a.ts']) })).toMatchObject({ ok: true });
-
-    // Delivery never makes an unchanged file part of the review's changed scope.
-    expect(validateReview({ ...complete, inspected: [...complete.inspected, 'README.md'] }, evidence))
-      .toMatchObject({ ok: false, errors: [{ path: 'inspected.3', message: expect.stringContaining('not a path the candidate changed') }] });
-  });
-
-  test('a delivered patch does not satisfy a concern ground without a current snapshot_read', async () => {
-    const { snapshot: candidate } = await snapshot();
-    const evidence = {
-      snapshot: candidate,
-      inspected: new Set<string>(),
-      deliveredPatches: new Set(['src/a.ts', 'src/gone.ts', 'src/b.ts']),
-      read: new Map<string, string>(),
-      maxConcerns: 5,
-    };
-    const submission = { inspected: ['src/a.ts', 'src/gone.ts', 'src/b.ts'], missing: [], concerns: [concern('src/a.ts', { path: 'src/a.ts' })] };
-    expect(validateReview(submission, evidence)).toMatchObject({
-      ok: false,
-      errors: [{ path: 'concerns.0.ground.path', message: expect.stringContaining('was not read with snapshot_read') }],
-    });
-    expect(validateReview(submission, { ...evidence, read: new Map([['src/a.ts', 'sha256:1']]) })).toMatchObject({ ok: true });
+    const evidence = { snapshot: candidate, inspected: new Set<string>(), read: new Map<string, string>(), maxConcerns: 2 };
+    for (const value of [
+      { concerns: [concern('/etc/passwd')] }, { concerns: [concern('src')] },
+      { concerns: [concern('src/a.ts', { path: 'absent.md' })] },
+      { concerns: [{ ...concern('src/a.ts'), risk: 'critical' }] },
+      { concerns: [concern('src/a.ts'), concern('src/a.ts'), concern('src/a.ts')] },
+      { concerns: [{ ...concern('src/a.ts'), locations: [{ path: 'src/a.ts', startLine: 5, endLine: 2 }] }] },
+    ]) expect(validateReview(value, evidence).ok).toBe(false);
+    expect(validateReview({ concerns: [concern('src/gone.ts')] }, evidence).ok).toBe(true);
   });
 });

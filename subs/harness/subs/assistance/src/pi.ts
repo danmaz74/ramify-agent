@@ -103,8 +103,8 @@ export interface AssistedPiReviewInput extends Omit<PiAssessmentInput<AssistedRe
 
 export function runAssistedPiReview(input: AssistedPiReviewInput): Promise<PiAssessmentResult<AssistedReviewSubmission>> {
   return runPiAssessment({ ...input, message: input.prepared.message, tools: input.prepared.tools.definitions,
-    systemPrompt: 'You are an independent reviewer of one pinned candidate. Review code and intended scope together. Use only the supplied candidate snapshot tools. Do not edit source. A claim about an audit is limited to the factual audit status in the task. Answer each acceptance reference, including absent implementation. Submit only through submit_assisted_review.',
+    systemPrompt: 'You are an independent reviewer of one pinned candidate. Review code and intended scope together. Use the supplied candidate inspection tools, including shell. Select relevant inspection and report meaningful limitations without an exhaustive file inventory. Do not edit source. A claim about an audit is limited to the factual audit status in the task. Answer each acceptance reference, including absent implementation. Submit only through submit_assisted_review.',
     submission: { name: 'submit_assisted_review', description: 'Submit the combined code, scope, design-need and acceptance coverage report.',
-      inputSchema: z.toJSONSchema(assistedReviewSubmissionSchema) as JsonSchema, validate: input.prepared.validate },
+      inputSchema: z.toJSONSchema(assistedReviewSubmissionSchema, { io: 'input' }) as JsonSchema, validate: input.prepared.validate },
   });
 }

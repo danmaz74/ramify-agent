@@ -45,3 +45,29 @@ Elapsed intervals can be derived from these records: first linked `requestedAt` 
 The result contains the same `id`, `status`, `revision`, `error` and `stages` as `assessment_status`, plus `reason`. Completed, interrupted and cancelled assessments return `settled` immediately. Otherwise, an explicit `after_revision` below the current revision returns `changed`. A deadline returns `timeout` with the current status; it does not imply failure. A zero timeout observes immediately. Settled state takes precedence over revision progress. Callers retrieve the effective gate separately through `assessment_result`; a completed assessment can require decisions or repairs or retain evidence gaps.
 
 Observation subscribes to committed transitions and checks the current state without an intervening asynchronous gap, so a transition preceding subscription is not missed. Multiple observers are independent. Waits write no records and do not restart, resume or cancel assessments. Timers and subscriptions are released on return or request cancellation. Aborting an observation affects only that observation. Service shutdown rejects pending observations and preserves ordinary assessment interruption/recovery. A client deadline must exceed the requested wait; transport expiry is not an assessment outcome.
+
+## Focused assessment preparation
+
+An iteration review initially receives the stored current goal, supplied acceptance
+text, selected requirement-document references, candidate changes and earlier
+findings and decisions. It does not eagerly traverse plan links, qualify transitive
+references or deliver every principles document and the complete plan repeatedly.
+A document's filename alone establishes neither applicability nor adoption. Original
+plan and document bytes remain available on demand through `assessment_evidence`;
+final review receives the complete captured plan and original plan baseline.
+Historical document manifests and inline records remain readable as recorded.
+
+Reviewers choose relevant inspection with snapshot conveniences and ordinary
+`shell`, including compressed or large evidence. Shell commands run in a disposable
+detached checkout of the intended candidate; each call starts at that revision and
+uses the nested project's root when applicable. Reviewers are instructed not to
+edit source. Shell access is not a write sandbox. Owned checkouts are cleaned after
+command settlement, including failed commands.
+
+Accepted reports answer supplied acceptance references with supported conclusions
+and report meaningful limitations. Inspected/missing lists and `coverageGap` remain
+readable for historical compatibility; no exhaustive inventory is required. Unread
+or unavailable supplemental files do not automatically make an assessment
+incomplete or create required repairs. A reviewer may identify an actual required
+obligation as unmet or uncertain; those judgments and failed required checks retain
+their existing outcomes. Full reports and limitations remain in stage evidence.

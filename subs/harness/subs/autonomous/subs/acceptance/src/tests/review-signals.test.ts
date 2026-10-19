@@ -116,7 +116,7 @@ describe('the modules of a concern', () => {
 });
 
 describe('a driven review binds risk, ground, credibility and modules', () => {
-  test('the harness classifies what each concern names, on the candidate\'s own module tree, and refuses a ground the reviewer did not read', async () => {
+  test('the harness classifies what each concern names, on the candidate\'s own module tree, independently of which candidate tool supplied the inspection', async () => {
     const root = await reviewTarget(cleanups);
     const principles = 'docs/notes.principles.md';
     const planDocument = `plans/${plan}/plan.md`;
@@ -162,9 +162,8 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
         'rq-0002': [
           tool(snapshotToolNames.diff, { path: limit }),
           ...[principles, planDocument, featureFile].map(path => tool(snapshotToolNames.read, { path })),
-          // The test is grounded before it was read: the submission is refused and returned.
-          { kind: 'submit', input: { inspected: [limit], missing: [], concerns } },
-          tool(snapshotToolNames.read, { path: notesTest }),
+          // A shell or other ordinary inspection need not reproduce a snapshot_read call.
+
           { kind: 'submit', input: { inspected: [limit], missing: [], concerns } },
         ],
         'rq-0003': clean(store),
@@ -177,10 +176,7 @@ describe('a driven review binds risk, ground, credibility and modules', () => {
     expect(onlyRun(service, plan).state).toBe('completed');
 
     const reviewer = agent!.sessions.find(session => session.spec.role === 'reviewer' && session.spec.prompt.includes('rq-0002'))!;
-    expect(reviewer.verdicts).toMatchObject([{ accepted: false }, { accepted: true }]);
-    // Only the unread ground is refused; the three read ones are accepted as named.
-    expect(reviewer.verdicts[0]).toMatchObject({ errors: [expect.stringContaining('"path": "concerns.3.ground.path"')] });
-    expect(reviewer.verdicts[0]).toMatchObject({ errors: [expect.not.stringMatching(/concerns\.[0-24]\./u)] });
+    expect(reviewer.verdicts).toMatchObject([{ accepted: true }]);
     expect(eventsOf(events, 'review-attempt-finished').find(event => event.data.attempt === 'rq-0002.a01')?.data).toMatchObject({ result: 'complete', settles: true });
 
     const hashed = (text: string) => `sha256:${createHash('sha256').update(text).digest('hex')}`;
@@ -258,18 +254,18 @@ describe('the design question\'s guidance', () => {
   } as ReviewRequest);
   const snapshotOf = async () => openCandidateSnapshot(scriptedCandidates('/project', { c1: { tree: 't1', base: 'c0', changes: [], files: { 'docs/style.md': '# Style\n' } } }), '/project', { commit: 'c1', base: 'c0' });
 
-  test('a fresh design review reads each file it has not read yet', async () => {
+  test('a fresh design review inspects selected guidance when relevant', async () => {
     const message = reviewMessage({ request: request(), snapshot: await snapshotOf(), assignment: null, checkFindings: [] });
-    expect(message).toContain('If this session has not read one of them yet, read it with `snapshot_read` before you judge.');
+    expect(message).toContain('If this session has not read one of them yet, inspect it when relevant.');
     expect(message).not.toContain('read in orientation');
   });
 
-  test('a fork of the orientation counts the guidance it read at the same identity as read', async () => {
+  test('a fork of the orientation identifies supplied guidance without an exhaustive read claim', async () => {
     const oriented = [guidance[0]!, { ref: 'docs/layout.md', hash: 'c'.repeat(64) }];
     const message = reviewMessage({ request: request(), snapshot: await snapshotOf(), assignment: null, checkFindings: [], oriented });
-    expect(message).toContain('they count as already read');
-    expect(message).toContain(`- docs/style.md (sha256 ${'a'.repeat(12)}), read in orientation`);
-    expect(message).toContain(`- docs/layout.md (sha256 ${'b'.repeat(12)}), changed since orientation: read it before you judge`);
+    expect(message).toContain('inspect current originals when needed');
+    expect(message).toContain(`- docs/style.md (sha256 ${'a'.repeat(12)}), supplied in orientation`);
+    expect(message).toContain(`- docs/layout.md (sha256 ${'b'.repeat(12)}), changed since orientation: inspect when relevant`);
     expect(message).not.toContain('If this session has not read one of them yet');
   });
 });

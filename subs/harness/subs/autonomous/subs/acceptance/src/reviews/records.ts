@@ -99,7 +99,8 @@ export type NotVerifiedReason = z.infer<typeof notVerifiedReasonSchema>;
 
 /** What a finished attempt found: its covered scope, or why it covered none. */
 export const reviewResultSchema = z.discriminatedUnion('result', [
-  z.object({ result: z.literal('complete'), inspected: inspectedSchema, concerns: z.int().nonnegative() }).strict(),
+  z.object({ result: z.literal('complete'), inspected: inspectedSchema, concerns: z.int().nonnegative(),
+    assessment: z.string().min(1).optional(), limitations: z.array(z.string().min(1)).optional() }).strict(),
   z.object({ result: z.literal('partial'), inspected: inspectedSchema, missing: missingSchema.min(1), concerns: z.int().nonnegative() }).strict(),
   z.object({ result: z.literal('not-verified'), reason: notVerifiedReasonSchema, detail: z.string() }).strict(),
 ]);

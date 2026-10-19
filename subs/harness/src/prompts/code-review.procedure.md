@@ -16,7 +16,7 @@ Do this, in order:
 A concern is an actionable defect you can point to: a precise consequence,
 the evidence in the candidate, how sure you are, a bounded remedy, its risk
 and its ground: a test, the assignment's plan or a README that states the
-behavior the change breaks, read with `snapshot_read`. The plan elements in
+behavior the change breaks, read through candidate tools. The plan elements in
 the message say what the iteration was asked; a concern about them is
 grounded in a file the candidate holds, and a departure from a
 recommendation is not a defect. Style,
@@ -25,14 +25,10 @@ as its own concern; two problems in one file are two concerns. `suggests`
 may name a CheckFinding the message below lists when you believe yours is
 the same problem, and is otherwise null.
 
-## Coverage
+## Conclusions and limitations
 
-Name every changed path once: in `inspected` when you read its patch or
-content, or in `missing` with the reason you could not. Both lists hold
-changed paths only; a file the candidate did not change, read for context
-or as a ground, is named in neither. The harness checks
-`inspected` against the complete patches delivered in this message and the
-reads its tools answered. A changed-path list, patch summary or omitted patch
-is not inspection evidence. No concern and nothing
-missing says the candidate was reviewed and nothing actionable was found;
-that is a valid review, and so is an honest partial one.
+Choose relevant inspection using the supplied candidate tools, including shell.
+Submit your assessment and actionable concerns. Report meaningful limitations in
+`limitations` or assessment prose. Unread files, including supplemental artifacts,
+do not automatically become blocking gaps. No exhaustive inspected/missing
+inventory is required; those fields remain optional for historical compatibility.

@@ -23,7 +23,7 @@ A concern is a precise gap between the intent and the candidate that you can
 point to: what was asked, what the candidate does instead, the evidence, how
 sure you are, a bounded remedy, its risk and its ground. The elements
 below ground a concern only through a file you read: when the candidate
-holds the plan document the message names, read it with `snapshot_read` and
+holds the plan document the message names, inspect it through candidate tools and
 name it. A matter of taste is not a concern, and
 neither is a defect of the code's correctness that does not bear on scope.
 Report each distinct gap once. `suggests` may name a CheckFinding the
@@ -31,14 +31,10 @@ message below lists when you believe yours is the same gap, and is
 otherwise null. You have no authority over the assignment: challenge it by
 reporting, never by assuming it changed.
 
-## Coverage
+## Conclusions and limitations
 
-Name every changed path once: in `inspected` when you read its patch or
-content, or in `missing` with the reason you could not. Both lists hold
-changed paths only; a file the candidate did not change, read for context
-or as a ground, is named in neither. The harness checks
-`inspected` against the complete patches delivered in this message and the
-reads its tools answered. A changed-path list, patch summary or omitted patch
-is not inspection evidence. No concern and nothing
-missing says the candidate matches its assignment's scope; that is a valid
-review, and so is an honest partial one.
+Choose relevant inspection using the supplied candidate tools, including shell.
+Submit your assessment and actionable concerns. Report meaningful limitations in
+`limitations` or assessment prose. Unread files, including supplemental artifacts,
+do not automatically become blocking gaps. No exhaustive inspected/missing
+inventory is required; those fields remain optional for historical compatibility.

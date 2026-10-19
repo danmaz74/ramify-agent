@@ -136,8 +136,9 @@ describe('a driven run', () => {
         // the writer is never held back by it.
         'rq-0001': [{ kind: 'await', until: async () => { firstRunning.open(); await writerDone.opened; } }, ...clean(changed[1])],
         // An invalid scope submission, then a valid one: one retry.
-        'rq-0002#1': [{ kind: 'submit', input: { inspected: [], missing: [], concerns: [] } }, { kind: 'submit', input: { verdict: 'fine' } }, { kind: 'submit', input: { nothing: true } }],
+        'rq-0002#1': [{ kind: 'submit', input: { concerns: 'invalid' } }, { kind: 'submit', input: { verdict: 'fine' } }, { kind: 'submit', input: { nothing: true } }],
         'rq-0002#2': clean(changed[1]),
+        'rq-0003': clean(changed[1]), 'rq-0006': clean(changed[2]), 'rq-0009': clean(changed[3]),
         'rq-0004': clean(changed[2]), 'rq-0005': clean(changed[2]),
         'rq-0007': clean(changed[3]), 'rq-0008': clean(changed[3]),
       },
@@ -146,7 +147,7 @@ describe('a driven run', () => {
     expect(onlyRun(service, plan).state).toBe('completed');
     // Design requests have no guidance in these candidates: unavailable at once, never started.
     const started = eventsOf(events, 'review-attempt-started').map(event => event.data.attempt);
-    expect(started).toEqual(['rq-0001.a01', 'rq-0002.a01', 'rq-0002.a02', 'rq-0004.a01', 'rq-0005.a01', 'rq-0007.a01', 'rq-0008.a01']);
+    expect(started).toEqual(['rq-0001.a01', 'rq-0002.a01', 'rq-0002.a02', 'rq-0003.a01', 'rq-0004.a01', 'rq-0005.a01', 'rq-0006.a01', 'rq-0007.a01', 'rq-0008.a01', 'rq-0009.a01']);
     // Never more than one reader at once, and a reader ran while the writer did.
     const invocations = [...events].filter(event => event.type === 'invocation-started' || event.type === 'invocation-ended');
     let live = 0;
@@ -165,7 +166,7 @@ describe('a driven run', () => {
     const finished = eventsOf(events, 'review-attempt-finished');
     expect(finished.filter(event => event.data.request === 'rq-0002').map(event => [event.data.attempt, event.data.result, event.data.reason, event.data.settles]))
       .toEqual([['rq-0002.a01', 'not-verified', 'invalid-output', false], ['rq-0002.a02', 'complete', null, true]]);
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 9, complete: 6, partial: 0, notVerified: 3, pending: 0 });
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 9, complete: 9, partial: 0, notVerified: 0, pending: 0 });
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
   }, 120_000);
 

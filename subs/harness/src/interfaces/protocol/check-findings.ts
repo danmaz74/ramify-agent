@@ -435,6 +435,8 @@ export const reviewAttemptViewSchema = z.object({
   result: z.enum(['complete', 'partial', 'not-verified']).nullable(),
   reason: z.string().nullable(),
   detail: z.string().nullable(),
+  assessment: text.optional(),
+  limitations: z.array(text).optional(),
   inspected: count,
   missing: count,
   concerns: count,

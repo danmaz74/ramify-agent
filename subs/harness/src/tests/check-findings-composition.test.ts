@@ -343,8 +343,8 @@ describe('CF15: the composed run under tight review bounds', () => {
       gates: [...compositionGates.slice(0, 4), ...compositionGates.slice(5)],
       reviewers: {
         ...scenario.reviewers,
-        // The first attempt names a path it never read: invalid, retried once.
-        'rq-0004#1': [{ kind: 'submit', input: { inspected: [tagLimit], missing: [], concerns: [] } }, { kind: 'end', message: 'gave up' }],
+        // Malformed concern shape is invalid and retried once.
+        'rq-0004#1': [{ kind: 'submit', input: { concerns: 'invalid' } }, { kind: 'end', message: 'gave up' }],
       },
       reconcilers: {
         // The architect considers all signals and explicitly leaves them open.

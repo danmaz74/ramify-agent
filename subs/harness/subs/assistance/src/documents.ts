@@ -41,9 +41,22 @@ export async function captureAssistanceDocuments(input: {
   readonly planMarkdown: string;
   readonly baselineCommit: string;
   readonly candidates?: CandidateSource;
+  /** Historical discovery is available to retained-record readers, never eager review preparation. */
+  readonly discoverReferences?: boolean;
 }): Promise<AssistanceDocuments> {
   planIdSchema.parse(input.planId);
   const source = input.candidates ?? gitCandidateSource;
+  if (!input.discoverReferences) {
+    const path = `plans/${input.planId}/plan.md`;
+    const sha256 = createHash('sha256').update(input.planMarkdown).digest('hex');
+    const document = { id: 'doc-001', path, kind: 'plan' as const, sha256, bytes: Buffer.byteLength(input.planMarkdown),
+      storedAt: 'input/plan.md', revision: { commit: null, dirty: null } };
+    return { storage: 'git-references', baselineCommit: input.baselineCommit,
+      manifest: { schema: 'ramify-agent.document-manifest/1', root: document.id, documents: [document], missing: [],
+        principlesScan: { status: 'empty', unreadable: [] } },
+      documents: [{ id: document.id, path, kind: 'plan', sha256, adoption: 'undetermined' }],
+      gaps: { missing: [], unreadablePrinciples: [] } };
+  }
   const entries = await source.treeEntries(input.projectRoot, input.baselineCommit);
   const reader = candidateDocumentReader(input.projectRoot, input.planId, input.planMarkdown, input.baselineCommit, entries, source);
   const outsideProject: OutsideDocumentReference[] = [];

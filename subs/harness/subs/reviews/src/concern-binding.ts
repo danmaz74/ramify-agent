@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import type { CheckFindingGround, CheckFindingReportCredibility } from '../../check-findings/src/interfaces/check-findings.js';
 import { resolveSnapshotPath, type CandidateSnapshot, type SnapshotTools } from './snapshot.js';
@@ -34,15 +36,20 @@ export async function bindCandidateConcerns(
     return null;
   });
   const read = tools.read();
-  return submission.concerns.map(concern => {
+  const source = verifiedCandidateSource(context.candidates, { root: context.projectRoot, commit: snapshot.commit, entries: snapshot.entries });
+  return Promise.all(submission.concerns.map(async concern => {
     const resolved = concern.ground === null ? null : resolveSnapshotPath(snapshot, concern.ground.path);
     const path = resolved?.ok === true ? resolved.path : null;
-    const hash = path === null ? undefined : read.get(path);
+    let hash = path === null ? undefined : read.get(path);
+    if (path !== null && hash === undefined) {
+      try { hash = `sha256:${createHash('sha256').update(await source.readBlob(context.projectRoot, snapshot.commit, path)).digest('hex')}`; }
+      catch (error) { context.warn(`Concern ground ${path} could not be bound: ${message(error)}`); }
+    }
     const ground = path === null || hash === undefined ? null : { ref: path, hash };
     return {
       ground,
       credibility: credibility(ground?.ref ?? null),
       modules: concernModules(index, concern.locations, workItemModule),
     };
-  });
+  }));
 }

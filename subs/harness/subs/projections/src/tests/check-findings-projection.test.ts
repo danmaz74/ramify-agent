@@ -78,7 +78,7 @@ function request(id: string, workItem: string, iteration: string, kind: 'code' |
   };
 }
 
-type Result = { result: 'complete'; inspected: Array<{ path: string }>; concerns: number }
+type Result = { result: 'complete'; inspected: Array<{ path: string }>; concerns: number; assessment?: string; limitations?: string[] }
   | { result: 'partial'; inspected: Array<{ path: string }>; missing: Array<{ path: string; reason: string }>; concerns: number }
   | { result: 'not-verified'; reason: 'timed-out' | 'invalid-output' | 'deadline' | 'no-time-before-deadline'; detail: string };
 
@@ -119,7 +119,7 @@ function fullRun(options: { readonly waive?: boolean; readonly unresolved?: Read
     .line(request('rq-0001', 'wi-001', 'wi-001.i01', 'code', 'c-01'))
     .line(request('rq-0002', 'wi-001', 'wi-001.i01', 'scope', 'c-01'))
     .line(request('rq-0003', 'wi-001', 'wi-001.i01', 'design', 'c-01'))
-    .line(finished('rq-0001', 'rq-0001.a01', { result: 'complete', inspected, concerns: 3 }, ['cf-0001', 'cf-0002', 'cf-0005']))
+    .line(finished('rq-0001', 'rq-0001.a01', { result: 'complete', inspected, concerns: 3, assessment: 'Relevant behavior assessed.', limitations: ['Unrelated artifact unread.'] }, ['cf-0001', 'cf-0002', 'cf-0005']))
     .line(finished('rq-0002', 'rq-0002.a01', { result: 'partial', inspected, missing: [{ path: 'src/b.ts', reason: 'binary' }], concerns: 1 }, ['cf-0003']))
     .line(finished('rq-0003', 'rq-0003.a01', { result: 'not-verified', reason: 'timed-out', detail: 'The attempt ran past its limit' }))
     .line(request('rq-0004', 'wi-001', 'wi-001.i02', 'code', 'c-02'))
@@ -351,7 +351,7 @@ describe('CheckFinding detail and reviews', () => {
     const all = reviewListResponseSchema.parse(reviewListOf(view, { workItem: 'wi-001', after: null, limit: 2 }));
     expect(all).toMatchObject({ total: 4, shown: 2, next: 'rq-0002', workItem: 'wi-001' });
     expect(all.requests[0]).toMatchObject({ id: 'rq-0001', kind: 'code', result: 'complete', base: 'base-of-c-01', candidate: 'c-01',
-      attempts: [{ id: 'rq-0001.a01', state: 'finished', result: 'complete', inspected: 1, concerns: 3, checkFindings: ['cf-0001', 'cf-0002', 'cf-0005'] }] });
+      attempts: [{ id: 'rq-0001.a01', state: 'finished', result: 'complete', inspected: 1, concerns: 3, assessment: 'Relevant behavior assessed.', limitations: ['Unrelated artifact unread.'], checkFindings: ['cf-0001', 'cf-0002', 'cf-0005'] }] });
     const rest = reviewListOf(view, { workItem: 'wi-001', after: 'rq-0002', limit: 50 });
     expect(rest.requests.map(entry => [entry.id, entry.result, entry.attempts[0]?.reason ?? null])).toEqual([
       ['rq-0003', 'not-verified', 'timed-out'], ['rq-0004', 'complete', null],

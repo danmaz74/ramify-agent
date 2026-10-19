@@ -108,15 +108,14 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     lines.push('## The guidance this design is judged against', '');
     const oriented = briefing.oriented;
     if (oriented === undefined) {
-      lines.push('Each file is part of the audited candidate. If this session has not read one of them yet, read it with `snapshot_read` before you judge.', '');
+      lines.push('Each file is part of the audited candidate. If this session has not read one of them yet, inspect it when relevant.', '');
       for (const entry of request.guidance) lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)})`);
     } else {
-      // The orientation's reading is inherited history: a file read at the
-      // identity the request names counts as read.
-      lines.push('This session read these files in its orientation, at the identities below; they count as already read. Read one again with `snapshot_read` only where its identity here differs from the one you read, or when a concern cites it as its ground.', '');
+      // Orientation supplies reusable context, not proof of an exhaustive read.
+      lines.push('These files were supplied in orientation at the identities below. Reuse relevant context and inspect current originals when needed.', '');
       for (const entry of request.guidance) {
         const read = oriented.some(item => item.ref === entry.ref && item.hash === entry.hash);
-        lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)}), ${read ? 'read in orientation' : 'changed since orientation: read it before you judge'}`);
+        lines.push(`- ${entry.ref} (sha256 ${entry.hash.slice(0, 12)}), ${read ? 'supplied in orientation' : 'changed since orientation: inspect when relevant'}`);
       }
     }
     lines.push('');
@@ -125,7 +124,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     '## The changed paths',
     '',
     ...(snapshot.changes.length === 0
-      ? ['The candidate changed nothing. Submit with nothing inspected and nothing missing.']
+      ? ['The candidate changed nothing.']
       : [...new Map(snapshot.changes.map(change => [`${change.status}\0${change.path}`, change])).values()].map(change => `- ${change.status} ${change.path}`)),
     '',
   );
@@ -144,6 +143,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     for (const entry of briefing.checkFindings) lines.push(`- ${entry.id} (${entry.standing}): ${entry.title}`);
     lines.push('');
   }
+  lines.push('Choose relevant inspection using snapshot tools or shell on the pinned candidate. Do not edit source. Submit conclusions and meaningful limitations; unread files do not automatically block a supported assessment. No exhaustive inspected/missing inventory is required.');
   return lines.join('\n');
 }
 
@@ -154,8 +154,8 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
  */
 export function orientationMessage(guidance: readonly CapturedInput[]): string {
   const lines = [
-    'Design orientation. Read the guidance below: it is what the design reviews of this project\'s iterations are judged against.',
-    'You review nothing yet. Submit the paths you read and a short account of what the guidance asks of a design.',
+    'Design orientation. The guidance below supplies relevant initial context for design review; follow other applicable guidance when needed.',
+    'You review nothing yet. Submit a short account of relevant guidance; an exhaustive read inventory is optional.',
     '',
   ];
   for (const entry of guidance) lines.push(`## ${entry.ref} (sha256 ${entry.hash.slice(0, 12)})`, '', entry.text.trimEnd(), '');

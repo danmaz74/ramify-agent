@@ -177,15 +177,15 @@ export function compositionScenario(root: string, policy: Partial<NonNullable<Ru
     roles: {
       'initial-architect': [submit(analysis([entry('review-notes', notes), entry('catalog-tags', tags)]))],
       'local-architect:wi-001': [
-        submit(assign(notes, { goal: 'Add the note store.' }, outline())),
+        submit(assign(notes, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Add the note store.' }, outline())),
         submit(requestCompletion()),
       ],
       'engineer:wi-001': [submit(completionProposed('Added the note store.'), write('store.ts', 'export const store = new Map(); // v1\n'))],
       'local-architect:wi-002': [
-        submit(assign(tags, { goal: 'Add the tag store.' }, outline())),
-        submit(assign(tags, { goal: 'Limit a tag to the plan\'s length.' })),
+        submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Add the tag store.' }, outline())),
+        submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Limit a tag to the plan\'s length.' })),
         submit(requestCompletion()),
-        submit(assign(tags, { goal: 'Make the tag limit 500 characters, as the plan asks.', kind: 'repair' })),
+        submit(assign(tags, { startingPoints: [{ path: principles, note: 'Relevant catalog limits.' }], goal: 'Make the tag limit 500 characters, as the plan asks.', kind: 'repair' })),
         submit(requestCompletion()),
       ],
       'engineer:wi-002': [

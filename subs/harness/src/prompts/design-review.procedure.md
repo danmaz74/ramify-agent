@@ -2,9 +2,7 @@
 Do this, in order:
 
 1. Reuse earlier understanding of captured guidance with the same known identity.
-   Refresh guidance whose identity changed or cannot be established. Only the
-   listed guidance is the standard; a preference of your own is not. Every
-   reported concern still requires current `snapshot_read` evidence for its ground.
+   Refresh guidance whose identity changed or cannot be established. The listed guidance gives relevant starting context; follow other applicable guidance when needed. A preference of your own is not a requirement. Inspect relevant guidance with the candidate tools.
 2. Use the supplied canonical changed-path list; if unavailable, list paths once
    with `snapshot_diff`. Read the complete patches supplied in this message.
    Fetch patches with `snapshot_diff` only for paths whose complete patches
@@ -20,20 +18,16 @@ Do this, in order:
 A concern is a design problem the guidance lets you name: the rule or
 responsibility it departs from, cited by the guidance file, the consequence,
 the evidence in the candidate, how sure you are, a bounded remedy and its
-risk. Its ground is that guidance file, read with `snapshot_read` in this
-review even if an earlier conversation already showed it to you.
+risk. Its ground is that guidance file, read through candidate tools in this
+review where needed to support your conclusion.
 Correctness defects and scope gaps belong to other reviews. Report each
 distinct problem once. `suggests` may name a CheckFinding the message below
 lists when you believe yours is the same problem, and is otherwise null.
 
-## Coverage
+## Conclusions and limitations
 
-Name every changed path once: in `inspected` when you read its patch or
-content, or in `missing` with the reason you could not. Both lists hold
-changed paths only; a file the candidate did not change, read for context
-or as a ground, is named in neither. The harness checks
-`inspected` against the complete patches delivered in this message and the
-reads its tools answered. A changed-path list, patch summary or omitted patch
-is not inspection evidence. No concern and nothing
-missing says the candidate's design follows the listed guidance; that is a
-valid review, and so is an honest partial one.
+Choose relevant inspection using the supplied candidate tools, including shell.
+Submit your assessment and actionable concerns. Report meaningful limitations in
+`limitations` or assessment prose. Unread files, including supplemental artifacts,
+do not automatically become blocking gaps. No exhaustive inspected/missing
+inventory is required; those fields remain optional for historical compatibility.

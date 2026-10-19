@@ -302,6 +302,8 @@ export function reviewListOf(view: RunView, query: { readonly workItem: string |
           result: attempt.finished?.result ?? null,
           reason: attempt.finished?.reason ?? null,
           detail: result?.result === 'not-verified' ? result.detail : null,
+          ...(result?.result !== 'complete' || result.assessment === undefined ? {} : { assessment: result.assessment }),
+          ...(result?.result !== 'complete' || result.limitations === undefined ? {} : { limitations: result.limitations }),
           inspected: result === undefined || result.result === 'not-verified' ? 0 : result.inspected.length,
           missing: result?.result === 'partial' ? result.missing.length : 0,
           concerns: result === undefined || result.result === 'not-verified' ? 0 : result.concerns,

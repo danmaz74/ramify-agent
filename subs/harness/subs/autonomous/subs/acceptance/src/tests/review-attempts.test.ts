@@ -135,7 +135,7 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
     expect(sessions).toHaveLength(3);
     const first = sessions.find(session => session.spec.prompt.includes('rq-0001'))!;
     expect(first.spec.builtinTools).toEqual([]);
-    expect(first.spec.tools.map(definition => definition.name)).toEqual(Object.values(snapshotToolNames));
+    expect(first.spec.tools.map(definition => definition.name)).toEqual([...Object.values(snapshotToolNames), 'shell']);
     expect(first.spec.scope.workingDirectory).not.toBe(root);
     expect(first.spec.scope.workingDirectory.startsWith(runPath(root, plan, runId))).toBe(true);
 
@@ -168,10 +168,10 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
     // The two overlapping readers finish in either order.
     const finished = eventsOf(events, 'review-attempt-finished').sort((a, b) => (a.data.attempt < b.data.attempt ? -1 : 1));
     expect(finished.map(event => [event.data.attempt, event.data.result, event.data.reason, event.data.settles, event.data.checkFindings.length]))
-      .toEqual([['rq-0001.a01', 'complete', null, true, 0], ['rq-0002.a01', 'complete', null, true, 1], ['rq-0003.a01', 'partial', null, true, 0]]);
+      .toEqual([['rq-0001.a01', 'complete', null, true, 0], ['rq-0002.a01', 'complete', null, true, 1], ['rq-0003.a01', 'complete', null, true, 0]]);
     expect(await attemptRecord(root, runId, 'rq-0001.a01')).toMatchObject({ result: { result: 'complete', inspected: [{ path: store }], concerns: 0 }, checkFindings: [], actualStart: 'fresh' });
     expect(await attemptRecord(root, runId, 'rq-0003.a01')).toMatchObject({
-      result: { result: 'partial', inspected: [{ path: store }], missing: [{ path: `${notesDirectory}/src/index.ts` }], concerns: 0 }, checkFindings: [],
+      result: { result: 'complete', inspected: [{ path: store }], concerns: 0 }, checkFindings: [],
     });
     const concern = await attemptRecord(root, runId, 'rq-0002.a01');
     expect(concern).toMatchObject({ result: { result: 'complete', concerns: 1 }, checkFindings: ['cf-0001'], settles: true });
@@ -189,7 +189,7 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
     }] } } });
     expect(JSON.parse(await readFile(runPath(root, plan, runId, reviewLayout.submission('rq-0002.a01')), 'utf8')))
       .toMatchObject({ schema: 'ramify-agent.review-submission/1', attempt: 'rq-0002.a01', inspected: [limit] });
-    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 2, partial: 1, notVerified: 0, pending: 0 });
+    expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 3, complete: 3, partial: 0, notVerified: 0, pending: 0 });
 
     // The reviews change no gate: every gate passed and the run completed.
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
@@ -206,10 +206,8 @@ describe('CF04: semantic review validation and resource continuity', () => {
   test('malformed output is retried once, useful review outlives its former allowance and an unreadable candidate is unavailable', async () => {
     const root = await reviewTarget(cleanups);
     const malformed: ScriptStep[] = [
-      { kind: 'submit', input: { inspected: [], concerns: [] } },
-      // The supplied store patch is valid inspection evidence; an unrelated
-      // path still cannot satisfy this candidate's changed-path coverage.
-      { kind: 'submit', input: { inspected: [limit], missing: [], concerns: [] } },
+      { kind: 'submit', input: { concerns: 'invalid' } },
+      { kind: 'submit', input: { concerns: [], unsupported: true } },
       { kind: 'submit', input: { verdict: 'looks fine' } },
       { kind: 'submit', input: { verdict: 'still missing the required fields' } },
     ];

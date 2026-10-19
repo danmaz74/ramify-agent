@@ -44,6 +44,14 @@ export function sameWorkItem(owner: { readonly kind: string; readonly workItem?:
  * a failed execution and a timeout may be retried; an unavailable input or
  * a stop may not.
  */
+/** A completed assessment can retain limitations without becoming a coverage failure. */
+export function completedReviewResult(submission: ReviewSubmission): ReviewResult {
+  const limitations = [...(submission.limitations ?? []), ...submission.missing.map(item => `${item.path}: ${item.reason}`)];
+  return { result: 'complete', inspected: submission.inspected.map(path => ({ path })), concerns: submission.concerns.length,
+    ...(submission.assessment === undefined ? {} : { assessment: submission.assessment }),
+    ...(limitations.length === 0 ? {} : { limitations }) };
+}
+
 export function reviewOutcome(
   result: InvocationResult<ReviewSubmission>,
   stop: NotVerifiedReason | undefined,
@@ -54,11 +62,8 @@ export function reviewOutcome(
     case 'submitted': {
       const submission = result.value;
       if (submission === undefined) return notVerified('invalid-output', 'The reviewer ended without an accepted submission', true);
-      const inspected = submission.inspected.map(path => ({ path }));
       return {
-        result: submission.missing.length === 0
-          ? { result: 'complete', inspected, concerns: submission.concerns.length }
-          : { result: 'partial', inspected, missing: submission.missing.map(entry => ({ path: entry.path, reason: entry.reason })), concerns: submission.concerns.length },
+        result: completedReviewResult(submission),
         retryable: false,
       };
     }

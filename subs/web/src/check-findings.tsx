@@ -168,6 +168,8 @@ export function WorkItemCheckFindings({ onOpenGate, ...scope }: Scope & { readon
                           ? <a href={chapterHref({ source: 'run', planId, runId, session: attempt.session }, attempt.invocation)}>{attempt.id}</a>
                           : attempt.id}
                         {' '}{attempt.state}{attempt.actualStart ? `, ${attempt.actualStart}` : ''}
+                        {attempt.assessment && <span>{attempt.assessment}</span>}
+                        {attempt.limitations?.map((limitation, index) => <span key={index} className="muted">{limitation}</span>)}
                       </span>
                     ))}</td>
                   </tr>

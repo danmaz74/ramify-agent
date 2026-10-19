@@ -1,4 +1,5 @@
 import { orientationMessage, reviewMessage } from '../../../reviews/src/message.js';
+import { candidateShellDeclaration } from '../../../reviews/src/inspection.js';
 import { snapshotToolDeclarations } from '../../../reviews/src/snapshot.js';
 import {
   orientationJsonSchema, orientationSubmissionDescription, orientationToolName, reviewJsonSchema, reviewSubmissionDescription, reviewToolName,
@@ -66,7 +67,7 @@ export function constructReviewStep(value: unknown, environment: StepEnvironment
     ...(kind === 'design' && fromOrientation ? { oriented: request.guidance } : {}),
   });
   const limits = invocationLimits(inputs.limits, { absoluteMs: inputs.bounds.absoluteMs });
-  const tools = snapshotToolDeclarations();
+  const tools = [...snapshotToolDeclarations(), candidateShellDeclaration];
   const submission = { toolName: reviewToolName, description: reviewSubmissionDescription, inputSchema: reviewJsonSchema, submissionSchema: 'ramify-agent.review-submission/1' };
   const task = {
     kind, goal: `Review ${request.key.candidate}`, requirements: [JSON.stringify(request)],
