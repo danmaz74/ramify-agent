@@ -1,0 +1,2874 @@
+{
+  "schema": "harness-decomposition-final-metrics/1",
+  "source": {
+    "commit": "409c7de199b0919378a1cea86486724495764fec",
+    "tree": "adbad49b0577530b46942fe1f57d8e3439289d09",
+    "inventorySha256": "302a29c6c6003468629e9f4ceef9fb4d02e648afea957f87d6ab211b958db468",
+    "providerPins": {
+      "ramify-audit": "0.9.3",
+      "ramify.ts": "0.5.2"
+    }
+  },
+  "baselineSource": {
+    "commit": "85ed836c5b0e410bdd1a7b759a5ca89f0d85cee4",
+    "tree": "f70c9d0d52025f7a4f177406638b83c4e85cd20f",
+    "inventorySha256": "fa07ce8438e6482a33efdfdd6f2135e6c63a6c4416389757791918d67f7893d5",
+    "trackedChanges": "",
+    "providerPins": {
+      "ramify-audit": "0.9.3",
+      "ramify.ts": "0.5.2"
+    }
+  },
+  "sourceAuthentication": {
+    "measuredFilesVerifiedAgainstCommit": 1196,
+    "inventoryDigest": "66a20e583a7678d794e0df8dccb43e7adec9d02793c1476fcdc417ee007ba81e",
+    "trackedChangesDuringCollection": "",
+    "note": "Every measured source/resource/document/declaration file matched frozen Git bytes; any listed narrative changes are outside that inventory. Later evaluation narrative commits are outside measured source."
+  },
+  "producer": {
+    "collectorSha256": "8d2cc788b7e4e6543bbd19a99539ca9a3eefe49acbfa407285e30eca52ea3a66",
+    "python": "3.11.2",
+    "ramify": "0.5.2"
+  },
+  "commands": [
+    "Worker: npm run check:self -- --format json; npm wrapper stripped into /tmp/final-repair-check.json",
+    "node_modules/.bin/ramify measure --format json > /tmp/harness-decomposition-final-measure.json",
+    "node_modules/.bin/ramify affected --path subs/harness/subs/session-store/src/session-store.ts --format json > /tmp/harness-decomposition-final-affected-store.json",
+    "node_modules/.bin/ramify affected --path subs/harness/subs/assistance/src/service.ts --format json > /tmp/harness-decomposition-final-affected-assistance.json",
+    "python3 plans/harness-decomposition/evaluation/collect.py --root . --check /tmp/final-repair-check.json --measure /tmp/harness-decomposition-final-measure.json --affected /tmp/harness-decomposition-final-affected-store.json --compare plans/harness-decomposition/evaluation/execution-baseline.json > /tmp/harness-decomposition-final-summary.json",
+    "git cat-file --batch (all final measure file paths at frozen commit; byte equality/hash authentication)"
+  ],
+  "inputs": {
+    "check": {
+      "sha256": "9ef47dcdcd6c631e7105dcdaca48c44a672d3f554331706312908a508c4fb034",
+      "bytes": 86956964,
+      "inputId": "input/1:caa170fe759590ac55cf0025b82370e6be10465d28f3e7349c00ae7326c13c2c",
+      "schema": "ramify.analysis/3"
+    },
+    "measure": {
+      "sha256": "c4347d330e91aba2c30f64451eb2720b9987d934ed46b69cdce8b00514ca638a",
+      "bytes": 201898,
+      "revision": "rev/1:98401fa3-0bf0-4288-872c-8a6629b3b266:16",
+      "schema": "ramify.measure/2"
+    },
+    "affected": {
+      "sha256": "36de4737272b0c1a552fc4a0ee947ca2de14eac85a9299998375dd44b82c28a6",
+      "bytes": 332381,
+      "schema": "ramify.affected-cli/4"
+    },
+    "architectMeta": {
+      "schema": "ramify.architect-view/3",
+      "revision": "rev/1:98401fa3-0bf0-4288-872c-8a6629b3b266:16",
+      "input": "input/1:746b8cb0c5d562048f031e8651c7fa49c5ad36dc6e7d5bece56ba24d5e27a971",
+      "modules": 24,
+      "dependencies": "unavailable",
+      "dependencyReason": "resource-limit",
+      "dependencyScope": "production",
+      "testReferences": "unavailable",
+      "metrics": "measured",
+      "cut": 1602,
+      "detailsUnavailable": 21,
+      "dynamicTitles": 35,
+      "coverage": 5
+    }
+  },
+  "baselineSummary": {
+    "path": "evaluation/execution-baseline.json",
+    "sha256": "26d4ccacd4cf12e199d0703ea4f15885f875ec100fa4718204999df1796e1713",
+    "bytes": 818895
+  },
+  "units": {
+    "bytes": "raw file bytes",
+    "lines": "physical splitlines including comments/blanks",
+    "dependencies": "distinct directed production file pairs; application accesses only; includes types",
+    "originals": "distinct resolved original identities imported from other owners; not API exposure count",
+    "tests": "owned source files and direct testing imports; helpers included; not transitive reach",
+    "views": "measure buckets are producer context sizes; physical catalog bytes include metadata"
+  },
+  "coverage": {
+    "baseline": {
+      "checkOutcome": {
+        "execution": "completed",
+        "check": "passed",
+        "coverage": "partial"
+      },
+      "checkSummary": {
+        "complete": true,
+        "owners": 16,
+        "sourceFiles": 1002,
+        "resources": 97,
+        "originals": 4038,
+        "accesses": 19105,
+        "allowed": 14069,
+        "denied": 0,
+        "errors": 0,
+        "warnings": 0,
+        "coverageNotes": 458,
+        "external": 5030
+      },
+      "codes": {
+        "namespace-escape": 9,
+        "signature-inferred": 438,
+        "nonliteral-target": 6,
+        "shared-global": 5
+      },
+      "operationalBenefit": "unmeasured; structural counts do not establish effort, speed or token savings"
+    },
+    "final": {
+      "checkOutcome": {
+        "execution": "completed",
+        "check": "passed",
+        "coverage": "partial"
+      },
+      "checkSummary": {
+        "complete": true,
+        "owners": 24,
+        "sourceFiles": 1051,
+        "resources": 97,
+        "originals": 4159,
+        "accesses": 19581,
+        "allowed": 14508,
+        "denied": 0,
+        "errors": 0,
+        "warnings": 0,
+        "coverageNotes": 775,
+        "external": 5067
+      },
+      "codes": {
+        "namespace-escape": 9,
+        "signature-inferred": 755,
+        "nonliteral-target": 6,
+        "shared-global": 5
+      },
+      "operationalBenefit": "unmeasured; structural counts do not establish effort, speed or token savings"
+    }
+  },
+  "ownerCounts": {
+    "baseline": 16,
+    "final": 24
+  },
+  "addedOwners": [
+    "ramify-agent/harness/assistance",
+    "ramify-agent/harness/autonomous",
+    "ramify-agent/harness/autonomous/acceptance",
+    "ramify-agent/harness/autonomous/planning",
+    "ramify-agent/harness/autonomous/work-coordination",
+    "ramify-agent/harness/session-store",
+    "ramify-agent/harness/task-execution",
+    "ramify-agent/harness/task-workflow"
+  ],
+  "baselineHarness": {
+    "directory": "subs/harness",
+    "exact": {
+      "production": {
+        "sourceFiles": 223,
+        "sourceBytes": 3490588,
+        "resourceFiles": 39,
+        "resourceBytes": 194999
+      },
+      "tests": {
+        "sourceFiles": 424,
+        "sourceBytes": 5542743,
+        "resourceFiles": 27,
+        "resourceBytes": 248389
+      },
+      "documentation": {
+        "files": 2,
+        "bytes": 143601
+      },
+      "views": {
+        "ordinaryBytes": 220310,
+        "testsBytes": 223871
+      }
+    },
+    "productionLines": 60237,
+    "productionDependencies": {
+      "outboundFilePairs": 393,
+      "outboundValueOrSideEffectFilePairs": 220,
+      "externalDependencyFiles": 56,
+      "resolvedImportedOriginals": 310,
+      "unresolvedSelectionOccurrences": 0,
+      "inboundFilePairs": 226,
+      "externalConsumerFiles": 83,
+      "providerOwnerCount": 13,
+      "consumerOwnerCount": 6
+    },
+    "contracts": {
+      "declarationPath": "subs/harness/module.ramify",
+      "declarationSha256": "03f67e5cb7f47126b12106172f86fbbb0bff80467ae9e190cab4a36ddd29c383",
+      "symbols": {
+        "exposed": 90,
+        "internal": 1004,
+        "supporting": 1739,
+        "unknown": 0
+      }
+    },
+    "tests": {
+      "ownedSourceFiles": 424,
+      "directSourceConsumers": 409,
+      "directConsumersTouchingMultipleProductionOwners": 295
+    },
+    "apiCoverage": {
+      "ordinary": {
+        "state": "captured",
+        "coverage": 1,
+        "truncated": 4
+      },
+      "tests": {
+        "state": "captured",
+        "coverage": 28,
+        "truncated": 4
+      }
+    }
+  },
+  "harnessSubtreeTotals": {
+    "baseline": {
+      "production": {
+        "sourceFiles": 314,
+        "sourceBytes": 4681322,
+        "resourceFiles": 40,
+        "resourceBytes": 196604
+      },
+      "tests": {
+        "sourceFiles": 571,
+        "sourceBytes": 6868319,
+        "resourceFiles": 48,
+        "resourceBytes": 354388
+      },
+      "documentation": {
+        "files": 28,
+        "bytes": 229137
+      },
+      "views": {
+        "ordinaryBytes": 4084110,
+        "testsBytes": 4270698
+      }
+    },
+    "final": {
+      "production": {
+        "sourceFiles": 353,
+        "sourceBytes": 4808785,
+        "resourceFiles": 40,
+        "resourceBytes": 196604
+      },
+      "tests": {
+        "sourceFiles": 581,
+        "sourceBytes": 6967618,
+        "resourceFiles": 48,
+        "resourceBytes": 354388
+      },
+      "documentation": {
+        "files": 44,
+        "bytes": 335897
+      },
+      "views": {
+        "ordinaryBytes": 16002175,
+        "testsBytes": 17454486
+      }
+    }
+  },
+  "modules": {
+    "ramify-agent": {
+      "directory": "",
+      "exact": {
+        "production": {
+          "sourceFiles": 21,
+          "sourceBytes": 252199,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 17,
+          "sourceBytes": 110999,
+          "resourceFiles": 3,
+          "resourceBytes": 54558
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 53235
+        },
+        "views": {
+          "ordinaryBytes": 188652,
+          "testsBytes": 188649
+        }
+      },
+      "productionLines": 3720,
+      "productionDependencies": {
+        "outboundFilePairs": 30,
+        "outboundValueOrSideEffectFilePairs": 29,
+        "externalDependencyFiles": 17,
+        "resolvedImportedOriginals": 47,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 0,
+        "externalConsumerFiles": 0,
+        "providerOwnerCount": 6,
+        "consumerOwnerCount": 0
+      },
+      "contracts": {
+        "declarationPath": "module.ramify",
+        "declarationSha256": "af5cb988ceb1d504343b82c2ea6b11e69f96d7b5d424be5afed5f32acccf72ad",
+        "symbols": {
+          "exposed": 4,
+          "internal": 25,
+          "supporting": 34,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 17,
+        "directSourceConsumers": 7,
+        "directConsumersTouchingMultipleProductionOwners": 4
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 3
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 81,
+          "truncated": 3
+        }
+      }
+    },
+    "ramify-agent/harness": {
+      "directory": "subs/harness",
+      "exact": {
+        "production": {
+          "sourceFiles": 55,
+          "sourceBytes": 603785,
+          "resourceFiles": 39,
+          "resourceBytes": 194999
+        },
+        "tests": {
+          "sourceFiles": 284,
+          "sourceBytes": 3538168,
+          "resourceFiles": 27,
+          "resourceBytes": 248389
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 178165
+        },
+        "views": {
+          "ordinaryBytes": 663378,
+          "testsBytes": 698314
+        }
+      },
+      "productionLines": 11123,
+      "productionDependencies": {
+        "outboundFilePairs": 99,
+        "outboundValueOrSideEffectFilePairs": 61,
+        "externalDependencyFiles": 54,
+        "resolvedImportedOriginals": 162,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 467,
+        "externalConsumerFiles": 195,
+        "providerOwnerCount": 15,
+        "consumerOwnerCount": 13
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/module.ramify",
+        "declarationSha256": "529fa54c48dbaa9b594e0be07b51afd41f55a48ff5b7e6b1d91869aef9cd8d16",
+        "symbols": {
+          "exposed": 239,
+          "internal": 177,
+          "supporting": 854,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 284,
+        "directSourceConsumers": 254,
+        "directConsumersTouchingMultipleProductionOwners": 224
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 1,
+          "truncated": 14
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 28,
+          "truncated": 14
+        }
+      }
+    },
+    "ramify-agent/harness/agent": {
+      "directory": "subs/harness/subs/agent",
+      "exact": {
+        "production": {
+          "sourceFiles": 4,
+          "sourceBytes": 134684,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 7,
+          "sourceBytes": 181205,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 6575
+        },
+        "views": {
+          "ordinaryBytes": 709254,
+          "testsBytes": 776188
+        }
+      },
+      "productionLines": 2105,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 70,
+        "externalConsumerFiles": 54,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 11
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/agent/module.ramify",
+        "declarationSha256": "9a3869124795c60f5d96fe45757d7cecdb94495bb071a69f8d0dac915b889dc8",
+        "symbols": {
+          "exposed": 8,
+          "internal": 4,
+          "supporting": 94,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 7,
+        "directSourceConsumers": 127,
+        "directConsumersTouchingMultipleProductionOwners": 116
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 14
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 14
+        }
+      }
+    },
+    "ramify-agent/harness/agent/pi": {
+      "directory": "subs/harness/subs/agent/subs/pi",
+      "exact": {
+        "production": {
+          "sourceFiles": 5,
+          "sourceBytes": 80635,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 24,
+          "sourceBytes": 231136,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 10646
+        },
+        "views": {
+          "ordinaryBytes": 743290,
+          "testsBytes": 810224
+        }
+      },
+      "productionLines": 1040,
+      "productionDependencies": {
+        "outboundFilePairs": 7,
+        "outboundValueOrSideEffectFilePairs": 3,
+        "externalDependencyFiles": 3,
+        "resolvedImportedOriginals": 26,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 8,
+        "externalConsumerFiles": 7,
+        "providerOwnerCount": 1,
+        "consumerOwnerCount": 4
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/agent/subs/pi/module.ramify",
+        "declarationSha256": "9983d433d1cae464d2ce1dd175bd2fac02ab9ec8b74fd487dc59c29e9f1d6607",
+        "symbols": {
+          "exposed": 6,
+          "internal": 33,
+          "supporting": 20,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 24,
+        "directSourceConsumers": 22,
+        "directConsumersTouchingMultipleProductionOwners": 12
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/assistance": {
+      "directory": "subs/harness/subs/assistance",
+      "exact": {
+        "production": {
+          "sourceFiles": 13,
+          "sourceBytes": 158098,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 10,
+          "sourceBytes": 160671,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 1748
+        },
+        "views": {
+          "ordinaryBytes": 744159,
+          "testsBytes": 811093
+        }
+      },
+      "productionLines": 2212,
+      "productionDependencies": {
+        "outboundFilePairs": 60,
+        "outboundValueOrSideEffectFilePairs": 44,
+        "externalDependencyFiles": 37,
+        "resolvedImportedOriginals": 89,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 1,
+        "externalConsumerFiles": 1,
+        "providerOwnerCount": 12,
+        "consumerOwnerCount": 1
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/assistance/module.ramify",
+        "declarationSha256": "84291e93054a144cbd602c5b35da80c7c47833dd12be67a927e1b20374a4e6a2",
+        "symbols": {
+          "exposed": 1,
+          "internal": 31,
+          "supporting": 53,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 10,
+        "directSourceConsumers": 9,
+        "directConsumersTouchingMultipleProductionOwners": 7
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/audit": {
+      "directory": "subs/harness/subs/audit",
+      "exact": {
+        "production": {
+          "sourceFiles": 3,
+          "sourceBytes": 67240,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 7,
+          "sourceBytes": 67356,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 8739
+        },
+        "views": {
+          "ordinaryBytes": 732153,
+          "testsBytes": 799087
+        }
+      },
+      "productionLines": 1260,
+      "productionDependencies": {
+        "outboundFilePairs": 5,
+        "outboundValueOrSideEffectFilePairs": 3,
+        "externalDependencyFiles": 3,
+        "resolvedImportedOriginals": 8,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 20,
+        "externalConsumerFiles": 20,
+        "providerOwnerCount": 2,
+        "consumerOwnerCount": 5
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/audit/module.ramify",
+        "declarationSha256": "3ac78d711c3050220fb738b85566894c6ce73fa58a5606e04f8cefa1ad235e7a",
+        "symbols": {
+          "exposed": 6,
+          "internal": 7,
+          "supporting": 18,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 7,
+        "directSourceConsumers": 36,
+        "directConsumersTouchingMultipleProductionOwners": 33
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/autonomous": {
+      "directory": "subs/harness/subs/autonomous",
+      "exact": {
+        "production": {
+          "sourceFiles": 15,
+          "sourceBytes": 367328,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 9,
+          "sourceBytes": 177953,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 26298
+        },
+        "views": {
+          "ordinaryBytes": 843523,
+          "testsBytes": 929844
+        }
+      },
+      "productionLines": 6340,
+      "productionDependencies": {
+        "outboundFilePairs": 180,
+        "outboundValueOrSideEffectFilePairs": 145,
+        "externalDependencyFiles": 122,
+        "resolvedImportedOriginals": 354,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 133,
+        "externalConsumerFiles": 72,
+        "providerOwnerCount": 17,
+        "consumerOwnerCount": 8
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/autonomous/module.ramify",
+        "declarationSha256": "26ae529c7da75dbd759bfa69305f6881411cbfdc0ebd0d7db0df955b8ac0b6ae",
+        "symbols": {
+          "exposed": 37,
+          "internal": 5,
+          "supporting": 49,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 9,
+        "directSourceConsumers": 177,
+        "directConsumersTouchingMultipleProductionOwners": 171
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 18
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 18
+        }
+      }
+    },
+    "ramify-agent/harness/autonomous/acceptance": {
+      "directory": "subs/harness/subs/autonomous/subs/acceptance",
+      "exact": {
+        "production": {
+          "sourceFiles": 44,
+          "sourceBytes": 582527,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 45,
+          "sourceBytes": 548161,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 11058
+        },
+        "views": {
+          "ordinaryBytes": 701270,
+          "testsBytes": 766123
+        }
+      },
+      "productionLines": 10178,
+      "productionDependencies": {
+        "outboundFilePairs": 244,
+        "outboundValueOrSideEffectFilePairs": 146,
+        "externalDependencyFiles": 99,
+        "resolvedImportedOriginals": 299,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 121,
+        "externalConsumerFiles": 40,
+        "providerOwnerCount": 17,
+        "consumerOwnerCount": 7
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/autonomous/subs/acceptance/module.ramify",
+        "declarationSha256": "c4b26d0dadcc2a55897932af01d0c02e2e03f90dd27fa6a0aa4204aa096ce1c3",
+        "symbols": {
+          "exposed": 128,
+          "internal": 15,
+          "supporting": 234,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 45,
+        "directSourceConsumers": 115,
+        "directConsumersTouchingMultipleProductionOwners": 106
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 14
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 14
+        }
+      }
+    },
+    "ramify-agent/harness/autonomous/planning": {
+      "directory": "subs/harness/subs/autonomous/subs/planning",
+      "exact": {
+        "production": {
+          "sourceFiles": 11,
+          "sourceBytes": 92778,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 4,
+          "sourceBytes": 89160,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 2925
+        },
+        "views": {
+          "ordinaryBytes": 785944,
+          "testsBytes": 855421
+        }
+      },
+      "productionLines": 1626,
+      "productionDependencies": {
+        "outboundFilePairs": 56,
+        "outboundValueOrSideEffectFilePairs": 31,
+        "externalDependencyFiles": 23,
+        "resolvedImportedOriginals": 74,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 45,
+        "externalConsumerFiles": 32,
+        "providerOwnerCount": 9,
+        "consumerOwnerCount": 6
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/autonomous/subs/planning/module.ramify",
+        "declarationSha256": "4ec08fa96a1366f69583fb111a7ea43f1a7ce6e709615e010ea470c9a9a3c703",
+        "symbols": {
+          "exposed": 22,
+          "internal": 7,
+          "supporting": 57,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 4,
+        "directSourceConsumers": 46,
+        "directConsumersTouchingMultipleProductionOwners": 46
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 19
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 19
+        }
+      }
+    },
+    "ramify-agent/harness/autonomous/work-coordination": {
+      "directory": "subs/harness/subs/autonomous/subs/work-coordination",
+      "exact": {
+        "production": {
+          "sourceFiles": 68,
+          "sourceBytes": 1018239,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 44,
+          "sourceBytes": 647202,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 15786
+        },
+        "views": {
+          "ordinaryBytes": 669107,
+          "testsBytes": 729838
+        }
+      },
+      "productionLines": 17761,
+      "productionDependencies": {
+        "outboundFilePairs": 304,
+        "outboundValueOrSideEffectFilePairs": 182,
+        "externalDependencyFiles": 95,
+        "resolvedImportedOriginals": 339,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 218,
+        "externalConsumerFiles": 50,
+        "providerOwnerCount": 16,
+        "consumerOwnerCount": 7
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/autonomous/subs/work-coordination/module.ramify",
+        "declarationSha256": "dcdcf2252d1830615b022ff756cdad197e4bd92ac361b9991a67b3e123d6c0cc",
+        "symbols": {
+          "exposed": 220,
+          "internal": 70,
+          "supporting": 326,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 44,
+        "directSourceConsumers": 132,
+        "directConsumersTouchingMultipleProductionOwners": 123
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 16
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 16
+        }
+      }
+    },
+    "ramify-agent/harness/check-findings": {
+      "directory": "subs/harness/subs/check-findings",
+      "exact": {
+        "production": {
+          "sourceFiles": 7,
+          "sourceBytes": 82273,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 9,
+          "sourceBytes": 91947,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 7497
+        },
+        "views": {
+          "ordinaryBytes": 716062,
+          "testsBytes": 782996
+        }
+      },
+      "productionLines": 1628,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 43,
+        "externalConsumerFiles": 32,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 8
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/check-findings/module.ramify",
+        "declarationSha256": "107dfe7a405fbc28b22cd8e36927562690dc111b4ad1107ecfc42e9bc91aa079",
+        "symbols": {
+          "exposed": 5,
+          "internal": 39,
+          "supporting": 122,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 9,
+        "directSourceConsumers": 23,
+        "directConsumersTouchingMultipleProductionOwners": 15
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 14
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 14
+        }
+      }
+    },
+    "ramify-agent/harness/evidence": {
+      "directory": "subs/harness/subs/evidence",
+      "exact": {
+        "production": {
+          "sourceFiles": 15,
+          "sourceBytes": 170245,
+          "resourceFiles": 1,
+          "resourceBytes": 1605
+        },
+        "tests": {
+          "sourceFiles": 24,
+          "sourceBytes": 145950,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 16930
+        },
+        "views": {
+          "ordinaryBytes": 708295,
+          "testsBytes": 773458
+        }
+      },
+      "productionLines": 3074,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 165,
+        "externalConsumerFiles": 90,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 12
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/evidence/module.ramify",
+        "declarationSha256": "eed7b5413e761ae6c604ec282ebc1a6b20c1ecef720293a1d250c6db2df2b408",
+        "symbols": {
+          "exposed": 66,
+          "internal": 15,
+          "supporting": 60,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 24,
+        "directSourceConsumers": 148,
+        "directConsumersTouchingMultipleProductionOwners": 109
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 39,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 82,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/kpi": {
+      "directory": "subs/harness/subs/kpi",
+      "exact": {
+        "production": {
+          "sourceFiles": 13,
+          "sourceBytes": 114262,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 13,
+          "sourceBytes": 116353,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 10261
+        },
+        "views": {
+          "ordinaryBytes": 716290,
+          "testsBytes": 783224
+        }
+      },
+      "productionLines": 1844,
+      "productionDependencies": {
+        "outboundFilePairs": 22,
+        "outboundValueOrSideEffectFilePairs": 8,
+        "externalDependencyFiles": 12,
+        "resolvedImportedOriginals": 32,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 34,
+        "externalConsumerFiles": 15,
+        "providerOwnerCount": 4,
+        "consumerOwnerCount": 9
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/kpi/module.ramify",
+        "declarationSha256": "226d22e75d6c2d7c112a8393ad91899259ca6b45d4f8a4aa7132ee59bf07573c",
+        "symbols": {
+          "exposed": 30,
+          "internal": 9,
+          "supporting": 48,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 13,
+        "directSourceConsumers": 33,
+        "directConsumersTouchingMultipleProductionOwners": 25
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/ledger": {
+      "directory": "subs/harness/subs/ledger",
+      "exact": {
+        "production": {
+          "sourceFiles": 5,
+          "sourceBytes": 30016,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 15,
+          "sourceBytes": 66613,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 4867
+        },
+        "views": {
+          "ordinaryBytes": 736186,
+          "testsBytes": 803120
+        }
+      },
+      "productionLines": 792,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 38,
+        "externalConsumerFiles": 32,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 9
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/ledger/module.ramify",
+        "declarationSha256": "845f7bef2c8e29e4e4e480a9291e6ea3067fc606cbded9b443a12038e3bbb1bb",
+        "symbols": {
+          "exposed": 11,
+          "internal": 8,
+          "supporting": 18,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 15,
+        "directSourceConsumers": 15,
+        "directConsumersTouchingMultipleProductionOwners": 8
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/nonfunctional": {
+      "directory": "subs/harness/subs/nonfunctional",
+      "exact": {
+        "production": {
+          "sourceFiles": 2,
+          "sourceBytes": 9213,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 2,
+          "sourceBytes": 11538,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 487
+        },
+        "views": {
+          "ordinaryBytes": 740164,
+          "testsBytes": 807098
+        }
+      },
+      "productionLines": 187,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 16,
+        "externalConsumerFiles": 12,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 4
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/nonfunctional/module.ramify",
+        "declarationSha256": "541430beca46b034c7113180073d23a5a9467582805d99f5e7039501d63fad2b",
+        "symbols": {
+          "exposed": 4,
+          "internal": 0,
+          "supporting": 11,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 2,
+        "directSourceConsumers": 6,
+        "directConsumersTouchingMultipleProductionOwners": 4
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/plan-evidence": {
+      "directory": "subs/harness/subs/plan-evidence",
+      "exact": {
+        "production": {
+          "sourceFiles": 3,
+          "sourceBytes": 36954,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 4,
+          "sourceBytes": 30479,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 836
+        },
+        "views": {
+          "ordinaryBytes": 732233,
+          "testsBytes": 799167
+        }
+      },
+      "productionLines": 730,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 41,
+        "externalConsumerFiles": 32,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 8
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/plan-evidence/module.ramify",
+        "declarationSha256": "ab8a87b4f55f887a7bb2c9914fa3c670550a64177efe91f09d33fe0cd92cff3c",
+        "symbols": {
+          "exposed": 11,
+          "internal": 0,
+          "supporting": 37,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 4,
+        "directSourceConsumers": 23,
+        "directConsumersTouchingMultipleProductionOwners": 19
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/projections": {
+      "directory": "subs/harness/subs/projections",
+      "exact": {
+        "production": {
+          "sourceFiles": 23,
+          "sourceBytes": 355243,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 31,
+          "sourceBytes": 296575,
+          "resourceFiles": 15,
+          "resourceBytes": 101206
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 8086
+        },
+        "views": {
+          "ordinaryBytes": 738756,
+          "testsBytes": 805690
+        }
+      },
+      "productionLines": 6026,
+      "productionDependencies": {
+        "outboundFilePairs": 149,
+        "outboundValueOrSideEffectFilePairs": 109,
+        "externalDependencyFiles": 75,
+        "resolvedImportedOriginals": 272,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 7,
+        "externalConsumerFiles": 3,
+        "providerOwnerCount": 14,
+        "consumerOwnerCount": 2
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/projections/module.ramify",
+        "declarationSha256": "3bab497319f8aac313138e6d364c008da414e66f01d84103a0f76cdd18a259cc",
+        "symbols": {
+          "exposed": 7,
+          "internal": 70,
+          "supporting": 40,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 31,
+        "directSourceConsumers": 73,
+        "directConsumersTouchingMultipleProductionOwners": 70
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 14
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 74,
+          "truncated": 14
+        }
+      }
+    },
+    "ramify-agent/harness/recovery": {
+      "directory": "subs/harness/subs/recovery",
+      "exact": {
+        "production": {
+          "sourceFiles": 1,
+          "sourceBytes": 3189,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 1,
+          "sourceBytes": 2264,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 1433
+        },
+        "views": {
+          "ordinaryBytes": 742369,
+          "testsBytes": 809303
+        }
+      },
+      "productionLines": 55,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 3,
+        "externalConsumerFiles": 3,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 3
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/recovery/module.ramify",
+        "declarationSha256": "a326789dc62828bbafda01f4683e47aa9f35302d7952a0f23f36a03b002284ad",
+        "symbols": {
+          "exposed": 5,
+          "internal": 0,
+          "supporting": 2,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 1,
+        "directSourceConsumers": 1,
+        "directConsumersTouchingMultipleProductionOwners": 0
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/reviews": {
+      "directory": "subs/harness/subs/reviews",
+      "exact": {
+        "production": {
+          "sourceFiles": 13,
+          "sourceBytes": 106638,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 4,
+          "sourceBytes": 42021,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 3388
+        },
+        "views": {
+          "ordinaryBytes": 720410,
+          "testsBytes": 787344
+        }
+      },
+      "productionLines": 1918,
+      "productionDependencies": {
+        "outboundFilePairs": 28,
+        "outboundValueOrSideEffectFilePairs": 13,
+        "externalDependencyFiles": 10,
+        "resolvedImportedOriginals": 43,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 45,
+        "externalConsumerFiles": 20,
+        "providerOwnerCount": 7,
+        "consumerOwnerCount": 6
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/reviews/module.ramify",
+        "declarationSha256": "d245133baa2d22eb2e8024ebdf6916624a4078f8a33b2578dce79f8b14ff4076",
+        "symbols": {
+          "exposed": 22,
+          "internal": 6,
+          "supporting": 61,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 4,
+        "directSourceConsumers": 28,
+        "directConsumersTouchingMultipleProductionOwners": 25
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/scenarios": {
+      "directory": "subs/harness/subs/scenarios",
+      "exact": {
+        "production": {
+          "sourceFiles": 6,
+          "sourceBytes": 57466,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 7,
+          "sourceBytes": 52458,
+          "resourceFiles": 6,
+          "resourceBytes": 4793
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 7453
+        },
+        "views": {
+          "ordinaryBytes": 730729,
+          "testsBytes": 797663
+        }
+      },
+      "productionLines": 1172,
+      "productionDependencies": {
+        "outboundFilePairs": 0,
+        "outboundValueOrSideEffectFilePairs": 0,
+        "externalDependencyFiles": 0,
+        "resolvedImportedOriginals": 0,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 37,
+        "externalConsumerFiles": 23,
+        "providerOwnerCount": 0,
+        "consumerOwnerCount": 6
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/scenarios/module.ramify",
+        "declarationSha256": "8607daa5dbd48299e3de71d446a616eee79ce9014fac3e5a2fa5a450f1a552cc",
+        "symbols": {
+          "exposed": 18,
+          "internal": 12,
+          "supporting": 47,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 7,
+        "directSourceConsumers": 22,
+        "directConsumersTouchingMultipleProductionOwners": 17
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 77,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/session-store": {
+      "directory": "subs/harness/subs/session-store",
+      "exact": {
+        "production": {
+          "sourceFiles": 1,
+          "sourceBytes": 22661,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 7,
+          "sourceBytes": 71227,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 1433
+        },
+        "views": {
+          "ordinaryBytes": 743531,
+          "testsBytes": 810465
+        }
+      },
+      "productionLines": 406,
+      "productionDependencies": {
+        "outboundFilePairs": 4,
+        "outboundValueOrSideEffectFilePairs": 4,
+        "externalDependencyFiles": 4,
+        "resolvedImportedOriginals": 10,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 4,
+        "externalConsumerFiles": 4,
+        "providerOwnerCount": 3,
+        "consumerOwnerCount": 3
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/session-store/module.ramify",
+        "declarationSha256": "babfd35835c942806416946c4970a083588cc87f4b10a8d15c99f18679da6248",
+        "symbols": {
+          "exposed": 3,
+          "internal": 0,
+          "supporting": 2,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 7,
+        "directSourceConsumers": 13,
+        "directConsumersTouchingMultipleProductionOwners": 11
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/task-execution": {
+      "directory": "subs/harness/subs/task-execution",
+      "exact": {
+        "production": {
+          "sourceFiles": 20,
+          "sourceBytes": 217369,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 10,
+          "sourceBytes": 85042,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 6438
+        },
+        "views": {
+          "ordinaryBytes": 691340,
+          "testsBytes": 758160
+        }
+      },
+      "productionLines": 3941,
+      "productionDependencies": {
+        "outboundFilePairs": 38,
+        "outboundValueOrSideEffectFilePairs": 19,
+        "externalDependencyFiles": 19,
+        "resolvedImportedOriginals": 66,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 166,
+        "externalConsumerFiles": 93,
+        "providerOwnerCount": 7,
+        "consumerOwnerCount": 10
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/task-execution/module.ramify",
+        "declarationSha256": "4b62513abbb4e083e58f61773630416b37811c9856b826f89e348cdb21f1b80a",
+        "symbols": {
+          "exposed": 53,
+          "internal": 4,
+          "supporting": 105,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 10,
+        "directSourceConsumers": 114,
+        "directConsumersTouchingMultipleProductionOwners": 110
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 15
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 15
+        }
+      }
+    },
+    "ramify-agent/harness/task-workflow": {
+      "directory": "subs/harness/subs/task-workflow",
+      "exact": {
+        "production": {
+          "sourceFiles": 26,
+          "sourceBytes": 497942,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "tests": {
+          "sourceFiles": 20,
+          "sourceBytes": 314139,
+          "resourceFiles": 0,
+          "resourceBytes": 0
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 4848
+        },
+        "views": {
+          "ordinaryBytes": 693732,
+          "testsBytes": 760666
+        }
+      },
+      "productionLines": 7697,
+      "productionDependencies": {
+        "outboundFilePairs": 419,
+        "outboundValueOrSideEffectFilePairs": 327,
+        "externalDependencyFiles": 138,
+        "resolvedImportedOriginals": 394,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 24,
+        "externalConsumerFiles": 11,
+        "providerOwnerCount": 17,
+        "consumerOwnerCount": 6
+      },
+      "contracts": {
+        "declarationPath": "subs/harness/subs/task-workflow/module.ramify",
+        "declarationSha256": "f42143fdcc67ae34b6d11797c863f350a16856f8015f5692f9e594679e2e2d1d",
+        "symbols": {
+          "exposed": 44,
+          "internal": 62,
+          "supporting": 110,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 20,
+        "directSourceConsumers": 32,
+        "directConsumersTouchingMultipleProductionOwners": 32
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 12
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 83,
+          "truncated": 12
+        }
+      }
+    },
+    "ramify-agent/web": {
+      "directory": "subs/web",
+      "exact": {
+        "production": {
+          "sourceFiles": 43,
+          "sourceBytes": 498663,
+          "resourceFiles": 1,
+          "resourceBytes": 56077
+        },
+        "tests": {
+          "sourceFiles": 36,
+          "sourceBytes": 477709,
+          "resourceFiles": 5,
+          "resourceBytes": 1437
+        },
+        "documentation": {
+          "files": 2,
+          "bytes": 9124
+        },
+        "views": {
+          "ordinaryBytes": 125674,
+          "testsBytes": 127073
+        }
+      },
+      "productionLines": 8504,
+      "productionDependencies": {
+        "outboundFilePairs": 61,
+        "outboundValueOrSideEffectFilePairs": 13,
+        "externalDependencyFiles": 11,
+        "resolvedImportedOriginals": 154,
+        "unresolvedSelectionOccurrences": 0,
+        "inboundFilePairs": 0,
+        "externalConsumerFiles": 0,
+        "providerOwnerCount": 1,
+        "consumerOwnerCount": 0
+      },
+      "contracts": {
+        "declarationPath": "subs/web/module.ramify",
+        "declarationSha256": "77d797a238663e3810497e247eded2313a6ca0fedd4065431753627831dfd226",
+        "symbols": {
+          "exposed": 0,
+          "internal": 142,
+          "supporting": 66,
+          "unknown": 0
+        }
+      },
+      "tests": {
+        "ownedSourceFiles": 36,
+        "directSourceConsumers": 30,
+        "directConsumersTouchingMultipleProductionOwners": 24
+      },
+      "apiCoverage": {
+        "ordinary": {
+          "state": "captured",
+          "coverage": 40,
+          "truncated": 2
+        },
+        "tests": {
+          "state": "captured",
+          "coverage": 73,
+          "truncated": 2
+        }
+      }
+    }
+  },
+  "moduleEdgeOwners": [
+    "ramify-agent",
+    "ramify-agent/harness",
+    "ramify-agent/harness/agent",
+    "ramify-agent/harness/agent/pi",
+    "ramify-agent/harness/assistance",
+    "ramify-agent/harness/audit",
+    "ramify-agent/harness/autonomous",
+    "ramify-agent/harness/autonomous/acceptance",
+    "ramify-agent/harness/autonomous/planning",
+    "ramify-agent/harness/autonomous/work-coordination",
+    "ramify-agent/harness/check-findings",
+    "ramify-agent/harness/evidence",
+    "ramify-agent/harness/kpi",
+    "ramify-agent/harness/ledger",
+    "ramify-agent/harness/nonfunctional",
+    "ramify-agent/harness/plan-evidence",
+    "ramify-agent/harness/projections",
+    "ramify-agent/harness/recovery",
+    "ramify-agent/harness/reviews",
+    "ramify-agent/harness/scenarios",
+    "ramify-agent/harness/session-store",
+    "ramify-agent/harness/task-execution",
+    "ramify-agent/harness/task-workflow",
+    "ramify-agent/web"
+  ],
+  "moduleEdges": [
+    [
+      0,
+      1,
+      23
+    ],
+    [
+      0,
+      4,
+      1
+    ],
+    [
+      0,
+      6,
+      1
+    ],
+    [
+      0,
+      9,
+      1
+    ],
+    [
+      0,
+      12,
+      1
+    ],
+    [
+      0,
+      22,
+      3
+    ],
+    [
+      1,
+      2,
+      13
+    ],
+    [
+      1,
+      3,
+      3
+    ],
+    [
+      1,
+      5,
+      2
+    ],
+    [
+      1,
+      6,
+      9
+    ],
+    [
+      1,
+      7,
+      7
+    ],
+    [
+      1,
+      8,
+      4
+    ],
+    [
+      1,
+      9,
+      8
+    ],
+    [
+      1,
+      10,
+      9
+    ],
+    [
+      1,
+      11,
+      18
+    ],
+    [
+      1,
+      13,
+      8
+    ],
+    [
+      1,
+      16,
+      6
+    ],
+    [
+      1,
+      18,
+      2
+    ],
+    [
+      1,
+      20,
+      2
+    ],
+    [
+      1,
+      21,
+      6
+    ],
+    [
+      1,
+      22,
+      2
+    ],
+    [
+      3,
+      2,
+      7
+    ],
+    [
+      4,
+      1,
+      20
+    ],
+    [
+      4,
+      2,
+      6
+    ],
+    [
+      4,
+      3,
+      1
+    ],
+    [
+      4,
+      5,
+      1
+    ],
+    [
+      4,
+      7,
+      1
+    ],
+    [
+      4,
+      10,
+      8
+    ],
+    [
+      4,
+      11,
+      6
+    ],
+    [
+      4,
+      13,
+      2
+    ],
+    [
+      4,
+      15,
+      2
+    ],
+    [
+      4,
+      18,
+      11
+    ],
+    [
+      4,
+      20,
+      1
+    ],
+    [
+      4,
+      21,
+      1
+    ],
+    [
+      5,
+      7,
+      2
+    ],
+    [
+      5,
+      11,
+      3
+    ],
+    [
+      6,
+      1,
+      50
+    ],
+    [
+      6,
+      2,
+      1
+    ],
+    [
+      6,
+      5,
+      2
+    ],
+    [
+      6,
+      7,
+      24
+    ],
+    [
+      6,
+      8,
+      10
+    ],
+    [
+      6,
+      9,
+      34
+    ],
+    [
+      6,
+      10,
+      4
+    ],
+    [
+      6,
+      11,
+      10
+    ],
+    [
+      6,
+      12,
+      5
+    ],
+    [
+      6,
+      13,
+      6
+    ],
+    [
+      6,
+      14,
+      2
+    ],
+    [
+      6,
+      15,
+      4
+    ],
+    [
+      6,
+      17,
+      1
+    ],
+    [
+      6,
+      18,
+      1
+    ],
+    [
+      6,
+      19,
+      7
+    ],
+    [
+      6,
+      21,
+      15
+    ],
+    [
+      6,
+      22,
+      4
+    ],
+    [
+      7,
+      1,
+      55
+    ],
+    [
+      7,
+      2,
+      3
+    ],
+    [
+      7,
+      5,
+      8
+    ],
+    [
+      7,
+      6,
+      30
+    ],
+    [
+      7,
+      8,
+      3
+    ],
+    [
+      7,
+      9,
+      40
+    ],
+    [
+      7,
+      10,
+      12
+    ],
+    [
+      7,
+      11,
+      24
+    ],
+    [
+      7,
+      12,
+      2
+    ],
+    [
+      7,
+      13,
+      3
+    ],
+    [
+      7,
+      14,
+      11
+    ],
+    [
+      7,
+      15,
+      8
+    ],
+    [
+      7,
+      17,
+      1
+    ],
+    [
+      7,
+      18,
+      18
+    ],
+    [
+      7,
+      19,
+      6
+    ],
+    [
+      7,
+      21,
+      17
+    ],
+    [
+      7,
+      22,
+      3
+    ],
+    [
+      8,
+      1,
+      13
+    ],
+    [
+      8,
+      2,
+      3
+    ],
+    [
+      8,
+      6,
+      6
+    ],
+    [
+      8,
+      9,
+      2
+    ],
+    [
+      8,
+      11,
+      3
+    ],
+    [
+      8,
+      12,
+      2
+    ],
+    [
+      8,
+      15,
+      12
+    ],
+    [
+      8,
+      19,
+      9
+    ],
+    [
+      8,
+      21,
+      6
+    ],
+    [
+      9,
+      1,
+      91
+    ],
+    [
+      9,
+      2,
+      10
+    ],
+    [
+      9,
+      6,
+      27
+    ],
+    [
+      9,
+      7,
+      30
+    ],
+    [
+      9,
+      8,
+      17
+    ],
+    [
+      9,
+      10,
+      1
+    ],
+    [
+      9,
+      11,
+      35
+    ],
+    [
+      9,
+      12,
+      6
+    ],
+    [
+      9,
+      13,
+      5
+    ],
+    [
+      9,
+      14,
+      1
+    ],
+    [
+      9,
+      15,
+      11
+    ],
+    [
+      9,
+      16,
+      1
+    ],
+    [
+      9,
+      18,
+      3
+    ],
+    [
+      9,
+      19,
+      11
+    ],
+    [
+      9,
+      21,
+      44
+    ],
+    [
+      9,
+      22,
+      11
+    ],
+    [
+      12,
+      1,
+      6
+    ],
+    [
+      12,
+      6,
+      1
+    ],
+    [
+      12,
+      11,
+      8
+    ],
+    [
+      12,
+      21,
+      7
+    ],
+    [
+      16,
+      1,
+      36
+    ],
+    [
+      16,
+      6,
+      23
+    ],
+    [
+      16,
+      7,
+      25
+    ],
+    [
+      16,
+      8,
+      8
+    ],
+    [
+      16,
+      9,
+      19
+    ],
+    [
+      16,
+      10,
+      2
+    ],
+    [
+      16,
+      11,
+      3
+    ],
+    [
+      16,
+      12,
+      11
+    ],
+    [
+      16,
+      13,
+      1
+    ],
+    [
+      16,
+      14,
+      2
+    ],
+    [
+      16,
+      15,
+      2
+    ],
+    [
+      16,
+      19,
+      2
+    ],
+    [
+      16,
+      21,
+      14
+    ],
+    [
+      16,
+      22,
+      1
+    ],
+    [
+      18,
+      1,
+      1
+    ],
+    [
+      18,
+      2,
+      3
+    ],
+    [
+      18,
+      10,
+      5
+    ],
+    [
+      18,
+      11,
+      13
+    ],
+    [
+      18,
+      12,
+      1
+    ],
+    [
+      18,
+      15,
+      1
+    ],
+    [
+      18,
+      21,
+      4
+    ],
+    [
+      20,
+      1,
+      1
+    ],
+    [
+      20,
+      2,
+      1
+    ],
+    [
+      20,
+      13,
+      2
+    ],
+    [
+      21,
+      1,
+      16
+    ],
+    [
+      21,
+      2,
+      11
+    ],
+    [
+      21,
+      3,
+      1
+    ],
+    [
+      21,
+      11,
+      2
+    ],
+    [
+      21,
+      12,
+      3
+    ],
+    [
+      21,
+      13,
+      4
+    ],
+    [
+      21,
+      20,
+      1
+    ],
+    [
+      22,
+      1,
+      94
+    ],
+    [
+      22,
+      2,
+      12
+    ],
+    [
+      22,
+      3,
+      3
+    ],
+    [
+      22,
+      5,
+      7
+    ],
+    [
+      22,
+      6,
+      36
+    ],
+    [
+      22,
+      7,
+      32
+    ],
+    [
+      22,
+      8,
+      3
+    ],
+    [
+      22,
+      9,
+      114
+    ],
+    [
+      22,
+      10,
+      2
+    ],
+    [
+      22,
+      11,
+      40
+    ],
+    [
+      22,
+      12,
+      3
+    ],
+    [
+      22,
+      13,
+      7
+    ],
+    [
+      22,
+      15,
+      1
+    ],
+    [
+      22,
+      17,
+      1
+    ],
+    [
+      22,
+      18,
+      10
+    ],
+    [
+      22,
+      19,
+      2
+    ],
+    [
+      22,
+      21,
+      52
+    ],
+    [
+      23,
+      1,
+      61
+    ]
+  ],
+  "moduleEdgeUnits": "[consumerOwnerIndex, providerOwnerIndex, distinct directed production file pairs]; indices address moduleEdgeOwners",
+  "affected": {
+    "baselineStore": {
+      "selection": "all-modules",
+      "selectedTestOwnerCount": 16,
+      "widening": [
+        "partial-coverage"
+      ]
+    },
+    "finalStore": {
+      "sha256": "36de4737272b0c1a552fc4a0ee947ca2de14eac85a9299998375dd44b82c28a6",
+      "bytes": 332381,
+      "schema": "ramify.affected-cli/4",
+      "revision": {
+        "sequence": 16,
+        "inputId": "input/1:746b8cb0c5d562048f031e8651c7fa49c5ad36dc6e7d5bece56ba24d5e27a971"
+      },
+      "paths": [
+        {
+          "path": "subs/harness/subs/session-store/src/session-store.ts",
+          "status": "owned",
+          "module": "ramify-agent/harness/session-store",
+          "basis": "inventory",
+          "exclusion": null,
+          "kind": "source-area",
+          "selects": [
+            "ramify-agent/harness/session-store"
+          ]
+        }
+      ],
+      "changedModules": [
+        {
+          "id": "ramify-agent/harness/session-store",
+          "directory": "subs/harness/subs/session-store"
+        }
+      ],
+      "affectedOwnerCount": 16,
+      "selectedTestOwnerCount": 24,
+      "selectedTestOwners": [
+        "ramify-agent",
+        "ramify-agent/harness",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/agent/pi",
+        "ramify-agent/harness/assistance",
+        "ramify-agent/harness/audit",
+        "ramify-agent/harness/autonomous",
+        "ramify-agent/harness/autonomous/acceptance",
+        "ramify-agent/harness/autonomous/planning",
+        "ramify-agent/harness/autonomous/work-coordination",
+        "ramify-agent/harness/check-findings",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/kpi",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/nonfunctional",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/projections",
+        "ramify-agent/harness/recovery",
+        "ramify-agent/harness/reviews",
+        "ramify-agent/harness/scenarios",
+        "ramify-agent/harness/session-store",
+        "ramify-agent/harness/task-execution",
+        "ramify-agent/harness/task-workflow",
+        "ramify-agent/web"
+      ],
+      "selection": "all-modules",
+      "widening": [
+        "partial-coverage"
+      ]
+    },
+    "finalAssistance": {
+      "sha256": "0568c4d729a38f3210ed4cd68725a0c48d0940471b9aa9c0b7d0e820298f9eb9",
+      "bytes": 332366,
+      "schema": "ramify.affected-cli/4",
+      "revision": {
+        "sequence": 16,
+        "inputId": "input/1:746b8cb0c5d562048f031e8651c7fa49c5ad36dc6e7d5bece56ba24d5e27a971"
+      },
+      "paths": [
+        {
+          "path": "subs/harness/subs/assistance/src/service.ts",
+          "status": "owned",
+          "module": "ramify-agent/harness/assistance",
+          "basis": "inventory",
+          "exclusion": null,
+          "kind": "source-area",
+          "selects": [
+            "ramify-agent/harness/assistance"
+          ]
+        }
+      ],
+      "changedModules": [
+        {
+          "id": "ramify-agent/harness/assistance",
+          "directory": "subs/harness/subs/assistance"
+        }
+      ],
+      "affectedOwnerCount": 16,
+      "selectedTestOwnerCount": 24,
+      "selectedTestOwners": [
+        "ramify-agent",
+        "ramify-agent/harness",
+        "ramify-agent/harness/agent",
+        "ramify-agent/harness/agent/pi",
+        "ramify-agent/harness/assistance",
+        "ramify-agent/harness/audit",
+        "ramify-agent/harness/autonomous",
+        "ramify-agent/harness/autonomous/acceptance",
+        "ramify-agent/harness/autonomous/planning",
+        "ramify-agent/harness/autonomous/work-coordination",
+        "ramify-agent/harness/check-findings",
+        "ramify-agent/harness/evidence",
+        "ramify-agent/harness/kpi",
+        "ramify-agent/harness/ledger",
+        "ramify-agent/harness/nonfunctional",
+        "ramify-agent/harness/plan-evidence",
+        "ramify-agent/harness/projections",
+        "ramify-agent/harness/recovery",
+        "ramify-agent/harness/reviews",
+        "ramify-agent/harness/scenarios",
+        "ramify-agent/harness/session-store",
+        "ramify-agent/harness/task-execution",
+        "ramify-agent/harness/task-workflow",
+        "ramify-agent/web"
+      ],
+      "selection": "all-modules",
+      "widening": [
+        "partial-coverage"
+      ]
+    }
+  },
+  "observations": {
+    "iterationStartToCandidateWindows": [
+      {
+        "iteration": 2,
+        "iterationId": "it-704ef82c-6861-430e-837e-edfa0e931af5",
+        "startedAt": "2026-10-19T09:31:19.905Z",
+        "candidate": "0297b979be5378faca81834655ef02a4aaf77e94",
+        "candidateCommittedAt": "2026-10-19T09:43:11+00:00",
+        "startToCandidateElapsedSeconds": 711.095,
+        "startRecordSha256": "c3f61b7b1c0366e3038b4cba64bf94deea27013b98b87a7a8f98862b4f39a2e3",
+        "candidateRole": "accepted native outcome candidate",
+        "nativeReviewObservations": {
+          "passes": 1,
+          "selectedMaterialRepairs": 0
+        }
+      },
+      {
+        "iteration": 3,
+        "iterationId": "it-7d0f5bcf-ab1e-4fe4-a5fc-2dfa4226058a",
+        "startedAt": "2026-10-19T09:44:48.280Z",
+        "candidate": "a4e0a85b36b14d4984547a881d4197c204794058",
+        "candidateCommittedAt": "2026-10-19T10:07:00+00:00",
+        "startToCandidateElapsedSeconds": 1331.72,
+        "startRecordSha256": "83d5d342e33550c14b231c5f9b41214b8e7b2a7226a0bc78f31b5daf968770ae",
+        "candidateRole": "accepted native outcome candidate",
+        "nativeReviewObservations": {
+          "passes": 1,
+          "selectedMaterialRepairs": 0
+        }
+      },
+      {
+        "iteration": 4,
+        "iterationId": "it-ee290e1c-c2a5-4f0c-8473-813a9d77f133",
+        "startedAt": "2026-10-19T10:09:03.812Z",
+        "candidate": "5b5aa2a6db3e6907626eeed7f7189e719dfed414",
+        "candidateCommittedAt": "2026-10-19T10:30:59+00:00",
+        "startToCandidateElapsedSeconds": 1315.188,
+        "startRecordSha256": "7445211c0d0b7b07dfb3946ea232dc9e5cf98923bc3e8964f33375926794b2a7",
+        "candidateRole": "accepted native outcome candidate",
+        "nativeReviewObservations": {
+          "passes": 1,
+          "selectedMaterialRepairs": 0
+        }
+      },
+      {
+        "iteration": 5,
+        "iterationId": "it-ca671cd9-52f3-47f4-9204-4691beed720c",
+        "startedAt": "2026-10-19T10:33:01.854Z",
+        "candidate": "3ab42019436468f267ae794624eba54a646ab90f",
+        "candidateCommittedAt": "2026-10-19T11:19:39+00:00",
+        "startToCandidateElapsedSeconds": 2797.146,
+        "startRecordSha256": "1adbd31c8a826852a20671a3d4649233c1ba2dafb9488b1ef697b79672507ecf",
+        "candidateRole": "accepted native outcome candidate",
+        "nativeReviewObservations": {
+          "passes": 1,
+          "selectedMaterialRepairs": 2
+        }
+      },
+      {
+        "iteration": 6,
+        "iterationId": "it-788200bf-c0bf-4c81-a86b-9a19e41f69de",
+        "startedAt": "2026-10-19T11:20:36.006Z",
+        "candidate": "409c7de199b0919378a1cea86486724495764fec",
+        "candidateCommittedAt": "2026-10-19T12:33:22+00:00",
+        "startToCandidateElapsedSeconds": 4365.994,
+        "startRecordSha256": "f6608ce699073e449f6b3bd90ca306b6a29d721f3cbbdd08dbe90382a1b73087",
+        "candidateRole": "repaired implementation candidate; final audit pending",
+        "nativeReviewObservations": {
+          "passes": 1,
+          "selectedMaterialRepairs": 2,
+          "reviewedCandidate": "775fba74613f8210df4f4db6b73dfa73161cb414",
+          "repairStatus": "Both selected boundary repairs implemented and focused-verified; no repeat broad review"
+        }
+      }
+    ],
+    "historicalAssessments": [
+      {
+        "id": "as-0001",
+        "revision": 8,
+        "recordSha256": "32289b0789205c91d208bb43381e1d0e0ebd0eb6db56efc1a199225512e8923b",
+        "candidate": "7e399e6b13ada2214b41a82c6eddfb03636da953",
+        "requestedAt": "2026-10-19T07:06:01.651Z",
+        "completedAt": "2026-10-19T07:18:15.201Z",
+        "elapsedSeconds": 733.55,
+        "gate": "incomplete",
+        "repairCount": 1,
+        "gapCount": 1
+      },
+      {
+        "id": "as-0002",
+        "revision": 8,
+        "recordSha256": "611670c6fd82e792e40aba06fbfd4a577bf842dc22dbfc26aab4503059cf78c2",
+        "candidate": "ed9a61330fa6e3f7d72d34197e7fb840beffc13c",
+        "requestedAt": "2026-10-19T07:19:53.448Z",
+        "completedAt": "2026-10-19T07:31:00.189Z",
+        "elapsedSeconds": 666.741,
+        "gate": "incomplete",
+        "repairCount": 0,
+        "gapCount": 1
+      },
+      {
+        "id": "as-0003",
+        "revision": 9,
+        "recordSha256": "15532356e1a40d3bd0387a077516a5057ea986877566a6be2ec83dba905b1a16",
+        "candidate": "ed9a61330fa6e3f7d72d34197e7fb840beffc13c",
+        "requestedAt": "2026-10-19T07:32:44.926Z",
+        "completedAt": "2026-10-19T07:52:07.303Z",
+        "elapsedSeconds": 1162.377,
+        "gate": "incomplete",
+        "repairCount": 0,
+        "gapCount": 6
+      },
+      {
+        "id": "as-0004",
+        "revision": 11,
+        "recordSha256": "d04374150310ccae5c778ee6c86a90f5153c5526d5320b05648c222d3df35585",
+        "candidate": "e30a881d661736bdb597c45564d7db683ac9fe4a",
+        "requestedAt": "2026-10-19T07:48:20.901Z",
+        "completedAt": "2026-10-19T08:07:16.530Z",
+        "elapsedSeconds": 1135.629,
+        "gate": "action-required",
+        "repairCount": 2,
+        "gapCount": 0
+      },
+      {
+        "id": "as-0005",
+        "revision": 11,
+        "recordSha256": "4228bce7d9aabb825af82e9a3236331979aadfa9759d801d9d96490b7dca8357",
+        "candidate": "3cd1d96621a731eb2f3af4c44681e41461cb987b",
+        "requestedAt": "2026-10-19T08:11:01.767Z",
+        "completedAt": "2026-10-19T08:36:38.456Z",
+        "elapsedSeconds": 1536.689,
+        "gate": "incomplete",
+        "repairCount": 3,
+        "gapCount": 18
+      },
+      {
+        "id": "as-0006",
+        "revision": 11,
+        "recordSha256": "c14d89c162b6a666f587ac8dd7bb7de27eb5db9cad197a8111c8df4d702d10c5",
+        "candidate": "93f63a81fa87112d7ee71469c0c4cddbd27b4689",
+        "requestedAt": "2026-10-19T08:40:57.838Z",
+        "completedAt": "2026-10-19T08:54:12.657Z",
+        "elapsedSeconds": 794.819,
+        "gate": "clear",
+        "repairCount": 0,
+        "gapCount": 0
+      },
+      {
+        "id": "as-0007",
+        "revision": 9,
+        "recordSha256": "28b5fb8c7064834b5cc47dcc08806a23887a7e0138bf53e15b961b4ac0b043a3",
+        "candidate": "93f63a81fa87112d7ee71469c0c4cddbd27b4689",
+        "requestedAt": "2026-10-19T08:55:18.426Z",
+        "completedAt": "2026-10-19T09:15:03.376Z",
+        "elapsedSeconds": 1184.95,
+        "gate": "incomplete",
+        "repairCount": 0,
+        "gapCount": 5
+      }
+    ],
+    "exclusiveNativeActiveSeconds": null,
+    "nativeInputTokens": null,
+    "nativeOutputTokens": null,
+    "comparableAcceptedTaskPair": null,
+    "interpretation": "Elapsed capture windows include parallel work and waits. Commit windows omit later review/acceptance when those follow the commit. Assessment intervals are separate and must not be summed with overlapping engineering intervals. No productivity, time, exploration, token, cache or audit benefit established."
+  },
+  "qualificationAtCollection": "Final candidate source is structurally passed. One combined native whole-plan review at775fba selected two boundary repairs; both implemented and focused-verified at409c7de, without repeat broad review. Final default configured audit pending. Earlier native/RA outcomes retain their recorded status."
+}
