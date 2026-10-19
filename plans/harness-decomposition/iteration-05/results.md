@@ -79,3 +79,31 @@ commands and shared support retain their explicit parent ownership. No paired
 operational performance observation exists; no productivity, latency or token
 improvement is claimed. Original baseline files and the parked inspection
 experiment are unchanged.
+
+## Selected native review repairs
+
+The one native review identified two boundary defects. Lifecycle now clones the
+journal entries/events before constructing coordination history, clones projected
+finding state, and detaches the index returned by the refresh port. Nested child
+mutations therefore cannot alter retained event/record bodies or lifecycle's
+index without an accepted write. A composed real-ledger regression mutates those
+nested values and verifies that lifecycle authority remains byte-identical.
+
+New `capability-verification-started` events retain the accepted completion basis
+(review request/attempt/results, finding revisions and source decision) and exact
+reconciliation body. Recovery carries this evidence across interruption instead
+of reading a new basis; serialized handback checks its identity against the
+retained event and revalidates it against current authority. Historical events
+without the optional field remain readable and follow the existing compatibility
+path; malformed present evidence is rejected. No old log is rewritten.
+
+Focused post-repair regressions passed: three composed cases cover mutation
+isolation, unchanged interrupted verification and interruption followed by a new
+pending review. The latter refuses handback and starts no successor invocation.
+A separate schema test covers historical absence and malformed present evidence.
+The other 12 composed cases passed in the initial repair run; its sole failure
+was the new test expecting the wrong diagnostic property, corrected and rerun.
+Root type-check, module checks and patch checks were repeated; API views were
+refreshed. No additional broad review or audit was run. No protected changes or
+new native test registrations were needed; the remaining iteration 6 scope is
+unchanged.

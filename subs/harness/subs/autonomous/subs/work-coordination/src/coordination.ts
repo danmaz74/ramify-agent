@@ -3737,7 +3737,7 @@ export class WorkCoordination {
       await this.ports.fail('recovery-exhausted', `Capability ${task.id} lost its accepted iteration or review result`);
       return false;
     }
-    await this.finishCapabilityHandback(task, request, plan, parsed.data, started.data.invocation, { gate: gate.data, gateRecord: refOf(gate.data.id, 1, this.ports.committedBody(runLayout.gate(gate.data.id))), candidateTree: tree, reviews, acceptedBasis: null, reconciliation: this.ports.latestBasis(task.id) ?? null, recovered: true });
+    await this.finishCapabilityHandback(task, request, plan, parsed.data, started.data.invocation, { gate: gate.data, gateRecord: refOf(gate.data.id, 1, this.ports.committedBody(runLayout.gate(gate.data.id))), candidateTree: tree, reviews, acceptedBasis: started.data.completion?.acceptedBasis ?? null, reconciliation: started.data.completion === undefined ? this.ports.latestBasis(task.id) ?? null : started.data.completion.reconciliation, recovered: true });
     return true;
   }
 

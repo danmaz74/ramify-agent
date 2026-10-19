@@ -1,3 +1,4 @@
+import { runEventSchema } from '../run/log.js';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -1279,4 +1280,10 @@ describe('the boundaries of a delegation', () => {
     expect(events.filter(event => event.type === 'work-item-started').map(event => event.data.workItem)).toEqual(['wi-001']);
     expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
+});
+
+test('historical capability verification events remain readable without completion evidence', () => {
+  const historical = { sequence: 1, jobId: '20261019T000000Z-abcdef', at: '2026-10-19T00:00:00.000Z', type: 'capability-verification-started', data: { task: 'cap-001', invocation: 'inv-001', gate: 'gate-001' } };
+  expect(runEventSchema.parse(historical)).toEqual(historical);
+  expect(runEventSchema.safeParse({ ...historical, data: { ...historical.data, completion: {} } }).success).toBe(false);
 });

@@ -465,10 +465,10 @@ export class AutonomousRunService {
       const version = run.log.version;
       if (cached !== undefined && cached.version === version && index === run.index && policy === run.policy && cached.restoring === run.restoring && cached.restarted === (run.restartImport !== undefined)) return cached;
       index = run.index; policy = run.policy;
-      const lines = run.log.ledger.replay();
-      const history = { lines, events: run.log.events };
+      const history = coordinationHistory(run.log);
+      const lines = history.lines;
       cached = Object.freeze({ version, history, records: committedRecords(lines), index: structuredClone(run.index), policy: structuredClone(run.policy),
-        restoring: run.restoring, restarted: run.restartImport !== undefined, findings: checkFindingStateOf(run.log.ledger),
+        restoring: run.restoring, restarted: run.restartImport !== undefined, findings: structuredClone(checkFindingStateOf(run.log.ledger)),
         pendingEffects: run.log.ledger.pendingEffects().map(effect => effect.key) });
       return cached;
     };
@@ -523,7 +523,7 @@ export class AutonomousRunService {
       reconcileWorkItem: (...args) => this.reconcileWorkItem(run, ...args),
       reconciliationBriefing: (...args) => this.reconciliationBriefing(run, ...args),
       recordRepairPreparation: (...args) => this.recordRepairPreparation(run, ...args),
-      refreshIndex: (...args) => this.refreshIndex(run, ...args),
+      refreshIndex: async (...args) => structuredClone(await this.refreshIndex(run, ...args)),
       renderProducerFeatures: (...args) => this.renderProducerFeatures(run, ...args),
       runInvocation: <T>(agent: AgentPort, request: InvocationRequest<T>) => this.runInvocation(run, agent, request),
       takeIteration: (...args) => this.takeIteration(run, ...args),
@@ -560,6 +560,10 @@ export class AutonomousRunService {
     if (!recorded.success || recordHash(this.committedBody(run, runLayout.gate(proof.gate.id))) !== proof.gateRecord.hash || recorded.data.audited !== proof.gate.audited || recorded.data.verdict !== proof.gate.verdict || recorded.data.proposedBy !== proof.gate.proposedBy || proof.gate.verdict !== 'passed' || proof.gate.audited === null ||
       started?.data.gate !== proof.gate.id || started.data.invocation !== input.data.invocation) {
       throw new Error(`Capability ${input.data.task} lost its accepted completion gate`);
+    }
+    if (started.data.completion !== undefined &&
+      (recordHash(proof.acceptedBasis) !== recordHash(started.data.completion.acceptedBasis) || recordHash(proof.reconciliation) !== recordHash(started.data.completion.reconciliation))) {
+      throw new Error(`Capability ${input.data.task} lost its retained completion basis`);
     }
     const currentTree = (await this.previewCandidateTree()).tree;
     if (currentTree !== proof.candidateTree || await this.candidates.commitTree(this.projectRoot, proof.gate.audited) !== currentTree) {
@@ -4876,7 +4880,7 @@ export class AutonomousRunService {
         reconciliation: this.latestBasis(run, task.id)?.id ?? null, stage: 'completion', reason: basisRefusal } });
       return { kind: 'refused', guidance: `Completion basis changed: ${basisRefusal}`, coordinator };
     }
-    await this.write(run, { type: 'capability-verification-started', data: { task: task.id, invocation, gate: gate.id } });
+    await this.write(run, { type: 'capability-verification-started', data: { task: task.id, invocation, gate: gate.id, completion: { acceptedBasis: { ...reconciled.basis, requests: [...reconciled.basis.requests], checkFindings: [...reconciled.basis.checkFindings] }, reconciliation: this.latestBasis(run, task.id) ?? null } } });
     await this.afterWrite('capability-verification-started', run.record.jobId);
     if (this.ignoring(run)) return null;
     const qualification: CapabilityHandbackBasis = { gate, gateRecord: refOf(gate.id, 1, this.committedBody(run, runLayout.gate(gate.id))), candidateTree: currentTree, reviews: reviewStates, acceptedBasis: reconciled.basis, reconciliation: this.latestBasis(run, task.id) ?? null, recovered: false };

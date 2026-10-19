@@ -19,13 +19,14 @@ import type { LedgerEntry } from '../../../ledger/src/ledger.js';
 import type { LedgerFileSystem } from '../../../ledger/src/fs.js';
 import { replayCheckFindingEvents } from '../../../check-findings/src/replay.js';
 import type { CheckFindingEvent } from '../../../check-findings/src/interfaces/check-findings.js';
+import { checkFindingAtSchema } from '../../../check-findings/src/interfaces/check-findings.js';
 import { checkFindingCauseSchema, checkFindingEventsField } from '../../../../src/check-findings/records.js';
 import {
   reviewAttemptFinishedFields, reviewAttemptStartedDataSchema, reviewOrientationRecordedDataSchema, reviewRequestRecordedDataSchema,
 } from '../../../../src/reviews/records.js';
 import {
   reconciliationAssessedFields, reconciliationBriefAppendedDataSchema, reconciliationIdSchema, reconciliationRefusedDataSchema,
-  reconciliationStartedDataSchema, unresolvedField,
+  reconciliationStartedDataSchema, reconciliationBasisSchema, basisRequestSchema, unresolvedField,
 } from '../../../../src/reviews/reconciliation.js';
 
 /*
@@ -249,7 +250,13 @@ export const runEventSchema = z.discriminatedUnion('type', [
     architectRef: architectRefSchema.nullable().optional(), corrects: text.optional() }).strict()),
   event('capability-assignment-settled', z.object({ task: text, assignment: text, outcome: z.enum(['accepted', 'partial', 'failed', 'interrupted']),
     mutated: z.array(text).optional(), outsideScope: z.array(text).optional(), unknownPlacement: z.array(text).optional(), endingTree: text.optional() }).strict()),
-  event('capability-verification-started', z.object({ task: text, invocation: text, gate: text.optional() }).strict()),
+  event('capability-verification-started', z.object({ task: text, invocation: text, gate: text.optional(),
+    /** Absent only in historical verification events. New writes retain the accepted evidence across interruption. */
+    completion: z.object({
+      acceptedBasis: z.object({ commit: text, requests: z.array(basisRequestSchema), checkFindings: z.array(checkFindingAtSchema), decided: z.boolean() }).strict(),
+      reconciliation: reconciliationBasisSchema.nullable(),
+    }).strict().optional(),
+  }).strict()),
   event('capability-handed-back', z.object({ task: text, handback: text, invocation: text }).strict()),
   event('capability-stopped', z.object({ task: text, reason: text }).strict()),
   /**

@@ -45,3 +45,8 @@ test('CA26: failed combined gates retain their causes and permit correction past
 
 test('candidate drift after verification starts is fenced by the atomic handback commit',
   () => runAcceptedHandback('drift', cleanups, false, undefined, false, true), 150_000);
+
+test('detached coordination history and refreshed index cannot mutate lifecycle authority',
+  () => runAcceptedHandback('verify-restart', cleanups, false, undefined, false, false, false, true), 180_000);
+test('interrupted verification retains its accepted basis and refuses a newly pending review',
+  () => runAcceptedHandback('verify-restart', cleanups, false, undefined, false, false, true), 180_000);

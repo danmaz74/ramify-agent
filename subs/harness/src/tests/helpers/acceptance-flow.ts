@@ -34,7 +34,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   'gate-restart' | 'gate-intent-restart' | 'gate-committing-restart' |
   'review-restart' | 'review-submission-restart' | 'concern-submission-restart' | 'repair-exhaustion', cleanups: Array<() => Promise<void>>, realBoundary = false,
   /** Inspects the settled run of the full revision flow. */
-  inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false, handbackCommitDrift = false): Promise<void> {
+  inspect?: (run: { readonly root: string; readonly planId: string; readonly runId: string }) => Promise<void>, infrastructureRecovery = false, handbackCommitDrift = false, staleRecovery = false, isolation = false): Promise<void> {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   if (realBoundary) {
     await mkdir(join(fixture.root, 'subs/a/src/tests/steps'), { recursive: true });
@@ -324,6 +324,36 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
         external?.stage('drift');
         writeFileSync(join(fixture.root, 'subs/b/src/fact.ts'), `${readFileSync(join(fixture.root, 'subs/b/src/fact.ts'), 'utf8')}\n// concurrent source edit after the passing gate\n`);
       }
+      if (write === 'capability-verification-started' && (isolation || staleRecovery)) {
+        const active = activeService!['runs'].get(`need/${runId}`)!;
+        const coordinator = activeService!['coordination'](active);
+        if (isolation) {
+          const observation = coordinator['ports'].observe();
+          const authoritative = JSON.stringify(active.log.ledger.replay());
+          const last = observation.history.events.at(-1)!;
+          const original = structuredClone(last.data);
+          Reflect.set(last.data, 'task', 'mutated-child');
+          const record = observation.history.lines.flatMap(line => line.transaction.records).at(0)!;
+          Reflect.set(record.body as object, 'childMutation', true);
+          expect(JSON.stringify(active.log.ledger.replay())).toBe(authoritative);
+          Object.assign(last.data, original);
+          Reflect.deleteProperty(record.body as object, 'childMutation');
+          const refreshed = await coordinator['ports'].refreshIndex();
+          if (refreshed !== null) {
+            const before = JSON.stringify(active.index);
+            const nested = Object.values(refreshed).find(value => value !== null && typeof value === 'object');
+            expect(nested).toBeDefined();
+            Reflect.set(nested as object, 'childMutation', true);
+            expect(JSON.stringify(active.index)).toBe(before);
+            Reflect.deleteProperty(nested as object, 'childMutation');
+          }
+        }
+        if (staleRecovery) {
+          const request = active.log.all('review-request-recorded').find(entry => entry.data.workItem === 'cap-001')!;
+          expect(request).toBeDefined();
+          await activeService!['write'](active, { type: 'review-request-recorded', data: { ...request.data, request: 'rq-9999' } });
+        }
+      }
       if (handbackCommitDrift && write === 'capability-verification-started') {
         external?.stage('drift');
         writeFileSync(join(fixture.root, 'subs/b/src/fact.ts'), `${readFileSync(join(fixture.root, 'subs/b/src/fact.ts'), 'utf8')}\n// concurrent source edit after accepted verification\n`);
@@ -461,6 +491,14 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       throw new Error(`${String(error)}; architect ${architect}, reviewer ${reviewer}; warnings ${JSON.stringify(reopened.warnings)}; tail ${JSON.stringify(current.slice(-18))}`);
     });
     const after = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
+    if (staleRecovery) {
+      expect(after.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
+      expect(after.find(event => event.type === 'job-failed')?.data).toMatchObject({ reason: 'recovery-exhausted', message: expect.stringContaining('completion basis: rq-9999 is not settled') });
+      const verified = after.find(event => event.type === 'capability-verification-started')!;
+      expect(after.filter(event => event.type === 'invocation-started' && event.sequence > verified.sequence && event.data.role !== 'reviewer')).toEqual([]);
+      await reopened.service.settled('need', receipt.jobId);
+      return;
+    }
     expect(after.filter(event => event.type === 'job-failed'), JSON.stringify(after.slice(-15))).toHaveLength(0);
     expect(after.filter(event => event.type === 'capability-handed-back')).toHaveLength(1);
     if (discarded?.type === 'invocation-started') {
