@@ -27,7 +27,8 @@ export function reconciliationMessage(packet: ReconciliationPacket): string {
     ...packet, id: basis.id, owner: packet.owner ?? 'work item', round: basis.round,
     source: basis.source,
     introduction: `# Reconciliation ${basis.id} of ${basis.workItem} — round ${basis.round}\n\nThe ${packet.owner ?? 'work item'} requested completion. Assess the CheckFindings below together, in one submission.`,
+    ...(basis.requests.some(request => request.result === 'not-verified') ? { context: 'An advisory review was unavailable. Choose complete with a short rationale in the brief to continue, or correct with a concrete goal to seek relevant verification. No finding or user approval is needed for this choice. Preserve the unavailable result; do not automatically repeat broad review.' } : {}),
     authority: `You may waive a signal whose modules are \`${packet.module}\` or beneath it.`,
-    ...(packet.capabilityContext === undefined ? {} : { context: `This task coordinates consumer module \`${packet.capabilityContext.consumer}\` and provider module \`${packet.capabilityContext.provider}\`. Read both owners' source and tests before deciding a correction. The module below is the requesting work item's waiver authority, not a limit on task design or assignments.` }),
+    ...(packet.capabilityContext === undefined ? {} : { context: `${basis.requests.some(request => request.result === 'not-verified') ? 'An advisory review was unavailable. Choose continuation in the brief or a correction goal for relevant verification; no finding or user approval is needed. ' : ''}This task coordinates consumer module \`${packet.capabilityContext.consumer}\` and provider module \`${packet.capabilityContext.provider}\`. Read both owners' source and tests before deciding a correction. The module below is the requesting work item's waiver authority, not a limit on task design or assignments.` }),
   });
 }

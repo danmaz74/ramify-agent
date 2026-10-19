@@ -347,6 +347,8 @@ describe('CF15: the composed run under tight review bounds', () => {
         'rq-0004#1': [{ kind: 'submit', input: { concerns: 'invalid' } }, { kind: 'end', message: 'gave up' }],
       },
       reconcilers: {
+        'wi-001.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
+          brief: 'Continue using the passing configured checks; keep the queue-overflow review unavailable.' } }],
         // The architect considers all signals and explicitly leaves them open.
         'wi-002.rc01': reconcile(
           submission([disposition('cf-0001', { action: 'leave' }), disposition('cf-0003', { action: 'leave' }), disposition('cf-0002', { action: 'leave' })], { kind: 'unresolved' }),
@@ -366,9 +368,10 @@ describe('CF15: the composed run under tight review bounds', () => {
     ]);
     expect(service.reviews(plan, runId)!.coverage).toEqual({ state: 'available', requested: 9, complete: 6, partial: 0, notVerified: 3, pending: 0 });
     // The architect left every signal unresolved after considering the full attention set.
-    const [fork] = reconcilerSessions(run.agent!);
-    expect(fork!.verdicts[0]).toMatchObject({ accepted: true });
-    expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['unresolved']);
+    const forks = reconcilerSessions(run.agent!);
+    expect(forks).toHaveLength(2);
+    for (const fork of forks) expect(fork.verdicts[0]).toMatchObject({ accepted: true });
+    expect(eventsOf(events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['complete', 'unresolved']);
     expect(eventsOf(events, 'work-item-completed').map(event => [event.data.workItem, event.data.unresolved])).toEqual([
       ['wi-001', undefined],
       ['wi-002', [{ checkFinding: 'cf-0001', reason: 'left-open' }, { checkFinding: 'cf-0003', reason: 'left-open' }, { checkFinding: 'cf-0002', reason: 'left-open' }]],
@@ -379,7 +382,7 @@ describe('CF15: the composed run under tight review bounds', () => {
     ]);
     expect(eventsOf(events, 'gate-attempted').every(event => event.data.verdict === 'passed')).toBe(true);
     expect(measured.reviews).toMatchObject({ requests: 9, attempts: 10, retries: 1, notVerifiedByReason: { 'queue-overflow': 3 }, orientations: { recorded: 0 } });
-    expect(measured.rounds).toEqual({ 'wi-001': { rounds: 0, corrections: 0 }, 'wi-002': { rounds: 1, corrections: 0 } });
+    expect(measured.rounds).toEqual({ 'wi-001': { rounds: 1, corrections: 0 }, 'wi-002': { rounds: 1, corrections: 0 } });
     expect(measured.unresolved.map(entry => entry.risk)).toEqual(['high', 'medium', 'low']);
   }, 120_000);
 });

@@ -67,6 +67,15 @@ describe('rounds', () => {
 });
 
 describe('validating a submission', () => {
+  test('an unavailable advisory review permits continuation or relevant verification with no invented finding', async () => {
+    const ctx = context({ attention: new Map(), held: new Map(), unavailableReviews: true });
+    expect((await validateReconciliation(submission([], { kind: 'complete' }), ctx)).ok).toBe(true);
+    const verify = submission([], { kind: 'correct', goal: 'Inspect the affected consumer and run its focused check.' });
+    expect((await validateReconciliation(verify, ctx)).ok).toBe(true);
+    expect(ctx.decided).toEqual([]);
+    expect((await validateReconciliation(verify, { ...ctx, unavailableReviews: false })).ok).toBe(false);
+  });
+
   test('a valid submission binds actor, source, authority, revisions and the repair intent, relations first, and leaves no command for a signal left open', async () => {
     const ctx = context();
     const result = await validateReconciliation(submission([

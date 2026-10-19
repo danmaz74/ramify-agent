@@ -114,6 +114,8 @@ export interface AttentionEntry {
 /** Execution-specific authority around shared judgment validation. */
 export interface ExecutionReconciliationContext  {
   readonly id: string;
+  /** Actual unavailable advisory review results permit an explicit verification assignment without a finding. */
+  readonly unavailableReviews?: boolean;
   readonly attention: ReadonlyMap<CheckFindingId, AttentionEntry>;
   readonly held: ReadonlyMap<CheckFindingId, number>;
   readonly actor: CheckFindingActor;
@@ -189,7 +191,8 @@ export async function validateReconciliationForExecution(input: unknown, context
   }
 
   const expected = nextOf(submission.dispositions.map(disposition => disposition.action.action));
-  if (submission.next.kind !== expected) {
+  const seeksVerification = context.unavailableReviews === true && expected === 'complete' && submission.next.kind === 'correct';
+  if (submission.next.kind !== expected && !seeksVerification) {
     errors.push({
       path: 'next.kind',
       message: expected === 'await-user'

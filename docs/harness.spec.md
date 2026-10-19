@@ -777,6 +777,12 @@ include a bounded summary of relevant existing findings, dispositions and
 rationales; reviewers avoid repeating unchanged issues and explain changed
 circumstances when raising an issue again. Unavailable reviews retain their status
 for the architect's completion decision and are never represented as completed.
+A newly unavailable terminal result reaches that architect through ordinary
+reconciliation even when no finding needs attention. The architect records a
+short continuation rationale in its completion brief or selects a correction
+goal for relevant verification. The same recorded result needs no new decision
+after continuation or restart, and this choice schedules no automatic broad
+review.
 
 Failed configured checks return their diagnostics directly to the responsible
 engineer or coordinator. Review requests follow accepted iterations; a concrete

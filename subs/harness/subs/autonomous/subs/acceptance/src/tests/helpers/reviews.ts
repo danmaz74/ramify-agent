@@ -147,7 +147,11 @@ export function reviewScript(scenario: Pick<ReviewRun, 'reviewers' | 'engineer' 
     if (spec.submission.name === 'submit_reconciliation' && reconciliation !== undefined) {
       const starts = (reconcilerStarts.get(reconciliation) ?? 0) + 1;
       reconcilerStarts.set(reconciliation, starts);
-      return scenario.reconcilers?.[`${reconciliation}#${starts}`] ?? scenario.reconcilers?.[reconciliation] ?? [{ kind: 'end', message: `no reconciliation scripted for ${reconciliation}` }];
+      return scenario.reconcilers?.[`${reconciliation}#${starts}`] ?? scenario.reconcilers?.[reconciliation]
+        ?? (spec.prompt.includes('"checkFindings":[]') && spec.prompt.includes('An advisory review was unavailable.')
+          ? [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
+            brief: 'Continue using the configured checks and engineer evidence; the unavailable advisory review remains recorded.' } }]
+          : [{ kind: 'end', message: `no reconciliation scripted for ${reconciliation}` }]);
     }
     if (spec.role !== 'reviewer') return roles(spec);
     // A design orientation is scripted as `orientation`, by the order it started in.

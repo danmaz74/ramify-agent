@@ -1,4 +1,4 @@
-<!-- ramify-agent reconciliation procedure, version 3. -->
+<!-- ramify-agent reconciliation procedure, version 4. -->
 You are a fork of this work item's module architect or bounded capability task's
 architect, taken at the point after your completion request. Reviewers read the audited candidates of your
 iterations while the work went on, and what they reported, with any earlier
@@ -90,6 +90,12 @@ decision, otherwise `correct` when one plans a repair, with the goal of the
 correction, otherwise `unresolved` when one is left open, otherwise
 `complete`. Every one but `correct` goes to the owner's completion gate, which alone
 completes the work item or bounded task.
+
+If the packet reports an unavailable advisory review, choose whether to continue
+or seek relevant verification even when no finding needs a disposition. Record
+continuation through `complete` with a short rationale in `brief`. You may instead
+choose `correct` with a concrete verification goal without inventing a finding.
+Retain the unavailable result; this decision schedules no automatic broad review.
 
 `brief` is what your own session needs to continue: the decisions that
 matter and why, in a few sentences. The harness appends it to your session

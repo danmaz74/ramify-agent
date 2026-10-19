@@ -943,6 +943,18 @@ export class Acceptance {
     return pendingCorrection(this.observe().history, workItem);
   }
 
+  /** A recorded architect choice acknowledges only the exact terminal review result it received. */
+  private awaitingReviewDecision(workItem: string, requests: readonly BasisRequest[]): boolean {
+    const decided = this.events('reconciliation-assessed').filter(event => event.data.workItem === workItem).flatMap(event => {
+      const assessment = reconciliationAssessmentSchema.safeParse(this.ports.committedBody(reconciliationLayout.assessment(event.data.reconciliation)));
+      if (!assessment.success || !['complete', 'unresolved', 'correct'].includes(assessment.data.next)) return [];
+      const basis = reconciliationBasisSchema.safeParse(this.ports.committedBody(reconciliationLayout.basis(event.data.reconciliation)));
+      return basis.success ? basis.data.requests : [];
+    });
+    return requests.some(request => request.result === 'not-verified' && !decided.some(prior =>
+      prior.request === request.request && prior.attempt === request.attempt && prior.result === request.result));
+  }
+
   async reconcileWorkItem(agent: AgentPort, loaded: LoadedPackage, item: WorkItem, parent: ParentSession,
     owner: ReconciliationOwner = { id: item.id, role: 'local-architect' }): Promise<Reconciled | null> {
     for (;;) {
@@ -960,9 +972,11 @@ export class Acceptance {
         kind: 'gate',
         basis: { commit, requests: captured.requests, checkFindings: attentionAt(captured.attention), decided },
       });
-      // Nothing needs the architect's disposition; the gate follows.
-      if (captured.attention.size === 0) return gate(false);
-      if (rounds > 0 && !needsLaterRound(captured.attention.values())) return gate(true);
+      const reviewDecision = this.awaitingReviewDecision(owner.id, captured.requests);
+      // A late unavailable result still needs the architect's choice even if
+      // no reviewer finding exists. Reuse that choice across continuation.
+      if (captured.attention.size === 0 && !reviewDecision) return gate(captured.requests.some(request => request.result === 'not-verified'));
+      if (!reviewDecision && rounds > 0 && !needsLaterRound(captured.attention.values())) return gate(true);
 
       let tree: string;
       try {
@@ -1156,6 +1170,7 @@ export class Acceptance {
           workItem: owner.id,
           module: item.module,
           attention,
+          unavailableReviews: basis.requests.some(request => request.result === 'not-verified'),
           held,
           actor: { kind: 'agent', role: owner.role, invocation: invocation ?? 'none' },
           source: { kind: 'tree', id: basis.source.tree },
@@ -1352,6 +1367,7 @@ export class Acceptance {
   async completionBasisRefusal(owner: string, gate: GateAttempt, basis: CompletionBasis): Promise<string | null> {
     const lineage = basis.decided ? await this.sourceLineage(basis.commit, gate.audited) : null;
     const now = this.basisState(owner);
+    if (this.awaitingReviewDecision(owner, now.requests)) return 'An unavailable advisory review requires the architect to choose continuation or relevant verification';
     const rounds = this.events('reconciliation-started').filter(event => event.data.workItem === owner).length;
     const inBasis = new Set(basis.checkFindings.map(entry => entry.checkFinding));
     const raised = [...now.attention].filter(([id]) => !inBasis.has(id)).map(([, entry]) => entry);

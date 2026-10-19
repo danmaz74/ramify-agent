@@ -344,10 +344,12 @@ describe('unavailable reusable review context uses ordinary fresh inputs', () =>
     const coverage = run.service.reviews(plan, run.runId)!.coverage;
     expect(coverage.state).toBe('available'); if (coverage.state !== 'available') throw new Error('Expected available coverage');
     expect(coverage.notVerified).toBeGreaterThan(0);
-    const degraded = eventsOf(run.events, 'invocation-ended').filter(event => event.data.degraded?.actual === 'fresh');
+    const reviewers = new Set(eventsOf(run.events, 'invocation-started').filter(event => event.data.role === 'reviewer').map(event => event.data.invocation));
+    const degraded = eventsOf(run.events, 'invocation-ended').filter(event => event.data.degraded?.actual === 'fresh' && reviewers.has(event.data.invocation));
     expect(degraded).toHaveLength(6);
-    expect(eventsOf(run.events, 'invocation-ended').filter(event => event.data.ended === 'failed')).toHaveLength(6);
+    expect(eventsOf(run.events, 'invocation-ended').filter(event => event.data.ended === 'failed' && reviewers.has(event.data.invocation))).toHaveLength(6);
     expect(new Set(degraded.map(event => event.data.invocation)).size).toBe(6);
+    expect(eventsOf(run.events, 'reconciliation-assessed').map(event => event.data.next)).toEqual(['complete']);
   }, 120_000);
 
   test('a failed orientation is recorded once and its dependent design reviews start fresh', async () => {

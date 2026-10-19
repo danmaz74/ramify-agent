@@ -261,6 +261,59 @@ describe('CF02, CF03 and CF12: one routine assessment', () => {
   }, 60_000);
 });
 
+test('an unavailable review arriving after completion gets an architect continuation with no findings and replays once', async () => {
+  const root = await reviewTarget(cleanups);
+  const completion = gate();
+  let frozen = false;
+  let crashAppend = true;
+  const run = await reviewRun(root, cleanups, {
+    agentReady: agent => interceptOperations(agent, operations => ({ ...operations, async appendContext(input) {
+      if (crashAppend && input.additions.some(item => item.key === 'brief:wi-001.rc01')) { frozen = true; return new Promise(() => undefined); }
+      return operations.appendContext(input);
+    } })),
+    detached: true, policy: { retries: 0 }, architect: architect(false), engineer: engineers.slice(0, 3),
+    reviewers: {
+      'rq-0001': review(changed[1]), 'rq-0002': review(changed[2]),
+      'rq-0003': [{ kind: 'await', until: () => completion.opened }, { kind: 'end', message: 'Advisory provider unavailable after completion request.' }],
+    },
+    reconcilers: { 'wi-001.rc01': [{ kind: 'submit', input: { relations: [], dispositions: [], next: { kind: 'complete' },
+      brief: 'Continue using the passing configured checks and engineer evidence; retain the unavailable advisory result.' } }] },
+    afterWrite: async (write, id) => {
+      if (write === 'outline-revised' && (await runEventsOnDisk(root, plan, id)).some(event => event.type === 'outline-revised' && event.data.architectRef != null)) completion.open();
+    },
+  });
+  await until(() => frozen, 30_000);
+  const before = await runEventsOnDisk(root, plan, run.runId);
+  const requested = eventsOf(before, 'outline-revised').find(event => event.data.architectRef != null)!;
+  const unavailable = eventsOf(before, 'review-attempt-finished').find(event => event.data.request === 'rq-0003')!;
+  const decision = eventsOf(before, 'reconciliation-assessed')[0]!;
+  expect(requested.sequence).toBeLessThan(unavailable.sequence);
+  expect(unavailable.sequence).toBeLessThan(decision.sequence);
+  expect(unavailable.data).toMatchObject({ result: 'not-verified', reason: 'invalid-output' });
+  expect(listOf(run.service, run.runId)).toEqual([]);
+  expect(before.some(event => event.type === 'work-item-completed')).toBe(false);
+  const record = await committed<ReconciliationAssessment>(root, run.runId, reconciliationLayout.assessment('wi-001.rc01'));
+  expect(record.submission).toMatchObject({ dispositions: [], next: { kind: 'complete' }, brief: expect.stringContaining('Continue using') });
+  const fork = reconcilerSessions(run.agent!)[0]!;
+  expect(fork.spec.prompt).toContain('An advisory review was unavailable.');
+  expect(fork.spec.prompt).toContain('"checkFindings":[]');
+  await staleCrashLock(root);
+  crashAppend = false;
+  const git = gateGit(root, { head: 'revision-03', commits: [unchanged, unchanged],
+    previews: Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-03', tree: finalReviewTree })) });
+  const reopened = await openRuns(root, { agent: run.agent!, inputs: treeInputs(), git: git.git,
+    candidates: scriptedCandidates(root, candidates()), policy: projectRoot => testPolicy(projectRoot, { reviews: testReviewPolicy({ retries: 0 }) }) });
+  cleanups.push(() => reopened.service.close());
+  await reopened.service.settled(plan, run.runId);
+  expect(onlyRun(reopened.service, plan).state).toBe('completed');
+  const after = await runEventsOnDisk(root, plan, run.runId);
+  expect(eventsOf(after, 'reconciliation-assessed')).toHaveLength(1);
+  expect(eventsOf(after, 'review-attempt-finished').filter(event => event.data.request === 'rq-0003')).toEqual([unavailable]);
+  expect(eventsOf(after, 'review-request-recorded')).toHaveLength(3);
+  expect(listOf(reopened.service, run.runId)).toEqual([]);
+  git.assertComplete();
+}, 60_000);
+
 describe('CF11 and CF15: correction rounds', () => {
   test.each([false, true])('selected correction completes with purposeful extra broad review = %s', async broad => {
     const root = await reviewTarget(cleanups);

@@ -1988,7 +1988,8 @@ export class WorkCoordination {
       if (this.ports.ignoring()) return null;
 
       // Before the gate, the work item's reviews settle and what they
-      // raised is reconciled; a completion whose basis no longer holds is
+      // raised, or newly unavailable advisory results, receive the architect
+      // decision; a completion whose basis no longer holds is
       // reconciled again when its current evidence calls for it.
       const parent: ParentSession = { session, ref: sessionRef, undelivered, workingDirectory };
       let gate: GateAttempt | null = null;
@@ -1999,7 +2000,7 @@ export class WorkCoordination {
         if (reconciled === null) return null;
         if (reconciled.kind === 'correct') {
           // The architect's own session assigns the correction, through the
-          // ordinary gate and reviews.
+          // configured gate and relevant verification.
           returned = reconciled.reconciliation;
           continuing = 'reconciliation';
           continue turns;

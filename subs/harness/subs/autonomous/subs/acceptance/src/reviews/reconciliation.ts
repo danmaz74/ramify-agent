@@ -11,7 +11,8 @@ import { forkPointSchema, reviewAttemptIdSchema, reviewRequestIdSchema } from '.
  * Work-item reconciliation (Plan 12 appendix §6). When a module work item
  * requests completion, its review requests are settled, and the open and
  * due CheckFindings of the work item are its attention set. An empty set
- * goes to the work item's gate with no agent call. Otherwise one fork of the
+ * goes to the work item's gate unless an unavailable review result still
+ * needs the architect's continuation or verification decision. One fork of the
  * module architect, at the point after its completion request, assesses
  * them together in one submission: how they relate, what becomes of each,
  * how each decision is communicated, and what the work item does next.
@@ -168,6 +169,8 @@ export interface ReconciliationContext {
   /** The work item's module, the bound of the module architect's waive authority. */
   readonly module: string;
   /** The attention set of the basis. */
+  /** Actual unavailable advisory review results permit an explicit verification assignment without a finding. */
+  readonly unavailableReviews?: boolean;
   readonly attention: ReadonlyMap<CheckFindingId, AttentionEntry>;
   /** Every CheckFinding of the work item at its current revision, which a relation may name. */
   readonly held: ReadonlyMap<CheckFindingId, number>;
