@@ -2,10 +2,11 @@ import { expect, test } from 'vitest';
 import { prepareCoordinatorProvider } from '../coordinator-provider.js';
 import { ScriptedCodex, testSession, testThread, testTurn } from '../../../agent/subs/codex/src/tests/scripted.js';
 
-function scriptForPreparation(options: { ephemeral?: boolean; missingTools?: boolean; nativeWorkers?: string; session?: (script: ScriptedCodex, frame: Parameters<ScriptedCodex['onWrite']>[0]) => void } = {}) {
+function scriptForPreparation(options: { ephemeral?: boolean; missingTools?: boolean; nativeWorkers?: string; history?: Record<string, unknown>; turn?: (script: ScriptedCodex, frame: Parameters<ScriptedCodex['onWrite']>[0]) => void; session?: (script: ScriptedCodex, frame: Parameters<ScriptedCodex['onWrite']>[0]) => void } = {}) {
   const script = new ScriptedCodex(frame => {
     if (frame.method === 'initialized') return;
     if ((frame.method === 'thread/start' || frame.method === 'thread/resume') && options.session !== undefined) { options.session(script, frame); return; }
+    if (frame.method === 'turn/start' && options.turn !== undefined) { options.turn(script, frame); return; }
     const answers: Record<string, unknown> = {
       initialize: { userAgent: 'codex/0.161.0', codexHome: '/persistent', platformOs: 'linux' },
       'model/list': { data: [{ model: 'gpt-6-astra', multiAgentVersion: options.nativeWorkers ?? 'v2' }, { model: 'gpt-6-sol', multiAgentVersion: 'v2' }], nextCursor: null },
@@ -15,7 +16,7 @@ function scriptForPreparation(options: { ephemeral?: boolean; missingTools?: boo
       'thread/start': testSession({ ephemeral: options.ephemeral ?? false }),
       'thread/resume': testSession(),
       'turn/start': { turn: testTurn('inProgress', 'next-turn') },
-      'thread/read': { thread: testThread() },
+      'thread/read': { thread: options.history ?? testThread() },
       'turn/interrupt': {},
     };
     if (!Object.hasOwn(answers, frame.method!)) throw new Error(`Unscripted provider call ${frame.method}`);
@@ -94,4 +95,31 @@ test.each(['start', 'resume'])('preparation retains a newer running turn followi
   await expect(prepared.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
   await expect(prepared.provider.interrupt('thread-1', 'new-turn')).resolves.toMatchObject({ turnId: 'new-turn' });
   expect(script.written.filter(frame => frame.method === 'turn/interrupt').map(frame => frame.params)).toEqual([{ threadId: 'thread-1', turnId: 'new-turn' }]);
+});
+
+
+test('prepared resumed coordinator keeps new admission busy and interruptible when old completion follows idle', async () => {
+  const script = scriptForPreparation({
+    session: (transport, frame) => transport.receive({ id: frame.id!, result: testSession({ status: { type: 'active' }, turns: [testTurn('inProgress', 'old-turn')] }) }),
+    turn: () => undefined,
+    history: testThread({ status: { type: 'active' }, turns: [testTurn('inProgress', 'new-turn')] }),
+  });
+  const prepared = await prepareCoordinatorProvider({ ...inputs(), resumeThreadId: 'thread-1' }, script.provider);
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  const send = prepared.provider.send('thread-1', 'follow-up');
+  const submission = script.written.at(-1)!.id!;
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'old-turn') } });
+  script.receive({ id: submission, result: { turn: testTurn('inProgress', 'new-turn') } });
+  await expect(send).resolves.toMatchObject({ id: 'new-turn', status: 'inProgress' });
+  await expect(prepared.provider.send('thread-1', 'must stay busy')).rejects.toMatchObject({ kind: 'busy' });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'new-turn') } });
+  await expect(prepared.provider.readThread('thread-1')).resolves.toMatchObject({ status: 'active' });
+  await expect(prepared.provider.interrupt('thread-1', 'new-turn')).resolves.toMatchObject({ turnId: 'new-turn' });
+  await expect(prepared.provider.interrupt('thread-1', 'old-turn')).rejects.toMatchObject({ kind: 'stale-response' });
+  await expect(prepared.provider.send('thread-1', 'still busy')).rejects.toMatchObject({ kind: 'busy' });
+  expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(1);
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'new-turn') } });
+  const followup = prepared.provider.send('thread-1', 'matching completion permits input');
+  script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
+  await expect(followup).resolves.toMatchObject({ id: 'next-turn' });
 });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { CodexEvent } from '../interfaces/provider.js';
 import { ScriptedCodex, testSession, testThread, testTurn } from './scripted.js';
+import { checkAdmissionOrdering } from './ordering.js';
 
 afterEach(() => vi.useRealTimers());
 const settings = { cwd: '/target', model: 'gpt-6-astra' };
@@ -488,7 +489,7 @@ test('an explicit submission rejection cannot roll back a newer turn notificatio
 });
 
 
-test('a batched idle status can retire the submitted identity without fabricating completion', async () => {
+test('a batched idle status cannot retire a newly acknowledged live identity', async () => {
   const script = await prepared();
   const send = script.provider.send('thread-1', 'first');
   script.replyLast({ turn: testTurn() });
@@ -496,8 +497,12 @@ test('a batched idle status can retire the submitted identity without fabricatin
   await expect(send).resolves.toMatchObject({ id: 'turn-1', status: 'inProgress' });
   const read = script.provider.readThread('thread-1');
   script.replyLast({ thread: testThread({ status: { type: 'active' }, turns: [testTurn()] }) });
-  await expect(read).resolves.toMatchObject({ status: 'idle' });
-  await expect(script.provider.interrupt('thread-1', 'turn-1')).rejects.toMatchObject({ kind: 'stale-response' });
+  await expect(read).resolves.toMatchObject({ status: 'active' });
+  await expect(script.provider.send('thread-1', 'ambiguous idle')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'turn-1');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'turn-1' });
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed') } });
   const next = script.provider.send('thread-1', 'next');
   script.replyLast({ turn: testTurn('inProgress', 'turn-2') });
   await next;
@@ -545,4 +550,75 @@ test('an idle notification remains authoritative after corroborating history wit
   const next = script.provider.send('thread-1', 'next');
   script.replyLast({ turn: testTurn('inProgress', 'next-turn') });
   await next;
+});
+
+
+test.each([
+  ['old-complete', 'ack', 'new-start'],
+  ['new-start', 'old-complete', 'ack'],
+  ['ack', 'old-complete', 'new-start'],
+  ['old-complete', 'idle', 'new-start', 'ack'],
+  ['ack', 'idle', 'old-start', 'old-complete', 'new-start'],
+  ['new-complete', 'old-complete', 'ack', 'new-start'],
+  ['new-start', 'new-complete', 'idle', 'old-complete', 'ack'],
+  ['ack', 'old-complete', 'idle', 'new-start', 'new-complete'],
+])('admission retains exact identity through ordering %j', async (...order) => {
+  await checkAdmissionOrdering(order);
+});
+
+test.each(['notification', 'history'])('conflicting running identities retain uncertainty until exact terminal proof from %s', async proof => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'new');
+  const submission = script.written.at(-1)!.id!;
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'unrelated') } });
+  script.receive({ id: submission, result: { turn: testTurn('inProgress', 'new') } });
+  await expect(send).rejects.toMatchObject({ kind: 'uncertain' });
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn('inProgress', 'new') } });
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'new') } });
+  await expect(script.provider.send('thread-1', 'unresolved other identity')).rejects.toMatchObject({ kind: 'busy' });
+  if (proof === 'notification') script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'unrelated') } });
+  else {
+    const read = script.provider.readThread('thread-1');
+    script.replyLast({ thread: testThread({ turns: [testTurn('completed', 'new'), testTurn('completed', 'unrelated')] }) });
+    await read;
+  }
+  const next = script.provider.send('thread-1', 'exactly settled');
+  script.replyLast({ turn: testTurn('inProgress', 'next') });
+  await next;
+});
+
+
+test.each([
+  ['ack', 'old-complete', 'idle', 'new-start'],
+  ['ack', 'new-complete', 'old-complete', 'idle', 'new-start'],
+])('one dispatch batch preserves exact admission through %j', async (...order) => {
+  await checkAdmissionOrdering(order, true);
+});
+
+test('an unrecognized old completion and idle during admission cannot finish its newly acknowledged identity', async () => {
+  const script = await prepared();
+  const send = script.provider.send('thread-1', 'new');
+  const submission = script.written.at(-1)!.id!;
+  script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'unknown-old') } });
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  script.receive({ id: submission, result: { turn: testTurn('inProgress', 'new') } });
+  await expect(send).resolves.toMatchObject({ id: 'new', status: 'inProgress' });
+  await expect(script.provider.send('thread-1', 'busy')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'new');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'new' });
+});
+
+test('idle before adoption cannot retire an identity it did not observe', async () => {
+  const script = new ScriptedCodex();
+  await script.initialize();
+  const resumed = script.provider.resumeThread('thread-1', settings);
+  script.replyLast(testSession({ status: { type: 'active' }, turns: [testTurn()] }));
+  script.receive({ method: 'thread/status/changed', params: { threadId: 'thread-1', status: { type: 'idle' } } });
+  await resumed;
+  script.receive({ method: 'turn/started', params: { threadId: 'thread-1', turn: testTurn() } });
+  await expect(script.provider.send('thread-1', 'busy')).rejects.toMatchObject({ kind: 'busy' });
+  const interrupt = script.provider.interrupt('thread-1', 'turn-1');
+  script.replyLast({});
+  await expect(interrupt).resolves.toMatchObject({ turnId: 'turn-1' });
 });
