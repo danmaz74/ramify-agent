@@ -18,7 +18,8 @@ Role-specific commitments supplement these shared principles in the
 [plan architect](prompt-optimization-plan-architect.principles.md) and
 [module architect](prompt-optimization-module-architect.principles.md) principles.
 Execution, authority and acceptance remain governed by the
-[harness principles](harness.principles.md).
+[harness principles](harness.principles.md); interruption and fresh-session
+continuation follow the [harness recovery principles](harness-recovery.principles.md).
 
 ## Principles
 
@@ -141,6 +142,10 @@ Everything new is appended; nothing in the inherited prefix is changed.
 
 ### An Oriented Context Is Reused, Never Required
 
+Moved to [harness-recovery.principles.md](harness-recovery.principles.md#an-oriented-context-is-reused-never-required).
+
+### Reuse Context to Reduce Repeated Exploration
+
 Orientation costs elapsed time as well as tokens. Searching, reading and
 understanding a project can dominate the time before an agent can act. Avoid
 repeating that exploration when relevant knowledge can be reused or
@@ -157,13 +162,8 @@ them at the model's respective rates rather than treating all input tokens
 as equally expensive. Reusing a larger cached context can cost less than
 reconstructing a smaller context through new exploration.
 
-A reused context is a cache, never the sole authority for decisions or progress.
-Any invocation must succeed from a fresh session and the repository alone.
-A fresh session receives in its prompt every input the harness holds or can
-derive for its task, so it rediscovers nothing the harness already knows; what
-the harness cannot establish comes from orientation/exploration.
-Context describes the source as it was when it was read; when that source has
-changed, the context is refreshed or discarded.
+Apply these optimizations within the
+[recovery principle that context is optional](harness-recovery.principles.md#an-oriented-context-is-reused-never-required).
 
 ### Retrieve Audit Reports When Needed
 

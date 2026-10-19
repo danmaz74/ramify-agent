@@ -11,7 +11,7 @@ import { submit, write } from './helpers/iterations.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { emptyAnalysis, freeze, onlyRun, openRuns,
-  runEventsOnDisk, runPath, staleCrashLock, startRun, until } from './helpers/runs.js';
+  runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, until } from './helpers/runs.js';
 import { runLayout, type Invocation } from '../run/records.js';
 import type { RunWrite } from '../run/service.js';
 
@@ -51,7 +51,6 @@ for (const boundary of ['nonfunctional-phase-started', 'candidate-prepared', 'no
     await staleCrashLock(fixture.root);
     const reopened = await openRuns(fixture.root, { ...boundaryAnswers.options, script: [] });
     cleanups.push(() => reopened.service.close());
-    expect(reopened.recovery.effects.some(effect => effect.includes('resumed the non-functional phase'))).toBe(true);
     await reopened.service.settled('review-notes', receipt.jobId);
     expect(onlyRun(reopened.service, 'review-notes').state).toBe('completed');
     const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
@@ -132,10 +131,10 @@ const repairCrashes = [
 for (const { boundary, ...variant } of repairCrashes) {
   const mutateBeforeResume = 'mutateBeforeResume' in variant && variant.mutateBeforeResume;
   const noResult = 'noResult' in variant ? variant.noResult : false;
-  test(`a repair phase ${boundary} crash ${boundary === 'writer-acquired' ? 'fails closed' : mutateBeforeResume ? 'refuses downtime drift' : noResult ? `retains ${noResult} result without re-execution` : 'resumes exactly once'}`, async () => {
+  test(`a repair phase ${boundary} crash ${mutateBeforeResume ? 'retains downtime edits through ordinary repair' : noResult ? `retains ${noResult} result without re-execution` : 'resumes exactly once'}`, async () => {
     const fixture = await copyFixture();
     cleanups.push(fixture.remove);
-    const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'one-module', final: !(boundary === 'writer-acquired' || mutateBeforeResume), repaired: !(boundary === 'writer-acquired' || mutateBeforeResume) });
+    const boundaryAnswers = nfrBoundaries(fixture.root, { repair: 'one-module' });
     answers.push(boundaryAnswers);
     const obligation = 'The review must retain an audit record.';
     const plan = join(fixture.root, 'plans/review-notes/plan.md');
@@ -170,12 +169,8 @@ for (const { boundary, ...variant } of repairCrashes) {
     cleanups.push(() => reopened.service.close());
     await reopened.service.settled('review-notes', runId);
     const events = await runEventsOnDisk(fixture.root, 'review-notes', runId);
-    if (boundary === 'writer-acquired' || mutateBeforeResume) {
-      expect(onlyRun(reopened.service, 'review-notes').state).toBe('failed');
-      expect(onlyRun(reopened.service, 'review-notes').failure?.reason).toBe(mutateBeforeResume ? 'inputs-changed' : 'recovery-exhausted');
-      expect(resumedAgent.sessions.filter(session => session.spec.role === 'nonfunctional-repair-engineer')).toHaveLength(0);
-      if (mutateBeforeResume) expect(await readFile(join(fixture.root, 'downtime-mutation.ts'), 'utf8')).toBe('export const changed = true;\n');
-    } else {
+    if (mutateBeforeResume) expect(await readFile(join(fixture.root, 'downtime-mutation.ts'), 'utf8')).toBe('export const changed = true;\n');
+    {
       expect(onlyRun(reopened.service, 'review-notes').state, JSON.stringify(onlyRun(reopened.service, 'review-notes').failure)).toBe('completed');
       expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
       expect(events.filter(event => event.type === 'nonfunctional-repair-committed')).toHaveLength(1);
@@ -185,7 +180,7 @@ for (const { boundary, ...variant } of repairCrashes) {
         + resumedAgent.sessions.filter(session => session.spec.role === 'nonfunctional-repair-engineer').length).toBe(1);
       // The repair engineer is a writer like any other: it has a scope
       // size, measured under the current policy, and its line events.
-      const repair = events.find(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-repair-engineer');
+      const repair = events.filter(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-repair-engineer').at(-1);
       const id = repair?.type === 'invocation-started' ? repair.data.invocation : '';
       const invocation = JSON.parse(await readFile(runPath(fixture.root, 'review-notes', runId, runLayout.invocation(id)), 'utf8')) as Invocation;
       expect(invocation.writer).toBe(true);
@@ -215,7 +210,7 @@ function exhaustedAgent(obligation: string) {
 
 test('a coordinator command registration retains its settlement requirement after restart', async () => {
   const fixture = await copyFixture(); cleanups.push(fixture.remove);
-  const boundaryAnswers = nfrBoundaries(fixture.root, { final: false }); answers.push(boundaryAnswers);
+  const boundaryAnswers = nfrBoundaries(fixture.root); answers.push(boundaryAnswers);
   const obligation = 'The review must retain an audit record.';
   const plan = join(fixture.root, 'plans/review-notes/plan.md');
   await writeFile(plan, `${await readFile(plan, 'utf8')}\n${obligation}\n`);
@@ -226,24 +221,34 @@ test('a coordinator command registration retains its settlement requirement afte
     return [];
   }));
   let frozen = false;
+  let release!: () => void;
+  const formerProcess = new Promise<void>(resolve => { release = resolve; });
   const first = await openRuns(fixture.root, { ...boundaryAnswers.options, agent,
     commandExecution: async request => {
       await request.registerProcessGroup!(42, 'scripted-process');
       throw new Error('The registration barrier is frozen');
     },
-    afterWrite: async write => { if (write === 'writer-process-registered') { frozen = true; await freeze(); } },
+    afterWrite: async write => { if (write === 'writer-process-registered') { frozen = true; await formerProcess; } },
   });
   const receipt = await first.service.execute(startRun('review-notes'));
-  await until(() => frozen);
+  await until(() => frozen || first.service.getRun('review-notes', receipt.jobId)?.state !== 'running', 10_000);
+  expect(frozen, JSON.stringify(first.service.getRun('review-notes', receipt.jobId)?.failure)).toBe(true);
   await staleCrashLock(fixture.root);
   const resumedAgent = exhaustedAgent(obligation);
-  const reopened = await openRuns(fixture.root, { ...boundaryAnswers.options, agent: resumedAgent });
+  let reopenedReady = false;
+  const opening = openRuns(fixture.root, { ...boundaryAnswers.options, agent: resumedAgent }).then(value => { reopenedReady = true; return value; });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  expect(reopenedReady).toBe(false); expect(resumedAgent.sessions).toHaveLength(0);
+  release();
+  const reopened = await opening;
   cleanups.push(() => reopened.service.close());
   await reopened.service.settled('review-notes', receipt.jobId);
-  expect(onlyRun(reopened.service, 'review-notes').failure).toMatchObject({ reason: 'recovery-exhausted',
-    message: expect.stringContaining('no unique confirmed release') });
-  expect(resumedAgent.sessions).toHaveLength(0);
-});
+  expect(onlyRun(reopened.service, 'review-notes').state, JSON.stringify(onlyRun(reopened.service, 'review-notes').failure)).toBe('completed');
+  expect(resumedAgent.sessions.length).toBeGreaterThan(0);
+  const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
+  expect(events.filter(event => event.type === 'writer-process-registered')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'job-completed')).toHaveLength(1);
+}, 30_000);
 
 test('a closed round exhausts and a late source change still refuses the final gate', async () => {
   const fixture = await copyFixture();
@@ -270,10 +275,10 @@ test('a closed round exhausts and a late source change still refuses the final g
   expect(await readFile(join(fixture.root, 'late-after-exhaustion.ts'), 'utf8')).toBe('export const stale = true;\n');
 }, 60_000);
 
-test('an exhausted crash with changed source leaves merge readiness unavailable', async () => {
+test('an exhausted crash with changed source fails ordinary candidate verification', async () => {
   const fixture = await copyFixture();
   cleanups.push(fixture.remove);
-  const boundaryAnswers = nfrBoundaries(fixture.root, { final: false, finalLookup: true, commits: 1 });
+  const boundaryAnswers = nfrBoundaries(fixture.root, { final: false, finalLookup: true, lookups: 2, commits: 1 });
   answers.push(boundaryAnswers);
   const obligation = 'The review must retain an audit record.';
   const plan = join(fixture.root, 'plans/review-notes/plan.md');
@@ -294,8 +299,10 @@ test('an exhausted crash with changed source leaves merge readiness unavailable'
   boundaryAnswers.drift('changed-after-exhaustion.ts');
   const reopened = await openRuns(fixture.root, { ...boundaryAnswers.options, agent: exhaustedAgent(obligation) });
   cleanups.push(() => reopened.service.close());
-  await reopened.service.settled('review-notes', receipt.jobId);
-  expect(onlyRun(reopened.service, 'review-notes').failure?.reason).toBe('recovery-exhausted');
+  await until(async () => {
+    const version = reopened.service.getRun('review-notes', receipt.jobId)!.version;
+    return (await new RunQueries(createQuerySource(reopened.service)).mergeReadiness('review-notes', receipt.jobId, version)).readiness.status === 'gate-failed';
+  });
   const events = await runEventsOnDisk(fixture.root, 'review-notes', receipt.jobId);
   expect(events.filter(event => event.type === 'nonfunctional-round-closed').map(event => event.data.outcome))
     .toEqual(['exhausted']);
@@ -303,5 +310,9 @@ test('an exhausted crash with changed source leaves merge readiness unavailable'
   expect(await readFile(join(fixture.root, 'changed-after-exhaustion.ts'), 'utf8')).toBe('export const changed = true;\n');
   const version = reopened.service.getRun('review-notes', receipt.jobId)!.version;
   expect((await new RunQueries(createQuerySource(reopened.service)).mergeReadiness('review-notes', receipt.jobId, version)).readiness.status)
-    .toBe('unavailable');
+    .toBe('gate-failed');
+  if (onlyRun(reopened.service, 'review-notes').state === 'running') {
+    await reopened.service.execute(stopRun('review-notes', receipt.jobId, reopened.service.getRun('review-notes', receipt.jobId)!.version));
+    await reopened.service.settled('review-notes', receipt.jobId);
+  }
 }, 60_000);

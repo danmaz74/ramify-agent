@@ -16,7 +16,7 @@ import {
 } from './helpers/check-findings-composition.js';
 import { compositionMeasurements } from './helpers/check-findings-measurements.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
-import { identityOf, logLines, recordText, recoveryCompletions, runDirectory } from './helpers/composition.js';
+import { identityOf, logLines, recordText, runDirectory } from './helpers/composition.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { mockGit } from './helpers/mock-git.js';
 import { eventsOf, gate, notes, plan, reviewRun, tool } from './helpers/reviews.js';
@@ -178,11 +178,6 @@ function boundary(event: RunEvent): boolean {
     || event.type === 'iteration-closed';
 }
 
-/** What a restart may add: the completions of what the log holds open, and the owed and unsettled reviews it finishes. */
-const recoveryAppends: ReadonlySet<RunEvent['type']> = new Set([
-  ...recoveryCompletions, 'review-request-recorded', 'review-attempt-finished', 'reconciliation-brief-appended',
-]);
-
 /** Each identity the log may hold once, beside the composition's own: a request, an attempt's start and end, a round's start, assessment and brief. */
 function reviewIdentity(event: RunEvent): string | null {
   switch (event.type) {
@@ -195,7 +190,7 @@ function reviewIdentity(event: RunEvent): string | null {
 }
 
 describe('CF06 and CF07: a crash at every review, reconciliation and CheckFinding boundary of the composed run', () => {
-  test('recovery from each prefix of the log invokes no agent, appends only completions, keeps every identity once, rebuilds records and projections, and a second restart changes nothing', async () => {
+  test('recovery without an execution agent from each prefix preserves pending work and identities, rebuilds records and projections, and a second restart changes nothing', async () => {
     const root = await compositionTarget(cleanups);
     const run = await reviewRun(root, cleanups, compositionScenario(root));
     expect(onlyRun(run.service, plan).state).toBe('completed');
@@ -233,29 +228,12 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
           expect(after.filter(line => line.effect?.key === assessedIntent.effect!.key).map(line => line.effect!.phase), context).toEqual(['intent']);
         }
         const appended = after.slice(cut).map(line => line.event);
+        // Invocation settlement is recorded, but no review result or workflow decision is invented.
         for (const event of appended) {
-          expect(recoveryAppends.has(event.type), `${context}: recovery appended ${event.type}`).toBe(true);
-          const findings = carriedCheckFindings(event);
-          if (findings.length === 0) continue;
-          // A reviewer already submitted and settled before the crash may
-          // have its exact pending attempt completed without another agent.
-          // No other recovery completion may originate CheckFindings.
-          expect(event.type, `${context}: CheckFindings came from ${event.type}`).toBe('review-attempt-finished');
-          if (event.type !== 'review-attempt-finished') continue;
-          const started = prefix.map(line => line.event).find(prior => prior.type === 'review-attempt-started' &&
-            prior.data.attempt === event.data.attempt);
-          expect(started, `${context}: ${event.data.attempt} had no committed start`).toBeDefined();
-          if (started?.type !== 'review-attempt-started') continue;
-          expect(prefix.map(line => line.event).find(prior => prior.type === 'invocation-ended' &&
-            prior.data.invocation === started.data.invocation), `${context}: ${event.data.attempt} had no accepted end`)
-            .toMatchObject({ data: { ended: 'submitted', submission: expect.any(String) } });
-          const original = golden.find(line => line.event.type === 'review-attempt-finished' &&
-            line.event.data.attempt === event.data.attempt)?.event;
-          expect(original, `${context}: ${event.data.attempt} was not in the original run`).toBeDefined();
-          if (original?.type === 'review-attempt-finished') {
-            expect(event.data, `${context}: ${event.data.attempt} changed its accepted result`).toEqual(original.data);
-            expect(findings, `${context}: ${event.data.attempt} changed CheckFindings`).toEqual(carriedCheckFindings(original));
-          }
+          expect(event.type, context).toBe('invocation-ended');
+          if (event.type !== 'invocation-ended') continue;
+          expect(prefix.some(line => line.event.type === 'invocation-started' && line.event.data.invocation === event.data.invocation), context).toBe(true);
+          expect(prefix.some(line => line.event.type === 'invocation-ended' && line.event.data.invocation === event.data.invocation), context).toBe(false);
         }
         const events = after.map(line => line.event);
         // Exactly once: every identity at most once, and the CheckFinding events replay.
@@ -263,10 +241,12 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
         expect(identities.filter((identity, index) => identities.indexOf(identity) !== index), context).toEqual([]);
         const replayed = replayCheckFindingEvents(events.flatMap(event => [...carriedCheckFindings(event)]));
         if (!replayed.ok) throw new Error(`${context}: ${replayed.rejection.message}`);
-        // Every accepted iteration in the prefix is owed its three requests, and none is left unsettled.
-        const accepted = events.filter(event => event.type === 'iteration-closed' && event.data.outcome === 'accepted').length;
+        // Reopening without an execution agent retains precisely the recorded requests and unfinished reviews.
+        const requests = eventsOf(events, 'review-request-recorded');
+        const settled = new Set(eventsOf(events, 'review-attempt-finished').filter(event => event.data.settles).map(event => event.data.request));
         const coverage = restarted.service.reviews(plan, runId)!.coverage;
-        expect(coverage, context).toMatchObject({ state: 'available', requested: accepted * 3, pending: 0 });
+        expect(coverage, context).toMatchObject({ state: 'available', requested: requests.length,
+          pending: requests.filter(event => !settled.has(event.data.request)).length });
         // The projections are rebuilt from the log alone.
         const list = restarted.service.checkFindings(plan, runId, { kind: 'list', owner: null, select: 'all', limit: 100 });
         expect(list, context).toEqual(selectCheckFindings(replayed.state, { kind: 'list', owner: null, select: 'all', limit: 100 }));
@@ -281,7 +261,7 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
           written.add(path);
           expect(await readFile(join(directory, path), 'utf8'), `${context}: ${path}`).toBe(recordText(body));
         }
-        expect(events.at(-1)!.type, context).toBe(cut === golden.length ? 'job-completed' : 'job-interrupted');
+        expect(events.some(event => event.type === 'job-interrupted'), context).toBe(false);
         recovered.set(cut, appended);
       } finally {
         await restarted.service.close();
@@ -296,23 +276,13 @@ describe('CF06 and CF07: a crash at every review, reconciliation and CheckFindin
         await again.service.close();
       }
     }
-    // Three named boundaries, exactly: the gate-to-request crash of the
-    // correction, whose line also claims the repair; a reader that was
-    // running; and the committed assessment whose brief was not appended.
-    const after = (predicate: (event: RunEvent) => boolean) => golden.findIndex(line => predicate(line.event)) + 1;
-    const claimed = recovered.get(after(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-002.i03'))!;
-    expect(claimed.filter(event => event.type === 'review-request-recorded').map(event => event.type === 'review-request-recorded' && [event.data.request, event.data.kind]))
-      .toEqual([['rq-0010', 'code'], ['rq-0011', 'scope'], ['rq-0012', 'design']]);
-    const reading = recovered.get(after(event => event.type === 'review-attempt-started' && event.data.attempt === 'rq-0007.a01'))!;
-    expect(reading.find(event => event.type === 'review-attempt-finished' && event.data.attempt === 'rq-0007.a01'))
-      .toMatchObject({ data: { result: 'not-verified', reason: 'execution-failed', settles: true } });
-    const assessed = recovered.get(after(event => event.type === 'reconciliation-assessed' && event.data.reconciliation === 'wi-002.rc01'))!;
-    expect(assessed.some(event => event.type === 'reconciliation-brief-appended' && event.data.reconciliation === 'wi-002.rc01')).toBe(false);
+    // Every cut retains its pending scheduling, reader or parent append for an execution owner.
+    expect([...recovered.values()].every(appended => appended.every(event => event.type === 'invocation-ended'))).toBe(true);
   }, 300_000);
 });
 
 describe('CF07: a shutdown owns the live readers of the composed run, and a late result is fenced', () => {
-  test('closing the service while two of wi-002\'s readers run stops both and records nothing; a reader that ignores its stop ingests nothing; the restart settles every attempt once', async () => {
+  test('closing the service while two of wi-002\'s readers run stops both and records nothing; a reader that ignores its stop ingests nothing; a restart without an execution agent preserves unfinished attempts', async () => {
     const root = await compositionTarget(cleanups);
     const waiting = [gate(), gate()] as const;
     const signal = (index: 0 | 1) => ({ kind: 'await' as const, until: async () => { waiting[index].open(); } });
@@ -352,10 +322,9 @@ describe('CF07: a shutdown owns the live readers of the composed run, and a late
     try {
       expect(restarted.agent).toBeUndefined();
       const after = await runEventsOnDisk(root, plan, runId);
-      const finished = eventsOf(after.slice(closed.length), 'review-attempt-finished').map(event => [event.data.attempt, event.data.result, event.data.reason]);
-      expect(finished).toEqual(expect.arrayContaining([['rq-0007.a01', 'not-verified', 'execution-failed'], ['rq-0008.a01', 'not-verified', 'execution-failed']]));
-      expect(after.at(-1)).toMatchObject({ type: 'job-interrupted' });
-      expect(restarted.service.reviews(plan, runId)!.coverage).toMatchObject({ state: 'available', requested: 9, pending: 0 });
+      expect(after).toEqual(closed);
+      expect(eventsOf(after, 'review-attempt-finished').some(event => ['rq-0007.a01', 'rq-0008.a01'].includes(event.data.attempt))).toBe(false);
+      expect(restarted.service.reviews(plan, runId)!.coverage).toMatchObject({ state: 'available', requested: 9, pending: 3 });
       expect(summariesOf(restarted.service, runId)).toEqual([]);
     } finally {
       await restarted.service.close();

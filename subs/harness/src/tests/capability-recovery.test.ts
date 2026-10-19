@@ -7,7 +7,6 @@ import { analysis, entry } from './helpers/analysis.js';
 import { RunLog, type RunEvent } from '../run/log.js';
 import { measurementSnapshotSchema, runLayout, snapshotId, type InvocationOutcome } from '../run/records.js';
 import { committedRecords } from '../work/committed.js';
-import { replayCapabilityState } from '../capability/state.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { assign, edit, outline, submit, treeInputs } from './helpers/iterations.js';
 import { freeze, runEventsOnDisk, runPath, staleCrashLock, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
@@ -175,7 +174,7 @@ test('CA05 CA19 CA22 CA32: service restart continues the durable active architec
   cleanups.push(() => second.service.close());
   expect(second.recovery.effects, JSON.stringify({ recovery: second.recovery,
     tail: (await runEventsOnDisk(fixture.root, 'need', receipt.jobId)).slice(-8) })).toContainEqual(
-    expect.stringContaining('resumed capability coordination'));
+    expect.stringContaining('continued unfinished tasks through ordinary execution'));
   await until(() => (second.service.events('need', receipt.jobId) ?? []).some(event =>
     event.type === 'capability-assignment-settled' || event.type === 'job-failed'), 30_000);
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
@@ -643,7 +642,7 @@ test('CA19: accepted B completion before assignment settlement replays without a
   await second.service.settled('need', receipt.jobId);
 }, 60_000);
 
-test('CA20 CA32: restart with a B writer lacking confirmed release stops the stack and frontier', async () => {
+test('CA20 CA32: restart settles an unstarted provider attempt before resuming the same pending assignment', async () => {
   const fixture = await copyCapabilityFixture();
   cleanups.push(fixture.remove);
   const boundaryAnswers = recoveryBoundaries(fixture.root);
@@ -666,7 +665,7 @@ test('CA20 CA32: restart with a B writer lacking confirmed release stops the sta
         need: 'B fact for A', usage: [{ path: 'subs/a/src/caller.ts', use: 'Display source', prospective: false }],
         constraints: [], knownInterface: { kind: 'none-known' },
         examples: [{ title: 'source shown', code: 'expect(renderA()).toContain("B")', designation: 'pseudocode' }],
-      } }) : submit({ kind: 'completion-proposed', summary: 'B result', findings: [] });
+      } }) : [{ kind: 'wait', ms: 60_000 }];
     }
     if (spec.role === 'capability-architect') {
       const ids = [...spec.prompt.matchAll(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)].at(-1)!;
@@ -691,15 +690,29 @@ test('CA20 CA32: restart with a B writer lacking confirmed release stops the sta
   const receipt = await first.service.execute(startRun('need'));
   await until(() => frozen, 30_000);
   await staleCrashLock(fixture.root);
-  const second = await openCapabilityRuns(fixture.root, options);
+  const second = await openCapabilityRuns(fixture.root, { ...options, afterWrite: undefined });
   cleanups.push(() => second.service.close());
+  await until(() => {
+    const events = second.service.events('need', receipt.jobId) ?? [];
+    return events.filter(event => event.type === 'writer-acquired' && events.some(started =>
+      started.type === 'invocation-started' && started.data.invocation === event.data.invocation
+      && started.data.work.iteration === 'cap-001.i01')).length >= 2
+      || second.service.getRun('need', receipt.jobId)?.state === 'failed';
+  }, 10_000).catch(error => { throw new Error(`${String(error)}; ${JSON.stringify({ engineerTurns, recovery: second.recovery, tail: second.service.events('need', receipt.jobId)?.slice(-20) })}`); });
+  expect(second.service.getRun('need', receipt.jobId)?.state, JSON.stringify(second.service.getRun('need', receipt.jobId)?.failure)).not.toBe('failed');
+  await second.service.execute(stopRun('need', receipt.jobId, second.service.getRun('need', receipt.jobId)!.version));
   await second.service.settled('need', receipt.jobId);
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
-  expect(events.filter(event => event.type === 'writer-acquired' &&
+  const attempts = events.filter(event => event.type === 'writer-acquired' &&
     events.some(started => started.type === 'invocation-started' && started.data.invocation === event.data.invocation &&
-      started.data.work.iteration === 'cap-001.i01'))).toHaveLength(1);
-  expect(events.filter(event => event.type === 'capability-stopped')).toHaveLength(1);
-  expect(events.filter(event => event.type === 'job-failed').at(-1)?.data.reason).toBe('writer-unsettled');
+      started.data.work.iteration === 'cap-001.i01'));
+  expect(attempts).toHaveLength(2);
+  const firstAttempt = attempts[0]!; const replacement = attempts[1]!;
+  if (firstAttempt.type !== 'writer-acquired') throw new Error('Missing former writer');
+  expect(events.find(event => event.type === 'writer-released' && event.data.invocation === firstAttempt.data.invocation && event.data.confirmed)?.sequence).toBeLessThan(replacement.sequence);
+  expect(events.filter(event => event.type === 'capability-assigned')).toHaveLength(1);
+  expect(events.filter(event => event.type === 'job-failed')).toHaveLength(0);
+  expect(events.filter(event => event.type === 'job-stopped')).toHaveLength(1);
   expect(events.filter(event => event.type === 'capability-assignment-settled')).toHaveLength(0);
   expect(events.filter(event => event.type === 'capability-handed-back')).toHaveLength(0);
   expect(events.filter(event => event.type === 'work-item-started' && event.data.workItem === 'wi-002')).toHaveLength(0);
@@ -838,7 +851,7 @@ for (const boundary of ['capability-exchange-opened', 'capability-exchange-answe
 }
 
 
-test('discarded coordinator shutdown refuses corrupted proof, applied non-kept results and already applied effects before any recovery dispatch', async () => {
+test('capability accepted delivery refuses corrupted durable task evidence before dispatch', async () => {
   const fixture = await copyCapabilityFixture(); cleanups.push(fixture.remove);
   const boundary = recoveryBoundaries(fixture.root, 'a'); answers.push(boundary);
   let closed: Promise<void> | undefined;
@@ -903,23 +916,12 @@ test('discarded coordinator shutdown refuses corrupted proof, applied non-kept r
     { name: 'malformed outcome', outcome: { ...durable, settled: null } },
     { name: 'wrong outcome invocation', outcome: { ...durable, invocation: 'inv-9999' } },
     { name: 'unconfirmed settlement', outcome: { ...durable, settled: { ...durable.settled, confirmed: false } } },
-    { name: 'applied non-kept result', outcome: { ...durable, disposition: 'applied' } },
-    { name: 'non-shutdown end', ending: { kept: false, finished: 'not-kept' } },
     { name: 'changed accepted bytes', bytes: submitted.toString().replace('Source inspected', 'Changed after acceptance') },
-    { name: 'wrong operation identity', outcome: { ...durable, sessionOperation: { ...durable.sessionOperation, operationId: 'inv-9999' } } },
-    { name: 'wrong point checkpoint', outcome: { ...durable, sessionOperation: { ...durable.sessionOperation, point: null } } },
     { name: 'null submission envelope', bytes: 'null' },
     { name: 'primitive submission envelope', bytes: '7' },
     { name: 'array submission envelope', bytes: '[]' },
     { name: 'wrong task', bytes: submitted.toString().replace('cap-001', 'cap-999') },
-    { name: 'discarded plan mutation', effect: { ...end, type: 'capability-plan-revised', data: {
-      task: 'cap-001', revision: 2, basedOn: 1, invocation: original.data.invocation } } },
-    { name: 'discarded obligation registration', effect: { ...end, type: 'obligation-registered', data: {
-      id: 'extra-case', kind: 'test', responsible: { kind: 'capability-task', id: 'cap-001' },
-      by: original.data.invocation, submission: end.data.submission!, description: 'Extra obligation' } } },
-    { name: 'discarded obligation report', effect: { ...end, type: 'obligation-reported', data: {
-      id: 'cap-001', judgment: 'done', basedOnRevision: 0, revision: 1,
-      by: original.data.invocation, submission: end.data.submission! } } },
+
   ];
   for (const fault of cases) {
     let outcome: unknown = Object.hasOwn(fault, 'outcome') ? fault.outcome : durable;
@@ -936,13 +938,6 @@ test('discarded coordinator shutdown refuses corrupted proof, applied non-kept r
       }
     }
     const suppliedEvents = events.map(event => event === end ? ending : event).concat(fault.effect ? [fault.effect] : []);
-    if (fault.name === 'discarded plan mutation') {
-      expect(() => replayCapabilityState(suppliedEvents), 'the prestate corrupted plan already lacks authority')
-        .toThrow(/has no coordination authority/u);
-    }
-    // An independently corrupted observation becomes visible after the original
-    // state read, while the submitted bytes are being authenticated. The
-    // final discarded-effect guard must reject it before reconstruction.
     let effectVisible = fault.effect === undefined;
     const log = new Proxy(run.log, { get(target, key) {
       if (key === 'events') return effectVisible ? suppliedEvents : events;

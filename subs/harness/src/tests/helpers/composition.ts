@@ -16,7 +16,7 @@ import {
 } from './contracts.js';
 import { copyFixture } from './fixture.js';
 import {
-  addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, read, shell, submit, treeInputs,
+  addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, partialReport, read, shell, submit, treeInputs,
   write, type Turn,
 } from './iterations.js';
 import { decision as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from './placement.js';
@@ -847,18 +847,18 @@ const cycle: Scenario = {
   },
 };
 
-/** A context return leaves the engineer's partial work for architect assessment. */
+/** A context return continues the pending engineer until its explicit partial result. */
 const engineerBudget: Scenario = {
   name: 'engineer-budget',
   git: { head: base, after: materialized, commits: [materialize(featureOf(notesDirectory, 'review-notes')), unchanged(materialized), unchanged(materialized)] },
-  exercises: 'a module engineer reaches a context limit; its partial result returns to the architect for a completion decision',
+  exercises: 'a module engineer reaches a context limit, continues, and explicitly reports partial work for an architect decision',
   ends: 'completed',
   finalCandidate: { head: materialized, tree: '8'.repeat(40) },
   target: () => fixtureWith([notesModule]),
   script: () => byRole({
     'initial-architect': [submit(analysis([entry('review-notes', notes)]))],
     'local-architect': [submit(assign(notes, {}, outline())), submit(requestCompletion())],
-    engineer: [budgetTurn],
+    engineer: [budgetTurn, submit(partialReport(['Inspected the current scope.'], ['The remaining implementation needs another iteration.']))],
   }),
   inputs: treeInputs,
 };
@@ -1203,5 +1203,5 @@ export function identityOf(event: RunEvent): string | null {
 export const recoveryCompletions: ReadonlySet<RunEvent['type']> = new Set([
   'invocation-ended', 'writer-released', 'gate-attempted', 'brief-appended', 'global-context-rebuilt',
   'decision-delivered', 'scenarios-materialized', 'session-finished', 'job-interrupted',
-  'context-package-appended',
+  'context-package-appended', 'job-stopped',
 ]);

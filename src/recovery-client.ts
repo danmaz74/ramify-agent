@@ -47,7 +47,7 @@ export async function runRecoveryCommand(options: RecoveryOptions, ports: Recove
     if (options.action === 'inspect') {
       const inspection = await request(protocolPaths.runRecovery(options.planId, options.runId), recoveryInspectionSchema.nullable());
       return { exitStatus: 0, output: { kind: 'recovery-inspection', ...identity, inspection,
-        summary: inspection === null ? 'No recovery occurrence is waiting.' : inspection.canResume ? 'The retained operation can receive another bounded attempt group.' : 'Resume requires the reported prerequisites.' } };
+        summary: inspection === null ? 'No interrupted task is waiting.' : inspection.canResume ? 'The unfinished task can continue.' : 'Continuation needs the reported prerequisites.' } };
     }
     let repair: unknown;
     if (options.repairFile !== undefined) {
@@ -63,7 +63,7 @@ export async function runRecoveryCommand(options: RecoveryOptions, ports: Recove
         ...(repair === undefined ? {} : { repair }) } });
     const { receipt } = await request(protocolPaths.commands, commandResponseSchema, command);
     return { exitStatus: 0, output: { kind: 'recovery-resumed', ...identity, receipt,
-      summary: 'One bounded attempt group was admitted. An identical command returns this receipt; inspection reports the current occurrence.' } };
+      summary: 'Task continuation requested. An identical command returns this receipt; inspection reports any remaining prerequisite.' } };
   } catch (error) {
     return { exitStatus: 2, output: { kind: 'error', ...identity, uncertain: error instanceof RecoveryFailure && error.uncertain,
       error: { code: error instanceof RecoveryFailure ? error.code : 'invalid-request', message: error instanceof Error ? error.message : String(error) },

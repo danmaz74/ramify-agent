@@ -755,7 +755,7 @@ async function crashAroundAppend(when: 'before' | 'after'): Promise<void> {
 
   crashAppend = false;
   const restarted = await restart(root, scripted);
-  expect(restarted.recovery.effects).toEqual([`${plan}/${run.runId}: the parent append of reconciliation wi-001.rc01`, `${plan}/${run.runId}: restored ordinary owning workflow from its original task correlations`]);
+  expect(restarted.recovery.effects).toEqual([`${plan}/${run.runId}: the parent append of reconciliation wi-001.rc01`, `${plan}/${run.runId}: continued unfinished tasks through ordinary execution`]);
   await restarted.service.settled(plan, run.runId);
   const after = await runEventsOnDisk(root, plan, run.runId);
   const recovered = after.slice(before.length);

@@ -236,7 +236,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(f.native.wireHeaders).toEqual(Array(4).fill({ sessionId: f.P.sessionId, clientRequestId: f.P.sessionId }));
     f.native.verify();
   });
-  it('S08 rebinds an identical tool without redeclaration and conflicts on changed description/schema before dispatch', async () => {
+  it('S08 rebinds an identical tool and reports incompatible optional context unavailable before dispatch', async () => {
     const f = await fixture([[call('read', {}, 'first')], [call('submit_orientation', { orientation: 'A' }, 'first-submit')], [call('read', {}, 'second')], [call('submit_orientation', { orientation: 'A' }, 'second-submit')]]);
     const one = await (await f.operations.continue(f.next(f.P.sessionId, f.P.point!, 'one'))).receipt;
     let freshCalls = 0;
@@ -248,7 +248,7 @@ describe('Plan 23 installed pi native prefix preservation', () => {
     expect(prefix(f.native, 3).input.some(item => item['type'] === 'additional_tools')).toBe(false);
     for (const changed of [{ ...read, description: 'Changed.' }, { ...read, inputSchema: { type: 'string' } }]) {
       const conflict = await (await f.operations.continue({ ...f.next(f.P.sessionId, two.point!, `conflict-${JSON.stringify(changed)}`), toolChange: { add: [changed], activate: [], inactivate: [] } })).receipt;
-      expect(conflict.status).toBe('conflict'); expect(conflict.point).toBeNull();
+      expect(conflict.status).toBe('unavailable'); expect(conflict.contextUnavailable).toBe(true); expect(conflict.point).toBeNull();
     }
     expect(f.native.dispatches()).toBe(4); f.native.verify();
   });
@@ -316,7 +316,11 @@ describe('Plan 23 installed pi native prefix preservation', () => {
       await expect(handle.receipt).rejects.toThrow('Crash before terminal write'); expect(richFixture.executions).toBe(1); expect(f.native.dispatches()).toBe(1); f.setFault(null);
       receipt = await (await createPiAgentOn(f.source).bindSessionStore!(f.store).retry({ runId: 'rich', operationId: 'rich-task', bindings: bound })).receipt;
     } else receipt = await handle.receipt;
-    expect(receipt).toMatchObject({ status: 'completed', outcome: { kind: 'submitted' } }); expect(richFixture.executions).toBe(1);
+    expect(receipt).toMatchObject({ status: 'completed', outcome: { kind: 'submitted' } }); expect(richFixture.executions).toBe(mode === 'recover' ? 2 : 1);
+    // A read interrupted before its private artifact is durable may run again;
+    // its image/details still come from the provider, without effect receipts.
+    const journal = await f.store.read('rich', 'operation:rich-task');
+    expect((journal!.body['effects'] as Array<{ tool: string }>).some(effect => effect.tool === 'read')).toBe(false);
     expect(prefix(f.native, 1).input.slice(-2)).toEqual([{ type: 'function_call_output', call_id: 'call_rich', output: [{ type: 'input_text', text: 'Rich result.' }, { type: 'input_image', detail: 'auto', image_url: 'data:image/png;base64,c2NyaXB0ZWQ=' }] }, contextNotice]);
     const snapshot = await f.operations.inspect('rich', P.sessionId);
     const stateEntry = snapshot!.transcript.filter(item => item.key.includes(':pi-state:')).at(-1)!;

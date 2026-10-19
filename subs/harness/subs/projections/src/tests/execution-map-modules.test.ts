@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ModuleTree } from '../../../../src/interfaces/protocol/evidence.js';
 import { executionModuleMapSchema } from '../../../../src/interfaces/protocol/execution-map.js';
 import { capturedLinesOf, executionModuleMapOf } from '../execution-modules.js';
-import { runView } from '../inputs.js';
+import { currentLifecycleEvents, runView } from '../inputs.js';
 import { invocationSchema, lineEventSummarySchema, runLayout } from '../../../../src/run/records.js';
 import { iterationAssignmentSchema } from '../../../../src/work/iterations.js';
 import { at, constructedRun, hash, item, registered, reviews, type Line } from '../../../../src/tests/helpers/constructed.js';
@@ -60,6 +60,19 @@ async function writeLines(directory: string, id: string, paths: Array<{ path: st
 }
 
 describe('execution module relations and captured writer changes', () => {
+  it('projects the active continuation lifecycle while retaining prior failure history', async () => {
+    const command = { commandId: 'continue-1', contentHash: hash,
+      receipt: { commandId: 'continue-1', jobId: 'j', sequence: 1, acceptedAt: '2026-10-18T10:00:00.000Z' } };
+    const view = await setup([
+      { type: 'job-failed', data: { reason: 'internal', message: 'old failure', evidence: [] } },
+      { type: 'job-continued', data: { command } },
+      ...started('inv-continued', false),
+    ]);
+    expect(currentLifecycleEvents(view).some(event => event.type === 'job-failed')).toBe(false);
+    expect(view.events.some(event => event.type === 'job-failed')).toBe(true);
+    expect(currentLifecycleEvents(view).some(event => event.type === 'invocation-started')).toBe(true);
+  });
+
   it('preserves fixture owner, scenario, architect, engineer, consumer and provider roles directly', async () => {
     const view = await setup([]);
     const map = executionModuleMapSchema.parse(executionModuleMapOf(view, executionMapFixturePage.tree,

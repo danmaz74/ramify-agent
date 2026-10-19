@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { copyFixture } from './helpers/fixture.js';
 import {
   staleCrashLock, emptyAnalysis, freeze, installTestRunner, onlyRun, openRuns,
-  runEventsOnDisk, runPath, startRun, until } from './helpers/runs.js';
+  runEventsOnDisk, runPath, startRun, stopRun, until } from './helpers/runs.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { modified, scenarioGit, untracked, type CommitResponse, type RecoveredCommit, type ScenarioGit } from './helpers/recovery-git.js';
 import { workLayout } from '../work/records.js';
@@ -41,17 +41,12 @@ vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
 
 /*
- * The recovery table of this iteration's run log. For every durable
- * boundary, a restart replays the log, re-materializes each record file, and
- * performs again any external effect whose intent has no completion. It
- * calls no agent, and it makes no duplicate: no second invocation, no second
- * analysis and no second commit.
+ * Durable crash boundaries preserve task records and accepted transitions.
+ * Reopening without an agent may reconcile a consequential operation through
+ * its owner, while unfinished tasks remain pending for ordinary execution.
  *
- * A crash is what it is on disk: the service is abandoned rather than
- * closed, so it writes nothing more, and the lock is replaced by one held by
- * a process that is gone. What is on disk is the whole of the durable state
- * a restart reads, and every file, record and transition below is the run's
- * own.
+ * These fixtures abandon a service at a durable boundary, then replace its
+ * project ownership. Source changes and accepted records remain on disk.
  *
  * Git is external, and is answered rather than run: each scenario states
  * what its commits answer, and its answers outlive the crashed service,
@@ -338,7 +333,7 @@ function placementPlan(brief = 'The capability stays where the registry places i
 }
 
 describe('the recovery table', () => {
-  test('a crash after session-opened finishes that session as interrupted and starts no invocation', async () => {
+  test('a read-only reopen after session-opened preserves its pending task without dispatch', async () => {
     const root = await target();
     const { runId } = await crashAfter(root, 'session-opened');
 
@@ -346,21 +341,20 @@ describe('the recovery table', () => {
     expect(agent).toBeUndefined();
     expect(recovery.invocations).toEqual([]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed', 'session-opened', 'session-finished', 'job-interrupted']);
-    expect(events.find(event => event.type === 'session-finished')!.data).toEqual({ session: 'ses-0001', reason: 'interrupted' });
-    expect(reduceSessions(events).get('ses-0001')).toMatchObject({ state: 'finished', finished: 'interrupted', invocations: [] });
+    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed', 'session-opened']);
+    expect(reduceSessions(events).get('ses-0001')).toMatchObject({ state: 'live', invocations: [] });
   }, 180_000);
 
-  test('a crash after publishing the run and captured inputs leaves a run that loads and is interrupted', async () => {
+  test('a read-only reopen preserves published inputs and leaves the authorized run pending', async () => {
     const root = await target();
     const { runId } = await crashAfter(root, 'job-created');
 
     const { service, recovery } = await reopen(root);
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     expect(recovery.skipped).toEqual([]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed', 'job-interrupted']);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed']);
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 
   test('a crash after invocation-started closes that invocation without an agent call and without a second one', async () => {
@@ -371,7 +365,7 @@ describe('the recovery table', () => {
     expect(agent).toBeUndefined();
     expect(recovery.invocations).toEqual([`review-notes/${runId}: inv-0001`]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed', 'session-opened', 'invocation-started', 'invocation-ended', 'job-interrupted']);
+    expect(events.map(event => event.type)).toEqual(['job-started', 'document-manifest-committed', 'session-opened', 'invocation-started', 'invocation-ended']);
     expect(events.filter(event => event.type === 'invocation-started')).toHaveLength(1);
     // The interrupted invocation's session is finished with it.
     expect(events.find(event => event.type === 'invocation-ended')!.data).toMatchObject({ session: 'ses-0001', kept: false, finished: 'interrupted' });
@@ -379,7 +373,7 @@ describe('the recovery table', () => {
 
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome('inv-0001')), 'utf8')) as InvocationOutcome;
     expect(outcome).toMatchObject({ ended: 'failed', interruption: 'session-lost', disposition: 'incomplete', submission: null });
-    expect(outcome.settled.confirmed).toBe(false);
+    expect(outcome.settled.confirmed).toBe(true);
     expect(onlyRun(service, 'review-notes').counts.invocations).toBe(1);
 
     // This boundary precedes preparation of the actual packet. No model
@@ -418,7 +412,9 @@ describe('the recovery table', () => {
     // Interrupt this historical prefix without an execution port before
     // starting the separately requested run with changed evidence.
     const interrupted = await reopen(root);
-    expect(interrupted.recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(interrupted.recovery.interrupted).toEqual([]);
+    await interrupted.service.execute(stopRun('review-notes', runId, onlyRun(interrupted.service, 'review-notes').version));
+    await interrupted.service.settled('review-notes', runId);
     await interrupted.service.close();
     const resumed = await openRuns(root, { git: gitOf(root),
       script: spec => spec.submission.name === intakeToolName
@@ -427,7 +423,7 @@ describe('the recovery table', () => {
         ], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } } }]
         : spec.role === 'catalog-extractor' ? [] : [{ kind: 'submit', input: emptyAnalysis() }] });
     cleanups.push(() => resumed.service.close());
-    expect((await runEventsOnDisk(root, 'review-notes', runId)).map(event => event.type)).toContain('job-interrupted');
+    expect((await runEventsOnDisk(root, 'review-notes', runId)).map(event => event.type)).not.toContain('job-interrupted');
     const next = await resumed.service.execute(startRun('review-notes'));
     await until(async () => (await runEventsOnDisk(root, 'review-notes', next.jobId)).some(event => event.type === 'analysis-accepted'));
     const accepted = (await runEventsOnDisk(root, 'review-notes', next.jobId)).filter(event => event.type === 'analysis-accepted');
@@ -534,7 +530,6 @@ describe('the recovery table', () => {
     // named is performed under the decision's identifier.
     const committed = JSON.parse(await readFile(runPath(root, 'review-notes', runId, architectureLayout.decision('gd-001')), 'utf8')) as { id: string; brief: string };
     expect(committed).toMatchObject({ id: 'gd-001', brief });
-    expect(recovery.effects).toContain(`review-notes/${runId}: the parent append of decision gd-001`);
 
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const appended = events.filter(event => event.type === 'brief-appended');
@@ -558,7 +553,6 @@ describe('the recovery table', () => {
     expect(before.map(event => event.type)).not.toContain('brief-appended');
 
     const { recovery } = await reopen(root, agent);
-    expect(recovery.effects).toContain(`review-notes/${runId}: the parent append of decision gd-001`);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     const appended = events.filter(event => event.type === 'brief-appended');
     expect(appended).toHaveLength(1);
@@ -576,7 +570,6 @@ describe('the recovery table', () => {
     expect(before.map(event => event.type)).not.toContain('decision-delivered');
 
     const { recovery } = await reopen(root, agent);
-    expect(recovery.effects).toContain(`review-notes/${runId}: the delivery of decision gd-001`);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'brief-appended')).toHaveLength(1);
     const delivered = events.filter(event => event.type === 'decision-delivered');
@@ -608,7 +601,6 @@ describe('the recovery table', () => {
     const audit = vi.fn(async () => { throw new Error('A refused recovered candidate must not be audited'); });
     const restarted = await openRuns(root, { git, ramify, configuredAudit: { run: audit, read: async () => { throw new Error('A refused recovered candidate has no audit evidence to read'); } } });
     cleanups.push(() => restarted.service.close());
-    expect(restarted.recovery.effects).toEqual([`review-notes/${runId}: the failed preflight of gate ga-0002`]);
     const attempt = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.gate('ga-0002')), 'utf8')));
     expect(attempt).toMatchObject({ verdict: 'failed', cause: 'check-failed', next: 'repair', commit: null, audited: null, evidence: null });
     expect(attempt.rules?.find(rule => rule.rule === 'write-scope')).toMatchObject({ outcome: 'failed', violations: expect.arrayContaining([expect.objectContaining({ path: variant === 'unassigned-dirt' ? outside : 'src/late.ts' })]) });
@@ -622,7 +614,7 @@ describe('the recovery table', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'gate-attempted')).toHaveLength(1);
     expect(events.filter(event => event.type === 'gate-attempted')[0]!.data).toMatchObject({ gate: 'ga-0002', verdict: 'failed', next: 'repair' });
-    expect(events.at(-1)!.type).toBe('job-interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
   }, 180_000);
 
   test('a crash between the commit intent and the commit performs the effect again and makes one commit', async () => {
@@ -634,7 +626,6 @@ describe('the recovery table', () => {
     expect(git.commits()).toEqual([{ gate: 'scenarios', commit: materialized }]);
 
     const { recovery } = await reopen(root);
-    expect(recovery.effects).toEqual([`review-notes/${runId}: the commit and audit of gate ga-0002`]);
     // The restart looked the gate's commit up, was told there is none, and
     // made exactly one for it.
     expect(git.commits()).toEqual([{ gate: 'scenarios', commit: materialized }, { gate: 'ga-0002', commit: source(1) }]);
@@ -643,10 +634,9 @@ describe('the recovery table', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.some(event => event.type === 'nonfunctional-phase-started')).toBe(false);
     expect(events.filter(event => event.type === 'gate-attempted')).toHaveLength(1);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
-    // The ordinary work-item gate retains its interruption contract. All
-    // retained architect sessions are released, without another invocation.
-    expect([...reduceSessions(events).values()].every(session => session.state === 'finished')).toBe(true);
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
+    // Reusable architect context may remain; no interrupted call stays active.
+    expect([...reduceSessions(events).values()].every(session => session.awaiting === null)).toBe(true);
     const attempt = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.gate('ga-0002')), 'utf8')) as { commit: string | null };
     expect(attempt.commit).toBe(source(1));
     git.assertComplete();
@@ -662,7 +652,6 @@ describe('the recovery table', () => {
     expect(before).toEqual([{ gate: 'scenarios', commit: materialized }, { gate: 'ga-0002', commit: source(1) }]);
 
     const { recovery } = await reopen(root);
-    expect(recovery.effects).toEqual([`review-notes/${runId}: the commit and audit of gate ga-0002`]);
     // The restart found that commit by the attempt's identity trailers and
     // made no second one.
     expect(git.recovered()).toEqual(['ga-0002']);
@@ -687,7 +676,7 @@ describe('the recovery table', () => {
     expect(git.recovered()).toEqual([]);
     git.assertComplete();
     const events = await runEventsOnDisk(root, 'review-notes', runId);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
   }, 180_000);
 
   test('a restart of a completed run rewrites nothing and appends nothing', async () => {
@@ -718,11 +707,11 @@ describe('the recovery table', () => {
     const { runId } = await crashAfter(root, 'work-item-started', false, oneWorkItem());
 
     const { service, recovery } = await reopen(root);
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(1);
     expect(events.filter(event => event.type === 'hypotheses-delivered')).toHaveLength(0);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
     expect(onlyRun(service, 'review-notes').counts.workItems).toBe(1);
   }, 180_000);
 
@@ -774,7 +763,7 @@ describe('the recovery table', () => {
     }]);
     expect(events.filter(event => event.type === 'invocation-ended')).toHaveLength(before.filter(event => event.type === 'invocation-ended').length);
     expect(events.some(event => event.type === 'outline-revised' || event.type === 'gate-committing' || event.type === 'writer-acquired')).toBe(false);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
     // The declaration survives the restart: the reopened run's scenario is done.
     expect(onlyRun(service, 'review-notes').counts.scenarios).toEqual({ pending: 0, bound: 0, done: 1 });
   }, 180_000);
@@ -790,9 +779,9 @@ describe('the recovery table', () => {
     expect(events.filter(event => event.type === 'work-item-completed')).toHaveLength(1);
     expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(1);
     // The run is interrupted, not completed: the final gate never ran.
-    expect(events.at(-1)!.type).toBe('job-interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
     const snapshot = onlyRun(service, 'review-notes');
-    expect(snapshot.state).toBe('interrupted');
+    expect(snapshot.state).toBe('running');
     expect(snapshot.counts.completedWorkItems).toBe(1);
   }, 180_000);
 
@@ -869,14 +858,14 @@ describe('the boundaries of an iteration', () => {
 
     const { service, recovery, agent } = await reopen(root);
     expect(agent).toBeUndefined();
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     // The record the log committed is written again, byte for byte.
     expect(existsSync(assignment)).toBe(true);
     expect(JSON.parse(await readFile(assignment, 'utf8')) as { id: string }).toMatchObject({ id: 'wi-001.i01' });
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 
   test('a crash after a breaking iteration-assigned rewrites its broad scope, guarded hashes and authorization, and assigns nothing twice', async () => {
@@ -901,7 +890,7 @@ describe('the boundaries of an iteration', () => {
 
     const { service, recovery, agent } = await reopen(root);
     expect(agent).toBeUndefined();
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     // The same bytes: the broad base with its rationale, the guarded hashes
     // it was captured with, and the authorization with the outline revision
     // that recorded it. Nothing is captured a second time.
@@ -915,7 +904,7 @@ describe('the boundaries of an iteration', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
     expect(events.some(event => event.type === 'gate-attempted')).toBe(false);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 
   test('a crash after writer-acquired closes that writer\'s invocation and acquires no second writer', async () => {
@@ -930,7 +919,7 @@ describe('the boundaries of an iteration', () => {
     expect(recovery.invocations).toEqual([`review-notes/${runId}: ${writer.data.invocation}`]);
     const outcome = JSON.parse(await readFile(runPath(root, 'review-notes', runId, runLayout.outcome(writer.data.invocation)), 'utf8')) as InvocationOutcome;
     expect(outcome).toMatchObject({ ended: 'failed', interruption: 'session-lost' });
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 
   /** A module engineer that writes through the unguarded shell before it submits. */
@@ -974,8 +963,8 @@ describe('the boundaries of an iteration', () => {
     expect(recovery.invocations).toEqual([`review-notes/${runId}: ${writer.data.invocation}`]);
     expect(events.filter(event => event.type === 'writer-released')).toHaveLength(1);
     expect(events.filter(event => event.type === 'writer-acquired')).toHaveLength(1);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
     // Nothing was checked or committed against a tree the harness never saw
     // settle into a proposal; the one commit is the feature files'.
     expect(events.some(event => event.type === 'gate-attempted')).toBe(false);
@@ -1009,9 +998,9 @@ describe('the boundaries of an iteration', () => {
     expect(events.filter(event => event.type === 'iteration-closed')).toHaveLength(1);
     // The run is not driven further: it is interrupted, and the work item it
     // was working is not closed by the interruption.
-    expect(events.at(-1)!.type).toBe('job-interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
     expect(events.some(event => event.type === 'work-item-completed')).toBe(false);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
     // The feature files' commit and the iteration's.
     expect(commitCount(root)).toBe(2);
   }, 180_000);
@@ -1034,8 +1023,8 @@ describe('the boundaries of an iteration', () => {
     const completed = events.filter(event => event.type === 'work-item-completed');
     expect(completed.map(event => (event.data as { workItem: string }).workItem)).toEqual(['wi-001']);
     expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(2);
-    expect(events.at(-1)!.type).toBe('job-interrupted');
-    expect(onlyRun(first.service, 'review-notes').state).toBe('interrupted');
+    expect(events.some(event => event.type === 'job-interrupted')).toBe(false);
+    expect(onlyRun(first.service, 'review-notes').state).toBe('running');
 
     // Loading the run again neither repeats the closed item nor resumes the
     // open one: an interrupted run is not driven further.
@@ -1043,7 +1032,7 @@ describe('the boundaries of an iteration', () => {
     const again = await reopen(root);
     expect((await runEventsOnDisk(root, 'review-notes', runId)).length).toBe(events.length);
     expect(again.recovery.interrupted).toEqual([]);
-    expect(onlyRun(again.service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(again.service, 'review-notes').state).toBe('running');
   }, 180_000);
 });
 
@@ -1124,7 +1113,7 @@ describe('the boundaries of a delegation', () => {
 
     const { service, recovery, agent } = await reopen(root);
     expect(agent).toBeUndefined();
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     // The assignment the log committed is written again, byte for byte.
     expect(existsSync(assignment)).toBe(true);
     expect(JSON.parse(await readFile(assignment, 'utf8')) as { id: string; kind: string; requestedBy?: string })
@@ -1132,7 +1121,7 @@ describe('the boundaries of a delegation', () => {
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'contract-requested')).toHaveLength(1);
     expect(events.map(event => event.type)).not.toContain('contract-registered');
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 
   test('a restart after contract-registered recovers one obligation and one requirement, and the caller reads the outcome from them', async () => {
@@ -1146,7 +1135,7 @@ describe('the boundaries of a delegation', () => {
 
     const { service, recovery, agent } = await reopen(root);
     expect(agent).toBeUndefined();
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     // Every record of the registration is materialized again from the line
     // that committed it, and there is exactly one of each.
     for (const path of [contract, obligation, requirement, providerItem]) expect(existsSync(path)).toBe(true);
@@ -1171,7 +1160,7 @@ describe('the boundaries of a delegation', () => {
     expect(events.findIndex(event => event.type === 'iteration-closed')).toBeLessThan(requested);
     expect(registeredAt).toBeGreaterThan(requested);
     expect(onlyRun(service, 'review-notes').counts.openRequirements).toBe(1);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 
   /** The revised agreement: the same seam at a length the provider can keep. */
@@ -1226,7 +1215,7 @@ describe('the boundaries of a delegation', () => {
     const { runId } = await crashAfter(root, 'revision-needed', false, oneRevision(), treeInputs());
 
     const { service, recovery } = await reopen(root);
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     // The report is in the log once, the provider's iteration closed as
     // unsuitable before it, and the agreement is untouched: recovery calls
@@ -1236,7 +1225,7 @@ describe('the boundaries of a delegation', () => {
     expect(reports[0]!.data).toMatchObject({ iteration: 'wi-002.i01', consumerWorkItem: 'wi-001' });
     expect(events.map(event => event.type)).not.toContain('evidence-reopened');
     expect(existsSync(runPath(root, 'review-notes', runId, contractsLayout.contract('ct-001', 2)))).toBe(false);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 300_000);
 
   test('a restart after evidence-reopened recovers one revision of each record with the same bindings', async () => {
@@ -1253,7 +1242,7 @@ describe('the boundaries of a delegation', () => {
     for (const path of reopenedRecords) await rm(path, { force: true });
 
     const { service, recovery } = await reopen(root);
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     // Every record of the reopening is materialized again from the line
     // that committed it, and the revision in force before it is still there.
     for (const path of reopenedRecords) expect(existsSync(path)).toBe(true);
@@ -1272,7 +1261,7 @@ describe('the boundaries of a delegation', () => {
       .map(binding => [binding.subject.id, binding.workItem])).toEqual([['ob-ct-001', 'wi-002'], ['rq-001', 'wi-001']]);
     expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(2);
     expect(onlyRun(service, 'review-notes').counts.openRequirements).toBe(1);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 300_000);
 
   test('a crash after work-item-yielded leaves the yield standing and starts no provider work', async () => {
@@ -1280,13 +1269,13 @@ describe('the boundaries of a delegation', () => {
     const { runId } = await crashAfter(root, 'work-item-yielded', false, oneDelegation(), treeInputs());
 
     const { service, recovery } = await reopen(root);
-    expect(recovery.interrupted).toEqual([`review-notes/${runId}`]);
+    expect(recovery.interrupted).toEqual([]);
     const events = await runEventsOnDisk(root, 'review-notes', runId);
     expect(events.filter(event => event.type === 'work-item-yielded')).toHaveLength(1);
     expect(events.map(event => event.type)).not.toContain('work-item-resumed');
     // The provider work item exists and has not been started.
     expect(existsSync(runPath(root, 'review-notes', runId, workLayout.item('wi-002')))).toBe(true);
     expect(events.filter(event => event.type === 'work-item-started').map(event => event.data.workItem)).toEqual(['wi-001']);
-    expect(onlyRun(service, 'review-notes').state).toBe('interrupted');
+    expect(onlyRun(service, 'review-notes').state).toBe('running');
   }, 180_000);
 });

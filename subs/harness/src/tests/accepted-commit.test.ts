@@ -381,7 +381,9 @@ describe('a change to the working directory blocks nothing', () => {
 
       });
       cleanups.push(() => reopened.service.close());
-      expect(onlyRun(reopened.service, 'review-notes').state).toBe('interrupted');
+      expect(onlyRun(reopened.service, 'review-notes').state).toBe('running');
+      expect(reopened.agent).toBeUndefined();
+      expect((await runEventsOnDisk(root, 'review-notes', receipt.jobId)).filter(event => event.type === 'invocation-started')).toEqual(crashedLog.filter(event => event.type === 'invocation-started'));
 
       // The intent held the verified operation, and its completion is what
       // recovery wrote: one attempt, once.

@@ -13,7 +13,7 @@ afterEach(async () => {
   for (const answer of answers.splice(0)) answer.assertComplete();
 });
 
-test('B01 B09 B14: a delegated capability engineer parks at a new occurrence and server loss interrupts its stack without reconciliation', async () => {
+test('B01 B09 B14: a delegated capability engineer parks at a new occurrence and server loss retains its deliberate pause before ordinary continuation', async () => {
   const fixture = await copyCapabilityFixture();
   cleanups.push(fixture.remove);
   const answer = recoveryBoundaries(fixture.root, 'a');
@@ -68,9 +68,14 @@ test('B01 B09 B14: a delegated capability engineer parks at a new occurrence and
   await first.service.close();
   const second = await openCapabilityRuns(fixture.root, { ...options, script: [] });
   cleanups.push(() => second.service.close());
-  expect(second.recovery.interrupted).toEqual([`need/${receipt.jobId}`]);
-  expect(second.recovery.effects).toEqual([]);
+  expect(second.recovery.interrupted).toEqual([]);
+  await until(() => second.service.debugState('need', receipt.jobId)?.state === 'paused');
+  expect(second.service.debugState('need', receipt.jobId)).toMatchObject({
+    pauseId: delegated.pauseId, revision: delegated.revision, work: delegated.work, goal: delegated.goal,
+  });
   expect(second.agent!.sessions).toHaveLength(0);
-  expect(second.service.getRun('need', receipt.jobId)?.state).toBe('interrupted');
-  await expect(second.service.execute(stopRun('need', receipt.jobId, second.service.getRun('need', receipt.jobId)!.version))).rejects.toMatchObject({ code: 'conflict' });
+  expect(second.service.getRun('need', receipt.jobId)?.state).toBe('running');
+  await second.service.execute(stopRun('need', receipt.jobId, second.service.getRun('need', receipt.jobId)!.version));
+  await second.service.settled('need', receipt.jobId);
+  expect(second.service.getRun('need', receipt.jobId)?.state).toBe('stopped');
 }, 30_000);

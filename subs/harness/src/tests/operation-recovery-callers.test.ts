@@ -1,11 +1,11 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createScriptedAgent, type Script } from '../../subs/agent/src/scripted.js';
-import type { SessionSpec } from '../../subs/agent/src/interfaces/port.js';
+import type { AgentPort, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import { contextSelectorToolName, workOrientationToolName } from '../context-selection/submissions.js';
 import { localArchitectToolName } from '../work/submission.js';
-import { runLayout, type Invocation } from '../run/records.js';
+import { runLayout, type InvocationOutcome } from '../run/records.js';
 import { announcingAudit } from './helpers/direct-check-execution.js';
 import { declaringScenarios, withDefaultTurns } from './helpers/declarations.js';
 import {
@@ -13,7 +13,7 @@ import {
   statedCommands, type Scenario,
 } from './helpers/composition.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
-import { installTestRunner, openRuns, runPath, startRun, stopRun, testPolicy, until } from './helpers/runs.js';
+import { installTestRunner, openRuns, runPath, startRun, staleCrashLock, freeze, stopRun, testPolicy, until } from './helpers/runs.js';
 import { copyFixture } from './helpers/fixture.js';
 import { analysis, entry, requestCompletion } from './helpers/analysis.js';
 import { assign, byRole, completionProposed, edit, outline, submit, treeInputs, write } from './helpers/iterations.js';
@@ -29,10 +29,11 @@ import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { copyCapabilityFixture, openCapabilityRuns } from './helpers/capability.js';
 import { capabilityFlowBoundaries } from './helpers/capability-flow-boundaries.js';
-import { SessionQueries } from '../../subs/projections/src/session-queries.js';
 import { RunQueries } from '../../subs/projections/src/queries.js';
 import { createQuerySource } from '../http/query-source.js';
 import { scenarioGit } from './helpers/recovery-git.js';
+
+vi.unmock('../run/session-store.js');
 
 vi.mock('node:child_process', async original =>
   (await import('./helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
@@ -62,7 +63,7 @@ function interruptOnce(script: Script, matches: (spec: SessionSpec) => boolean):
   };
 }
 
-async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) => boolean) {
+async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) => boolean, contextLoss?: 'missing' | 'corrupt') {
   const target = await scenario.target();
   cleanups.push(target.remove);
   const declared = declaringScenarios(scenario.script(target.root));
@@ -81,13 +82,26 @@ async function composedCaller(scenario: Scenario, matches?: (spec: SessionSpec) 
       ...Array.from({ length: 4 }, () => ({ repositoryRoot: target.root, head: final.head, tree: final.tree }))] }),
   });
   const commands = statedCommands(target.root, scenario.commands ?? []);
+  let contextLost = false;
   const opened = await openRuns(target.root, {
     agent, git, candidates: compositionCandidates(target.root, scenario), inputs: scenario.inputs(),
     configuredAudit: announcingAudit(), commandExecution: commands, policy: recoveryPolicy,
+    afterWrite: async (write, runId) => {
+      if (!contextLoss || contextLost || write !== 'invocation-ended') return;
+      const events = await logEvents(target.root, runId);
+      if (!events.some(event => event.type === 'invocation-ended' && event.data.ended === 'failed')) return;
+      contextLost = true;
+      const payloads = join(target.root, 'plans', '.harness', 'session-operations', 'store', 'payloads');
+      for (const id of await readdir(payloads)) {
+        if (contextLoss === 'missing') await rm(join(payloads, id));
+        else await writeFile(join(payloads, id), 'corrupt optional conversation bytes');
+      }
+    },
   });
   cleanups.push(() => opened.service.close());
   const receipt = await opened.service.execute(startRun(plan));
   await opened.service.settled(plan, receipt.jobId);
+  expect(opened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(opened.service.getRun(plan, receipt.jobId)?.failure)).toBe(scenario.ends);
   commands.assertComplete(); git.assertComplete();
   return { ...opened, agent, git, root: target.root, runId: receipt.jobId, events: await logEvents(target.root, receipt.jobId) };
 }
@@ -104,8 +118,8 @@ describe('ordinary recovery through actual workflow callers', () => {
     { caller: 'global placement fork', scenario: scenarios.placement, matches: (spec: SessionSpec) => spec.role === 'global-fork' },
   ];
   for (const { caller, scenario, matches } of cases) {
-    test(`${caller} retries the unfinished operation without repeating accepted transitions`, async () => {
-      const run = await composedCaller(scenario, matches);
+    test.each(['missing', 'corrupt'] as const)(`${caller} restarts with %s context without repeating accepted transitions`, async contextLoss => {
+      const run = await composedCaller(scenario, matches, contextLoss);
       expect(run.service.getRun(plan, run.runId)?.state).toBe(scenario.ends);
       const failed = run.agent.sessions.filter(session => session.outcome?.kind === 'failed');
       expect(failed).toHaveLength(1);
@@ -114,17 +128,7 @@ describe('ordinary recovery through actual workflow callers', () => {
       expect(next.spec.role).toBe(first.spec.role);
       expect(next.spec.submission.name).toBe(first.spec.submission.name);
       expect(next.outcome?.kind).toBe('submitted');
-      const attempts = run.events.filter(event => event.type === 'operation-recovery-attempt');
-      const successor = attempts.find(event => event.data.predecessor !== null)!;
-      expect(successor).toBeDefined();
-      expect(successor.data.attempt).toBe(1);
-      expect(attempts.filter(event => event.data.predecessor !== null)).toHaveLength(1);
-      const invocation = JSON.parse(await readFile(runPath(run.root, plan, run.runId, runLayout.invocation(successor.data.invocation)), 'utf8')) as Invocation;
-      expect(invocation.recoveryPredecessor).toBe(successor.data.predecessor);
-      expect(invocation.id).not.toBe(invocation.recoveryPredecessor);
-      const projected = await new SessionQueries(createQuerySource(run.service)).runSessions(plan, run.runId);
-      expect(projected.sessions.flatMap(session => session.invocations).find(value => value.invocation === invocation.id))
-        .toMatchObject({ recoveryPredecessor: invocation.recoveryPredecessor, recoveryGroup: invocation.recoveryGroup });
+      expect(run.events.some(event => event.type === 'operation-recovery-attempt')).toBe(false);
       expect(run.events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
       const identities = run.events.map(identityOf).filter(identity => identity !== null);
       expect(new Set(identities).size, 'accepted transitions keep distinct durable identities').toBe(identities.length);
@@ -132,6 +136,62 @@ describe('ordinary recovery through actual workflow callers', () => {
       expect(run.events.filter(event => event.type === 'analysis-accepted')).toHaveLength(1);
     }, 60_000);
   }
+
+  test('accepted orientation survives a lost session point and all optional provider history without another orientation', async () => {
+    const scenario = scenarios.iteration;
+    const target = await scenario.target(); cleanups.push(target.remove);
+    const declared = declaringScenarios(scenario.script(target.root));
+    const original = createScriptedAgent(declared);
+    const firstAgent: AgentPort = { ...original, bindSessionStore(store) {
+      const operations = original.bindSessionStore(store);
+      return { ...operations, async continue(input) {
+        const handle = await operations.continue(input);
+        return input.task.submissionTool === workOrientationToolName
+          ? { ...handle, receipt: handle.receipt.then(receipt => ({ ...receipt, point: null })) } : handle;
+      } };
+    } };
+    const final = scenario.finalCandidate!;
+    const git = scenarioGit(target.root, { ...scenario.git, previews: [
+      { repositoryRoot: target.root, head: final.head, tree: final.tree },
+      ...Array.from({ length: 4 }, () => ({ repositoryRoot: target.root, head: final.head, tree: final.tree })),
+    ] });
+    const commands = statedCommands(target.root, scenario.commands ?? []);
+    const options = { git, candidates: compositionCandidates(target.root, scenario), inputs: scenario.inputs(),
+      configuredAudit: announcingAudit(), commandExecution: commands, policy: recoveryPolicy };
+    let interrupted = false; let acceptedInvocation = '';
+    const first = await openRuns(target.root, { ...options, agent: firstAgent,
+      afterWrite: async (write, runId) => {
+        if (write !== 'invocation-ended' || original.sessions.at(-1)?.spec.submission.name !== workOrientationToolName) return;
+        const event = (await logEvents(target.root, runId)).at(-1);
+        if (event?.type !== 'invocation-ended' || event.data.ended !== 'submitted') return;
+        acceptedInvocation = event.data.invocation; interrupted = true; await freeze();
+      },
+    });
+    const receipt = await first.service.execute(startRun(plan));
+    await until(() => interrupted, 20_000);
+    const outcomePath = runPath(target.root, plan, receipt.jobId, runLayout.outcome(acceptedInvocation));
+    const outcome = JSON.parse(await readFile(outcomePath, 'utf8')) as InvocationOutcome;
+    expect(outcome).toMatchObject({ ended: 'submitted', disposition: 'applied', settled: { confirmed: true } });
+    expect(outcome.session?.ref || null).toBeNull();
+    const submissionPath = runPath(target.root, plan, receipt.jobId, runLayout.submission(acceptedInvocation));
+    const acceptedBytes = await readFile(submissionPath);
+    const payloads = join(target.root, 'plans', '.harness', 'session-operations', 'store', 'payloads');
+    for (const id of await readdir(payloads)) await rm(join(payloads, id));
+    await staleCrashLock(target.root);
+    const resumed = createScriptedAgent(declared);
+    const reopened = await openRuns(target.root, { ...options, agent: resumed });
+    cleanups.push(() => reopened.service.close());
+    await reopened.service.settled(plan, receipt.jobId);
+    expect(reopened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(reopened.service.getRun(plan, receipt.jobId)?.failure)).toBe('completed');
+    const events = await logEvents(target.root, receipt.jobId);
+    expect(events.filter(event => event.type === 'work-orientation-recorded')).toMatchObject([
+      { data: { invocation: acceptedInvocation, point: null } },
+    ]);
+    expect(resumed.sessions.filter(session => session.spec.submission.name === workOrientationToolName)).toHaveLength(0);
+    expect(events.filter(event => event.type === 'invocation-started' && event.data.invocation === acceptedInvocation)).toHaveLength(1);
+    expect(await readFile(submissionPath)).toEqual(acceptedBytes);
+    commands.assertComplete(); git.assertComplete();
+  }, 60_000);
 
   test('failure analyst retries its account before the responsible architect receives the retained digest', async () => {
     const fixture = await copyFixture(); cleanups.push(fixture.remove);
@@ -152,14 +212,14 @@ describe('ordinary recovery through actual workflow callers', () => {
     const receipt = await opened.service.execute(startRun(plan));
     await opened.service.settled(plan, receipt.jobId);
     assertUnchangedGit();
-    expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
+    expect(opened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(opened.service.getRun(plan, receipt.jobId)?.failure)).toBe('completed');
     const analysts = agent.sessions.filter(session => session.spec.role === 'failure-analyst');
     expect(analysts).toHaveLength(2);
     expect(analysts.map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
     expect(agent.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);
     const events = await logEvents(fixture.root, receipt.jobId);
     expect(events.filter(event => event.type === 'iteration-closed')).toHaveLength(1);
-    expect(events.filter(event => event.type === 'operation-recovery-attempt' && event.data.predecessor !== null)).toHaveLength(1);
+    expect(events.some(event => event.type === 'operation-recovery-attempt')).toBe(false);
     expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
   }, 60_000);
 
@@ -170,7 +230,7 @@ describe('ordinary recovery through actual workflow callers', () => {
     const source = scriptedCandidates(root, { [reviewMaterialized]: reviewCandidates()[reviewMaterialized]!, 'revision-01': { ...first, tree, ...(mode === 'context' ? { files: { ...first.files, 'docs/notes.principles.md': 'Keep stores in memory.\n' } } : {}) } });
     const git = gateGit(root, { head: reviewBase, commits: [
       gateScenariosCommit(plan, reviewMaterialized, reviewBase), revisionGates[0]!, { commit: null }, { commit: null },
-    ], previews: Array.from({ length: mode === 'context' ? 7 : 4 }, () => ({ repositoryRoot: root, head: 'revision-01', tree })) });
+    ], previews: Array.from({ length: 4 }, () => ({ repositoryRoot: root, head: 'revision-01', tree })) });
     let time = new Date('2026-10-12T12:00:00Z').getTime();
     const script = declaringScenarios(reviewScript({
       architect: [submit(assign(notes, {}, outline())), submit(requestCompletion())],
@@ -208,7 +268,7 @@ describe('ordinary recovery through actual workflow callers', () => {
       if (held) throw new Error(`Review recovery unexpectedly paused: ${JSON.stringify(held)}`);
     }
     await opened.service.settled(plan, receipt.jobId);
-    expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
+    expect(opened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(opened.service.getRun(plan, receipt.jobId)?.failure)).toBe('completed');
     git.assertComplete();
     const events = await logEvents(root, receipt.jobId);
     const starts = events.filter(event => event.type === 'review-attempt-started');
@@ -217,8 +277,6 @@ describe('ordinary recovery through actual workflow callers', () => {
     expect(attempt.id).toBe(starts[0]!.data.attempt);
     expect(attempt.settles).toBe(true);
     expect(new Date(attempt.finishedAt).getTime() - new Date(attempt.startedAt!).getTime()).toBeGreaterThanOrEqual(25);
-    expect(attempt.transportInvocations).toHaveLength(2);
-    expect(new Set(attempt.transportInvocations).size).toBe(2);
     const projected = await new RunQueries(createQuerySource(opened.service)).reviews(plan, receipt.jobId, { workItem: null, after: null, limit: 100 });
     expect(projected.requests.find(request => request.attempts.some(value => value.id === attempt.id))!.attempts[0]!.transportInvocations).toEqual(attempt.transportInvocations);
     if (mode === 'transport') expect(agent.sessions.filter(session => session.spec.role === 'reviewer').map(session => session.outcome?.kind)).toEqual(['failed', 'submitted']);
@@ -228,7 +286,6 @@ describe('ordinary recovery through actual workflow callers', () => {
       for (const request of projected.requests) {
         expect(request.candidate).toBe('revision-01');
         expect(request.attempts).toHaveLength(1);
-        expect(request.attempts[0]!.transportInvocations).toHaveLength(2);
         expect(request.attempts[0]!.result).toBe('complete');
       }
     }
@@ -277,13 +334,13 @@ describe('ordinary recovery through actual workflow callers', () => {
       const receipt = await opened.service.execute(startRun(plan));
       await opened.service.settled(plan, receipt.jobId);
       answers.assertComplete();
-      expect(opened.service.getRun(plan, receipt.jobId)?.state).toBe('completed');
+      expect(opened.service.getRun(plan, receipt.jobId)?.state, JSON.stringify(opened.service.getRun(plan, receipt.jobId)?.failure)).toBe('completed');
       const events = await logEvents(fixture.root, receipt.jobId);
       expect(events.filter(event => event.type === 'nonfunctional-phase-started')).toHaveLength(1);
       expect(events.filter(event => event.type === 'nonfunctional-assessed')).toHaveLength(2);
       expect(events.filter(event => event.type === 'nonfunctional-repair-assigned')).toHaveLength(1);
       expect(events.filter(event => event.type === 'nonfunctional-repair-committed')).toHaveLength(1);
-      expect(events.filter(event => event.type === 'operation-recovery-attempt' && event.data.predecessor !== null)).toHaveLength(1);
+      expect(events.some(event => event.type === 'operation-recovery-attempt')).toBe(false);
       expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
       expect(agent.sessions.filter(session => session.spec.submission.name === tool && session.outcome?.kind === 'failed')).toHaveLength(1);
     }, 60_000);
@@ -333,7 +390,7 @@ describe('ordinary recovery through actual workflow callers', () => {
       const events = opened.service.events('need', receipt.jobId)!;
       expect(events.filter(event => event.type === 'capability-requested')).toHaveLength(1);
       expect(events.filter(event => event.type === 'capability-delegated')).toHaveLength(1);
-      expect(events.filter(event => event.type === 'operation-recovery-attempt' && event.data.predecessor !== null)).toHaveLength(1);
+      expect(events.some(event => event.type === 'operation-recovery-attempt')).toBe(false);
       expect(events.some(event => event.type === 'operation-recovery-paused')).toBe(false);
       expect(agent.sessions.filter(session => session.outcome?.kind === 'failed')).toHaveLength(1);
       expect(agent.sessions.filter(session => session.spec.role === 'engineer')).toHaveLength(1);

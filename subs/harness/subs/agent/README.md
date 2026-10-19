@@ -32,8 +32,11 @@ initialization/provider failures and authority conflicts do not set it. The
 harness may then start a separate ordinary fresh invocation; the owning operation
 never changes its input or creates a replacement. `operationIdentity` reads original
 admitted identity without dispatch; `inspect` returns a validated available
-snapshot. Unfinished recovery requires the original execution identity and
-current bound authority; source-backed fresh recovery belongs to the harness.
+snapshot. Retrying an exact operation retains its identity; restarting an unfinished
+task through ordinary fresh execution belongs to the harness. Optional historical
+records and payloads are validated when requested, so unavailable unrelated
+history cannot prevent fresh work. Journal ordering and storage ownership remain
+enforced.
 
 `retry` returns a terminal operation's original receipt without model, tool,
 submission or destination work. `stop` closes admission and aborts promptly. An
@@ -42,11 +45,11 @@ for actual driver, tool and publication drainage. The caller retains its
 settlement bound. A stopped interrupted provider operation has no reusable
 current point; previous settled points remain valid.
 
-Each tool or submission call records its intent before it runs and its completion
-after it ends. A handler that throws has completed with its error, and a recovery
-replays that error without running it again. Only an effect whose completion is
-unknown, because execution stopped between intent and end, leaves the new point
-unavailable.
+Submissions and consequential command or custom harness operations retain intent
+and completion records. Their owners inspect ambiguous outcomes before repetition.
+Reads, searches, inspectable source writes and post-edit diagnostics do not require
+completion receipts or exact replay. They still use ordinary guards and actual
+settlement; this distinction does not permit overlapping writers.
 
 ## Tools and observations
 
@@ -62,6 +65,12 @@ context estimates and available timing/source observations. Unknown quantities
 remain unknown. Original opaque signatures and native payloads stay with the
 provider owner. Observations and support facts do not authorize recovery or
 prove semantic completion; architects retain that judgment.
+
+Tool owners may classify an inspectable operation with `consequential(input)`.
+Submissions always retain their durable acceptance. A shell's known direct checks
+and prepared focused verification do not require effect receipts; unknown and
+compound shell operations retain reconciliation. This classification never
+establishes process settlement or bypasses guards.
 
 ## Scripted verification
 

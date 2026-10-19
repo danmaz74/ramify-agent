@@ -241,22 +241,26 @@ given to `npm run session` resolve from the repository root.
 commit, and afterwards a comparison holding every changed file to a write
 scope or recorded out-of-scope change of the run.
 
-Failed runs with accepted analysis can prepare a linked successor after their
-owners and external effects settle. On the Run page, inspect restart and prepare
-the successor; its recovery controls then authorize explicit resume. The CLI
-uses the same harness contracts:
+Interrupted tasks continue from their assignment, accepted results and current
+files. Session context is optional. Active authorized runs can continue after
+service restart once their former execution settles; explicit stops, debugger
+holds and pending user decisions remain effective.
+
+For a retained failed or interrupted run, use **Continue plan** on the Run page,
+or the legacy CLI adapter:
 
 ```sh
 npx tsx src/main.ts restart inspect --server http://localhost:4180 --plan <plan-id> --run <failed-run> --json
 npx tsx src/main.ts restart prepare --server http://localhost:4180 --plan <plan-id> --run <failed-run> --expected-version <inspected-version> --command-id <stable-id> --json
 ```
 
-Preparation preserves the failed history and retained source, imports supported
-post-analysis progress, and leaves the successor waiting. Resume uses the returned
-recovery occurrence and revision and the existing repair declaration. Changed
-candidate or producer evidence requires responsible reassessment and qualification.
-See [terminal restart](docs/harness.spec.md#terminal-failure-can-prepare-a-linked-successor)
-for eligibility, provenance and command retry rules.
+This continues unfinished work in the same run and preserves its original history.
+It requires no successor import, repair declaration or second resume command.
+A nonterminal task waiting for a concrete prerequisite can continue with
+`recovery resume --server <url> --plan <id> --run <id> --command-id <stable-id>`.
+Repeat the same command identity after a lost reply. Changed work receives ordinary
+assessment and verification. See [task continuation](docs/harness.spec.md#recovery-waiting-and-explicit-resume)
+and the [recovery principles](docs/harness-recovery.principles.md).
 
 ## Project configuration
 

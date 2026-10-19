@@ -12,7 +12,7 @@ import { openRuns, startRun, stopRun, until } from './helpers/runs.js';
 
 const execute = promisify(execFile);
 
-test('restart preparation and resumed branch setup preserve native source refs index and dirty files', async () => {
+test('same-run continuation preserves native source refs index and dirty files', async () => {
   const fixture = await copyFixture();
   let service: Awaited<ReturnType<typeof openRuns>>['service'] | undefined;
   const git = async (...args: string[]) => (await execute('git', args, { cwd: fixture.root })).stdout;
@@ -24,11 +24,12 @@ test('restart preparation and resumed branch setup preserve native source refs i
     await writeFile(join(fixture.root, '.gitignore'), `${await readFile(join(fixture.root, '.gitignore'), 'utf8')}\n.harness/\n`);
     await git('add', '.'); await git('commit', '-m', 'Native restart baseline');
     const inputs = treeInputs();
+    let failedOnce = false;
     const opened = await openRuns(fixture.root, { git: gitService, candidates: gitCandidateSource,
-      inputs: { ...inputs, capture: async (...args: Parameters<typeof inputs.capture>) => {
-        const captured = await inputs.capture(...args); return { ...captured, versions: { ...captured.versions, ramify: '0.5.0' } };
-      } }, script: byRole({ 'initial-architect': [submit(analysis([entry('review-notes', 'collection-review/workspace/reviews')]))],
-        'local-architect': [[{ kind: 'legacy-context-return', tokens: 150_000 }], [{ kind: 'await', until: () => new Promise(() => undefined) }]] }) });
+      inputs, script: byRole({ 'initial-architect': [submit(analysis([entry('review-notes', 'collection-review/workspace/reviews')]))],
+        'local-architect': [[{ kind: 'await', until: () => new Promise(() => undefined) }]] }),
+      afterWrite: async write => { if (write === 'work-item-started' && !failedOnce) { failedOnce = true; throw new Error('Interrupted workflow after durable work assignment'); } },
+    });
     service = opened.service;
     const source = await service.execute(startRun('review-notes'));
     await service.settled('review-notes', source.jobId);
@@ -53,13 +54,8 @@ test('restart preparation and resumed branch setup preserve native source refs i
     expect(await readFile(join(fixture.root, '.git/index'))).toEqual(before.index);
     expect(await readFile(join(fixture.root, staged))).toEqual(before.staged);
     expect(await readFile(join(fixture.root, untracked))).toEqual(before.untracked);
-    expect(await readFile(sourcePath)).toEqual(originalLog);
-    expect(opened.agent!.sessions).toHaveLength(before.sessions);
-    const recovery = (await service.recoveryInspection('review-notes', prepared.jobId))!;
-    expect(recovery).toMatchObject({ state: 'paused' });
-    await service.execute({ type: 'resume-recovery', commandId: 'native-resume', expectedVersion: 0, payload: { planId: 'review-notes', jobId: prepared.jobId,
-      occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
-      repair: { areas: ['runtime', 'target'], explanation: 'Adopt continuity while preserving the staged, unstaged and untracked operator corrections' } } });
+    expect((await readFile(sourcePath)).subarray(0, originalLog.length)).toEqual(originalLog);
+    expect(prepared.jobId).toBe(source.jobId);
     await until(() => service!.events('review-notes', prepared.jobId)!.some(event => event.sequence > 0 && event.type === 'invocation-started' && event.data.role === 'local-architect'));
     expect(await git('symbolic-ref', '--short', 'HEAD')).toBe(`ramify-agent-run/${prepared.jobId}\n`);
     expect(await git('rev-parse', 'HEAD')).toBe(before.head);
@@ -70,7 +66,7 @@ test('restart preparation and resumed branch setup preserve native source refs i
     expect(await readFile(join(fixture.root, '.git/index'))).toEqual(before.index);
     expect(await readFile(join(fixture.root, staged))).toEqual(before.staged);
     expect(await readFile(join(fixture.root, untracked))).toEqual(before.untracked);
-    expect(await readFile(sourcePath)).toEqual(originalLog);
+    expect((await readFile(sourcePath)).subarray(0, originalLog.length)).toEqual(originalLog);
     // Reading a snapshot does not reserve its version: startup can still
     // append before stop's mutex-protected admission. Retry only that explicit
     // refusal, with a newly sampled version and a fresh command identity.

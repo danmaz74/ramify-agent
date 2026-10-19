@@ -17,7 +17,7 @@ import { FakeRamifyCli } from './helpers/fake-ramify.js';
 import { passingAudit } from './helpers/direct-check-execution.js';
 import { declaringScenarios } from './helpers/declarations.js';
 
-const title = 'B17: actual clients disconnect, retry, stop and reconnect while the native host survives; crash recovery interrupts without replay';
+const title = 'B17: actual clients disconnect, retry, stop and reconnect while the native host survives; host loss restarts the unfinished task after process settlement';
 const ownFile = 'subs/harness/src/tests/execution-breakpoints-process.boundary.test.ts';
 const packageRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const cleanups: Array<() => Promise<void>> = [];
@@ -130,9 +130,34 @@ test(title, async () => {
   if (first.child.pid !== first.pid && first.child.exitCode === null && first.child.signalCode === null) first.child.kill('SIGKILL');
   if (first.child.exitCode === null && first.child.signalCode === null) await new Promise<void>(done => first.child.once('exit', () => done()));
   const restarted = await launch();
-  expect(restarted.recovery.interrupted).toContain(`${plan}/${secondRun.jobId}`);
-  const recovered = await command(['debug', 'wait', '--server', restarted.url, '--plan', plan, '--run', secondRun.jobId, '--json']);
-  expect(recovered.code).toBe(1); expect(JSON.parse(recovered.stdout).run.state).toBe('interrupted');
-  const snapshot = await (await fetch(restarted.url + `/api/v1/plans/${plan}/runs/${secondRun.jobId}`)).json() as { run: { counts: { invocations: number } } };
-  expect(snapshot.run.counts.invocations).toBe(beforeCrash.run.counts.invocations);
+  expect(restarted.recovery.interrupted).toEqual([]);
+  await until(async () => {
+    const debug = await (await fetch(restarted.url + secondPath + '/debug')).json() as { current: { state: string } | null };
+    return debug.current?.state === 'paused';
+  }).catch(async error => {
+    throw new Error(`Restart did not restore the configured breakpoint: ${JSON.stringify(await (await fetch(restarted.url + secondPath + '/debug')).json())}`, { cause: error });
+  });
+  const reentered = await (await fetch(restarted.url + secondPath + '/debug')).json() as { current: { pauseId: string; revision: number } };
+  const releaseReentered = await command(['debug', 'resume', '--server', restarted.url, '--plan', plan, '--run', secondRun.jobId,
+    '--pause', reentered.current.pauseId, '--expected-revision', String(reentered.current.revision),
+    '--command-id', 'native-resume-reentered', '--message-file', proceed, '--json']);
+  expect(releaseReentered.code).toBe(0);
+  await until(async () => {
+    const snapshot = await (await fetch(restarted.url + secondPath)).json() as { run: { state: string; counts: { invocations: number } } };
+    return snapshot.run.state === 'running' && snapshot.run.counts.invocations === beforeCrash.run.counts.invocations + 1;
+  }).catch(async error => {
+    throw new Error(`The resumed task did not dispatch once after its restored breakpoint: ${JSON.stringify(await (await fetch(restarted.url + secondPath + '/debug')).json())}`, { cause: error });
+  });
+  const snapshot = await (await fetch(restarted.url + secondPath)).json() as { run: { version: number; state: string; counts: { invocations: number } } };
+  expect(snapshot.run).toMatchObject({ state: 'running', counts: { invocations: beforeCrash.run.counts.invocations + 1 } });
+  // The explicitly stopped first run stays stopped when the active task is restarted.
+  const stoppedAgain = await (await fetch(restarted.url + path)).json() as { run: { state: string } };
+  expect(stoppedAgain.run.state).toBe('stopped');
+  const stopResumed = await fetch(restarted.url + '/api/v1/commands', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+    commandId: 'stop-restarted-task', expectedVersion: snapshot.run.version, type: 'stop-job', payload: { planId: plan, jobId: secondRun.jobId },
+  }) });
+  expect(stopResumed.status).toBe(202);
+  const terminalAgain = await command(['debug', 'wait', '--server', restarted.url, '--plan', plan, '--run', secondRun.jobId, '--json']);
+  expect(terminalAgain.code).toBe(1);
+  expect(JSON.parse(terminalAgain.stdout).run.state).toBe('stopped');
 }, 90_000);

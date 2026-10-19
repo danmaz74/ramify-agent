@@ -277,3 +277,10 @@ export async function readRunFile(view: RunView, path: string): Promise<string |
     throw error;
   }
 }
+
+/** Lifecycle events in the current continuation; task records retain their full history. */
+export function currentLifecycleEvents(view: RunView): RunView['events'] {
+  let start = 0;
+  for (let index = 0; index < view.events.length; index++) if (view.events[index]!.type === 'job-continued') start = index + 1;
+  return view.events.slice(start);
+}

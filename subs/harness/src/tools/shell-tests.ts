@@ -23,6 +23,23 @@ export interface ShellTestFacts {
   readonly focusedCucumber?: readonly FocusedCucumberSelection[];
 }
 
+/** Simple direct checks are repeatable; unknown or compound commands retain effect reconciliation. */
+export function isInspectableShellCheck(command: string, workingDirectory: string): boolean {
+  // Do not infer repeatability across shell expansion, redirection or command composition.
+  if (/[;&|<>`$\n\r(){}]/u.test(command)) return false;
+  const words = tokenize(command).map(token => token.value);
+  const executable = basename(words[0] ?? '');
+  if (executable === 'git') return ['status', 'diff', 'show', 'log'].includes(words[1] ?? '')
+    && !words.some(word => ['--ext-diff', '--textconv', '--output'].some(option => word === option || word.startsWith(`${option}=`)));
+  if (executable === 'tsc') return words.includes('--noEmit') && !words.includes('false');
+  if (executable === 'ramify') return words[1] === 'check';
+  // Package scripts and command wrappers have their own effects. Only the direct
+  // test executable is classified here; the shell still enforces its selection.
+  if (!['vitest', 'cucumber-js'].includes(executable)) return false;
+  const test = classifyShellTestRun(command, { workingDirectory, testScripts: {} });
+  return test.kind === 'focused' || test.kind === 'non-executing';
+}
+
 /** Directories whose package script may matter to classification. */
 export function shellTestDirectories(command: string, workingDirectory: string): string[] {
   const directories = new Set([workingDirectory]);

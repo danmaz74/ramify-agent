@@ -1,3 +1,4 @@
+import { currentLifecycleEvents } from './inputs.js';
 import type { AutomaticRepairs, RepairIncidentView } from '../../../src/interfaces/protocol/repairs.js';
 import { authenticateRepairHistory, RepairHistoryError } from '../../../src/run/repair-history.js';
 import { ProjectionError, type RunView } from './inputs.js';
@@ -10,7 +11,7 @@ export function automaticRepairsOf(view: RunView): AutomaticRepairs {
     if (error instanceof RepairHistoryError) throw new ProjectionError(error.code, error.message, error.evidence);
     throw error;
   }
-  const interruption = view.events.find(event => event.type === 'job-stopped' || event.type === 'job-interrupted' || event.type === 'job-failed');
+  const interruption = currentLifecycleEvents(view).find(event => event.type === 'job-stopped' || event.type === 'job-interrupted' || event.type === 'job-failed');
   const values: RepairIncidentView[] = facts.map(({ record, stage, updatedAt }) => {
     const incident = { ...record, stage, updatedAt };
     const start = view.events.find(event => event.type === 'invocation-started' && event.data.work.automaticRepair === incident.incidentId);

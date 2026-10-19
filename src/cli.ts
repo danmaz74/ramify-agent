@@ -76,9 +76,9 @@ export const usage = [
   '  ramify-agent consultations --run <run-directory> --id <consultation-id> [--format text|json]',
   '                       Reads retained exchanges, child investigations and caller result positions without changing run state.',
   '  ramify-agent restart <inspect|prepare> --server <url> --plan <id> --run <source-run> [--json] [--timeout-ms <n>]',
-  '                       prepare: --expected-version <source-cursor> --command-id <stable-id>. Creates a successor awaiting recovery resume.',
+  '                       prepare: --expected-version <source-cursor> --command-id <stable-id>. Continues unfinished work in the same run.',
   '  ramify-agent recovery <inspect|resume> --server <url> --plan <id> --run <id> [--json] [--timeout-ms <n>]',
-  '                       resume: --occurrence <id> --expected-revision <n> --command-id <id> [--repair-file <JSON file>]',
+  '                       resume: --command-id <id>. Continues the pending task; legacy recovery fields are optional.',
   '                       A repair file declares areas, explanation and optional evidence; exclude credentials.',
   '  ramify-agent debug <inspect|message|resume|wait> --server <url> --plan <id> --run <id> [--json] [--timeout-ms <n>]',
   '                       inspect: --pause <id>; message/resume: --pause <id> --expected-revision <n> --command-id <id>',
@@ -92,7 +92,7 @@ export const usage = [
   '                       (--prompt <text> | --prompt-file <file>)',
   '                       [--agent pi [--model <provider/model[:level]>] | --agent fake --script <file>]',
   '                       [--write <project-relative path>]... [--gate]',
-  '                       Resume: --resume-run <id> --occurrence <id> --expected-revision <n> --command-id <id>.',
+  '                       Continue: --resume-run <id> --command-id <id>.',
   '  ramify-agent step inputs --role <engineer|local-architect|context-selector|reviewer> --from-run <run dir> --invocation <id>',
   '                       [--work-item <file>] [--outline <file>] [--assignment <file>] [--selection <file>] [--review-request <file>] [--out <file>]',
   '                       Imports one invocation\'s recorded inputs as a fresh start; compares the delivery as a diagnostic.',
@@ -104,7 +104,7 @@ export const usage = [
   '                       Prints what the step\'s session receives. Takes no lock and writes nothing.',
   '  ramify-agent step run --inputs <file> --run <project>/plans/<plan>/.harness/jobs/<run>',
   '                       [--agent pi [--model <provider/model[:level]>] | --agent fake --script <file>]',
-  '                       Resume: --occurrence <id> --expected-revision <n> --command-id <id>.',
+  '                       Continue: --command-id <id>.',
   '                       Runs one invocation from the inputs in a manual run, created where it does not exist, under the project lock.',
   '                       Uses the tree as it stands and records its base commit and whether it was dirty; never commits.',
   '                       Exits 0 for an accepted submission, 1 for any other ending, 2 when refused or not started.',
@@ -228,7 +228,7 @@ function parseRecovery(rest: readonly string[]): RecoveryOptions {
   });
   for (const flag of ['--server', '--plan', '--run']) if (!values[flag]) throw new UsageError(`recovery ${action} needs ${flag}`);
   if (action === 'resume') {
-    for (const flag of ['--occurrence', '--expected-revision', '--command-id']) if (!values[flag]) throw new UsageError(`recovery resume needs ${flag}`);
+    if (!values['--command-id']) throw new UsageError('recovery resume needs --command-id');
   } else if (['--occurrence', '--expected-revision', '--command-id', '--repair-file'].some(flag => values[flag] !== undefined)) {
     throw new UsageError('recovery inspect takes no mutation options');
   }
@@ -335,7 +335,7 @@ function parseRepairExport(rest: readonly string[]): CommandLine {
     ...(values['--incident'] === undefined ? {} : { incident: values['--incident'] }) };
 }
 
-interface ManualRecoveryResume { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string }
+interface ManualRecoveryResume { readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId: string }
 const manualRecoveryFlags = ['--occurrence', '--expected-revision', '--command-id'];
 function captureManualRecovery(values: Record<string, string>, flag: string, value: string): void {
   if (values[flag] !== undefined) throw new UsageError(`Give ${flag} once`);
@@ -343,10 +343,12 @@ function captureManualRecovery(values: Record<string, string>, flag: string, val
 }
 function parseManualRecovery(values: Record<string, string>): ManualRecoveryResume | undefined {
   if (!manualRecoveryFlags.some(flag => values[flag] !== undefined)) return undefined;
-  for (const flag of manualRecoveryFlags) if (values[flag] === undefined) throw new UsageError(`Resource resume needs ${manualRecoveryFlags.join(', ')} together`);
-  const expectedRevision = Number(values['--expected-revision']);
-  if (!/^[1-9]\d*$/u.test(values['--expected-revision']!) || !Number.isSafeInteger(expectedRevision)) throw new UsageError('--expected-revision needs a positive safe integer');
-  return { occurrenceId: values['--occurrence']!, expectedRevision, commandId: values['--command-id']! };
+  if (values['--command-id'] === undefined) throw new UsageError('Task continuation needs --command-id');
+  const revision = values['--expected-revision'];
+  const expectedRevision = revision === undefined ? undefined : Number(revision);
+  if (revision !== undefined && (!/^[1-9]\d*$/u.test(revision) || !Number.isSafeInteger(expectedRevision))) throw new UsageError('--expected-revision needs a positive safe integer');
+  return { ...(values['--occurrence'] === undefined ? {} : { occurrenceId: values['--occurrence'] }),
+    ...(expectedRevision === undefined ? {} : { expectedRevision }), commandId: values['--command-id']! };
 }
 
 function parseSession(rest: readonly string[]): CommandLine {
@@ -385,7 +387,7 @@ function parseSession(rest: readonly string[]): CommandLine {
   if (agent === 'fake' && script === undefined) throw new UsageError('--agent fake needs --script <file>');
   const recovery = parseManualRecovery(recoveryValues);
   const resumeRun = recoveryValues['--resume-run'];
-  if ((recovery === undefined) !== (resumeRun === undefined)) throw new UsageError('session recovery needs --resume-run, --occurrence, --expected-revision and --command-id together');
+  if ((recovery === undefined) !== (resumeRun === undefined)) throw new UsageError('session continuation needs --resume-run and --command-id together');
   if (resumeRun !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(resumeRun)) throw new UsageError('--resume-run must name one retained run, without path separators');
   return {
     command: 'session',

@@ -211,7 +211,7 @@ describe('CF04: an unscheduled review', () => {
 });
 
 describe('CF06: a crash around a review is recovered exactly once', () => {
-  test('a crash after the gate and before its request records the request on restart, once', async () => {
+  test('a reopen without an execution agent preserves the accepted gate pending ordinary review scheduling', async () => {
     const root = await reviewTarget(cleanups);
     const crashed = gate();
     let frozen = false;
@@ -235,23 +235,12 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
 
     const restarted = await restart(root);
     expect(restarted.agent).toBeUndefined();
-    expect(restarted.recovery.reviews).toEqual([
-      `${plan}/${run.runId}: review request rq-0001 of wi-001.i01`,
-      `${plan}/${run.runId}: review attempt rq-0001.a01, finished as not verified`,
-    ]);
+    expect(restarted.recovery.reviews).toEqual([]);
     const after = await runEventsOnDisk(root, plan, run.runId);
-    // The request and its terminal attempt, then what every recovery appends:
-    // the three kept sessions finished, and the interruption.
-    expect(after.slice(before.length).map(event => event.type)).toEqual([
-      'review-request-recorded', 'review-attempt-finished', 'session-finished', 'session-finished', 'session-finished', 'job-interrupted',
-    ]);
-    expect(eventsOf(after, 'review-request-recorded')[0]!.data).toEqual({
-      request: 'rq-0001', workItem: 'wi-001', iteration: 'wi-001.i01', kind: 'code', gate: 'ga-0002', candidate: 'revision-01',
-    });
-    expect(await attemptRecord(root, run.runId, 'rq-0001.a01')).toMatchObject({
-      startedAt: null, invocation: null, settles: true, result: { result: 'not-verified', reason: 'stopped' },
-    });
-    expect(restarted.service.reviews(plan, run.runId)!.coverage).toEqual({ state: 'available', requested: 1, complete: 0, partial: 0, notVerified: 1, pending: 0 });
+    expect(after).toEqual(before);
+    expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'wi-001.i01', outcome: 'accepted' });
+    expect(eventsOf(after, 'review-request-recorded')).toEqual([]);
+    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 0 });
 
     // A second restart finds nothing owed and changes nothing.
     await restarted.service.close();
@@ -261,7 +250,7 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     expect(await runEventsOnDisk(root, plan, run.runId)).toEqual(after);
   }, 60_000);
 
-  test('a crash while a reader runs finishes its attempt as not verified, and its session as interrupted', async () => {
+  test('a reopen without an execution agent retains an unfinished review attempt without inventing a result', async () => {
     const root = await reviewTarget(cleanups);
     const crashed = gate();
     let frozen = false;
@@ -288,16 +277,13 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     const restarted = await restart(root);
     expect(restarted.agent).toBeUndefined();
     expect(restarted.recovery.invocations).toContain(`${plan}/${run.runId}: ${started[0]!.data.invocation}`);
-    expect(restarted.recovery.reviews).toEqual([`${plan}/${run.runId}: review attempt rq-0001.a01, finished as not verified`]);
+    expect(restarted.recovery.reviews).toEqual([]);
     const after = await runEventsOnDisk(root, plan, run.runId);
-    const finished = eventsOf(after, 'review-attempt-finished');
-    expect(finished.map(event => [event.data.attempt, event.data.result, event.data.reason, event.data.settles])).toEqual([['rq-0001.a01', 'not-verified', 'execution-failed', true]]);
-    expect(await attemptRecord(root, run.runId, 'rq-0001.a01')).toMatchObject({
-      invocation: started[0]!.data.invocation, session: started[0]!.data.session, startedAt: expect.any(String), actualStart: null,
-    });
-    const sessions = reduceSessions(after);
-    expect(sessions.get(started[0]!.data.session)).toMatchObject({ role: 'reviewer', state: 'finished', finished: 'interrupted' });
-    expect(after.at(-1)).toMatchObject({ type: 'job-interrupted' });
+    expect(after.slice(0, before.length)).toEqual(before);
+    for (const event of after.slice(before.length)) expect(event).toMatchObject({ type: 'invocation-ended', data: { finished: 'interrupted' } });
+    expect(eventsOf(after, 'review-attempt-finished')).toEqual([]);
+    expect(eventsOf(after, 'review-attempt-started')).toEqual(started);
+    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1, pending: 1 });
 
     await restarted.service.close();
     cleanups.pop();

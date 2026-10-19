@@ -75,13 +75,12 @@ test.each(['target', 'configuration'] as const)('a final %s repair retains earli
   await until(() => service.events('review-notes', receipt.jobId)!.some(event => event.type === 'operation-recovery-paused') || service.getRun('review-notes', receipt.jobId)?.state === 'failed');
   const inspection = (await service.recoveryInspection('review-notes', receipt.jobId))!;
   expect(inspection, JSON.stringify(service.getRun('review-notes', receipt.jobId)?.failure)).not.toBeNull();
-  expect(inspection).toMatchObject({ state: 'paused', canResume: false, boundary: { kind: 'gate' }, evidence: { classification: 'check-execution' } });
+  expect(inspection).toMatchObject({ state: 'paused', canResume: true, boundary: { kind: 'gate' }, evidence: { classification: 'check-execution' } });
   const before = service.events('review-notes', receipt.jobId)!.filter(event => event.type === 'nonfunctional-assessed');
   expect(before).toHaveLength(1); expect(calls).toBe(2);
   await writeFile(join(copy.root, path), repairedBytes); changed = true;
   await service.execute({ commandId: 'environment-correction', expectedVersion: 0, type: 'resume-recovery', payload: {
-    planId: 'review-notes', jobId: receipt.jobId, occurrenceId: inspection.occurrenceId, expectedRevision: inspection.revision,
-    repair: { areas: [area], explanation: 'Corrected source or executable lookup obstruction before final qualification' } } });
+    planId: 'review-notes', jobId: receipt.jobId } });
   await service.settled('review-notes', receipt.jobId);
   const events = service.events('review-notes', receipt.jobId)!;
   expect(events.at(-1)?.type).toBe('job-completed'); expect(calls).toBe(3);
@@ -92,7 +91,8 @@ test.each(['target', 'configuration'] as const)('a final %s repair retains earli
   if (refusal.type !== 'gate-attempted') throw new Error('Missing applicability boundary');
   const record = gateAttemptSchema.parse(JSON.parse(await readFile(runPath(copy.root, 'review-notes', receipt.jobId, runLayout.gate(refusal.data.gate)), 'utf8')));
   const explanation = (await gateDiagnostics(record, 'local-architect')).summary.join('\n');
-  expect(explanation).toContain('Corrected source or executable lookup obstruction'); expect(explanation).toContain(path);
+  expect(explanation).toContain('candidate');
+  expect(events.filter(event => event.type === 'external-candidate-observed')).toHaveLength(1);
   const deviations = events.filter(event => event.type === 'nonfunctional-deviation-recorded');
   expect(deviations).toHaveLength(2);
   expect(new Set(deviations.map(event => event.data.assessment)).size).toBe(2);

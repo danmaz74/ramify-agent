@@ -25,7 +25,7 @@ export interface SessionCommandOptions {
   readonly agent: SessionAgentChoice;
   readonly write?: readonly string[] | undefined;
   readonly gate?: boolean | undefined;
-  readonly recoveryResume?: { readonly runId: string; readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
+  readonly recoveryResume?: { readonly runId: string; readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId: string };
   /** Called once the agent is ready, with what it is: pi and its model, or the fake and its script. */
   readonly onAgent?: ((description: string) => void) | undefined;
   readonly onProgress?: ((event: SessionProgress) => void) | undefined;

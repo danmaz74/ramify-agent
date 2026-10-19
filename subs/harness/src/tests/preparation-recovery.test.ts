@@ -119,15 +119,14 @@ async function incidents(subject: Awaited<ReturnType<typeof scenario>>) {
   return { latest, incident };
 }
 
-test('ordinary local architect preparation pauses outside automatic repair and retries only after declared correction', async () => {
+test('ordinary local architect preparation remains pending and continues after its prerequisite is restored', async () => {
   const subject = await scenario('ordinary');
   const inspection = (await subject.service.recoveryInspection(plan, subject.runId))!;
-  expect(inspection).toMatchObject({ boundary: { kind: 'preparation', role: 'local-architect', work: { workItem: 'wi-001' } }, evidence: { classification: 'preparation' }, automaticAttempts: 0, attempts: [], canResume: false });
+  expect(inspection).toMatchObject({ boundary: { kind: 'preparation', role: 'local-architect', work: { workItem: 'wi-001' } }, evidence: { classification: 'preparation' }, automaticAttempts: 0, attempts: [], canResume: true });
   expect(subject.preparationCalls()).toBe(1);
   expect(subject.service.events(plan, subject.runId)!.some(event => event.type === 'repair-incident-recorded')).toBe(false);
   expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(0);
-  await expect(resume(subject, false)).rejects.toMatchObject({ code: 'conflict' });
-  subject.restore(); await resume(subject);
+  subject.restore(); await resume(subject, false);
   await subject.service.settled(plan, subject.runId);
   expect(subject.service.getRun(plan, subject.runId)?.state).toBe('completed');
   expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(1);
@@ -171,7 +170,7 @@ test('a repeated ordinary preparation failure waits again without transport retr
   await resume(subject);
   await until(() => subject.service.events(plan, subject.runId)!.filter(event => event.type === 'operation-recovery-paused').length === 2);
   const second = (await subject.service.recoveryInspection(plan, subject.runId))!;
-  expect(second.occurrenceId).not.toBe(first.occurrenceId); expect(second.group).toBe(1); expect(second.automaticAttempts).toBe(0);
+  expect(second.occurrenceId).not.toBe(first.occurrenceId); expect(second.automaticAttempts).toBe(0);
   expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(1);
   expect(subject.service.events(plan, subject.runId)!.filter(event => event.type === 'repair-incident-recorded')).toHaveLength(1);
   await subject.service.execute(stopRun(plan, subject.runId, subject.service.getRun(plan, subject.runId)!.version));
@@ -181,15 +180,11 @@ test('a repeated ordinary preparation failure waits again without transport retr
 
 test.each(['ordinary', 'missing', 'spent'] as const)('restart at %s preparation preserves the paused boundary and retries preparation without replaying accepted work', async boundary => {
   const subject = await scenario(boundary);
-  const inspection = (await subject.service.recoveryInspection(plan, subject.runId))!;
   const originalEngineers = subject.specs.filter(spec => spec.role === 'engineer').length;
   await subject.service.close();
   subject.restore();
   const reopened = await openRuns(subject.root, subject.options);
   cleanups.push(() => reopened.service.close());
-  expect((await reopened.service.recoveryInspection(plan, subject.runId))!.occurrenceId).toBe(inspection.occurrenceId);
-  expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(originalEngineers);
-  await resume({ ...subject, service: reopened.service });
   await reopened.service.settled(plan, subject.runId);
   const run = reopened.service.getRun(plan, subject.runId)!;
   expect(run.state, JSON.stringify(run.failure)).toBe('completed');
@@ -217,23 +212,16 @@ test.each(['unsafe', 'semantic'] as const)('%s original authority remains termin
 });
 
 
-test('another candidate change after preparation admission pauses before dispatch and requires a new target declaration', async () => {
+test('current candidate changes reach ordinary verification without another declaration and stale audit evidence cannot pass', async () => {
   const subject = await scenario('missing', true);
-  const first = (await subject.service.recoveryInspection(plan, subject.runId))!;
-  const originalSessions = subject.specs.length;
-  subject.restore(); await resume(subject);
-  await until(() => subject.service.events(plan, subject.runId)!.filter(event => event.type === 'operation-recovery-paused').length === 2);
-  const second = (await subject.service.recoveryInspection(plan, subject.runId))!;
-  expect(second.occurrenceId).not.toBe(first.occurrenceId);
-  expect(second.evidence.diagnostic).toContain('changed after repair admission');
-  expect(second.retained.candidate.tree).toBe(tree);
-  expect(subject.specs).toHaveLength(originalSessions);
-  await expect(resume(subject)).rejects.toThrow('Target candidate or index changed without a target repair declaration');
-  await subject.service.execute(stopRun(plan, subject.runId, subject.service.getRun(plan, subject.runId)!.version));
+  subject.restore();
+  await resume(subject, false);
   await subject.service.settled(plan, subject.runId);
-  expect(subject.gitBoundary.git.unexpected).toEqual([]);
+  expect(subject.service.events(plan, subject.runId)!.filter(event => event.type === 'operation-recovery-paused')).toHaveLength(1);
+  expect(subject.service.getRun(plan, subject.runId)?.failure?.message).toContain('not assessed tree');
+  expect(subject.specs.filter(spec => spec.role === 'engineer')).toHaveLength(1);
+  subject.gitBoundary.assertComplete();
 });
-
 
 test('a successful unconsumed root repair delta remains retained authority at spent preparation refusal', async () => {
   const subject = await scenario('spent', false, true);

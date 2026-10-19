@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { interruptionEvidence } from './interfaces/port.js';
-import { SessionDriverUnavailableError } from './interfaces/session-operations.js';
+import { SessionDriverUnavailableError, SessionRecordUnavailableError } from './interfaces/session-operations.js';
 import type { GuardedCall, SessionOutcome, SubmissionVerdict, ToolResult } from './interfaces/port.js';
 import type {
   AgentSessionPoint, AgentSessionSnapshot, ContinueSessionInput, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionBindings,
@@ -87,9 +87,9 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
   async function readSession(runId: string, sessionId: string): Promise<{ record: SessionStoreRecord; body: SessionBody } | null> {
     const found = await (detachedRead ? detachedRead(runId, sessionRecordId(sessionId)) : store.read(runId, sessionRecordId(sessionId)));
     if (found === null) return null;
-    if (found.schema !== 'ramify-agent.session/1') throw new Error('Unsupported session schema');
+    if (found.schema !== 'ramify-agent.session/1') throw new SessionRecordUnavailableError('Unsupported session schema');
     const body = (detachedRead ? found.body : clone(found.body)) as unknown as SessionBody;
-    if (!body.snapshot || body.snapshot.sessionId !== sessionId || body.snapshot.runId !== runId || !Array.isArray(body.points)) throw new Error('Corrupt session envelope');
+    if (!body.snapshot || body.snapshot.sessionId !== sessionId || body.snapshot.runId !== runId || !Array.isArray(body.points)) throw new SessionRecordUnavailableError('Corrupt session envelope');
     return { record: found, body };
   }
   async function verifyPayloads(snapshot: Snapshot): Promise<void> {
@@ -106,7 +106,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
     const declarations = [...snapshot.declarations];
     for (const declaration of change.add) {
       const prior = declarations.find(item => item.name === declaration.name);
-      if (prior && !equal(prior, declaration)) throw new Error(`Tool definition conflicts for ${declaration.name}`);
+      if (prior && !equal(prior, declaration)) throw new SessionDriverUnavailableError(`Retained tool definition is incompatible with current declaration ${declaration.name}`);
       if (!prior) declarations.push(clone(declaration));
     }
     const activeTools = new Set(snapshot.activeTools);
@@ -156,7 +156,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
       const sessionId = randomUUID();
       let snapshot: Snapshot = { runId: input.runId, sessionId, parent: null, currentPoint: point(sessionId, 0, 'checkpoint'), initialInstructions: input.initialInstructions, policy: clone(input.policy), declarations: [], activeTools: [], additions: [], transcript: [], activeOperation: null, available: true };
       try { snapshot = prepare(snapshot, [], { add: input.declarations, activate: input.activate, inactivate: [] }); }
-      catch (error) { return receipt(input, sessionId, 'conflict', errorText(error), null, null, null, error instanceof SessionDriverUnavailableError); }
+      catch (error) { return receipt(input, sessionId, 'conflict', errorText(error)); }
       snapshot = { ...snapshot, transcript: [await payload(`create:${input.operationId}`, frozen)] };
       return commitSimple(input, frozen, 'create', snapshot, null, null);
     },
@@ -176,7 +176,9 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
       const frozen = clone(serializable) as unknown as Record<string, unknown>;
       const prior = await terminalDuplicate(input, frozen);
       if (prior) return completedHandle(prior);
-      const loaded = await readSession(input.runId, input.sessionId);
+      let loaded: Awaited<ReturnType<typeof readSession>>;
+      try { loaded = await readSession(input.runId, input.sessionId); }
+      catch (error) { if (error instanceof SessionRecordUnavailableError) return completedHandle(receipt(input, input.sessionId, 'unavailable', error.message, null, null, null, true)); throw error; }
       if (!loaded || !loaded.body.snapshot.available) return completedHandle(receipt(input, input.sessionId, 'unavailable', 'Session unavailable', null, null, null, true));
       if (loaded.body.snapshot.activeOperation !== null) return completedHandle(receipt(input, input.sessionId, 'conflict', 'Session has an active operation'));
       if (!equal(loaded.body.snapshot.currentPoint, input.expectedPoint)) {
@@ -253,7 +255,9 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
       if (published.kind === 'conflict') throw new Error(published.reason);
     },
     async inspect(runId, sessionId, expectedPoint) {
-      const loaded = await readSession(runId, sessionId);
+      let loaded: Awaited<ReturnType<typeof readSession>>;
+      try { loaded = await readSession(runId, sessionId); }
+      catch (error) { if (error instanceof SessionRecordUnavailableError) return null; throw error; }
       if (!loaded) return null;
       const snapshot = expectedPoint ? loaded.body.points.find(item => equal(item.currentPoint, expectedPoint)) : loaded.body.snapshot;
       if (!snapshot || !snapshot.available) return null;
@@ -318,7 +322,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
     const op = await readOperation(key); if (!op) throw new Error('Missing operation intent');
     if (op.body.receipt) return clone(op.body.receipt);
     const loaded = await readSession(key.runId, op.body.sessionId); if (!loaded) throw new Error('Missing active session');
-    const uncertain = op.body.effects.some(effect => effect.phase === 'intent');
+    const uncertain = op.body.effects.some(effect => effect.phase === 'intent' && effect.consequential !== false && !effect.tool.startsWith('afterMutation:'));
     // A provider turn that was dispatched and did not complete, whether stopped or failed, leaves no point a later Continue could resume from.
     const interruptedProvider = (outcome.kind === 'stopped' || outcome.kind === 'failed') && op.body.phase === 'dispatched';
     const available = !unavailable && !uncertain && !interruptedProvider;
@@ -328,7 +332,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
     // A failure keeps its own error as the reason; the null point says the turn is not reusable.
     const interruptedReason = outcome.kind === 'failed' && reason !== null ? reason : 'Provider completion interrupted; point unavailable';
     const result = { ...receipt(key, op.body.sessionId, status, uncertain ? 'External effect completion unknown; point unavailable' : interruptedProvider ? interruptedReason : reason, available ? currentPoint : null, outcome, currentPoint.turn),
-      ...(unavailable && !uncertain && op.body.effects.length === 0 ? { contextUnavailable: true } : {}) };
+      ...(unavailable && !uncertain ? { contextUnavailable: true } : {}) };
     const terminal: OperationBody = { ...op.body, phase: 'terminal', receipt: result };
     const committed = await commit({ runId: key.runId, expected: [{ id: op.record.id, revision: op.record.revision }, { id: loaded.record.id, revision: loaded.record.revision }], records: [record(key, op.record.id, op.record.revision + 1, terminal, false), record(key, loaded.record.id, loaded.record.revision + 1, { snapshot, points: available ? [...loaded.body.points, snapshot] : loaded.body.points }, true)], payloads: snapshot.transcript.map(item => item.payloadId) });
     if (committed.kind === 'conflict') { const winner = await readOperation(key); if (winner?.body.receipt) return clone(winner.body.receipt); throw new Error(committed.reason); }
@@ -424,23 +428,14 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
         const guarded: GuardedCall = { callId, tool: name, input, action: tool?.action?.(input) ?? { kind: 'harness' } };
         async function afterMutation(result: ToolResult, failed: boolean): Promise<ToolResult> {
           if (!declaration?.mutating || !bindings.afterMutation) return result;
-          const hookId = `${callId}:afterMutation`;
-          const latest = await readOperation(key);
-          const priorHook = latest?.body.effects.find(item => item.callId === hookId);
-          let text: string;
-          if (priorHook) {
-            if (priorHook.phase !== 'completed') throw new Error(`Mutation check ${hookId} completion unknown`);
-            text = priorHook.result?.text ?? '';
-          } else {
-            await serial(() => updateOperation(key, body => ({ ...body, effects: [...body.effects, { callId: hookId, tool: `afterMutation:${name}`, input: { callId, tool: name, action: guarded.action, result }, phase: 'intent', result: null, verdict: null }] }), owner.token));
-            const hook = await bindings.afterMutation({ callId, tool: name, action: guarded.action, failed });
-            await assertLive();
-            text = hook?.text ?? '';
-            await serial(() => updateOperation(key, body => ({ ...body, effects: body.effects.map(item => item.callId === hookId ? { ...item, phase: 'completed', result: { text } } : item) }), owner.token));
-          }
+          // Diagnostics verify current files and can be repeated after interruption.
+          const hook = await bindings.afterMutation({ callId, tool: name, action: guarded.action, failed });
+          await assertLive();
+          const text = hook?.text ?? '';
           return text === '' ? result : { ...result, text: `${result.text}\n${text}` };
         }
-        const old = current.body.effects.find(item => item.callId === callId);
+        const consequential = submission || (tool?.consequential?.(input) ?? !['read', 'search', 'write'].includes(guarded.action.kind));
+        const old = consequential ? current.body.effects.find(item => item.callId === callId) : undefined;
         if (old) {
           if (old.tool !== name || !equal(old.input, input)) throw new Error(`Effect call identity conflicts for ${callId}`);
           if (old.phase !== 'completed') throw new Error(`Effect ${callId} completion unknown`);
@@ -459,13 +454,13 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
         }
         await assertLive();
         const effectInput = clone(input);
-        await serial(() => updateOperation(key, body => ({ ...body, effects: [...body.effects, { callId, tool: name, input: effectInput, phase: 'intent', result: null, verdict: null }] }), owner.token));
+        if (consequential) await serial(() => updateOperation(key, body => ({ ...body, effects: [...body.effects, { callId, consequential: true, tool: name, input: effectInput, phase: 'intent', result: null, verdict: null }] }), owner.token));
         await assertLive();
         let executionError: unknown;
         let answer: ToolResult | SubmissionVerdict;
         try { answer = submission ? await bindings.submission.accept(input, abort.signal) : await tool!.execute(input, abort.signal, callId); }
         catch (error) { executionError = error; answer = { text: errorText(error), isError: true }; }
-        if (!submission) {
+        if (!submission && consequential) {
           const original = current.body.input as unknown as Omit<ContinueSessionInput, 'bindings'>;
           const fact: SessionEffectOwnerReceipt = { runId: key.runId, operationId: key.operationId, sessionId: current.body.sessionId,
             callId, tool: name, input: effectInput, result: clone(answer) as ToolResult, thrown: executionError !== undefined,
@@ -483,7 +478,7 @@ export function createSessionOperations(options: SessionOperationsOptions): Sess
         // Retain known tool completion before running any potentially interrupted mutation check.
         // A handler that threw has finished: its failure is recorded as its known result.
         const thrown = executionError !== undefined;
-        await serial(() => updateOperation(key, body => ({ ...body, effects: body.effects.map(item => item.callId === callId ? { ...item, phase: 'completed', result: submission && !thrown ? null : clone(answer) as ToolResult, verdict: submission && !thrown ? clone(answer) as SubmissionVerdict : null, ...(thrown ? { thrown: true as const } : {}) } : item) }), owner.token));
+        if (consequential) await serial(() => updateOperation(key, body => ({ ...body, effects: body.effects.map(item => item.callId === callId ? { ...item, phase: 'completed', result: submission && !thrown ? null : clone(answer) as ToolResult, verdict: submission && !thrown ? clone(answer) as SubmissionVerdict : null, ...(thrown ? { thrown: true as const } : {}) } : item) }), owner.token));
         const finalAnswer = submission ? answer : await afterMutation(answer as ToolResult, thrown || ((answer as ToolResult).isError ?? false));
         if (thrown) throw executionError;
         return finalAnswer;

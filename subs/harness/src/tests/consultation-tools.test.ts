@@ -50,21 +50,26 @@ describe('Plan 33 C05-C12 advisory tools', () => {
     expect(after).toEqual(advanced);
     await retainConsultationExample(fixture, 'direct-and-capability');
   });
-  test('C09: missing source, provider failure and an uncorrected answer are distinct without a fresh substitute', async () => {
+  test('C09: missing context uses fresh consultation while provider and answer failures retain their diagnostics', async () => {
     for (const scenario of ['invalid', 'missing', 'provider', 'uncorrected'] as const) {
       const fixture = await consultationFixture(cleanup, input => input.task.submissionTool !== 'answer_architect_consultation' ? [ask(), { kind: 'submit', input: {} }]
-        : scenario === 'provider' ? [{ kind: 'fail', error: 'Provider explicitly failed' }] : [answer(' '), answer(''), answer('\n')]);
+        : scenario === 'provider' ? [{ kind: 'fail', error: 'Provider explicitly failed' }] : scenario === 'missing' ? [answer('Fresh advice from current task inputs')] : [answer(' '), answer(''), answer('\n')]);
       const original = fixture.seeds['local-architect']!;
       const source = scenario === 'invalid' ? { ...original, run: { ...original.run, runId: 'other' }, ref: sessionPointReference('other', readSessionPointReference(original.ref)!.point) } : original;
       if (scenario === 'missing') fixture.agent.loseSession(readSessionPointReference(source.ref)!.point);
       const caller = await fixture.caller('engineer', source);
       expect(caller.ended, caller.error).toBe('submitted');
       const record = consultationOutcome(fixture.run.log, consultationId(caller.id, 'ask'))!;
+      if (scenario === 'missing') {
+        expect(record.status).toBe('answered'); expect(record.accepted?.answer).toMatchObject({ text: 'Fresh advice from current task inputs' });
+        expect(fixture.seen.filter(input => input.task.submissionTool === 'answer_architect_consultation')).toHaveLength(1);
+        continue;
+      }
       expect(record.status).toBe('failed'); expect(record.accepted).toBeNull();
       expect(record.error!.code).toBe({ invalid: 'invalid-source', missing: 'unavailable-source', provider: 'provider-failure', uncorrected: 'no-answer' }[scenario]);
       expect(fixture.run.log.all('invocation-ended').filter(event => event.data.degraded !== undefined)).toHaveLength(0);
       expect(fixture.run.log.all('invocation-started').filter(event => event.data.work.request === record.id)).toHaveLength(scenario === 'invalid' ? 0 : 1);
-      expect(fixture.seen.filter(input => input.task.submissionTool === 'answer_architect_consultation')).toHaveLength(scenario === 'missing' || scenario === 'invalid' ? 0 : 1);
+      expect(fixture.seen.filter(input => input.task.submissionTool === 'answer_architect_consultation')).toHaveLength(scenario === 'invalid' ? 0 : 1);
       await retainConsultationExample(fixture, `error-${scenario}`);
     }
   });

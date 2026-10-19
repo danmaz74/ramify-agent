@@ -215,7 +215,7 @@ describe('run-to-Git integration', () => {
     const reopened = await openRuns(root, { git: gitService, script: [] });
     cleanups.unshift(() => reopened.service.close());
 
-    expect(reopened.recovery.effects).toContain(`review-notes/${receipt.jobId}: resumed the non-functional phase`);
+    expect(reopened.recovery.effects).toContain(`review-notes/${receipt.jobId}: continued unfinished tasks through ordinary execution`);
     await reopened.service.settled('review-notes', receipt.jobId);
     expect(onlyRun(reopened.service, 'review-notes').state).toBe('completed');
 

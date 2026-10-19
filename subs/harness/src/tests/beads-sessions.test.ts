@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
 import { createSessionOperations } from '../../subs/agent/src/session-operations.js';
+import { SessionDriverUnavailableError } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { SessionOperationDriver } from '../../subs/agent/src/interfaces/session-operations.js';
 import type { CommandRunner, CommandRequest } from '../../subs/evidence/src/run-command.js';
 import { noMessageDetail } from '../../subs/agent/src/interfaces/port.js';
@@ -105,14 +106,49 @@ it('durably queues without waiting, disables inherited tools, and closes only th
   commands.done();
 });
 
-it('retains missing inherited context as pending and orders finish behind start without fresh fallback', async () => {
+it('uses captured administrative inputs when inherited context is missing and preserves provider failure', async () => {
   let dispatches = 0;
   const f = await fixture({ async dispatch() { dispatches++; throw new Error('must not dispatch'); } }, async () => { throw new Error('must not run tracker'); });
   await f.manager.scheduleStart({ ...f.input, sourceRef: null });
   await f.manager.scheduleFinish({ ...f.input, outcome: 'job-failed' });
   const state = await retained(f);
-  expect(dispatches).toBe(0); expect(state.start).toMatchObject({ status: 'pending', reason: expect.stringContaining('Inherited source context') });
+  expect(dispatches).toBe(1); expect(state.start).toMatchObject({ status: 'pending', reason: 'must not dispatch' });
   expect(state.finish).toMatchObject({ status: 'pending', reason: expect.stringContaining('Awaiting confirmed start') });
+});
+
+it('starts fresh administration from durable evidence when implementation context is unavailable', async () => {
+  let dispatches = 0;
+  const f = await fixture({ async dispatch(invocation, runtime) {
+    dispatches++;
+    expect(invocation.session.parent).toBeNull();
+    expect(invocation.task.message).toContain('Mentioned issue proj-1 resolved parser acceptance');
+    expect(invocation.session.activeTools).not.toContain('write');
+    const input = { summary: 'No semantically relevant existing issue needs a tracker mutation', decisions: [] };
+    expect((await runtime.submit('fresh-admin', input)).accepted).toBe(true);
+    return { kind: 'submitted', input };
+  } }, async () => { throw new Error('No tracker mutation is requested'); });
+  await f.manager.scheduleStart({ ...f.input, sourceRef: null });
+  const state = await retained(f);
+  expect(dispatches).toBe(1); expect(state.start?.status).toBe('completed');
+});
+
+it('restarts interrupted administration from durable inputs after its optional context is lost', async () => {
+  let calls = 0;
+  const f = await fixture({ async dispatch(invocation, runtime) {
+    if (++calls === 1) throw new SessionDriverUnavailableError('Optional provider history lost');
+    expect(invocation.session.parent).toBeNull();
+    const input = { summary: 'No relevant existing issue needs updating', decisions: [] };
+    expect((await runtime.submit('replacement-admin', input)).accepted).toBe(true);
+    return { kind: 'submitted', input };
+  } });
+  await f.manager.scheduleStart({ ...f.input, sourceRef: null });
+  const pending = await retained(f);
+  expect(pending.start).toMatchObject({ status: 'pending', receipt: { contextUnavailable: true } });
+  const replacement = await BeadsSessions.open(f.options); cleanup.push(async () => { expect(await replacement.close()).toBe(true); });
+  await replacement.recover('run-1'); expect(await replacement.close()).toBe(true);
+  const reader = await BeadsSessions.open(f.options); cleanup.push(async () => { expect(await reader.close()).toBe(true); });
+  expect((await reader.inspect('run-1'))?.start?.status).toBe('completed');
+  expect(calls).toBe(2);
 });
 
 it('finishes an empty confirmed issue set without a model turn or source context, including after restart', async () => {

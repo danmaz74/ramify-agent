@@ -324,22 +324,24 @@ describe('Plan 23 owned session store replay cache', () => {
     if (change === 'corrupt') await writeFile(target, JSON.stringify({ value: 'changed' })); else await rm(target);
     // Validate B even when A's revision is already a mismatch.
     await expect(store.commit({ runId: 'A', expected: [{ id: a.id, revision: 99 }, { id: b.id, revision: 1 }], records: [record(100)], payloads: [] })).rejects.toThrow(/session record body/);
-    await expect(second.read('A', a.id)).rejects.toThrow(/session record body/); // Shared cache invalidated; complete history is replayed.
+    expect(await second.read('A', a.id)).toEqual(a);
+    await expect(second.read('A', b.id)).rejects.toThrow(/session record body/);
     expect(await readFile(join(path, 'session-ledger.jsonl'), 'utf8')).toEqual(journal);
   });
-  it('validates unreferenced historical record bodies on a fresh writer lifetime', async () => {
+  it('opens a fresh writer without requiring unreferenced historical record bodies', async () => {
     const { path, store } = await setup(); const original = { value: 'history' };
     await commit(store, 1, [], original); await commit(store, 2, [], { value: 'current' });
     await writeFile(join(path, 'record-bodies', `${bodyHash(original)}.json`), JSON.stringify({ value: 'changed' }));
     expect(await store.read('A', 'session:s')).toEqual(record(2, { value: 'current' }));
-    await store.close(); await expect(openSessionStore({ directory: path })).rejects.toThrow(/Corrupt session record body/);
+    await store.close(); const reopened = await setup(path);
+    expect(await reopened.store.read('A', 'session:s')).toEqual(record(2, { value: 'current' }));
   });
-  it('direct current-body read hashes actual bytes and invalidates the shared writer cache on damage', async () => {
+  it('reports damaged current bodies locally while unrelated records remain readable', async () => {
     const { path, store } = await setup(); const second = (await setup(path)).store; const body = { value: 'original' };
     await commit(store, 1, [], body);
     await writeFile(join(path, 'record-bodies', `${bodyHash(body)}.json`), JSON.stringify({ value: 'modified' }));
     await expect(second.read('A', 'session:s')).rejects.toThrow(/Corrupt session record body/);
-    await expect(store.read('A', 'unrelated')).rejects.toThrow(/Corrupt session record body/);
+    expect(await store.read('A', 'unrelated')).toBeNull();
   });
   it('body persistence failure leaves the atomic journal and current records unchanged', async () => {
     const { path, store } = await setup(); await commit(store, 1, [], { value: 'original' }); const journal = await readFile(join(path, 'session-ledger.jsonl'), 'utf8');
@@ -369,7 +371,7 @@ describe('Plan 23 owned session store replay cache', () => {
     await writeFile(join(path, 'session-ledger.jsonl'), `${JSON.stringify({ sequence: 1, at: '2026-01-01T00:00:00Z', event, records: [] })}\n`);
     await expect(openSessionStore({ directory: path })).rejects.toThrow(/transaction run identity/);
   });
-  it('checks every unique historical payload on each read and commit even after current records stop referring to it', async () => {
+  it('does not inspect historical optional payloads for unrelated reads or commits', async () => {
     const { path, store } = await setup();
     const first = await store.putPayload(new TextEncoder().encode('history-first'));
     const second = await store.putPayload(new TextEncoder().encode('history-second'));
@@ -378,7 +380,7 @@ describe('Plan 23 owned session store replay cache', () => {
     expect(statSync(join(path, 'payloads', first), { bigint: true }).mtimeNs).toBe(0n);
     await commit(store, 1, [first, second, first], { payload: first });
     await commit(store, 2, [second], { payload: second });
-    const expected = [join(path, 'payloads', first), join(path, 'payloads', second)].sort();
+    const expected: string[] = [];
     observed.metadataChecks.length = 0; observed.payloadReads.length = 0;
     expect(await store.read('A', 'session:s')).toEqual(record(2, { payload: second }));
     expect(observed.metadataChecks.sort()).toEqual(expected);
@@ -387,12 +389,13 @@ describe('Plan 23 owned session store replay cache', () => {
     expect(await commit(store, 3, [], { current: 'no payload' })).toEqual({ kind: 'committed' });
     expect(observed.metadataChecks.sort()).toEqual(expected);
     expect(observed.payloadReads).toEqual([]);
-    // An unreferenced historical parent still has to be available and authentic.
+    // Unavailable history cannot obstruct a current task.
     await writeFile(join(path, 'payloads', first), 'history-other');
     await utimes(join(path, 'payloads', first), new Date(0), new Date(0));
     expect(statSync(join(path, 'payloads', first), { bigint: true }).mtimeNs).toBe(0n);
-    await expect(store.read('A', 'session:s')).rejects.toThrow(`Corrupt transcript payload ${first}`);
-    await expect(commit(store, 4, [], { accepted: false })).rejects.toThrow(`Corrupt transcript payload ${first}`);
+    expect(await store.read('A', 'session:s')).toEqual(record(3, { current: 'no payload' }));
+    await expect(commit(store, 4, [], { accepted: false })).resolves.toEqual({ kind: 'committed' });
+    await expect(store.getPayload(first)).rejects.toThrow(`Corrupt transcript payload ${first}`);
   });
   it('never publishes speculative cached records or payload references after a failed append', async () => {
     const { path, store } = await setup(); const second = (await setup(path)).store;
@@ -419,16 +422,19 @@ describe('Plan 23 owned session store replay cache', () => {
     await expect(second.read('A', 'session:s')).rejects.toThrow(/changed outside the owned writer/);
     await expect(commit(second, 2)).rejects.toThrow(/changed outside the owned writer/);
   });
-  it.each(['corrupt', 'delete'] as const)('detects committed payload %s without trusting a cached record or duplicate historical references', async change => {
+  it.each(['corrupt', 'delete'] as const)('isolates optional committed payload %s from unrelated task records', async change => {
     const { path, store } = await setup(); const id = await store.putPayload(new TextEncoder().encode('original'));
     await commit(store, 1, [id, id]); const second = (await setup(path)).store;
     const payload = join(path, 'payloads', id);
     if (change === 'delete') await rm(payload);
     else { await writeFile(payload, 'modified'); await utimes(payload, new Date(0), new Date(0)); }
-    await expect(second.read('A', 'session:s')).rejects.toThrow(/Corrupt transcript|Committed transcript payload unavailable/);
-    await expect(commit(store, 2, [id])).rejects.toThrow(/Corrupt transcript|Committed transcript payload unavailable/);
+    expect(await second.read('A', 'session:s')).not.toBeNull();
+    await expect(commit(store, 2, [id])).resolves.toEqual({ kind: 'committed' });
+    if (change === 'delete') expect(await second.getPayload(id)).toBeNull();
+    else await expect(second.getPayload(id)).rejects.toThrow(/Corrupt transcript/);
     await store.close(); await second.close();
-    await expect(openSessionStore({ directory: path })).rejects.toThrow(/Corrupt transcript|Committed transcript payload unavailable/);
+    const reopened = await setup(path);
+    expect(await reopened.store.read('A', 'session:s')).not.toBeNull();
   });
   it('materialized record deletion or corruption cannot replace ledger-authoritative cached or reopened state', async () => {
     const { path, store } = await setup(); await commit(store, 1);
@@ -540,6 +546,7 @@ describe('synchronous logical JSON commit admission', () => {
       await writeFile(log, (await readFile(log, 'utf8')).replace('session:s', 'session:x'));
     }
     const pending = store.commitCaptured({ runId: 'A', expected: [{ id: 'session:s', revision: 0 }], records: [record(1, { value: 'new' })], payloads: [payload] });
+    if (damage === 'payload') { await expect(pending).resolves.toMatchObject({ kind: 'conflict' }); return; }
     await expect(pending).rejects.toThrow(damage === 'body' ? /record body/ : damage === 'journal' ? /changed outside/ : damage === 'owner' ? /ownership unavailable/ : /payload/);
   });
 

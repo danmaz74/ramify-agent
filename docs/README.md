@@ -5,6 +5,15 @@ Design documents for the separate agent harness:
 - [Agent assistance over MCP](agent-assistance.md), setup, plan registration,
   candidate assessment and evidence; [Plan 47](plans/47-agent-assistance/main-plan.md)
   is implemented, with [passing audit and pilot evidence](plans/47-agent-assistance/implementation-results.md)
+- [Harness recovery principles](harness-recovery.principles.md): KISS, ordinary
+  task restart and optional session context
+- [Recovery simplification plan](../plans/recovery-simplification/plan.md): shared
+  recovery policy and removal of unnecessary continuation mechanisms
+- [Recovery simplification implementation](analysis/2026-10-18-recovery-simplification-implementation.md):
+  changes, retained responsibilities and verification
+- [Recovery complexity analysis](analysis/2026-10-18-task-restart-and-recovery-complexity.md):
+  the nineteen findings informing the simplification
+
 - [Removing Pi restrictions that violate harness principles](analysis/2026-10-15-removing-restrictions-that-violate-principles.md),
   implemented Batch 1 continuation and correction, with proposed follow-up
   batches, clarified principles and observable acceptance examples

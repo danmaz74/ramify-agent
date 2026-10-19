@@ -50,6 +50,24 @@ function harnessInput(operationId: string, ref?: string): HarnessOperationInput 
 }
 
 describe('Plan 23 ledger session store', () => {
+  it('waits only for consequential pending effects including unresolved submissions', async () => {
+    const { path } = await setup();
+    const adapter = await HarnessSessionOperations.open(path, createScriptedAgent([]));
+    const store = (await setup(join(path, 'store'))).store;
+    const pending = (callId: string, tool: string, consequential?: boolean) => ({ callId, tool, input: {}, phase: 'intent', result: null, verdict: null, ...(consequential === undefined ? {} : { consequential }) });
+    await store.commit({ runId: 'A', expected: [{ id: 'operation:pending', revision: null }], payloads: [], records: [{
+      runId: 'A', id: 'operation:pending', revision: 1, schema: 'ramify-agent.session-operation/1', body: { effects: [
+        pending('old-read', 'read'), pending('old-edit', 'edit'), pending('check', 'afterMutation:write'),
+        pending('inspectable', 'custom-source-write', false), pending('command', 'run-command', true),
+        pending('submit', 'submit_iteration_result', true),
+        { ...pending('old-focused-check', 'shell'), input: { command: 'node_modules/.bin/vitest run a.test.ts' } },
+        { ...pending('old-external-command', 'shell'), input: { command: 'npm publish' } },
+      ] },
+    }] });
+    expect(await adapter.unresolvedEffects('A', 'pending')).toEqual(['command', 'submit', 'old-external-command']);
+    await adapter.close();
+  });
+
   it('immutable exact payload bytes and atomic multi-record CAS survive fresh adapters and missing materialized copies', async () => {
     const { path, store } = await setup(); const bytes = new Uint8Array([0, 255, 1, 10]); const id = await store.putPayload(bytes);
     expect(id).toMatch(/^[a-f0-9]{64}$/); expect(await store.putPayload(bytes)).toBe(id);
@@ -74,7 +92,22 @@ describe('Plan 23 ledger session store', () => {
     await expect(store.getPayload('../escape')).rejects.toThrow(/Invalid transcript/);
     const id = await store.putPayload(new TextEncoder().encode('correct'));
     await writeFile(join(path, 'payloads', id), 'incorrect'); await expect(store.getPayload(id)).rejects.toThrow(/Corrupt transcript/);
+    expect(await store.putPayload(new TextEncoder().encode('correct'))).toBe(id);
+    expect(new TextDecoder().decode((await store.getPayload(id))!)).toBe('correct');
   });
+  it('treats a corrupt optional session snapshot as unavailable while fresh tasks remain executable', async () => {
+    const { path, store } = await setup();
+    const operations = createSessionOperations({ sessionStore: store, driver: createScriptedSessionDriver([]) });
+    const prior = await operations.create(create);
+    const entries = (await readFile(join(path, 'session-ledger.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as { event: { records: { id: string; bodyId: string }[] } });
+    const header = entries.flatMap(entry => entry.event.records).find(record => record.id === `session:${prior.sessionId}`)!;
+    await writeFile(join(path, 'record-bodies', `${header.bodyId}.json`), 'corrupt optional session snapshot');
+    expect(await operations.inspect('A', prior.sessionId, prior.point!)).toBeNull();
+    expect(await operations.fork({ runId: 'A', operationId: 'exact-unavailable', sourcePoint: prior.point! })).toMatchObject({ status: 'unavailable', contextUnavailable: true });
+    expect(await operations.create({ ...create, operationId: 'new-readable-task' })).toMatchObject({ status: 'completed' });
+    expect(await store.read('A', 'operation:create')).not.toBeNull();
+  });
+
   it('S01/S02 reopens actual session transcript with fresh store/agent and preserves exact forks', async () => {
     const { path, store } = await setup();
     let dispatches = 0;
@@ -154,7 +187,7 @@ describe('Plan 23 ledger session store', () => {
     expect(result.status).toBe('unavailable'); expect(result.point).toBeNull(); expect(effects).toBe(1); expect(await recovered.inspect('A', P.sessionId)).toBeNull();
     expect(await (await recovered.retry({ runId: 'A', operationId: 'orient', bindings })).receipt).toEqual(result);
   });
-  it.each(['before-hook', 'after-hook'] as const)('recovers known mutation at %s without replaying mutation or completed checks', async boundary => {
+  it('retains a known mutation and reruns ordinary diagnostics without a separate check journal', async () => {
     const { path, store } = await setup(); let mutations = 0; let hooks = 0;
     const write = { name: 'write', description: 'Write', inputSchema: { type: 'object' }, mutating: true } as const;
     const driver = createScriptedSessionDriver([{ kind: 'tool', tool: 'write', input: {}, callId: 'write-a' }, { kind: 'submit', input: { orientation: 'A' } }]);
@@ -162,12 +195,14 @@ describe('Plan 23 ledger session store', () => {
     const bindings = bound({ tools: [{ ...write, execute: async () => { mutations++; return { text: 'written' }; } }], afterMutation: async () => { hooks++; return { text: 'checked' }; } });
     const crashStore = interrupted(store, commit => {
       const body = opBody(commit);
-      return Array.isArray(body?.['effects']) && body['effects'].some((item: { phase: string; tool: string }) => item.phase === 'completed' && item.tool === (boundary === 'before-hook' ? 'write' : 'afterMutation:write'));
+      return Array.isArray(body?.['effects']) && body['effects'].some((item: { phase: string; tool: string }) => item.phase === 'completed' && item.tool === 'write');
     }, 'after');
     await expect((await createSessionOperations({ sessionStore: crashStore, driver }).continue(input(P.sessionId, P.point!, bindings))).receipt).rejects.toThrow(/process lost/);
     const reopened = (await setup(path)).store;
     const result = await (await createSessionOperations({ sessionStore: reopened, driver }).retry({ runId: 'A', operationId: 'orient', bindings })).receipt;
     expect(result.status).toBe('completed'); expect(mutations).toBe(1); expect(hooks).toBe(1);
+    const operation = await reopened.read('A', 'operation:orient');
+    expect((operation?.body['effects'] as { tool: string }[]).some(effect => effect.tool.startsWith('afterMutation:'))).toBe(false);
   });
   it('S06 current authority denial during recovery prevents every dispatch and effect', async () => {
     const { path, store } = await setup(); let dispatches = 0;

@@ -546,13 +546,9 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
 
     const reopened = await openRuns(root, { production: true, ...external, script });
     cleanups.push(() => reopened.service.close());
-    const recovery = (await reopened.service.recoveryInspection(capabilityPlan, runId))!;
-    expect(recovery).toMatchObject({ state: 'paused', boundary: { work: { iteration: 'wi-001.i01' } } });
-    expect(reopened.agent!.sessions).toHaveLength(0);
+    // Existing run authority resumes the settled consumer without a repair approval.
+    expect(await reopened.service.recoveryInspection(capabilityPlan, runId)).toBeNull();
     expect((await runEventsOnDisk(root, capabilityPlan, runId)).filter(event => event.type === 'iteration-assigned')).toHaveLength(1);
-    await reopened.service.execute({ commandId: 'resume-retained-capability-consumer', expectedVersion: 0, type: 'resume-recovery', payload: {
-      planId: capabilityPlan, jobId: runId, occurrenceId: recovery.occurrenceId, expectedRevision: recovery.revision,
-      repair: { areas: ['environment'], explanation: 'The restarted owner retained its original candidate, delegated handback, scratch and assignment; resume that exact pending work' } } });
     await until(async () => reopened.service.getRun(capabilityPlan, runId)?.state !== 'running'
       || await reopened.service.recoveryInspection(capabilityPlan, runId) !== null
       || reopened.warnings.some(warning => warning.includes("'s attempt failed")), 900_000);
@@ -576,8 +572,9 @@ describe('F5/F6 capability workflow: delegation, handback and suspended consumer
     expect(nextAction.data.continues).toMatchObject({ reason: 'capability-returned', from: { invocation: delegation.data.invocation } });
     expect(events.filter(event => event.type === 'invocation-started' && event.sequence > nextAction.sequence && event.data.role === 'local-architect')).toHaveLength(0);
 
-    // Startup retains the pending consumer; explicit matching authority continues its coordination.
-    expect(reopened.recovery.interrupted).toContain(`${capabilityPlan}/${runId}`);
+    // Startup continues the pending consumer under its existing run authority.
+    expect(reopened.recovery.interrupted).not.toContain(`${capabilityPlan}/${runId}`);
+    expect(events.filter(event => event.type === 'job-continued')).toHaveLength(1);
     const job = JSON.parse(await readFile(runPath(root, capabilityPlan, runId, 'job.json'), 'utf8')) as { policy: { version: string } };
     expect(job.policy.version).toBe('run-policy/8');
     // PB3-C01: the handback without the outcome's report was rejected naming it.

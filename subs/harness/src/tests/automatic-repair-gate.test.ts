@@ -12,7 +12,7 @@ import { type OwnershipAnswer } from '../../subs/evidence/src/ownership-evidence
 import { temporaryDirectory } from './helpers/fixture.js';
 import { mockGit } from './helpers/mock-git.js';
 import { repairExportFixture } from './helpers/repair-export-fixture.js';
-import { validateExternalRepair, type RecoveryIdentity } from '../run/recovery-admission.js';
+import { externalCandidatePath } from '../run/candidate-attribution.js';
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0)) await cleanup(); });
@@ -86,19 +86,14 @@ test('authenticated operator repair supplies exact sibling provenance without ch
   const f = await fixture();
   // This case uses the operator's correction, with no automatic repair handback.
   f.entries.splice(1);
-  const config = { sourceCommit: 'base', path: 'ramify-audit.json', blob: 'config', projectRoot: '.', checks: [], ignorePaths: [],
-    undetectedConfigFilesForcingFullAudit: [], workspace: { preparationId: 'nodejs', packageDirectoriesDeclared: false, linkNodeModules: true, packageDirectories: [], setupCommands: [] } };
-  const before: RecoveryIdentity = { candidate: { head: 'base', tree: 'partial-tree', index: 'partial-index', staged: [], unstaged: ['Alpha/partial.ts'], untracked: [],
-    files: [{ path: 'Alpha/partial.ts', hash: 'partial', mode: '100644' }, { path: 'Beta/restored.ts', hash: 'broken', mode: '100644' }] },
-    runtime: { harness: 'harness', provider: 'provider', contracts: { policy: 'recovery/1', records: 'records/1', submissions: 'submissions/1', equipment: 'equipment/1', authority: 'authority/1' } },
-    configuration: { identity: 'config', policy: config }, capturedInputs: [], durableIdentity: 'original-records', acceptedHead: 'base' };
-  const after = structuredClone(before); after.candidate.tree = 'corrected-tree'; after.candidate.files[1]!.hash = 'operator-bytes';
-  const admission = validateExternalRepair(before, after, { areas: ['target'], explanation: 'Restore provider source while retaining the consumer partial' });
-  f.append('operation-recovery-resumed', { occurrenceId: 'opr-0001', revision: 3, group: 1,
-    command: { commandId: 'operator-resume', contentHash: 'command-hash', receipt: { commandId: 'operator-resume', jobId: 'run-1', sequence: f.entries.length + 1, acceptedAt: at } } }, [{ path: runLayout.operationRecovery('opr-0001', 3), id: 'opr-0001', revision: 3,
-      body: { schema: 'ramify-agent.operation-recovery/1', id: 'opr-0001', revision: 3, state: 'resumed', boundary: { kind: 'invocation' },
-        evidence: { classification: 'transport', diagnostic: 'Original interruption' }, group: 1, automaticAttempts: 2, attempts: ['inv-0001'], pausedAt: at,
-        settled: true, candidate: { head: 'base', tree: 'partial-tree' }, partialPaths: ['Alpha/partial.ts'], prerequisites: [], identity: before, admission } }]);
+  const id = 'settled-observation';
+  f.append('external-candidate-observed', { id, beforeTree: 'partial-tree', afterTree: 'corrected-tree' },
+    [{ path: externalCandidatePath(id), id, revision: 1, body: {
+      schema: 'ramify-agent.external-candidate/1', id, beforeTree: 'partial-tree', afterTree: 'corrected-tree',
+      beforeDirtyPaths: ['Alpha/partial.ts'], changes: [{ path: 'Beta/restored.ts',
+        before: { path: 'Beta/restored.ts', hash: 'broken', mode: '100644' },
+        after: { path: 'Beta/restored.ts', hash: 'operator-bytes', mode: '100644' } }],
+    } }]);
   Object.assign(f.host, { previewCandidateTree: async () => ({ tree: 'corrected-tree' }), candidates: { treeEntries: async () => [
     { path: 'Alpha/partial.ts', kind: 'file', bytes: 7, objectId: 'partial' }, { path: 'Beta/restored.ts', kind: 'file', bytes: 8, objectId: 'operator-bytes' },
   ] } });

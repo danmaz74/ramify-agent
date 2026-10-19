@@ -27,8 +27,8 @@ choices but does not, by itself, create work or establish a contract.
 
 Forecasts, decisions and their rationale are recorded in the repository.
 Session continuity aims to avoid repeated exploration, reduce elapsed time
-and token cost, and preserve consistency; it is never required for recovery
-or correctness.
+and token cost, and preserve consistency. Its optional role is defined by the
+[harness recovery principles](harness-recovery.principles.md#an-oriented-context-is-reused-never-required).
 Making a forecast available for review is
 separate from requiring execution to wait for approval.
 

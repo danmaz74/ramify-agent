@@ -106,7 +106,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
     [repairedTree]: { tree: repairedTree, files: { ...bFiles, [store]: 'export const store = new Map(); // repaired\n' }, base: B, changes: [{ status: 'M', path: store }], comparisons: { [A]: { changes } } },
     [repairedCommit]: { tree: repairedTree, files: bFiles, base: B, changes: [{ status: 'M', path: store }] },
   });
-  const git = gateGit(project, { head: A, commits: [scenariosCommit('review-notes', 'scenarios-00', A), { commit: B, changes: [{ status: 'A', path: store }] }, { commit: null }, { commit: null }, { commit: null }, { commit: repair ? repairedCommit : null, changes: repair ? [{ status: 'M', path: store }] : [] }], previews: Array.from({ length: repair ? 9 : 5 }, (_, index) => ({ repositoryRoot: project, head: repair && index === 8 ? repairedCommit : B, tree: repair && index >= 4 ? repairedTree : C })) });
+  const git = gateGit(project, { head: A, commits: [scenariosCommit('review-notes', 'scenarios-00', A), { commit: B, changes: [{ status: 'A', path: store }] }, { commit: null }, { commit: null }, { commit: null }, { commit: repair ? repairedCommit : null, changes: repair ? [{ status: 'M', path: store }] : [] }], previews: Array.from({ length: repair ? 8 : 5 }, (_, index) => ({ repositoryRoot: project, head: repair && index === 7 ? repairedCommit : B, tree: repair && index >= 3 ? repairedTree : C })) });
   const roles = byRole({ 'initial-architect': [submit(analysis([item1, item2]))],
     'local-architect': [submit(assign(notes, { startingPoints: [{ path: caller, note: 'Omitted-tone caller; inspect compatibility' }, { path: 'src/.ramify/api.json', note: 'excluded view' }] }, outline())), submit(requestCompletion()),
       submit(assign(core, { startingPoints: [{ path: caller, note: 'Second work item caller' }] }, outline())), submit(requestCompletion())],
@@ -118,7 +118,7 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
     if (spec.submission.name === intakeToolName) return submit({ goal: 'Preserve badge compatibility.', elements: [{ key: 'tone', kind: 'non-functional', document: 'doc-001', text: nfr, conditions: [{ text: 'when tone is omitted', source: 'stated' }], uncertainty: '' }], incorporation: { documents: [{ document: 'doc-001', scenarios: true, uncertainty: '' }], missing: [] } });
     if (spec.submission.name === principleToolName) return submit({ elements: [{ key: 'readable', kind: 'fixed', document: 'doc-002', text: fixed, conditions: [], uncertainty: '' }] });
     if (spec.submission.name === coordinatorAssessmentToolName) return submit({ kind: 'assessment', results: ['nfr-001', 'fix-001'].map(nfr => ({ nfr, result: repair && nfr === 'nfr-001' && assessmentCount++ === 0 ? 'not-satisfied' : 'satisfied', inspectedScope: [store, caller], evidence: ['Independent scripted candidate inspection'], uncertainty: '' })) },
-      { kind: 'tool', tool: 'snapshot_read', input: { path: caller } }, { kind: 'tool', tool: 'snapshot_diff', input: legacy ? {} : { path: store } }, { kind: 'tool', tool: 'snapshot_diff', input: { comparison: 'accepted-boundary' } });
+      { kind: 'tool', tool: 'snapshot_read', input: { path: caller } }, { kind: 'tool', tool: 'snapshot_diff', input: { path: store } }, { kind: 'tool', tool: 'snapshot_diff', input: { comparison: 'accepted-boundary' } });
     if (spec.submission.name === coordinatorActionToolName) return submit({ kind: 'repair', nfrs: ['nfr-001'], startingModule: notes, task: 'Repair badge tone preserving callers', evidence: ['Candidate source inspected'], uncertainty: '' });
     if (spec.submission.name === nonfunctionalRepairToolName) return submit({ kind: 'completed', summary: 'Repaired badge', evidence: ['Current source edited'], remaining: [] }, write(store, 'export const store = new Map(); // repaired\n'));
     return typeof roles === 'function' ? roles(spec) : roles;
@@ -191,28 +191,22 @@ for (const mode of ['ordinary', 'restart', 'repair', 'legacy-restart', 'current-
   if (restart) { await until(() => frozen || onlyRun(opened.service, 'review-notes').state === 'failed', 30_000); expect(frozen, JSON.stringify((await runEventsOnDisk(project, 'review-notes', receipt.jobId)).slice(-4))).toBe(true); if (legacy || pending) vi.restoreAllMocks(); if (missingIntent) await rm(legacyIntentPath); await staleCrashLock(project); active = await openRuns(project, { git: git.git, candidates: source, inputs: configuredInputs, script }); }
   cleanups.push(() => active.service.close()); await active.service.settled('review-notes', receipt.jobId);
   const events = await runEventsOnDisk(project, 'review-notes', receipt.jobId);
-  expect(onlyRun(active.service, 'review-notes').state, JSON.stringify(events.slice(-8))).toBe('completed');
+  expect(onlyRun(active.service, 'review-notes').state, JSON.stringify({ tail: events.slice(-8), git: git.calls })).toBe('completed');
   const coordinators = events.filter(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-coordinator');
-  if (pending) expect(coordinators).toHaveLength(missingIntent ? 2 : 1);
+  if (pending || legacy) expect(coordinators).toHaveLength(2);
   if (missingIntent) expect(events.some(event => event.type === 'invocation-ended' && event.data.invocation === (coordinators[0]?.type === 'invocation-started' ? coordinators[0].data.invocation : '') && event.data.ended === 'failed')).toBe(true);
-  const started = missingIntent ? coordinators.at(-1)! : coordinators[0]!;
+  const started = pending || legacy ? coordinators.at(-1)! : coordinators[0]!;
   if (started.type !== 'invocation-started') throw new Error('Missing NFR invocation');
   const hash = createHash('sha256').update(JSON.stringify([receipt.jobId, started.data.invocation])).digest('hex');
   const packet = (JSON.parse(await readFile(join(project, 'plans/.harness/session-operations/correlations/operations', `${hash}.json`), 'utf8')) as { packet: TaskPacket }).packet;
   if (legacy) {
-    expect(events.filter(event => event.type === 'invocation-started' && event.data.role === 'nonfunctional-coordinator')).toHaveLength(1);
-    expect(packet.manifest.schema).toBe('ramify-agent.delivered-inputs/1');
-    expect(packet.message).toContain('Original assessment task'); expect(packet.roleInstructions).toBe('Original pinned NFR role prefix.');
-    expect(packet.message).toContain(nfr); expect(packet.message).toContain(fixed);
     expect(await readFile(legacyIntentPath, 'utf8')).toBe(legacyIntentBytes);
-    const invocation = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.invocation(started.data.invocation)), 'utf8'));
+    const original = coordinators[0]!;
+    if (original.type !== 'invocation-started') throw new Error('Missing original assessment');
+    const invocation = JSON.parse(await readFile(runPath(project, 'review-notes', receipt.jobId, runLayout.invocation(original.data.invocation)), 'utf8'));
     expect(invocation.prompt.requestedInputsHash).toBe(createHash('sha256').update([legacySystem, legacyPrompt].join('\n\0\n')).digest('hex'));
-    const session = active.agent!.sessions.find(session => session.spec.submission.name === coordinatorAssessmentToolName)!;
-    expect(session.results.find(result => result.tool === 'snapshot_diff' && result.text === 'The candidate changed nothing'), JSON.stringify(session.results)).toBeDefined();
-    expect(session.results.find(result => result.tool === 'snapshot_diff' && result.isError)).toBeDefined();
-    expect(session.spec.tools.find(tool => tool.name === 'snapshot_diff')!.inputSchema).toEqual(boundedNonfunctionalTools({ source, projectRoot: project, candidate: C, base: B }).find(tool => tool.name === 'snapshot_diff')!.inputSchema);
-    expect(source.calls.filter(call => call.startsWith('diffPatch'))).toEqual([]);
-    git.assertComplete(); return;
+    expect(packet.roleInstructions).not.toBe('Original pinned NFR role prefix.');
+    expect(events.some(event => event.type === 'invocation-ended' && event.data.invocation === original.data.invocation && event.data.ended === 'failed')).toBe(true);
   }
   const text = packet.message; const sourceText = packet.additions.find(item => item.key === 'brief:support:nonfunctional-source')!.text;
   const sourceBrief = JSON.parse(sourceText.slice(sourceText.indexOf('{')));

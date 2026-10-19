@@ -6,13 +6,16 @@
 ## Purpose
 
 Specify the scope, verification, preparation and session behavior governed by
-the [harness principles](harness.principles.md) and the
+the [harness principles](harness.principles.md),
+[harness recovery principles](harness-recovery.principles.md) and the
 [shared](prompt-optimization.principles.md),
 [engineer](prompt-optimization-engineer.principles.md),
 [plan architect](prompt-optimization-plan-architect.principles.md) and
 [module architect](prompt-optimization-module-architect.principles.md)
 prompt optimization principles. The principles remain
 applicable alongside these detailed contracts.
+
+Recovery uses ordinary task restart under the principles clarified on 2026-10-18.
 
 ## Specification
 
@@ -332,232 +335,121 @@ ordinal; interruption retains a pending review and accepted decisions replay
 without another assessment. Explicit stop cancels both activities.
 
 If compaction fails, is unavailable or cannot recover provider overflow, the
-harness reconciles durable effects before a source-backed successor. Recovery
-needs no final agent report. It retains the original need, accepted decisions,
-current candidate/configuration, pending findings and requests, authority,
-submission obligations and evidence pointers. Missing evidence or a usable
-provider becomes an inspectable nonterminal prerequisite obstruction.
+unfinished task can execute in a fresh session after its former attempt settles.
+Retain its assignment, partial work, accepted decisions and pending obligations.
+No final agent report or reusable conversation is required. A required unavailable
+provider or unreadable task record is reported as that concrete prerequisite.
 
 ### Ordinary Operations Retain Recovery Evidence
 
-New runs capture an operation-recovery policy. Historical runs retain their
-captured policy and terminal meaning; service startup does not migrate them.
-The shared contract applies to ordinary architect, catalog, engineer, capability,
-review, failure-analysis, context-selection and non-functional operations,
-including fresh starts, continuations, forks and source-backed reconstruction,
-standalone steps and debugger exchanges. Automatic root repair preserves its
-authorized repair boundary and reports unavailable prerequisites. Resource
-recovery does not spend a semantic repair round.
+An interruption leaves the task pending unless a durable accepted result already
+exists. The harness settles the former attempt and its child processes, resolves
+any particular consequential operation, then delivers the accepted result once
+or uses the ordinary task constructor and current procedures to execute again.
+Every task remains executable without its previous session history. Useful
+context may be reused; a failed exact fork is never presented as a successful
+fork when a fresh invocation was used instead.
 
-Structured executor evidence distinguishes transport interruption, permanent
-provider rejection, unavailable classification and adapter faults. Diagnostics
-remain evidence, never semantic results. Only eligible transport interruption
-receives automatic retries: two after the initial attempt by default. Retry
-delays count as execution time and are cancellation-aware. The default delays
-are 250 ms and 500 ms; a provider hint can increase either delay up to the
-captured 5,000 ms ceiling. Provider-internal and review
-attempts remain explicitly accounted for without multiplying retry loops.
-Submission rejection, partial results, unresolved questions and explicit stop
-retain their ordinary handling. `resource-pending` retains unfinished work;
-context observations and invocation age provide no semantic verdict. Historical
-`context-budget-reached` records retain their original meaning.
+The shared recovery module decides re-entry from current authority, settlement,
+accepted results and specific unresolved consequential operations. Hosted runs
+and standalone execution use that policy. Task construction, workflow scheduling,
+ledger durability, process ownership, effect inspection and acceptance remain
+with their existing owners. The module owns no second log or scheduler.
 
-Each successor has a new invocation and session-operation identity linked to
-its predecessor. Reconciliation first establishes whether an accepted result
-or completed effect already exists. Accepted decisions, handbacks, iterations,
-commits and gates are not resubmitted. Incomplete streamed arguments have no
-submission verdict. Partial edits and their evidence remain available; uncertain
-mutating effects are not replayed. Continuation and fork use their recorded
-exact source, or a named source-backed reconstruction with recorded inputs and
-degraded mode. Missing source evidence is a prerequisite failure.
+Structured provider errors retain their actual classification. One bounded,
+cancellation-aware retry policy handles transport/resource interruptions.
+Persistent unavailable prerequisites leave work pending without multiplying
+retry loops. Resource observations do not establish semantic failure or spend a
+semantic correction round. Architects retain decisions about progress and handoff.
+
+Accepted submissions, child assignments, decisions, handbacks and commits are
+not duplicated after lost acknowledgements. Inspectable reads, source edits and
+post-edit diagnostics require no exact tool replay. Required checks can run again.
+Commands or other consequential operations whose outcome remains ambiguous use
+owner inspection or idempotency before repetition. Old attempts cannot publish
+or write after replacement; a stop receipt does not establish settlement.
+
+Optional session bodies and payloads are validated when requested. Missing or
+corrupt optional history cannot prevent unrelated fresh execution. The journal,
+its ordering and ownership remain enforced. Unreadable essential task or accepted
+result records identify the concrete obstruction instead of inventing work.
+Runtime source, dependency and prompt hashes are not continuation prerequisites.
+Captured requirements, accepted decisions, effective scope and required checks
+continue to govern current execution.
 
 ### Standalone Recovery Retains Its Original Inputs
 
-Standalone sessions and step commands use the same settled resource continuation
-rule. A useful successor reconstructs the original assignment from durable task
-inputs and retains partial source, scratch, guards and submission obligations.
-A finite group of ineffective attempts, missing source/candidate evidence or
-unknown effects records a pending recovery obstruction. A gate remains unverified
-until safely resumed work supplies its ordinary accepted submission and qualifying
-producer evidence.
-
-A manual step resume names `--occurrence`, `--expected-revision` and a stable
-`--command-id`; a session resume also names `--resume-run`. Admission compares
-the original need, scopes, guarded configuration, prompt package, policy/runtime,
-source and candidate. Exact command retries observe the same durable result;
-stale, conflicting or concurrent new commands cannot admit overlapping writers.
-Explicit compatible legacy continuation records continuity adoption while keeping
-the original policy. Startup alone supplies no task execution authority.
+Standalone sessions and steps use the same re-entry policy and ordinary task
+construction as hosted work. Retain partial source and relevant assignment inputs.
+An explicit continuation command preserves a stable command identity across a
+lost reply. A session names its retained run with `--resume-run`; a step already
+names its run. Both accept `--command-id` without recovery occurrence or revision.
+Legacy occurrence/revision fields remain readable for existing callers.
+Ordinary repeated step execution retains its existing new-invocation behavior;
+an explicit continuation delivers an already accepted result once.
 
 ### Recovery Waiting And Explicit Resume
 
-Exhausted transport recovery and eligible ordinary preparation, adapter,
-environment or check-execution obstructions can pause the same run. Assertion
-failure and semantic rejection alone do not create an infrastructure pause.
-Readiness and iteration, capability, work-item and final gates retain the pending
-boundary, accepted inputs, candidate/configuration identities and all spent
-attempts. Resume checks the unfinished prerequisite or qualifies the applicable
-candidate without requesting an accepted submission again. Changed prerequisites
-require correction or reassessment by their responsible authority.
+Already-authorized active work can continue on service startup once the previous
+execution settles. User stops, debugger holds and pending user decisions remain
+effective. Inspection and listing never authorize task execution. A persistent
+prerequisite obstruction exposes the pending task, retained work and concrete
+reason; after that prerequisite changes, ordinary continuation retries the task.
+There is no additional approval for an attempt group or repair declaration.
 
-A usable pause requires readable compatible inputs and durable state, confirmed
-writer/tool settlement and reconciled effects. Ordinary scheduling quiesces.
-Unknown settlement or effects retain a pending recovery obstruction and forbid
-replacement writers and gates, even after a settlement observation deadline.
-A stop receipt does not establish quiescence. Corrupt state and incompatible
-inputs remain explicit blockers or failures under their independent contracts.
-Elapsed execution and operator waiting remain measurements; neither expires
-authority or the pending review obligation.
-
-Harness-owned inspection reports the obstruction, pending boundary, retained
-work and obligations, observed changes, compatibility, settlement/effect status,
-predecessor/successor lineage and concrete resume blockers. Current execution
-reports no terminal invocation or elapsed allowance; historical captured bounds
-remain available as original evidence.
-Resume names the current occurrence and revision. Stable command identities
-deduplicate exact retries; conflicting content and stale occurrences are refused.
-Concurrent clients admit at most one successor group. An explicit resume
-authorizes another finite attempt group, preserving semantic correction rounds
-and accepted effects. Repeated resource returns, reconstructions, model
-invocations and infrastructure attempts cannot exhaust a terminal run budget.
-A group ends with a different supported recovery or an obstruction naming the
-missing prerequisite, rather than immediate identical retries. Check boundaries use their own infrastructure
-policy without an additional model retry loop. Stop takes precedence.
-
-Recovery waiting survives service restart without authorizing execution. Startup
-reconciles durable progress before scheduling. Completed authenticated effects
-are reused only for their candidate and configuration; a lost acknowledgement
-does not duplicate a commit or gate transition. Debug-enabled runs retain the
-live-server exception below.
-
-### Terminal Failure Can Prepare A Linked Successor
-
-`restart inspect` examines a retained failed or interrupted run after its owners
-and effects have settled. `restart prepare` authenticates the inspected source
-version again and commits one linked successor awaiting explicit recovery resume.
-The source keeps its terminal event and immutable records. Inspection and
-preparation launch no model, commit, audit or target writer, and preserve the
-target's HEAD, index, unstaged and untracked source. Read-only candidate capture
-may create temporary Git objects through the ordinary evidence adapter.
-
-The initial importer requires accepted analysis and reconstructible ordinary
-post-analysis work, including an unfinished module architect reconciliation.
-It preserves frozen plan inputs, decomposition, accepted decisions and effects,
-completed capability handbacks, findings, review obligations and spent semantic
-allowances. An unfinished engineer assignment, nested capability coordination,
-active non-functional coordination or unfinished automatic root repair produces
-an unsupported-boundary blocker. Completed runs and explicit operator stops
-cannot prepare successors; nonterminal pauses use same-run recovery.
-
-The successor captures a versioned initial workflow state whose evidence names
-its source run, record path, revision and hash. Historical inventory initializes
-workflow readers; it is never appended as execution events of the successor.
-Terminal cleanup does not satisfy the pending task or review. New sessions have
-fresh execution identity and current authority; old sessions cannot submit or
-write for the successor. Exact source invocation and designated submission
-identity determine reconstruction. Accepted effects are preserved without
-execution, and unknown effects block preparation.
-
-Candidate changes and changed or unavailable producer bindings require
-responsible reassessment. Historical done reports, reviews and gates remain
-available with their original provenance while their conclusions await renewed
-applicability. Reassessment preserves work-item decomposition and never implies
-automatic reimplementation. Missing required review coverage remains missing.
-
-Legacy sources without recorded launcher hashes retain an explicitly labelled
-identity of captured policy, prompt and invocation representations. They do not
-acquire an invented historical implementation hash. The importer supports the
-known continuity representation transition and exact reviewed prompt hash pairs;
-unknown transitions remain blockers. Legacy producer conclusions require
-responsible reassessment and fresh qualification. An independently captured
-runtime retains the ordinary exact protected-contract compatibility rule.
-
-Preparation is serialized under the project execution lock. Its single committed
-initialization contains the accepted command, authenticated source cursor and
-digest, import digest and waiting recovery occurrence. Staged files without that
-transaction are inert. Startup restores a committed successor's hold and command
-receipt without dispatch; exact retries return the original receipt and changed
-content under the same command identity conflicts. One source admits one
-successor, and later attempts continue the latest eligible terminal successor.
-Optional tracker delivery stays administrative and is not replayed into imported
-plan acceptance.
-
-```sh
-npx tsx src/main.ts restart inspect --server http://localhost:4180 --plan <plan-id> --run <source-run> --json
-npx tsx src/main.ts restart prepare --server http://localhost:4180 --plan <plan-id> --run <source-run> --expected-version <source-version> --command-id <stable-command-id> --json
-npx tsx src/main.ts recovery resume --server http://localhost:4180 --plan <plan-id> --run <successor-run> --occurrence <occurrence-id> --expected-revision <revision> --command-id <different-stable-command-id> --repair-file repair.json --json
-```
-
-Preparation records observations without admitting a repair. Recovery resume
-uses the existing external repair declaration and compares source evidence,
-prepared state and current observations before dispatch. Fixes already present
-at preparation remain observed changes requiring explanation. Drift after
-admission requires revalidation. Dispatch creates the successor's own execution
-branch at the admitted HEAD through a journaled effect, preserving source refs,
-index and retained edits. An existing conflicting branch is an obstruction;
-an acknowledged matching branch effect is reused after a lost reply.
-Plan progress projects the successor's existing
-recovery pause while historical run views keep their original failure.
-
-### External Repairs Are Admitted With Operator Provenance
-
-An operator can repair while a run is quiescent, then declare changed areas,
-an explanation and optional diagnostic evidence in resume. Admission compares
-actual HEAD, candidate tree, staged, unstaged and untracked source changes,
-supported configuration and harness/provider identities with the settled pause.
-Environment-only repair requires no invented source delta and records no
-credentials. A declaration does not establish that the fix works.
-
-Admission retains original obstruction evidence and durably records the observed
-repair, operator command, compatibility, outstanding verification and continuation
-boundary before dispatch. Candidate/runtime changes after admission require
-revalidation. Exact duplicate commands and restart cannot admit or dispatch the
-same successor twice. Unexplained drift, modified frozen packages or durable
-records, incompatible policy and weakened acceptance checks are refused without
-launching a model or resetting files.
-
-Compatible harness fixes and supported operational configuration changes can be
-admitted without replacing the original captures. Required audit checks remain
-required; affected qualification must be renewed under the admitted configuration.
-Installed runtime identity is captured by the running service. Changed runtime
-bytes require restart before admission. Protected policy, durable record,
-submission, equipment and authority source hashes must remain exact; the service
-and recovery validators are protected authority. This conservative rule can
-admit an adapter fix while refusing a change to a validator.
-At readiness, admitted dirty source receives a journaled repair commit on the
-run branch after fresh ownership, protected-file and exclusion validation. The
-baseline audit verifies that exact commit and admitted configuration. A matching
-commit receipt reconciles a lost acknowledgement; completed setup effects remain
-recorded without another execution in the target working tree.
-External edits carry operator provenance separate from engineer and automatic
-repair deltas. Later gates authenticate those edits and enforce fresh ownership,
-protected files and excluded projects without enlarging subsequent agent scope
-or excusing an earlier violation. Earlier accepted evidence remains historical
-for its candidate; affected semantic choices return to the responsible architect
-and changed candidates require fresh qualification. External repair neither uses
-nor replenishes automatic repair authority or verified-delta consumption.
-
-A changed final candidate invalidates its previous assessment through a recorded
-operator-repair occurrence. Reassessment uses a new non-functional round while
-retaining prior assessments and closures. Round counts do not prevent required
-reassessment.
-
-The CLI attaches to the service that owns the project lock:
+The legacy `recovery resume` command is an adapter for task continuation. It takes
+plan, run and stable command identity. Old occurrence, revision and repair fields
+remain accepted as compatibility input, not new execution authority. Identical
+commands recover their existing receipt; conflicting command content is refused.
+Concurrency protection permits only one executing attempt for a task.
 
 ```sh
 npx tsx src/main.ts recovery inspect --server http://localhost:4180 --plan <plan-id> --run <run-id> --json
-npx tsx src/main.ts recovery resume --server http://localhost:4180 --plan <plan-id> --run <run-id> --occurrence <occurrence-id> --expected-revision <revision> --command-id <stable-command-id> --repair-file repair.json --json
+npx tsx src/main.ts recovery resume --server http://localhost:4180 --plan <plan-id> --run <run-id> --command-id <stable-command-id> --json
 ```
 
-Inspection launches no model. Resume uses the occurrence and revision returned
-by current inspection; `--repair-file` is optional for transport recovery and
-required for known nontransport repair. Its JSON contains `areas` (one or more
-of `target`, `configuration`, `environment`, `runtime`), `explanation`, and
-optional `evidence` references. For example, an environment-only correction is
-`{"areas":["environment"],"explanation":"Restored check-service access"}`.
-Keep the same command ID and payload after a lost reply; changed content requires
-a new command. The Run page exposes the same inspection, declaration and resume
-contract and preserves an uncertain command for identical retry.
+<a id="terminal-failure-can-prepare-a-linked-successor"></a>
+
+### Terminal Failure Can Continue Its Unfinished Tasks
+
+A failed or interrupted run can continue on an explicit request after its owners
+settle. A durable `job-continued` event starts a new active lifecycle in the same
+run. Original failures, accepted results, dependencies and partial work remain
+available. Completion and deliberate stops cannot be reopened this way. Analysis
+itself may still be pending; unfinished engineering, nested capabilities,
+nonfunctional work and automatic repair are ordinary tasks rather than unsupported
+restart boundaries.
+
+The legacy `restart prepare` command performs this continuation in one operation;
+it returns the same run's receipt. It does not create a successor or require a
+second resume command. Its expected version prevents a stale new request, while
+stable command identity recovers a lost acknowledgement. `restart inspect` is
+read-only and reports actual prerequisites. Previously created linked successors
+remain readable through a legacy reader; new continuation writes no synthetic
+history, copied inventory or runtime transition allowlist.
+
+```sh
+npx tsx src/main.ts restart inspect --server http://localhost:4180 --plan <plan-id> --run <failed-run> --json
+npx tsx src/main.ts restart prepare --server http://localhost:4180 --plan <plan-id> --run <failed-run> --expected-version <inspected-version> --command-id <stable-command-id> --json
+```
+
+<a id="external-repairs-are-admitted-with-operator-provenance"></a>
+
+### Current Changes Use Ordinary Attribution And Acceptance
+
+Changes made while execution was quiescent remain available to the restarted
+agent. Capture current source after settlement and retain attribution separately
+from engineer changes. No recovery declaration establishes correctness or expands
+agent scope. Ordinary ownership, protected-file and excluded-project rules apply.
+
+Verification uses the actual resulting candidate and required configuration.
+Changed source receives affected reassessment and checks; old evidence remains
+historical for its original source. A harness or prompt edit alone does not
+invalidate unrelated accepted work. A changed final candidate reopens its
+assessment using the recorded candidate/assessment identity, without authenticating
+an earlier recovery admission. Required checks cannot be weakened by continuation.
+Consequential commits use their existing identity and owner evidence to reconcile
+a lost acknowledgement. Safe cleanup remains with the resource owner.
 
 ### Execution Breakpoints Suspend The Whole Run
 
@@ -594,21 +486,22 @@ producer progress. A timer or polling heartbeat alone is no useful progress.
 A resume names the current pause ID and interaction revision and acknowledges
 release without waiting for the next stop. Stable command IDs deduplicate exact
 retries before revision checks; changed content conflicts. A new stale, active
-or already released interaction is refused. An explicitly admitted compatible debugger message or resume records continuity
-policy adoption while keeping its original policy evidence. Resume without
+or already released interaction is refused. A debugger message or resume records
+continuity policy adoption while keeping its original policy evidence. Resume without
 discussion executes the prepared ordinary request once, revalidating captured documents, writer
-settlement and the runner's ordinary source/session/authority preconditions.
+settlement and the runner's ordinary task and authority preconditions.
 A later assignment or repair reaches a new occurrence. Stop takes precedence
 over a pause or admitted resume, settles admitted work through the ordinary
 stop mechanism, and returns the actual terminal run outcome.
 
-This debugger requires the same live server. Client disconnection has no effect
-on the run, its retained records or command admission. On server startup, every
-unfinished debug-enabled run is interrupted before pending effect completion,
-capability source reconciliation or workflow restoration, even before its first
-pause or after resume. Interrupted invocation and session evidence is retained;
-pending effects are not redispatched. Ordinary runs keep their existing
-recovery policy.
+Client disconnection has no effect on the run, retained records or command
+admission. On service startup, the ordinary task can be reconstructed up to its
+retained debugger pause once the previous execution settles. The existing pause
+ID and interaction revision remain effective; reconstruction does not release the
+pause or invoke an agent. The ordinary debugger action is still required. A run
+interrupted before its next pause continues only as far as that configured pause.
+Accepted results and consequential effects use the same ordinary completion and
+owner reconciliation as other tasks; optional session context may be unavailable.
 
 Inspection is a read-only preparation preview. It presents effective role,
 procedure, briefing and environment inputs, physical inherited context and
@@ -688,8 +581,7 @@ automatically reveal changes in the repository.
 
 If reusable context is unavailable, the workflow uses the ordinary fresh task
 brief. An actual unavailable fork or continuation closes its original invocation
-and admits source-backed recovery with full inputs and recorded degradation
-reason. Repeated resource losses cannot spend a terminal reconstruction cap. Only known missing reusable session/history/payload inputs license that
+and starts ordinary fresh execution with relevant task inputs and a recorded reason. Repeated resource losses cannot spend a terminal reconstruction cap. Only known missing reusable session/history/payload inputs license that
 fallback; the operation receipt's optional `contextUnavailable` indication does
 not classify arbitrary provider, task, authorization, cancellation or conflict
 failures as context loss. Uncertain effects do not license replay.

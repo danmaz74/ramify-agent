@@ -1,7 +1,6 @@
 import type { LedgerEntry, RecordBody } from '../../subs/ledger/src/ledger.js';
 import type { RunEvent } from './log.js';
-import { operationRecoverySchema, runLayout } from './records.js';
-import { authenticatedExternalRepairs } from './recovery-gate.js';
+import { runLayout } from './records.js';
 import { preparedCandidateSchema, nonfunctionalRepairAssignmentSchema, type NonfunctionalRepairAssignment } from './nonfunctional-records.js';
 import { assessmentCoverage, assessmentSchema, roundSchema, type Assessment, type Candidate } from '../../subs/nonfunctional/src/interfaces/contracts.js';
 import { decideNonfunctionalRound, type ClosedRound, type RoundDecisionInput } from '../../subs/nonfunctional/src/rounds.js';
@@ -79,18 +78,7 @@ export function replayNonfunctionalPhase(
             && !externalContinuations.includes(event.data.round), 'external invalidation duplicates a continuation of this round');
           requireFact(event.data.candidate === final!.candidateId && event.data.assessment === final!.assessment.id,
             'external invalidation names another final assessment');
-          const resumed = entries.find(prior => prior.sequence < entry.sequence
-            && prior.transaction.event.type === 'operation-recovery-resumed'
-            && prior.transaction.event.data.occurrenceId === event.data.occurrenceId
-            && prior.transaction.event.data.revision === event.data.revision);
-          requireFact(resumed !== undefined, 'external invalidation has no admitted resume');
-          const recovery = resumed!.transaction.records.find(record => record.path === runLayout.operationRecovery(event.data.occurrenceId, event.data.revision));
-          const admitted = operationRecoverySchema.parse(recovery?.body);
-          requireFact(authenticatedExternalRepairs(entries.slice(0, entries.indexOf(entry))).some(repair => repair.sequence === resumed!.sequence),
-            'external invalidation lacks authenticated operator evidence');
-          requireFact(admitted.boundary.kind === 'gate' && admitted.boundary.checkpoint === 'final'
-            && admitted.admission?.requiresReassessment && admitted.admission.after.candidate.tree === event.data.tree,
-            'external invalidation does not match the repaired final candidate');
+          requireFact(event.data.tree !== final!.candidate.tree, 'final invalidation requires a changed candidate');
           externalContinuations.push(event.data.round);
           final = null;
           break;

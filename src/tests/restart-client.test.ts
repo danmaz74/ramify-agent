@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
 import { parseCommandLine, UsageError, type RestartOptions } from '../cli.js';
 import { runRestartCommand } from '../restart-client.js';
-import { restartInspectionSchema, recoveryInspectionSchema } from '../../subs/harness/src/interfaces/protocol/runs.js';
+import { restartInspectionSchema } from '../../subs/harness/src/interfaces/protocol/runs.js';
 
 const base = ['--server=http://host:4180', '--plan=p', '--run=source'];
 function options(action: string, flags: string[] = []): RestartOptions {
@@ -14,12 +14,7 @@ const inspection = restartInspectionSchema.parse({ planId: 'p', runId: 'source',
   canPrepare: true, blockers: [], limitations: [], successor: null, boundary: { kind: 'invocation', role: 'local-architect', invocation: 'inv-3' },
   preserved: ['accepted analysis', 'wi-1'], inapplicable: ['audit-1'], candidate: { source: { head: 'head', tree: 'tree' }, current: { head: 'head', tree: 'tree' } },
   policy: { before: 'run-policy/8', current: 'run-policy/8' }, settlement: 'confirmed', effects: 'reconciled', changes: [] });
-const recovery = recoveryInspectionSchema.parse({ planId: 'p', runId: 'successor', cursor: 1, occurrenceId: 'rec-1', revision: 1,
-  state: 'paused', boundary: { kind: 'invocation', role: 'local-architect', invocation: 'inv-3' },
-  evidence: { classification: 'preparation', diagnostic: 'Awaiting resume' }, group: 1, automaticAttempts: 0, attempts: [], pausedAt: '2026-10-13T12:00:00Z',
-  canResume: true, blockers: [], remaining: { invocations: null, activeMs: null }, retained: { candidate: { head: 'head', tree: 'tree' }, partialPaths: [] },
-  restart: { sourceRun: 'source', sourceCursor: 8, sourceDigest: 'digest', importDigest: 'import', generation: 1 } });
-const receipt = { commandId: 'prepare-1', jobId: 'successor', sequence: 1, acceptedAt: '2026-10-13T12:00:00Z' };
+const receipt = { commandId: 'prepare-1', jobId: 'source', sequence: 9, acceptedAt: '2026-10-13T12:00:00Z' };
 function script(answers: Array<{ path: string; body?: unknown; status?: number; lost?: boolean }>) {
   const bodies: unknown[] = [];
   const fetcher: typeof fetch = async (input, init) => {
@@ -45,18 +40,12 @@ test('inspection displays preserved progress and reassessment without sending a 
   expect(s.bodies).toEqual([]); s.done();
 });
 
-test('preparation retry retains source version and obtains the waiting successor occurrence', async () => {
-  const s = script([{ path: '/api/v1/commands', lost: true }, { path: '/api/v1/commands', status: 202, body: { receipt } },
-    { path: '/api/v1/plans/p/runs/successor/recovery', body: recovery }]);
+test('continuation retry retains source version and returns the same run', async () => {
+  const s = script([{ path: '/api/v1/commands', lost: true }, { path: '/api/v1/commands', status: 202, body: { receipt } }]);
   expect(await runRestartCommand(prepare(), s)).toMatchObject({ exitStatus: 2, output: { uncertain: true, commandId: 'prepare-1' } });
-  expect(await runRestartCommand(prepare(), s)).toMatchObject({ exitStatus: 0, output: { receipt, successorRunId: 'successor', recovery } });
+  expect(await runRestartCommand(prepare(), s)).toMatchObject({ exitStatus: 0, output: { receipt, runId: 'source', kind: 'run-continued' } });
   expect(s.bodies[0]).toEqual(s.bodies[1]);
   expect(s.bodies[0]).toEqual({ commandId: 'prepare-1', expectedVersion: 8, type: 'prepare-restart', payload: { planId: 'p', jobId: 'source' } }); s.done();
-});
-
-test('a lost follow-up inspection preserves the already admitted receipt', async () => {
-  const s = script([{ path: '/api/v1/commands', body: { receipt } }, { path: '/api/v1/plans/p/runs/successor/recovery', lost: true }]);
-  expect(await runRestartCommand(prepare(), s)).toMatchObject({ exitStatus: 2, output: { receipt, successorRunId: 'successor', uncertain: false } }); s.done();
 });
 
 test('stale preparation is a definite refusal and invalid origins send nothing', async () => {

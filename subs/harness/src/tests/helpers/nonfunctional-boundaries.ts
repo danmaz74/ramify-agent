@@ -10,7 +10,7 @@ import { shapeOnlyInputs, testPolicy } from './runs.js';
 import { completionCheckDeadlineMs } from '../../hooks/post-write.js';
 
 const initial = 'a'.repeat(40), committed = 'b'.repeat(40);
-const trees = { initial: '1'.repeat(40), repaired: '2'.repeat(40), drift: '3'.repeat(40) };
+const trees = { initial: '1'.repeat(40), repaired: '2'.repeat(40), drift: '3'.repeat(40), repairedDrift: '4'.repeat(40) };
 const modules = [
   {
     "id": "collection-review",
@@ -136,6 +136,7 @@ const twoRepair = { [core + 'nonfunctional-repair.ts']: 'export const auditRecor
 const driftPaths = ['downtime-mutation.ts', 'late-source.ts', 'late-after-exhaustion.ts', 'changed-after-exhaustion.ts'];
 const scratch = modules.map(module => (module.directory === '.' ? '' : module.directory + '/') + 'src/tmp');
 const owners: Readonly<Record<string, string>> = {
+  ...Object.fromEntries(driftPaths.map(path => [path, 'collection-review'])),
   ...Object.fromEntries(modules.flatMap(module => [[module.directory, module.id]])),
   [core + 'repair-recovery.ts']: 'collection-review/workspace/reviews/core',
   [core + 'nonfunctional-repair.ts']: 'collection-review/workspace/reviews/core',
@@ -174,7 +175,8 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
   function pending(base: string) {
     expect(base).toBe(head);
     return stage === 'drift' ? [{ path: driftPath!, status: '??' }]
-      : stage === 'repaired' && head === initial ? worktreeEdits : [];
+      : stage === 'repairedDrift' && head === initial ? [...worktreeEdits, { path: driftPath!, status: '??' }]
+        : stage === 'repaired' && head === initial ? worktreeEdits : [];
   }
   const git = mockGit({
     async currentHead(project) { expect(project).toBe(root); calls.push('head'); return head; },
@@ -189,13 +191,21 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
     async worktreePatch(project, base = 'HEAD') { expect(project).toBe(root); pending(base); throw new Error('NFR fixture explicitly declares patch measurements unavailable'); },
     async findCommitByTrailers(project, trailers) { expect(project).toBe(root); expect(trailers).toEqual([{ key: 'Ramify-Run', value: runId }, { key: 'Ramify-Gate', value: 'ga-0002' }]); const count = consumed.get('lookup') ?? 0; expect(count, 'exhausted lookup answer').toBeLessThan(script.lookups ?? 1); consumed.set('lookup', count + 1); calls.push('lookup'); return null; },
     async commitAccepted(project, message) { expect(project).toBe(root); expect(message).toContain(`Ramify-Run: ${runId}`); expect(message).toContain('Ramify-Gate: ga-0002'); expect(consumed.get('lookup')).toBeGreaterThan(0); const count = consumed.get('commit') ?? 0; expect(count, 'exhausted commit answer').toBeLessThan(script.commits ?? (final ? 1 : 0)); consumed.set('commit', count + 1); calls.push('commit'); head = finalHead; return script.repair ? committed : null; },
-    async diffNameStatus(project, from, to) { expect(project).toBe(root); expect(from).toBe(initial); expect([initial, committed, trees.initial, trees.repaired]).toContain(to); return to === committed || to === trees.repaired ? edits : []; },
+    async diffNameStatus(project, from, to) { expect(project).toBe(root); expect(from).toBe(initial); expect([initial, committed, ...Object.values(trees)]).toContain(to); return to === trees.drift ? [{ path: driftPath!, status: 'A' }] : to === trees.repairedDrift || to === committed && stage === 'repairedDrift' ? [...edits, { path: driftPath!, status: 'A' }] : to === committed || to === trees.repaired ? edits : []; },
   });
   const candidates = retain(scriptedCandidates(root, {
     [initial]: { tree: trees.initial, files: {}, base: initial, changes: [] },
     [trees.initial]: { tree: trees.initial, files: {}, base: initial, changes: [] },
     [trees.repaired]: { tree: trees.repaired, files: repairedFiles, base: initial, changes: edits },
-    [committed]: { tree: trees.repaired, files: repairedFiles, base: initial, changes: edits },
+    [committed]: { get tree() { return stage === 'repairedDrift' ? trees.repairedDrift : trees.repaired; },
+      get files() { return stage === 'repairedDrift' ? { ...repairedFiles, [driftPath!]: 'export const changed = true;\n' } : repairedFiles; }, base: initial,
+      get changes() { return stage === 'repairedDrift' ? [...edits, { path: driftPath!, status: 'A' }] : edits; } },
+    [trees.repairedDrift]: { tree: trees.repairedDrift, base: initial,
+      get files() { return { ...repairedFiles, [driftPath!]: 'export const changed = true;\n' }; },
+      get changes() { return [...edits, { path: driftPath!, status: 'A' }]; } },
+    [trees.drift]: { tree: trees.drift, base: initial,
+      get files() { return driftPath === null ? {} : { [driftPath!]: 'export const changed = true;\n' }; },
+      get changes() { return driftPath === null ? [] : [{ status: 'A', path: driftPath! }]; } },
   }));
   // NFR lifecycle capture uses real guarded-file snapshots, not suspended-capability source capture.
   // Both provisional operations are deliberately undeclared, so future bypasses cannot silently pass.
@@ -256,7 +266,7 @@ export function nfrBoundaries(root: string, script: NfrScript = {}) {
   const answer = {
     options: { git, candidates, provisionalSourceGit, ramify, inputs, configuredAudit: audit, scratchGit: 'provided' as const },
     afterFinalAudit: undefined as undefined | (() => Promise<void>), calls,
-    repair() { expect(script.repair).toBeDefined(); expect(stage).toBe('initial'); stage = 'repaired'; once('repair'); },
+    repair() { expect(script.repair).toBeDefined(); expect(['initial', 'drift']).toContain(stage); stage = stage === 'drift' ? 'repairedDrift' : 'repaired'; once('repair'); },
     drift(path: string) { expect(driftPaths).toContain(path); expect(stage).not.toBe('drift'); driftPath = path; stage = 'drift'; once('drift'); },
     assertAnswered() { expect(git.unexpected, `caught Git failures: ${JSON.stringify(git.unexpected)}`).toEqual([]); expect(failures, `caught external failures: ${JSON.stringify(failures)}`).toEqual([]); },
     assertComplete() {

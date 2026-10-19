@@ -626,7 +626,7 @@ export const usageSchema = z.object({
 }).strict();
 
 /** The work one invocation, and the session it belongs to, is for: none for the plan architect. */
-export const invocationWorkSchema = z.object({ workItem: text.optional(), iteration: text.optional(), request: text.optional(),
+export const invocationWorkSchema = z.object({ task: text.optional(), workItem: text.optional(), iteration: text.optional(), request: text.optional(),
   capabilityTask: text.optional(),
   nonfunctionalRepair: text.optional(),
   automaticRepair: text.optional(),

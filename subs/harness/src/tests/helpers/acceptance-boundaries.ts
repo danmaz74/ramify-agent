@@ -225,7 +225,8 @@ export function acceptanceBoundaries(root: string, mode: string, recovery = fals
         expect(candidateCalls).toContain(`treeEntries ${commit}`);
       }
       expect(candidateCalls.some(call => call.startsWith('diffPatch'))).toBe(true);
-      const iterationAttempts = mode === 'deferred' ? 3 : 2;
+      // A resumed consumer is verified through its ordinary iteration gate.
+      const iterationAttempts = mode === 'deferred' || mode === 'restart' ? 3 : 2;
       expect(auditChecks.filter(call => call.startsWith('iteration:'))).toEqual(Array.from({ length: iterationAttempts }, () => ['iteration:tests', 'iteration:type-check', 'iteration:ramify-check']).flat());
       // Readiness answers no commands; completion uses the explicitly stated
       // configured policy response for each bounded attempt.

@@ -64,7 +64,7 @@ export type StepCommandOptions =
     }
   | {
       readonly command: 'run';
-      readonly recoveryResume?: { readonly occurrenceId: string; readonly expectedRevision: number; readonly commandId: string };
+      readonly recoveryResume?: { readonly occurrenceId?: string; readonly expectedRevision?: number; readonly commandId: string };
       readonly inputs: string;
       /** The manual run directory, `<project>/plans/<plan>/.harness/jobs/<run>`; created where it does not exist. */
       readonly run: string;

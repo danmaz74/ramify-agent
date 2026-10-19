@@ -1,6 +1,7 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
+import { isInspectableShellCheck } from '../tools/shell-tests.js';
 import type { AgentPort, AgentSession, AppendOutcome, SessionSpec } from '../../subs/agent/src/interfaces/port.js';
 import type { AppendSessionContextInput, AgentSessionPoint, SessionEffectOwnerReceipt, SessionEffectRecord, SessionExecutionIdentity, SessionExecutionBindings, SessionExecutionPolicy, SessionOperations, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
 import { piBuiltinDeclarations } from '../../subs/agent/subs/pi/src/session-operations.js';
@@ -133,10 +134,11 @@ export async function readPointContext(directory: string, runId: string, point: 
   let found: PointContext;
   try { found = JSON.parse(await readFile(correlationPath(directory, 'points', [runId, point]), 'utf8')) as PointContext; }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new ReusableSessionUnavailableError('The named session point has no recorded briefing ancestry');
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT' || error instanceof SyntaxError) throw new ReusableSessionUnavailableError('The named session point has unavailable briefing ancestry');
     throw error;
   }
-  if (JSON.stringify(found.point) !== JSON.stringify(point)) throw new Error('The recorded briefing ancestry names a different session point');
+  const context = z.object({ point: pointSchema, inherited: z.array(annotatedInputSchema), history: z.array(occurrenceSchema), revision: retainedText }).safeParse(found);
+  if (!context.success || JSON.stringify(found.point) !== JSON.stringify(point)) throw new ReusableSessionUnavailableError('The recorded briefing ancestry is incompatible with the requested session point');
   return found;
 }
 
@@ -252,7 +254,17 @@ export class HarnessSessionOperations {
     if (!operation) return [];
     const effects = operation.body['effects'];
     if (!Array.isArray(effects)) throw new Error('Original effect journal is unreadable');
-    return effects.filter((effect: { phase?: string }) => effect.phase === 'intent').map((effect: { callId: string }) => effect.callId);
+    const original = await this.originalOperation(runId, operationId);
+    return (effects as SessionEffectRecord[]).filter(effect => {
+      if (effect.phase !== 'intent' || effect.consequential === false || effect.tool.startsWith('afterMutation:')) return false;
+      // Older records have no classification. Builtin file operations are inspectable.
+      if (effect.consequential === undefined && effect.tool !== original?.task.submissionTool && ['read', 'grep', 'find', 'ls', 'write', 'edit'].includes(effect.tool)) return false;
+      if (effect.consequential === undefined && effect.tool === 'shell' && typeof effect.input === 'object' && effect.input !== null) {
+        const command = (effect.input as { command?: unknown }).command;
+        if (typeof command === 'string' && isInspectableShellCheck(command, original?.task.environment.workingDirectory ?? '.')) return false;
+      }
+      return true;
+    }).map(effect => effect.callId);
   }
   /** Reconcile a dead owner's pending operation by fencing it, without dispatch. */
   async stopOriginal(runId: string, operationId: string, boundMs: number): Promise<boolean> {
@@ -326,7 +338,8 @@ export class HarnessSessionOperations {
     if (!raw) return null;
     const intent = readHarnessOperationIntent(raw);
     if (intent.runId !== runId || intent.operationId !== operationId) throw new Error('Invalid harness operation identity');
-    return { packet: intent.packet, task: intent.task, declarations: intent.declarations };
+    return { packet: intent.packet, task: intent.task, declarations: intent.declarations, authority: intent.policy.authority,
+      briefing: intent.context.history.find(entry => entry.revision === intent.context.revision)?.sections ?? [] };
   }
   async packet(runId: string, operationId: string): Promise<TaskPacket | null> {
     return (await this.originalOperation(runId, operationId))?.packet ?? null;
@@ -334,6 +347,20 @@ export class HarnessSessionOperations {
   async acceptance(runId: string, operationId: string): Promise<{ readonly input: unknown; readonly value: unknown; readonly schema: string; readonly submissionHash: string; readonly destination: Readonly<Record<string, unknown>>; readonly validator: Readonly<Record<string, unknown>> } | null> {
     const found = await this.read<{ runId: string; operationId: string; input: unknown; value: unknown; schema: string; submissionHash: string; destination: Readonly<Record<string, unknown>>; validator: Readonly<Record<string, unknown>> }>(this.path('acceptances', [runId, operationId]));
     if (found && (found.runId !== runId || found.operationId !== operationId || typeof found.schema !== 'string' || !/^[a-f0-9]{64}$/u.test(found.submissionHash))) throw new Error('Invalid harness acceptance correlation');
+    const intent = await this.read<Intent>(this.path('operations', [runId, operationId]));
+    const operation = await this.store.read(runId, `operation:${operationId}`);
+    const effects = operation?.body['effects'];
+    if (operation && !Array.isArray(effects)) throw new Error('Original effect journal is unreadable');
+    const submissions = (effects as SessionEffectRecord[] | undefined)?.filter(effect => effect.tool === intent?.task.submissionTool) ?? [];
+    if (!found) {
+      if ((effects as SessionEffectRecord[] | undefined)?.some(effect => effect.verdict?.accepted)) throw new Error(`Accepted submission ${operationId} has no acceptance correlation`);
+      return null;
+    }
+    if (!intent || intent.runId !== runId || intent.operationId !== operationId
+      || JSON.stringify(found.destination) !== JSON.stringify(intent.policy.destination)
+      || JSON.stringify(found.validator) !== JSON.stringify(intent.policy.validator)
+      || !submissions.some(effect => JSON.stringify(effect.input) === JSON.stringify(found.input)
+        && (effect.phase === 'intent' || effect.verdict?.accepted))) throw new Error(`Accepted submission ${operationId} does not match its durable task and submission`);
     return found;
   }
   /** Read source ancestry without admitting an operation or writing a packet. */
