@@ -26,6 +26,9 @@ credentials and secret response values are excluded from retained observations;
 form field names remain visible, while sensitive defaults and response bodies do
 not enter progress or receipts.
 
+Retained logs omit surplus terminal blank lines for patch integrity; commands,
+results and timestamps are unchanged.
+
 ## Focused verification
 
 - [Configured focused selection](focused-checks.log): 8 files, 152 tests pass,

@@ -2,9 +2,7 @@ diff --git a/docs/architecture/agent-assistance/service.spec.md b/docs/architect
 index f104982b..77d81095 100644
 --- a/docs/architecture/agent-assistance/service.spec.md
 +++ b/docs/architecture/agent-assistance/service.spec.md
-@@ -1,5 +1,23 @@
- # Assisted service contract
- 
+@@ -2,0 +3,18 @@
 +## Persistent coordinator host
 +
 +`coordinate start` owns a dedicated host per target checkout. It acquires the existing project lock before registration or provider creation, binds an authenticated loopback HTTP listener and verifies its identity before provider launch. Repeating start for a live matching plan/job observes that host; concurrent launches cannot create competing owners. An existing owner is refused without cancellation. Ambiguous existing execution identities require explicit job selection. A supplied job is verified and reused without recapturing the plan or baseline. A newly registered job remains retained if later provider preparation fails.
@@ -23,6 +21,3 @@ index f104982b..77d81095 100644
 +
 +## Assisted execution operations
 +
- The harness owns assisted execution records under the same `plans/<plan-id>/.harness/jobs/<job-id>/` directory as implementation and manual jobs. An assisted job has kind `assisted`, the existing job schema version and job ID format, a captured `input/plan.md` with its SHA-256, the project identity, and frozen protection rules, Git baseline and setup gaps. `plan_start` reads only `plans/<plan-id>/plan.md`; it does not start the implementation driver.
- 
- The MCP stdio command is `ramify-agent mcp --project <root>`. It uses the existing project lock, so it cannot write beside another owner. The service owns all durable state; the MCP adapter validates arguments and forwards operations. Its operations are:
