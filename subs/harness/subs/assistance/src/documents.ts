@@ -1,13 +1,13 @@
 import { resolve, relative, isAbsolute, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import type { Dirent } from 'node:fs';
-import { discoverDocuments, type DocumentReader, type OutsideDocumentReference, type UnreadableDocumentReference } from '../../subs/plan-evidence/src/discovery.js';
-import type { DocumentManifest } from '../../subs/plan-evidence/src/interfaces/contracts.js';
-import { gitCandidateSource, type CandidateSource, type TreeEntry } from '../../subs/evidence/src/git.js';
-import { readVerifiedTextBlobBytes as readCandidateDocument } from '../../subs/evidence/src/git-text.js';
-import { planIdSchema } from '../interfaces/protocol/ids.js';
+import { discoverDocuments, type DocumentReader, type OutsideDocumentReference, type UnreadableDocumentReference } from '../../plan-evidence/src/discovery.js';
+import type { DocumentManifest } from '../../plan-evidence/src/interfaces/contracts.js';
+import { gitCandidateSource, type CandidateSource, type TreeEntry } from '../../evidence/src/git.js';
+import { readVerifiedTextBlobBytes as readCandidateDocument } from '../../evidence/src/git-text.js';
+import { planIdSchema } from '../../../src/interfaces/protocol/ids.js';
 
-export { readVerifiedTextBlobBytes as readCandidateDocument } from '../../subs/evidence/src/git-text.js';
+export { readVerifiedTextBlobBytes as readCandidateDocument } from '../../evidence/src/git-text.js';
 
 export interface AssistanceDocument {
   readonly id: string;

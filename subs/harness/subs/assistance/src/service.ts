@@ -2,18 +2,18 @@ import { createHash, randomUUID } from 'node:crypto';
 import { open as openFile, realpath } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { currentHead, isCleanRepository, resolveCommit as gitResolveCommit } from '../../subs/evidence/src/git.js';
-import { replayCheckFindingEvents } from '../../subs/check-findings/src/replay.js';
-import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
-import type { CheckFindingCommand, CheckFindingEntry, CheckFindingState } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import { decideFindingTransaction } from '../check-findings/transition.js';
-import { canonicalJson, CommandLedger, CommandRejection } from '../jobs/commands.js';
-import { jobIdSchema, planIdSchema } from '../interfaces/protocol/ids.js';
-import { commandIdSchema } from '../interfaces/protocol/jobs.js';
-import { jobSchemaVersion, listJobDirectories, newJobId, readJobDocument, planStateDirectory } from '../jobs/records.js';
-import { readPlan } from '../plans/discover.js';
-import { acquireProjectLock, type ProjectLock } from '../store/lock.js';
-import { ensureStateDirectory } from '../store/state-directory.js';
+import { currentHead, isCleanRepository, resolveCommit as gitResolveCommit } from '../../evidence/src/git.js';
+import { replayCheckFindingEvents } from '../../check-findings/src/replay.js';
+import { decideCheckFindingChange } from '../../check-findings/src/decide.js';
+import type { CheckFindingCommand, CheckFindingEntry, CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
+import { decideFindingTransaction } from '../../../src/check-findings/transaction.js';
+import { canonicalJson, CommandLedger, CommandRejection } from '../../../src/jobs/commands.js';
+import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.js';
+import { commandIdSchema } from '../../../src/interfaces/protocol/jobs.js';
+import { jobSchemaVersion, listJobDirectories, newJobId, readJobDocument, planStateDirectory } from '../../../src/jobs/records.js';
+import { readPlan } from '../../../src/plans/discover.js';
+import { acquireProjectLock, type ProjectLock } from '../../../src/store/lock.js';
+import { ensureStateDirectory } from '../../../src/store/state-directory.js';
 import { assistedDirectory, AssistedStore, type AssistedEvent } from './store.js';
 import { acceptedProtectionExceptions } from './findings.js';
 import { finalizeApproval, type ApprovalFinalization } from './approval.js';
@@ -374,7 +374,7 @@ export class AssistanceService {
       if (commands.length === 0) return;
       const decided = decideFindingTransaction<AssistedEvent, { readonly type: 'findings-recorded'; readonly data: {
         readonly assessmentId: string; readonly key?: string; readonly hash?: string;
-        readonly checkFindings: readonly import('../../subs/check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
+        readonly checkFindings: readonly import('../../check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
       } }>(this.findingState(store), () => ({ commands, compose: result => ({ event: {
         type: 'findings-recorded', data: { assessmentId: id, ...(key === undefined ? {} : { key, hash }), checkFindings: result.events },
       } }) }), input => ({ type: 'findings-recorded', ...input.data, checkFindings: [...input.data.checkFindings] }));
@@ -507,7 +507,7 @@ export class AssistanceService {
           communication: { mode: 'quiet' }, decision: { action: 'answer-user-decision', request: request.request, option: request.option } } };
       const decided = decideFindingTransaction<AssistedEvent, { readonly type: 'finding-answer-recorded'; readonly data: {
         readonly assessmentId: string; readonly command: typeof accepted;
-        readonly checkFindings: readonly import('../../subs/check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
+        readonly checkFindings: readonly import('../../check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
       } }>(this.findingState(store), () => ({ commands: [findingCommand], compose: result => ({ event: {
         type: 'finding-answer-recorded', data: { assessmentId: assessment.id, command: accepted, checkFindings: result.events },
       } }) }), carrier => ({ type: 'finding-answer-recorded', ...carrier.data, checkFindings: [...carrier.data.checkFindings] }));
@@ -578,7 +578,7 @@ export class AssistanceService {
       const accepted = this.commands.accept(command, admitted.contentHash, store.job.jobId, store.ledger.version + 1, this.now());
       const decided = decideFindingTransaction<AssistedEvent, { readonly type: 'protection-accepted'; readonly data: {
         readonly assessmentId: string; readonly path: string; readonly command: typeof accepted;
-        readonly checkFindings: readonly import('../../subs/check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
+        readonly checkFindings: readonly import('../../check-findings/src/interfaces/check-findings.js').CheckFindingEvent[];
       } }>(state, () => ({ commands: [asking, answer], compose: result => ({ event: {
         type: 'protection-accepted', data: { assessmentId: assessment.id, path: request.path, command: accepted, checkFindings: result.events },
       } }) }), carrier => ({ type: 'protection-accepted', ...carrier.data, checkFindings: [...carrier.data.checkFindings] }));

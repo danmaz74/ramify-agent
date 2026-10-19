@@ -228,7 +228,7 @@ expose-test plan from "helpers/integration-scenario.ts" to descendants
 expose-test recordPlan23Stimulus, Plan23Stimulus, Plan23RecordedFixture, Plan23RestoreFacts, plan23Identity, Plan23Identity, plan23Invocation, Plan23Invocation, plan23Outcome, Plan23Outcome, Plan23Usage, plan23Time from "helpers/plan23-recorded.ts" to descendants
 
 // Executable composition of assisted Pi assessment; the root owns process lifetime.
-expose-src startAssistanceServer, AssistanceServerOptions, AssistanceServer from "assistance/runtime.ts" to parent
+expose-sub startAssistanceServer, AssistanceServerOptions, AssistanceServer from assistance to parent
 
 expose-sub verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from evidence to descendants
 
@@ -237,3 +237,28 @@ expose-sub verifiedCandidateSource, readVerifiedTextBlobBytes, GitTextError from
 expose-src acquireSessionStoreLock, SessionStoreLock from "store/lock.ts" to descendants
 expose-sub SessionRecordUnavailableError, SessionDriverUnavailableError from agent to descendants
 expose-sub openLedger, Ledger, OpenLedgerOptions, RecordSchema, RecordRead, EffectSpec, PendingEffect, LedgerFileSystem, LedgerFileHandle, LedgerOpenFlags, writeFileAtomic, writeFileExclusive, ExclusiveWrite, syncDirectory from ledger to descendants
+
+// Assistance and shared review providers receive selected sibling and common host contracts.
+expose-src checkFindingEventsField from "check-findings/records.ts" to descendants
+expose-src reportCommand from "check-findings/report.ts" to descendants
+expose-src CheckFindingDecided, CheckFindingOutcome, CheckFindingRefusal, FindingComposition, FindingPlan, FindingTransaction, decideFindingTransaction from "check-findings/transaction.ts" to descendants
+expose-src acceptedCommandSchema, commandIdSchema from "interfaces/protocol/jobs.ts" to descendants
+expose-src Admission, CommandLedger, CommandLike, CommandRejection from "jobs/commands.ts" to descendants
+expose-src Commit, CommitOutcome, CommitRecovery, CommittedEvent, RecordRef, commitRecord, recoverCommits from "jobs/commit.ts" to descendants
+expose-src listJobDirectories, newJobId, planStateDirectory, readJobDocument from "jobs/records.ts" to descendants
+expose-src DiscoveredPlan, readPlan from "plans/discover.ts" to descendants
+expose-src createAuditWorkspaceOwnership from "run/audit-workspaces.ts" to descendants
+expose-src parseModuleHeader from "run/module-header.ts" to descendants
+expose-src rejectionAnswer from "run/submissions.ts" to descendants
+expose-src LockRecord, ProjectLock, acquireProjectLock, lockRecordSchema from "store/lock.ts" to descendants
+expose-src StateDirectoryOptions, ensureStateDirectory from "store/state-directory.ts" to descendants
+expose-src guardedConfigurationFiles from "work/scope.ts" to descendants
+expose-sub AgentEvent, AgentEventObservation, AgentPort, AgentSessionId, AgentSessionLineage, AgentSessionPoint, AgentSessionSnapshot, AppendSessionContextInput, AssistantBlock, Availability, BuiltinTool, CacheWrites, ChangeSessionToolsInput, CompactionReason, ContentBlock, ContextNativeObservation, ContextPolicy, ContinueSessionInput, CreateSessionInput, ExecutorSupport, ForkSessionInput, GuardDecision, GuardedCall, InterruptionEvidence, MessageCost, MessageDetail, OtherBlock, PiAgentOptions, ReconcileSessionEffectsInput, RetrySessionInput, SessionContextAddition, SessionEffectRecord, SessionExecutionBindings, SessionExecutionIdentity, SessionExecutionPolicy, SessionOperationHandle, SessionOperationId, SessionOperationKey, SessionOperationReceipt, SessionOperations, SessionOutcome, SessionTaskInput, SessionToolChange, SessionToolDeclaration, SessionTranscriptEntry, SettledMutation, StopReason, StopSessionInput, TextBlock, ThinkingBlock, ThinkingVisibility, TokenUsage, ToolCallBlock, WriteTool, createPiAgent from agent to descendants
+expose-sub AuditCheckExecutionOptions, AuditInvocationProject, AuditInvocationReceipt, AuditWorkspaceOwnershipRecorder, CommittedAuditConfiguration, ConfiguredAuditInput, ConfiguredAuditMode, ConfiguredAuditPort, ConfiguredAuditResult, ConfiguredAuditReuse, ConfiguredCountBucket, ConfiguredNestedDiscovery, ConfiguredProjectResult, IntendedAuditWorkspace, TestLockOverride, createConfiguredAudit from audit to descendants
+expose-sub CheckFindingAt, CheckFindingAuthority, CheckFindingConflict, CheckFindingEvidence, CheckFindingGround, CheckFindingLocation, CheckFindingReplay, CheckFindingReportCredibility, checkFindingAtSchema, checkFindingAuthoritySchema, checkFindingCommunicationSchema, checkFindingConflictSchema, checkFindingEvidenceSchema, checkFindingGroundSchema, checkFindingOptionSchema, checkFindingRelationKindSchema, checkFindingReportCredibilitySchema, replayCheckFindingEvents from check-findings to descendants
+expose-sub gitCandidateSource, resolveCommit from evidence to descendants
+expose-sub DiscoveredDocuments, DocumentDiscoveryOptions, DocumentReader, OutsideDocumentReference, UnreadableDocumentReference, discoverDocuments from plan-evidence to descendants
+expose-sub AssistedRequirement, AssistedReviewBriefing, AssistedReviewPreparation, AssistedReviewSubmission, AttentionEntry, BoundReconciliation, CandidateChange, CandidateSnapshot, ConcernBinding, ConcernContext, ExecutionReconciliationContext, PacketRequest, PreparedReview, ReconciliationFacts, ReconciliationFactsContent, ReconciliationSubmission, ReviewQueue, ReviewQueueOptions, ReviewSubmission, SnapshotComparison, SnapshotDenial, SnapshotPath, SnapshotTools, assistedReviewSubmissionSchema, bindCandidateConcerns, boundReconciliationConflictsSchema, openCandidateSnapshot, prepareAssistedReview, reconciliationFactsMessage, reconciliationSubmissionSchema, resolveSnapshotPath, reviewSubmissionSchema, snapshotTools, validateReconciliationForExecution, verifySnapshotEvidence from reviews to descendants
+// Shared authority comparison and agent-engine witnesses used by assisted tests.
+expose-src validateReconciliation, ReconciliationContext from "reviews/reconciliation.ts" to descendants
+expose-sub CompactionCheckpoint, CompactionDecision, ScriptStep, SessionDriverInvocation, SessionDriverRuntime, SessionExecutionOwner, SessionOperationDriver, SessionOperationsOptions, SessionScript, SessionScriptStep, SubmissionVerdict, createScriptedSessionDriver, createSessionOperations from agent to descendants

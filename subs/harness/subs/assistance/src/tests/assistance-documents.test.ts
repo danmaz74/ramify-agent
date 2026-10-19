@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import type { CandidateSource, TreeEntry } from '../../subs/evidence/src/git.js';
-import { captureAssistanceDocuments, readAssistanceDocument, readCandidateDocument } from '../assistance/documents.js';
+import type { CandidateSource, TreeEntry } from '../../../evidence/src/git.js';
+import { captureAssistanceDocuments, readAssistanceDocument, readCandidateDocument } from '../documents.js';
 
 function source(contents: Record<string, string>, read: string[], originals: Record<string, Uint8Array> = {}, algorithm: 'sha1' | 'sha256' = 'sha1'): CandidateSource {
   const entries: TreeEntry[] = Object.entries(contents).map(([path, text]) => {

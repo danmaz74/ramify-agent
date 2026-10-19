@@ -1,9 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { CheckFindingCommand } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import {
-  basisChange, needsLaterRound, nextOf, validateReconciliation, withinModule,
-  type AttentionEntry, type ReconciliationContext,
-} from '../reviews/reconciliation.js';
+import { basisChange, needsLaterRound, validateReconciliation, withinModule, type ReconciliationContext } from '../reviews/reconciliation.js';
+import { nextOf, type AttentionEntry } from '../../subs/reviews/src/reconciliation.js';
 
 /*
  * The rules a reconciliation submission is judged by before the child

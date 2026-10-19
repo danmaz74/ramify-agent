@@ -1666,3 +1666,7 @@ reassessment rebuilds candidate comparisons and pointer filtering. Every NFR/fix
 element still needs the assessor's independent judgment. [Plan 25](../../docs/plans/25-carry-discovery-forward/main-plan.md)
 joins deterministic delivery, record compatibility and configured qualification;
 it supplies no provider cache-hit, cost or latency benefit claim.
+
+## Assisted workflow
+
+The [assistance child](subs/assistance/README.md) owns assisted admission, durable assessment lifecycle, Pi review and MCP transport. Harness re-exposes its supported startup facade to the root executable, and supplies selected common job, lock, command and audit-workspace contracts. Autonomous lifecycle policy stays in its own implementation.

@@ -22,7 +22,7 @@ Iteration 1 (session-store) is accepted for continuing under this user-authorize
 
 ## Next outcome
 
-Iteration 2: isolate the complete assisted workflow. Move the service/store/assessor/MCP together, preserve the root facade and actual consumers, and separate shared helpers from autonomous decisions without copying algorithms. Use the existing oriented Sol implementation worker `/root/session_store`; it owns production integration. The coordinator owns these notes and arranges a single native review of the candidate.
+Iteration 2: isolate the complete assisted workflow. RA start record `it-704ef82c-6861-430e-837e-edfa0e931af5`, base `8ad6fe1d381f3d33665be701a37a12df472035f7`, started `2026-10-19T09:31:19.905Z` (UTC), clean observed start. This records implementation timing only; no assessor was launched. Move the service/store/assessor/MCP together, preserve the root facade and actual consumers, and separate shared helpers from autonomous decisions without copying algorithms. Use the existing oriented Sol implementation worker `/root/session_store`; it owns production integration. The coordinator owns these notes and arranges a single native review of the candidate.
 
 Subsequent outcomes remain task execution, autonomous lifecycle/planning, work coordination, and acceptance/final integration. Preserve the full scope and adapt grouping only when actual interface discovery warrants it.
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { JsonSchema, ToolDefinition, ToolResult } from '../../subs/agent/src/interfaces/port.js';
+import type { JsonSchema, ToolDefinition, ToolResult } from '../../agent/src/interfaces/port.js';
 
 /** A caller-owned, exact reference that Pi may inspect during assessment. */
 export interface AssessmentEvidenceRef {

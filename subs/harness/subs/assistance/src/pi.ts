@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
-import type { AgentEvent, JsonSchema, ToolDefinition } from '../../subs/agent/src/interfaces/port.js';
-import type { SessionOperations, SessionExecutionPolicy, SessionTaskInput, SessionToolDeclaration } from '../../subs/agent/src/interfaces/session-operations.js';
-import type { SubmissionValidation } from '../run/submissions.js';
-import { rejectionAnswer } from '../run/submissions.js';
-import type { AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
-import { assistedReviewSubmissionSchema } from '../../subs/reviews/src/assisted.js';
-import type { PreparedReview } from '../../subs/reviews/src/preparation.js';
+import type { AgentEvent, JsonSchema, ToolDefinition } from '../../agent/src/interfaces/port.js';
+import type { SessionOperations, SessionExecutionPolicy, SessionTaskInput, SessionToolDeclaration } from '../../agent/src/interfaces/session-operations.js';
+import type { SubmissionValidation } from '../../../src/run/submissions.js';
+import { rejectionAnswer } from '../../../src/run/submissions.js';
+import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
+import { assistedReviewSubmissionSchema } from '../../reviews/src/assisted.js';
+import type { PreparedReview } from '../../reviews/src/preparation.js';
 import { z } from 'zod';
 
 /** One independent Pi assessment over a pinned candidate. The caller owns stage records. */

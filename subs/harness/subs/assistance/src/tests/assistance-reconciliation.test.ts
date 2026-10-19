@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { decideCheckFindingChange } from '../../subs/check-findings/src/decide.js';
-import { applyCheckFindingEvent, emptyCheckFindingState } from '../../subs/check-findings/src/replay.js';
-import { report, failure } from './helpers/check-findings.js';
-import { validateReconciliation, validateReconciliationForExecution } from '../reviews/reconciliation.js';
+import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
+import { applyCheckFindingEvent, emptyCheckFindingState } from '../../../check-findings/src/replay.js';
+import { report, failure } from '../../../../src/tests/helpers/check-findings.js';
+import { validateReconciliation } from '../../../../src/reviews/reconciliation.js';
+import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 
 describe('shared reconciliation authority', () => {
   it('refuses waiving the same required failure through harness and assisted adapters', async () => {

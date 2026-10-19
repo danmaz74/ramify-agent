@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { jobIdSchema, planIdSchema } from '../interfaces/protocol/ids.js';
-import { commandIdSchema } from '../interfaces/protocol/jobs.js';
-import { jobSchemaVersion } from '../jobs/records.js';
-import type { CheckFindingCommand, CheckFindingState } from '../../subs/check-findings/src/interfaces/check-findings.js';
+import { jobIdSchema, planIdSchema } from '../../../src/interfaces/protocol/ids.js';
+import { commandIdSchema } from '../../../src/interfaces/protocol/jobs.js';
+import { jobSchemaVersion } from '../../../src/jobs/records.js';
+import type { CheckFindingCommand, CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 
 export const assistedProtectionSchema = z.object({
   baselineCommit: z.string().regex(/^[a-f0-9]{40}$|^[a-f0-9]{64}$/).nullable(),

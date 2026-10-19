@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CandidateSource, TreeEntry } from '../../subs/evidence/src/git.js';
-import { compareProtection, defaultProtectionRules, inspectProtectedInputs, type ProtectedException } from '../assistance/protection.js';
+import type { CandidateSource, TreeEntry } from '../../../evidence/src/git.js';
+import { compareProtection, defaultProtectionRules, inspectProtectedInputs, type ProtectedException } from '../protection.js';
 
 const id = (digit: string) => digit.repeat(40);
 const entry = (path: string, objectId: string, kind: TreeEntry['kind'] = 'file'): TreeEntry => ({ path, objectId, kind, bytes: 10 });

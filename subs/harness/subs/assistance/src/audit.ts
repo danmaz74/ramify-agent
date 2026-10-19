@@ -4,8 +4,8 @@ import {
   type ConfiguredAuditPort,
   type ConfiguredAuditResult,
   type CommittedAuditConfiguration,
-} from '../../subs/audit/src/check-execution.js';
-import { createAuditWorkspaceOwnership } from '../run/audit-workspaces.js';
+} from '../../audit/src/check-execution.js';
+import { createAuditWorkspaceOwnership } from '../../../src/run/audit-workspaces.js';
 
 /** The assisted assessment keeps the provider result intact for provenance and retrieval. */
 export interface AssistedAuditOutcome {

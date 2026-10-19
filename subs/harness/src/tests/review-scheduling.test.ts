@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { ScriptStep } from '../../subs/agent/src/scripted.js';
 import { PriorityMutex } from '../jobs/mutex.js';
-import { ReviewQueue } from '../reviews/scheduler.js';
+import { ReviewQueue } from '../../subs/reviews/src/scheduler.js';
 import { snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';
 import { completionProposed, submit, write } from './helpers/iterations.js';

@@ -7,7 +7,7 @@ import type { LedgerEntry } from '../../subs/ledger/src/ledger.js';
 import { committedRecords, recordHash } from '../work/committed.js';
 import { localArchitectToolName } from '../work/submission.js';
 
-import { reconciliationToolName } from '../reviews/reconciliation.js';
+import { reconciliationToolName } from '../../subs/reviews/src/reconciliation.js';
 import { carriedCheckFindings, runEventSchema, type RunEvent } from './log.js';
 import { gateOperationSchema, invocationWorkSchema, runRecordSchema, runLayout } from './records.js';
 

@@ -6,7 +6,7 @@ import { acceptElements, createPackage, deviationNotice, openElementCatalog } fr
 import { documentManifestSchema } from '../../subs/plan-evidence/src/interfaces/contracts.js';
 import { reviewMessage } from '../../subs/reviews/src/message.js';
 import type { ReviewRequest } from '../reviews/records.js';
-import { candidateModuleIndex, concernModules, groundCredibility } from '../reviews/signals.js';
+import { candidateModuleIndex, concernModules, groundCredibility } from '../../subs/reviews/src/signals.js';
 import { openCandidateSnapshot, snapshotToolNames } from '../../subs/reviews/src/snapshot.js';
 import { scriptedCandidates, type ScriptedCommit } from './helpers/candidates.js';
 import { expectNoProcesses, forgetExternalTools } from './helpers/external-tools.js';

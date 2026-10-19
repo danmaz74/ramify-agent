@@ -1,7 +1,7 @@
 import { join } from 'node:path';
-import { createPiAgent } from '../../subs/agent/subs/pi/src/pi-agent.js';
-import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
-import { openSessionStore, type LedgerSessionStore } from '../../subs/session-store/src/session-store.js';
+import { createPiAgent } from '../../agent/subs/pi/src/pi-agent.js';
+import type { SessionOperations } from '../../agent/src/interfaces/session-operations.js';
+import { openSessionStore, type LedgerSessionStore } from '../../session-store/src/session-store.js';
 import { createAssessor } from './assessment.js';
 import type { Assessor } from './contracts.js';
 import { AssistanceService } from './service.js';

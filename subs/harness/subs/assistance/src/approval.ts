@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import type { CheckFindingState } from '../../subs/check-findings/src/interfaces/check-findings.js';
+import type { CheckFindingState } from '../../check-findings/src/interfaces/check-findings.js';
 import { assistedOutcomeSchema, type AssistedAssessment, type AssistedJob, type AssistedOutcome, type AssessmentStage } from './contracts.js';
 import { acceptedProtectionExceptions, authorizedProtectionFinding, findingDetails, remainingBriefs } from './findings.js';
 import { authorizeProtection, type ProtectionComparison } from './protection.js';
 import type { AssistedAuditOutcome } from './audit.js';
-import type { AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
+import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
 
 const hash = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const readinessSchema = z.object({

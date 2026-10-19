@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AssistanceService } from '../assistance/service.js';
-import { AssistedStore } from '../assistance/store.js';
-import { assistedAssessmentSchema, type AssistanceOptions, type AssistedProtection, type Assessor } from '../assistance/contracts.js';
-import { reportCommand } from '../check-findings/report.js';
-import { concern } from './helpers/check-findings.js';
+import { AssistanceService } from '../service.js';
+import { AssistedStore } from '../store.js';
+import { assistedAssessmentSchema, type AssistanceOptions, type AssistedProtection, type Assessor } from '../contracts.js';
+import { reportCommand } from '../../../../src/check-findings/report.js';
+import { concern } from '../../../../src/tests/helpers/check-findings.js';
 
 const commit = 'a'.repeat(40);
 const other = 'b'.repeat(40);

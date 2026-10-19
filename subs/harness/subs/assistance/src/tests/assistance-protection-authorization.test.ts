@@ -3,15 +3,15 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SessionOperations } from '../../subs/agent/src/interfaces/session-operations.js';
-import type { CandidateSource } from '../../subs/evidence/src/git.js';
-import type { ConfiguredAuditResult } from '../../subs/audit/src/check-execution.js';
-import { emptyCheckFindingState } from '../../subs/check-findings/src/replay.js';
-import { finalizeApproval } from '../assistance/approval.js';
-import { createAssessor } from '../assistance/assessment.js';
-import { AssistanceService } from '../assistance/service.js';
-import type { AssistedProtection } from '../assistance/contracts.js';
-import { scriptedCandidates, type ScriptedCommit } from './helpers/candidates.js';
+import type { SessionOperations } from '../../../agent/src/interfaces/session-operations.js';
+import type { CandidateSource } from '../../../evidence/src/git.js';
+import type { ConfiguredAuditResult } from '../../../audit/src/check-execution.js';
+import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
+import { finalizeApproval } from '../approval.js';
+import { createAssessor } from '../assessment.js';
+import { AssistanceService } from '../service.js';
+import type { AssistedProtection } from '../contracts.js';
+import { scriptedCandidates, type ScriptedCommit } from '../../../../src/tests/helpers/candidates.js';
 
 const baseline = 'a'.repeat(40), edited = 'b'.repeat(40), retained = 'c'.repeat(40);
 const diverged = 'd'.repeat(40), restored = 'e'.repeat(40);
@@ -60,7 +60,7 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
   const audit = vi.fn(async (input: { candidateCommit: string }) => ({ state: options.auditFailed ? 'failed' as const : 'passed' as const,
     requestedSourceCommit: input.candidateCommit, auditedSourceCommit: options.auditReused ? baseline : input.candidateCommit, detail: 'configured audit',
     result: { definition: { path: 'ramify-audit.json', blob: 'fixed-selection' } } as ConfiguredAuditResult }));
-  const review = vi.fn(async (input: Parameters<NonNullable<import('../assistance/assessment.js').AssessmentDependencies['review']>>[0]) => {
+  const review = vi.fn(async (input: Parameters<NonNullable<import('../assessment.js').AssessmentDependencies['review']>>[0]) => {
         if (options.reviewMissing) return { status: 'incomplete' as const, reason: 'Review unavailable', operationId: input.operationId, eventCount: 0 };
         const read = await input.prepared.tools.definitions.find(tool => tool.name === 'snapshot_read')!
           .execute({ path: contract }, new AbortController().signal);

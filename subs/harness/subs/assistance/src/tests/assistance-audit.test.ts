@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CommittedAuditConfiguration, ConfiguredAuditPort, ConfiguredAuditResult } from '../../subs/audit/src/check-execution.js';
-import { auditAssistedCandidate } from '../assistance/audit.js';
+import type { CommittedAuditConfiguration, ConfiguredAuditPort, ConfiguredAuditResult } from '../../../audit/src/check-execution.js';
+import { auditAssistedCandidate } from '../audit.js';
 
 const configuration = { sourceCommit: 'original' } as CommittedAuditConfiguration;
 function answer(overrides: Partial<ConfiguredAuditResult> = {}): ConfiguredAuditResult {

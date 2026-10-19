@@ -1,0 +1,5 @@
+ramify 1
+module assistance
+
+// Root startup receives only the supported process-lifetime facade.
+expose-src startAssistanceServer, AssistanceServerOptions, AssistanceServer from "runtime.ts" to parent

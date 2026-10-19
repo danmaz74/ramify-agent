@@ -3,9 +3,9 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
-import { AssistanceService } from '../assistance/service.js';
-import { createAssistanceMcpServer } from '../assistance/mcp.js';
-import type { AssistanceOptions, AssistedProtection } from '../assistance/contracts.js';
+import { AssistanceService } from '../service.js';
+import { createAssistanceMcpServer } from '../mcp.js';
+import type { AssistanceOptions, AssistedProtection } from '../contracts.js';
 
 const baseline = 'a'.repeat(40), candidate = 'b'.repeat(40);
 const protection: AssistedProtection = { baselineCommit: baseline,

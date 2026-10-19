@@ -13,7 +13,7 @@ import { engineerToolName } from '../work/engineer.js';
 import { forkToolName } from '../architecture/submission.js';
 import { contractToolName } from '../contracts/submission.js';
 import { reviewToolName, orientationToolName } from '../../subs/reviews/src/submission.js';
-import { reconciliationToolName } from '../reviews/reconciliation.js';
+import { reconciliationToolName } from '../../subs/reviews/src/reconciliation.js';
 import { failureAnalysisToolName } from '../work/failure.js';
 import { workOrientationToolName, contextSelectorToolName } from '../context-selection/submissions.js';
 import { coordinatorActionJsonSchema, coordinatorActionToolName, coordinatorAssessmentToolName,

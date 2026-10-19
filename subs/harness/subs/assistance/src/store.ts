@@ -2,12 +2,12 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { openLedger, type Ledger } from '../../subs/ledger/src/ledger.js';
-import { acceptedCommandSchema } from '../interfaces/protocol/jobs.js';
-import { checkFindingEventsField } from '../check-findings/records.js';
-import { commitRecord, recoverCommits } from '../jobs/commit.js';
-import { jobsDirectory } from '../jobs/records.js';
-import { writeFileAtomic, writeFileExclusive } from '../../subs/ledger/src/atomic.js';
+import { openLedger, type Ledger } from '../../ledger/src/ledger.js';
+import { acceptedCommandSchema } from '../../../src/interfaces/protocol/jobs.js';
+import { checkFindingEventsField } from '../../../src/check-findings/records.js';
+import { commitRecord, recoverCommits } from '../../../src/jobs/commit.js';
+import { jobsDirectory } from '../../../src/jobs/records.js';
+import { writeFileAtomic, writeFileExclusive } from '../../ledger/src/atomic.js';
 import { approvalFinalizationSchema } from './approval.js';
 import { assistedAssessmentSchema, assistedIterationSchema, assistedJobSchema, type AssistedAssessment, type AssistedEvidenceReference, type AssistedIteration, type AssistedJob } from './contracts.js';
 
@@ -50,7 +50,7 @@ export class AssistedStore {
   static async create(projectRoot: string, job: AssistedJob, planMarkdown: string, command: z.infer<typeof acceptedCommandSchema>): Promise<AssistedStore> {
     const directory = assistedDirectory(projectRoot, job.planId, job.jobId);
     const { mkdir } = await import('node:fs/promises');
-    const { writeFileExclusive } = await import('../../subs/ledger/src/atomic.js');
+    const { writeFileExclusive } = await import('../../ledger/src/atomic.js');
     await mkdir(join(directory, 'input'), { recursive: true });
     await writeFileExclusive(join(directory, job.plan.storedAt), planMarkdown);
     const ledger = await openLedger({ logPath: join(directory, 'events.jsonl'), recordsRoot: directory, eventSchema: assistedEventSchema });

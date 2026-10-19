@@ -11,3 +11,10 @@ expose-src reviewMessage, orientationMessage, ReviewBriefing, ReviewIntent, Revi
 expose-src orientationKey, readGuidance, CapturedInput from "inputs.ts" to parent
 expose-src verifySnapshotEvidence, openCandidateSnapshot, resolveSnapshotPath, snapshotTools, snapshotToolDeclarations, SnapshotToolDeclaration, snapshotToolNames, snapshotReadLimits, CandidateSnapshot, CandidateChange, SnapshotComparison, SnapshotTools, SnapshotPath, SnapshotDenial from "snapshot.ts" to parent
 expose-src reviewToolName, reviewJsonSchema, reviewSubmissionDescription, orientationToolName, orientationJsonSchema, orientationSubmissionDescription, validateOrientation from "submission.ts" to parent
+
+// Shared judgment mechanics; workflow adapters retain their own authority and records.
+expose-src ConcernBinding, ConcernContext, bindCandidateConcerns from "concern-binding.ts" to parent
+expose-src ReviewQueue, ReviewQueueOptions from "scheduler.ts" to parent
+expose-src PacketRequest, ReconciliationFacts, ReconciliationFactsContent, reconciliationFactsMessage from "reconciliation-message.ts" to parent
+expose-src AttentionEntry, BoundReconciliation, ExecutionReconciliationContext, ReconciliationAction, ReconciliationNext, ReconciliationSubmission, boundReconciliationConflictsSchema, needsDisposition, nextOf, reconciliationActionSchema, reconciliationJsonSchema, reconciliationSubmissionDescription, reconciliationSubmissionSchema, reconciliationToolName, validateReconciliationForExecution from "reconciliation.ts" to parent
+expose-src GroundProvenance, candidateModuleIndex, concernModules, groundCredibility from "signals.ts" to parent

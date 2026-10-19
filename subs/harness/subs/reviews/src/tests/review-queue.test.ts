@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { ReviewQueue } from '../reviews/scheduler.js';
+import { ReviewQueue } from '../scheduler.js';
 
 describe('the bounded queue of readers', () => {
   test('starts at most its concurrency, overflows beyond its queue, retries an unsettled request and parks a fenced one', async () => {

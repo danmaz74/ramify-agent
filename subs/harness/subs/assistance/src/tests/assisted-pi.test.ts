@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSessionOperations } from '../../subs/agent/src/session-operations.js';
-import { createScriptedSessionDriver } from '../../subs/agent/src/scripted.js';
-import type { SessionDriverRuntime, SessionStore, SessionStoreRecord } from '../../subs/agent/src/interfaces/session-operations.js';
-import { runPiAssessment } from '../assistance/pi.js';
+import { createSessionOperations } from '../../../agent/src/session-operations.js';
+import { createScriptedSessionDriver } from '../../../agent/src/scripted.js';
+import type { SessionDriverRuntime, SessionStore, SessionStoreRecord } from '../../../agent/src/interfaces/session-operations.js';
+import { runPiAssessment } from '../pi.js';
 
 function memoryStore(): SessionStore {
   const records = new Map<string, SessionStoreRecord>(); const payloads = new Map<string, Uint8Array>();

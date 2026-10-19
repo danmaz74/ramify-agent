@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAssessmentEvidenceTool } from '../assistance/pi-evidence.js';
+import { createAssessmentEvidenceTool } from '../pi-evidence.js';
 
 describe('bounded Pi assessment evidence', () => {
   it('lists exact owner refs, reads content in resumable chunks and refuses arbitrary paths', async () => {

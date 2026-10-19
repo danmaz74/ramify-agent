@@ -1,11 +1,11 @@
-import { verifiedCandidateSource } from '../../subs/evidence/src/git-text.js';
+import { verifiedCandidateSource } from '../../evidence/src/git-text.js';
 import { posix } from 'node:path';
-import type { CheckFindingLocation, CheckFindingReportCredibility } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import type { CandidateSource } from '../../subs/evidence/src/git.js';
-import type { ArchitectIndex, ModuleEntry } from '../../subs/evidence/src/views.js';
-import { ownerOf } from '../measurement/owners.js';
-import type { CandidateSnapshot } from '../../subs/reviews/src/snapshot.js';
-import { parseModuleHeader } from '../run/module-header.js';
+import type { CheckFindingLocation, CheckFindingReportCredibility } from '../../check-findings/src/interfaces/check-findings.js';
+import type { CandidateSource } from '../../evidence/src/git.js';
+import type { ArchitectIndex, ModuleEntry } from '../../evidence/src/views.js';
+import { ownerOf } from '../../../src/measurement/owners.js';
+import type { CandidateSnapshot } from './snapshot.js';
+import { parseModuleHeader } from '../../../src/run/module-header.js';
 
 /*
  * What the harness binds to a reviewer's concern besides its words: the

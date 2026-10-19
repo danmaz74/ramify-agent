@@ -153,3 +153,6 @@ export interface SessionOperationsOptions {
   /** Script external ownership/liveness answers in ordinary tests. Default uses current-process tokens and kernel PID liveness. */
   readonly isExecutionOwnerAlive?: ((owner: SessionExecutionOwner) => Promise<boolean>) | undefined;
 }
+
+// Distinct public binding beside the harness transcript projection's SessionLineage.
+export type { SessionLineage as AgentSessionLineage };

@@ -21,7 +21,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     return 0;
   }
   if (commandLine.command === 'mcp') {
-    const { startAssistanceServer } = await import('../subs/harness/src/assistance/runtime.js');
+    const { startAssistanceServer } = await import('../subs/harness/subs/assistance/src/runtime.js');
     const server = await startAssistanceServer({ projectRoot: commandLine.projectRoot, model: commandLine.model });
     let stopping: Promise<void> | undefined;
     const stop = () => {

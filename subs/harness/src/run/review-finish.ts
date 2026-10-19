@@ -1,15 +1,21 @@
-import type { CandidateSource } from '../../subs/evidence/src/git.js';
-import type { CheckFindingGround, CheckFindingReportCredibility } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import { resolveSnapshotPath, type CandidateSnapshot, type SnapshotTools } from '../../subs/reviews/src/snapshot.js';
+import { bindCandidateConcerns, type ConcernBinding, type ConcernContext } from '../../subs/reviews/src/concern-binding.js';
+
+import { type CandidateSnapshot, type SnapshotTools } from '../../subs/reviews/src/snapshot.js';
 import { reportCommand, type BoundReport } from '../check-findings/report.js';
 import { commitCheckFindingChange, type CheckFindingTarget } from '../check-findings/transition.js';
 import { canonicalJson } from '../jobs/commands.js';
 import { sha256 } from '../prompts/packages.js';
 import {
-  concernKey, reviewLayout,
-  type NotVerifiedReason, type ReviewAttempt, type ReviewRequest, type ReviewResult, type ReviewSubmission, type ReviewSubmissionRecord,
+  concernKey,
+  reviewLayout,
+  type NotVerifiedReason,
+  type ReviewAttempt,
+  type ReviewRequest,
+  type ReviewResult,
+  type ReviewSubmission,
+  type ReviewSubmissionRecord,
 } from '../reviews/records.js';
-import { candidateModuleIndex, concernModules, groundCredibility } from '../reviews/signals.js';
+import { groundCredibility } from '../../subs/reviews/src/signals.js';
 import { reviewStateOf } from '../reviews/state.js';
 import type { InvocationResult } from '../steps/runner.js';
 import { committedRecords } from '../work/committed.js';
@@ -24,13 +30,6 @@ import { trackedScenarios } from './feature-files.js';
  */
 
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
-
-/** What the harness binds to one concern of a valid submission. */
-export interface ConcernBinding {
-  readonly ground: CheckFindingGround | null;
-  readonly credibility: CheckFindingReportCredibility;
-  readonly modules: readonly string[];
-}
 
 /** The start a request intends: a fork for every question with a fork point, fresh for code review. */
 export function requestedStartOf(request: ReviewRequest): 'fresh' | 'fork' {
@@ -84,14 +83,6 @@ export function reviewOutcome(
   }
 }
 
-/** Where a review's concerns are bound: the project, its candidates and the plan the run belongs to. */
-export interface ConcernContext {
-  readonly projectRoot: string;
-  readonly planId: string;
-  readonly candidates: CandidateSource;
-  warn(text: string): void;
-}
-
 /**
  * The ground, credibility and modules of each concern of a valid
  * submission, in concern order. The ground is the file the reviewer named,
@@ -114,33 +105,6 @@ export async function concernBindings(
   const provenance = { planId: context.planId, featureFiles: new Set(trackedScenarios(ledger).records.map(record => record.file)) };
   return bindCandidateConcerns(context, snapshot, tools, submission, workItemModule,
     path => groundCredibility(path, provenance));
-}
-
-/** Shared source binding; wrappers supply ownership fallback and actual document provenance. */
-export async function bindCandidateConcerns(
-  context: ConcernContext,
-  snapshot: CandidateSnapshot,
-  tools: Pick<SnapshotTools, 'read'>,
-  submission: ReviewSubmission,
-  workItemModule: string | null,
-  credibility: (path: string | null) => CheckFindingReportCredibility,
-): Promise<ConcernBinding[]> {
-  const index = await candidateModuleIndex(context.candidates, context.projectRoot, snapshot).catch(error => {
-    context.warn(`Module declarations at ${snapshot.commit} could not be read: ${message(error)}`);
-    return null;
-  });
-  const read = tools.read();
-  return submission.concerns.map(concern => {
-    const resolved = concern.ground === null ? null : resolveSnapshotPath(snapshot, concern.ground.path);
-    const path = resolved?.ok === true ? resolved.path : null;
-    const hash = path === null ? undefined : read.get(path);
-    const ground = path === null || hash === undefined ? null : { ref: path, hash };
-    return {
-      ground,
-      credibility: credibility(ground?.ref ?? null),
-      modules: concernModules(index, concern.locations, workItemModule),
-    };
-  });
 }
 
 /**

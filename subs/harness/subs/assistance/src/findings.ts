@@ -1,13 +1,13 @@
-import type { CheckFindingCommand, CheckFindingDetailView, CheckFindingEvidence, CheckFindingState, CheckFindingSummary, CheckFindingVerification } from '../../subs/check-findings/src/interfaces/check-findings.js';
-import { selectCheckFindings } from '../../subs/check-findings/src/queries.js';
-import { reportCommand } from '../check-findings/report.js';
-import type { ConcernBinding } from '../run/review-finish.js';
-import type { AssistedReviewSubmission } from '../../subs/reviews/src/assisted.js';
+import type { CheckFindingCommand, CheckFindingDetailView, CheckFindingEvidence, CheckFindingState, CheckFindingSummary, CheckFindingVerification } from '../../check-findings/src/interfaces/check-findings.js';
+import { selectCheckFindings } from '../../check-findings/src/queries.js';
+import { reportCommand } from '../../../src/check-findings/report.js';
+import type { ConcernBinding } from '../../reviews/src/concern-binding.js';
+import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
 import type { AssistedAuditOutcome } from './audit.js';
 import type { ProtectionComparison, ProtectedException } from './protection.js';
 import type { AssistedAssessment } from './contracts.js';
 import { createHash } from 'node:crypto';
-import { canonicalJson } from '../jobs/commands.js';
+import { canonicalJson } from '../../../src/jobs/commands.js';
 
 /** Reopen only the agent settlement whose retained proof was rejected.
  * A later settlement or an actual user decision keeps its own authority.
@@ -148,7 +148,7 @@ export function acceptedProtectionExceptions(state: CheckFindingState, assessmen
 }
 
 /** Authorization changes the governing condition, not the historical failure on this tree. */
-export function authorizedProtectionFinding(entry: Pick<import('../../subs/check-findings/src/interfaces/check-findings.js').CheckFindingEntry, 'verification'>, protection: ProtectionComparison): boolean {
+export function authorizedProtectionFinding(entry: Pick<import('../../check-findings/src/interfaces/check-findings.js').CheckFindingEntry, 'verification'>, protection: ProtectionComparison): boolean {
   const verification = entry.verification;
   return verification.kind === 'check' && verification.producer === 'check:protection'
     && protection.changes.some(change => change.authorizedBy !== null && verification.obligation.subject === `protected:${change.path}`);
