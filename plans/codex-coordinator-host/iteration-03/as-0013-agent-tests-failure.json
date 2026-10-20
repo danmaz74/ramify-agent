@@ -1,0 +1,70 @@
+{
+  "assessment": "as-0013",
+  "auditedSourceCommit": "40cf8909347d6e1acc5a42d223d96cd18cf666af",
+  "artifactPath": "plans/codex-coordinator-host/.harness/jobs/20261019T190943Z-7fd938/evidence/0734fe23d90316a6bfcc2502ef49e8f2d8f03db7ec110825877150505e3252c2.json",
+  "artifactSha256": "0734fe23d90316a6bfcc2502ef49e8f2d8f03db7ec110825877150505e3252c2",
+  "reportCommit": "13f83242fbe603db0bc31e51ec63d65876382e53",
+  "runRef": "refs/audited/runs/2026-10-20T05-08-51Z-40cf89093",
+  "reportPath": "reports/audit/vitest/agent-tests/commands/agent-vitest/group-1.json",
+  "reportBlob": "8ee4d8da912fe417ebd7e2e8e5297e4c04f3af9f",
+  "reportSha256": "d7bf32b03b028846c6b5037f715aa8ae32d3174a99e4b2e109058b7e4a1076dd",
+  "checks": {
+    "agent-scenarios": "pass",
+    "agent-structure": "pass",
+    "agent-tests": "fail",
+    "agent-typecheck": "pass",
+    "agent-web-build": "pass",
+    "patch-integrity": "pass"
+  },
+  "expectedFiles": {
+    "contract": "runner-configured-files/3",
+    "directExecutions": [
+      {
+        "checkId": "agent-tests",
+        "command": "agent-vitest",
+        "project": "boundaries",
+        "path": "subs/harness/subs/assistance/src/tests/coordinator-publication.boundary.test.ts",
+        "ran": true
+      }
+    ],
+    "source": "partial-answer",
+    "expected": 459,
+    "run": 459,
+    "missing": [],
+    "status": "complete",
+    "runnerConfigFiles": [
+      "vitest.config.ts"
+    ]
+  },
+  "providerCounts": {
+    "files": {
+      "total": 437,
+      "passed": 435,
+      "failed": 1,
+      "skipped": 1
+    },
+    "tests": {
+      "total": 3409,
+      "passed": 3406,
+      "failed": 1,
+      "skipped": 2
+    }
+  },
+  "failedTests": [
+    {
+      "project": "node",
+      "path": "subs/harness/src/tests/capability-acceptance.integration.test.ts",
+      "fullName": "CA26: failed combined gates retain their causes and permit correction past the captured repair count",
+      "name": "CA26: failed combined gates retain their causes and permit correction past the captured repair count",
+      "errors": [
+        {
+          "message": "ENOENT: no such file or directory, open '/tmp/ramify-agent-UfuZX3/capability-coordination/plans/need/.harness/jobs/20261020T050040Z-1a4614/gates/ga-0007/attempt.json'",
+          "name": "Error",
+          "stack": "Error: ENOENT: no such file or directory, open '/tmp/ramify-agent-UfuZX3/capability-coordination/plans/need/.harness/jobs/20261020T050040Z-1a4614/gates/ga-0007/attempt.json'\n    at open (node:internal/fs/promises:639:25)\n    at readFile (node:internal/fs/promises:1252:14)\n    at /tmp/ramify-audit-worktree-akoZ2c/source/subs/harness/src/tests/helpers/acceptance-flow.ts:636:18\n    at async Promise.all (index 3)\n    at Module.runAcceptedHandback (/tmp/ramify-audit-worktree-akoZ2c/source/subs/harness/src/tests/helpers/acceptance-flow.ts:635:22)\n    at file:///workspaces/worktrees/codex-coordinator-host/node_modules/@vitest/runner/dist/chunk-artifact.js:1903:20"
+        }
+      ]
+    }
+  ],
+  "loadErrors": [],
+  "unhandledErrors": []
+}

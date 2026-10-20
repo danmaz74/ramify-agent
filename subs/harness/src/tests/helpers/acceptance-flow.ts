@@ -76,6 +76,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   let planCorrected = false;
   let resuming = false;
   let suspendedContinuationStarted = false;
+  let repairContinuationStarted = false;
   let originalRequest = '';
   let handbackMaterialized = false;
   const scripted: Script = spec => {
@@ -184,6 +185,16 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
       const [, task, revision, invocation] = latest(/Use task (cap-\d+), planRevision (\d+) and invocation (inv-\d+)/gu)!;
       if (task === 'cap-002') return [{ kind: 'wait', ms: 60_000 }];
       architect += 1;
+      if (mode === 'repair-exhaustion') {
+        const runId = activeService!.listRuns('need')[0]!.jobId;
+        const failed = activeService!.events('need', runId)!.filter(event => event.type === 'gate-attempted' && event.data.verdict === 'failed');
+        if (failed.length >= 4) {
+          // This next actual architect turn proves repair remains available.
+          // Hold it before another gate can race the settled attempt assertions.
+          repairContinuationStarted = true;
+          return [{ kind: 'wait', ms: 60_000 }];
+        }
+      }
       const basis = { task, planRevision: Number(revision), invocation };
       const assignOwner = (owner: string, purpose: string) => submit({ ...basis, kind: 'assign', assignment: assign(owner, {
         goal: purpose, approach: purpose, completionEvidence: 'Real source and tests',
@@ -614,8 +625,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
     return;
   }
   await until(() => mode === 'drift' && !handbackCommitDrift ? driftFeedback.length > 0
-    : mode === 'repair-exhaustion' ? (opened.service.events('need', receipt.jobId) ?? []).filter(event =>
-      event.type === 'gate-attempted' && event.data.verdict === 'failed').length >= 4
+    : mode === 'repair-exhaustion' ? repairContinuationStarted || (opened.service.events('need', receipt.jobId) ?? []).some(event => event.type === 'job-failed')
     : (opened.service.events('need', receipt.jobId) ?? []).some(event =>
       event.type === 'capability-handed-back' && handbackMaterialized || event.type === 'job-failed'), 120_000).catch(async error => {
     const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
@@ -626,6 +636,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'drift
   });
   const events = await runEventsOnDisk(fixture.root, 'need', receipt.jobId);
   if (mode === 'repair-exhaustion') {
+    expect(repairContinuationStarted).toBe(true);
     expect(events.filter(event => event.type === 'job-failed'),
       JSON.stringify({ gateContexts, tail: events.slice(-20).map(event => [event.type, event.data]) })).toEqual([]);
     const architectInvocations = new Set(events.flatMap(event => event.type === 'invocation-started' &&

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-20T04:51:11.493762+00:00",
+  "capturedAt": "2026-10-20T05:14:42.133647+00:00",
   "base": "8785a35e7d14610e4883a684714587a781a14934",
   "files": [
     {
@@ -51,6 +51,11 @@
       "path": "subs/harness/src/owned-tree-kernel.ts",
       "sha256": "e75c363ce0e343cbe2435d78601013d2a4d86b5c94cb094e40cd1c45eb5de48a",
       "bytes": 247
+    },
+    {
+      "path": "subs/harness/src/tests/helpers/acceptance-flow.ts",
+      "sha256": "e6013a04ab3cf4a850d633744ce1ccb29ea1cbc0af81cb58e5ca2157b55feffc",
+      "bytes": 70462
     },
     {
       "path": "subs/harness/subs/agent/subs/codex/src/connection.ts",
