@@ -364,7 +364,24 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       reconciliation = { ...reconciliation, exactSourceReads: [...tools.read().keys()] };
       await record('reconciliation', reconciliation);
     }
-    if (reconciliation?.status === 'submitted') await context.recordFindings(reconciliation.value.commands, 'reconciliation-decisions');
+    if (reconciliation?.status === 'submitted') {
+      try {
+        // The keyed writer recognizes an already committed batch before it
+        // considers revisions. Never bind an old accepted judgment to a later
+        // finding revision when another assessment changed its basis.
+        await context.recordFindings(reconciliation.value.commands, 'reconciliation-decisions');
+      } catch (error) {
+        const refusal = error instanceof Error ? error.cause : undefined;
+        if (typeof refusal !== 'object' || refusal === null || !('rejection' in refusal)
+          || typeof refusal.rejection !== 'object' || refusal.rejection === null
+          || !('code' in refusal.rejection) || refusal.rejection.code !== 'stale-revision') throw error;
+        return compactOutcome({ gate: 'incomplete', summary: 'Accepted reconciliation no longer applies to the current findings.',
+          ...remainingBriefs(findingDetails(context.findingState())),
+          gaps: [...gaps, 'Finding revisions changed after reconciliation was accepted. Start a fresh assessment of the current candidate; cancel this interrupted assessment if a later assessment supersedes it.'],
+          evidence: context.stages().map(stage => `assessments/${assessment.id}/stages/${stage.name}.json`),
+        });
+      }
+    }
     else if (attention.length) gaps.push(`Reconciliation unavailable: ${reconciliation?.reason ?? 'no valid assessment'}`);
 
     const remaining = remainingBriefs(findingDetails(context.findingState()).filter(detail => !authorizedProtectionFinding(detail.summary, protection)));

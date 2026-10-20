@@ -385,7 +385,7 @@ export class AssistanceService {
       } }>(this.findingState(store), () => ({ commands, compose: result => ({ event: {
         type: 'findings-recorded', data: { assessmentId: id, ...(key === undefined ? {} : { key, hash }), checkFindings: result.events },
       } }) }), input => ({ type: 'findings-recorded', ...input.data, checkFindings: [...input.data.checkFindings] }));
-      if (decided.kind === 'refused') throw new Error(decided.refusal.message);
+      if (decided.kind === 'refused') throw new Error(decided.refusal.message, { cause: decided.refusal });
       if (decided.kind === 'replayed') return;
       await store.ledger.append(decided.transaction);
     });

@@ -73,6 +73,74 @@ afterEach(async () => {
 });
 
 describe('assisted assessment pipeline with real service records', () => {
+  it.each(['stale-decision', 'stale-relation', 'committed'] as const)('resumes accepted reconciliation without replaying a %s on a later revision', async scenario => {
+    const root = await mkdtemp(join(tmpdir(), 'assistance-reconciliation-resume-')); roots.push(root);
+    await mkdir(join(root, 'plans/sample'), { recursive: true });
+    await writeFile(join(root, 'plans/sample/plan.md'), '# Plan\nThe feature returns 2.\n');
+    const initialReport = reviewReport(first, true);
+    const report = scenario === 'stale-relation' ? { ...initialReport, concerns: [
+      ...initialReport.concerns, { ...initialReport.concerns[0]!, summary: 'Dependency also returns the wrong value' },
+    ] } : initialReport;
+    const old = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
+      resolveCommit: async (_root, revision) => revision, assessor: async context => {
+        const bindings = report.concerns.map(() => ({ ground: null, credibility: 'ungrounded' as const, modules: [] }));
+        const reviewed = { result: { status: 'submitted' as const, value: report,
+          operationId: 'accepted-review', sessionId: 'accepted-review-session', eventCount: 1 },
+          bindings, read: ['src/feature.ts'], inspected: ['src/feature.ts'] };
+        await context.checkpoint('review-accepted', reviewed);
+        await context.recordFindings(reportReviewConcerns({ assessment: context.assessment.id, tree: 'tree-1', report, bindings,
+          evidence: { kind: 'assisted-review', ref: `assessments/${context.assessment.id}/stages/review.json`,
+            hash: `sha256:${createHash('sha256').update(`${JSON.stringify(reviewed, null, 2)}\n`).digest('hex')}` } }), 'review-reports');
+        const findings = findingDetails(context.findingState()).map(detail => detail.summary);
+        const proposed = { relations: scenario === 'stale-relation' ? [{ from: findings[0]!.id, to: findings[1]!.id,
+          relation: 'related-but-distinct', shared: 'Both affect the feature result.', evidence: ['src/feature.ts:1'],
+          rationale: 'The concerns describe distinct obligations.' }] : [],
+          dispositions: findings.map(finding => ({ checkFinding: finding.id, rationale: 'The feature needs repair.',
+            communication: { mode: 'quiet' }, action: { action: 'repair' } })),
+          next: { kind: 'correct', goal: 'Return 2.' }, brief: 'Repair the feature.' };
+        const bound = await validateReconciliationForExecution(proposed, {
+          id: `${context.assessment.id}-reconciliation`, owner: context.job.jobId,
+          attention: new Map(findings.map(finding => [finding.id, { revision: finding.revision, reason: finding.reason,
+            awaiting: finding.awaiting, risk: finding.risk, modules: finding.modules }])),
+          held: new Map(findings.map(finding => [finding.id, finding.revision])),
+          actor: { kind: 'agent', role: 'assisted-reconciler', invocation: 'accepted-reconciliation' },
+          source: { kind: 'tree', id: 'tree-1' }, authority: { kind: 'governing-record', ref: context.job.plan.storedAt },
+          responsible: { kind: 'run' }, waiverRefusal: () => 'requires coordinator authority',
+          evidence: () => [{ kind: 'assisted-reconciliation', ref: 'accepted-reconciliation', hash: null }],
+          document: async () => null,
+          decide: command => { const decided = decideCheckFindingChange(context.findingState(), command); return decided.ok ? null : decided.rejection; },
+        });
+        if (!bound.ok) throw new Error(JSON.stringify(bound.errors));
+        await context.checkpoint('reconciliation-accepted', { status: 'submitted', value: bound.value,
+          operationId: 'accepted-reconciliation', sessionId: 'accepted-reconciliation-session', eventCount: 1 });
+        if (scenario === 'committed') await context.recordFindings(bound.value.commands, 'reconciliation-decisions');
+        else await context.recordFindings([bound.value.commands.at(-1)!], 'later-reconciliation');
+        throw new Error('Interrupted after accepted reconciliation');
+      } });
+    services.push(old);
+    const job = await old.planStart({ planId: 'sample', commandId: 'start' });
+    const admitted = await old.iterationAssess({ planId: 'sample', jobId: job.jobId, base: baseline, candidate: first,
+      kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId: 'assess' });
+    await vi.waitFor(() => expect(old.assessmentStatus('sample', job.jobId, admitted.assessmentId).status).toBe('interrupted'));
+    const original = old.assessmentDetail('sample', job.jobId, admitted.assessmentId);
+    await old.close();
+    const candidates = scriptedCandidates(root, { [baseline]: source('0', baseline), [first]: source('1', baseline) });
+    const resumed = await AssistanceService.open({ projectRoot: root, assessor: createAssessor({ candidates,
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async () => { throw new Error('Accepted review must be reused'); },
+      reconcile: async () => { throw new Error('Accepted reconciliation must be reused'); },
+    }) });
+    services.push(resumed);
+    await resumed.assessmentResume('sample', job.jobId, admitted.assessmentId);
+    await vi.waitFor(() => expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).revision).toBeGreaterThan(original.revision));
+    const result = await outcome(resumed, job.jobId, admitted.assessmentId);
+    expect(result.gate).toBe(scenario === 'committed' ? 'action-required' : 'incomplete');
+    if (scenario !== 'committed') expect(result.gaps.join(' ')).toContain('Finding revisions changed after reconciliation was accepted');
+    expect(resumed.assessmentDetail('sample', job.jobId, admitted.assessmentId).stages.find(stage => stage.name === 'reconciliation-accepted')).toEqual(
+      original.stages.find(stage => stage.name === 'reconciliation-accepted'));
+    expect(resumed.findings('sample', job.jobId).flatMap(finding => finding.decisions)).toHaveLength(1);
+  });
+
   it('carries a semantic repair across candidates and closes it only after fresh source assessment', async () => {
     const visits: string[] = [];
     const { service, job, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline),
