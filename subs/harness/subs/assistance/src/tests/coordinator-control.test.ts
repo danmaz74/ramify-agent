@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { verifyCoordinatorEquipment, startCoordinatorHost } from '../coordinator-host.js';
-import { CoordinatorStore, readCoordinator } from '../coordinator-store.js';
+import { CoordinatorStore, readCoordinator, coordinatorHash } from '../coordinator-store.js';
+import { launchCoordinator } from '../coordinator-client.js';
 import { parseCoordinateOptions } from '../coordinator-options.js';
 import { coordinatorStartSchema, type CoordinatorRecord } from '../coordinator-contracts.js';
 import type { CodexEquipment } from '../../../agent/subs/codex/src/interfaces/provider.js';
@@ -41,7 +42,8 @@ test('durable controls coalesce concurrent retry, reject identity conflicts and 
 test('coordinate parsing retains exact replacement names and stable control identity while rejecting inapplicable flags', () => {
   expect(parseCoordinateOptions(['start', '--project', '/target', '--plan', 'p', '--replace-mcp', 'ramify-agent', '--replace-mcp=another', '--model', 'chosen', '--json'])).toMatchObject({ action: 'start', model: 'chosen', replaceMcp: ['ramify-agent', 'another'], json: true });
   expect(parseCoordinateOptions(['respond', '--project', '/target', '--id', 'c', '--command-id', 'once', '--request', 'native:generation:request', '--response-file', '/answer'])).toMatchObject({ requestId: 'native:generation:request', commandId: 'once' });
-  for (const args of [['send', '--project', '/p'], ['status', '--project', '/p', '--model', 'x'], ['stop', '--project', '/p', '--id', 'c', '--replace-mcp', 'old'], ['watch', '--project', '/p', '--id', 'c', '--after=-1']]) expect(() => parseCoordinateOptions(args)).toThrow();
+  expect(parseCoordinateOptions(['resume', '--project', '/p', '--id', 'previous', '--command-id', 'resume-once', '--fresh-thread', '--replace-mcp', 'extra', '--model', 'retained-choice'])).toMatchObject({ action: 'resume', id: 'previous', commandId: 'resume-once', freshThread: true, replaceMcp: ['extra'], model: 'retained-choice' });
+  for (const args of [['start', '--project', '/p', '--plan', 'p', '--fresh-thread'], ['send', '--project', '/p'], ['status', '--project', '/p', '--model', 'x'], ['stop', '--project', '/p', '--id', 'c', '--replace-mcp', 'old'], ['watch', '--project', '/p', '--id', 'c', '--after=-1']]) expect(() => parseCoordinateOptions(args)).toThrow();
 });
 
 test('scripted listener failure retains an honest failed phase and releases ownership before any registration or provider construction', async () => {
@@ -72,5 +74,39 @@ test('failed receipt persistence after provider acceptance preserves uncertainty
     await rm(log, { recursive: true }); await rename(saved, log);
     expect(await store.command('accepted-once', 'send', { message: 'Input' }, operation, describe)).toEqual(first); expect(calls).toBe(1);
     await store.settled();
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('continuation preserves completed and uncertain mutation admissions without replaying prior send or approval bodies', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-inherit-'));
+  const base = { schema: 'ramify-agent.coordinator/1', projectRoot: root, planId: 'plan', jobId: 'job', generation: 'generation', endpoint: null } as CoordinatorRecord;
+  const previous = { ...base, id: 'coord-11111111-1111-1111-1111-111111111111' };
+  const current = { ...base, id: 'coord-22222222-2222-2222-2222-222222222222', resumeFrom: previous.id };
+  const send = { action: 'send', commandId: 'uncertain-input', message: 'Do not replay accepted input' };
+  const response = { action: 'respond', commandId: 'completed-response', requestId: 'old-generation-request', response: { kind: 'approval', choiceId: '1' } };
+  try {
+    const old = await CoordinatorStore.create(previous);
+    // Exact committed admission at a scripted crash window; no outcome exists.
+    await writeFile(join(old.directory, 'commands.jsonl'), JSON.stringify({ sequence: 1, at: '2026-10-20T00:00:00Z', event: { commandId: send.commandId, action: send.action, hash: coordinatorHash(send), state: 'reserved' }, records: [] }) + '\n' + JSON.stringify({ sequence: 2, at: '2026-10-20T00:00:01Z', event: { commandId: response.commandId, action: response.action, hash: coordinatorHash(response), state: 'completed', result: { delivered: true, requestId: response.requestId } }, records: [] }) + '\n');
+    const store = await CoordinatorStore.create(current);
+    expect(await store.inherit(previous.id)).toEqual([{ commandId: send.commandId, action: 'send' }]);
+    let calls = 0; const effect = async () => { calls++; return {}; }; const describe = () => ({ kind: 'host', message: 'unexpected' });
+    expect(await store.command(send.commandId, send.action, send, effect, describe)).toMatchObject({ state: 'uncertain' });
+    expect(await store.command(response.commandId, response.action, response, effect, describe)).toMatchObject({ state: 'completed', result: { delivered: true } });
+    await expect(store.command(send.commandId, send.action, { ...send, message: 'changed' }, effect, describe)).rejects.toThrow(/conflicts/);
+    expect(calls).toBe(0);
+    const next = await CoordinatorStore.create({ ...current, id: 'coord-33333333-3333-3333-3333-333333333333', resumeFrom: current.id });
+    expect(await next.inherit(current.id)).toEqual([{ commandId: send.commandId, action: 'send' }]);
+    expect(await next.command(send.commandId, send.action, send, effect, describe)).toMatchObject({ state: 'uncertain' }); expect(calls).toBe(0);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('lost guardian evidence refuses launch before constructing any replacement process', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-lost-proof-'));
+  try {
+    const options = coordinatorStartSchema.parse({ projectRoot: root, planId: 'plan', commandId: 'never-start', skill: '/not-used-before-settlement' });
+    await CoordinatorStore.create({ schema: 'ramify-agent.coordinator/1', id: 'coord-11111111-1111-1111-1111-111111111111', generation: 'generation', projectRoot: root, planId: 'plan', endpoint: null, ownershipReleased: true, guardian: { path: join(root, 'missing-guardian.json'), generation: 'guardian' } } as CoordinatorRecord);
+    await expect(launchCoordinator(options, 100)).rejects.toMatchObject({ code: 'ENOENT' });
+    // Ordinary process guard verifies that missing evidence caused no launch.
   } finally { await rm(root, { recursive: true, force: true }); }
 });

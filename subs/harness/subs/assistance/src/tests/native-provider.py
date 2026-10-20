@@ -5,25 +5,31 @@ import os
 import sys
 import time
 import tomllib
+import uuid
 from pathlib import Path
 
 root = Path.cwd()
 history = root / 'history.json'
 thread = None
-configuration = {}
+configuration = {'old-stdio': {'command': 'scripted-original-command'}}
 for index, argument in enumerate(sys.argv):
     if argument == '-c':
         override = tomllib.loads(sys.argv[index + 1])
         for name, entry in override.get('mcp_servers', {}).items():
             configuration.setdefault(name, {}).update(entry)
-host_mode = bool(configuration)
+for name, entry in configuration.items():
+    if 'command' not in entry and 'url' not in entry:
+        raise RuntimeError('invalid transport in mcp_servers.' + name)
+host_mode = True
 turn_number = 0
+orphan_started = False
 
 def output(value):
     print(json.dumps(value), flush=True)
 
 
 def orphan():
+    (root / 'writer.pid').unlink(missing_ok=True)
     parent = os.fork()
     if parent == 0:
         pid = os.fork()
@@ -67,33 +73,40 @@ for line in sys.stdin:
         result = {'config': {'model': 'gpt-6-astra', 'approval_policy': 'on-request', 'sandbox_mode': 'workspace-write', 'mcp_servers': configuration}}
     elif method in ('thread/start', 'thread/resume'):
         if method == 'thread/start':
-            thread = {'id': 'persistent-native-thread', 'parentThreadId': None, 'ephemeral': params['ephemeral'], 'cwd': params['cwd'], 'model': params['model'],
+            thread = {'id': 'persistent-native-thread' if not (root / 'writer.pid').exists() else 'persistent-native-thread-' + uuid.uuid4().hex, 'parentThreadId': None, 'ephemeral': params['ephemeral'], 'cwd': params['cwd'], 'model': params['model'],
                       'cliVersion': 'native-script/1', 'status': {'type': 'idle'}, 'turns': []}
         else:
+            if not history.exists():
+                output({'id': request['id'], 'error': {'code': -32600, 'message': 'no rollout found for thread id ' + params['threadId']}})
+                continue
             thread = json.loads(history.read_text())
+            turn_number = max([int(turn['id'].rsplit('-', 1)[-1]) for turn in thread['turns'] if turn['id'].rsplit('-', 1)[-1].isdigit()] or [0])
         history.write_text(json.dumps(thread))
         result = {'thread': thread, 'model': params['model'], 'instructionSources': [], 'approvalPolicy': 'on-request', 'sandbox': {'type': 'workspaceWrite'}}
     elif method == 'thread/read':
         result = {'thread': json.loads(history.read_text())}
     elif method == 'turn/start':
         message = params['input'][0]['text']
-        if turn_number == 0:
+        if not orphan_started:
             orphan()
+            orphan_started = True
         turn_number += 1
         turn = {'id': 'native-turn-' + str(turn_number) if host_mode else 'native-turn', 'status': 'inProgress', 'error': None, 'items': [{'id': 'input', 'type': 'userMessage', 'content': params['input']}]}
-        thread['turns'] = [turn]
+        thread['turns'].append(turn)
         thread['status'] = {'type': 'active'}
         history.write_text(json.dumps(thread))
         output({'method': 'turn/started', 'params': {'threadId': thread['id'], 'turn': turn}})
         result = {'turn': turn}
     elif method == 'turn/interrupt':
-        thread['turns'][0]['status'] = 'interrupted'
+        thread['turns'][-1]['status'] = 'interrupted'
         thread['status'] = {'type': 'idle'}
         history.write_text(json.dumps(thread))
-        output({'method': 'turn/completed', 'params': {'threadId': thread['id'], 'turn': thread['turns'][0]}})
+        output({'method': 'turn/completed', 'params': {'threadId': thread['id'], 'turn': thread['turns'][-1]}})
         result = {}
     else:
         output({'id': request['id'], 'error': {'code': -32601, 'message': method}})
+        continue
+    if method == 'turn/start' and message == 'hold-ack':
         continue
     output({'id': request['id'], 'result': result})
     if method == 'turn/start' and message == 'exit-with-child':

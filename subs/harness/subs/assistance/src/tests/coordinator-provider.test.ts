@@ -166,3 +166,30 @@ test.each([false, true])('prepared consumer admits follow-up after terminal repl
   expect(script.written.filter(frame => frame.method === 'turn/start')).toHaveLength(2);
   await prepared.provider.stop();
 });
+
+test('missing retained history permits a fresh persistent context while preserving explicit thread MCP rebinding', async () => {
+  const settings = { ...inputs().thread, mcp: [{ name: 'old', enabled: false as const }, { name: 'fresh', url: 'http://127.0.0.1:4321/mcp', bearerTokenEnvVar: 'PRIVATE_ENV_NAME', required: true as const, toolTimeoutSeconds: 960 }] };
+  const script = scriptForPreparation({ session: (transport, frame) => {
+    if (frame.method === 'thread/resume') transport.receive({ id: frame.id!, error: { code: -32600, message: 'no rollout found for thread id thread-1' } });
+    else transport.receive({ id: frame.id!, result: testSession({ id: 'fresh-thread' }) });
+  } });
+  let reason: string | undefined;
+  const prepared = await prepareCoordinatorProvider({ ...inputs(), thread: settings, resumeThreadId: 'thread-1', allowMissingThreadFallback: true, onThreadFallback: value => { reason = value; } }, script.provider);
+  expect(prepared.session.thread).toMatchObject({ id: 'fresh-thread', ephemeral: false }); expect(reason).toContain('no rollout found');
+  const requests = script.written.filter(frame => frame.method === 'thread/resume' || frame.method === 'thread/start');
+  expect(requests.map(frame => frame.method)).toEqual(['thread/resume', 'thread/start']);
+  for (const request of requests) expect(request.params).toMatchObject({ config: { 'mcp_servers.old.enabled': false, 'mcp_servers.fresh': { url: 'http://127.0.0.1:4321/mcp', bearer_token_env_var: 'PRIVATE_ENV_NAME', required: true, tool_timeout_sec: 960 } } });
+  expect(requests[1]!.params!.ephemeral).toBe(false);
+});
+
+test.each(['connection lost; acceptance uncertain', 'required MCP unavailable'])('resume failure %s never invents a fresh fallback', async message => {
+  const script = scriptForPreparation({ session: (transport, frame) => transport.receive({ id: frame.id!, error: { code: -32000, message } }) });
+  await expect(prepareCoordinatorProvider({ ...inputs(), resumeThreadId: 'thread-1', allowMissingThreadFallback: true }, script.provider)).rejects.toThrow(message);
+  expect(script.written.filter(frame => frame.method === 'thread/start')).toHaveLength(0);
+});
+
+test('provider exit during resume retains uncertain acceptance and cannot start a fresh conversation', async () => {
+  const script = scriptForPreparation({ session: transport => transport.exit(17) });
+  await expect(prepareCoordinatorProvider({ ...inputs(), resumeThreadId: 'thread-1', allowMissingThreadFallback: true }, script.provider)).rejects.toMatchObject({ kind: 'uncertain', method: 'thread/resume' });
+  expect(script.written.filter(frame => frame.method === 'thread/start')).toHaveLength(0);
+});

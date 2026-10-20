@@ -5,9 +5,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
+import { ownedTreeKernelPath } from '../../../src/owned-tree-kernel.js';
+import { requireCoordinatorSettlement, coordinatorOwnerAlive } from './coordinator-recovery.js';
 import type { CoordinateOptions } from './coordinator-options.js';
 import { coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorRuntime, type CoordinatorControlResult, type CoordinatorWatch, type CoordinatorCommand } from './coordinator-contracts.js';
-import { readCoordinator, coordinatorHash } from './coordinator-store.js';
+import { readCoordinator, coordinatorHash, coordinatorDirectory } from './coordinator-store.js';
 
 function runtimeUrl(runtime: CoordinatorRuntime, path: string): URL {
   const url = new URL(runtime.endpoint);
@@ -45,21 +47,27 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
   let releasedPredecessor: string | undefined;
   try {
     const prior = await readCoordinator(options.projectRoot);
-    if (prior.record.ownershipReleased) releasedPredecessor = prior.record.id;
-    if (!prior.record.ownershipReleased) {
+    const continuing = options.resumeFrom === prior.record.id;
+    if (continuing || prior.record.ownershipReleased) await requireCoordinatorSettlement(prior.record, timeoutMs);
+    if (prior.record.ownershipReleased || continuing) releasedPredecessor = prior.record.id;
+    if (!prior.record.ownershipReleased && !continuing) {
       verifyStart(prior.record, options, hash);
       selected = prior.record.id;
       const current = await coordinatorStatus(options.projectRoot, selected);
       if (current.stale && !['starting', 'listening'].includes(current.record.phase)) throw new Error(`Coordinator ${selected} is unreachable; retained ownership is unconfirmed. Inspect status before explicit recovery.`);
     }
-  } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+  } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'COORDINATOR_NOT_FOUND') throw error; }
   if (selected === undefined) {
     const directory = await mkdtemp(join(tmpdir(), 'ramify-coordinate-'));
     const launchPath = join(directory, 'launch.json'); diagnostics = join(directory, 'diagnostics.log');
-    await writeFile(launchPath, JSON.stringify(options), { mode: 0o600 });
+    if (process.platform !== 'linux') throw new Error('Detached coordinator ownership requires Linux /proc and Python 3');
+    const id = `coord-${randomUUID()}`;
+    const guardian = { path: join(coordinatorDirectory(options.projectRoot), id, 'guardian.json'), generation: randomUUID() };
+    const launchReceipt = join(directory, 'guardian.json');
+    await writeFile(launchPath, JSON.stringify({ options, guardian, id }), { mode: 0o600 });
     const output = await open(diagnostics, 'a', 0o600);
     try {
-      child = spawn(process.execPath, ['--import', import.meta.resolve('tsx'), fileURLToPath(new URL('./coordinator-entry.ts', import.meta.url)), launchPath], { cwd: options.projectRoot, detached: true, stdio: ['ignore', output.fd, output.fd] });
+      child = spawn('python3', [fileURLToPath(new URL('./coordinator-guardian.py', import.meta.url)), ownedTreeKernelPath(), launchReceipt, guardian.generation, process.execPath, '--import', import.meta.resolve('tsx'), fileURLToPath(new URL('./coordinator-entry.ts', import.meta.url)), launchPath], { cwd: options.projectRoot, env: { ...process.env, RAMIFY_COORDINATOR_GUARDIAN_RECORD: guardian.path }, detached: true, stdio: ['ignore', output.fd, output.fd] });
       let launchError: Error | undefined; child.once('error', error => { launchError = error; }); child.unref();
       await delay(0); if (launchError !== undefined) throw launchError;
     } finally { await output.close(); }
@@ -67,12 +75,13 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
   while (Date.now() < deadline) {
     try {
       const status = await coordinatorStatus(options.projectRoot, selected, Math.min(5000, deadline - Date.now()));
-      if (status.record.id === releasedPredecessor && status.record.ownershipReleased) { await delay(100); continue; }
-      verifyStart(status.record, options, hash);
-      selected = status.record.id;
-      if (!status.stale && (status.record.phase === 'ready' && status.record.turn !== null || ['error', 'provider-exited', 'unsettled'].includes(status.record.phase))) return status;
-      if (status.record.ownershipReleased) throw new Error(`Coordinator ${selected} released ownership during startup: ${status.record.error}`);
-    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+      if (status.record.id !== releasedPredecessor) {
+        verifyStart(status.record, options, hash);
+        selected = status.record.id;
+        if (!status.stale && (status.record.phase === 'ready' && status.record.turn !== null && status.record.initialTurnAcknowledged !== false || ['error', 'provider-exited', 'unsettled'].includes(status.record.phase))) return status;
+        if (status.record.ownershipReleased) throw new Error(`Coordinator ${selected} released ownership during startup: ${status.record.error}`);
+      }
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'COORDINATOR_NOT_FOUND') throw error; }
     // A losing child can exit after another compatible host wins ownership.
     // Once observed, that owner's readiness is independent of this child.
     if (child !== undefined && child.exitCode !== null && selected === undefined) {
@@ -85,15 +94,35 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
 }
 
 export async function coordinatorControl(root: string, id: string, command: CoordinatorCommand, timeoutMs: number): Promise<CoordinatorControlResult> {
-  const { runtime } = await readCoordinator(root, id);
+  const { record, runtime } = await readCoordinator(root, id);
   if (runtime === null) throw new Error('Coordinator listener is unavailable; command was not delivered');
-  try { return await request(runtime, '/control', timeoutMs, command); }
+  let result: CoordinatorControlResult;
+  try { result = await request(runtime, '/control', timeoutMs, command); }
   catch (error) { throw new Error(`Command ${command.commandId} delivery may be uncertain; retry only this same identity and arguments. ${error instanceof Error ? error.message : String(error)}`); }
+  if (command.action === 'stop' && result.state === 'completed' && record.guardian !== undefined) {
+    try { await requireCoordinatorSettlement(record, timeoutMs); }
+    catch (error) { return { ...result, state: 'uncertain', error: { kind: 'uncertain', message: `Stop acknowledged, but host-tree settlement is unconfirmed: ${error instanceof Error ? error.message : String(error)}` } }; }
+  }
+  return result;
 }
 export async function runCoordinateCommand(options: CoordinateOptions, output: (text: string) => void = text => process.stdout.write(text)): Promise<number> {
   const root = await realpath(resolve(options.projectRoot));
   const print = (value: unknown) => output(`${JSON.stringify(value, null, options.json ? undefined : 2)}\n`);
-  if (options.action === 'resume') throw new Error('Crash continuation is not available in this iteration; status preserves the original execution for explicit recovery');
+  if (options.action === 'resume') {
+    const previous = (await readCoordinator(root, options.id)).record;
+    if (previous.jobId === null) throw new Error('No assisted registration was retained; inspect the failed startup before continuing');
+    if (!previous.ownershipReleased && await coordinatorOwnerAlive(previous)) {
+      const current = await coordinatorStatus(root, previous.id, options.timeoutMs);
+      if (current.stale) throw new Error('Previous host is alive but unreachable; settlement is unconfirmed; replacement refused');
+      const stopped = await coordinatorControl(root, previous.id, { action: 'stop', commandId: `resume-stop:${previous.generation}` }, options.timeoutMs);
+      if (stopped.state !== 'completed') throw new Error(`Previous host stop is ${stopped.state}; replacement refused. ${stopped.error?.message ?? ''}`);
+    }
+    const settled = (await readCoordinator(root, previous.id)).record;
+    await requireCoordinatorSettlement(settled, options.timeoutMs);
+    const original = await readFile(join(coordinatorDirectory(root), previous.id, 'task.json'), 'utf8').then(value => (JSON.parse(value) as { message: string }).message).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''; throw error; });
+    const input = coordinatorStartSchema.parse({ projectRoot: root, planId: previous.planId, jobId: previous.jobId, commandId: options.commandId ?? `resume:${randomUUID()}`, model: options.model ?? previous.model, workerModel: options.workerModel ?? previous.workerModel, assessmentModel: options.assessmentModel ?? previous.assessmentModel, replaceMcp: [...new Set([...previous.replaceMcp, `ramify_host_${previous.generation.replaceAll('-', '')}`, ...options.replaceMcp])], skill: options.skill ?? previous.skill, message: `${original}${options.messageFile === undefined ? '' : `\n${await readFile(options.messageFile, 'utf8')}`}`, codexExecutable: options.codexExecutable ?? previous.codexExecutable, resumeFrom: previous.id, freshThread: options.freshThread });
+    const status = await launchCoordinator(input, options.timeoutMs); print(status); return status.record.phase === 'ready' ? 0 : 2;
+  }
   if (options.action === 'start') {
     const input = coordinatorStartSchema.parse({ projectRoot: root, planId: options.planId, jobId: options.jobId, commandId: options.commandId ?? `coordinate:${randomUUID()}`, model: options.model, workerModel: options.workerModel, assessmentModel: options.assessmentModel, replaceMcp: options.replaceMcp, skill: options.skill ?? fileURLToPath(new URL('../../../../../.agents/skills/ramify-agent-coordinate/SKILL.md', import.meta.url)), message: options.messageFile === undefined ? '' : await readFile(options.messageFile, 'utf8'), codexExecutable: options.codexExecutable });
     const status = await launchCoordinator(input, options.timeoutMs); print(status); return status.record.phase === 'ready' ? 0 : 2;

@@ -1,0 +1,161 @@
+{
+  "capturedAt": "2026-10-20T01:03:19.034835+00:00",
+  "base": "8785a35e7d14610e4883a684714587a781a14934",
+  "files": [
+    {
+      "path": ".agents/skills/ramify-agent-coordinate/SKILL.md",
+      "sha256": "1c2b4f81db873e7b6d9c34f0e4b895bafee7cc32ab9de1ab907f5f1f9735b950",
+      "bytes": 15161
+    },
+    {
+      "path": "README.md",
+      "sha256": "8b428a23b9e6ca73ea934360cc6677d5f7bec76c5fa81cf07050156250666f4a",
+      "bytes": 37299
+    },
+    {
+      "path": "docs/agent-assistance.md",
+      "sha256": "e0a52e37829d0b9349c8469ba881dc54aeb0297ff4ff8979c624ae9ba12f3bd7",
+      "bytes": 28389
+    },
+    {
+      "path": "docs/architecture/agent-assistance/service.spec.md",
+      "sha256": "75e1e0debe60d150058b4e5277150ac643e6262f7a99a784eb407d2c0394c506",
+      "bytes": 27173
+    },
+    {
+      "path": "src/cli.ts",
+      "sha256": "1e20b4751141f35640d5a2acbc6b1115171e4278b22c6ad08d2b3976bc3d0669",
+      "bytes": 36845
+    },
+    {
+      "path": "src/tests/coordinator-launch.boundary.test.ts",
+      "sha256": "2b6764b52bda43510e362de36e71a510b70cb5dd747eaff4a635eee2b6454214",
+      "bytes": 19421
+    },
+    {
+      "path": "src/tests/test-boundaries.json",
+      "sha256": "f6fc63b9e06903f520efe4767e063380467df3453a5d9e260c29c32e6c798167",
+      "bytes": 53728
+    },
+    {
+      "path": "subs/harness/module.ramify",
+      "sha256": "dffcb0963a4ff7500603cd6d27ccf6927a1bcacb6922bfa592f1196b8a37c5c9",
+      "bytes": 62731
+    },
+    {
+      "path": "subs/harness/src/owned-tree-kernel.py",
+      "sha256": "2ec8841ea59df94d47e31e4ed6d289e97df42be62ae8d753ad06205edd1af0b4",
+      "bytes": 2778
+    },
+    {
+      "path": "subs/harness/src/owned-tree-kernel.ts",
+      "sha256": "e75c363ce0e343cbe2435d78601013d2a4d86b5c94cb094e40cd1c45eb5de48a",
+      "bytes": 247
+    },
+    {
+      "path": "subs/harness/subs/agent/subs/codex/src/connection.ts",
+      "sha256": "bbd824d91381a2d33a9cb224cc395b404962587427c3fb488ef9258fbed84910",
+      "bytes": 7027
+    },
+    {
+      "path": "subs/harness/subs/agent/subs/codex/src/interfaces/provider.ts",
+      "sha256": "9a15a4061c880424cc8b51b60fb332c84446240a10054313f05b93920a28d623",
+      "bytes": 7899
+    },
+    {
+      "path": "subs/harness/subs/agent/subs/codex/src/provider.ts",
+      "sha256": "9f82a5fe128eee7fe28f0131ee1b1309a21614359b52dd66173305e689e1050b",
+      "bytes": 32514
+    },
+    {
+      "path": "subs/harness/subs/agent/subs/codex/src/supervisor.py",
+      "sha256": "7d8f22230bda832b8ee5bf6abd39b4f2b856a1fe2891d627e0c568998d998d4e",
+      "bytes": 2928
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-client.ts",
+      "sha256": "7109370cfa9f64e84273ab66dc1ff63572ae6e3462888d4805d4c11326acfd0a",
+      "bytes": 14059
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-contracts.ts",
+      "sha256": "854b2b3aca69dd6222b42ff970277beec5e52483da0fd572a6ea0d43bd577a03",
+      "bytes": 4526
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-entry.ts",
+      "sha256": "02606a2fd5b76d0cb84035f87424129ccd8af586b4c6aeb972eb71da55d853be",
+      "bytes": 1188
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-guardian.py",
+      "sha256": "f41e070d7e699b8f472cb0e9a01c6400b3ac061a22b421f839b49e88bcbe7fb9",
+      "bytes": 2547
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-host.ts",
+      "sha256": "9f6011217ca767461aa895a3a8d618a3147c0fd4e8b5569fcad193f56e3a3c6a",
+      "bytes": 28823
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-options.ts",
+      "sha256": "c5cfb2386ed708914f62cf50386dc142db4ebeef622bf72492fe18c7afd34be0",
+      "bytes": 4472
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-provider.ts",
+      "sha256": "e34efbcaa674ee27986a5794f02de2200d45e8c45c69e7573c2238640dfa9a5a",
+      "bytes": 4802
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-recovery.ts",
+      "sha256": "a794c5212d25d6abcad6d388bb19ab5fa6aa390b87ddd5d26cb0ac2e630ca609",
+      "bytes": 3109
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/coordinator-store.ts",
+      "sha256": "f5dc51fe0d92eea65d003b12ee0ed1281fff663788e7457d9df00cf0bf98dd7f",
+      "bytes": 9993
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/coordinator-control.test.ts",
+      "sha256": "4468b3184e5ced42ce56cb16bfe50177a653ae55b168e5ed98ec1feae4d97b7a",
+      "bytes": 11241
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/coordinator-guardian.boundary.test.ts",
+      "sha256": "72b3f3c695acc33ba6fb35fa73ce3d74daf32509a75ed93254b5d5be2a2358ba",
+      "bytes": 6857
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/coordinator-host.boundary.test.ts",
+      "sha256": "34ae49707941d77095ad53597aa82db5f1ba2a3f21cb52d0f086d0e8558e94fd",
+      "bytes": 25945
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/coordinator-provider.test.ts",
+      "sha256": "85701486fdb541793ecfaae219937ed47d1f09ce7b992b968577fdececd6caa5",
+      "bytes": 16016
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/coordinator-read.test.ts",
+      "sha256": "fdbb2aea65632473ad293f18f19fd4560d520b91f6e6b50043c0d794fa6d72d5",
+      "bytes": 3026
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/coordinator-recovery.test.ts",
+      "sha256": "d60a0c63a2533ec3d82b85de3b74301884ef47f7bf396b036eb1777c52f403db",
+      "bytes": 3439
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/native-provider.py",
+      "sha256": "fc5c27d54cda6c53006e43bf3dff5b6475b0c19c95da6c89820ba390cdc1e598",
+      "bytes": 5338
+    },
+    {
+      "path": "subs/harness/subs/assistance/src/tests/native-recovery-host.ts",
+      "sha256": "e19aac5363a551a902365e8eb77790ff3a613475c22fef46e365b9cc90834042",
+      "bytes": 1828
+    }
+  ]
+}

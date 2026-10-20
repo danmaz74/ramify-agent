@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import type { Readable, Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 import { z } from 'zod';
+import { ownedTreeKernelPath } from '../../../../../src/owned-tree-kernel.js';
 import type { CodexProcessIdentity, CodexProviderOptions, CodexSettlement } from './interfaces/provider.js';
 
 /** Private seam for deterministic protocol scripts; no wire objects cross the module. */
@@ -49,7 +50,7 @@ export function nativeCodexConnection(options: CodexProviderOptions): CodexConne
       return await new Promise<CodexProcessIdentity>((resolve, reject) => {
         let ready = false;
         const timer = setTimeout(() => reject(new Error('Codex supervisor readiness timed out')), options.requestTimeoutMs ?? 30_000);
-        child = spawn('python3', [fileURLToPath(new URL('./supervisor.py', import.meta.url)), options.executable ?? 'codex',
+        child = spawn('python3', [fileURLToPath(new URL('./supervisor.py', import.meta.url)), ownedTreeKernelPath(), options.executable ?? 'codex',
           'app-server', '--listen', 'stdio://', ...(options.configOverrides ?? []).flatMap(value => ['-c', value])], {
           cwd: options.cwd, env: { ...(options.env ?? process.env), RAMIFY_CODEX_SETTLE_SECONDS: String(timeoutMs / 1000) },
           detached: true, stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'],

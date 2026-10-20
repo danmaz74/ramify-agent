@@ -1,9 +1,9 @@
 import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, vi } from 'vitest';
 
@@ -50,8 +50,12 @@ test('detached CLI host survives its launching command, reconnects without anoth
     expect(() => process.kill(writer!, 0)).toThrow(); expect(() => process.kill(started!.record.readiness.process.providerPid, 0)).toThrow();
     const record = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', started.record.id, 'record.json'), 'utf8'));
     expect(record).toMatchObject({ phase: 'stopped', ownershipReleased: true });
+    expect(record.guardian.path).toBe(join(root, 'plans', '.harness', 'coordinators', record.id, 'guardian.json'));
+    expect((await stat(record.guardian.path)).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(await readFile(record.guardian.path, 'utf8')).state).toBe('settled');
     expect(record.progress.some((event: { event: { kind: string } }) => event.event.kind === 'stopped')).toBe(true);
     const history = JSON.parse(await readFile(join(root, 'history.json'), 'utf8')); expect(history.ephemeral).toBe(false);
+    await expect(cli(root, 'start', ['--plan', 'sample', '--job', started.record.jobId, '--skill', join(root, 'missing-skill.md')])).rejects.toThrow(/Detached host exited before readiness.*ENOENT/s);
     restarted = await cli(root, 'start', ['--plan', 'sample', '--job', started.record.jobId, '--replace-mcp', 'old-stdio', '--codex-executable', executable]) as Snapshot;
     expect(restarted.record.id).not.toBe(started.record.id); expect(restarted.record.jobId).toBe(started.record.jobId); expect(restarted.stale).toBe(false);
   } finally {
@@ -108,3 +112,92 @@ test('concurrent detached starts enforce full admitted arguments while identical
     }
   }
 }, 45000);
+
+async function recoveryFixture() {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-recovery-'));
+  await mkdir(join(root, 'plans', 'sample'), { recursive: true });
+  await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Interrupted source recovery native witness\n');
+  await writeFile(join(root, '.gitignore'), 'history.json\nwriter.pid\nheartbeat\n');
+  await execute('git', ['init', '-q'], { cwd: root }); await execute('git', ['add', '.'], { cwd: root });
+  await execute('git', ['-c', 'user.name=Native witness', '-c', 'user.email=native@example.invalid', 'commit', '-qm', 'Native recovery fixture'], { cwd: root });
+  const baseline = (await execute('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
+  return { root, baseline };
+}
+const initialFlags = ['--plan', 'sample', '--replace-mcp', 'old-stdio', '--command-id', 'recover-start', '--codex-executable', executable];
+async function retained(root: string, id: string) { return JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', id, 'record.json'), 'utf8')); }
+async function cleanupRecovery(root: string, started?: Snapshot) {
+  const current = await cli(root, 'status').catch(() => undefined) as Snapshot | undefined;
+  for (const host of [current, started]) if (host !== undefined) { try { await cli(root, 'stop', ['--id', host.record.id, '--command-id', `cleanup:${host.record.id}`]); } catch { /* already exited fixture */ } }
+  await rm(root, { recursive: true, force: true });
+}
+
+test('resume after host crash requires guardian settlement and preserves job, partial files, persistent history and uncertain mutations', async () => {
+  const { root, baseline } = await recoveryFixture(); let started: Snapshot | undefined;
+  const unrelated = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { cwd: root, stdio: 'ignore' });
+  try {
+    started = await cli(root, 'start', initialFlags) as Snapshot;
+    await writeFile(join(root, 'partial.txt'), 'staged partial work\n'); await execute('git', ['add', 'partial.txt'], { cwd: root });
+    await writeFile(join(root, 'untracked.txt'), 'unfinished source\n');
+    await cli(root, 'interrupt', ['--id', started.record.id, '--command-id', 'before-uncertain']);
+    const message = join(root, 'message.txt'); await writeFile(message, 'hold-ack');
+    const sending = cli(root, 'send', ['--id', started.record.id, '--command-id', 'uncertain-before-crash', '--message-file', message, '--timeout-ms', '1000']).catch(error => error);
+    await vi.waitFor(async () => expect(await readFile(join(root, 'history.json'), 'utf8')).toContain('hold-ack'), { timeout: 10000 });
+    const writer = Number(await readFile(join(root, 'writer.pid'), 'utf8'));
+    const ownership = await retained(root, started.record.id); const guardianReceipt = JSON.parse(await readFile(ownership.guardian.path, 'utf8'));
+    const guardianCommand = (await readFile(`/proc/${guardianReceipt.pid}/cmdline`, 'utf8')).split('\0');
+    const launchReceipt = guardianCommand[3]!; expect(launchReceipt.startsWith(join(tmpdir(), 'ramify-coordinate-'))).toBe(true);
+    // Durable ownership evidence must survive removal of ephemeral launch files.
+    await rm(dirname(launchReceipt), { recursive: true, force: true });
+    process.kill(started.record.owner.pid, 'SIGKILL'); await sending;
+    const resumed = await cli(root, 'resume', ['--id', started.record.id, '--command-id', 'resume-once']) as Snapshot;
+    expect(resumed).toMatchObject({ stale: false, record: { phase: 'ready', jobId: started.record.jobId, threadId: started.record.threadId, recovery: { thread: 'resumed', uncertainCommands: [{ commandId: 'uncertain-before-crash', action: 'send' }] } } });
+    expect(resumed.record.id).not.toBe(started.record.id);
+    expect(() => process.kill(writer, 0)).toThrow(); expect(() => process.kill(started!.record.readiness.process.providerPid, 0)).toThrow();
+    expect(() => process.kill(unrelated.pid!, 0)).not.toThrow();
+    expect(await readFile(join(root, 'partial.txt'), 'utf8')).toBe('staged partial work\n'); expect(await readFile(join(root, 'untracked.txt'), 'utf8')).toBe('unfinished source\n');
+    expect((await execute('git', ['diff', '--cached', '--name-only'], { cwd: root })).stdout.trim()).toBe('partial.txt');
+    const job = JSON.parse(await readFile(join(root, 'plans', 'sample', '.harness', 'jobs', started.record.jobId, 'job.json'), 'utf8')); expect(job.protection.baselineCommit).toBe(baseline);
+    const history = JSON.parse(await readFile(join(root, 'history.json'), 'utf8')); expect(history.turns.filter((turn: { items: { content: { text: string }[] }[] }) => turn.items[0]?.content[0]?.text === 'hold-ack')).toHaveLength(1);
+    const retry = await cli(root, 'send', ['--id', resumed.record.id, '--command-id', 'uncertain-before-crash', '--message-file', message]).catch(error => JSON.parse(error.stdout));
+    expect(retry).toMatchObject({ state: 'uncertain', error: { kind: 'uncertain' } });
+    const again = await cli(root, 'resume', ['--id', started.record.id, '--command-id', 'resume-once']) as Snapshot; expect(again.record.id).toBe(resumed.record.id);
+    const previous = await retained(root, started.record.id), current = await retained(root, resumed.record.id);
+    expect(JSON.parse(await readFile(previous.guardian.path, 'utf8'))).toMatchObject({ state: 'settled' });
+    expect(current.replaceMcp).toContain(`ramify_host_${previous.generation.replaceAll('-', '')}`);
+    const oldRuntime = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', previous.id, 'runtime.json'), 'utf8'));
+    const newRuntime = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', current.id, 'runtime.json'), 'utf8'));
+    expect(newRuntime.token).not.toBe(oldRuntime.token); expect(newRuntime.endpoint).not.toBe(oldRuntime.endpoint);
+  } finally { unrelated.kill('SIGKILL'); await once(unrelated, 'close'); await cleanupRecovery(root, started); }
+}, 45000);
+
+test('explicit resume after provider exit settles descendants and supports missing history plus fresh persistent contexts', async () => {
+  const { root, baseline } = await recoveryFixture(); let started: Snapshot | undefined;
+  try {
+    started = await cli(root, 'start', initialFlags) as Snapshot;
+    const writer = Number(await readFile(join(root, 'writer.pid'), 'utf8')); process.kill(started.record.readiness.process.providerPid, 'SIGKILL');
+    await vi.waitFor(async () => expect((await cli(root, 'status') as Snapshot).record.phase).toBe('provider-exited'), { timeout: 10000 });
+    expect(() => process.kill(started!.record.owner.pid, 0)).not.toThrow(); expect(() => process.kill(writer, 0)).not.toThrow();
+    await rm(join(root, 'history.json'));
+    const resumed = await cli(root, 'resume', ['--id', started.record.id, '--command-id', 'missing-history']) as Snapshot;
+    expect(resumed).toMatchObject({ stale: false, record: { phase: 'ready', jobId: started.record.jobId, recovery: { thread: 'fresh', reason: expect.stringContaining('no rollout found') } } });
+    expect(resumed.record.threadId).not.toBe(started.record.threadId); expect(() => process.kill(writer, 0)).toThrow();
+    const fresh = await cli(root, 'resume', ['--id', resumed.record.id, '--command-id', 'explicit-fresh', '--fresh-thread']) as Snapshot;
+    expect(fresh).toMatchObject({ record: { phase: 'ready', jobId: started.record.jobId, recovery: { thread: 'fresh', reason: 'Fresh persistent context explicitly requested' } } });
+    expect(fresh.record.threadId).not.toBe(resumed.record.threadId);
+    const history = JSON.parse(await readFile(join(root, 'history.json'), 'utf8')); expect(history.ephemeral).toBe(false);
+    const job = JSON.parse(await readFile(join(root, 'plans', 'sample', '.harness', 'jobs', started.record.jobId, 'job.json'), 'utf8')); expect(job.protection.baselineCommit).toBe(baseline);
+  } finally { await cleanupRecovery(root, started); }
+}, 45000);
+
+test('guardian death without settlement acknowledgement refuses replacement even after known fixture processes stop', async () => {
+  const { root } = await recoveryFixture(); let started: Snapshot | undefined;
+  try {
+    started = await cli(root, 'start', initialFlags) as Snapshot;
+    const record = await retained(root, started.record.id); const guardian = JSON.parse(await readFile(record.guardian.path, 'utf8'));
+    const writer = Number(await readFile(join(root, 'writer.pid'), 'utf8')); process.kill(guardian.pid, 'SIGKILL');
+    await expect(cli(root, 'resume', ['--id', started.record.id, '--command-id', 'unproven-replacement'])).rejects.toThrow(/without settlement acknowledgement/);
+    await vi.waitFor(() => expect(() => process.kill(writer, 0)).toThrow());
+    const active = JSON.parse(await readFile(join(root, 'plans', '.harness', 'coordinators', 'active.json'), 'utf8')); expect(active.id).toBe(started.record.id);
+    expect(JSON.parse(await readFile(record.guardian.path, 'utf8')).state).toBe('running');
+  } finally { await cleanupRecovery(root, started); }
+}, 30000);

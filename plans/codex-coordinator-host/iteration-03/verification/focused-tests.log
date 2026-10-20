@@ -1,0 +1,8 @@
+
+ RUN  v4.1.11 /workspaces/worktrees/codex-coordinator-host
+
+
+ Test Files  13 passed (13)
+      Tests  191 passed (191)
+   Start at  00:59:54
+   Duration  77.54s (transform 13.55s, setup 1.56s, import 20.45s, tests 89.34s, environment 3ms)

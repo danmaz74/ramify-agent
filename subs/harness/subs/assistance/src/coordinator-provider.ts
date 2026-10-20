@@ -8,6 +8,8 @@ export interface CoordinatorProviderPreparation {
   readonly workerModel: string;
   readonly requiredMcp?: { readonly server: string; readonly tools: readonly string[] };
   readonly resumeThreadId?: string;
+  readonly allowMissingThreadFallback?: boolean;
+  readonly onThreadFallback?: (reason: string) => void;
   readonly verifyEquipment?: (equipment: CodexEquipment) => void;
   /** The host durably records verified thread identity before receiving input authority. */
   readonly retain: (session: CodexThreadSession, readiness: CodexReadiness) => Promise<void>;
@@ -39,7 +41,14 @@ export async function prepareCoordinatorProvider(input: CoordinatorProviderPrepa
       const missing = required.tools.filter(tool => !server?.tools.includes(tool));
       if (server === undefined || server.error !== null || missing.length > 0) throw new CodexProviderError('unavailable', `Required MCP equipment ${required.server} is unavailable: ${server?.error ?? missing.join(', ')}`);
     }
-    const session = input.resumeThreadId === undefined ? await provider.startThread(input.thread) : await provider.resumeThread(input.resumeThreadId, input.thread);
+    let session: CodexThreadSession;
+    if (input.resumeThreadId === undefined) session = await provider.startThread(input.thread);
+    else try { session = await provider.resumeThread(input.resumeThreadId, input.thread); }
+    catch (error) {
+      if (!input.allowMissingThreadFallback || !(error instanceof CodexProviderError) || error.kind !== 'rpc' || error.method !== 'thread/resume' || ![-32600, -32000].includes(error.rpcCode ?? 0) || !/^(?:no rollout found for thread|thread (?:[^ ]+ )?not found|thread .*does not exist)/i.test(error.message)) throw error;
+      input.onThreadFallback?.(error.message);
+      session = await provider.startThread(input.thread);
+    }
     await input.retain(session, readiness);
     // Query the loaded thread as well: project-local equipment can differ.
     const loadedEquipment = await provider.inspectEquipment(input.thread.cwd, session.thread.id);

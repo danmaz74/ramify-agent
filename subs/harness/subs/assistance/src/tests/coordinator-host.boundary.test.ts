@@ -203,3 +203,17 @@ test('startup runtime publication is observed as unready until the matching reco
     await writeFile(runtimePath, runtimeBody);
   } finally { release(); retain.mockRestore(); host ??= await starting; await stop(host); await rm(root, { recursive: true, force: true }); }
 }, 10000);
+
+test('historical turn observations cannot satisfy launch readiness before initial submission acknowledgement', async () => {
+  const { root, options } = await fixture(); let host: CoordinatorHost | undefined; let script!: ScriptedCodex; let held: Parameters<ScriptedCodex['onWrite']>[0] | undefined;
+  try {
+    host = await startCoordinatorHost(options, { assistance, runtime: { close: async () => undefined }, provider: launch => {
+      script = providerScript(launch, (transport, frame) => { held = frame; transport.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: testTurn('completed', 'historical-turn') } }); return true; }); return script.provider;
+    } });
+    await vi.waitFor(() => expect(held).toBeDefined());
+    expect((await host.snapshot()).record).toMatchObject({ phase: 'ready', turn: { id: 'historical-turn' }, initialTurnAcknowledged: false });
+    await expect(launchCoordinator(options, 100)).rejects.toThrow(/Launch outcome uncertain/);
+    script.receive({ id: held!.id, result: { turn: testTurn('inProgress', 'initial-turn') } }); await host.ready;
+    expect(await launchCoordinator(options, 1000)).toMatchObject({ record: { id: host.store.record.id, initialTurnAcknowledged: true } });
+  } finally { if (host !== undefined) await stop(host); await rm(root, { recursive: true, force: true }); }
+}, 10000);

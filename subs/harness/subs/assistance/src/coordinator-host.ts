@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import { createServer, type Server } from 'node:http';
 import { createCodexProvider } from '../../agent/subs/codex/src/provider.js';
 import { CodexProviderError, type CodexEquipment, type CodexEvent, type CodexProvider, type CodexProviderOptions } from '../../agent/subs/codex/src/interfaces/provider.js';
@@ -10,7 +11,8 @@ import { prepareCoordinatorProvider } from './coordinator-provider.js';
 import { nodeFetchHandler, configureLongWaitHttpServer } from './http-bridge.js';
 import { assistanceHttpSessions } from './http-mcp.js';
 import { coordinatorCommandSchema, coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorControlResult, type CoordinatorCommand } from './coordinator-contracts.js';
-import { CoordinatorStore, coordinatorHash } from './coordinator-store.js';
+import { requireCoordinatorSettlement } from './coordinator-recovery.js';
+import { CoordinatorStore, coordinatorHash, readCoordinator } from './coordinator-store.js';
 import { coordinatorProjection } from './coordinator-projection.js';
 
 const tokenEnvironment = 'RAMIFY_COORDINATOR_MCP_TOKEN';
@@ -24,6 +26,8 @@ export interface CoordinatorHost {
   readonly closed: Promise<void>;
 }
 export interface CoordinatorHostDependencies {
+  readonly id?: string;
+  readonly guardian?: { readonly path: string; readonly generation: string };
   readonly assistance?: Omit<AssistanceOptions, 'projectRoot'>;
   readonly provider?: (options: CodexProviderOptions) => CodexProvider;
   readonly runtime?: { readonly assessor?: Assessor; close(): Promise<void> };
@@ -43,25 +47,67 @@ export function verifyCoordinatorEquipment(equipment: CodexEquipment, name: stri
 export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: CoordinatorHostDependencies = {}): Promise<CoordinatorHost> {
   const options = coordinatorStartSchema.parse(raw);
   const projectRoot = await realpath(options.projectRoot);
+  if (dependencies.id !== undefined && !/^coord-[a-f0-9-]{36}$/.test(dependencies.id)) throw new Error('Invalid coordinator launch identity');
   await readFile(options.skill, 'utf8');
+  if (options.resumeFrom === undefined) {
+    const prior = await readCoordinator(projectRoot).catch(error => { if ((error as NodeJS.ErrnoException).code === 'COORDINATOR_NOT_FOUND') return undefined; throw error; });
+    if (prior !== undefined) {
+      if (!prior.record.ownershipReleased) throw new Error(`Coordinator ${prior.record.id} retains ownership; use explicit resume after settlement`);
+      await requireCoordinatorSettlement(prior.record);
+    }
+  }
+  const predecessor = options.resumeFrom === undefined ? undefined : (await readCoordinator(projectRoot, options.resumeFrom)).record;
+  if (predecessor !== undefined) {
+    if (predecessor.planId !== options.planId || predecessor.jobId === null || predecessor.jobId !== options.jobId) throw new Error('Continuation must preserve the retained plan/job identity');
+    const requiredDisabled = [...predecessor.replaceMcp, `ramify_host_${predecessor.generation.replaceAll('-', '')}`];
+    if (requiredDisabled.some(name => !options.replaceMcp.includes(name))) throw new Error('Continuation must retain previously disabled MCP entries and disable the preceding HTTP entry');
+    await requireCoordinatorSettlement(predecessor);
+  }
+  const lineage: CoordinatorRecord[] = [];
+  const ancestors = new Set<string>();
+  for (let prior = predecessor; prior !== undefined; prior = prior.resumeFrom === undefined ? undefined : (await readCoordinator(projectRoot, prior.resumeFrom)).record) {
+    if (ancestors.has(prior.id) || prior.planId !== options.planId || prior.jobId !== options.jobId) throw new Error('Coordinator continuation lineage is invalid');
+    ancestors.add(prior.id); lineage.push(prior);
+  }
+  const retainedThreadId = lineage.find(prior => prior.threadId !== null)?.threadId;
+  const previousHttp = new Map(lineage.filter(prior => prior.endpoint !== null).map(prior => [`ramify_host_${prior.generation.replaceAll('-', '')}`, `${prior.endpoint}/mcp`]));
   const runtime = dependencies.runtime ?? createAssistanceRuntime({ projectRoot, model: options.assessmentModel });
   let service: AssistanceService;
   try { service = await AssistanceService.open({ projectRoot, assessor: runtime.assessor, ...dependencies.assistance }); }
   catch (error) { await runtime.close(); throw error; }
   const now = () => new Date().toISOString();
-  const id = `coord-${randomUUID()}`; const generation = randomUUID(); const token = randomBytes(32).toString('base64url');
+  const id = dependencies.id ?? `coord-${randomUUID()}`; const generation = randomUUID(); const token = randomBytes(32).toString('base64url');
   const privateValues = new Set([token]);
   const projection = coordinatorProjection(privateValues);
   const record: CoordinatorRecord = {
+    ...(dependencies.guardian === undefined ? {} : { guardian: dependencies.guardian }),
+    ...(options.assessmentModel === undefined ? {} : { assessmentModel: options.assessmentModel }), ...(options.codexExecutable === undefined ? {} : { codexExecutable: options.codexExecutable }),
+    ...(options.resumeFrom === undefined ? {} : { resumeFrom: options.resumeFrom, recovery: { thread: 'pending', reason: null, uncertainCommands: [] } }),
     schema: 'ramify-agent.coordinator/1', id, generation, projectRoot, planId: options.planId, jobId: null,
     launchedAt: now(), owner: service.ownerProcess(), model: options.model, workerModel: options.workerModel,
     startCommandId: options.commandId, startHash: coordinatorHash({ ...options, projectRoot }), skill: options.skill, replaceMcp: options.replaceMcp,
-    phase: 'starting', endpoint: null, threadId: null, readiness: null, turn: null, pending: [], workers: [],
+    phase: 'starting', initialTurnAcknowledged: false, endpoint: null, threadId: null, readiness: null, turn: null, pending: [], workers: [],
     observedAt: now(), error: null, settlement: null, cursor: 0, progress: [], ownershipReleased: false,
   };
   let store: CoordinatorStore;
-  try { store = await CoordinatorStore.create(record); }
+  try { store = await CoordinatorStore.create(record, options.message); }
   catch (error) { await service.close(); await runtime.close(); throw error; }
+  try {
+    if (record.guardian !== undefined) {
+      const deadline = Date.now() + 5000;
+      for (;;) {
+        const evidence = await readFile(record.guardian.path, 'utf8').then(body => JSON.parse(body) as { generation: string; hostPid?: number; hostIdentity?: string }).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; });
+        if (evidence !== undefined) {
+          if (evidence.generation !== record.guardian.generation || evidence.hostPid !== record.owner.pid || evidence.hostIdentity?.split(':').at(-1) !== record.owner.processStart) throw new Error('Guardian readiness identity differs from coordinator');
+          break;
+        }
+        if (Date.now() >= deadline) throw new Error('Guardian ownership evidence was not retained before provider launch');
+        await delay(20);
+      }
+    }
+  } catch (error) {
+    await service.close(); await runtime.close(); record.phase = 'error'; record.error = error instanceof Error ? error.message : String(error); record.ownershipReleased = true; await store.flush(); throw error;
+  }
   let provider: CodexProvider | undefined;
   let stopRequested = false;
   let startupSettled: Promise<void> | undefined;
@@ -181,6 +227,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
         const detail = await service.jobDetail(options.planId, options.jobId);
         if (detail.job.projectRoot !== projectRoot || detail.job.planId !== options.planId || detail.job.jobId !== options.jobId) throw new Error('Supplied assisted registration identity differs');
         record.jobId = detail.job.jobId;
+        if (predecessor !== undefined) record.recovery!.uncertainCommands = await store.inherit(predecessor.id);
       } else {
         const executions = await service.listExecutions(options.planId);
         if (executions.length === 0) record.jobId = (await service.planStart({ planId: options.planId, commandId: options.commandId })).jobId;
@@ -190,7 +237,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
       if (!stopRequested) record.phase = 'preparing'; changed({ kind: 'registered', jobId: record.jobId }); await store.flush();
       if (stopRequested) return;
       const name = `ramify_host_${generation.replaceAll('-', '')}`;
-      const launch: CodexProviderOptions = { cwd: projectRoot, ...(options.codexExecutable === undefined ? {} : { executable: options.codexExecutable }), env: { ...process.env, [tokenEnvironment]: token }, configOverrides: [...options.replaceMcp.map(old => `mcp_servers.${old}.enabled=false`), `mcp_servers.${name}={url=${JSON.stringify(`${record.endpoint}/mcp`)},bearer_token_env_var=${JSON.stringify(tokenEnvironment)},required=true,tool_timeout_sec=960}`] };
+      const launch: CodexProviderOptions = { cwd: projectRoot, ...(options.codexExecutable === undefined ? {} : { executable: options.codexExecutable }), env: { ...process.env, [tokenEnvironment]: token }, configOverrides: [...options.replaceMcp.map(old => previousHttp.has(old) ? `mcp_servers.${old}={url=${JSON.stringify(previousHttp.get(old))},enabled=false}` : `mcp_servers.${old}.enabled=false`), `mcp_servers.${name}={url=${JSON.stringify(`${record.endpoint}/mcp`)},bearer_token_env_var=${JSON.stringify(tokenEnvironment)},required=true,tool_timeout_sec=960}`] };
       provider = (dependencies.provider ?? createCodexProvider)(launch);
       const discoveries = new Set<string>(); const qualifying = new Set<string>(); const workerTurns = new Map<string, string>();
       const qualifyWorker = (worker: CoordinatorRecord['workers'][number]) => {
@@ -224,13 +271,22 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
         changed(projection.event(event));
       };
       unsubscribe = provider.observe(observed);
-      await prepareCoordinatorProvider({ launch, thread: { cwd: projectRoot, model: options.model }, workerModel: options.workerModel, requiredMcp: { server: name, tools: requiredTools }, verifyEquipment: equipment => verifyCoordinatorEquipment(equipment, name, options.replaceMcp), retain: async (session, readiness) => { record.threadId = session.thread.id; record.readiness = structuredClone(readiness); changed({ kind: 'persistent-thread', id: session.thread.id, cliVersion: session.thread.cliVersion }); await store.flush(); } }, provider);
+      const mcp = [...options.replaceMcp.map(name => ({ name, enabled: false as const })), { name, url: `${record.endpoint}/mcp`, bearerTokenEnvVar: tokenEnvironment, required: true as const, toolTimeoutSeconds: 960 }];
+      const prepared = await prepareCoordinatorProvider({ launch, thread: { cwd: projectRoot, model: options.model, mcp }, ...(retainedThreadId === null || retainedThreadId === undefined || options.freshThread ? {} : { resumeThreadId: retainedThreadId, allowMissingThreadFallback: true }), onThreadFallback: reason => { if (record.recovery !== undefined) { record.recovery.thread = 'fresh'; record.recovery.reason = projection.text(reason); } }, workerModel: options.workerModel, requiredMcp: { server: name, tools: requiredTools }, verifyEquipment: equipment => verifyCoordinatorEquipment(equipment, name, options.replaceMcp), retain: async (session, readiness) => { record.threadId = session.thread.id; record.readiness = structuredClone(readiness); if (record.recovery !== undefined && record.recovery.thread === 'pending') { record.recovery.thread = session.thread.id === retainedThreadId ? 'resumed' : 'fresh'; record.recovery.reason = options.freshThread ? 'Fresh persistent context explicitly requested' : retainedThreadId === undefined ? 'Previous startup retained no thread' : null; } const last = session.thread.turns.at(-1); if (last !== undefined) adoptTurn(last); changed({ kind: 'persistent-thread', id: session.thread.id, cliVersion: session.thread.cliVersion }); await store.flush(); } }, provider);
       if (stopRequested) return;
+      if (predecessor !== undefined && prepared.session.thread.status === 'active') {
+        const active = prepared.session.thread.turns.filter(turn => turn.status === 'inProgress').at(-1);
+        if (active === undefined) throw new CodexProviderError('unavailable', 'Resumed thread reports unidentified activity; explicit inspection is required');
+        await provider.interrupt(prepared.session.thread.id, active.id);
+        const thread = await provider.readThread(prepared.session.thread.id);
+        if (thread.status !== 'idle') throw new CodexProviderError('unavailable', 'Resumed thread has not confirmed idle after interruption');
+      }
       const detail = await service.jobDetail(options.planId, record.jobId!);
-      const prompt = `Use the coordinator skill at ${options.skill}. Target checkout: ${projectRoot}. Supplied assisted registration: plan ${record.planId}, job ${record.jobId}. Verify these identities and captured plan using job_detail; reuse this registration and its original baseline ${detail.job.protection.baselineCommit ?? '(unavailable; report gap)'}. Do not call plan_start or replace the baseline. Coordinate native ${options.workerModel} workers and submit committed iteration and final candidates through RA. Preserve all project instructions, protections, permissions and tools.\n${options.message}`;
+      const prompt = `Use the coordinator skill at ${options.skill}. Target checkout: ${projectRoot}. Supplied assisted registration: plan ${record.planId}, job ${record.jobId}. Verify these identities and captured plan using job_detail; reuse this registration and its original baseline ${detail.job.protection.baselineCommit ?? '(unavailable; report gap)'}. Do not call plan_start or replace the baseline. Coordinate native ${options.workerModel} workers and submit committed iteration and final candidates through RA. Preserve all project instructions, protections, permissions and tools.\n${predecessor === undefined ? '' : `Continue after interruption using current repository files and retained job state. Preserve partial, staged and untracked work. Do not replay previous messages, approvals or uncertain operations. Uncertain admitted commands: ${JSON.stringify(record.recovery!.uncertainCommands)}. Interrupted assessments remain pending: inspect and explicitly call assessment_resume for each interrupted assessment that still needs completion; do not submit a duplicate. Existing decisions and exact candidate-bound iteration/final assessment obligations remain effective. The previous owner and its descendants have settled.\n`}${options.message}`;
       record.phase = 'ready'; changed({ kind: 'equipment-ready' }); await store.flush();
-      const result = await control({ action: 'send', commandId: `${options.commandId}:initial`, message: prompt });
+      const result = await control({ action: 'send', commandId: predecessor === undefined ? `${options.commandId}:initial` : `${options.commandId}:continue:${predecessor.id}`, message: prompt });
       if (result.state !== 'completed') throw new CodexProviderError(result.state === 'uncertain' ? 'uncertain' : 'unavailable', result.error?.message ?? 'Initial turn did not acknowledge');
+      record.initialTurnAcknowledged = true;
       await store.flush();
     } catch (error) { if (!stopRequested && record.phase !== 'provider-exited') record.phase = 'error'; record.error = describe(error).message; changed({ kind: 'startup-error', error: record.error }); await store.flush(); }
   })();

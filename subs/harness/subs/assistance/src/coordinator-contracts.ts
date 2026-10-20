@@ -5,6 +5,7 @@ export const coordinatorStartSchema = z.object({
   projectRoot: z.string().min(1), planId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/), jobId: z.string().min(1).optional(),
   commandId: z.string().min(1), model: z.string().min(1).default('gpt-6-astra'), workerModel: z.string().min(1).default('gpt-6-sol'),
   assessmentModel: z.string().min(1).optional(), replaceMcp: z.array(z.string().regex(/^[A-Za-z0-9_-]+$/)).default([]),
+  resumeFrom: z.string().regex(/^coord-[a-f0-9-]{36}$/).optional(), freshThread: z.boolean().optional(),
   skill: z.string().min(1), message: z.string().default(''), codexExecutable: z.string().min(1).optional(),
 }).strict();
 export type CoordinatorStart = z.infer<typeof coordinatorStartSchema>;
@@ -29,8 +30,13 @@ export interface CoordinatorRecord {
   readonly schema: 'ramify-agent.coordinator/1'; readonly id: string; readonly generation: string;
   readonly projectRoot: string; readonly planId: string; jobId: string | null; readonly launchedAt: string;
   readonly owner: CoordinatorProcess; readonly model: string; readonly workerModel: string;
+  readonly guardian?: { readonly path: string; readonly generation: string };
+  readonly assessmentModel?: string; readonly codexExecutable?: string;
+  readonly resumeFrom?: string;
+  recovery?: { thread: 'pending' | 'resumed' | 'fresh'; reason: string | null; uncertainCommands: readonly { commandId: string; action: string }[] };
   readonly startCommandId: string; readonly startHash: string; readonly skill: string; readonly replaceMcp: readonly string[];
   phase: 'starting' | 'listening' | 'preparing' | 'ready' | 'provider-exited' | 'error' | 'stopping' | 'unsettled' | 'stopped';
+  initialTurnAcknowledged?: boolean;
   endpoint: string | null; threadId: string | null; readiness: CodexReadiness | null;
   turn: { id: string; status: string; error: string | null } | null;
   pending: readonly CodexPendingRequest[]; workers: CoordinatorWorker[];

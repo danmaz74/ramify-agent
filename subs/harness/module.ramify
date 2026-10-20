@@ -248,3 +248,6 @@ expose-sub candidateShell, candidateShellDeclaration from reviews to descendants
 // Assistance composes the dedicated provider through the agent boundary.
 expose-sub CodexProcessIdentity, CodexProvider, CodexProviderOptions, CodexProviderError, CodexThreadSettings, CodexThreadSession, CodexReadiness, CodexEquipment, CodexEvent, CodexPendingRequest, CodexResponse, CodexSettlement, CodexInterrupt, CodexThread, CodexTurn, CodexTurnStatus, CodexMessage, CodexWorkItem, CodexApprovalChoice, CodexRequestIdentity, createCodexProvider from agent to descendants
 expose-sub ScriptedCodexFrame, ScriptedCodex, testThread, testTurn, testSession from agent to descendants
+
+// Dedicated provider and host supervisors share only Linux descendant settlement.
+expose-src ownedTreeKernelPath from "owned-tree-kernel.ts" to descendants

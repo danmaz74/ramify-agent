@@ -4,6 +4,12 @@ import { CodexProviderError, type CodexEquipment, type CodexEvent, type CodexPen
 import { nativeCodexConnection, type CodexConnection } from './connection.js';
 import { object, pendingRequest, projectThread, projectTurn, rpcId, text, workItem, mcpFormValidator, type WireDecision } from './projection.js';
 
+/** Explicit thread configuration prevents persisted MCP settings reviving old owners. */
+function threadConfiguration(settings: CodexThreadSettings): Record<string, unknown> {
+  if (settings.mcp === undefined) return {};
+  return { config: Object.fromEntries(settings.mcp.map(entry => 'enabled' in entry ? [`mcp_servers.${entry.name}.enabled`, false] : [`mcp_servers.${entry.name}`, { url: entry.url, bearer_token_env_var: entry.bearerTokenEnvVar, required: entry.required, tool_timeout_sec: entry.toolTimeoutSeconds }])) };
+}
+
 export function createCodexProvider(options: CodexProviderOptions): CodexProvider {
   for (const bound of [options.requestTimeoutMs, options.settlementTimeoutMs]) {
     if (bound !== undefined && (!Number.isFinite(bound) || bound <= 0 || bound > 2_147_483_647)) throw new Error('Codex timeouts must be positive and within the Node timer range');
@@ -317,7 +323,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       requireReady();
       const basis = revision;
       try {
-        return session(await call('thread/start', { model: settings.model, cwd: settings.cwd, ephemeral: false }, true), settings, basis);
+        return session(await call('thread/start', { model: settings.model, cwd: settings.cwd, ephemeral: false, ...threadConfiguration(settings) }, true), settings, basis);
       } catch (error) {
         if (error instanceof CodexProviderError) throw error;
         throw new CodexProviderError('uncertain', `Persistent Codex thread start was not verified: ${String(error)}`, 'thread/start');
@@ -335,7 +341,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
       requireReady();
       const basis = revision;
       try {
-        const result = session(await call('thread/resume', { threadId, model: settings.model, cwd: settings.cwd }, true), settings, basis, threadId);
+        const result = session(await call('thread/resume', { threadId, model: settings.model, cwd: settings.cwd, ...threadConfiguration(settings) }, true), settings, basis, threadId);
         return result;
       } catch (error) {
         if (error instanceof CodexProviderError) throw error;

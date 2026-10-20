@@ -1,7 +1,7 @@
 # ramify-agent
 
 Persistent native assisted coordination is available through `coordinate start`,
-`status`, `watch`, `send`, `respond`, `interrupt` and `stop`. See the
+`status`, `watch`, `send`, `respond`, `interrupt`, `stop` and explicit `resume`. See the
 [launcher and controls](docs/agent-assistance.md#prepare-and-connect) for model
 selection, MCP replacement, detached ownership and qualification limits.
 

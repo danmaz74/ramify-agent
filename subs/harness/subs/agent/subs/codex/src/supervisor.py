@@ -19,73 +19,15 @@ def status(value):
         stopping = True
 
 
-def identity(pid):
-    with open('/proc/%d/stat' % pid) as source:
-        fields = source.read().rsplit(')', 1)[1].split()
-    with open('/proc/sys/kernel/random/boot_id') as source:
-        boot = source.read().strip()
-    return boot + ':' + fields[19]
-
-
-def children():
-    # Re-read all ancestry each time: descendants can fork, setsid and double-fork.
-    parents = {}
-    starts = {}
-    for entry in os.listdir('/proc'):
-        if not entry.isdigit():
-            continue
-        try:
-            with open('/proc/' + entry + '/stat') as source:
-                fields = source.read().rsplit(')', 1)[1].split()
-            parents[int(entry)] = int(fields[1])
-            starts[int(entry)] = fields[19]
-        except (OSError, ValueError, IndexError):
-            pass
-    owned = {os.getpid()}
-    while True:
-        discovered = {pid for pid, parent in parents.items() if parent in owned}
-        if discovered.issubset(owned):
-            return {pid: starts[pid] for pid in owned - {os.getpid()}}
-        owned.update(discovered)
-
+from importlib.machinery import SourceFileLoader
+sys.dont_write_bytecode = True
+kernel = SourceFileLoader('ramify_owned_tree', sys.argv[1]).load_module()
+identity = kernel.identity
+children = kernel.children
 
 def settle():
-    deadline = time.monotonic() + float(os.environ.get('RAMIFY_CODEX_SETTLE_SECONDS', '5'))
-    while True:
-        # Identity checks avoid signalling a PID reused between scan and signal.
-        observed = []
-        for pid, start in children().items():
-            try:
-                current = identity(pid)
-                if current.rsplit(':', 1)[1] == start:
-                    observed.append((pid, current))
-            except OSError:
-                pass
-        for pid, expected in observed:
-            try:
-                if identity(pid) == expected:
-                    os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            except FileNotFoundError:
-                pass
-        has_children = True
-        while True:
-            try:
-                pid, _ = os.waitpid(-1, os.WNOHANG)
-                if pid == 0:
-                    break
-            except ChildProcessError:
-                has_children = False
-                break
-        if not has_children:
-            status({'kind': 'settled', 'confirmed': True})
-            break
-        if time.monotonic() >= deadline:
-            # Stay available for a later stop; never abandon an unresolved writer.
-            status({'kind': 'settled', 'confirmed': False, 'reason': 'Owned descendants did not settle within the bound'})
-            deadline = time.monotonic() + float(os.environ.get('RAMIFY_CODEX_SETTLE_SECONDS', '5'))
-        time.sleep(0.01)
+    kernel.settle(float(os.environ.get('RAMIFY_CODEX_SETTLE_SECONDS', '5')), lambda: status({'kind': 'settled', 'confirmed': False, 'reason': 'Owned descendants did not settle within the bound'}))
+    status({'kind': 'settled', 'confirmed': True})
 
 stopping = False
 
@@ -95,17 +37,11 @@ def request_stop(*_):
 
 
 try:
-    if sys.platform != 'linux':
-        raise RuntimeError('Linux subreaper supervision is required')
-    libc = ctypes.CDLL(None, use_errno=True)
-    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
-        raise OSError(ctypes.get_errno(), 'PR_SET_CHILD_SUBREAPER failed')
-    # Require readable ancestry before starting anything that could write.
-    children()
+    kernel.enable_subreaper()
     supervisor_identity = identity(os.getpid())
     for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(sig, request_stop)
-    provider = subprocess.Popen(sys.argv[1:], stdin=0, stdout=1, stderr=2, close_fds=True)
+    provider = subprocess.Popen(sys.argv[2:], stdin=0, stdout=1, stderr=2, close_fds=True)
     provider_pid = provider.pid
     status({'kind': 'ready', 'pid': provider_pid, 'identity': identity(provider_pid),
             'supervisorPid': os.getpid(), 'supervisorIdentity': supervisor_identity})

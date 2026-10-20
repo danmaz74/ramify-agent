@@ -638,16 +638,28 @@
         "stop during registration prevents later provider construction and retains settled ownership",
         "lost HTTP control reply retains one effect while activity-only worker discovery and bounded watch gaps remain observable",
         "short secret answers preserve subsequent HTTP status and watch control identities and schema choices",
-        "startup runtime publication is observed as unready until the matching record while genuine identity conflicts remain errors"
+        "startup runtime publication is observed as unready until the matching record while genuine identity conflicts remain errors",
+        "historical turn observations cannot satisfy launch readiness before initial submission acknowledgement"
       ]
     },
     {
       "file": "src/tests/coordinator-launch.boundary.test.ts",
-      "boundary": "Native Git baseline registration, detached Node CLI/host with independent stdio, real dedicated Python supervisor and setsid orphan settlement, and loopback control reconnect",
-      "whyFakeCannotProve": "The launching process must exit and its streams close while the actual host, provider and orphan stay live; kernel identities must disappear on explicit stop. The app-server protocol is explicitly scripted by native-provider.py without model inference. Concurrent independent CLI/host processes must enforce the original full start arguments when adopting the actual ownership winner.",
+      "boundary": "Native Git baseline registration, detached Node CLI/host with independent stdio, real dedicated Python supervisor and setsid orphan settlement, and loopback control reconnect, identity-bound whole-host guardian settlement, crashed-owner continuation and unacknowledged guardian failure refusal",
+      "whyFakeCannotProve": "The launching process must exit and its streams close while the actual host, provider and orphan stay live; kernel identities must disappear on explicit stop. The app-server protocol is explicitly scripted by native-provider.py without model inference. Concurrent independent CLI/host processes must enforce the original full start arguments when adopting the actual ownership winner. Actual host/provider/guardian death and orphan process reparenting must be observed across CLI recovery; a missing acknowledgement must refuse replacement without signalling unrelated processes. Provider history and RPC answers remain scripted by the native fixture.",
       "owningCases": [
         "detached CLI host survives its launching command, reconnects without another registration and settles actual provider orphan descendants on stop",
-        "concurrent detached starts enforce full admitted arguments while identical retries and distinct observations share one host"
+        "concurrent detached starts enforce full admitted arguments while identical retries and distinct observations share one host",
+        "resume after host crash requires guardian settlement and preserves job, partial files, persistent history and uncertain mutations",
+        "explicit resume after provider exit settles descendants and supports missing history plus fresh persistent contexts",
+        "guardian death without settlement acknowledgement refuses replacement even after known fixture processes stop"
+      ]
+    },
+    {
+      "file": "subs/harness/subs/assistance/src/tests/coordinator-guardian.boundary.test.ts",
+      "boundary": "Real detached host guardian, actual assistance service and HTTP MCP, separate provider/assessor setsid orphan trees and explicit interrupted-assessment continuation",
+      "whyFakeCannotProve": "Scripted transports cannot establish that an assessor orphan outside the Codex supervisor tree is adopted and killed after actual host death, while an unrelated process survives and the same assessment requires explicit resume. Git, provider protocol and assessor outcomes are scripted without model inference.",
+      "owningCases": [
+        "host guardian settles actual assessor and provider orphans after host death while retained assessment waits for explicit resume"
       ]
     }
   ]

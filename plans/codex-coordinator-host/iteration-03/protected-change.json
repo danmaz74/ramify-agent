@@ -1,0 +1,13 @@
+{
+  "path": "docs/architecture/agent-assistance/service.spec.md",
+  "baseline": "1a87d832b6890f0658e7024faed78487815b7823",
+  "before": {
+    "mode": "100644",
+    "oid": "f104982bad49054c654df4922faee7af26e587f4"
+  },
+  "after": {
+    "mode": "100644",
+    "oid": "d563faab5db2309f95878f632280d6f0d34e92b0"
+  },
+  "authority": "Pending exact user authorization after final RA; no authorization inferred"
+}

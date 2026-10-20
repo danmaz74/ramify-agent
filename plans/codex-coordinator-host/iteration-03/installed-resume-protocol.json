@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-10-20T01:03:40.144820+00:00",
+  "qualifiedCli": "codex-cli 0.161.0",
+  "generatedSchema": "/tmp/ramify-codex-protocol.vJuk3w/v2/ThreadResumeParams.ts",
+  "sha256": "6ea6561448792277f9b52ac9d920d71ef8c9be6e43621ee6329fb948329e8ff7",
+  "resumeFieldsUsed": [
+    "threadId",
+    "model",
+    "cwd",
+    "config"
+  ],
+  "freshFieldsUsed": [
+    "model",
+    "cwd",
+    "config",
+    "ephemeral:false"
+  ],
+  "configurationScope": "MCP tables only; no approvalPolicy, approvalsReviewer, sandbox, permissions, baseInstructions or developerInstructions override",
+  "officialDocumentation": "https://learn.chatgpt.com/docs/app-server",
+  "qualification": "Actual resume with required HTTP MCP and original job verified in live-qualification; installed disabled-transport parser verified separately"
+}

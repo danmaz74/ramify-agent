@@ -30,6 +30,8 @@ export interface CodexThread {
 export interface CodexThreadSettings {
   readonly cwd: string;
   readonly model: string;
+  /** Only MCP endpoint rebinding; never policy or instruction overrides. */
+  readonly mcp?: readonly ({ readonly name: string; readonly enabled: false } | { readonly name: string; readonly url: string; readonly bearerTokenEnvVar: string; readonly required: true; readonly toolTimeoutSeconds: number })[];
 }
 export interface CodexThreadSession {
   readonly thread: CodexThread;

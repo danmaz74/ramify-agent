@@ -23,10 +23,36 @@ Iteration 1: `it-b5d1118a-52a5-49b1-a8a8-848d7c8fdb4a`, started
 Start command `codex-host-i1-start-01`. Focus
 `subs/harness/subs/agent/subs/codex`. Active native Sol worker
 `/root/codex_provider` implements provider, consumer contract, verification and
-candidate commit. No assessment submitted yet. Next: submit the committed
-iteration with the governing design pinned to the original baseline.
+candidate commit. I1 accepted candidate `c1b7cb75206acff82bbaf3940f1e7d2b14f49c9a`.
+Assessment `as-0007` completed `clear`, with no repairs, decisions or gaps.
+Assessments `as-0001` through `as-0007` share the original I1 start/base.
+End command `codex-host-i1-end-07`. Governing design is pinned to the original
+baseline. Detailed review remains in RA; engineering evidence under `iteration-01/`.
+Native `/root/provider_control_repair` is idle. `/root/codex_provider` owns I2.
 
-Iteration 2 follows the provider assessment and delivers the detached host,
-shared HTTP MCP, controls and supplied-registration skill handling. Iteration 3
-completes recovery and cumulative qualification. Preserve the original baseline
-and reuse iteration IDs for repairs. Final cumulative assessment is separate.
+Iteration 2 `it-6e074b47-5d55-43ca-86c7-412b2ea44f83` started
+`2026-10-19T22:33:15.498Z`, base `c1b7cb75206acff82bbaf3940f1e7d2b14f49c9a`,
+command `codex-host-i2-start-01`; dirty provenance is only these coordinator notes.
+I2 substantive assessment `as-0009` is complete at
+`8785a35e7d14610e4883a684714587a781a14934`; only exact protected service
+specification authorization remains (`cf-0008`), intentionally held for final
+approval. No other repairs, decisions or gaps. End command `codex-host-i2-end-02`.
+Native host/CLI and bridge workers delivered evidence in `iteration-02/`; the
+real disposable pilot reached clear iteration and final gates. The actual
+900000ms HTTP witness passed. Original launch qualification limits remain explicit.
+
+I3 `it-089cd173-032b-4ab1-86ce-b2ca09a541a4` started
+`2026-10-20T00:32:03.369Z`, command `codex-host-i3-start-01`, base I2 candidate;
+dirty provenance is only these notes. Preserve original registered baseline and job. Native
+`/root/codex_provider` owns recovery, provider integration and end-to-end
+qualification. I3 implementation is complete and the local candidate is ready for
+submission. Engineering and focused verification are recorded in
+[iteration-03/report.md](iteration-03/report.md): 191 focused tests in 13 files,
+including 15 registered native cases, all TypeScript configurations and self-check
+pass. The [disposable live recovery pilot](iteration-03/live-qualification/report.md)
+completed clear iteration and final gates for exact pilot candidate
+`a3469c87dabdb928d130fd39b28330acc507c133`, preserved its original job/baseline,
+and confirmed settlement of all owned process identities. Exact cumulative service
+specification authorization remains held for final approval (`cf-0008`). I3
+implementation assessment and final cumulative assessment are separate and still
+required; the coordinator will record their assessment IDs after submission.

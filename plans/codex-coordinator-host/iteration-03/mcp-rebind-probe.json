@@ -1,0 +1,56 @@
+{
+  "at": "2026-10-20T00:53:41.179619+00:00",
+  "version": "codex-cli 0.161.0",
+  "operation": "Read-only app-server config parsing with stdin EOF; no initialize/thread/model input",
+  "cases": [
+    {
+      "case": "existing-disabled",
+      "argv": [
+        "codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "-c",
+        "mcp_servers.ramify-agent.enabled=false"
+      ],
+      "exit": 0,
+      "stderr": "(nonfatal existing sandbox/remote-control startup diagnostics omitted; no model request)"
+    },
+    {
+      "case": "incomplete-old",
+      "argv": [
+        "codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "-c",
+        "mcp_servers.ramify-agent.enabled=false",
+        "-c",
+        "mcp_servers.ramify_host_567e710dc6994670b8a029ab89e50c67.enabled=false",
+        "-c",
+        "mcp_servers.ramify_recovery_probe={url=\"http://127.0.0.1:1/mcp\",bearer_token_env_var=\"RAMIFY_PROBE_UNSET\",required=true,tool_timeout_sec=960}"
+      ],
+      "exit": 1,
+      "stderr": "Error: invalid transport\nin `mcp_servers.ramify-agent`\n\n"
+    },
+    {
+      "case": "complete-old",
+      "argv": [
+        "codex",
+        "app-server",
+        "--listen",
+        "stdio://",
+        "-c",
+        "mcp_servers.ramify-agent.enabled=false",
+        "-c",
+        "mcp_servers.ramify_host_567e710dc6994670b8a029ab89e50c67={url=\"http://127.0.0.1:1/mcp\",enabled=false}",
+        "-c",
+        "mcp_servers.ramify_recovery_probe={url=\"http://127.0.0.1:1/mcp\",bearer_token_env_var=\"RAMIFY_PROBE_UNSET\",required=true,tool_timeout_sec=960}"
+      ],
+      "exit": 0,
+      "stderr": "(nonfatal existing sandbox/remote-control startup diagnostics omitted; no model request)"
+    }
+  ],
+  "globalConfigBeforeSha256": "14481adfb5b88208f9a4ea1724fe1c904122da8b086620cf1431c9d364910961",
+  "globalConfigAfterSha256": "14481adfb5b88208f9a4ea1724fe1c904122da8b086620cf1431c9d364910961"
+}

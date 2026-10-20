@@ -36,3 +36,10 @@ test('absence of the runtime is an unavailable observation rather than a fabrica
   reads(starting); vi.mocked(readFile).mockRejectedValueOnce(Object.assign(new Error('missing runtime'), { code: 'ENOENT' }));
   expect(await readCoordinator('/target', id)).toEqual({ record: starting, runtime: null });
 });
+
+test('missing active index is distinct from missing ownership records and settlement evidence', async () => {
+  vi.mocked(readFile).mockRejectedValueOnce(Object.assign(new Error('no active index'), { code: 'ENOENT' }));
+  await expect(readCoordinator('/target')).rejects.toMatchObject({ code: 'COORDINATOR_NOT_FOUND' });
+  vi.mocked(readFile).mockRejectedValueOnce(Object.assign(new Error('lost owner record'), { code: 'ENOENT' }));
+  await expect(readCoordinator('/target', id)).rejects.toMatchObject({ code: 'ENOENT' });
+});

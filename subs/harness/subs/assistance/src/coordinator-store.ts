@@ -3,6 +3,7 @@ import { chmod, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { openLedger, type Ledger } from '../../ledger/src/ledger.js';
+import { readJsonLines } from '../../ledger/src/jsonl.js';
 import { writeFileAtomic } from '../../ledger/src/atomic.js';
 import { ensureStateDirectory } from '../../../src/store/state-directory.js';
 import { canonicalJson } from '../../../src/jobs/commands.js';
@@ -22,7 +23,7 @@ export class CoordinatorStore {
   persistenceError: Error | undefined;
   private readonly commands = new Map<string, CommandEvent & { pending?: Promise<CoordinatorControlResult> }>();
   private constructor(readonly record: CoordinatorRecord, private readonly ledger: Ledger<CommandEvent>) { this.directory = join(coordinatorDirectory(record.projectRoot), record.id); }
-  static async create(record: CoordinatorRecord): Promise<CoordinatorStore> {
+  static async create(record: CoordinatorRecord, taskDirections?: string): Promise<CoordinatorStore> {
     const root = coordinatorDirectory(record.projectRoot);
     await ensureStateDirectory(root, { gitignore: true });
     await chmod(root, 0o700);
@@ -32,12 +33,37 @@ export class CoordinatorStore {
     const ledger = await openLedger({ logPath: join(directory, 'commands.jsonl'), recordsRoot: directory, eventSchema: commandEvent });
     const store = new CoordinatorStore(record, ledger);
     await store.flush();
+    if (taskDirections !== undefined) { await writeFileAtomic(join(directory, 'task.json'), JSON.stringify({ message: taskDirections })); await chmod(join(directory, 'task.json'), 0o600); }
     await writeFileAtomic(join(root, 'active.json'), JSON.stringify({ id: record.id, generation: record.generation }));
     return store;
   }
   async retainRuntime(runtime: CoordinatorRuntime): Promise<void> {
     await writeFileAtomic(join(this.directory, 'runtime.json'), JSON.stringify(runtime));
     await chmod(join(this.directory, 'runtime.json'), 0o600);
+  }
+  /** Retain prior mutation receipts by reference; never replay accepted input. */
+  async inherit(previousId: string): Promise<readonly { commandId: string; action: string }[]> {
+    const chain: string[] = []; const visited = new Set<string>();
+    let selected: string | undefined = previousId;
+    while (selected !== undefined) {
+      if (visited.has(selected)) throw new Error('Coordinator continuation history contains a cycle');
+      visited.add(selected); chain.unshift(selected);
+      const prior: CoordinatorRecord = (await readCoordinator(this.record.projectRoot, selected)).record;
+      if (prior.planId !== this.record.planId || prior.jobId !== this.record.jobId) throw new Error('Prior coordinator execution identity differs');
+      selected = prior.resumeFrom;
+    }
+    for (const id of chain) {
+      const log = await readJsonLines(join(coordinatorDirectory(this.record.projectRoot), id, 'commands.jsonl'));
+      for (const [index, raw] of log.records.entries()) {
+        const line = z.object({ sequence: z.literal(index + 1), event: commandEvent }).passthrough().parse(raw);
+        const event = line.event;
+        if (event.action !== 'send' && event.action !== 'respond') continue;
+        const old = this.commands.get(event.commandId);
+        if (old !== undefined && old.hash !== event.hash) throw new Error('Conflicting inherited coordinator command receipts');
+        this.commands.set(event.commandId, event.state === 'reserved' ? { ...event, state: 'uncertain', error: { kind: 'uncertain', message: 'Previous host stopped after admission without a retained outcome; inspect current state; do not redeliver' } } : event);
+      }
+    }
+    return [...this.commands.values()].filter(event => event.state === 'uncertain').map(({ commandId, action }) => ({ commandId, action }));
   }
   changed(): void {
     this.timer ??= setTimeout(() => { this.timer = undefined; void this.flush().catch(error => { this.persistenceError = error instanceof Error ? error : new Error(String(error)); }); }, 50);
@@ -90,7 +116,10 @@ export class CoordinatorStore {
 /** Read-only clients never acquire project ownership or alter stale state. */
 export async function readCoordinator(root: string, id?: string): Promise<{ record: CoordinatorRecord; runtime: CoordinatorRuntime | null }> {
   const directory = coordinatorDirectory(root);
-  const selected = id ?? (JSON.parse(await readFile(join(directory, 'active.json'), 'utf8')) as { id: string }).id;
+  const selected = id ?? await (async () => {
+    try { return (JSON.parse(await readFile(join(directory, 'active.json'), 'utf8')) as { id: string }).id; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw Object.assign(new Error('No coordinator has been retained for this checkout'), { code: 'COORDINATOR_NOT_FOUND' }); throw error; }
+  })();
   if (!/^coord-[a-f0-9-]{36}$/.test(selected)) throw new Error('Invalid coordinator identity');
   const owned = join(directory, selected);
   const readRecord = async () => {

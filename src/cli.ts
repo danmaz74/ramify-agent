@@ -74,7 +74,7 @@ export const usage = [
   'Usage:',
   '  ramify-agent coordinate start --project <root> --plan <id> [--job <id>] [--replace-mcp <name>]... [--json]',
   '                       Detached persistent Codex coordinator; --model, --worker-model and --assessment-model select models.',
-  '  ramify-agent coordinate <status|watch|send|respond|interrupt|stop> --project <root> [--id <id>] [--json]',
+  '  ramify-agent coordinate <status|watch|send|respond|interrupt|stop|resume> --project <root> [--id <id>] [--json]',
   '                       send: --message-file <file> --command-id <id>; respond: --request <id> --response-file <file> --command-id <id>.',
   '                       watch: [--after <cursor>]; interrupt: [--turn <id>]; controls require --id. Disconnect leaves execution running.',
   '  ramify-agent mcp --project <root> [--model <provider/model>]',
