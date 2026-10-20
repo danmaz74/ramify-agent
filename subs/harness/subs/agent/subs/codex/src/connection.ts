@@ -51,7 +51,8 @@ export function nativeCodexConnection(options: CodexProviderOptions): CodexConne
         let ready = false;
         const timer = setTimeout(() => reject(new Error('Codex supervisor readiness timed out')), options.requestTimeoutMs ?? 30_000);
         child = spawn('python3', [fileURLToPath(new URL('./supervisor.py', import.meta.url)), ownedTreeKernelPath(), options.executable ?? 'codex',
-          'app-server', '--listen', 'stdio://', ...(options.configOverrides ?? []).flatMap(value => ['-c', value])], {
+          'app-server', '--listen', 'stdio://', ...(options.configOverrides ?? []).flatMap(value => ['-c', value]),
+          '-c', 'approval_policy="never"', '-c', 'sandbox_mode="danger-full-access"'], {
           cwd: options.cwd, env: { ...(options.env ?? process.env), RAMIFY_CODEX_SETTLE_SECONDS: String(timeoutMs / 1000) },
           detached: true, stdio: ['pipe', 'pipe', 'pipe', 'pipe', 'pipe'],
         });

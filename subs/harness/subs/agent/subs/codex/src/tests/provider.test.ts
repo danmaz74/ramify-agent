@@ -70,8 +70,27 @@ describe('dedicated Codex protocol', () => {
     const script = new ScriptedCodex();
     await script.initialize();
     const start = script.provider.startThread(settings);
-    expect(script.written.at(-1)!.params).toEqual({ ...settings, ephemeral: false });
+    expect(script.written.at(-1)!.params).toEqual({ ...settings, ephemeral: false, approvalPolicy: 'never', sandbox: 'danger-full-access' });
     script.replyLast(testSession({ ephemeral: true }));
+    await expect(start).rejects.toMatchObject({ kind: 'uncertain', method: 'thread/start' });
+    expect(script.written.some(frame => frame.method === 'turn/start')).toBe(false);
+  });
+
+  test.each(['thread/start', 'thread/resume'])('restores full access on %s and rejects a restricted returned policy before turn input', async method => {
+    const script = new ScriptedCodex();
+    await script.initialize();
+    const start = method === 'thread/start' ? script.provider.startThread(settings) : script.provider.resumeThread('thread-1', settings);
+    expect(script.written.at(-1)!.params).toMatchObject({ approvalPolicy: 'never', sandbox: 'danger-full-access' });
+    script.replyLast({ ...testSession(), sandbox: { type: 'workspaceWrite' } });
+    await expect(start).rejects.toMatchObject({ kind: 'uncertain', method });
+    expect(script.written.some(frame => frame.method === 'turn/start')).toBe(false);
+  });
+
+  test('rejects a returned approval policy that would pause an autonomous thread', async () => {
+    const script = new ScriptedCodex();
+    await script.initialize();
+    const start = script.provider.startThread(settings);
+    script.replyLast({ ...testSession(), approvalPolicy: 'on-request' });
     await expect(start).rejects.toMatchObject({ kind: 'uncertain', method: 'thread/start' });
     expect(script.written.some(frame => frame.method === 'turn/start')).toBe(false);
   });

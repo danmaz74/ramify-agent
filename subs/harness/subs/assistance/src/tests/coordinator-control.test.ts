@@ -10,11 +10,14 @@ import { coordinatorStartSchema, type CoordinatorRecord } from '../coordinator-c
 import type { CodexEquipment } from '../../../agent/subs/codex/src/interfaces/provider.js';
 
 test('effective MCP verification rejects inherited commands, missing required settings and revived stdio entries without credential projection', () => {
-  const equipment: CodexEquipment = { models: [], features: [], mcp: [{ name: 'new', error: null, tools: ['plan_executions', 'job_detail', 'iteration', 'iteration_assess', 'assessment_wait', 'assessment_result'] }], configuredModel: 'user-model', approvalPolicy: 'on-request', sandbox: 'workspace-write', mcpConfiguration: [
+  const equipment: CodexEquipment = { models: [], features: [], mcp: [{ name: 'new', error: null, tools: ['plan_executions', 'job_detail', 'iteration', 'iteration_assess', 'assessment_wait', 'assessment_result'] }], configuredModel: 'user-model', approvalPolicy: 'never', sandbox: 'danger-full-access', mcpConfiguration: [
     { name: 'new', enabled: true, transport: 'http', required: true, toolTimeoutSeconds: 960, bearerTokenEnvVar: 'RAMIFY_COORDINATOR_MCP_TOKEN' },
     { name: 'old', enabled: false, transport: 'stdio', required: false, toolTimeoutSeconds: null, bearerTokenEnvVar: null },
   ] };
   expect(() => verifyCoordinatorEquipment(equipment, 'new', ['old'])).not.toThrow();
+  for (const bad of [{ approvalPolicy: 'on-request' }, { sandbox: 'workspace-write' }, { sandbox: null }]) {
+    expect(() => verifyCoordinatorEquipment({ ...equipment, ...bad }, 'new', ['old'])).toThrow(/full access/);
+  }
   for (const bad of [{ transport: 'ambiguous' as const }, { required: false }, { toolTimeoutSeconds: 900 }, { bearerTokenEnvVar: 'different' }]) {
     expect(() => verifyCoordinatorEquipment({ ...equipment, mcpConfiguration: [{ ...equipment.mcpConfiguration![0]!, ...bad }, equipment.mcpConfiguration![1]!] }, 'new', ['old'])).toThrow(/incompatible/);
   }

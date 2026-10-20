@@ -4,10 +4,10 @@ import { CodexProviderError, type CodexEquipment, type CodexEvent, type CodexPen
 import { nativeCodexConnection, type CodexConnection } from './connection.js';
 import { object, pendingRequest, projectThread, projectTurn, rpcId, text, workItem, mcpFormValidator, type WireDecision } from './projection.js';
 
-/** Explicit thread configuration prevents persisted MCP settings reviving old owners. */
+/** Reapply full access on start/resume and prevent persisted MCP settings reviving old owners. */
 function threadConfiguration(settings: CodexThreadSettings): Record<string, unknown> {
-  if (settings.mcp === undefined) return {};
-  return { config: Object.fromEntries(settings.mcp.map(entry => 'enabled' in entry ? [`mcp_servers.${entry.name}.enabled`, false] : [`mcp_servers.${entry.name}`, { url: entry.url, bearer_token_env_var: entry.bearerTokenEnvVar, required: entry.required, tool_timeout_sec: entry.toolTimeoutSeconds }])) };
+  return { approvalPolicy: 'never', sandbox: 'danger-full-access',
+    ...(settings.mcp === undefined ? {} : { config: Object.fromEntries(settings.mcp.map(entry => 'enabled' in entry ? [`mcp_servers.${entry.name}.enabled`, false] : [`mcp_servers.${entry.name}`, { url: entry.url, bearer_token_env_var: entry.bearerTokenEnvVar, required: entry.required, tool_timeout_sec: entry.toolTimeoutSeconds }])) }) };
 }
 
 export function createCodexProvider(options: CodexProviderOptions): CodexProvider {
@@ -262,6 +262,7 @@ export function createCodexProviderOn(connection: CodexConnection, timeoutMs = 3
     const thread = projectThread(response.thread);
     if (response.model !== settings.model || thread.model !== settings.model || thread.cwd !== settings.cwd) throw new Error('Codex returned a different model or working directory');
     if (expectedThreadId !== undefined && thread.id !== expectedThreadId) throw new Error('Codex resumed another thread');
+    if (response.approvalPolicy !== 'never' || response.sandbox.type !== 'dangerFullAccess') throw new Error('Codex did not establish full access with approval policy never');
     const current = remember(thread, basis);
     return { thread: current, model: response.model, instructionSources: response.instructionSources,
       approvalPolicy: typeof response.approvalPolicy === 'string' ? response.approvalPolicy : JSON.stringify(response.approvalPolicy), sandbox: response.sandbox.type };

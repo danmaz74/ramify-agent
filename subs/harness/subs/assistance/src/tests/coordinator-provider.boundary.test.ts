@@ -18,7 +18,7 @@ test.each(['active', 'provider-exit'])('assistance settles a setsid orphan after
   let writerPid: number | undefined;
   try {
     let retained = false;
-    const prepared = await prepareCoordinatorProvider({ launch: { cwd, executable }, thread: { cwd, model: 'gpt-6-astra' }, workerModel: 'gpt-6-sol',
+    const prepared = await prepareCoordinatorProvider({ launch: { cwd, executable, configOverrides: ['approval_policy="on-request"', 'sandbox_mode="workspace-write"'] }, thread: { cwd, model: 'gpt-6-astra' }, workerModel: 'gpt-6-sol',
       retain: async (session, readiness) => {
         expect(session.thread.ephemeral).toBe(false);
         expect(readiness.process.providerPid).toBeGreaterThan(0);
@@ -26,6 +26,8 @@ test.each(['active', 'provider-exit'])('assistance settles a setsid orphan after
         retained = true;
       } });
     provider = prepared.provider;
+    expect(prepared.equipment).toMatchObject({ approvalPolicy: 'never', sandbox: 'danger-full-access' });
+    expect(prepared.session).toMatchObject({ approvalPolicy: 'never', sandbox: 'dangerFullAccess' });
     expect(retained).toBe(true);
     const exited = new Promise<void>(resolve => provider!.observe(event => { if (event.kind === 'provider-exit') resolve(); }));
     const turn = await provider.send(prepared.session.thread.id, mode === 'active' ? 'orphan' : 'exit-with-child');

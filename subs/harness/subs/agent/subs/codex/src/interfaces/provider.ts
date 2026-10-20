@@ -37,7 +37,7 @@ export interface CodexThreadSession {
   readonly thread: CodexThread;
   readonly model: string;
   readonly instructionSources: readonly string[];
-  /** Observed policy, never an instruction to broaden it. */
+  /** Verified full-access policy of the loaded thread. */
   readonly approvalPolicy: string;
   readonly sandbox: string;
 }
@@ -131,7 +131,7 @@ export interface CodexProvider {
 export interface CodexProviderOptions {
   readonly cwd: string;
   readonly executable?: string;
-  /** Launch-time TOML overrides; never written to shared configuration. */
+  /** Launch-time TOML overrides; full access is enforced afterward. Never written to shared configuration. */
   readonly configOverrides?: readonly string[];
   /** Explicit complete environment when provided; otherwise inherited unchanged. */
   readonly env?: Readonly<NodeJS.ProcessEnv>;

@@ -33,4 +33,4 @@ export class ScriptedCodex {
 }
 export const testTurn = (status = 'inProgress', id = 'turn-1') => ({ id, status, error: null, items: [] });
 export const testThread = (extra: Record<string, unknown> = {}) => ({ id: 'thread-1', parentThreadId: null, ephemeral: false, cwd: '/target', model: 'gpt-6-astra', cliVersion: '0.161.0', status: { type: 'idle' }, turns: [], ...extra });
-export const testSession = (extra: Record<string, unknown> = {}) => ({ thread: testThread(extra), model: 'gpt-6-astra', instructionSources: ['/target/AGENTS.md'], approvalPolicy: 'on-request', sandbox: { type: 'workspaceWrite' } });
+export const testSession = (extra: Record<string, unknown> = {}) => ({ thread: testThread(extra), model: 'gpt-6-astra', instructionSources: ['/target/AGENTS.md'], approvalPolicy: 'never', sandbox: { type: 'dangerFullAccess' } });

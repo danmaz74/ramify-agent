@@ -36,6 +36,7 @@ export interface CoordinatorHostDependencies {
 
 /** Verify effective settings both before input and in each loaded conversation. */
 export function verifyCoordinatorEquipment(equipment: CodexEquipment, name: string, replaced: readonly string[]): void {
+  if (equipment.approvalPolicy !== 'never' || equipment.sandbox !== 'danger-full-access') throw new CodexProviderError('unavailable', 'Codex coordinator and workers require full access with approval policy never');
   const entry = equipment.mcpConfiguration?.find(entry => entry.name === name);
   if (entry?.transport !== 'http' || !entry.enabled || !entry.required || entry.bearerTokenEnvVar !== tokenEnvironment || (entry.toolTimeoutSeconds ?? 0) <= 900) throw new CodexProviderError('unavailable', `HTTP MCP configuration ${name} is missing or incompatible (including an inherited command collision)`);
   for (const old of replaced) if (equipment.mcpConfiguration?.find(entry => entry.name === old)?.enabled !== false) throw new CodexProviderError('unavailable', `Replaced MCP entry ${old} is still enabled or was not observed`);

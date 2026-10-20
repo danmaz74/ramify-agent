@@ -12,9 +12,11 @@ root = Path.cwd()
 history = root / 'history.json'
 thread = None
 configuration = {'old-stdio': {'command': 'scripted-original-command'}, 'added-stdio': {'command': 'scripted-additional-command'}}
+policy = {'approval_policy': 'on-request', 'sandbox_mode': 'workspace-write'}
 for index, argument in enumerate(sys.argv):
     if argument == '-c':
         override = tomllib.loads(sys.argv[index + 1])
+        policy.update({key: override[key] for key in policy if key in override})
         for name, entry in override.get('mcp_servers', {}).items():
             configuration.setdefault(name, {}).update(entry)
 for name, entry in configuration.items():
@@ -70,8 +72,10 @@ for line in sys.stdin:
         tools = {name: {} for name in ('plan_executions', 'job_detail', 'iteration', 'iteration_assess', 'assessment_wait', 'assessment_result')}
         result = {'data': [{'name': name, 'tools': tools, 'toolsError': None} for name, entry in configuration.items() if entry.get('enabled', True) and 'url' in entry], 'nextCursor': None}
     elif method == 'config/read':
-        result = {'config': {'model': 'gpt-6-astra', 'approval_policy': 'on-request', 'sandbox_mode': 'workspace-write', 'mcp_servers': configuration}}
+        result = {'config': {'model': 'gpt-6-astra', **policy, 'mcp_servers': configuration}}
     elif method in ('thread/start', 'thread/resume'):
+        assert params['approvalPolicy'] == 'never'
+        assert params['sandbox'] == 'danger-full-access'
         if method == 'thread/start':
             thread = {'id': 'persistent-native-thread' if not (root / 'writer.pid').exists() else 'persistent-native-thread-' + uuid.uuid4().hex, 'parentThreadId': None, 'ephemeral': params['ephemeral'], 'cwd': params['cwd'], 'model': params['model'],
                       'cliVersion': 'native-script/1', 'status': {'type': 'idle'}, 'turns': []}
@@ -87,7 +91,7 @@ for line in sys.stdin:
             (root / 'thread-start-held.json').write_text(json.dumps({'pid': os.getpid(), 'threadId': thread['id']}))
             while gate.exists():
                 time.sleep(0.01)
-        result = {'thread': thread, 'model': params['model'], 'instructionSources': [], 'approvalPolicy': 'on-request', 'sandbox': {'type': 'workspaceWrite'}}
+        result = {'thread': thread, 'model': params['model'], 'instructionSources': [], 'approvalPolicy': params['approvalPolicy'], 'sandbox': {'type': 'dangerFullAccess'}}
     elif method == 'thread/read':
         result = {'thread': json.loads(history.read_text())}
     elif method == 'turn/start':
