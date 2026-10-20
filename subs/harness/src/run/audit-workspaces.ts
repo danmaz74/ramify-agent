@@ -71,6 +71,8 @@ const invocationSchema = z.object({
     }).strict().nullable(),
     reused: z.object({
       sourceCommit: z.string().min(1), auditedCommit: z.string().min(1), ignoredChangedPaths: z.array(z.string()),
+      // Absent in records made before ramify-audit 0.11.0 reported version-only manifest changes.
+      versionOnlyChangedPaths: z.array(z.string()).optional(),
       requestedMode: z.enum(['full', 'ramify-partial']), resolution: z.enum(['requested', 'defaulted']),
     }).strict().nullable(),
     unpublished: z.unknown(),
