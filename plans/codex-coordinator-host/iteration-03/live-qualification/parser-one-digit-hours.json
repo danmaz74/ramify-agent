@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-20T00:56:50.206Z",
+  "request": {
+    "generation": "f0854232-8150-4763-9fec-4bab88e8bcaf",
+    "id": "[\"f0854232-8150-4763-9fec-4bab88e8bcaf\",\"number\",11,12,\"01a156cd-80b0-7d61-a19b-27b751c9380f\",\"01a156cd-80e6-7600-ac9b-0650ba8f8d54\"]",
+    "threadId": "01a156cd-80b0-7d61-a19b-27b751c9380f",
+    "turnId": "01a156cd-80e6-7600-ac9b-0650ba8f8d54",
+    "itemId": "exec-ec4c7ef6-6ec7-4f73-9b9b-01bbdf23eed2",
+    "kind": "file-approval",
+    "reason": null,
+    "writeRoot": null,
+    "choices": [
+      {
+        "id": "0",
+        "label": "Approve once",
+        "effect": "once"
+      },
+      {
+        "id": "1",
+        "label": "Approve for this session",
+        "effect": "session"
+      },
+      {
+        "id": "2",
+        "label": "Decline",
+        "effect": "deny"
+      },
+      {
+        "id": "3",
+        "label": "Cancel",
+        "effect": "cancel"
+      }
+    ]
+  },
+  "paths": [
+    "/tmp/ramify-recovery-pilot-nCsA1r/src/tests/duration.test.js"
+  ],
+  "patchSha256": "987c64d4f46515fd097e8a1df10035fae1ec63e36e84ece262dc1032d14e0178",
+  "nativeHistory": "/home/app/.codex/sessions/2026/10/20/rollout-2026-10-20T00-54-30-01a156cd-80b0-7d61-a19b-27b751c9380f.jsonl",
+  "nativeCallId": "call_1640edf415a14432bb0065b2d000b1ed",
+  "authority": "Operator inspects the retained exact captured-plan source/test patch before once-only approval."
+}

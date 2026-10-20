@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-20T00:57:55.993Z",
+  "coordinatorId": "coord-7813b39b-82d0-407c-884d-35e8948f76b6",
+  "receipt": {
+    "schema": "ramify-agent.coordinator-guardian/1",
+    "generation": "c11bc7ef-a7b4-4c7f-ba16-b9d8d34f433a",
+    "pid": 151680,
+    "identity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112049519",
+    "state": "settled",
+    "reason": null,
+    "hostPid": 151681,
+    "hostIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112049526"
+  },
+  "guardianProcess": null,
+  "hostProcess": null,
+  "providerProcess": null,
+  "supervisorProcess": null
+}

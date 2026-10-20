@@ -1,0 +1,143 @@
+{
+  "at": "2026-10-20T00:44:59.906Z",
+  "record": {
+    "guardian": {
+      "path": "/tmp/ramify-coordinate-0hn7FC/guardian.json",
+      "generation": "936860d8-2edf-49a7-a6c6-cb022036f02b"
+    },
+    "assessmentModel": "openai/gpt-6-astra:high",
+    "schema": "ramify-agent.coordinator/1",
+    "id": "coord-7823c6e4-688b-4346-893b-60fc6a8c3b50",
+    "generation": "567e710d-c699-4670-b8a0-29ab89e50c67",
+    "projectRoot": "/tmp/ramify-recovery-pilot-nCsA1r",
+    "planId": "duration-labels",
+    "jobId": "20261020T004457Z-52b40b",
+    "launchedAt": "2026-10-20T00:44:57.022Z",
+    "owner": {
+      "pid": 147152,
+      "startedAt": "2026-10-20T00:44:55.708Z",
+      "processStart": "3111995541"
+    },
+    "model": "gpt-6-astra",
+    "workerModel": "gpt-6-sol",
+    "startCommandId": "recovery-pilot-start-smoke-pass",
+    "startHash": "eae518edd92fa07cc0f985405abde15704eedc0167c621d33daaa45bc0bb7125",
+    "skill": "/workspaces/worktrees/codex-coordinator-host/.agents/skills/ramify-agent-coordinate/SKILL.md",
+    "replaceMcp": [
+      "ramify-agent"
+    ],
+    "phase": "ready",
+    "endpoint": "http://127.0.0.1:43715",
+    "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+    "readiness": {
+      "userAgent": "codex_vscode/0.161.0 (Debian 12.0.0; x86_64) dumb (ramify_agent_coordinator; 0.0.0)",
+      "codexHome": "/home/app/.codex",
+      "platform": "linux",
+      "process": {
+        "providerPid": 147175,
+        "providerIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3111995685",
+        "supervisorPid": 147174,
+        "supervisorIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3111995681"
+      }
+    },
+    "turn": {
+      "id": "01a156c4-c5ac-7c52-ae11-311536387046",
+      "status": "inProgress",
+      "error": null
+    },
+    "pending": [],
+    "workers": [],
+    "observedAt": "2026-10-20T00:44:59.190Z",
+    "error": null,
+    "settlement": null,
+    "cursor": 8,
+    "progress": [
+      {
+        "cursor": 1,
+        "at": "2026-10-20T00:44:57.102Z",
+        "event": {
+          "kind": "registered",
+          "jobId": "20261020T004457Z-52b40b"
+        }
+      },
+      {
+        "cursor": 2,
+        "at": "2026-10-20T00:44:58.049Z",
+        "event": {
+          "kind": "persistent-thread",
+          "id": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "cliVersion": "0.161.0"
+        }
+      },
+      {
+        "cursor": 3,
+        "at": "2026-10-20T00:44:58.665Z",
+        "event": {
+          "kind": "equipment-ready"
+        }
+      },
+      {
+        "cursor": 4,
+        "at": "2026-10-20T00:44:58.672Z",
+        "event": {
+          "kind": "send-acknowledged",
+          "turnId": "01a156c4-c5ac-7c52-ae11-311536387046",
+          "status": "inProgress"
+        }
+      },
+      {
+        "cursor": 5,
+        "at": "2026-10-20T00:44:58.753Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 6,
+        "at": "2026-10-20T00:44:58.754Z",
+        "event": {
+          "kind": "turn",
+          "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "turn": {
+            "id": "01a156c4-c5ac-7c52-ae11-311536387046",
+            "status": "inProgress",
+            "error": null,
+            "messages": [],
+            "work": []
+          }
+        }
+      },
+      {
+        "cursor": 7,
+        "at": "2026-10-20T00:44:59.181Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "turnId": "01a156c4-c5ac-7c52-ae11-311536387046",
+          "item": {
+            "id": "01a156c4-c7a7-7923-8523-8df8c3e21001",
+            "kind": "userMessage"
+          }
+        }
+      },
+      {
+        "cursor": 8,
+        "at": "2026-10-20T00:44:59.190Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "turnId": "01a156c4-c5ac-7c52-ae11-311536387046",
+          "item": {
+            "id": "01a156c4-c7a7-7923-8523-8df8c3e21001",
+            "kind": "userMessage"
+          }
+        }
+      }
+    ],
+    "ownershipReleased": false
+  },
+  "stale": false,
+  "assessments": []
+}

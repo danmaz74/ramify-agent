@@ -1,0 +1,32 @@
+{
+  "startedAt": "2026-10-20T00:50:22.153Z",
+  "returnedAt": "2026-10-20T00:50:25.091Z",
+  "sourceHead": "8785a35e7d14610e4883a684714587a781a14934",
+  "launcher": {
+    "pid": 150935,
+    "parentPid": 3938772
+  },
+  "command": [
+    "/usr/local/bin/node",
+    "--import",
+    "tsx",
+    "src/main.ts",
+    "coordinate",
+    "resume",
+    "--project",
+    "/tmp/ramify-recovery-pilot-nCsA1r",
+    "--command-id",
+    "recovery-pilot-persistent-resume",
+    "--json",
+    "--assessment-model",
+    "openai/gpt-6-astra:high",
+    "--id",
+    "coord-7823c6e4-688b-4346-893b-60fc6a8c3b50",
+    "--message-file",
+    "/workspaces/worktrees/codex-coordinator-host/plans/codex-coordinator-host/iteration-03/live-qualification/resume-directions.txt"
+  ],
+  "exitCode": 2,
+  "signal": null,
+  "error": null,
+  "qualification": "Executed from an agent shell tool; this process and CLI exit before subsequent observer/control calls. PTY closure is separately recorded by the enclosing tool when selected; arbitrary UI disappearance is not implied."
+}

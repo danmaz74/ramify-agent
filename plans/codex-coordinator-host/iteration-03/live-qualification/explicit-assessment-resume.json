@@ -1,0 +1,957 @@
+{
+  "at": "2026-10-20T00:59:09.043Z",
+  "record": {
+    "guardian": {
+      "path": "/tmp/ramify-recovery-pilot-nCsA1r/plans/.harness/coordinators/coord-3c5a7221-8917-477d-9128-46594bad235e/guardian.json",
+      "generation": "87ea931f-e9fc-4182-9baf-605cf9cc9ce6"
+    },
+    "assessmentModel": "openai/gpt-6-astra:high",
+    "resumeFrom": "coord-7813b39b-82d0-407c-884d-35e8948f76b6",
+    "recovery": {
+      "thread": "fresh",
+      "reason": "Fresh persistent context explicitly requested",
+      "uncertainCommands": []
+    },
+    "schema": "ramify-agent.coordinator/1",
+    "id": "coord-3c5a7221-8917-477d-9128-46594bad235e",
+    "generation": "c37fa15f-045e-4b6b-b2ec-f06e2e4e452a",
+    "projectRoot": "/tmp/ramify-recovery-pilot-nCsA1r",
+    "planId": "duration-labels",
+    "jobId": "20261020T004457Z-52b40b",
+    "launchedAt": "2026-10-20T00:58:08.119Z",
+    "owner": {
+      "pid": 153516,
+      "startedAt": "2026-10-20T00:58:06.638Z",
+      "processStart": "3112074634"
+    },
+    "model": "gpt-6-astra",
+    "workerModel": "gpt-6-sol",
+    "startCommandId": "recovery-pilot-fresh-assessment-resume",
+    "startHash": "56df8f3cd9416b1baf672a20d8819f0eb852f8815234bb2c12f5c6a34db483b7",
+    "skill": "/workspaces/worktrees/codex-coordinator-host/.agents/skills/ramify-agent-coordinate/SKILL.md",
+    "replaceMcp": [
+      "ramify-agent",
+      "ramify_host_567e710dc6994670b8a029ab89e50c67",
+      "ramify_host_3fac3650011d445487209f24e5ddd767",
+      "ramify_host_1a6e9bca453444b49123aca6fc89a7a6"
+    ],
+    "phase": "ready",
+    "initialTurnAcknowledged": true,
+    "endpoint": "http://127.0.0.1:38477",
+    "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+    "readiness": {
+      "userAgent": "codex_vscode/0.161.0 (Debian 12.0.0; x86_64) dumb (ramify_agent_coordinator; 0.0.0)",
+      "codexHome": "/home/app/.codex",
+      "platform": "linux",
+      "process": {
+        "providerPid": 153556,
+        "providerIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112074794",
+        "supervisorPid": 153554,
+        "supervisorIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112074790"
+      }
+    },
+    "turn": {
+      "id": "01a156d0-d84e-72c2-86e2-2474de98865d",
+      "status": "inProgress",
+      "error": null
+    },
+    "pending": [
+      {
+        "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+        "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",7,8,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+        "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+        "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+        "itemId": "exec-80ef7647-6c93-4fce-b557-c5d0f76ac706",
+        "kind": "command-approval",
+        "reason": "Allow reading the coordinator assistance guide at its resolved path?",
+        "command": "/usr/bin/zsh -lc 'cat /workspaces/worktrees/codex-coordinator-host/docs/agent-assistance.md'",
+        "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+        "choices": [
+          {
+            "id": "0",
+            "label": "Approve once",
+            "effect": "once"
+          },
+          {
+            "id": "1",
+            "label": "Approve and amend command policy",
+            "effect": "policy",
+            "commandPrefix": [
+              "cat",
+              "/workspaces/worktrees/codex-coordinator-host/docs/agent-assistance.md"
+            ]
+          },
+          {
+            "id": "2",
+            "label": "Cancel",
+            "effect": "cancel"
+          }
+        ]
+      }
+    ],
+    "workers": [],
+    "observedAt": "2026-10-20T00:59:08.716Z",
+    "error": null,
+    "settlement": null,
+    "cursor": 62,
+    "progress": [
+      {
+        "cursor": 1,
+        "at": "2026-10-20T00:58:08.190Z",
+        "event": {
+          "kind": "registered",
+          "jobId": "20261020T004457Z-52b40b"
+        }
+      },
+      {
+        "cursor": 2,
+        "at": "2026-10-20T00:58:09.241Z",
+        "event": {
+          "kind": "persistent-thread",
+          "id": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "cliVersion": "0.161.0"
+        }
+      },
+      {
+        "cursor": 3,
+        "at": "2026-10-20T00:58:09.867Z",
+        "event": {
+          "kind": "equipment-ready"
+        }
+      },
+      {
+        "cursor": 4,
+        "at": "2026-10-20T00:58:09.875Z",
+        "event": {
+          "kind": "send-acknowledged",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "status": "inProgress"
+        }
+      },
+      {
+        "cursor": 5,
+        "at": "2026-10-20T00:58:10.025Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 6,
+        "at": "2026-10-20T00:58:10.025Z",
+        "event": {
+          "kind": "turn",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turn": {
+            "id": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "status": "inProgress",
+            "error": null,
+            "messages": [],
+            "work": []
+          }
+        }
+      },
+      {
+        "cursor": 7,
+        "at": "2026-10-20T00:58:10.355Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "01a156d0-da32-7ab2-b718-6686e733d210",
+            "kind": "userMessage"
+          }
+        }
+      },
+      {
+        "cursor": 8,
+        "at": "2026-10-20T00:58:10.357Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "01a156d0-da32-7ab2-b718-6686e733d210",
+            "kind": "userMessage"
+          }
+        }
+      },
+      {
+        "cursor": 9,
+        "at": "2026-10-20T00:58:12.088Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "msg_06517b209f5ccfa5016ad6bca410c48191a7e9e3ab1a556a61",
+            "kind": "agentMessage"
+          }
+        }
+      },
+      {
+        "cursor": 10,
+        "at": "2026-10-20T00:58:12.848Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "msg_06517b209f5ccfa5016ad6bca410c48191a7e9e3ab1a556a61",
+            "kind": "agentMessage"
+          }
+        }
+      },
+      {
+        "cursor": 11,
+        "at": "2026-10-20T00:58:20.617Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-078dca00-5b03-4d99-b804-e3b57dced65f",
+            "kind": "mcpToolCall",
+            "status": "inProgress",
+            "operation": "job_detail"
+          }
+        }
+      },
+      {
+        "cursor": 12,
+        "at": "2026-10-20T00:58:20.618Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 13,
+        "at": "2026-10-20T00:58:20.641Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",0,1,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": null,
+            "kind": "mcp-elicitation",
+            "serverName": "ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a",
+            "message": "Allow the ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a MCP server to run tool \"job_detail\"?",
+            "mode": "form",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      {
+        "cursor": 14,
+        "at": "2026-10-20T00:58:24.596Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",0,1,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 15,
+        "at": "2026-10-20T00:58:24.596Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",0,1,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 16,
+        "at": "2026-10-20T00:58:24.596Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 17,
+        "at": "2026-10-20T00:58:24.603Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-078dca00-5b03-4d99-b804-e3b57dced65f",
+            "kind": "mcpToolCall",
+            "status": "completed",
+            "operation": "job_detail"
+          }
+        }
+      },
+      {
+        "cursor": 18,
+        "at": "2026-10-20T00:58:24.608Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 19,
+        "at": "2026-10-20T00:58:24.608Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-4f31fcbb-0569-413d-89a1-c68fceeeb1fa",
+            "kind": "commandExecution",
+            "status": "inProgress"
+          }
+        }
+      },
+      {
+        "cursor": 20,
+        "at": "2026-10-20T00:58:24.609Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",1,2,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": "exec-4f31fcbb-0569-413d-89a1-c68fceeeb1fa",
+            "kind": "command-approval",
+            "reason": "Allow reading the requested coordinator skill outside the sandbox after the sandbox failed to initialize?",
+            "command": "/usr/bin/zsh -lc 'cat /workspaces/worktrees/codex-coordinator-host/.agents/skills/ramify-agent-coordinate/SKILL.md'",
+            "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+            "choices": [
+              {
+                "id": "0",
+                "label": "Approve once",
+                "effect": "once"
+              },
+              {
+                "id": "1",
+                "label": "Approve and amend command policy",
+                "effect": "policy",
+                "commandPrefix": [
+                  "cat",
+                  "/workspaces/worktrees/codex-coordinator-host/.agents/skills/ramify-agent-coordinate/SKILL.md"
+                ]
+              },
+              {
+                "id": "2",
+                "label": "Cancel",
+                "effect": "cancel"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cursor": 21,
+        "at": "2026-10-20T00:58:29.561Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",1,2,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 22,
+        "at": "2026-10-20T00:58:29.561Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",1,2,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 23,
+        "at": "2026-10-20T00:58:29.562Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 24,
+        "at": "2026-10-20T00:58:29.616Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-4f31fcbb-0569-413d-89a1-c68fceeeb1fa",
+            "kind": "commandExecution",
+            "status": "completed"
+          }
+        }
+      },
+      {
+        "cursor": 25,
+        "at": "2026-10-20T00:58:29.620Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 26,
+        "at": "2026-10-20T00:58:29.620Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-6b9a99a1-c9b8-4ce8-8231-49662ce936c6",
+            "kind": "commandExecution",
+            "status": "inProgress"
+          }
+        }
+      },
+      {
+        "cursor": 27,
+        "at": "2026-10-20T00:58:29.621Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",2,3,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": "exec-6b9a99a1-c9b8-4ce8-8231-49662ce936c6",
+            "kind": "command-approval",
+            "reason": "Allow read-only inspection of this checkout outside the sandbox after the sandbox failed to initialize?",
+            "command": "/usr/bin/zsh -lc \"git status --short && git log -5 --oneline && git rev-parse HEAD && rg --files -g AGENTS.md -g 'src/**' -g '*ramify*' -g 'package*.json'\"",
+            "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+            "choices": [
+              {
+                "id": "0",
+                "label": "Approve once",
+                "effect": "once"
+              },
+              {
+                "id": "1",
+                "label": "Approve and amend command policy",
+                "effect": "policy",
+                "commandPrefix": [
+                  "git",
+                  "status",
+                  "--short"
+                ]
+              },
+              {
+                "id": "2",
+                "label": "Cancel",
+                "effect": "cancel"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cursor": 28,
+        "at": "2026-10-20T00:58:34.852Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",2,3,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 29,
+        "at": "2026-10-20T00:58:34.852Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",2,3,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 30,
+        "at": "2026-10-20T00:58:34.852Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 31,
+        "at": "2026-10-20T00:58:34.916Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-6b9a99a1-c9b8-4ce8-8231-49662ce936c6",
+            "kind": "commandExecution",
+            "status": "completed"
+          }
+        }
+      },
+      {
+        "cursor": 32,
+        "at": "2026-10-20T00:58:40.011Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 33,
+        "at": "2026-10-20T00:58:40.012Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-02d2d2d6-f22b-4fd6-b24b-24c1ce0c3751",
+            "kind": "commandExecution",
+            "status": "inProgress"
+          }
+        }
+      },
+      {
+        "cursor": 34,
+        "at": "2026-10-20T00:58:40.012Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",3,4,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": "exec-02d2d2d6-f22b-4fd6-b24b-24c1ce0c3751",
+            "kind": "command-approval",
+            "reason": "Allow reading the coordinator tool usage guide required by the requested skill?",
+            "command": "/usr/bin/zsh -lc 'cat /workspaces/worktrees/codex-coordinator-host/.agents/docs/agent-assistance.md'",
+            "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+            "choices": [
+              {
+                "id": "0",
+                "label": "Approve once",
+                "effect": "once"
+              },
+              {
+                "id": "1",
+                "label": "Approve and amend command policy",
+                "effect": "policy",
+                "commandPrefix": [
+                  "cat",
+                  "/workspaces/worktrees/codex-coordinator-host/.agents/docs/agent-assistance.md"
+                ]
+              },
+              {
+                "id": "2",
+                "label": "Cancel",
+                "effect": "cancel"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cursor": 35,
+        "at": "2026-10-20T00:58:40.012Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-34a3f7c5-b61a-4b75-a63a-1a5f1134927d",
+            "kind": "commandExecution",
+            "status": "inProgress"
+          }
+        }
+      },
+      {
+        "cursor": 36,
+        "at": "2026-10-20T00:58:40.013Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",4,5,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": "exec-34a3f7c5-b61a-4b75-a63a-1a5f1134927d",
+            "kind": "command-approval",
+            "reason": "Allow reading the current source, tests, and project instructions to verify recovery of the committed candidate?",
+            "command": "/usr/bin/zsh -lc 'cat AGENTS.md src/duration.js src/tests/duration.test.js package.json ramify-audit.json module.ramify'",
+            "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+            "choices": [
+              {
+                "id": "0",
+                "label": "Approve once",
+                "effect": "once"
+              },
+              {
+                "id": "1",
+                "label": "Approve and amend command policy",
+                "effect": "policy",
+                "commandPrefix": [
+                  "cat",
+                  "AGENTS.md",
+                  "src/duration.js",
+                  "src/tests/duration.test.js",
+                  "package.json",
+                  "ramify-audit.json",
+                  "module.ramify"
+                ]
+              },
+              {
+                "id": "2",
+                "label": "Cancel",
+                "effect": "cancel"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "cursor": 37,
+        "at": "2026-10-20T00:58:53.273Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",3,4,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 38,
+        "at": "2026-10-20T00:58:53.273Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",3,4,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 39,
+        "at": "2026-10-20T00:58:53.725Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",4,5,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 40,
+        "at": "2026-10-20T00:58:53.725Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",4,5,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 41,
+        "at": "2026-10-20T00:58:53.725Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 42,
+        "at": "2026-10-20T00:58:53.728Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-02d2d2d6-f22b-4fd6-b24b-24c1ce0c3751",
+            "kind": "commandExecution",
+            "status": "failed"
+          }
+        }
+      },
+      {
+        "cursor": 43,
+        "at": "2026-10-20T00:58:53.779Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-34a3f7c5-b61a-4b75-a63a-1a5f1134927d",
+            "kind": "commandExecution",
+            "status": "completed"
+          }
+        }
+      },
+      {
+        "cursor": 44,
+        "at": "2026-10-20T00:58:53.781Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-ed388d66-1ad5-4c73-89c1-c4badab2a62b",
+            "kind": "mcpToolCall",
+            "status": "inProgress",
+            "operation": "assessment_detail"
+          }
+        }
+      },
+      {
+        "cursor": 45,
+        "at": "2026-10-20T00:58:53.781Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 46,
+        "at": "2026-10-20T00:58:53.783Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",5,6,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": null,
+            "kind": "mcp-elicitation",
+            "serverName": "ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a",
+            "message": "Allow the ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a MCP server to run tool \"assessment_detail\"?",
+            "mode": "form",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      {
+        "cursor": 47,
+        "at": "2026-10-20T00:58:58.558Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",5,6,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 48,
+        "at": "2026-10-20T00:58:58.558Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",5,6,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 49,
+        "at": "2026-10-20T00:58:58.558Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 50,
+        "at": "2026-10-20T00:58:58.566Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-ed388d66-1ad5-4c73-89c1-c4badab2a62b",
+            "kind": "mcpToolCall",
+            "status": "completed",
+            "operation": "assessment_detail"
+          }
+        }
+      },
+      {
+        "cursor": 51,
+        "at": "2026-10-20T00:59:00.382Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "msg_06517b209f5ccfa5016ad6bcd45c7881919e84f097bd38db36",
+            "kind": "agentMessage"
+          }
+        }
+      },
+      {
+        "cursor": 52,
+        "at": "2026-10-20T00:59:01.592Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "msg_06517b209f5ccfa5016ad6bcd45c7881919e84f097bd38db36",
+            "kind": "agentMessage"
+          }
+        }
+      },
+      {
+        "cursor": 53,
+        "at": "2026-10-20T00:59:03.612Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-31491ec6-38e5-42b2-becc-0dee4c32d365",
+            "kind": "mcpToolCall",
+            "status": "inProgress",
+            "operation": "assessment_resume"
+          }
+        }
+      },
+      {
+        "cursor": 54,
+        "at": "2026-10-20T00:59:03.613Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 55,
+        "at": "2026-10-20T00:59:03.615Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",6,7,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": null,
+            "kind": "mcp-elicitation",
+            "serverName": "ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a",
+            "message": "Allow the ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a MCP server to run tool \"assessment_resume\"?",
+            "mode": "form",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      },
+      {
+        "cursor": 56,
+        "at": "2026-10-20T00:59:08.707Z",
+        "event": {
+          "kind": "request-resolved",
+          "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",6,7,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 57,
+        "at": "2026-10-20T00:59:08.707Z",
+        "event": {
+          "kind": "response-delivered",
+          "requestId": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",6,7,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]"
+        }
+      },
+      {
+        "cursor": 58,
+        "at": "2026-10-20T00:59:08.708Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 59,
+        "at": "2026-10-20T00:59:08.713Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-31491ec6-38e5-42b2-becc-0dee4c32d365",
+            "kind": "mcpToolCall",
+            "status": "completed",
+            "operation": "assessment_resume"
+          }
+        }
+      },
+      {
+        "cursor": 60,
+        "at": "2026-10-20T00:59:08.716Z",
+        "event": {
+          "kind": "thread-status",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "status": "active"
+        }
+      },
+      {
+        "cursor": 61,
+        "at": "2026-10-20T00:59:08.716Z",
+        "event": {
+          "kind": "work",
+          "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "item": {
+            "id": "exec-80ef7647-6c93-4fce-b557-c5d0f76ac706",
+            "kind": "commandExecution",
+            "status": "inProgress"
+          }
+        }
+      },
+      {
+        "cursor": 62,
+        "at": "2026-10-20T00:59:08.716Z",
+        "event": {
+          "kind": "pending-request",
+          "request": {
+            "generation": "9aff3a66-3eb4-4ac8-b212-36c5f42b0d70",
+            "id": "[\"9aff3a66-3eb4-4ac8-b212-36c5f42b0d70\",\"number\",7,8,\"01a156d0-d57c-76a2-a19e-6aa2218d1a50\",\"01a156d0-d84e-72c2-86e2-2474de98865d\"]",
+            "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+            "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+            "itemId": "exec-80ef7647-6c93-4fce-b557-c5d0f76ac706",
+            "kind": "command-approval",
+            "reason": "Allow reading the coordinator assistance guide at its resolved path?",
+            "command": "/usr/bin/zsh -lc 'cat /workspaces/worktrees/codex-coordinator-host/docs/agent-assistance.md'",
+            "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+            "choices": [
+              {
+                "id": "0",
+                "label": "Approve once",
+                "effect": "once"
+              },
+              {
+                "id": "1",
+                "label": "Approve and amend command policy",
+                "effect": "policy",
+                "commandPrefix": [
+                  "cat",
+                  "/workspaces/worktrees/codex-coordinator-host/docs/agent-assistance.md"
+                ]
+              },
+              {
+                "id": "2",
+                "label": "Cancel",
+                "effect": "cancel"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "ownershipReleased": false
+  },
+  "stale": false,
+  "assessments": [
+    {
+      "id": "as-0001",
+      "status": "running",
+      "revision": 8,
+      "error": null
+    }
+  ]
+}

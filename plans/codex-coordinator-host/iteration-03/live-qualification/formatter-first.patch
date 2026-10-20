@@ -1,0 +1,51 @@
+*** Begin Patch
+*** Update File: /tmp/ramify-recovery-pilot-nCsA1r/src/duration.js
+@@
+-/** Display elapsed whole seconds. */
+-export function formatDuration(seconds) { return `${seconds}s`; }
++/** Display elapsed whole seconds as hours, minutes, and seconds. */
++export function formatDuration(seconds) {
++  if (!Number.isFinite(seconds) || seconds < 0 || seconds > Number.MAX_SAFE_INTEGER) {
++    throw new RangeError("seconds must be a finite, nonnegative safe value");
++  }
++
++  const wholeSeconds = Math.floor(seconds);
++  const hours = Math.floor(wholeSeconds / 3600);
++  const minutes = Math.floor((wholeSeconds % 3600) / 60);
++  const remainingSeconds = wholeSeconds % 60;
++  return [hours, minutes, remainingSeconds]
++    .map((part) => String(part).padStart(2, "0"))
++    .join(":");
++}
+*** Update File: /tmp/ramify-recovery-pilot-nCsA1r/src/tests/duration.test.js
+@@
+-test("initial display", () => assert.equal(formatDuration(30), "30s"));
++test("formatDuration pads each field across second, minute, and hour boundaries", () => {
++  const cases = [
++    [0, "00:00:00"],
++    [1, "00:00:01"],
++    [59, "00:00:59"],
++    [60, "00:01:00"],
++    [3599, "00:59:59"],
++    [3600, "01:00:00"],
++    [86399, "23:59:59"],
++    [86400, "24:00:00"],
++    [360000, "100:00:00"],
++  ];
++  for (const [seconds, expected] of cases) {
++    assert.equal(formatDuration(seconds), expected, String(seconds));
++  }
++});
++
++test("formatDuration floors fractional seconds", () => {
++  assert.equal(formatDuration(59.999), "00:00:59");
++  assert.equal(formatDuration(3600.9), "01:00:00");
++});
++
++test("formatDuration rejects invalid values and accepts the safe upper bound", () => {
++  for (const seconds of [-1, -0.1, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1]) {
++    assert.throws(() => formatDuration(seconds), RangeError, String(seconds));
++  }
++  assert.equal(formatDuration(Number.MAX_SAFE_INTEGER), "2501999792983:36:31");
++});
+*** End Patch

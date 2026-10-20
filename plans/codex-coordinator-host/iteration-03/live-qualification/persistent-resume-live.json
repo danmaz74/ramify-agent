@@ -1,0 +1,95 @@
+{
+  "at": "2026-10-20T00:50:26.459Z",
+  "record": {
+    "guardian": {
+      "path": "/tmp/ramify-coordinate-1iONXL/guardian.json",
+      "generation": "cb5a6027-6ec2-4497-b97e-60af826d9e9a"
+    },
+    "assessmentModel": "openai/gpt-6-astra:high",
+    "resumeFrom": "coord-7823c6e4-688b-4346-893b-60fc6a8c3b50",
+    "recovery": {
+      "thread": "pending",
+      "reason": null,
+      "uncertainCommands": []
+    },
+    "schema": "ramify-agent.coordinator/1",
+    "id": "coord-5b7d09b0-be78-4415-a72c-0634b16969ef",
+    "generation": "3fac3650-011d-4454-8720-9f24e5ddd767",
+    "projectRoot": "/tmp/ramify-recovery-pilot-nCsA1r",
+    "planId": "duration-labels",
+    "jobId": "20261020T004457Z-52b40b",
+    "launchedAt": "2026-10-20T00:50:24.779Z",
+    "owner": {
+      "pid": 150959,
+      "startedAt": "2026-10-20T00:50:23.460Z",
+      "processStart": "3112028317"
+    },
+    "model": "gpt-6-astra",
+    "workerModel": "gpt-6-sol",
+    "startCommandId": "recovery-pilot-persistent-resume",
+    "startHash": "17fb9399c905895bc6f575d90e743cb24c29cc96cb76c7ae103ba18bdcd65e72",
+    "skill": "/workspaces/worktrees/codex-coordinator-host/.agents/skills/ramify-agent-coordinate/SKILL.md",
+    "replaceMcp": [
+      "ramify-agent",
+      "ramify_host_567e710dc6994670b8a029ab89e50c67"
+    ],
+    "phase": "provider-exited",
+    "initialTurnAcknowledged": false,
+    "endpoint": "http://127.0.0.1:35977",
+    "threadId": null,
+    "readiness": null,
+    "turn": null,
+    "pending": [],
+    "workers": [],
+    "observedAt": "2026-10-20T00:50:24.936Z",
+    "error": "Codex app-server exited (1)",
+    "settlement": null,
+    "cursor": 5,
+    "progress": [
+      {
+        "cursor": 1,
+        "at": "2026-10-20T00:50:24.819Z",
+        "event": {
+          "kind": "registered",
+          "jobId": "20261020T004457Z-52b40b"
+        }
+      },
+      {
+        "cursor": 2,
+        "at": "2026-10-20T00:50:24.917Z",
+        "event": {
+          "kind": "provider-error",
+          "message": "Codex app-server exited (1)"
+        }
+      },
+      {
+        "cursor": 3,
+        "at": "2026-10-20T00:50:24.918Z",
+        "event": {
+          "kind": "provider-exit",
+          "code": 1,
+          "signal": null
+        }
+      },
+      {
+        "cursor": 4,
+        "at": "2026-10-20T00:50:24.918Z",
+        "event": {
+          "kind": "provider-error",
+          "message": "Codex initialization failed: CodexProviderError: Codex app-server exited (1)"
+        }
+      },
+      {
+        "cursor": 5,
+        "at": "2026-10-20T00:50:24.936Z",
+        "event": {
+          "kind": "startup-error",
+          "error": "Codex app-server exited (1)"
+        }
+      }
+    ],
+    "ownershipReleased": false
+  },
+  "stale": false,
+  "assessments": []
+}

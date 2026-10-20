@@ -1,0 +1,21 @@
+
+added 95 packages in 12s
+Root: /tmp/ramify-recovery-pilot-nCsA1r
+Materialized: revision 1; 1 target(s), 3 entries, 3180 bytes written, 0 unchanged
+Architect view: .ramify-architect, 1 modules, 3 records, dependencies measured
+{
+  "root": "/tmp/ramify-recovery-pilot-nCsA1r",
+  "planId": "duration-labels",
+  "baseline": "c19fca03ee92291dc2c682b56bd4e6a785932ec7",
+  "preparedAt": "2026-10-20T00:39:47.449Z",
+  "harnessRoot": "/workspaces/worktrees/codex-coordinator-host",
+  "harnessCommit": "8785a35e7d14610e4883a684714587a781a14934",
+  "globalConfigSha256": "14481adfb5b88208f9a4ea1724fe1c904122da8b086620cf1431c9d364910961",
+  "credentials": {
+    "codexAuthReadable": true,
+    "piAuthReadable": true
+  },
+  "assessmentModel": "openai/gpt-6-astra:high",
+  "coordinatorModel": "gpt-6-astra",
+  "workerModel": "gpt-6-sol"
+}

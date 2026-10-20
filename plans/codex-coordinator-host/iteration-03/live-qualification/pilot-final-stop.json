@@ -1,0 +1,1 @@
+{"commandId":"recovery-pilot-final-stop","state":"completed","result":{"confirmed":true,"descendants":"settled","supervisorExited":true,"reason":null,"assessments":[{"id":"as-0001","status":"completed","revision":12,"error":null},{"id":"as-0002","status":"completed","revision":10,"error":null}]}}

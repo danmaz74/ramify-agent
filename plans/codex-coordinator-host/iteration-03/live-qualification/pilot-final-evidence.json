@@ -1,0 +1,848 @@
+{
+  "collectedAt": "2026-10-20T01:06:54.122Z",
+  "target": "/tmp/ramify-recovery-pilot-nCsA1r",
+  "baseline": "c19fca03ee92291dc2c682b56bd4e6a785932ec7",
+  "candidate": "a3469c87dabdb928d130fd39b28330acc507c133",
+  "workingTree": "",
+  "changedFiles": [
+    "src/duration.js",
+    "src/tests/duration.test.js"
+  ],
+  "jobIds": [
+    "20261020T004457Z-52b40b"
+  ],
+  "jobId": "20261020T004457Z-52b40b",
+  "protection": {
+    "baselineCommit": "c19fca03ee92291dc2c682b56bd4e6a785932ec7",
+    "rules": {
+      "explicitPaths": [],
+      "excludedPaths": [],
+      "guardedPaths": [
+        "package.json",
+        "package-lock.json",
+        "npm-shrinkwrap.json",
+        ".gitignore",
+        "tsconfig.json",
+        "vitest.config.ts",
+        "vitest.config.js",
+        "vitest.config.mts",
+        "vite.config.ts",
+        "vite.config.js",
+        "vite.config.mts",
+        "cucumber.js",
+        "cucumber.cjs",
+        "cucumber.mjs",
+        "cucumber.json",
+        "cucumber.yaml",
+        "cucumber.yml",
+        "ramify-agent.json",
+        "ramify-audit.json"
+      ],
+      "additions": "protect"
+    },
+    "gaps": [],
+    "unavailable": null
+  },
+  "assessments": [
+    {
+      "id": "as-0001",
+      "status": "completed",
+      "revision": 12,
+      "request": {
+        "planId": "duration-labels",
+        "jobId": "20261020T004457Z-52b40b",
+        "base": "c19fca03ee92291dc2c682b56bd4e6a785932ec7",
+        "candidate": "a3469c87dabdb928d130fd39b28330acc507c133",
+        "kind": "iteration",
+        "brief": "Implement captured elapsed duration round-trip contract in two useful commits: formatDuration and meaningful formatter tests first, then parseDuration with strict syntax/safe totals and parser/round-trip tests. Preserve configuration, module declaration, audit checks and original registered baseline.",
+        "acceptance": [
+          "Formatter returns padded HH:MM:SS with unbounded hour digits, floors fractions, and rejects negative/nonfinite/unsafe values.",
+          "Parser enforces the exact ASCII label grammar and minute/second ranges, rejects nonstrings with TypeError and malformed/unsafe totals with RangeError.",
+          "Meaningful node:test coverage includes boundaries, more than 24 hours, fractions, failures, and safe round trips; project configuration and audit checks preserved.",
+          "Formatter implemented and committed first at eccf2661d92dba017050898f4bfa662909e3aede; parser implemented subsequently by native gpt-6-sol."
+        ],
+        "requirementDocuments": [],
+        "iterationId": "it-1e045c1c-c770-4aef-872b-ca728f55980f",
+        "focusModule": ".",
+        "additionalContext": "Recovered after owned-host failure by inspecting retained job and clean formatter commit. Same iteration and original baseline preserved. Native gpt-6-sol worker committed parser and tests; npm test passes 8/8, git diff --check passes, working tree clean. Only src/duration.js and src/tests/duration.test.js changed."
+      },
+      "outcome": {
+        "gate": "clear",
+        "summary": "Required assessment completed with no remaining material issue.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [],
+        "evidence": [
+          "assessments/as-0001/stages/review-accepted.json",
+          "assessments/as-0001/stages/review.json",
+          "assessments/as-0001/stages/approval-readiness.json",
+          "assessments/as-0001/stages/audit.json",
+          "assessments/as-0001/stages/protection.json",
+          "assessments/as-0001/stages/documents.json",
+          "assessments/as-0001/stages/review-policy.json"
+        ]
+      },
+      "completedAt": "2026-10-20T01:00:58.063Z",
+      "source": "/tmp/ramify-recovery-pilot-nCsA1r/plans/duration-labels/.harness/jobs/20261020T004457Z-52b40b/assessments/as-0001/rev-0012.json",
+      "sourceSha256": "df887a0a08351e2450fe3e69fe0dcaee6c6e8aa7f9cc005f41527bdef9e6d8d1",
+      "timeline": [
+        {
+          "file": "rev-0001.json",
+          "sha256": "be05e66bbf1531d0a4bc04d57d0c56b25f09ed25d507a06cd0baa633f7e7f189",
+          "revision": 1,
+          "status": "queued",
+          "error": null,
+          "stageNames": []
+        },
+        {
+          "file": "rev-0002.json",
+          "sha256": "63908ed6c20afb852b4eba3eb02bb3c3061792e14109e98601c274e3e81acc29",
+          "revision": 2,
+          "status": "running",
+          "error": null,
+          "stageNames": []
+        },
+        {
+          "file": "rev-0003.json",
+          "sha256": "e4eba54a99ea80afb93e0c2d8e13a437b58016726d6ba56c9064362d07f2c63f",
+          "revision": 3,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit"
+          ]
+        },
+        {
+          "file": "rev-0004.json",
+          "sha256": "79b372836da31043bc807ef0b244cb8219f6d3ddb20ee9e57f5fd7ca8f1e2e34",
+          "revision": 4,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection"
+          ]
+        },
+        {
+          "file": "rev-0005.json",
+          "sha256": "a35ccc9d85ae0ab286fc4608ba063f61e1ffdb1e5199708bc6aa79bdd909ebe8",
+          "revision": 5,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents"
+          ]
+        },
+        {
+          "file": "rev-0006.json",
+          "sha256": "838c220874d3b4afd1bda9716c7a3f4aca797c4f3dc6c292f63cb474a2ebe46c",
+          "revision": 6,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy"
+          ]
+        },
+        {
+          "file": "rev-0007.json",
+          "sha256": "2633f57876d9e864c9c244a1ea7e9a14c2d2cf350c67b0499da2e8353c8f730a",
+          "revision": 7,
+          "status": "interrupted",
+          "error": "Server ended before assessment completed",
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy"
+          ]
+        },
+        {
+          "file": "rev-0008.json",
+          "sha256": "1605c8c7ba3ea0b70e72f3b5c79072457bc340958ed05d1cc09de69c7d881299",
+          "revision": 8,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy"
+          ]
+        },
+        {
+          "file": "rev-0009.json",
+          "sha256": "d75a56a180e1cdba5294e1b15b3219c07300d1284207fc193dbb63ca80248c94",
+          "revision": 9,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted"
+          ]
+        },
+        {
+          "file": "rev-0010.json",
+          "sha256": "8b0d68649b661f66c61df03211391c1aef63b2d63120410660f61943075c74b2",
+          "revision": 10,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted",
+            "review"
+          ]
+        },
+        {
+          "file": "rev-0011.json",
+          "sha256": "145f303abcffce626d3afbb4ab61c31c21f37b9ab300202fa4c2367ff1961f6a",
+          "revision": 11,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted",
+            "review",
+            "approval-readiness"
+          ]
+        },
+        {
+          "file": "rev-0012.json",
+          "sha256": "df887a0a08351e2450fe3e69fe0dcaee6c6e8aa7f9cc005f41527bdef9e6d8d1",
+          "revision": 12,
+          "status": "completed",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted",
+            "review",
+            "approval-readiness"
+          ]
+        }
+      ],
+      "audit": {
+        "state": "passed",
+        "requestedSourceCommit": "a3469c87dabdb928d130fd39b28330acc507c133",
+        "auditedSourceCommit": "a3469c87dabdb928d130fd39b28330acc507c133",
+        "reused": false,
+        "reportCommit": "2314b0e4b34f83c241c91d3e17e4f2df286efb64",
+        "runRef": "refs/audited/runs/2026-10-20T00-57-49Z-a3469c87d",
+        "treeRef": "refs/audited/by-tree/7802f3f09736a698421ad11c1eae810a4b87f9c6",
+        "requestedMode": "ramify-partial",
+        "executedMode": "full",
+        "checks": {
+          "duration-structure": {
+            "passed": true,
+            "status": "pass"
+          },
+          "duration-tests": {
+            "passed": true,
+            "status": "pass"
+          }
+        }
+      }
+    },
+    {
+      "id": "as-0002",
+      "status": "completed",
+      "revision": 10,
+      "request": {
+        "planId": "duration-labels",
+        "jobId": "20261020T004457Z-52b40b",
+        "base": "c19fca03ee92291dc2c682b56bd4e6a785932ec7",
+        "candidate": "a3469c87dabdb928d130fd39b28330acc507c133",
+        "kind": "final",
+        "brief": "Assess completion of the entire captured duration-labels plan against its original registered baseline. Native gpt-6-sol implemented formatter and tests first in useful partial commit eccf2661d92dba017050898f4bfa662909e3aede, then parser and tests in candidate a3469c87dabdb928d130fd39b28330acc507c133. Recovery preserved both commits and the original iteration; interrupted assessment as-0001 was explicitly resumed and completed clear. Verify full round-trip contract, meaningful tests, and preserved project configuration and audit checks.",
+        "acceptance": [
+          "formatDuration returns HH:MM:SS with every field padded to at least two digits and all hour digits retained above 24; floors fractions; rejects negative, nonfinite, and above-MAX_SAFE_INTEGER values with RangeError.",
+          "parseDuration accepts only strings of one or more ASCII hour digits, colon, exactly two minute digits 00..59, colon, exactly two second digits 00..59; returns a nonnegative safe integer; nonstrings throw TypeError, malformed labels and unsafe totals throw RangeError; no whitespace, signs, or partial numbers.",
+          "Meaningful node:test coverage exercises zero, second/minute/hour boundaries, more than 24 hours, fractional formatting, formatter invalid inputs, parser type/syntax/range failures, and safe round trips.",
+          "Formatter implementation and tests were committed before parser implementation; native Sol performed engineering. Preserve module.ramify, package.json, package-lock.json, ramify-audit.json, and captured requirements. Exact candidate cumulative final assessment uses original registered baseline."
+        ],
+        "planBaseline": "c19fca03ee92291dc2c682b56bd4e6a785932ec7",
+        "requirementDocuments": []
+      },
+      "outcome": {
+        "gate": "clear",
+        "summary": "Required assessment completed with no remaining material issue.",
+        "repairs": [],
+        "decisions": [],
+        "gaps": [],
+        "evidence": [
+          "assessments/as-0002/stages/audit.json",
+          "assessments/as-0002/stages/protection.json",
+          "assessments/as-0002/stages/documents.json",
+          "assessments/as-0002/stages/review-policy.json",
+          "assessments/as-0002/stages/review-accepted.json",
+          "assessments/as-0002/stages/review.json",
+          "assessments/as-0002/stages/approval-readiness.json"
+        ]
+      },
+      "completedAt": "2026-10-20T01:02:33.732Z",
+      "source": "/tmp/ramify-recovery-pilot-nCsA1r/plans/duration-labels/.harness/jobs/20261020T004457Z-52b40b/assessments/as-0002/rev-0010.json",
+      "sourceSha256": "89119a3010ed579e30d5a6448c5c99a0b908d43719e92bbe54fae99debe1f934",
+      "timeline": [
+        {
+          "file": "rev-0001.json",
+          "sha256": "4d3fff1df92667b77563bf7d55e017827e62a077c9b4e44079c451a86a3d2e71",
+          "revision": 1,
+          "status": "queued",
+          "error": null,
+          "stageNames": []
+        },
+        {
+          "file": "rev-0002.json",
+          "sha256": "cab73cfe92486e07e4cabaf372fd86e593c59cc4bc60b37dbf052a4c579f5104",
+          "revision": 2,
+          "status": "running",
+          "error": null,
+          "stageNames": []
+        },
+        {
+          "file": "rev-0003.json",
+          "sha256": "c5a4f6ab5c50ad9681f86b903fe9c5d87fec0eec1ab61c11c369bc5d338c505a",
+          "revision": 3,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit"
+          ]
+        },
+        {
+          "file": "rev-0004.json",
+          "sha256": "c8db9908eeb5fff436b317ff27d18c4848af8cb136586feae2601e02f6a9952d",
+          "revision": 4,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection"
+          ]
+        },
+        {
+          "file": "rev-0005.json",
+          "sha256": "e52a2c563ee73412336be635551f896e0214ce9233634bbf5ea6078cf0601edf",
+          "revision": 5,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents"
+          ]
+        },
+        {
+          "file": "rev-0006.json",
+          "sha256": "e45aa0d95d84eb54d9f1eab1539d55f7bf070fc813b33dfa36048fa39a5ebf8e",
+          "revision": 6,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy"
+          ]
+        },
+        {
+          "file": "rev-0007.json",
+          "sha256": "f17963405bd6c695d27aa68ef65cc43a4fcb1fb0e01e6dfad25ed5dfdb4df63e",
+          "revision": 7,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted"
+          ]
+        },
+        {
+          "file": "rev-0008.json",
+          "sha256": "1fe2790173891faad53381dee9194748e0e9af63e74f379d82f16d4af1131582",
+          "revision": 8,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted",
+            "review"
+          ]
+        },
+        {
+          "file": "rev-0009.json",
+          "sha256": "9233ee8f3cb60d67cb0bf2c5ddb81e6772bbd816977466190d7271ea66e6175b",
+          "revision": 9,
+          "status": "running",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted",
+            "review",
+            "approval-readiness"
+          ]
+        },
+        {
+          "file": "rev-0010.json",
+          "sha256": "89119a3010ed579e30d5a6448c5c99a0b908d43719e92bbe54fae99debe1f934",
+          "revision": 10,
+          "status": "completed",
+          "error": null,
+          "stageNames": [
+            "audit",
+            "protection",
+            "documents",
+            "review-policy",
+            "review-accepted",
+            "review",
+            "approval-readiness"
+          ]
+        }
+      ],
+      "audit": {
+        "state": "passed",
+        "requestedSourceCommit": "a3469c87dabdb928d130fd39b28330acc507c133",
+        "auditedSourceCommit": "a3469c87dabdb928d130fd39b28330acc507c133",
+        "reused": true,
+        "reportCommit": "2314b0e4b34f83c241c91d3e17e4f2df286efb64",
+        "runRef": "refs/audited/runs/2026-10-20T00-57-49Z-a3469c87d",
+        "treeRef": "refs/audited/by-tree/7802f3f09736a698421ad11c1eae810a4b87f9c6",
+        "requestedMode": "ramify-partial",
+        "executedMode": "full",
+        "checks": {
+          "duration-structure": {
+            "passed": true,
+            "status": "pass"
+          },
+          "duration-tests": {
+            "passed": true,
+            "status": "pass"
+          }
+        }
+      }
+    }
+  ],
+  "coordinators": [
+    {
+      "id": "coord-3c5a7221-8917-477d-9128-46594bad235e",
+      "generation": "c37fa15f-045e-4b6b-b2ec-f06e2e4e452a",
+      "resumeFrom": "coord-7813b39b-82d0-407c-884d-35e8948f76b6",
+      "recovery": {
+        "thread": "fresh",
+        "reason": "Fresh persistent context explicitly requested",
+        "uncertainCommands": []
+      },
+      "jobId": "20261020T004457Z-52b40b",
+      "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+      "phase": "stopped",
+      "model": "gpt-6-astra",
+      "workerModel": "gpt-6-sol",
+      "assessmentModel": "openai/gpt-6-astra:high",
+      "replaceMcp": [
+        "ramify-agent",
+        "ramify_host_567e710dc6994670b8a029ab89e50c67",
+        "ramify_host_3fac3650011d445487209f24e5ddd767",
+        "ramify_host_1a6e9bca453444b49123aca6fc89a7a6"
+      ],
+      "endpoint": "http://127.0.0.1:38477",
+      "owner": {
+        "pid": 153516,
+        "startedAt": "2026-10-20T00:58:06.638Z",
+        "processStart": "3112074634"
+      },
+      "provider": {
+        "providerPid": 153556,
+        "providerIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112074794",
+        "supervisorPid": 153554,
+        "supervisorIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112074790"
+      },
+      "guardian": {
+        "schema": "ramify-agent.coordinator-guardian/1",
+        "generation": "87ea931f-e9fc-4182-9baf-605cf9cc9ce6",
+        "pid": 153515,
+        "identity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112074631",
+        "state": "settled",
+        "reason": null,
+        "hostPid": 153516,
+        "hostIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112074634"
+      },
+      "settledIdentities": {
+        "host": null,
+        "guardian": null,
+        "provider": null,
+        "supervisor": null
+      },
+      "workers": [],
+      "ownershipReleased": true,
+      "settlement": {
+        "confirmed": true,
+        "descendants": "settled",
+        "supervisorExited": true,
+        "reason": null
+      }
+    },
+    {
+      "id": "coord-5b7d09b0-be78-4415-a72c-0634b16969ef",
+      "generation": "3fac3650-011d-4454-8720-9f24e5ddd767",
+      "resumeFrom": "coord-7823c6e4-688b-4346-893b-60fc6a8c3b50",
+      "recovery": {
+        "thread": "pending",
+        "reason": null,
+        "uncertainCommands": []
+      },
+      "jobId": "20261020T004457Z-52b40b",
+      "threadId": null,
+      "phase": "stopped",
+      "model": "gpt-6-astra",
+      "workerModel": "gpt-6-sol",
+      "assessmentModel": "openai/gpt-6-astra:high",
+      "replaceMcp": [
+        "ramify-agent",
+        "ramify_host_567e710dc6994670b8a029ab89e50c67"
+      ],
+      "endpoint": "http://127.0.0.1:35977",
+      "owner": {
+        "pid": 150959,
+        "startedAt": "2026-10-20T00:50:23.460Z",
+        "processStart": "3112028317"
+      },
+      "guardian": {
+        "schema": "ramify-agent.coordinator-guardian/1",
+        "generation": "cb5a6027-6ec2-4497-b97e-60af826d9e9a",
+        "pid": 150958,
+        "identity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112028313",
+        "state": "settled",
+        "reason": null,
+        "hostPid": 150959,
+        "hostIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112028317"
+      },
+      "settledIdentities": {
+        "host": null,
+        "guardian": null,
+        "provider": null,
+        "supervisor": null
+      },
+      "workers": [],
+      "ownershipReleased": true,
+      "settlement": {
+        "confirmed": true,
+        "descendants": "settled",
+        "supervisorExited": true,
+        "reason": null
+      }
+    },
+    {
+      "id": "coord-7813b39b-82d0-407c-884d-35e8948f76b6",
+      "generation": "1a6e9bca-4534-44b4-9123-aca6fc89a7a6",
+      "resumeFrom": "coord-5b7d09b0-be78-4415-a72c-0634b16969ef",
+      "recovery": {
+        "thread": "resumed",
+        "reason": null,
+        "uncertainCommands": []
+      },
+      "jobId": "20261020T004457Z-52b40b",
+      "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+      "phase": "ready",
+      "model": "gpt-6-astra",
+      "workerModel": "gpt-6-sol",
+      "assessmentModel": "openai/gpt-6-astra:high",
+      "replaceMcp": [
+        "ramify-agent",
+        "ramify_host_567e710dc6994670b8a029ab89e50c67",
+        "ramify_host_3fac3650011d445487209f24e5ddd767"
+      ],
+      "endpoint": "http://127.0.0.1:39321",
+      "owner": {
+        "pid": 151681,
+        "startedAt": "2026-10-20T00:53:55.552Z",
+        "processStart": "3112049526"
+      },
+      "provider": {
+        "providerPid": 151694,
+        "providerIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112049668",
+        "supervisorPid": 151693,
+        "supervisorIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112049665"
+      },
+      "guardian": {
+        "schema": "ramify-agent.coordinator-guardian/1",
+        "generation": "c11bc7ef-a7b4-4c7f-ba16-b9d8d34f433a",
+        "pid": 151680,
+        "identity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112049519",
+        "state": "settled",
+        "reason": null,
+        "hostPid": 151681,
+        "hostIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3112049526"
+      },
+      "settledIdentities": {
+        "host": null,
+        "guardian": null,
+        "provider": null,
+        "supervisor": null
+      },
+      "workers": [
+        {
+          "id": "01a156cd-80b0-7d61-a19b-27b751c9380f",
+          "parentThreadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "model": "gpt-6-sol",
+          "ephemeral": false,
+          "turnStatus": "completed",
+          "equipment": "verified"
+        }
+      ],
+      "ownershipReleased": false,
+      "settlement": null
+    },
+    {
+      "id": "coord-7823c6e4-688b-4346-893b-60fc6a8c3b50",
+      "generation": "567e710d-c699-4670-b8a0-29ab89e50c67",
+      "jobId": "20261020T004457Z-52b40b",
+      "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+      "phase": "ready",
+      "model": "gpt-6-astra",
+      "workerModel": "gpt-6-sol",
+      "assessmentModel": "openai/gpt-6-astra:high",
+      "replaceMcp": [
+        "ramify-agent"
+      ],
+      "endpoint": "http://127.0.0.1:43715",
+      "owner": {
+        "pid": 147152,
+        "startedAt": "2026-10-20T00:44:55.708Z",
+        "processStart": "3111995541"
+      },
+      "provider": {
+        "providerPid": 147175,
+        "providerIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3111995685",
+        "supervisorPid": 147174,
+        "supervisorIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3111995681"
+      },
+      "guardian": {
+        "schema": "ramify-agent.coordinator-guardian/1",
+        "generation": "936860d8-2edf-49a7-a6c6-cb022036f02b",
+        "pid": 147151,
+        "identity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3111995538",
+        "state": "settled",
+        "reason": null,
+        "hostPid": 147152,
+        "hostIdentity": "cde45b56-934a-43b3-bdc6-55b776f7af9b:3111995541"
+      },
+      "settledIdentities": {
+        "host": null,
+        "guardian": null,
+        "provider": null,
+        "supervisor": null
+      },
+      "workers": [
+        {
+          "id": "01a156c7-1e81-7fe2-8eb5-4658ba2c100a",
+          "parentThreadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+          "model": "gpt-6-sol",
+          "ephemeral": false,
+          "turnStatus": "inProgress",
+          "equipment": "verified"
+        }
+      ],
+      "ownershipReleased": false,
+      "settlement": null
+    }
+  ],
+  "histories": [
+    {
+      "threadId": "01a156d0-d57c-76a2-a19e-6aa2218d1a50",
+      "path": "/home/app/.codex/sessions/2026/10/20/rollout-2026-10-20T00-58-09-01a156d0-d57c-76a2-a19e-6aa2218d1a50.jsonl",
+      "parentThreadId": null,
+      "historyMode": "paginated",
+      "cliVersion": "0.161.0",
+      "turns": [
+        {
+          "turnId": "01a156d0-d84e-72c2-86e2-2474de98865d",
+          "model": "gpt-6-astra",
+          "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+          "approvalPolicy": "on-request",
+          "sandboxPolicy": {
+            "type": "read-only"
+          }
+        }
+      ],
+      "raCalls": [
+        {
+          "callId": "call_867859f081e84a8e8631868f8581fd62",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__job_detail"
+          ]
+        },
+        {
+          "callId": "call_d556be7cd2404ff7a614c5c3fd69102c",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__assessment_resume"
+          ],
+          "assessmentId": "as-0001"
+        },
+        {
+          "callId": "call_91c1e392213049f1b2a5ef7cfeb66341",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__assessment_wait"
+          ],
+          "assessmentId": "as-0001"
+        },
+        {
+          "callId": "call_e93aed4682404485a7bb142a9cbbdd78",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__assessment_result"
+          ],
+          "assessmentId": "as-0001"
+        },
+        {
+          "callId": "call_d37741bff3f84130b696174eab69f1b3",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__iteration_assess"
+          ]
+        },
+        {
+          "callId": "call_a85e0896a6c1462496a7cc9e0a339920",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__assessment_wait"
+          ],
+          "assessmentId": "as-0002"
+        },
+        {
+          "callId": "call_10355624a47441c1a34b27d8e3bfb1b7",
+          "tools": [
+            "mcp__ramify_host_c37fa15f045e4b6bb2ecf06e2e4e452a__assessment_result"
+          ],
+          "assessmentId": "as-0002"
+        }
+      ]
+    },
+    {
+      "threadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+      "path": "/home/app/.codex/sessions/2026/10/20/rollout-2026-10-20T00-44-57-01a156c4-c2e4-7391-b326-10993247cbda.jsonl",
+      "parentThreadId": null,
+      "historyMode": "paginated",
+      "cliVersion": "0.161.0",
+      "turns": [
+        {
+          "turnId": "01a156c4-c5ac-7c52-ae11-311536387046",
+          "model": "gpt-6-astra",
+          "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+          "approvalPolicy": "on-request",
+          "sandboxPolicy": {
+            "type": "read-only"
+          }
+        },
+        {
+          "turnId": "01a156cd-0274-7781-91ab-1c1376b02cb4",
+          "model": "gpt-6-astra",
+          "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+          "approvalPolicy": "on-request",
+          "sandboxPolicy": {
+            "type": "read-only"
+          }
+        }
+      ],
+      "raCalls": [
+        {
+          "callId": "call_43f6a7b62bca42d5b08695a38bb0d221",
+          "tools": [
+            "mcp__ramify_host_567e710dc6994670b8a029ab89e50c67__job_detail"
+          ]
+        },
+        {
+          "callId": "call_6542583502eb44568c1c6ceb99427ec9",
+          "tools": [
+            "mcp__ramify_host_1a6e9bca453444b49123aca6fc89a7a6__job_detail"
+          ]
+        },
+        {
+          "callId": "call_f757cde559f24dfc9e022465c5d87cda",
+          "tools": [
+            "mcp__ramify_host_1a6e9bca453444b49123aca6fc89a7a6__assessment_wait"
+          ],
+          "assessmentId": "as-0001"
+        }
+      ]
+    },
+    {
+      "threadId": "01a156cd-80b0-7d61-a19b-27b751c9380f",
+      "path": "/home/app/.codex/sessions/2026/10/20/rollout-2026-10-20T00-54-30-01a156cd-80b0-7d61-a19b-27b751c9380f.jsonl",
+      "parentThreadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+      "historyMode": "paginated",
+      "cliVersion": "0.161.0",
+      "turns": [
+        {
+          "turnId": "01a156cd-80e6-7600-ac9b-0650ba8f8d54",
+          "model": "gpt-6-sol",
+          "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+          "approvalPolicy": "on-request",
+          "sandboxPolicy": {
+            "type": "read-only"
+          }
+        }
+      ],
+      "raCalls": []
+    },
+    {
+      "threadId": "01a156c7-1e81-7fe2-8eb5-4658ba2c100a",
+      "path": "/home/app/.codex/sessions/2026/10/20/rollout-2026-10-20T00-47-32-01a156c7-1e81-7fe2-8eb5-4658ba2c100a.jsonl",
+      "parentThreadId": "01a156c4-c2e4-7391-b326-10993247cbda",
+      "historyMode": "paginated",
+      "cliVersion": "0.161.0",
+      "turns": [
+        {
+          "turnId": "01a156c7-1eb5-7a02-a458-540b6a8343b4",
+          "model": "gpt-6-sol",
+          "cwd": "/tmp/ramify-recovery-pilot-nCsA1r",
+          "approvalPolicy": "on-request",
+          "sandboxPolicy": {
+            "type": "read-only"
+          }
+        }
+      ],
+      "raCalls": []
+    }
+  ],
+  "runtime": {
+    "platform": "linux",
+    "kernel": "6.8.0-85-generic",
+    "node": "v22.23.3",
+    "python": "Python 3.11.2"
+  },
+  "configuration": {
+    "globalBeforeSha256": "14481adfb5b88208f9a4ea1724fe1c904122da8b086620cf1431c9d364910961",
+    "globalAfterSha256": "14481adfb5b88208f9a4ea1724fe1c904122da8b086620cf1431c9d364910961",
+    "unchanged": true,
+    "policyOverrides": []
+  },
+  "credentials": {
+    "codexAuthReadable": true,
+    "piAuthReadable": true,
+    "bearerArtifactsScanned": 56,
+    "privateBearerValuesTested": 4,
+    "matchingArtifacts": []
+  },
+  "launchLimit": "Agent shell tools and their PTY/launcher/CLI process completion were observed. Arbitrary UI/session disappearance and container loss were not exercised.",
+  "sourceBinding": "Each launch retains its exact source fingerprint, including local source changes. Later guardian durability refinements are qualified by the source owner native witnesses."
+}

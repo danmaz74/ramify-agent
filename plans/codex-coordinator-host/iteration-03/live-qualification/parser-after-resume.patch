@@ -1,0 +1,71 @@
+*** Begin Patch
+*** Update File: /tmp/ramify-recovery-pilot-nCsA1r/src/duration.js
+@@
+-/** Parse an elapsed label. */
+-export function parseDuration(input) { return Number(input); }
++/** Parse an elapsed label. */
++export function parseDuration(input) {
++  if (typeof input !== "string") {
++    throw new TypeError("duration label must be a string");
++  }
++
++  const match = /^([0-9]+):([0-5][0-9]):([0-5][0-9])$/.exec(input);
++  if (match === null || match[0].length !== input.length) {
++    throw new RangeError("invalid duration label");
++  }
++
++  const seconds = BigInt(match[1]) * 3600n + BigInt(match[2]) * 60n + BigInt(match[3]);
++  if (seconds > BigInt(Number.MAX_SAFE_INTEGER)) {
++    throw new RangeError("duration exceeds the maximum safe integer");
++  }
++  return Number(seconds);
++}
+*** Update File: /tmp/ramify-recovery-pilot-nCsA1r/src/tests/duration.test.js
+@@
+-test("initial parse", () => assert.equal(parseDuration("30"), 30));
++
++test("parseDuration reads second, minute, and hour boundaries", () => {
++  const cases = [
++    ["00:00:00", 0],
++    ["00:00:01", 1],
++    ["00:00:59", 59],
++    ["00:01:00", 60],
++    ["00:59:59", 3599],
++    ["01:00:00", 3600],
++    ["24:00:00", 86400],
++    ["100:00:00", 360000],
++    ["00024:00:00", 86400],
++  ];
++  for (const [label, expected] of cases) {
++    assert.equal(parseDuration(label), expected, label);
++  }
++});
++
++test("parseDuration rejects nonstrings", () => {
++  for (const input of [undefined, null, 30, 0n, new String("00:00:30"), {}]) {
++    assert.throws(() => parseDuration(input), TypeError);
++  }
++});
++
++test("parseDuration rejects malformed labels", () => {
++  for (const label of [
++    "", "30", "0:00:00", "00:0:00", "00:00:0", "00:000:00", "00:00:000",
++    "00:60:00", "00:00:60", " 00:00:00", "00:00:00 ", "00:00:00\n",
++    "+00:00:00", "-00:00:00", "00:00:00junk", "junk00:00:00", "００:00:00",
++  ]) {
++    assert.throws(() => parseDuration(label), RangeError, JSON.stringify(label));
++  }
++});
++
++test("parseDuration keeps safe totals exact and rejects unsafe totals", () => {
++  assert.equal(parseDuration("2501999792983:36:31"), Number.MAX_SAFE_INTEGER);
++  assert.throws(() => parseDuration("2501999792983:36:32"), RangeError);
++  assert.throws(() => parseDuration("9007199254740991:00:00"), RangeError);
++});
++
++test("formatted safe whole seconds round trip", () => {
++  for (const seconds of [0, 59, 60, 3599, 3600, 86400, 360000, Number.MAX_SAFE_INTEGER]) {
++    assert.equal(parseDuration(formatDuration(seconds)), seconds, String(seconds));
++  }
++});
+*** End Patch
