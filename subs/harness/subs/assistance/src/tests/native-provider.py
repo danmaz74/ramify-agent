@@ -82,6 +82,11 @@ for line in sys.stdin:
             thread = json.loads(history.read_text())
             turn_number = max([int(turn['id'].rsplit('-', 1)[-1]) for turn in thread['turns'] if turn['id'].rsplit('-', 1)[-1].isdigit()] or [0])
         history.write_text(json.dumps(thread))
+        gate = root / 'hold-thread-start'
+        if method == 'thread/start' and gate.exists():
+            (root / 'thread-start-held.json').write_text(json.dumps({'pid': os.getpid(), 'threadId': thread['id']}))
+            while gate.exists():
+                time.sleep(0.01)
         result = {'thread': thread, 'model': params['model'], 'instructionSources': [], 'approvalPolicy': 'on-request', 'sandbox': {'type': 'workspaceWrite'}}
     elif method == 'thread/read':
         result = {'thread': json.loads(history.read_text())}

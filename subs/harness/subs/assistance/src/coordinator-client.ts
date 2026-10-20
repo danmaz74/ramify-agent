@@ -130,7 +130,7 @@ export async function runCoordinateCommand(options: CoordinateOptions, output: (
   const root = await realpath(resolve(options.projectRoot));
   const print = (value: unknown) => output(`${JSON.stringify(value, null, options.json ? undefined : 2)}\n`);
   if (options.action === 'resume') {
-    const previous = (await readCoordinator(root, options.id)).record;
+    let previous = (await readCoordinator(root, options.id)).record;
     if (previous.jobId === null) throw new Error('No assisted registration was retained; inspect the failed startup before continuing');
     if (!previous.ownershipReleased && await coordinatorOwnerAlive(previous)) {
       const current = await coordinatorStatus(root, previous.id, options.timeoutMs);
@@ -138,10 +138,10 @@ export async function runCoordinateCommand(options: CoordinateOptions, output: (
       const stopped = await coordinatorControl(root, previous.id, { action: 'stop', commandId: `resume-stop:${previous.generation}` }, options.timeoutMs);
       if (stopped.state !== 'completed') throw new Error(`Previous host stop is ${stopped.state}; replacement refused. ${stopped.error?.message ?? ''}`);
     }
-    const settled = (await readCoordinator(root, previous.id)).record;
-    await requireCoordinatorSettlement(settled, options.timeoutMs);
+    previous = (await readCoordinator(root, previous.id)).record;
+    await requireCoordinatorSettlement(previous, options.timeoutMs);
     const original = await readFile(join(coordinatorDirectory(root), previous.id, 'task.json'), 'utf8').then(value => (JSON.parse(value) as { message: string }).message).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''; throw error; });
-    const input = coordinatorStartSchema.parse({ projectRoot: root, planId: previous.planId, jobId: previous.jobId, commandId: options.commandId ?? `resume:${randomUUID()}`, model: options.model ?? previous.model, workerModel: options.workerModel ?? previous.workerModel, assessmentModel: options.assessmentModel ?? previous.assessmentModel, replaceMcp: [...new Set([...previous.replaceMcp, ...(previous.endpoint === null ? [] : [`ramify_host_${previous.generation.replaceAll('-', '')}`]), ...options.replaceMcp])], skill: options.skill ?? previous.skill, message: `${original}${options.messageFile === undefined ? '' : `\n${await readFile(options.messageFile, 'utf8')}`}`, codexExecutable: options.codexExecutable ?? previous.codexExecutable, resumeFrom: previous.id, freshThread: options.freshThread || previous.freshThread === true && previous.threadId === null });
+    const input = coordinatorStartSchema.parse({ projectRoot: root, planId: previous.planId, jobId: previous.jobId, commandId: options.commandId ?? `resume:${randomUUID()}`, model: options.model ?? previous.model, workerModel: options.workerModel ?? previous.workerModel, assessmentModel: options.assessmentModel ?? previous.assessmentModel, replaceMcp: [...new Set([...previous.replaceMcp, ...(previous.endpoint === null ? [] : [`ramify_host_${previous.generation.replaceAll('-', '')}`]), ...options.replaceMcp])], skill: options.skill ?? previous.skill, message: `${original}${options.messageFile === undefined ? '' : `\n${await readFile(options.messageFile, 'utf8')}`}`, codexExecutable: options.codexExecutable ?? previous.codexExecutable, resumeFrom: previous.id, freshThread: options.freshThread });
     const status = await launchCoordinator(input, options.timeoutMs); print(status); return status.record.phase === 'ready' ? 0 : 2;
   }
   if (options.action === 'start') {

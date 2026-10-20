@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-20T04:18:28.827911+00:00",
+  "capturedAt": "2026-10-20T04:51:11.493762+00:00",
   "base": "8785a35e7d14610e4883a684714587a781a14934",
   "files": [
     {
@@ -34,8 +34,8 @@
     },
     {
       "path": "src/tests/test-boundaries.json",
-      "sha256": "c42d3477abc23c540195f45740208ddd92344fd251f1de32cb21e5aed864f835",
-      "bytes": 55084
+      "sha256": "996a7970f8696cbdb4dd99c28c12ebe942a45653d7da4d44741b02b8c5411e3c",
+      "bytes": 55410
     },
     {
       "path": "subs/harness/module.ramify",
@@ -74,13 +74,13 @@
     },
     {
       "path": "subs/harness/subs/assistance/src/coordinator-client.ts",
-      "sha256": "16298e502eb3282a8f6d683cbe74cd01c29e9f15f8b65be9aa75f5855474cd4e",
-      "bytes": 15524
+      "sha256": "0a7ee96c848547a9ae27bd155316263e9196f40e4fdd6d8b24b234d126246208",
+      "bytes": 15455
     },
     {
       "path": "subs/harness/subs/assistance/src/coordinator-contracts.ts",
-      "sha256": "2d0271b403870851b4559f965894438f2440bc2b274eab62b6c73eb0a635ef2e",
-      "bytes": 4560
+      "sha256": "bb9f2eda51851ee8c092321bd46daef999f6da238fb2f6f2160bb41b9639c1a4",
+      "bytes": 4649
     },
     {
       "path": "subs/harness/subs/assistance/src/coordinator-entry.ts",
@@ -94,8 +94,8 @@
     },
     {
       "path": "subs/harness/subs/assistance/src/coordinator-host.ts",
-      "sha256": "19c97c781aee4512c602308cbdab310fc05da30e7a5c298ebe54a0da8c1f567a",
-      "bytes": 29434
+      "sha256": "e834481a77183b57436e1b3c6a8ee34741bfa2e4987623923fcdbab351f28447",
+      "bytes": 29826
     },
     {
       "path": "subs/harness/subs/assistance/src/coordinator-options.ts",
@@ -139,8 +139,8 @@
     },
     {
       "path": "subs/harness/subs/assistance/src/tests/coordinator-publication.boundary.test.ts",
-      "sha256": "c1ae6ed7aa4c2d9093beb59a83f458727b02c6ddf7bdddeca6ccfe4fe7e42a4c",
-      "bytes": 10771
+      "sha256": "41b7844faf90741e98559fcf3ce566441a2a71c55cb9f5f20c03c00d29cc91b2",
+      "bytes": 14808
     },
     {
       "path": "subs/harness/subs/assistance/src/tests/coordinator-read.test.ts",
@@ -154,8 +154,8 @@
     },
     {
       "path": "subs/harness/subs/assistance/src/tests/native-provider.py",
-      "sha256": "671f79c30550237a2c6347ac5d3a9ece9c63f5040d034bb09d8c1027227102af",
-      "bytes": 5397
+      "sha256": "1d3babf72a44d8ce211ba314494e2352af4ead11442b83451c517d9cc04935e9",
+      "bytes": 5677
     },
     {
       "path": "subs/harness/subs/assistance/src/tests/native-publication-host.ts",

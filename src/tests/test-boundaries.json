@@ -666,9 +666,10 @@
     {
       "file": "subs/harness/subs/assistance/src/tests/coordinator-publication.boundary.test.ts",
       "boundary": "Real CLI, service ownership, Git registration and detached guardian-host crash windows around durable successor admission and active-index publication",
-      "whyFakeCannotProve": "The exact host must die before or after its first record write, with the actual guardian retaining settlement and the active index left naturally on its predecessor. A real CLI must recover the same job through that interrupted publication, preserve retained directions/settings/mutation receipts, and exclude concurrent successor duplication without manual project-state edits. Listener failure is injected in the native helper before provider construction; provider/model protocol answers remain scripted by native-provider.py.",
+      "whyFakeCannotProve": "The exact host must die before or after its first record write, with the actual guardian retaining settlement and the active index left naturally on its predecessor. A real CLI must recover the same job through that interrupted publication, preserve retained directions/settings/mutation receipts, and exclude concurrent successor duplication without manual project-state edits. An actual predecessor HTTP stop must wait for its held thread/start response and finish adoption while an independent CLI resumes it; exact retry must preserve the admitted successor. Listener failure is injected in the native helper before provider construction; provider/model protocol answers remain scripted by native-provider.py.",
       "owningCases": [
-        "startup crashes before and after successor admission plus listener failure recover the original job and complete lineage without replay or index edits"
+        "startup crashes before and after successor admission plus listener failure recover the original job and complete lineage without replay or index edits",
+        "exact resume intent stays stable when predecessor thread adoption finishes during stop and changed explicit intent still conflicts"
       ]
     }
   ]

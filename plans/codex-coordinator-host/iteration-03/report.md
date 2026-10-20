@@ -102,14 +102,30 @@ actual preceding HTTP entries and explicit replacement settings remain preserved
 No placeholder endpoint, model-history reconstruction, automatic restart or
 acceptance-authority change was added.
 
+## Stable caller intent during settlement
+
+Assessment `as-0012` confirmed `cf-0013`/`cf-0014` fixed and required `cf-0015`:
+thread adoption could finish while stop waited, changing the inferred fresh choice
+and therefore an identical retry's request hash. The [localized repair](cf-0015-repair.md)
+keeps the caller's explicit fresh flag unchanged in the existing hash. The host
+separately freezes its effective context requirement from the settled predecessor
+in the existing generation record. Inherited settings use the post-stop record.
+No new receipt format, hash scheme or recovery path is introduced.
+
+The native witness holds actual provider thread creation, starts explicit resume
+and observes its HTTP stop waiting, then releases thread adoption. The admitted
+successor reuses that retained persistent thread; exact retry observes the same
+successor without another turn or launch. Changed explicit flags conflict even
+when an inherited effective decision would produce the same context strategy.
+
 ## Focused verification
 
 All commands ran from `/workspaces/worktrees/codex-coordinator-host`. The unchanged
 complete configured projects remain in place; these are explicit focused selections,
 not a direct full audit. RA owns implementation assessment and audit submission.
 
-- [Focused selection](verification/cf-0013-0014-focused-tests.log): **196/196**, 14 files,
-  including **17 exact registered native cases**, exit 0. Selection was
+- [Focused selection](verification/cf-0015-focused-tests.log): **197/197**, 14 files,
+  including **18 exact registered native cases**, exit 0. Selection was
   `node_modules/.bin/vitest run --project node --project boundaries` followed by
   root `cli.test.ts`, root `coordinator-launch.boundary.test.ts`, assistance's
   `coordinator-recovery.test.ts`, `coordinator-control.test.ts`,
@@ -137,9 +153,9 @@ not a direct full audit. RA owns implementation assessment and audit submission.
   any attempted process launch, binding errors, provider resume uncertainty and
   exact thread MCP overrides. Existing provider race regressions, stdio MCP
   registration/observation, assessment interruption and acceptance semantics pass.
-- [Four TypeScript configurations](verification/cf-0013-0014-type-check.log):
+- [Four TypeScript configurations](verification/cf-0015-type-check.log):
   `npm run type-check`, exit 0.
-- [Ramify self-check](verification/cf-0013-0014-check-self.log): `npm run check:self`, exit 0,
+- [Ramify self-check](verification/cf-0015-check-self.log): `npm run check:self`, exit 0,
   **0 errors, 0 warnings, 781 existing analysis limits**, partial coverage;
   25 owners, 1093 source files, 101 resources, 20035 accesses.
 - `git diff --check`: exit 0. [Final source hashes](source-sha256.json) bind the

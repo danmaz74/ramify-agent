@@ -33,6 +33,7 @@ export interface CoordinatorRecord {
   readonly guardian?: { readonly path: string; readonly generation: string };
   readonly assessmentModel?: string; readonly codexExecutable?: string;
   readonly resumeFrom?: string;
+  /** Effective context decision frozen at admission; startHash retains caller input. */
   readonly freshThread?: boolean;
   recovery?: { thread: 'pending' | 'resumed' | 'fresh'; reason: string | null; uncertainCommands: readonly { commandId: string; action: string }[] };
   readonly startCommandId: string; readonly startHash: string; readonly skill: string; readonly replaceMcp: readonly string[];

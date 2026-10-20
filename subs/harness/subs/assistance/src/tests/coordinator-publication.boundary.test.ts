@@ -77,6 +77,10 @@ test('startup crashes before and after successor admission plus listener failure
         continued = await cli(root, 'resume', ['--id', id, '--command-id', 'continue-failed-admission']);
         expect(continued.record.resumeFrom).toBe(id);
         expect(continued.record.replaceMcp).not.toContain(`ramify_host_${admitted.generation.replaceAll('-', '')}`);
+        expect((await cli(root, 'resume', ['--id', id, '--command-id', 'continue-failed-admission'])).record.id).toBe(continued.record.id);
+        // Explicit caller intent differs even when the inherited effective
+        // decision already requested a fresh context.
+        await expect(cli(root, 'resume', ['--id', id, '--command-id', 'continue-failed-admission', '--fresh-thread'])).rejects.toThrow(/identity conflicts/);
       }
       expect(continued.record).toMatchObject({ phase: 'ready', jobId: previous.jobId, model: 'gpt-6-sol', assessmentModel: 'retained-assessor', recovery: { thread: 'fresh', uncertainCommands: [{ commandId: 'uncertain-once', action: 'send' }] } });
       expect(continued.record.threadId).not.toBe(previous.threadId);
@@ -101,3 +105,42 @@ test('startup crashes before and after successor admission plus listener failure
     }
   }
 }, 120000);
+
+test('exact resume intent stays stable when predecessor thread adoption finishes during stop and changed explicit intent still conflicts', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-adoption-race-'));
+  let starting: ReturnType<typeof cli> | undefined; let continuing: ReturnType<typeof cli> | undefined;
+  try {
+    await mkdir(join(root, 'plans', 'sample'), { recursive: true }); await writeFile(join(root, 'plans', 'sample', 'plan.md'), '# Thread adoption during stop\n');
+    await writeFile(join(root, '.gitignore'), 'history.json\nwriter.pid\nheartbeat\nhold-thread-start\nthread-start-held.json\n');
+    await execute('git', ['init', '-q'], { cwd: root }); await execute('git', ['add', '.'], { cwd: root });
+    await execute('git', ['-c', 'user.name=Native witness', '-c', 'user.email=native@example.invalid', 'commit', '-qm', 'Native adoption fixture'], { cwd: root });
+    const initial = await cli(root, 'start', ['--plan', 'sample', '--replace-mcp', 'old-stdio', '--command-id', 'start-once', '--codex-executable', executable]);
+    await cli(root, 'stop', ['--id', initial.record.id, '--command-id', 'stop-initial']);
+    await writeFile(join(root, 'hold-thread-start'), 'Hold only this fixture thread/start response');
+    starting = cli(root, 'resume', ['--id', initial.record.id, '--command-id', 'pending-fresh-context', '--fresh-thread'], true).catch(error => error);
+    await vi.waitFor(async () => expect(JSON.parse(await readFile(join(root, 'thread-start-held.json'), 'utf8')).threadId).toBeTruthy(), { timeout: 10000 });
+    const predecessor = (await readCoordinatorHistory(root)).latest.record;
+    expect(predecessor).toMatchObject({ phase: 'preparing', threadId: null, freshThread: true });
+    const flags = ['--id', predecessor.id, '--command-id', 'resume-during-adoption'];
+    continuing = cli(root, 'resume', flags); void continuing.catch(() => undefined);
+    await vi.waitFor(async () => expect((await readCoordinator(root, predecessor.id)).record.phase).toBe('stopping'), { timeout: 10000 });
+    await rm(join(root, 'hold-thread-start'));
+    const successor = await continuing;
+    const stopped = (await readCoordinator(root, predecessor.id)).record;
+    expect(stopped).toMatchObject({ phase: 'stopped', freshThread: true, ownershipReleased: true }); expect(stopped.threadId).not.toBeNull();
+    expect(successor.record).toMatchObject({ phase: 'ready', threadId: stopped.threadId, freshThread: false, jobId: initial.record.jobId, recovery: { thread: 'resumed' } });
+    expect((await starting).record.id).toBe(predecessor.id);
+    const beforeRetry = await readFile(join(root, 'history.json'), 'utf8');
+    const retried = await cli(root, 'resume', flags);
+    expect(retried.record.id).toBe(successor.record.id);
+    expect(await readFile(join(root, 'history.json'), 'utf8')).toBe(beforeRetry);
+    await expect(cli(root, 'resume', [...flags, '--fresh-thread'])).rejects.toThrow(/identity conflicts/);
+    expect((await readCoordinatorHistory(root)).latest.record.id).toBe(successor.record.id);
+    await cli(root, 'stop', ['--id', successor.record.id, '--command-id', 'stop-successor']);
+  } finally {
+    await rm(join(root, 'hold-thread-start'), { force: true }); await starting; await continuing?.catch(() => undefined);
+    const current = await readCoordinatorHistory(root).then(history => history.latest).catch(() => undefined);
+    if (current !== undefined) await cli(root, 'stop', ['--id', current.record.id, '--command-id', 'cleanup']).catch(() => undefined);
+    await rm(root, { recursive: true, force: true });
+  }
+}, 45000);

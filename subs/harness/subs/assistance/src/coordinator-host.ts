@@ -56,13 +56,17 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
       await requireCoordinatorSettlement(prior.record);
     }
   }
-  const predecessor = options.resumeFrom === undefined ? undefined : (await readCoordinator(projectRoot, options.resumeFrom)).record;
+  let predecessor = options.resumeFrom === undefined ? undefined : (await readCoordinator(projectRoot, options.resumeFrom)).record;
   if (predecessor !== undefined) {
+    await requireCoordinatorSettlement(predecessor);
+    predecessor = (await readCoordinator(projectRoot, predecessor.id)).record;
     if (predecessor.planId !== options.planId || predecessor.jobId === null || predecessor.jobId !== options.jobId) throw new Error('Continuation must preserve the retained plan/job identity');
     const requiredDisabled = [...predecessor.replaceMcp, ...(predecessor.endpoint === null ? [] : [`ramify_host_${predecessor.generation.replaceAll('-', '')}`])];
     if (requiredDisabled.some(name => !options.replaceMcp.includes(name))) throw new Error('Continuation must retain previously disabled MCP entries and disable the preceding HTTP entry');
-    await requireCoordinatorSettlement(predecessor);
   }
+  // Caller intent is hashed unchanged. Freeze its effective context choice once,
+  // separately from that identity, using only the settled predecessor.
+  const freshThread = options.freshThread === true || predecessor?.freshThread === true && predecessor.threadId === null;
   const lineage: CoordinatorRecord[] = [];
   const ancestors = new Set<string>();
   for (let prior = predecessor; prior !== undefined; prior = prior.resumeFrom === undefined ? undefined : (await readCoordinator(projectRoot, prior.resumeFrom)).record) {
@@ -96,7 +100,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
     ...(dependencies.guardian === undefined ? {} : { guardian: dependencies.guardian }),
     ...(options.assessmentModel === undefined ? {} : { assessmentModel: options.assessmentModel }), ...(options.codexExecutable === undefined ? {} : { codexExecutable: options.codexExecutable }),
     ...(options.resumeFrom === undefined ? {} : { resumeFrom: options.resumeFrom, recovery: { thread: 'pending', reason: null, uncertainCommands: [] } }),
-    schema: 'ramify-agent.coordinator/1', id, generation, projectRoot, planId: options.planId, jobId: retainedJobId, freshThread: options.freshThread,
+    schema: 'ramify-agent.coordinator/1', id, generation, projectRoot, planId: options.planId, jobId: retainedJobId, freshThread,
     launchedAt: now(), owner: service.ownerProcess(), model: options.model, workerModel: options.workerModel,
     startCommandId: options.commandId, startHash: coordinatorHash({ ...options, projectRoot }), skill: options.skill, replaceMcp: options.replaceMcp,
     phase: 'starting', initialTurnAcknowledged: false, endpoint: null, threadId: null, readiness: null, turn: null, pending: [], workers: [],
@@ -282,7 +286,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
       };
       unsubscribe = provider.observe(observed);
       const mcp = [...options.replaceMcp.map(name => ({ name, enabled: false as const })), { name, url: `${record.endpoint}/mcp`, bearerTokenEnvVar: tokenEnvironment, required: true as const, toolTimeoutSeconds: 960 }];
-      const prepared = await prepareCoordinatorProvider({ launch, thread: { cwd: projectRoot, model: options.model, mcp }, ...(retainedThreadId === null || retainedThreadId === undefined || options.freshThread ? {} : { resumeThreadId: retainedThreadId, allowMissingThreadFallback: true }), onThreadFallback: reason => { if (record.recovery !== undefined) { record.recovery.thread = 'fresh'; record.recovery.reason = projection.text(reason); } }, workerModel: options.workerModel, requiredMcp: { server: name, tools: requiredTools }, verifyEquipment: equipment => verifyCoordinatorEquipment(equipment, name, options.replaceMcp), retain: async (session, readiness) => { record.threadId = session.thread.id; record.readiness = structuredClone(readiness); if (record.recovery !== undefined && record.recovery.thread === 'pending') { record.recovery.thread = session.thread.id === retainedThreadId ? 'resumed' : 'fresh'; record.recovery.reason = options.freshThread ? 'Fresh persistent context explicitly requested' : retainedThreadId === undefined ? 'Previous startup retained no thread' : null; } const last = session.thread.turns.at(-1); if (last !== undefined) adoptTurn(last); changed({ kind: 'persistent-thread', id: session.thread.id, cliVersion: session.thread.cliVersion }); await store.flush(); } }, provider);
+      const prepared = await prepareCoordinatorProvider({ launch, thread: { cwd: projectRoot, model: options.model, mcp }, ...(retainedThreadId === null || retainedThreadId === undefined || freshThread ? {} : { resumeThreadId: retainedThreadId, allowMissingThreadFallback: true }), onThreadFallback: reason => { if (record.recovery !== undefined) { record.recovery.thread = 'fresh'; record.recovery.reason = projection.text(reason); } }, workerModel: options.workerModel, requiredMcp: { server: name, tools: requiredTools }, verifyEquipment: equipment => verifyCoordinatorEquipment(equipment, name, options.replaceMcp), retain: async (session, readiness) => { record.threadId = session.thread.id; record.readiness = structuredClone(readiness); if (record.recovery !== undefined && record.recovery.thread === 'pending') { record.recovery.thread = session.thread.id === retainedThreadId ? 'resumed' : 'fresh'; record.recovery.reason = options.freshThread ? 'Fresh persistent context explicitly requested' : freshThread ? 'Pending fresh context retained from previous host' : retainedThreadId === undefined ? 'Previous startup retained no thread' : null; } const last = session.thread.turns.at(-1); if (last !== undefined) adoptTurn(last); changed({ kind: 'persistent-thread', id: session.thread.id, cliVersion: session.thread.cliVersion }); await store.flush(); } }, provider);
       if (stopRequested) return;
       if (predecessor !== undefined && prepared.session.thread.status === 'active') {
         const active = prepared.session.thread.turns.filter(turn => turn.status === 'inProgress').at(-1);
