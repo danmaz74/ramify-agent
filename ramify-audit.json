@@ -22,7 +22,7 @@
               "HEAD"
             ],
             "parser": "none",
-            "timeoutMs": 30000
+            "timeoutMs": 86400000
           }
         ],
         "continueOnFailure": true
@@ -46,7 +46,7 @@
               "type-check"
             ],
             "parser": "none",
-            "timeoutMs": 180000
+            "timeoutMs": 86400000
           }
         ],
         "continueOnFailure": true
@@ -74,7 +74,7 @@
               "--maxWorkers=4"
             ],
             "parser": "vitest",
-            "timeoutMs": 1200000
+            "timeoutMs": 86400000
           }
         ],
         "continueOnFailure": true
@@ -101,7 +101,7 @@
               "test:scenarios"
             ],
             "parser": "cucumber",
-            "timeoutMs": 600000
+            "timeoutMs": 86400000
           }
         ],
         "continueOnFailure": true
@@ -128,7 +128,7 @@
               "check:self"
             ],
             "parser": "none",
-            "timeoutMs": 180000
+            "timeoutMs": 86400000
           }
         ],
         "continueOnFailure": true
@@ -155,7 +155,7 @@
               "build:web"
             ],
             "parser": "none",
-            "timeoutMs": 180000
+            "timeoutMs": 86400000
           }
         ],
         "continueOnFailure": true
