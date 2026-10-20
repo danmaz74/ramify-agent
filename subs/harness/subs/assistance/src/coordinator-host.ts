@@ -12,7 +12,7 @@ import { nodeFetchHandler, configureLongWaitHttpServer } from './http-bridge.js'
 import { assistanceHttpSessions } from './http-mcp.js';
 import { coordinatorCommandSchema, coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorControlResult, type CoordinatorCommand } from './coordinator-contracts.js';
 import { requireCoordinatorSettlement } from './coordinator-recovery.js';
-import { CoordinatorStore, coordinatorHash, readCoordinator } from './coordinator-store.js';
+import { CoordinatorStore, coordinatorHash, readCoordinator, requireLatestCoordinator } from './coordinator-store.js';
 import { coordinatorProjection } from './coordinator-projection.js';
 
 const tokenEnvironment = 'RAMIFY_COORDINATOR_MCP_TOKEN';
@@ -75,6 +75,8 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   let service: AssistanceService;
   try { service = await AssistanceService.open({ projectRoot, assessor: runtime.assessor, ...dependencies.assistance }); }
   catch (error) { await runtime.close(); throw error; }
+  try { if (options.resumeFrom !== undefined) await requireLatestCoordinator(projectRoot, options.resumeFrom); }
+  catch (error) { await service.close(); await runtime.close(); throw error; }
   const now = () => new Date().toISOString();
   const id = dependencies.id ?? `coord-${randomUUID()}`; const generation = randomUUID(); const token = randomBytes(32).toString('base64url');
   const privateValues = new Set([token]);

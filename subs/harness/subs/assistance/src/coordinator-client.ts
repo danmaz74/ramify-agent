@@ -9,7 +9,7 @@ import { ownedTreeKernelPath } from '../../../src/owned-tree-kernel.js';
 import { requireCoordinatorSettlement, coordinatorOwnerAlive } from './coordinator-recovery.js';
 import type { CoordinateOptions } from './coordinator-options.js';
 import { coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorRuntime, type CoordinatorControlResult, type CoordinatorWatch, type CoordinatorCommand } from './coordinator-contracts.js';
-import { readCoordinator, coordinatorHash, coordinatorDirectory } from './coordinator-store.js';
+import { readCoordinator, coordinatorHash, coordinatorDirectory, coordinatorSuccessor } from './coordinator-store.js';
 
 function runtimeUrl(runtime: CoordinatorRuntime, path: string): URL {
   const url = new URL(runtime.endpoint);
@@ -36,6 +36,7 @@ export async function coordinatorStatus(root: string, id?: string, timeoutMs = 5
 function verifyStart(record: CoordinatorRecord, options: CoordinatorStart, hash: string): void {
   if (record.planId !== options.planId || (options.jobId !== undefined && record.jobId !== null && record.jobId !== options.jobId)) throw new Error(`Another coordinator target is retained: ${record.id} ${record.planId}/${record.jobId}`);
   if (record.startCommandId === options.commandId && record.startHash !== hash) throw new Error('Start command identity conflicts with its admitted arguments');
+  if (options.resumeFrom !== undefined && (record.resumeFrom !== options.resumeFrom || record.startCommandId !== options.commandId)) throw new Error(`Stale coordinator predecessor ${options.resumeFrom}; an existing continuation has different admitted arguments. Continue from latest coordinator`);
 }
 
 /** No stale record is permission to replace an unconfirmed owner. */
@@ -45,16 +46,34 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
   const deadline = Date.now() + timeoutMs; let child: ReturnType<typeof spawn> | undefined; let diagnostics: string | undefined;
   let selected: string | undefined;
   let releasedPredecessor: string | undefined;
+  if (options.resumeFrom !== undefined) {
+    const admitted = await coordinatorSuccessor(options.projectRoot, options.resumeFrom);
+    if (admitted !== undefined) {
+      verifyStart(admitted, options, hash);
+      // A retry observes the immutable admission even after explicit stop or a
+      // later generation. It never resurrects that host or starts another turn.
+      if (admitted.ownershipReleased) return coordinatorStatus(options.projectRoot, admitted.id);
+      selected = admitted.id;
+    }
+  }
   try {
     const prior = await readCoordinator(options.projectRoot);
-    const continuing = options.resumeFrom === prior.record.id;
-    if (continuing || prior.record.ownershipReleased) await requireCoordinatorSettlement(prior.record, timeoutMs);
-    if (prior.record.ownershipReleased || continuing) releasedPredecessor = prior.record.id;
-    if (!prior.record.ownershipReleased && !continuing) {
-      verifyStart(prior.record, options, hash);
-      selected = prior.record.id;
-      const current = await coordinatorStatus(options.projectRoot, selected);
-      if (current.stale && !['starting', 'listening'].includes(current.record.phase)) throw new Error(`Coordinator ${selected} is unreachable; retained ownership is unconfirmed. Inspect status before explicit recovery.`);
+    if (options.resumeFrom !== undefined && prior.record.id !== options.resumeFrom) {
+      if (selected === undefined) {
+        verifyStart(prior.record, options, hash);
+        if (prior.record.ownershipReleased) return coordinatorStatus(options.projectRoot, prior.record.id);
+        selected = prior.record.id;
+      }
+    } else {
+      const continuing = options.resumeFrom === prior.record.id;
+      if (continuing || prior.record.ownershipReleased) await requireCoordinatorSettlement(prior.record, timeoutMs);
+      if (prior.record.ownershipReleased || continuing) releasedPredecessor = prior.record.id;
+      if (!prior.record.ownershipReleased && !continuing) {
+        verifyStart(prior.record, options, hash);
+        selected = prior.record.id;
+        const current = await coordinatorStatus(options.projectRoot, selected);
+        if (current.stale && !['starting', 'listening'].includes(current.record.phase)) throw new Error(`Coordinator ${selected} is unreachable; retained ownership is unconfirmed. Inspect status before explicit recovery.`);
+      }
     }
   } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'COORDINATOR_NOT_FOUND') throw error; }
   if (selected === undefined) {
@@ -79,7 +98,10 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
         verifyStart(status.record, options, hash);
         selected = status.record.id;
         if (!status.stale && (status.record.phase === 'ready' && status.record.turn !== null && status.record.initialTurnAcknowledged !== false || ['error', 'provider-exited', 'unsettled'].includes(status.record.phase))) return status;
-        if (status.record.ownershipReleased) throw new Error(`Coordinator ${selected} released ownership during startup: ${status.record.error}`);
+        if (status.record.ownershipReleased) {
+          if (options.resumeFrom !== undefined) return status;
+          throw new Error(`Coordinator ${selected} released ownership during startup: ${status.record.error}`);
+        }
       }
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'COORDINATOR_NOT_FOUND') throw error; }
     // A losing child can exit after another compatible host wins ownership.

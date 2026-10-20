@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { chmod, readFile } from 'node:fs/promises';
+import { chmod, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { openLedger, type Ledger } from '../../ledger/src/ledger.js';
@@ -11,6 +11,29 @@ import type { CoordinatorControlResult, CoordinatorRecord, CoordinatorRuntime } 
 
 export const coordinatorDirectory = (root: string) => join(root, 'plans', '.harness', 'coordinators');
 export const coordinatorHash = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
+
+/** A published generation permanently admits its predecessor's one successor. */
+export async function coordinatorSuccessor(root: string, predecessorId: string): Promise<CoordinatorRecord | undefined> {
+  let successor: CoordinatorRecord | undefined;
+  const entries = await readdir(coordinatorDirectory(root), { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^coord-[a-f0-9-]{36}$/.test(entry.name)) continue;
+    // A prospective host can have made its directory before publishing a record.
+    // It has not admitted a continuation until that record exists.
+    const retained = await readCoordinator(root, entry.name).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; });
+    if (retained?.record.resumeFrom !== predecessorId) continue;
+    if (successor !== undefined) throw new Error(`Coordinator ${predecessorId} has conflicting retained successors; continuation refused`);
+    successor = retained.record;
+  }
+  return successor;
+}
+
+/** Call while holding service ownership, immediately before publishing a host. */
+export async function requireLatestCoordinator(root: string, predecessorId: string): Promise<void> {
+  const successor = await coordinatorSuccessor(root, predecessorId);
+  const latest = (await readCoordinator(root)).record;
+  if (successor !== undefined || latest.id !== predecessorId) throw new Error(`Stale coordinator predecessor ${predecessorId}; continue from latest coordinator ${latest.id}. An admitted successor cannot be replaced through its ancestor`);
+}
 const commandEvent = z.object({ commandId: z.string(), hash: z.string(), action: z.string(), state: z.enum(['reserved', 'completed', 'failed', 'uncertain']), result: z.unknown().optional(), error: z.object({ kind: z.string(), message: z.string() }).optional() }).strict();
 type CommandEvent = z.infer<typeof commandEvent>;
 

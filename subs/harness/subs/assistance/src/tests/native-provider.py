@@ -11,7 +11,7 @@ from pathlib import Path
 root = Path.cwd()
 history = root / 'history.json'
 thread = None
-configuration = {'old-stdio': {'command': 'scripted-original-command'}}
+configuration = {'old-stdio': {'command': 'scripted-original-command'}, 'added-stdio': {'command': 'scripted-additional-command'}}
 for index, argument in enumerate(sys.argv):
     if argument == '-c':
         override = tomllib.loads(sys.argv[index + 1])

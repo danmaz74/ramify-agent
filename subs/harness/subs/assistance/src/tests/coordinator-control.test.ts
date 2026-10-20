@@ -110,3 +110,40 @@ test('lost guardian evidence refuses launch before constructing any replacement 
     // Ordinary process guard verifies that missing evidence caused no launch.
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('an immutable stopped resume admission is observed even after an unrelated latest host, and changed arguments cannot launch', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-retained-successor-'));
+  try {
+    const predecessor = 'coord-11111111-1111-1111-1111-111111111111';
+    const successor = 'coord-22222222-2222-2222-2222-222222222222';
+    const options = coordinatorStartSchema.parse({ projectRoot: root, planId: 'plan', jobId: 'job', commandId: 'resume-once', resumeFrom: predecessor, freshThread: true, skill: '/unused' });
+    const record = { schema: 'ramify-agent.coordinator/1', projectRoot: root, planId: 'plan', jobId: 'job', endpoint: null, ownershipReleased: true, phase: 'stopped' } as CoordinatorRecord;
+    await CoordinatorStore.create({ ...record, id: predecessor, generation: 'previous' });
+    await CoordinatorStore.create({ ...record, id: successor, generation: 'successor', resumeFrom: predecessor, startCommandId: options.commandId, startHash: coordinatorHash(options) });
+    const latest = { ...record, id: 'coord-33333333-3333-3333-3333-333333333333', generation: 'unrelated-latest' };
+    await CoordinatorStore.create(latest);
+    expect(await launchCoordinator(options, 100)).toMatchObject({ stale: true, record: { id: successor, phase: 'stopped' } });
+    expect((await readCoordinator(root)).record.id).toBe(latest.id);
+    await expect(launchCoordinator({ ...options, freshThread: false }, 100)).rejects.toThrow(/identity conflicts/);
+    await expect(launchCoordinator({ ...options, commandId: 'different-resume' }, 100)).rejects.toThrow(/Stale coordinator predecessor/);
+    // The ordinary process guard makes any attempted resurrection a failure.
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('a direct host continuation cannot publish a branch from a stale predecessor after acquiring service ownership', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-stale-host-')); const skill = join(root, 'skill.md');
+  let runtimeClosed = false, providerCalls = 0;
+  try {
+    await writeFile(skill, 'Guidance');
+    const previous = { schema: 'ramify-agent.coordinator/1', projectRoot: root, id: 'coord-11111111-1111-1111-1111-111111111111', generation: 'previous', planId: 'plan', jobId: 'job', endpoint: null, ownershipReleased: true, settlement: { confirmed: true }, replaceMcp: [], threadId: null } as unknown as CoordinatorRecord;
+    await CoordinatorStore.create(previous);
+    const latest = { ...previous, id: 'coord-22222222-2222-2222-2222-222222222222', resumeFrom: previous.id };
+    await CoordinatorStore.create(latest);
+    await expect(startCoordinatorHost(coordinatorStartSchema.parse({ projectRoot: root, planId: 'plan', jobId: 'job', commandId: 'branch', resumeFrom: previous.id, replaceMcp: ['ramify_host_previous'], skill }), {
+      runtime: { close: async () => { runtimeClosed = true; } }, provider: () => { providerCalls++; throw new Error('Unexpected provider'); },
+    })).rejects.toThrow(/Stale coordinator predecessor/);
+    expect(runtimeClosed).toBe(true); expect(providerCalls).toBe(0);
+    expect((await readCoordinator(root)).record.id).toBe(latest.id);
+    await expect(readFile(join(root, 'plans', '.harness', 'lock'))).rejects.toMatchObject({ code: 'ENOENT' });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

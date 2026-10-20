@@ -73,14 +73,25 @@ that still needs completion. Existing stage evidence, requested time, candidate,
 job and independent acceptance authority remain unchanged. Standalone stdio MCP
 and normal assisted clients retain the existing implementation and tests.
 
+## Resume admission repair
+
+Assessment `as-0010` passed audit and identified `cf-0012`: retrying a resume
+through its older predecessor after the admitted successor stopped could create
+a branch that omitted that successor's command receipts and settings. The
+[repair report](cf-0012-repair.md) records the corrected admission invariant and
+actual multi-generation CLI regression. Exact retries now observe their admitted
+successor even after stop or later generations. New continuations must select the
+latest coordinator; the host enforces that requirement under service ownership
+before publishing another generation. No old input or approval is replayed.
+
 ## Focused verification
 
 All commands ran from `/workspaces/worktrees/codex-coordinator-host`. The unchanged
 complete configured projects remain in place; these are explicit focused selections,
 not a direct full audit. RA owns implementation assessment and audit submission.
 
-- [Focused selection](verification/focused-tests.log): **191/191**, 13 files,
-  including **15 exact registered native cases**, exit 0. Selection was
+- [Focused selection](verification/cf-0012-focused-tests.log): **194/194**, 13 files,
+  including **16 exact registered native cases**, exit 0. Selection was
   `node_modules/.bin/vitest run --project node --project boundaries` followed by
   root `cli.test.ts`, root `coordinator-launch.boundary.test.ts`, assistance's
   `coordinator-recovery.test.ts`, `coordinator-control.test.ts`,
@@ -107,11 +118,11 @@ not a direct full audit. RA owns implementation assessment and audit submission.
   any attempted process launch, binding errors, provider resume uncertainty and
   exact thread MCP overrides. Existing provider race regressions, stdio MCP
   registration/observation, assessment interruption and acceptance semantics pass.
-- [Four TypeScript configurations](verification/type-check.log):
+- [Four TypeScript configurations](verification/cf-0012-type-check.log):
   `npm run type-check`, exit 0.
-- [Ramify self-check](verification/check-self.log): `npm run check:self`, exit 0,
+- [Ramify self-check](verification/cf-0012-check-self.log): `npm run check:self`, exit 0,
   **0 errors, 0 warnings, 781 existing analysis limits**, partial coverage;
-  25 owners, 1091 source files, 101 resources, 20004 accesses.
+  25 owners, 1091 source files, 101 resources, 20007 accesses.
 - `git diff --check`: exit 0. [Final source hashes](source-sha256.json) bind the
   changed source, tests, declarations, skill and usage contracts.
 - The I2 [900000ms HTTP witness](../iteration-02/http-bridge/report.md) and its
