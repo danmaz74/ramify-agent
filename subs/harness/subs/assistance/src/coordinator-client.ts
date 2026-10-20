@@ -9,7 +9,7 @@ import { ownedTreeKernelPath } from '../../../src/owned-tree-kernel.js';
 import { requireCoordinatorSettlement, coordinatorOwnerAlive } from './coordinator-recovery.js';
 import type { CoordinateOptions } from './coordinator-options.js';
 import { coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorRuntime, type CoordinatorControlResult, type CoordinatorWatch, type CoordinatorCommand } from './coordinator-contracts.js';
-import { readCoordinator, coordinatorHash, coordinatorDirectory, coordinatorSuccessor } from './coordinator-store.js';
+import { readCoordinator, readCoordinatorHistory, coordinatorHash, coordinatorDirectory } from './coordinator-store.js';
 
 function runtimeUrl(runtime: CoordinatorRuntime, path: string): URL {
   const url = new URL(runtime.endpoint);
@@ -23,7 +23,7 @@ async function request<T>(runtime: CoordinatorRuntime, path: string, timeoutMs: 
   return value as T;
 }
 export async function coordinatorStatus(root: string, id?: string, timeoutMs = 5000): Promise<CoordinatorSnapshot> {
-  const { record, runtime } = await readCoordinator(root, id);
+  const { record, runtime } = id === undefined ? (await readCoordinatorHistory(root)).latest : await readCoordinator(root, id);
   try {
     if (runtime === null) throw new Error('Listener readiness has not been retained');
     const status = await request<CoordinatorSnapshot>(runtime, '/status', timeoutMs);
@@ -46,8 +46,9 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
   const deadline = Date.now() + timeoutMs; let child: ReturnType<typeof spawn> | undefined; let diagnostics: string | undefined;
   let selected: string | undefined;
   let releasedPredecessor: string | undefined;
-  if (options.resumeFrom !== undefined) {
-    const admitted = await coordinatorSuccessor(options.projectRoot, options.resumeFrom);
+  try {
+    const history = await readCoordinatorHistory(options.projectRoot);
+    const admitted = options.resumeFrom === undefined ? undefined : history.successors.get(options.resumeFrom);
     if (admitted !== undefined) {
       verifyStart(admitted, options, hash);
       // A retry observes the immutable admission even after explicit stop or a
@@ -55,9 +56,7 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
       if (admitted.ownershipReleased) return coordinatorStatus(options.projectRoot, admitted.id);
       selected = admitted.id;
     }
-  }
-  try {
-    const prior = await readCoordinator(options.projectRoot);
+    const prior = history.latest;
     if (options.resumeFrom !== undefined && prior.record.id !== options.resumeFrom) {
       if (selected === undefined) {
         verifyStart(prior.record, options, hash);
@@ -142,7 +141,7 @@ export async function runCoordinateCommand(options: CoordinateOptions, output: (
     const settled = (await readCoordinator(root, previous.id)).record;
     await requireCoordinatorSettlement(settled, options.timeoutMs);
     const original = await readFile(join(coordinatorDirectory(root), previous.id, 'task.json'), 'utf8').then(value => (JSON.parse(value) as { message: string }).message).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''; throw error; });
-    const input = coordinatorStartSchema.parse({ projectRoot: root, planId: previous.planId, jobId: previous.jobId, commandId: options.commandId ?? `resume:${randomUUID()}`, model: options.model ?? previous.model, workerModel: options.workerModel ?? previous.workerModel, assessmentModel: options.assessmentModel ?? previous.assessmentModel, replaceMcp: [...new Set([...previous.replaceMcp, `ramify_host_${previous.generation.replaceAll('-', '')}`, ...options.replaceMcp])], skill: options.skill ?? previous.skill, message: `${original}${options.messageFile === undefined ? '' : `\n${await readFile(options.messageFile, 'utf8')}`}`, codexExecutable: options.codexExecutable ?? previous.codexExecutable, resumeFrom: previous.id, freshThread: options.freshThread });
+    const input = coordinatorStartSchema.parse({ projectRoot: root, planId: previous.planId, jobId: previous.jobId, commandId: options.commandId ?? `resume:${randomUUID()}`, model: options.model ?? previous.model, workerModel: options.workerModel ?? previous.workerModel, assessmentModel: options.assessmentModel ?? previous.assessmentModel, replaceMcp: [...new Set([...previous.replaceMcp, ...(previous.endpoint === null ? [] : [`ramify_host_${previous.generation.replaceAll('-', '')}`]), ...options.replaceMcp])], skill: options.skill ?? previous.skill, message: `${original}${options.messageFile === undefined ? '' : `\n${await readFile(options.messageFile, 'utf8')}`}`, codexExecutable: options.codexExecutable ?? previous.codexExecutable, resumeFrom: previous.id, freshThread: options.freshThread || previous.freshThread === true && previous.threadId === null });
     const status = await launchCoordinator(input, options.timeoutMs); print(status); return status.record.phase === 'ready' ? 0 : 2;
   }
   if (options.action === 'start') {

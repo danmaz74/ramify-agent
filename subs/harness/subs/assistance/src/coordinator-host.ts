@@ -12,7 +12,7 @@ import { nodeFetchHandler, configureLongWaitHttpServer } from './http-bridge.js'
 import { assistanceHttpSessions } from './http-mcp.js';
 import { coordinatorCommandSchema, coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorControlResult, type CoordinatorCommand } from './coordinator-contracts.js';
 import { requireCoordinatorSettlement } from './coordinator-recovery.js';
-import { CoordinatorStore, coordinatorHash, readCoordinator, requireLatestCoordinator } from './coordinator-store.js';
+import { CoordinatorStore, coordinatorHash, readCoordinator, readCoordinatorHistory } from './coordinator-store.js';
 import { coordinatorProjection } from './coordinator-projection.js';
 
 const tokenEnvironment = 'RAMIFY_COORDINATOR_MCP_TOKEN';
@@ -50,7 +50,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   if (dependencies.id !== undefined && !/^coord-[a-f0-9-]{36}$/.test(dependencies.id)) throw new Error('Invalid coordinator launch identity');
   await readFile(options.skill, 'utf8');
   if (options.resumeFrom === undefined) {
-    const prior = await readCoordinator(projectRoot).catch(error => { if ((error as NodeJS.ErrnoException).code === 'COORDINATOR_NOT_FOUND') return undefined; throw error; });
+    const prior = await readCoordinatorHistory(projectRoot).then(history => history.latest).catch(error => { if ((error as NodeJS.ErrnoException).code === 'COORDINATOR_NOT_FOUND') return undefined; throw error; });
     if (prior !== undefined) {
       if (!prior.record.ownershipReleased) throw new Error(`Coordinator ${prior.record.id} retains ownership; use explicit resume after settlement`);
       await requireCoordinatorSettlement(prior.record);
@@ -59,7 +59,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   const predecessor = options.resumeFrom === undefined ? undefined : (await readCoordinator(projectRoot, options.resumeFrom)).record;
   if (predecessor !== undefined) {
     if (predecessor.planId !== options.planId || predecessor.jobId === null || predecessor.jobId !== options.jobId) throw new Error('Continuation must preserve the retained plan/job identity');
-    const requiredDisabled = [...predecessor.replaceMcp, `ramify_host_${predecessor.generation.replaceAll('-', '')}`];
+    const requiredDisabled = [...predecessor.replaceMcp, ...(predecessor.endpoint === null ? [] : [`ramify_host_${predecessor.generation.replaceAll('-', '')}`])];
     if (requiredDisabled.some(name => !options.replaceMcp.includes(name))) throw new Error('Continuation must retain previously disabled MCP entries and disable the preceding HTTP entry');
     await requireCoordinatorSettlement(predecessor);
   }
@@ -75,7 +75,18 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   let service: AssistanceService;
   try { service = await AssistanceService.open({ projectRoot, assessor: runtime.assessor, ...dependencies.assistance }); }
   catch (error) { await runtime.close(); throw error; }
-  try { if (options.resumeFrom !== undefined) await requireLatestCoordinator(projectRoot, options.resumeFrom); }
+  let retainedJobId: string | null = null;
+  try {
+    if (options.resumeFrom !== undefined) {
+      const latest = (await readCoordinatorHistory(projectRoot)).latest.record;
+      if (latest.id !== options.resumeFrom) throw new Error(`Stale coordinator predecessor ${options.resumeFrom}; continue from latest coordinator ${latest.id}`);
+    }
+    if (options.jobId !== undefined) {
+      const detail = await service.jobDetail(options.planId, options.jobId);
+      if (detail.job.projectRoot !== projectRoot || detail.job.planId !== options.planId || detail.job.jobId !== options.jobId) throw new Error('Supplied assisted registration identity differs');
+      retainedJobId = detail.job.jobId;
+    }
+  }
   catch (error) { await service.close(); await runtime.close(); throw error; }
   const now = () => new Date().toISOString();
   const id = dependencies.id ?? `coord-${randomUUID()}`; const generation = randomUUID(); const token = randomBytes(32).toString('base64url');
@@ -85,7 +96,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
     ...(dependencies.guardian === undefined ? {} : { guardian: dependencies.guardian }),
     ...(options.assessmentModel === undefined ? {} : { assessmentModel: options.assessmentModel }), ...(options.codexExecutable === undefined ? {} : { codexExecutable: options.codexExecutable }),
     ...(options.resumeFrom === undefined ? {} : { resumeFrom: options.resumeFrom, recovery: { thread: 'pending', reason: null, uncertainCommands: [] } }),
-    schema: 'ramify-agent.coordinator/1', id, generation, projectRoot, planId: options.planId, jobId: null,
+    schema: 'ramify-agent.coordinator/1', id, generation, projectRoot, planId: options.planId, jobId: retainedJobId, freshThread: options.freshThread,
     launchedAt: now(), owner: service.ownerProcess(), model: options.model, workerModel: options.workerModel,
     startCommandId: options.commandId, startHash: coordinatorHash({ ...options, projectRoot }), skill: options.skill, replaceMcp: options.replaceMcp,
     phase: 'starting', initialTurnAcknowledged: false, endpoint: null, threadId: null, readiness: null, turn: null, pending: [], workers: [],
@@ -225,10 +236,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   const ready = (async () => {
     try {
       if (stopRequested) return;
-      if (options.jobId !== undefined) {
-        const detail = await service.jobDetail(options.planId, options.jobId);
-        if (detail.job.projectRoot !== projectRoot || detail.job.planId !== options.planId || detail.job.jobId !== options.jobId) throw new Error('Supplied assisted registration identity differs');
-        record.jobId = detail.job.jobId;
+      if (record.jobId !== null) {
         if (predecessor !== undefined) record.recovery!.uncertainCommands = await store.inherit(predecessor.id);
       } else {
         const executions = await service.listExecutions(options.planId);

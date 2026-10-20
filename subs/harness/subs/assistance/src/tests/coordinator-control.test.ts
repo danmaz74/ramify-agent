@@ -147,3 +147,19 @@ test('a direct host continuation cannot publish a branch from a stale predecesso
     await expect(readFile(join(root, 'plans', '.harness', 'lock'))).rejects.toMatchObject({ code: 'ENOENT' });
   } finally { await rm(root, { recursive: true, force: true }); }
 });
+
+test('a supplied job must be verified before permanent host admission, listener startup or provider construction', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'coordinator-unverified-job-')); const skill = join(root, 'skill.md');
+  let runtimeClosed = false, listeners = 0, providers = 0;
+  try {
+    await writeFile(skill, 'Guidance');
+    await expect(startCoordinatorHost(coordinatorStartSchema.parse({ projectRoot: root, planId: 'plan', jobId: 'missing-job', commandId: 'unverified', skill }), {
+      runtime: { close: async () => { runtimeClosed = true; } },
+      listen: async () => { listeners++; throw new Error('Unexpected listener'); },
+      provider: () => { providers++; throw new Error('Unexpected provider'); },
+    })).rejects.toThrow();
+    expect(runtimeClosed).toBe(true); expect(listeners).toBe(0); expect(providers).toBe(0);
+    await expect(readCoordinator(root)).rejects.toMatchObject({ code: 'COORDINATOR_NOT_FOUND' });
+    await expect(readFile(join(root, 'plans', '.harness', 'lock'))).rejects.toMatchObject({ code: 'ENOENT' });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

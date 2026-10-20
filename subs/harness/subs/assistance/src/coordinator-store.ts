@@ -12,27 +12,33 @@ import type { CoordinatorControlResult, CoordinatorRecord, CoordinatorRuntime } 
 export const coordinatorDirectory = (root: string) => join(root, 'plans', '.harness', 'coordinators');
 export const coordinatorHash = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
 
-/** A published generation permanently admits its predecessor's one successor. */
-export async function coordinatorSuccessor(root: string, predecessorId: string): Promise<CoordinatorRecord | undefined> {
-  let successor: CoordinatorRecord | undefined;
+/** Generation records admit continuations; active.json is only their lookup hint. */
+export async function readCoordinatorHistory(root: string): Promise<{ latest: { record: CoordinatorRecord; runtime: CoordinatorRuntime | null }; successors: ReadonlyMap<string, CoordinatorRecord> }> {
+  const indexed = await readCoordinator(root);
+  const observations = new Map([[indexed.record.id, indexed]]);
+  const successors = new Map<string, CoordinatorRecord>();
   const entries = await readdir(coordinatorDirectory(root), { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory() || !/^coord-[a-f0-9-]{36}$/.test(entry.name)) continue;
     // A prospective host can have made its directory before publishing a record.
     // It has not admitted a continuation until that record exists.
     const retained = await readCoordinator(root, entry.name).catch(error => { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; });
-    if (retained?.record.resumeFrom !== predecessorId) continue;
-    if (successor !== undefined) throw new Error(`Coordinator ${predecessorId} has conflicting retained successors; continuation refused`);
-    successor = retained.record;
+    if (retained === undefined) continue;
+    observations.set(entry.name, retained);
+    if (retained.record.resumeFrom === undefined) continue;
+    if (successors.has(retained.record.resumeFrom)) throw new Error(`Coordinator ${retained.record.resumeFrom} has conflicting retained successors; continuation refused`);
+    successors.set(retained.record.resumeFrom, retained.record);
   }
-  return successor;
-}
-
-/** Call while holding service ownership, immediately before publishing a host. */
-export async function requireLatestCoordinator(root: string, predecessorId: string): Promise<void> {
-  const successor = await coordinatorSuccessor(root, predecessorId);
-  const latest = (await readCoordinator(root)).record;
-  if (successor !== undefined || latest.id !== predecessorId) throw new Error(`Stale coordinator predecessor ${predecessorId}; continue from latest coordinator ${latest.id}. An admitted successor cannot be replaced through its ancestor`);
+  let latest = observations.get(indexed.record.id)!;
+  const visited = new Set<string>();
+  for (;;) {
+    if (visited.has(latest.record.id)) throw new Error('Coordinator continuation history contains a cycle');
+    visited.add(latest.record.id);
+    const successor = successors.get(latest.record.id);
+    if (successor === undefined) return { latest, successors };
+    if (successor.planId !== latest.record.planId || latest.record.jobId === null || successor.jobId !== latest.record.jobId) throw new Error('Committed coordinator successor has a different execution identity');
+    latest = observations.get(successor.id)!;
+  }
 }
 const commandEvent = z.object({ commandId: z.string(), hash: z.string(), action: z.string(), state: z.enum(['reserved', 'completed', 'failed', 'uncertain']), result: z.unknown().optional(), error: z.object({ kind: z.string(), message: z.string() }).optional() }).strict();
 type CommandEvent = z.infer<typeof commandEvent>;
@@ -55,8 +61,10 @@ export class CoordinatorStore {
     await chmod(directory, 0o700);
     const ledger = await openLedger({ logPath: join(directory, 'commands.jsonl'), recordsRoot: directory, eventSchema: commandEvent });
     const store = new CoordinatorStore(record, ledger);
-    await store.flush();
     if (taskDirections !== undefined) { await writeFileAtomic(join(directory, 'task.json'), JSON.stringify({ message: taskDirections })); await chmod(join(directory, 'task.json'), 0o600); }
+    // Record existence is permanent successor admission. All private directions
+    // and the host's verified execution identity must already be recoverable.
+    await store.flush();
     await writeFileAtomic(join(root, 'active.json'), JSON.stringify({ id: record.id, generation: record.generation }));
     return store;
   }
