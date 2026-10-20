@@ -5,7 +5,8 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { expect, test, vi } from 'vitest';
 import { startCoordinatorHost, type CoordinatorHost } from '../coordinator-host.js';
 import { coordinatorStartSchema } from '../coordinator-contracts.js';
-import { readCoordinator } from '../coordinator-store.js';
+import { CoordinatorStore, readCoordinator } from '../coordinator-store.js';
+import { coordinatorStatus, launchCoordinator } from '../coordinator-client.js';
 import { AssistanceService } from '../service.js';
 import { ScriptedCodex, testSession, testThread, testTurn } from '../../../agent/subs/codex/src/tests/scripted.js';
 import type { CodexProviderOptions } from '../../../agent/subs/codex/src/interfaces/provider.js';
@@ -136,4 +137,69 @@ test('lost HTTP control reply retains one effect while activity-only worker disc
     const update = await (await fetch(`${runtime!.endpoint}/watch?after=0&wait=0`, { headers })).json() as { gap: boolean; events: unknown[]; snapshot: { record: { id: string } } };
     expect(update.gap).toBe(true); expect(update.events.length).toBeLessThanOrEqual(256); expect(update.snapshot.record.id).toBe(host.store.record.id);
   } finally { if (host !== undefined) await stop(host); await rm(root, { recursive: true, force: true }); }
+}, 10000);
+
+test('short secret answers preserve subsequent HTTP status and watch control identities and schema choices', async () => {
+  const { root, options } = await fixture(); let host: CoordinatorHost | undefined; let script!: ScriptedCodex;
+  try {
+    host = await startCoordinatorHost(options, { assistance, runtime: { close: async () => undefined }, provider: launch => { script = providerScript(launch); return script.provider; } }); await host.ready;
+    const { runtime } = await readCoordinator(root); const headers = { authorization: `Bearer ${runtime!.token}`, 'x-coordinator-generation': runtime!.generation };
+    const status = async () => (await (await fetch(`${runtime!.endpoint}/status`, { headers })).json()) as Awaited<ReturnType<CoordinatorHost['snapshot']>>;
+    const respond = async (requestId: string, response: Parameters<CoordinatorHost['control']>[0] & { action: 'respond' }) => (await (await fetch(`${runtime!.endpoint}/control`, { method: 'POST', headers, body: JSON.stringify({ ...response, requestId }) })).json()) as { state: string };
+    script.receive({ id: 701, method: 'item/tool/requestUserInput', params: { threadId: 'thread-1', turnId: 'turn-1', itemId: 'secret-1', isBlocking: true, questions: [{ id: 'secret-1', header: 'Secret', question: 'Enter secret', isSecret: true, isOther: true, options: null }] } });
+    const secret = (await status()).record.pending[0]!;
+    expect(await respond(secret.id, { action: 'respond', commandId: 'short-secret', requestId: secret.id, response: { kind: 'user-input', answers: { 'secret-1': ['1'] } } })).toMatchObject({ state: 'completed' });
+    script.receive({ id: 711, method: 'item/commandExecution/requestApproval', params: { threadId: 'thread-1', turnId: 'turn-1', itemId: 'command-1', command: 'echo 1', cwd: root, availableDecisions: ['decline', 'accept'] } });
+    const approval = (await status()).record.pending[0]!;
+    const actual = script.provider.pendingRequests()[0]!;
+    expect(approval).toMatchObject({ id: actual.id, generation: actual.generation, threadId: actual.threadId, turnId: actual.turnId, itemId: actual.itemId, command: 'echo [credential removed]' });
+    if (approval.kind !== 'command-approval') throw new Error('Expected approval');
+    expect(approval.choices[1]!.id).toBe('1');
+    expect(await respond(approval.id, { action: 'respond', commandId: 'approve-1', requestId: approval.id, response: { kind: 'approval', choiceId: approval.choices[1]!.id } })).toMatchObject({ state: 'completed' });
+    expect(script.written.at(-1)).toEqual({ id: 711, result: { decision: 'accept' } });
+    script.receive({ id: 721, method: 'item/tool/requestUserInput', params: { threadId: 'thread-1', turnId: 'turn-1', itemId: 'select-1', isBlocking: true, questions: [{ id: 'select-1', header: 'Choice 1', question: 'Choose 1', isSecret: false, isOther: false, options: [{ label: '1', description: 'Option 1' }] }] } });
+    const update = await (await fetch(`${runtime!.endpoint}/watch?after=0&wait=0`, { headers })).json() as { snapshot: Awaited<ReturnType<CoordinatorHost['snapshot']>>; events: { event: { kind: string; request?: unknown } }[] };
+    const question = update.snapshot.record.pending[0]!; expect(question.id).toBe(script.provider.pendingRequests()[0]!.id);
+    expect(update.events.filter(event => event.event.kind === 'pending-request').at(-1)!.event.request).toEqual(question);
+    expect(question).toMatchObject({ kind: 'user-input', questions: [{ id: 'select-1', question: 'Choose [credential removed]', options: [{ label: '1', description: 'Option [credential removed]' }] }] });
+    expect(await respond(question.id, { action: 'respond', commandId: 'select-1', requestId: question.id, response: { kind: 'user-input', answers: { 'select-1': ['1'] } } })).toMatchObject({ state: 'completed' });
+    script.receive({ id: 731, method: 'mcpServer/elicitation/request', params: { threadId: 'thread-1', turnId: 'turn-1', serverName: 'server-1', mode: 'form', message: 'Choose 1', requestedSchema: { type: 'object', properties: { 'field-1': { type: 'string', title: 'Choice 1', enum: ['1', '2'], default: '1', examples: ['1'] } }, required: ['field-1'] } } });
+    const form = (await status()).record.pending[0]!;
+    expect(form).toMatchObject({ kind: 'mcp-elicitation', serverName: 'server-1', schema: { properties: { 'field-1': { type: 'string', title: 'Choice [credential removed]', enum: ['1', '2'] } }, required: ['field-1'] } });
+    if (form.kind !== 'mcp-elicitation') throw new Error('Expected form');
+    expect(form.schema.properties).toEqual({ 'field-1': { type: 'string', title: 'Choice [credential removed]', enum: ['1', '2'] } });
+    expect(await respond(form.id, { action: 'respond', commandId: 'form-1', requestId: form.id, response: { kind: 'mcp-elicitation', action: 'accept', content: { 'field-1': '1' } } })).toMatchObject({ state: 'completed' });
+    script.receive({ method: 'turn/completed', params: { threadId: 'thread-1', turn: { ...testTurn('completed', 'turn-1'), items: [{ id: 'echo-1', type: 'agentMessage', text: 'Answer: 1' }] } } });
+    const final = (await status()).record;
+    expect(final.turn).toMatchObject({ id: 'turn-1', status: 'completed' });
+    expect(final.progress.at(-1)!.event).toMatchObject({ kind: 'turn', threadId: 'thread-1', turn: { id: 'turn-1', messages: [{ text: 'Answer: [credential removed]' }] } });
+    expect(final.readiness).toEqual(await script.provider.initialize());
+  } finally { if (host !== undefined) await stop(host); await rm(root, { recursive: true, force: true }); }
+}, 10000);
+
+test('startup runtime publication is observed as unready until the matching record while genuine identity conflicts remain errors', async () => {
+  const { root, options } = await fixture(); let host: CoordinatorHost | undefined; let created = 0;
+  let published!: () => void; const publication = new Promise<void>(resolve => { published = resolve; });
+  let release!: () => void; const held = new Promise<void>(resolve => { release = resolve; });
+  const original = CoordinatorStore.prototype.retainRuntime;
+  const retain = vi.spyOn(CoordinatorStore.prototype, 'retainRuntime').mockImplementation(async function (this: CoordinatorStore, runtime) { await original.call(this, runtime); published(); await held; });
+  const starting = startCoordinatorHost(options, { assistance, runtime: { close: async () => undefined }, provider: launch => { created++; return providerScript(launch).provider; } });
+  try {
+    await publication;
+    const pending = await readCoordinator(root); expect(pending).toMatchObject({ runtime: null, record: { phase: 'starting', endpoint: null } });
+    expect(await coordinatorStatus(root)).toMatchObject({ stale: true, record: { id: pending.record.id, phase: 'starting' }, observationError: 'Listener readiness has not been retained' });
+    expect(created).toBe(0);
+    const runtimePath = join(root, 'plans', '.harness', 'coordinators', pending.record.id, 'runtime.json'); const runtimeBody = await readFile(runtimePath, 'utf8'); const runtime = JSON.parse(runtimeBody);
+    for (const conflicting of [{ ...runtime, generation: 'wrong-generation' }, { ...runtime, id: 'coord-11111111-1111-1111-1111-111111111111' }]) {
+      await writeFile(runtimePath, JSON.stringify(conflicting)); await expect(coordinatorStatus(root)).rejects.toThrow('Runtime identity differs');
+    }
+    await writeFile(runtimePath, runtimeBody);
+    let returned = false; const launching = launchCoordinator(options, 5000).then(value => { returned = true; return value; });
+    // A real client has time to observe the incomplete publication repeatedly.
+    await new Promise(resolve => setTimeout(resolve, 250)); expect(returned).toBe(false); expect(created).toBe(0);
+    release(); host = await starting; await host.ready;
+    expect(await launching).toMatchObject({ stale: false, record: { id: pending.record.id, phase: 'ready' } }); expect(created).toBe(1);
+    await writeFile(runtimePath, JSON.stringify({ ...runtime, endpoint: 'http://127.0.0.1:1' })); await expect(coordinatorStatus(root)).rejects.toThrow('Runtime identity differs');
+    await writeFile(runtimePath, runtimeBody);
+  } finally { release(); retain.mockRestore(); host ??= await starting; await stop(host); await rm(root, { recursive: true, force: true }); }
 }, 10000);

@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { CoordinateOptions } from './coordinator-options.js';
-import { coordinatorStartSchema, type CoordinatorStart, type CoordinatorSnapshot, type CoordinatorRuntime, type CoordinatorControlResult, type CoordinatorWatch, type CoordinatorCommand } from './coordinator-contracts.js';
+import { coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorRuntime, type CoordinatorControlResult, type CoordinatorWatch, type CoordinatorCommand } from './coordinator-contracts.js';
 import { readCoordinator, coordinatorHash } from './coordinator-store.js';
 
 function runtimeUrl(runtime: CoordinatorRuntime, path: string): URL {
@@ -30,9 +30,16 @@ export async function coordinatorStatus(root: string, id?: string, timeoutMs = 5
   } catch (error) { return { record, stale: true, assessments: [], observationError: error instanceof Error ? error.message : String(error) }; }
 }
 
+/** A race winner is subject to the same admission check as an existing owner. */
+function verifyStart(record: CoordinatorRecord, options: CoordinatorStart, hash: string): void {
+  if (record.planId !== options.planId || (options.jobId !== undefined && record.jobId !== null && record.jobId !== options.jobId)) throw new Error(`Another coordinator target is retained: ${record.id} ${record.planId}/${record.jobId}`);
+  if (record.startCommandId === options.commandId && record.startHash !== hash) throw new Error('Start command identity conflicts with its admitted arguments');
+}
+
 /** No stale record is permission to replace an unconfirmed owner. */
 export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180_000): Promise<CoordinatorSnapshot> {
   const options = coordinatorStartSchema.parse({ ...input, projectRoot: await realpath(input.projectRoot) });
+  const hash = coordinatorHash(options);
   const deadline = Date.now() + timeoutMs; let child: ReturnType<typeof spawn> | undefined; let diagnostics: string | undefined;
   let selected: string | undefined;
   let releasedPredecessor: string | undefined;
@@ -40,8 +47,7 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
     const prior = await readCoordinator(options.projectRoot);
     if (prior.record.ownershipReleased) releasedPredecessor = prior.record.id;
     if (!prior.record.ownershipReleased) {
-      if (prior.record.planId !== options.planId || (options.jobId !== undefined && prior.record.jobId !== null && prior.record.jobId !== options.jobId)) throw new Error(`Another coordinator target is retained: ${prior.record.id} ${prior.record.planId}/${prior.record.jobId}`);
-      if (prior.record.startCommandId === options.commandId && prior.record.startHash !== coordinatorHash(options)) throw new Error('Start command identity conflicts with its admitted arguments');
+      verifyStart(prior.record, options, hash);
       selected = prior.record.id;
       const current = await coordinatorStatus(options.projectRoot, selected);
       if (current.stale && !['starting', 'listening'].includes(current.record.phase)) throw new Error(`Coordinator ${selected} is unreachable; retained ownership is unconfirmed. Inspect status before explicit recovery.`);
@@ -62,12 +68,14 @@ export async function launchCoordinator(input: CoordinatorStart, timeoutMs = 180
     try {
       const status = await coordinatorStatus(options.projectRoot, selected, Math.min(5000, deadline - Date.now()));
       if (status.record.id === releasedPredecessor && status.record.ownershipReleased) { await delay(100); continue; }
-      if (status.record.planId !== options.planId || (options.jobId !== undefined && status.record.jobId !== null && status.record.jobId !== options.jobId)) throw new Error(`Competing coordinator target ${status.record.id} won ownership`);
+      verifyStart(status.record, options, hash);
       selected = status.record.id;
       if (!status.stale && (status.record.phase === 'ready' && status.record.turn !== null || ['error', 'provider-exited', 'unsettled'].includes(status.record.phase))) return status;
       if (status.record.ownershipReleased) throw new Error(`Coordinator ${selected} released ownership during startup: ${status.record.error}`);
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
-    if (child !== undefined && child.exitCode !== null) {
+    // A losing child can exit after another compatible host wins ownership.
+    // Once observed, that owner's readiness is independent of this child.
+    if (child !== undefined && child.exitCode !== null && selected === undefined) {
       const detail = diagnostics === undefined ? '' : await readFile(diagnostics, 'utf8');
       throw new Error(`Detached host exited before readiness (${child.exitCode}). ${detail.slice(-8192)}`);
     }

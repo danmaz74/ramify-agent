@@ -93,11 +93,28 @@ export async function readCoordinator(root: string, id?: string): Promise<{ reco
   const selected = id ?? (JSON.parse(await readFile(join(directory, 'active.json'), 'utf8')) as { id: string }).id;
   if (!/^coord-[a-f0-9-]{36}$/.test(selected)) throw new Error('Invalid coordinator identity');
   const owned = join(directory, selected);
-  const record = JSON.parse(await readFile(join(owned, 'record.json'), 'utf8')) as CoordinatorRecord;
-  if (record.schema !== 'ramify-agent.coordinator/1' || record.id !== selected || record.projectRoot !== root) throw new Error('Coordinator record identity differs from its target');
+  const readRecord = async () => {
+    const record = JSON.parse(await readFile(join(owned, 'record.json'), 'utf8')) as CoordinatorRecord;
+    if (record.schema !== 'ramify-agent.coordinator/1' || record.id !== selected || record.projectRoot !== root) throw new Error('Coordinator record identity differs from its target');
+    return record;
+  };
+  let record = await readRecord();
   let runtime: CoordinatorRuntime | null = null;
   try { runtime = JSON.parse(await readFile(join(owned, 'runtime.json'), 'utf8')) as CoordinatorRuntime; }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
-  if (runtime !== null && (runtime.id !== record.id || runtime.generation !== record.generation || runtime.endpoint !== record.endpoint)) throw new Error('Runtime identity differs from coordinator record');
+  if (runtime !== null) {
+    const sameIdentity = () => runtime!.id === record.id && runtime!.generation === record.generation;
+    if (!sameIdentity()) throw new Error('Runtime identity differs from coordinator record');
+    if (runtime.endpoint !== record.endpoint) {
+      // The runtime and observation are individually atomic. A reader can span
+      // their startup publication; re-read before deciding the pair conflicts.
+      record = await readRecord();
+      if (!sameIdentity()) throw new Error('Runtime identity differs from coordinator record');
+      if (runtime.endpoint !== record.endpoint) {
+        if (record.endpoint === null && record.phase === 'starting') return { record, runtime: null };
+        throw new Error('Runtime identity differs from coordinator record');
+      }
+    }
+  }
   return { record, runtime };
 }

@@ -11,6 +11,7 @@ import { nodeFetchHandler, configureLongWaitHttpServer } from './http-bridge.js'
 import { assistanceHttpSessions } from './http-mcp.js';
 import { coordinatorCommandSchema, coordinatorStartSchema, type CoordinatorStart, type CoordinatorRecord, type CoordinatorSnapshot, type CoordinatorControlResult, type CoordinatorCommand } from './coordinator-contracts.js';
 import { CoordinatorStore, coordinatorHash } from './coordinator-store.js';
+import { coordinatorProjection } from './coordinator-projection.js';
 
 const tokenEnvironment = 'RAMIFY_COORDINATOR_MCP_TOKEN';
 const requiredTools = ['plan_executions', 'job_detail', 'iteration', 'iteration_assess', 'assessment_wait', 'assessment_result'];
@@ -50,6 +51,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   const now = () => new Date().toISOString();
   const id = `coord-${randomUUID()}`; const generation = randomUUID(); const token = randomBytes(32).toString('base64url');
   const privateValues = new Set([token]);
+  const projection = coordinatorProjection(privateValues);
   const record: CoordinatorRecord = {
     schema: 'ramify-agent.coordinator/1', id, generation, projectRoot, planId: options.planId, jobId: null,
     launchedAt: now(), owner: service.ownerProcess(), model: options.model, workerModel: options.workerModel,
@@ -69,7 +71,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
     if (terminal) terminalTurns.add(turn.id);
     if (!terminal && terminalTurns.has(turn.id)) return;
     if (record.turn?.status === 'inProgress' && record.turn.id !== turn.id && terminal) return;
-    record.turn = { id: turn.id, status: turn.status, error: turn.error === null ? null : String(redact(turn.error)) };
+    record.turn = { id: turn.id, status: turn.status, error: turn.error === null ? null : projection.text(turn.error) };
   };
   let unsubscribe: (() => void) | undefined;
   let closeResolve!: () => void; const closed = new Promise<void>(resolve => { closeResolve = resolve; });
@@ -77,32 +79,17 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
   const sessions = assistanceHttpSessions(service);
   let server: Server;
   let closing: Promise<unknown> | undefined;
-  const redact = (value: unknown): unknown => {
-    if (typeof value === 'string') { let selected = value; for (const secret of privateValues) selected = selected.replaceAll(secret, '[credential removed]'); return selected.slice(0, 8192); }
-    if (Array.isArray(value)) return value.slice(0, 100).map(redact);
-    if (value !== null && typeof value === 'object') {
-      let selected = value;
-      if ('kind' in value && value.kind === 'mcp-elicitation' && 'schema' in value && value.schema !== null && typeof value.schema === 'object') {
-        const schema = structuredClone(value.schema) as Record<string, unknown>;
-        for (const field of Object.values((schema.properties ?? {}) as Record<string, Record<string, unknown>>)) { delete field.default; delete field.examples; }
-        delete schema.default; delete schema.examples;
-        selected = { ...value, schema };
-      }
-      return Object.fromEntries(Object.entries(selected).map(([key, entry]) => [key, redact(entry)]));
-    }
-    return value;
-  };
-  const describe = (error: unknown) => ({ kind: error instanceof CodexProviderError ? error.kind : 'host', message: String(redact(error instanceof Error ? error.message : String(error))) });
+  const describe = (error: unknown) => ({ kind: error instanceof CodexProviderError ? error.kind : 'host', message: projection.text(error instanceof Error ? error.message : String(error)) });
   const changed = (event: unknown) => {
     record.observedAt = now(); record.cursor++;
-    record.progress.push({ cursor: record.cursor, at: record.observedAt, event: redact(event) });
+    record.progress.push({ cursor: record.cursor, at: record.observedAt, event });
     while (record.progress.length > 256 || Buffer.byteLength(JSON.stringify(record.progress)) > 262_144) record.progress.shift();
     store.changed(); for (const wake of observers) wake();
   };
   const snapshot = async (): Promise<CoordinatorSnapshot> => {
     if (store.persistenceError !== undefined && !stopRequested) { record.phase = 'error'; record.error = `Coordinator observation persistence failed: ${describe(store.persistenceError).message}`; }
     let assessments: CoordinatorSnapshot['assessments'] = []; let observationError: string | undefined;
-    try { if (record.jobId !== null) assessments = (await service.listAssessments(record.planId, record.jobId)).map(({ id, status, revision, error }) => ({ id, status, revision, error: error === null ? null : String(redact(error)) })); }
+    try { if (record.jobId !== null) assessments = (await service.listAssessments(record.planId, record.jobId)).map(({ id, status, revision, error }) => ({ id, status, revision, error: error === null ? null : projection.text(error) })); }
     catch (error) { observationError = describe(error).message; }
     return { record: structuredClone(record), stale: false, assessments, ...(observationError === undefined ? {} : { observationError }) };
   };
@@ -116,11 +103,12 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
       closing ??= (async () => {
         record.phase = 'stopping'; changed({ kind: 'stopping' }); await store.flush();
         await startupSettled;
-        record.settlement = provider === undefined ? { confirmed: true, descendants: 'settled', supervisorExited: true, reason: null } : redact(await provider.stop()) as NonNullable<CoordinatorRecord['settlement']>;
+        record.settlement = provider === undefined ? { confirmed: true, descendants: 'settled', supervisorExited: true, reason: null } : await provider.stop();
+        record.settlement = { ...record.settlement, reason: projection.nullable(record.settlement.reason) };
         if (!record.settlement.confirmed) { record.phase = 'unsettled'; changed({ kind: 'unsettled', settlement: record.settlement }); await store.flush(); throw new CodexProviderError('uncertain', `Owned execution is not confirmed settled: ${record.settlement.reason}`); }
         await service.close(); await runtime.close();
         record.ownershipReleased = true; record.phase = 'stopped'; record.pending = []; changed({ kind: 'stopped' }); await store.flush();
-        const assessments = record.jobId === null ? [] : (await service.listAssessments(record.planId, record.jobId)).map(({ id, status, revision, error }) => ({ id, status, revision, error: error === null ? null : String(redact(error)) }));
+        const assessments = record.jobId === null ? [] : (await service.listAssessments(record.planId, record.jobId)).map(({ id, status, revision, error }) => ({ id, status, revision, error: error === null ? null : projection.text(error) }));
         // Allow the durable receipt and HTTP response to leave before listener shutdown.
         setTimeout(() => { void finalize().catch(error => { record.phase = 'error'; record.error = describe(error).message; changed({ kind: 'shutdown-error', message: record.error }); }); }, 50);
         return { ...record.settlement, assessments };
@@ -133,7 +121,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
       // Provider events remain authoritative; never overwrite a completed event with an acknowledgement.
       adoptTurn(turn);
       changed({ kind: 'send-acknowledged', turnId: turn.id, status: turn.status });
-      return { turnId: turn.id, status: turn.status, error: turn.error === null ? null : String(redact(turn.error)) };
+      return { turnId: turn.id, status: turn.status, error: turn.error === null ? null : projection.text(turn.error) };
     }
     if (command.action === 'respond') {
       const pending = provider.pendingRequests().find(request => request.id === command.requestId);
@@ -143,7 +131,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
         const field = (pending.schema.properties as Record<string, Record<string, unknown>>)[key];
         if (/token|password|secret|credential|api.?key|authorization/i.test(key) || field?.writeOnly === true || field?.format === 'password') remember(Array.isArray(value) ? value : [value]);
       }
-      await provider.respond(command.requestId, command.response); record.pending = redact(provider.pendingRequests()) as CoordinatorRecord['pending']; changed({ kind: 'response-delivered', requestId: command.requestId }); return { delivered: true, requestId: command.requestId };
+      await provider.respond(command.requestId, command.response); record.pending = provider.pendingRequests().map(projection.pending); changed({ kind: 'response-delivered', requestId: command.requestId }); return { delivered: true, requestId: command.requestId };
     }
     return provider.interrupt(record.threadId, command.turnId);
   }, describe);
@@ -224,7 +212,7 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
       const observed = (event: CodexEvent) => {
         if (event.kind === 'assistant-delta') return; // Never persist partial secrets or duplicate provider history.
         if (event.kind === 'turn' && event.threadId === record.threadId) adoptTurn(event.turn);
-        if (event.kind === 'pending-request' || event.kind === 'request-resolved') record.pending = redact(provider!.pendingRequests()) as CoordinatorRecord['pending'];
+        if (event.kind === 'pending-request' || event.kind === 'request-resolved') record.pending = provider!.pendingRequests().map(projection.pending);
         if (event.kind === 'provider-exit' && record.phase !== 'stopping') record.phase = 'provider-exited';
         if (event.kind === 'worker-thread' && !record.workers.some(worker => worker.id === event.threadId)) { const worker = { id: event.threadId, parentThreadId: event.parentThreadId, model: event.model, ephemeral: event.ephemeral, equipment: 'unverified' as const }; record.workers.push(worker); qualifyWorker(worker); }
         if (event.kind === 'work') for (const threadId of event.item.workerThreadIds ?? []) discoverWorker(threadId);
@@ -233,10 +221,10 @@ export async function startCoordinatorHost(raw: CoordinatorStart, dependencies: 
           const worker = record.workers.find(worker => worker.id === event.threadId);
           if (worker !== undefined) { worker.turnStatus = event.turn.status; qualifyWorker(worker); }
         }
-        changed(event);
+        changed(projection.event(event));
       };
       unsubscribe = provider.observe(observed);
-      await prepareCoordinatorProvider({ launch, thread: { cwd: projectRoot, model: options.model }, workerModel: options.workerModel, requiredMcp: { server: name, tools: requiredTools }, verifyEquipment: equipment => verifyCoordinatorEquipment(equipment, name, options.replaceMcp), retain: async (session, readiness) => { record.threadId = session.thread.id; record.readiness = redact(readiness) as CoordinatorRecord['readiness']; changed({ kind: 'persistent-thread', id: session.thread.id, cliVersion: session.thread.cliVersion }); await store.flush(); } }, provider);
+      await prepareCoordinatorProvider({ launch, thread: { cwd: projectRoot, model: options.model }, workerModel: options.workerModel, requiredMcp: { server: name, tools: requiredTools }, verifyEquipment: equipment => verifyCoordinatorEquipment(equipment, name, options.replaceMcp), retain: async (session, readiness) => { record.threadId = session.thread.id; record.readiness = structuredClone(readiness); changed({ kind: 'persistent-thread', id: session.thread.id, cliVersion: session.thread.cliVersion }); await store.flush(); } }, provider);
       if (stopRequested) return;
       const detail = await service.jobDetail(options.planId, record.jobId!);
       const prompt = `Use the coordinator skill at ${options.skill}. Target checkout: ${projectRoot}. Supplied assisted registration: plan ${record.planId}, job ${record.jobId}. Verify these identities and captured plan using job_detail; reuse this registration and its original baseline ${detail.job.protection.baselineCommit ?? '(unavailable; report gap)'}. Do not call plan_start or replace the baseline. Coordinate native ${options.workerModel} workers and submit committed iteration and final candidates through RA. Preserve all project instructions, protections, permissions and tools.\n${options.message}`;
