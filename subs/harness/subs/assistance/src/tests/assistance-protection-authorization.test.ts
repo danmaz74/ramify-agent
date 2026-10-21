@@ -85,7 +85,9 @@ async function fixture(options: { second?: boolean; pending?: boolean; plainUnme
     currentHead: async () => baseline, isCleanRepository: async () => true,
     assessor: createAssessor({ candidates, operations: async () => ({} as SessionOperations), audit, review,
       reconcile: async input => {
-        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: 'cf-0002', rationale: 'Implementation still needs repair.',
+        const concern = /### `(cf-\d+)`/u.exec(input.message)?.[1];
+        if (!concern) throw new Error('Expected the semantic concern in reconciliation attention');
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: concern, rationale: 'Implementation still needs repair.',
           communication: { mode: 'quiet' }, action: { action: 'repair' } }], next: { kind: 'correct', goal: 'Repair behavior.' }, brief: 'Repair remains.' });
         if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
         return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'scripted-reconcile', eventCount: 1 };
@@ -304,7 +306,7 @@ describe('exact protection authorization through an assisted assessment', () => 
     expect(service.assessmentResult('sample', job.jobId, original.id)?.gate).toBe(gate);
     if ('auditFailed' in options || 'reviewMissing' in options) expect(accepted.finalization).toBeUndefined();
     expect(audit).toHaveBeenCalledTimes(1);
-    expect(review).toHaveBeenCalledTimes('auditFailed' in options ? 0 : 1);
+    expect(review).toHaveBeenCalledTimes(1);
   });
 
 

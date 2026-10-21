@@ -1,4 +1,4 @@
-import { sourceTestQualityGuidance } from './test-reliability.js';
+import { sourceTestQualityGuidance, testReliabilityGuidance } from './test-reliability.js';
 import { deviationNotice } from '../../plan-evidence/src/interfaces/catalog.js';
 import type { CapturedInput } from './inputs.js';
 import type { CandidateSnapshot } from './snapshot.js';
@@ -79,7 +79,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     '',
     'The request\'s assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.',
     '',
-    sourceTestQualityGuidance, '',
+    sourceTestQualityGuidance, '', testReliabilityGuidance, '',
     '## The iteration',
     '',
     ...(assignment === null
