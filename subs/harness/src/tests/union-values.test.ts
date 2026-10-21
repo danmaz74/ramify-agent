@@ -107,7 +107,7 @@ describe('the run log', () => {
       'scenarios-materializing', 'scenarios-materialized',
       'obligation-registered', 'obligation-bound', 'obligation-reported',
       'work-item-started', 'hypotheses-delivered',
-      'placement-requested', 'view-refreshed', 'fork-returned-partial', 'decision-accepted',
+      'placement-requested', 'view-refreshed', 'fork-returned-partial', 'fork-name-rejected', 'decision-accepted',
       'brief-appended', 'brief-not-appended', 'global-context-rebuilt', 'decision-delivered',
       'outline-revised',
       'ownership-evidence-retained', 'iteration-assigned', 'iteration-closed', 'scratch-preserved',

@@ -274,7 +274,7 @@ export const recoveryTable = {
     stated: 'The partial return counts one retry and is never a decision; nothing is appended to the parent',
   },
   'fork-name-rejected': {
-    machines: ['SM3', 'SM8'], scenario: 'placement', appended: pending,
+    machines: ['SM3', 'SM8'], scenario: 'name-rejection', appended: pending,
     stated: 'The rejected name stands as correction feedback; its fork is not replayed and no semantic record was accepted',
   },
   'decision-accepted': {

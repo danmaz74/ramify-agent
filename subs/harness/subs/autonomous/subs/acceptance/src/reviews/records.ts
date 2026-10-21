@@ -217,5 +217,6 @@ export const reviewSchemas = {
   reviewRequest: { schema: 'ramify-agent.review-request/1', body: reviewRequestSchema },
   reviewAttempt: { schema: 'ramify-agent.review-attempt/1', body: reviewAttemptSchema },
   reviewSubmission: { schema: 'ramify-agent.review-submission/1', body: reviewSubmissionRecordSchema },
+  reviewSubmissionDescriptive: { schema: 'ramify-agent.review-submission/2', body: descriptiveReviewSubmissionRecordSchema },
   reviewOrientation: { schema: 'ramify-agent.review-orientation/1', body: reviewOrientationSchema },
 } as const;

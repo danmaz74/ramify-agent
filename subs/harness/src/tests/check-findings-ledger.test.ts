@@ -144,6 +144,28 @@ describe('one CheckFinding transition is one ledger line', () => {
     const restored = await RunLog.open(join(root, 'events.jsonl'), runId);
     expect(checkFindingStateOf(restored.ledger).findings.get(id)).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', revision: 2 });
   });
+  test('a relation between named findings writes and reloads its descriptive record', async () => {
+    const { root, target } = await running();
+    committed(await commitCheckFindingChange(target, recorded([
+      report({ ...concern({ key: 'first', summary: 'The total is doubled' }), findingKey: 'draft:finding:doubled-total' }),
+      report({ ...concern({ key: 'second', summary: 'The tax is doubled' }), findingKey: 'draft:finding:doubled-tax' }),
+    ])));
+    committed(await commitCheckFindingChange(target, recorded([{ type: 'relate', relation: {
+      actor: { kind: 'agent', role: 'reviewer', invocation: 'inv-0011' }, source: { kind: 'tree', id: 't-01' },
+      from: { checkFinding: 'finding:doubled-total', revision: 1 },
+      to: { checkFinding: 'finding:doubled-tax', revision: 1 }, relation: 'related-but-distinct',
+      shared: 'Both affect the cart total.', evidence: [], rationale: 'The causes differ.',
+    } }])));
+    const path = checkFindingLayout.relation('cfl-0001');
+    expect(JSON.parse(await readFile(join(root, path), 'utf8'))).toMatchObject({
+      schema: 'ramify-agent.check-finding-relation/2',
+      from: { checkFinding: 'finding:doubled-total' }, to: { checkFinding: 'finding:doubled-tax' },
+    });
+    const restored = await RunLog.open(join(root, 'events.jsonl'), runId);
+    expect(checkFindingStateOf(restored.ledger).relations[0]).toMatchObject({
+      from: { checkFinding: 'finding:doubled-total' }, to: { checkFinding: 'finding:doubled-tax' },
+    });
+  });
   test('carries the decided events in order, with a record copy of each, and the harness computes every content hash', async () => {
     const { root, target } = await running();
     const first = concern();
@@ -422,6 +444,8 @@ describe('CF06 and CF11: crashes around the commit keep exactly-once history', (
     expect(rewritten.rewritten).toEqual([checkFindingLayout.report('cf-0001', 'cfr-0001'), checkFindingLayout.decision('cf-0001', 'cfd-0001')]);
     expect(await readCommitted(restarted.log.ledger, checkFindingLayout.decision('cf-0001', 'cfd-0001'), checkFindingSchemas.decision))
       .toMatchObject({ kind: 'valid', value: { checkFinding: 'cf-0001', revision: 2, decision: { action: 'plan-repair', repair: { kind: 'intent', ref: 'wi-001.rc01' } } } });
+    expect(JSON.parse(await readFile(join(root, checkFindingLayout.decision('cf-0001', 'cfd-0001')), 'utf8')).schema)
+      .toBe('ramify-agent.check-finding-decision/1');
     expect(selectCheckFindings(checkFindingStateOf(restarted.log.ledger), { kind: 'list', owner: null, select: 'all' })).toEqual(live);
     expect(producerCalls).toBe(1);
   });

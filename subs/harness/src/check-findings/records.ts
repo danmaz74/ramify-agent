@@ -78,8 +78,11 @@ export type CheckFindingRelationRecord = z.infer<typeof checkFindingRelationReco
 /** The readers of each record, for `readCommitted`. */
 export const checkFindingSchemas = {
   report: { schema: checkFindingRecordVersions.report, body: checkFindingReportRecordSchema },
+  descriptiveReport: { schema: checkFindingRecordVersions.descriptiveReport, body: checkFindingReportRecordSchema },
   decision: { schema: checkFindingRecordVersions.decision, body: checkFindingDecisionRecordSchema },
+  descriptiveDecision: { schema: checkFindingRecordVersions.descriptiveDecision, body: checkFindingDecisionRecordSchema },
   relation: { schema: checkFindingRecordVersions.relation, body: checkFindingRelationRecordSchema },
+  descriptiveRelation: { schema: checkFindingRecordVersions.descriptiveRelation, body: checkFindingRelationRecordSchema },
 } as const;
 
 /** The record copies of carried events, one per event, committed in the same transaction. */

@@ -130,5 +130,7 @@ export const workLayout = {
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const workSchemas = {
   item: { schema: 'ramify-agent.work-item/1', body: workItemSchema },
+  itemDescriptive: { schema: 'ramify-agent.work-item/2', body: workItemSchema },
   outline: { schema: 'ramify-agent.work-item-outline/1', body: workItemOutlineSchema },
+  outlineDescriptive: { schema: 'ramify-agent.work-item-outline/2', body: workItemOutlineSchema },
 } as const;

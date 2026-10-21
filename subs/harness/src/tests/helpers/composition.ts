@@ -20,7 +20,7 @@ import {
   addModule, assign, byRole, byWork, completionProposed, installMiniRunner, outline, partialReport, read, shell, submit, treeInputs,
   write, type Turn,
 } from './iterations.js';
-import { placementDecisionFixture as decisionBody, forkDecision, forkPartial, localDecision, registryChange, requestPlacement } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
+import { placementDecisionFixture as decisionBody, forkDecision, forkDeviation, forkPartial, localDecision, registryChange, requestPlacement, unresolved } from '../../../subs/autonomous/subs/work-coordination/src/tests/helpers/placement.js';
 import { commandResult } from './command-result.js';
 import { deleted, modified, scenarioGit, untracked, type GitResponses, type ScenarioGit } from './recovery-git.js';
 import { scriptedCandidates, type ScriptedCommit } from '../../../subs/autonomous/subs/acceptance/src/tests/helpers/candidates.js';
@@ -195,6 +195,7 @@ export interface Scenario {
   readonly during?: ((write: RunWrite, context: DuringContext) => void) | undefined;
   /** The policy the run captures, where the scenario needs other limits than the tests' own. */
   readonly policy?: OpenRunsOptions['policy'];
+  readonly identityContract?: 'legacy' | 'descriptive';
 }
 
 export interface DuringContext {
@@ -204,7 +205,7 @@ export interface DuringContext {
 }
 
 export type ScenarioName =
-  | 'iteration' | 'delegation' | 'placement' | 'access' | 'breaking' | 'repair' | 'testless' | 'revision' | 'cycle' | 'stop'
+  | 'iteration' | 'delegation' | 'placement' | 'name-rejection' | 'access' | 'breaking' | 'repair' | 'testless' | 'revision' | 'cycle' | 'stop'
   | 'agent-fails' | 'no-submission' | 'invalid-analysis' | 'over-limit' | 'engineer-budget';
 
 async function fixtureWith(modules: ReadonlyArray<{ directory: string; name: string; files: Record<string, string> }>, runner: 'mini' | 'exit-0' = 'mini') {
@@ -485,6 +486,59 @@ const placement: Scenario = {
       })),
     ],
   }),
+  inputs: () => shapeOnlyInputs,
+};
+
+/** A descriptive fork whose second deviation collides with the first accepted name. */
+const nameRejection: Scenario = {
+  name: 'name-rejection',
+  identityContract: 'descriptive',
+  git: { head: base, after: materialized,
+    commits: [materialize(featureOf('subs/workspace/subs/reviews', 'capability%3Areviewer-notes')), unchanged(materialized), unchanged(materialized)] },
+  exercises: 'two accepted unresolved requests and a collision corrected in the second plan-architect fork',
+  ends: 'completed',
+  finalCandidate: { head: materialized, tree: '3'.repeat(40) },
+  target: () => fixtureWith([], 'exit-0'),
+  script: () => {
+    let local = 0;
+    let fork = 0;
+    return spec => {
+      if (spec.submission.name === 'submit_intake') {
+        const documents = [...spec.prompt.matchAll(/^- (document:[a-z0-9-]+) \(plan\):/gmu)].map(match => match[1]!);
+        return submit({ goal: 'Keep reviewer notes available.', elements: [], incorporation: {
+          documents: documents.map(document => ({ document, scenarios: true, uncertainty: '' })), missing: [],
+        } });
+      }
+      if (spec.submission.name === 'submit_principle_elements') return submit({ elements: [] });
+      if (spec.submission.name === 'submit_catalog_check') return submit({ corrections: [], entries: [], scenarios: [] });
+      if (spec.role === 'initial-architect') {
+        const document = [...spec.prompt.matchAll(/document:[a-z0-9-]+/gu)][0]?.[0];
+        if (!document) throw new Error('The descriptive analysis has no captured plan document');
+        return submit({ elements: [{ key: 'draft:functional-requirement:retain-reviewer-notes', kind: 'functional', document,
+          text: 'Retain reviewer notes.', conditions: [], uncertainty: '' }],
+        entries: [{ capabilityKey: 'draft:capability:reviewer-notes', description: 'Retain reviewer notes.', owner: reviews,
+          functionalRequirementKeys: ['draft:functional-requirement:retain-reviewer-notes'],
+          functionalAcceptanceKeys: ['draft:functional-requirement:retain-reviewer-notes'], contextKeys: [], citations: [] }],
+        hypotheses: [], coverageLimits: [], scenarios: [{ scenarioKey: 'draft:scenario:reviewer-notes-retained',
+          entryCapabilityKey: 'draft:capability:reviewer-notes', origin: { kind: 'architect' },
+          functionalAcceptanceKeys: ['draft:functional-requirement:retain-reviewer-notes'],
+          gherkin: 'Scenario: Reviewer notes remain available\n  When a reviewer records a note\n  Then the note remains available' }],
+        integrationScenarios: [] });
+      }
+      if (spec.role === 'local-architect') return local++ < 2
+        ? submit(unresolved('The note archive cannot be kept in the current place.', ['plans/review-notes/plan.md']))
+        : submit({ ...requestCompletion(), reports: [{ id: 'scenario:reviewer-notes-retained', judgment: 'done', basedOnRevision: 0 }] });
+      if (spec.role === 'global-fork') {
+        fork += 1;
+        return submit(forkDeviation({
+          deviationKey: `draft:plan-deviation:${fork < 3 ? 'move-reviewer-notes' : 'move-reviewer-notes-again'}`,
+          findingKey: `draft:finding:reviewer-notes-${fork}`,
+          amends: ['functional-requirement:retain-reviewer-notes'],
+        }));
+      }
+      return [];
+    };
+  },
   inputs: () => shapeOnlyInputs,
 };
 
@@ -920,7 +974,7 @@ const overLimit: Scenario = {
 };
 
 export const scenarios: Readonly<Record<ScenarioName, Scenario>> = {
-  iteration, delegation, placement, access, breaking, repair, testless, revision, cycle, stop: stopping,
+  iteration, delegation, placement, 'name-rejection': nameRejection, access, breaking, repair, testless, revision, cycle, stop: stopping,
   'agent-fails': agentFails, 'no-submission': noSubmission, 'invalid-analysis': invalidAnalysis, 'over-limit': overLimit, 'engineer-budget': engineerBudget,
 };
 
@@ -967,6 +1021,7 @@ export async function runToEnd(scenario: Scenario, watch?: (service: RunService,
     configuredAudit: announcingAudit(),
     commandExecution: commands,
     inputs: scenario.inputs(),
+    ...(scenario.identityContract === undefined ? {} : { identityContract: scenario.identityContract }),
     ...(scenario.policy === undefined ? {} : { policy: scenario.policy }),
     afterWrite: async (write, id) => {
       runId = id;
@@ -1032,6 +1087,7 @@ export async function crashAt(scenario: Scenario, point: CrashPoint) {
     configuredAudit: announcingAudit(),
     commandExecution: commands,
     inputs: scenario.inputs(),
+    ...(scenario.identityContract === undefined ? {} : { identityContract: scenario.identityContract }),
     // A stop waits for the invocation the driver has open before it writes
     // the run's terminal event. A crashed driver never closes it, and a
     // process that crashed writes nothing more, so the wait must outlast

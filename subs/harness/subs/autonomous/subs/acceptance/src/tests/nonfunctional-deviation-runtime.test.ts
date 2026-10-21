@@ -112,6 +112,9 @@ test('an NFR-only exhausted run completes pending review with an exact source-bo
     finalGate: boundCandidate.data.gate, gateCommit: boundCandidate.data.commit,
     deviations: events.filter(event => event.type === 'nonfunctional-deviation-recorded').length });
   expect(events.filter(event => event.type === 'nonfunctional-deviation-recorded')).toHaveLength(1);
+  const deviation = events.find(event => event.type === 'nonfunctional-deviation-recorded');
+  if (deviation?.type !== 'nonfunctional-deviation-recorded') throw new Error('Missing nonfunctional deviation');
+  expect(deviation.data.checkFindings.find(event => event.type === 'check-finding-opened')?.data.version).toBe(1);
   expect(events.filter(event => event.type === 'plan-deviation-recorded')).toHaveLength(0);
   expect(events.filter(event => event.type === 'work-item-started')).toHaveLength(0);
   expect(events.filter(event => event.type === 'unresolved-requested')).toHaveLength(0);

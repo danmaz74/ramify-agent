@@ -151,5 +151,7 @@ export const architectureLayout = {
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const architectureSchemas = {
   request: { schema: 'ramify-agent.placement-request/1', body: placementRequestSchema },
+  requestDescriptive: { schema: 'ramify-agent.placement-request/2', body: placementRequestSchema },
   decision: { schema: 'ramify-agent.placement-decision/1', body: placementDecisionSchema },
+  decisionDescriptive: { schema: 'ramify-agent.placement-decision/2', body: placementDecisionSchema },
 } as const;

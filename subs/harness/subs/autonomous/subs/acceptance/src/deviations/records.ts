@@ -200,9 +200,12 @@ export const deviationLayout = {
 } as const;
 
 export const deviationSchemas = {
-  unresolvedRequest: { schema: 'ramify-agent.unresolved-request/1', body: unresolvedRequestSchema },
-  planDeviation: { schema: 'ramify-agent.plan-deviation/1', body: planDeviationSchema },
-  environmentProblem: { schema: 'ramify-agent.environment-problem/1', body: environmentProblemSchema },
+  unresolvedRequest: { schema: 'ramify-agent.unresolved-request/1', body: unresolvedRequestSchema.options[0]! },
+  unresolvedRequestDescriptive: { schema: 'ramify-agent.unresolved-request/2', body: unresolvedRequestSchema.options[1]! },
+  planDeviation: { schema: 'ramify-agent.plan-deviation/1', body: planDeviationSchema.options[0]! },
+  planDeviationDescriptive: { schema: 'ramify-agent.plan-deviation/2', body: planDeviationSchema.options[1]! },
+  environmentProblem: { schema: 'ramify-agent.environment-problem/1', body: environmentProblemSchema.options[0]! },
+  environmentProblemDescriptive: { schema: 'ramify-agent.environment-problem/2', body: environmentProblemSchema.options[1]! },
 } as const;
 
 /**

@@ -31,6 +31,7 @@ const supported: Readonly<Record<string, string>> = Object.fromEntries([
 ].map(schema => [schema.replace(/\/\d+$/, ''), schema]));
 const alsoSupported = new Set([
   'ramify-agent.hypothesis/2', 'ramify-agent.capability/2', 'ramify-agent.work-item/2',
+  'ramify-agent.work-item-outline/2',
   'ramify-agent.entry-assignments/2', 'ramify-agent.scenario/2',
   'ramify-agent.capability-request/2', 'ramify-agent.capability-task/2',
   'ramify-agent.capability-plan/2', 'ramify-agent.capability-exchange/2', 'ramify-agent.capability-handback/2',
@@ -68,6 +69,7 @@ const schemas: Readonly<Record<string, z.ZodType>> = {
   'ramify-agent.hypothesis/1': hypothesisSchema,
   'ramify-agent.hypothesis/2': hypothesisSchema,
   'ramify-agent.work-item-outline/1': workItemOutlineSchema,
+  'ramify-agent.work-item-outline/2': workItemOutlineSchema,
   'ramify-agent.iteration-assignment/1': iterationAssignmentSchema,
   'ramify-agent.contract/2': contractRecordSchema,
   'ramify-agent.entry-assignments/1': entryAssignmentsSchema,

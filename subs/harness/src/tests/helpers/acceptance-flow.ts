@@ -169,7 +169,8 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'descr
       reviewer += 1;
       const changedPaths = spec.prompt.split('## The changed paths\n\n').at(-1)?.split('\n\n')[0] ?? '';
       const paths = [...changedPaths.matchAll(/^- [A-Z] (.+)$/gmu)].map(match => match[1]!);
-      const concern = { summary: 'A expected value copies the implementation', consequence: 'The assertion cannot catch a wrong result',
+      const concern = { ...(descriptive ? { findingKey: 'draft:finding:circular-test-oracle' } : {}),
+        summary: 'A expected value copies the implementation', consequence: 'The assertion cannot catch a wrong result',
         rationale: 'The candidate calls renderA on both sides', uncertainty: 'low', remedy: 'Use an independent literal',
         locations: [{ path: 'subs/a/src/tests/caller.test.ts', startLine: 3, endLine: 3 }], suggests: null, risk: 'medium', ground: null };
       const shouldRaise = !raisedConcern && paths.includes('subs/a/src/tests/caller.test.ts') &&
@@ -180,7 +181,7 @@ export async function runAcceptedHandback(mode: 'revision' | 'deferred' | 'descr
     }
     if (spec.submission.name === 'submit_reconciliation') {
       reconciliationTurns += 1;
-      const id = latest(/### `(cf-\d+)`/gu)?.[1];
+      const id = latest(/### `(cf-\d+|finding:[a-z0-9-]+)`/gu)?.[1];
       if (id === undefined) return submit({ relations: [], dispositions: [], next: { kind: 'complete' },
         brief: 'The accepted correction closed the finding; no new concern needs attention.' });
       const firstRound = reconciliationTurns === 1;

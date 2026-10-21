@@ -2579,24 +2579,6 @@ export class WorkCoordination {
           workItems: new Set(current.workItems.map(entry => entry.id)),
           scenarios: new Map(tracked.records.map(record => [record.id, tracked.states.get(record.id) ?? 'pending'])),
           }, this.input.record.identityContract ?? 'legacy');
-          if (checked.ok && checked.value.kind === 'deviation' && this.input.record.identityContract === 'descriptive'
-            && 'deviationKey' in checked.value.deviation) {
-            const proposed = checked.value.deviation.deviationKey.slice('draft:'.length);
-            const prior = this.events('plan-deviation-recorded').find(event => event.data.deviation === proposed);
-            const nonfunctional = this.events('nonfunctional-deviation-recorded').find(event => event.data.deviation === proposed);
-            if (prior !== undefined || nonfunctional !== undefined) return { ok: false, errors: [{ path: 'deviation.deviationKey',
-              message: `"${proposed}" is already an accepted plan deviation; propose a distinct name for this request`,
-              expected: 'an unused draft:plan-deviation:<subject-name> in this run' }] };
-            const finding = checked.value.deviation.findingKey.slice('draft:'.length);
-            if (this.observe().findings.findings.has(finding)) return { ok: false, errors: [{ path: 'deviation.findingKey',
-              message: `"${finding}" is already an accepted finding; propose a distinct name for this deviation`,
-              expected: 'an unused draft:finding:<subject-name> in this run' }] };
-          }
-          if (checked.ok && checked.value.kind === 'environment' && this.input.record.identityContract === 'descriptive' && 'problemKey' in checked.value) {
-            const proposed = checked.value.problemKey.slice('draft:'.length);
-            const prior = this.events('environment-reported').find(event => event.data.problem === proposed);
-            if (prior !== undefined) return { ok: false, errors: [{ path: 'problemKey', message: `"${proposed}" is already the environment problem of ${prior.data.request}; propose a distinct name for this request`, expected: 'an unused draft:environment-problem:<subject-name> in this run' }] };
-          }
           if (!checked.ok || checked.value.kind !== 'deviation' || checked.value.deviation.scenarios.length === 0) return checked;
           try { await this.ports.gates.validateFeatureTargets(this.ports.gates.expectedFeatures()); }
           catch (error) {
@@ -2645,6 +2627,7 @@ export class WorkCoordination {
         if (accepted?.kind === 'retry') {
           await this.ports.write({ type: 'fork-name-rejected', data: { request: id, invocation: result.id,
             field: accepted.field, message: accepted.reason } });
+          await this.ports.afterWrite('fork-name-rejected', this.input.record.jobId);
           continue;
         }
         return accepted;
@@ -2813,6 +2796,7 @@ export class WorkCoordination {
         await this.ports.write({ type: 'fork-name-rejected', data: {
           request: request.id, invocation, field, message: refusal.message,
         } });
+        await this.ports.afterWrite('fork-name-rejected', this.input.record.jobId);
         return 'retry-name';
       }
     }

@@ -13,6 +13,7 @@ import { observationSchema } from '../../subs/task-execution/src/observations.js
 import { runSchemas } from '../../subs/autonomous/src/run/records.js';
 
 import { reduceSessions } from '../../subs/autonomous/src/run/sessions.js';
+import { checkFindingSchemas } from '../check-findings/records.js';
 import { analysisSchemas } from '../../subs/autonomous/subs/planning/src/records.js';
 import { workSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/records.js';
 import { iterationSchemas } from '../../subs/autonomous/subs/work-coordination/src/work/iterations.js';
@@ -20,7 +21,7 @@ import type { IterationAssignment } from '../../subs/autonomous/subs/work-coordi
 import { resolveWriteScope } from '../work/scope.js';
 import { committedRecords } from '../../subs/autonomous/src/run/committed-records.js';
 import { fixtureTask } from '../../subs/autonomous/subs/work-coordination/src/tests/helpers/capability.js';
-import { contractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
+import { contractSchemas, descriptiveContractSchemas } from '../../subs/autonomous/subs/work-coordination/src/contracts/records.js';
 import { capabilitySchemas } from '../../subs/autonomous/subs/work-coordination/src/capability/records.js';
 import { architectureSchemas } from '../../subs/autonomous/subs/work-coordination/src/architecture/records.js';
 import { reviewSchemas } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
@@ -402,7 +403,7 @@ describe('the recovery tables of the ten state machines', () => {
     const rows = allRows();
     // `recoveryTable` is typed against the run service's own boundary union,
     // so a boundary without a row does not compile; this states the count.
-    expect(new Set(rows.map(row => row.write)).size).toBe(44);
+    expect(new Set(rows.map(row => row.write)).size).toBe(45);
     const machines = new Set(rows.flatMap(row => row.machines));
     expect([...machines].sort()).toEqual((Object.keys(machineNames) as Machine[]).sort());
 
@@ -459,7 +460,9 @@ describe('no query appends an event', () => {
 
 /** Every schema a durable record, a log line, a submission, a harness tool or a projection is written against. */
 function unionRoots(): Record<string, unknown> {
-  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas, ...architectureSchemas,
+  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas,
+    ...Object.fromEntries(Object.entries(checkFindingSchemas).map(([key, value]) => [`check-finding-${key}`, value])),
+    ...Object.fromEntries(Object.entries(descriptiveContractSchemas).map(([key, value]) => [`descriptive-${key}`, value])), ...architectureSchemas,
     ...Object.fromEntries(Object.entries(capabilitySchemas).map(([key, value]) => [`capability-${key}`, value])),
     ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
   return {
@@ -511,7 +514,9 @@ const submissionSchemas: Readonly<Record<string, unknown>> = {
 /** What the composed runs wrote, walked value by value against the schemas that describe it. */
 async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
   const observed = new Map<unknown, Set<string>>();
-  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas, ...architectureSchemas,
+  const registries = { ...runSchemas, ...analysisSchemas, ...workSchemas, ...iterationSchemas, ...contractSchemas,
+    ...Object.fromEntries(Object.entries(checkFindingSchemas).map(([key, value]) => [`check-finding-${key}`, value])),
+    ...Object.fromEntries(Object.entries(descriptiveContractSchemas).map(([key, value]) => [`descriptive-${key}`, value])), ...architectureSchemas,
     ...Object.fromEntries(Object.entries(capabilitySchemas).map(([key, value]) => [`capability-${key}`, value])),
     ...reviewSchemas, ...reconciliationSchemas, ...deviationSchemas };
   const bySchema = new Map<string, unknown>(Object.values(registries).map(entry => [entry.schema, entry.body]));
@@ -572,6 +577,12 @@ async function observedInComposedRuns(): Promise<Map<unknown, Set<string>>> {
  * becoming a second copy of the test that owns them.
  */
 const producedElsewhere: ReadonlyArray<{ readonly union: string; readonly values: readonly string[]; readonly file: string; readonly test: string }> = [
+  { union: 'record ramify-agent.check-finding-report/1.schema', values: ['ramify-agent.check-finding-report/1'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'carries the decided events in order, with a record copy of each, and the harness computes every content hash' },
+  { union: 'record ramify-agent.check-finding-decision/1.schema', values: ['ramify-agent.check-finding-decision/1'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'a crash after the commit, before the record files, rebuilds from the log without invoking the producer' },
+  { union: 'record ramify-agent.check-finding-relation/1.schema', values: ['ramify-agent.check-finding-relation/1'], file: 'subs/harness/src/tests/check-findings-composition.integration.test.ts', test: 'concerns over real audited trees are related, corrected on a later commit, claimed on its tree and fixed, with the ground hashed from Git\'s objects' },
+  { union: 'record ramify-agent.check-finding-relation/1.schema', values: ['ramify-agent.check-finding-relation/2'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'a relation between named findings writes and reloads its descriptive record' },
+  { union: 'run log[review-attempt-finished].data.reason', values: ['name-conflict'], file: 'subs/harness/src/tests/check-findings-ledger.test.ts', test: 'an authored named review retries an occupied name and retains corrected disposition after reload' },
+  { union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.version', values: ['1'], file: 'subs/harness/src/tests/nonfunctional-deviation-runtime.test.ts', test: 'an NFR-only exhausted run completes pending review with an exact source-bound CheckFinding' },
   { union: 'record ramify-agent.job/3.identityContract', values: ['descriptive'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
   { union: 'record ramify-agent.document-manifest/1.schema', values: ['ramify-agent.document-manifest/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
   { union: 'record ramify-agent.element-catalog/1.schema', values: ['ramify-agent.element-catalog/2'], file: 'subs/harness/subs/autonomous/subs/planning/src/tests/descriptive-analysis.test.ts', test: 'a run captures its opt-in format and accepts the descriptive analysis through ordinary task tools' },
@@ -1144,7 +1155,7 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: 'The NFR deviation adapter reports its captured passage as a document source. The broader CheckFinding schema also permits file and artifact sources, but this carrier never emits them.',
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.actor.kind', values: ['user', 'harness'],
+    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-opened].data.report.judgment.actor.kind', values: ['user'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
@@ -1160,7 +1171,7 @@ const withoutProducer: ReadonlyArray<{ readonly union: string; readonly values: 
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {
-    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[waive].authority.kind', values: ['work-item-assessment', 'governing-record'],
+    union: 'run log[nonfunctional-deviation-recorded].data.checkFindings[][check-finding-decided].data.decision.decision[waive].authority.kind', values: ['work-item-assessment'],
     reason: "The shared CheckFinding union permits this value, but the non-functional deviation event carries only its fixed source-grounded report and request-user-decision. This variant is not emitted by that carrier.",
   },
   {

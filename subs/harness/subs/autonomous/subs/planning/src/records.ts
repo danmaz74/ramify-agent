@@ -182,5 +182,7 @@ export const analysisLayout = {
 /** The schema literal of each kind, for a reader that answers unsupported version. */
 export const analysisSchemas = {
   hypothesis: { schema: 'ramify-agent.hypothesis/1', body: hypothesisSchema },
+  hypothesisDescriptive: { schema: 'ramify-agent.hypothesis/2', body: hypothesisSchema },
   registry: { schema: 'ramify-agent.capability/1', body: registryEntrySchema },
+  registryDescriptive: { schema: 'ramify-agent.capability/2', body: registryEntrySchema },
 } as const;
