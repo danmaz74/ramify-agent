@@ -120,6 +120,7 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
       hash: isAuditEvidenceReference(auditStage) ? `sha256:${auditStage.artifact.sha256}` : digest(audit) };
     // Pure domain ingestion is already idempotent; keying the transaction also covers decisions after a restart.
     const factual = factualFindingCommands({ state: context.findingState(), assessment: assessment.id, tree: snapshot.tree, audit, protection,
+      identityContract: job.identityContract ?? 'legacy',
       protectionSelection: digest({ baseline, rules: job.protection!.rules }), evidence: factualEvidence,
       protectionEvidence: { kind: 'protection-comparison', ref: `assessments/${assessment.id}/stages/protection.json`, hash: digest(protection) } });
     if (factual.length) await context.recordFindings(factual);
@@ -271,13 +272,14 @@ export function createAssessor(dependencies: AssessmentDependencies): Assessor {
     }
     if (reviewed?.result.status !== 'submitted') {
       const prepared = await prepareAssistedReview({ source, projectRoot, signal, maxConcerns: 20,
+        identityContract: job.identityContract ?? 'legacy',
         briefing: { id: assessment.id, kind: request.kind, finalContext, iteration: assessment.id, snapshot, outcome: (focused ? 'Focused repair follow-up: inspect the selected repairs and relevant surrounding behavior. Do not repeat the broad iteration review or unchanged discretionary issues. Verify previously unmet requirements affected by the repair.\n' : '') + intendedOutcome + followUp, audit: { status: audit.state, detail: audit.detail },
           testingContext, requirements, principles, protectionPaths: protection.violations.map(change => change.path), previousFindings: knownFindingSummary(context.findingState()) } });
       const withEvidence = { ...prepared, tools: { ...prepared.tools, definitions: [...prepared.tools.definitions, retainedEvidence] } };
       const operations = await dependencies.operations();
       const result = await scheduledReview(async () => (dependencies.review ?? runAssistedPiReview)({
         operations, runId: job.jobId, operationId: `${assessment.id}-review-${assessment.revision}`, projectRoot,
-        candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, prepared: withEvidence, signal,
+        candidate: snapshot.commit, tree: snapshot.tree, kind: request.kind, identityContract: job.identityContract ?? 'legacy', prepared: withEvidence, signal,
         onSubmitted: async (value, evidence) => {
           const bindings = await bindCandidateConcerns({ projectRoot, planId: job.planId, candidates: source, warn: message => limitations.push(message) },
             snapshot, prepared.tools, value, null, path => path === null ? 'ungrounded' : 'agent-generated');

@@ -25,7 +25,8 @@ export function coordinatorAssessmentPrompt(assessmentPackage: string, candidate
 }
 
 export function coordinatorActionPrompt(candidate: Candidate, unresolved: readonly string[], investigated: readonly string[],
-  context?: { assessment: Assessment; allowedAction: 'investigate' | 'repair-or-close' | 'close'; investigationPaths: readonly string[] }): string {
+  context?: { assessment: Assessment; allowedAction: 'investigate' | 'repair-or-close' | 'close'; investigationPaths: readonly string[];
+    identityContract?: 'legacy' | 'descriptive' }): string {
   return [
     `Choose the next action for prepared source tree ${candidate.tree}.`,
     `Unresolved NFR IDs: ${JSON.stringify(unresolved)}`,
@@ -43,7 +44,9 @@ export function coordinatorActionPrompt(candidate: Candidate, unresolved: readon
       : context.allowedAction === 'repair-or-close'
         ? 'At this step, propose one repair batch with a starting module or close this round.'
         : 'At this step, request a sequential read-only investigation.',
-    'An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.',
+    context?.identityContract === 'descriptive'
+      ? 'An investigation reports evidence only for the NFR IDs you name. If closing with unresolved requirements, propose a distinct draft:plan-deviation:<name> and draft:finding:<name> for each one in the close submission.'
+      : 'An investigation reports evidence only for the NFR IDs you name, and receives those elements whole. The harness assigns every identity.',
     'A repair of an undetermined NFR requires investigation evidence for that same NFR. One repair batch is allowed per round.',
     'Earlier rounds are evidence for reconsideration, not a limit. If a requirement remains unmet, assess whether another correction is likely to help, change an ineffective approach or identify a missing prerequisite. Continue useful work. When requirements are satisfied, end refinements whose added benefit no longer justifies their cost.',
     'If closing with unresolved NFRs, state an alternative or explicit uncertainty for each one. Describe recorded gate results for their named candidates and distinguish pending checks.',

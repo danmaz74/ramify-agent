@@ -48,6 +48,7 @@ export function deviationCommands(state: CheckFindingState, deviation: PlanDevia
     producer: planDeviationProducer,
     attempt: deviation.invocation,
     reportKey: deviation.id,
+    ...(deviation.schema === 'ramify-agent.plan-deviation/2' ? { findingKey: `draft:${deviation.checkFinding}` } : {}),
     owner: { kind: 'run' },
     source,
     issueKey: null,
@@ -74,7 +75,7 @@ export function deviationCommands(state: CheckFindingState, deviation: PlanDevia
     credibility: 'agent-generated',
     modules: [...deviation.modules],
   });
-  const checkFinding = nextCheckFinding(state);
+  const checkFinding = deviation.schema === 'ramify-agent.plan-deviation/2' ? deviation.checkFinding : nextCheckFinding(state);
   const request: CheckFindingCommand = {
     type: 'dispose',
     checkFinding,

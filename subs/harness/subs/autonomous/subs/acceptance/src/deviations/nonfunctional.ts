@@ -39,7 +39,7 @@ export function prepareNonfunctionalDeviation(input: NonfunctionalDeviationInput
   if (input.proposedAlternative.trim() === '' && input.uncertainty.trim() === '') errors.push('An absent alternative needs explicit uncertainty');
   if (errors.length > 0) return { ok: false, errors };
   const parsed = nonfunctionalDeviationSchema.safeParse({
-    schema: 'ramify-agent.nonfunctional-deviation/1', id: input.id,
+    schema: input.id.startsWith('plan-deviation:') ? 'ramify-agent.nonfunctional-deviation/2' : 'ramify-agent.nonfunctional-deviation/1', id: input.id,
     origin: { kind: 'nonfunctional-assessment', nfr: item.id, assessment: assessment.id,
       candidate, coordinatorInvocation: input.coordinatorInvocation },
     element: { id: item.id, document: item.document, text: item.text }, evidence: [...result.evidence],
@@ -67,7 +67,10 @@ export function nonfunctionalDeviationCommands(
   manifest: DocumentManifest, recordRef: string,
 ): { readonly ok: true; readonly commands: readonly CheckFindingCommand[] } |
   { readonly ok: false; readonly errors: readonly string[] } {
-  if (record.checkFinding !== nextCheckFinding(state)) return { ok: false, errors: ['The CheckFinding ID is not next in replayed state'] };
+  if (record.schema === 'ramify-agent.nonfunctional-deviation/1' && record.checkFinding !== nextCheckFinding(state))
+    return { ok: false, errors: ['The CheckFinding ID is not next in replayed state'] };
+  if (record.schema === 'ramify-agent.nonfunctional-deviation/2' && state.findings.has(record.checkFinding))
+    return { ok: false, errors: [`${record.checkFinding} is already an accepted finding`] };
   const document = manifest.documents.find(item => item.id === record.element.document);
   if (document === undefined) return { ok: false, errors: [`${record.element.document} is not a captured document`] };
   const hash = nonfunctionalDeviationHash(record);
@@ -76,7 +79,8 @@ export function nonfunctionalDeviationCommands(
   const citation = { kind: 'plan-deviation', ref: recordRef, hash };
   const report = reportCommand({
     producer: planDeviationProducer, attempt: record.origin.coordinatorInvocation,
-    reportKey: record.id, owner: { kind: 'run' }, source, issueKey: null,
+    reportKey: record.id, ...(record.schema === 'ramify-agent.nonfunctional-deviation/2' ? { findingKey: `draft:${record.checkFinding}` } : {}),
+    owner: { kind: 'run' }, source, issueKey: null,
     verification: { kind: 'assessment' }, observation: {
       kind: 'plan-deviation',
       summary: bounded(`Non-functional deviation ${record.id} from ${record.origin.nfr}: ${record.element.text}`, recordRef, 600),

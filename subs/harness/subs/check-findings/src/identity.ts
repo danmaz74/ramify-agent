@@ -14,6 +14,8 @@ import type {
 const counted = (prefix: string) => (count: number): string => `${prefix}-${String(count).padStart(4, '0')}`;
 
 export const checkFindingId = counted('cf');
+export const proposedFindingId = (key: string): string => key.slice('draft:'.length);
+export const findingEventVersion = (id: string): 1 | 2 => id.startsWith('finding:') ? 2 : 1;
 export const reportId = counted('cfr');
 export const decisionId = counted('cfd');
 export const relationId = counted('cfl');
@@ -60,7 +62,9 @@ export function idNumber(id: string): number {
 }
 
 export function compareIds(a: string, b: string): number {
-  return idNumber(a) - idNumber(b);
+  const left = /^cf-\d+$/u.test(a);
+  const right = /^cf-\d+$/u.test(b);
+  return left && right ? idNumber(a) - idNumber(b) : a.localeCompare(b);
 }
 
 function byId(a: { readonly id: CheckFindingId }, b: { readonly id: CheckFindingId }): number {

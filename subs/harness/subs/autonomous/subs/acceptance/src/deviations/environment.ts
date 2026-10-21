@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import type { CheckFindingCommand, CheckFindingEntry, CheckFindingState } from '../../../../../check-findings/src/interfaces/check-findings.js';
 import { canonicalJson } from '../../../../../../src/jobs/commands.js';
 import { reportCommand } from '../../../../../../src/check-findings/report.js';
-import { nextCheckFinding } from './finding.js';
 import { deviationLayout, type EnvironmentProblem, type UnresolvedRequest } from './records.js';
 
 /*
@@ -54,6 +53,7 @@ export function environmentCommands(
     producer: environmentProducer,
     attempt: problem.invocation,
     reportKey: problem.id,
+    ...(problem.schema === 'ramify-agent.environment-problem/2' ? { findingKey: problem.findingKey } : {}),
     owner: { kind: 'run' },
     source,
     issueKey: null,
@@ -80,7 +80,7 @@ export function environmentCommands(
     credibility: 'agent-generated',
     modules: [module],
   });
-  const checkFinding = nextCheckFinding(state);
+  const checkFinding = problem.checkFinding;
   const decision: CheckFindingCommand = {
     type: 'dispose',
     checkFinding,

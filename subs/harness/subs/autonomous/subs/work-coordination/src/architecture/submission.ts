@@ -6,7 +6,7 @@ import { validateAgainst, type SubmissionError, type SubmissionValidation } from
 import { hypothesisChangeSchema, slugSchema, type Hypothesis, type RegistryEntry } from '../../../planning/src/records.js';
 import { moduleProposalSchema, type ModuleProposal } from '../../../planning/src/records.js';
 import { hypothesisStanceSchema, placementOutcomeSchema, type PlacementDecision } from './records.js';
-import { deviationBodySchema, environmentBodySchema, type DeviationBody } from '../../../acceptance/src/deviations/records.js';
+import { deviationBodySchema, descriptiveDeviationBodySchema, environmentBodySchema, descriptiveEnvironmentBodySchema, type DeviationBody } from '../../../acceptance/src/deviations/records.js';
 
 /*
  * What one fork of the plan architect submits, what a module architect
@@ -170,7 +170,13 @@ export const forkSubmissionSchema = z.discriminatedUnion('kind', [
    */
   environmentBodySchema.extend({ kind: z.literal('environment') }).strict(),
 ]);
-export type ForkSubmission = z.infer<typeof forkSubmissionSchema>;
+export const descriptiveForkSubmissionSchema = z.discriminatedUnion('kind', [
+  forkSubmissionSchema.options[0]!, forkSubmissionSchema.options[1]!,
+  z.object({ kind: z.literal('deviation'), deviation: descriptiveDeviationBodySchema }).strict(),
+  forkSubmissionSchema.options[3]!,
+  descriptiveEnvironmentBodySchema.extend({ kind: z.literal('environment') }).strict(),
+]);
+export type ForkSubmission = z.infer<typeof forkSubmissionSchema> | z.infer<typeof descriptiveForkSubmissionSchema>;
 
 /** The members this iteration's package offers the role. */
 export const forkSubmissionKinds = ['decision', 'partial', 'deviation', 'nothing-possible', 'environment'] as const;
@@ -185,6 +191,7 @@ export const unresolvedConstraintLimits = { entries: 10, characters: 400 } as co
 
 /** The schema the agent's tool is given, taken from the same definition that validates. */
 export const forkJsonSchema = z.toJSONSchema(forkSubmissionSchema) as JsonSchema;
+export const descriptiveForkJsonSchema = z.toJSONSchema(descriptiveForkSubmissionSchema) as JsonSchema;
 
 export const forkToolName = 'submit_placement_decision';
 
@@ -224,8 +231,8 @@ export type ForkQuestion =
  * schema cannot hold. Nothing changes on a failure, and every error names
  * its path.
  */
-export function validateFork(input: unknown, evidence: PlacementEvidence, question: ForkQuestion = { kind: 'placement' }): SubmissionValidation<ForkSubmission> {
-  const shape = validateAgainst(forkSubmissionSchema, input);
+export function validateFork(input: unknown, evidence: PlacementEvidence, question: ForkQuestion = { kind: 'placement' }, identityContract: 'legacy' | 'descriptive' = 'legacy'): SubmissionValidation<ForkSubmission> {
+  const shape = validateAgainst(identityContract === 'descriptive' && question.kind === 'unresolved' ? descriptiveForkSubmissionSchema : forkSubmissionSchema, input);
   if (!shape.ok) return shape;
   if (shape.value.kind === 'partial') return shape;
   if (shape.value.kind === 'deviation' || shape.value.kind === 'nothing-possible' || shape.value.kind === 'environment') {

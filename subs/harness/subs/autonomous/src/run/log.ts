@@ -379,6 +379,12 @@ export const runEventSchema = z.discriminatedUnion('type', [
     invocation: text,
     retry: z.int().positive(),
   }).strict()),
+  event('fork-name-rejected', z.object({
+    request: text,
+    invocation: text,
+    field: text,
+    message: text,
+  }).strict()),
   /**
    * Commits the `PlacementDecision`, the `RegistryEntry` revisions it
    * creates and the `Hypothesis` revisions it makes, in one transition. It
@@ -1002,6 +1008,7 @@ export type RunWrite =
   | 'placement-requested'
   | 'view-refreshed'
   | 'fork-returned-partial'
+  | 'fork-name-rejected'
   | 'decision-accepted'
   | 'brief-appending'
   | 'brief-appended'

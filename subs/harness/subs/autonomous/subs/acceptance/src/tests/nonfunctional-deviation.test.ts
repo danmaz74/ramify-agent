@@ -89,6 +89,37 @@ describe('non-functional deviation builder', () => {
     expect(nonfunctionalDeviationCommands(emptyCheckFindingState(), { ...prepared.record, element: { ...prepared.record.element, document: 'doc-002' } }, manifest, ref).ok).toBe(false);
   });
 
+  test('named non-functional requirement retains its descriptive deviation and finding through disposition', () => {
+    const namedItem = { ...item, id: 'non-functional-requirement:preserve-service-timeout' };
+    const namedResult = { ...result, nfr: namedItem.id };
+    const namedAssessment: Assessment = { ...assessment, schema: 'ramify-agent.nonfunctional-assessment/2', results: [namedResult] };
+    const namedInput = { ...input, id: 'plan-deviation:preserve-service-timeout-assessment',
+      checkFinding: 'finding:preserve-service-timeout-assessment', item: namedItem,
+      result: namedResult, assessment: namedAssessment };
+    const prepared = prepareNonfunctionalDeviation(namedInput);
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+    expect(prepared.record.schema).toBe('ramify-agent.nonfunctional-deviation/2');
+    const built = nonfunctionalDeviationCommands(emptyCheckFindingState(), prepared.record, manifest,
+      'deviations/plan-deviation%3Apreserve-service-timeout-assessment.json');
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    let state = emptyCheckFindingState();
+    for (const command of built.commands) {
+      const decided = decideCheckFindingChange(state, command);
+      expect(decided.ok).toBe(true);
+      if (!decided.ok) return;
+      for (const event of decided.events) {
+        const applied = applyCheckFindingEvent(state, event);
+        expect(applied.ok).toBe(true);
+        if (!applied.ok) return;
+        state = applied.state;
+      }
+    }
+    expect(state.findings.get(namedInput.checkFinding)).toMatchObject({ reason: 'awaiting-user-decision',
+      reports: [{ findingKey: `draft:${namedInput.checkFinding}` }] });
+  });
+
   test('a long element text remains in the record while bounded report text names its canonical source', () => {
     const longQuote = 'Keep a bounded response. '.repeat(210);
     const longBytes = Buffer.from(`# Request\n${longQuote}\n`);

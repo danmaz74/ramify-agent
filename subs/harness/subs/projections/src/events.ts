@@ -146,6 +146,8 @@ function describe(event: RunEvent): [string, Ref[]] {
       ];
     case 'fork-returned-partial':
       return [`The fork for ${event.data.request} returned partial findings (retry ${event.data.retry})`, [...ref('request', event.data.request), ...ref('invocation', event.data.invocation)]];
+    case 'fork-name-rejected':
+      return [`The fork for ${event.data.request} must correct ${event.data.field}: ${event.data.message}`, [...ref('request', event.data.request), ...ref('invocation', event.data.invocation)]];
     case 'unresolved-requested':
       return [
         `${event.data.workItem} reported that its request cannot be met as stated; the plan architect answers ${event.data.request}`,

@@ -29,12 +29,18 @@ const text = z.string().min(1);
 
 /** `ur-003`, the count of committed unresolved requests. */
 export const unresolvedRequestId = (count: number): string => `ur-${String(count).padStart(3, '0')}`;
+/** A request derived from its accepted work item; repeated conflicts retain separate names. */
+export const descriptiveUnresolvedRequestId = (workItem: string, count: number): string =>
+  `unresolved-request:${workItem.replace(/^work-item:/, '')}-architect-conflict${count === 1 ? '' : `-${count}`}`;
 
 /** `pd-003`, the count of committed plan deviations. */
 export const planDeviationId = (count: number): string => `pd-${String(count).padStart(3, '0')}`;
 
 /** `ep-003`, the count of committed environment problems. */
 export const environmentProblemId = (count: number): string => `ep-${String(count).padStart(3, '0')}`;
+/** The environment answer to one accepted unresolved request. */
+export const descriptiveEnvironmentProblemId = (request: string): string =>
+  `environment-problem:${request.replace(/^unresolved-request:/, '')}`;
 
 /** The most characters of an environment problem's diagnosis and suggestion. */
 export const environmentLimits = { diagnosis: 2000, suggestion: 1000 } as const;
@@ -67,11 +73,14 @@ export const deviationBodySchema = z.object({
    */
   scenarios: z.array(z.object({ scenario: scenarioIdSchema, source: z.array(z.string()).min(1) }).strict()).default([]),
 }).strict();
-export type DeviationBody = z.infer<typeof deviationBodySchema>;
+export type DeviationBody = z.infer<typeof deviationBodySchema> | z.infer<typeof descriptiveDeviationBodySchema>;
+export const descriptiveDeviationBodySchema = deviationBodySchema.extend({
+  deviationKey: z.string().regex(/^draft:plan-deviation:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+}).strict();
 
 /** A module architect's `unresolved` answer, as the harness records it before forking the plan architect. */
-export const unresolvedRequestSchema = z.object({
-  schema: z.literal('ramify-agent.unresolved-request/1'),
+const unresolvedRequestFields = {
   id: text,
   workItem: text,
   requester: text,
@@ -81,7 +90,13 @@ export const unresolvedRequestSchema = z.object({
   evidence: z.array(text),
   /** The oriented global point at request time, including accepted brief identities. */
   globalSource: globalForkSourceSchema.optional(),
-}).strict();
+};
+export const unresolvedRequestSchema = z.discriminatedUnion('schema', [
+  z.object({ schema: z.literal('ramify-agent.unresolved-request/1'), ...unresolvedRequestFields }).strict(),
+  z.object({ schema: z.literal('ramify-agent.unresolved-request/2'), ...unresolvedRequestFields,
+    id: z.string().regex(/^unresolved-request:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  }).strict(),
+]);
 export type UnresolvedRequest = z.infer<typeof unresolvedRequestSchema>;
 
 /** One element a deviation amends, with its source path and its text as the frozen catalog holds it. */
@@ -97,8 +112,7 @@ export const rewordedScenarioSchema = z.object({
 }).strict();
 export type RewordedScenario = z.infer<typeof rewordedScenarioSchema>;
 
-export const planDeviationSchema = z.object({
-  schema: z.literal('ramify-agent.plan-deviation/1'),
+const planDeviationFields = {
   id: text,
   /** The unresolved request it answers. */
   request: text,
@@ -125,7 +139,13 @@ export const planDeviationSchema = z.object({
    * run recorded more deviations than its policy lets it continue past.
    */
   held: z.boolean(),
-}).strict();
+};
+export const planDeviationSchema = z.discriminatedUnion('schema', [
+  z.object({ schema: z.literal('ramify-agent.plan-deviation/1'), ...planDeviationFields }).strict(),
+  z.object({ schema: z.literal('ramify-agent.plan-deviation/2'), ...planDeviationFields,
+    id: z.string().regex(/^plan-deviation:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  }).strict(),
+]);
 export type PlanDeviation = z.infer<typeof planDeviationSchema>;
 
 /**
@@ -139,15 +159,18 @@ export const environmentBodySchema = z.object({
   /** What the operator could change, such as a build step declared in `ramify-agent.json`. */
   suggestion: text.max(environmentLimits.suggestion),
 }).strict();
-export type EnvironmentBody = z.infer<typeof environmentBodySchema>;
+export const descriptiveEnvironmentBodySchema = environmentBodySchema.extend({
+  problemKey: z.string().regex(/^draft:environment-problem:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/).describe('A local key such as draft:environment-problem:missing-provider-tool; accepted environment-problem:missing-provider-tool is invalid here.'),
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+}).strict();
+export type EnvironmentBody = z.infer<typeof environmentBodySchema> | z.infer<typeof descriptiveEnvironmentBodySchema>;
 
 /**
  * An environment problem as the run records it. The run holds its work item
  * until the operator answers its CheckFinding: resuming returns the work
  * item to its module architect with the diagnosis; ending fails the run.
  */
-export const environmentProblemSchema = z.object({
-  schema: z.literal('ramify-agent.environment-problem/1'),
+const environmentProblemFields = {
   id: text,
   /** The unresolved request it answers. */
   request: text,
@@ -159,14 +182,21 @@ export const environmentProblemSchema = z.object({
   suggestion: text,
   /** The CheckFinding that asks the operator to resume the run or end it. */
   checkFinding: text,
-}).strict();
+};
+export const environmentProblemSchema = z.discriminatedUnion('schema', [
+  z.object({ schema: z.literal('ramify-agent.environment-problem/1'), ...environmentProblemFields }).strict(),
+  z.object({ schema: z.literal('ramify-agent.environment-problem/2'), ...environmentProblemFields,
+    id: z.string().regex(/^environment-problem:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/),
+  }).strict(),
+]);
 export type EnvironmentProblem = z.infer<typeof environmentProblemSchema>;
 
 /** Where the records are materialized, relative to the run's directory. */
 export const deviationLayout = {
-  request: (id: string): string => join('requests', `${id}.json`),
-  deviation: (id: string): string => join('deviations', `${id}.json`),
-  environment: (id: string): string => join('environment', `${id}.json`),
+  request: (id: string): string => join('requests', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
+  deviation: (id: string): string => join('deviations', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
+  environment: (id: string): string => join('environment', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
 } as const;
 
 export const deviationSchemas = {

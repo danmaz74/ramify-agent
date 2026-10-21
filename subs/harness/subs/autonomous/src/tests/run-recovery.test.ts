@@ -237,6 +237,7 @@ async function reached(root: string, runId: string, events: string, write: RunWr
     case 'placement-requested': return types.includes('placement-requested');
     case 'view-refreshed': return types.includes('view-refreshed');
     case 'fork-returned-partial': return types.includes('fork-returned-partial');
+    case 'fork-name-rejected': return types.includes('fork-name-rejected');
     // The decision is committed and its brief is not appended yet.
     case 'decision-accepted': return types.includes('decision-accepted');
     // The brief reached the parent and its completion is not in the log yet.

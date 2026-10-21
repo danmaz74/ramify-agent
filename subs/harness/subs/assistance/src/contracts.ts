@@ -21,6 +21,8 @@ export const assistedJobSchema = z.object({
   createdAt: z.iso.datetime(),
   projectRoot: z.string().min(1),
   plan: z.object({ path: z.string(), storedAt: z.literal('input/plan.md'), sha256: z.string().regex(/^[a-f0-9]{64}$/) }).strict(),
+  /** Absent in retained jobs and fresh default registrations: counted findings. */
+  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   /** Registered Git baseline and protected-source declaration, when available. */
   protection: assistedProtectionSchema,
 }).strict();

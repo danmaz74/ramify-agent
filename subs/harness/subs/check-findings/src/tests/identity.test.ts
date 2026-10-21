@@ -8,6 +8,24 @@ import {
 const first = concern({ attempt: 'rq-0001.a01', key: 'c1', summary: 'The discount is applied twice', hash: 1 });
 
 describe('ingestion keys', () => {
+  it('allocates a proposed descriptive identity and refuses another issue with that name after replay', () => {
+    const named = { ...first, findingKey: 'draft:finding:discount-applied-twice' };
+    const opened = decideCheckFindingChange(emptyCheckFindingState(), report(named));
+    expect(opened.ok && opened.events[0]).toMatchObject({ type: 'check-finding-opened', data: { version: 2, checkFinding: 'finding:discount-applied-twice' } });
+    const state = commitAll([report(named)]);
+    expect(decideCheckFindingChange(state, report(named))).toMatchObject({ ok: true, replayed: true, touched: ['finding:discount-applied-twice'] });
+    const collision = decideCheckFindingChange(state, report({ ...named, attempt: 'rq-0002.a01', reportKey: 'c2' }));
+    expect(collision.ok ? null : collision.rejection.code).toBe('finding-name-conflict');
+  });
+
+  it('preserves the accepted name when a same-issue report is attached', () => {
+    const named = { ...first, findingKey: 'draft:finding:discount-applied-twice', issueKey: 'discount' };
+    const state = commitAll([report(named)]);
+    const correct = decideCheckFindingChange(state, report({ ...named, attempt: 'rq-0002.a01', contentHash: hashOf(2) }));
+    expect(correct.ok && correct.events[0]).toMatchObject({ type: 'check-finding-reported', data: { version: 2, checkFinding: 'finding:discount-applied-twice' } });
+    const changed = decideCheckFindingChange(state, report({ ...named, attempt: 'rq-0003.a01', findingKey: 'draft:finding:another-discount' }));
+    expect(changed.ok ? null : changed.rejection.code).toBe('finding-name-conflict');
+  });
   it('accepts an exact replay with no events and names the CheckFinding it led to', () => {
     const state = commitAll([report(first)]);
     const replay = decideCheckFindingChange(state, report(first));

@@ -125,7 +125,7 @@ function planDeviationsOf(view: RunView): PackageDeviation[] {
   const deviations: PackageDeviation[] = [];
   for (const line of view.entries) {
     for (const record of line.transaction.records) {
-      if ((record.body as { schema?: unknown } | null)?.schema !== 'ramify-agent.plan-deviation/1') continue;
+      if (!['ramify-agent.plan-deviation/1', 'ramify-agent.plan-deviation/2'].includes(String((record.body as { schema?: unknown } | null)?.schema))) continue;
       const parsed = planDeviationSchema.safeParse(record.body);
       if (parsed.success) deviations.push(packageDeviation(parsed.data));
     }

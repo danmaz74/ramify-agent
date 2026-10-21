@@ -273,6 +273,10 @@ export const recoveryTable = {
     machines: ['SM3', 'SM8'], scenario: 'placement', appended: pending,
     stated: 'The partial return counts one retry and is never a decision; nothing is appended to the parent',
   },
+  'fork-name-rejected': {
+    machines: ['SM3', 'SM8'], scenario: 'placement', appended: pending,
+    stated: 'The rejected name stands as correction feedback; its fork is not replayed and no semantic record was accepted',
+  },
   'decision-accepted': {
     machines: ['SM3'], scenario: 'placement', appended: ['brief-appended', 'decision-delivered', 'job-interrupted'],
     effect: /the parent append of decision gd-\d+/,

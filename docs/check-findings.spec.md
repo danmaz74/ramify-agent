@@ -11,6 +11,22 @@ scenarios retain their own authority.
 
 ## Specification
 
+### Finding identity follows the captured run contract
+
+A legacy run opens findings as `cf-0001`, `cf-0002` and so on. A descriptive run
+accepts a reporter's `draft:finding:<name>` proposal in its existing submission
+and records the corresponding `finding:<name>` identity. The accepted name is
+unique within the run, including names already used by a different issue. A
+repeat of the same report key returns its accepted identity; a report attached
+by the same trusted issue key keeps that identity. Another issue cannot take
+the name, and a reporter corrects a collision in the same authoring task.
+
+Version 1 events and materialized records retain their original bytes and
+counted identities. Named findings use version 2 events and records, with
+encoded record paths. Reports, decisions and relations keep their technical
+sequence IDs in both contracts. A name is a reference to a finding, never
+evidence of a repair, waiver, acceptance or authority.
+
 ### A CheckFinding is a risk signal
 
 A CheckFinding signals a risk: that the system will not work correctly, or

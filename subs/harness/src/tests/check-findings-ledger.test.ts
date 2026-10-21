@@ -13,6 +13,12 @@ import {
   checkFindingTarget, concern, decision, dispose, failure, faulting, InjectedFault, recorded, report, runId, started,
 } from './helpers/check-findings.js';
 import { temporaryDirectory } from './helpers/fixture.js';
+import { finishReview } from '../../subs/autonomous/subs/acceptance/src/review-finish.js';
+import { reviewLayout, type ReviewRequest } from '../../subs/autonomous/subs/acceptance/src/reviews/records.js';
+import { descriptiveReviewSubmissionSchema } from '../../subs/reviews/src/interfaces/submissions.js';
+import { descriptiveForkSubmissionSchema } from '../../subs/autonomous/subs/work-coordination/src/architecture/submission.js';
+import { deviationCommands } from '../../subs/autonomous/subs/acceptance/src/deviations/finding.js';
+import { deviationLayout, planDeviationSchema } from '../../subs/autonomous/subs/acceptance/src/deviations/records.js';
 
 /*
  * The CheckFinding transition over a real run log (appendix §2): one ledger
@@ -49,6 +55,95 @@ function committed(result: CheckFindingCommit): Extract<CheckFindingCommit, { ki
 }
 
 describe('one CheckFinding transition is one ledger line', () => {
+  test('an authored plan deviation records a named finding and its decision request together', async () => {
+    const { root, target } = await running();
+    const authored = descriptiveForkSubmissionSchema.parse({ kind: 'deviation', deviation: {
+      deviationKey: 'draft:plan-deviation:revise-preview-compatibility', findingKey: 'draft:finding:preview-compatibility-deviation',
+      amends: ['fr-001'], instead: 'Use the existing preview endpoint.', why: 'The proposed surface is unavailable.',
+      rejected: [{ alternative: 'Add another protocol', reason: 'It would exceed the plan.' }],
+      loss: 'One external caller cannot use the new endpoint.', workItems: [], scenarios: [],
+    } });
+    expect(authored.kind).toBe('deviation');
+    if (authored.kind !== 'deviation') throw new Error('Expected authored deviation');
+    const deviation = planDeviationSchema.parse({ schema: 'ramify-agent.plan-deviation/2',
+      id: authored.deviation.deviationKey.slice('draft:'.length), request: 'unresolved-request:preview-conflict',
+      workItem: 'work-item:preview', invocation: 'inv-0003', plan: { path: 'plans/preview/plan.md', revision: 'sha256:plan' },
+      amends: [{ id: 'fr-001', path: 'plans/preview/plan.md', text: 'Provide the proposed surface.' }],
+      instead: authored.deviation.instead, why: authored.deviation.why, rejected: authored.deviation.rejected,
+      loss: authored.deviation.loss, workItems: ['work-item:preview'], modules: ['project/preview'], scenarios: [],
+      checkFinding: authored.deviation.findingKey.slice('draft:'.length), held: false,
+    });
+    committed(await commitCheckFindingChange(target, ({ state }) => ({
+      commands: deviationCommands(state, deviation),
+      compose: decided => ({ event: { type: 'check-findings-recorded', data: {
+        cause: { kind: 'producer', producer: 'plan:deviation', attempt: deviation.invocation }, checkFindings: [...decided.events] } },
+        records: [{ path: deviationLayout.deviation(deviation.id), id: deviation.id, revision: 1, body: deviation }],
+      }),
+    })));
+    const restored = await RunLog.open(join(root, 'events.jsonl'), runId);
+    const finding = checkFindingStateOf(restored.ledger).findings.get('finding:preview-compatibility-deviation');
+    expect(finding).toMatchObject({ standing: 'open', reason: 'awaiting-user-decision' });
+    expect(finding?.decisions[0]?.decision).toMatchObject({ action: 'request-user-decision' });
+    expect(JSON.parse(await readFile(join(root, deviationLayout.deviation(deviation.id)), 'utf8'))).toMatchObject({
+      schema: 'ramify-agent.plan-deviation/2', id: 'plan-deviation:revise-preview-compatibility',
+      checkFinding: 'finding:preview-compatibility-deviation',
+    });
+  });
+  test('an authored named review retries an occupied name and retains corrected disposition after reload', async () => {
+    const { root, target } = await running();
+    const request = (id: string): ReviewRequest => ({ schema: 'ramify-agent.review-request/1', id,
+      key: { iteration: 'it-1', candidate: 'candidate-1', kind: 'code', policy: 'review-policy/1' },
+      workItem: 'wi-001', assignment: 'assignment.json', base: 'base-1', gate: 'gate-1', tree: 'tree-1',
+      guidance: [], forkPoint: { kind: 'none' },
+    } as ReviewRequest);
+    const first = request('rq-0001');
+    const second = request('rq-0002');
+    for (const item of [first, second]) await target.log.append({ type: 'review-request-recorded', data: {
+      request: item.id, workItem: item.workItem, iteration: item.key.iteration,
+      kind: item.key.kind, gate: item.gate, candidate: item.key.candidate,
+    } });
+    const author = (key: string) => descriptiveReviewSubmissionSchema.parse({ inspected: ['src/cart.ts'], missing: [],
+      concerns: [{ findingKey: key, summary: 'A discount is applied twice', consequence: 'The total is wrong',
+        rationale: 'The candidate applies it twice', uncertainty: 'The test path is unverified', remedy: 'Apply it once',
+        locations: [{ path: 'src/cart.ts', startLine: 10, endLine: 20 }], suggests: null, risk: 'medium', ground: null }],
+    });
+    const binding = [{ ground: null, credibility: 'ungrounded' as const, modules: ['project/cart'] }];
+    const commit = { events: () => target.log.events,
+      commit: (build: Parameters<typeof commitCheckFindingChange>[1], at?: Date) => commitCheckFindingChange(target, build, at) };
+    const attempt = (id: string, rq: string) => ({ id, request: rq, queuedAt: '2026-09-24T12:00:00.000Z',
+      startedAt: '2026-09-24T12:00:00.000Z', invocation: 'reviewer-1', session: null,
+      requestedStart: 'fresh' as const, actualStart: 'fresh' as const });
+    const result = { result: 'complete' as const, inspected: [{ path: 'src/cart.ts' }], concerns: 1 };
+    expect(await finishReview(commit, () => new Date('2026-09-24T12:01:00.000Z'), first,
+      attempt('rq-0001.a01', first.id), result, true, author('draft:finding:double-discount'), binding, 'descriptive')).toBe('committed');
+    const occupied = await finishReview(commit, () => new Date('2026-09-24T12:02:00.000Z'), second,
+      attempt('rq-0002.a01', second.id), result, true, author('draft:finding:double-discount'), binding, 'descriptive');
+    expect(occupied).toBe('committed');
+    expect(JSON.parse(await readFile(join(root, reviewLayout.attempt('rq-0002.a01')), 'utf8'))).toMatchObject({
+      result: { result: 'not-verified', reason: 'name-conflict' }, settles: false, checkFindings: [],
+    });
+    expect(await finishReview(commit, () => new Date('2026-09-24T12:03:00.000Z'), second,
+      attempt('rq-0002.a02', second.id), result, true, author('draft:finding:wrong-total'), binding, 'descriptive')).toBe('committed');
+    expect(JSON.parse(await readFile(join(root, reviewLayout.submission('rq-0002.a02')), 'utf8'))).toMatchObject({
+      schema: 'ramify-agent.review-submission/2', concerns: [{ findingKey: 'draft:finding:wrong-total' }],
+    });
+    const restored = await RunLog.open(join(root, 'events.jsonl'), runId);
+    expect([...checkFindingStateOf(restored.ledger).findings.keys()]).toEqual(['finding:double-discount', 'finding:wrong-total']);
+  });
+  test('commits a named finding with its versioned record and reloads the disposition against that identity', async () => {
+    const { root, target } = await running();
+    const named = { ...concern(), findingKey: 'draft:finding:missing-world-companion-exports' };
+    committed(await commitCheckFindingChange(target, recorded([report(named)])));
+    const id = 'finding:missing-world-companion-exports';
+    expect(checkFindingLayout.report(id, 'cfr-0001')).toContain('finding%3Amissing-world-companion-exports');
+    const stored = await readCommitted(target.log.ledger, checkFindingLayout.report(id, 'cfr-0001'),
+      { schema: 'ramify-agent.check-finding-report/2', body: checkFindingSchemas.report.body });
+    expect(stored).toMatchObject({ kind: 'valid', value: { checkFinding: id, findingKey: named.findingKey } });
+    expect(JSON.parse(await readFile(join(root, checkFindingLayout.report(id, 'cfr-0001')), 'utf8')).schema).toBe('ramify-agent.check-finding-report/2');
+    committed(await commitCheckFindingChange(target, recorded([dispose(id, 1, decision({ action: 'fix-by-assessment', reassessed: ['cfr-0001'] }))])));
+    const restored = await RunLog.open(join(root, 'events.jsonl'), runId);
+    expect(checkFindingStateOf(restored.ledger).findings.get(id)).toMatchObject({ standing: 'closed', reason: 'fixed-by-assessment', revision: 2 });
+  });
   test('carries the decided events in order, with a record copy of each, and the harness computes every content hash', async () => {
     const { root, target } = await running();
     const first = concern();

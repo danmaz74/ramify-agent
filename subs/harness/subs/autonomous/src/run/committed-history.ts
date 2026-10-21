@@ -36,6 +36,8 @@ const alsoSupported = new Set([
   'ramify-agent.capability-plan/2', 'ramify-agent.capability-exchange/2', 'ramify-agent.capability-handback/2',
   'ramify-agent.contract/3', 'ramify-agent.provider-obligation/2', 'ramify-agent.consumer-requirement/2',
   'ramify-agent.placement-request/2', 'ramify-agent.placement-decision/2',
+  'ramify-agent.unresolved-request/2', 'ramify-agent.plan-deviation/2', 'ramify-agent.environment-problem/2',
+  'ramify-agent.nonfunctional-assessment/2', 'ramify-agent.nonfunctional-deviation/2',
 ]);
 
 export function unsupportedCommittedVersion(declared: unknown): string | null {

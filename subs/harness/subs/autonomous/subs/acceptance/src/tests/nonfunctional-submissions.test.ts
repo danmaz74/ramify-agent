@@ -100,6 +100,24 @@ describe('non-functional coordinator submissions', () => {
     expect(validateCoordinatorAction({ ...close, deviations: [{ ...close.deviations[0]!, uncertainty: '' }, close.deviations[1]!] }, actionContext()).ok).toBe(false);
   });
 
+  it('delivers descriptive close keys and rejects occupied or duplicate names before acceptance', () => {
+    const named = { kind: 'close', deviations: [
+      { nfr: 'nfr-001', proposedAlternative: null, uncertainty: 'No safe alternative was established',
+        deviationKey: 'draft:plan-deviation:preserve-latency', findingKey: 'draft:finding:preserve-latency' },
+      { nfr: 'fix-001', proposedAlternative: 'Revise retry bound', uncertainty: '',
+        deviationKey: 'draft:plan-deviation:bound-retries', findingKey: 'draft:finding:bound-retries' },
+    ] };
+    expect(validateCoordinatorAction(named, actionContext(), 'descriptive')).toMatchObject({ ok: true });
+    expect(validateCoordinatorAction(named, actionContext(), 'legacy').ok).toBe(false);
+    expect(validateCoordinatorAction(named, actionContext({ occupiedDeviationNames: new Set(['plan-deviation:preserve-latency']) }), 'descriptive'))
+      .toMatchObject({ ok: false, errors: expect.arrayContaining([expect.objectContaining({ path: 'deviations.0.deviationKey' })]) });
+    expect(validateCoordinatorAction(named, actionContext({ occupiedFindingNames: new Set(['finding:bound-retries']) }), 'descriptive'))
+      .toMatchObject({ ok: false, errors: expect.arrayContaining([expect.objectContaining({ path: 'deviations.1.findingKey' })]) });
+    expect(validateCoordinatorAction({ ...named, deviations: [named.deviations[0], { ...named.deviations[1],
+      findingKey: named.deviations[0]!.findingKey }] }, actionContext(), 'descriptive'))
+      .toMatchObject({ ok: false, errors: expect.arrayContaining([expect.objectContaining({ path: 'deviations.1.findingKey' })]) });
+  });
+
   it('binds investigation output to exactly the requested IDs and does not call it satisfaction', () => {
     const result = { kind: 'investigation-result', summary: 'Inspected load path', findings: [
       { nfr: 'nfr-001', inspectedScope: ['src/'], evidence: ['trace-1'], uncertainty: 'No intermediate trace' },

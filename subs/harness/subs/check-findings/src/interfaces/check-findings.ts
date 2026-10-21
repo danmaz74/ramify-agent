@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 /** The version every event of this contract carries. */
 export const checkFindingEventVersion = 1;
+export const descriptiveCheckFindingEventVersion = 2;
 /** The version every view and selection of this contract carries. */
 export const checkFindingViewVersion = 'check-finding-view/1';
 
@@ -29,7 +30,9 @@ const hashSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/, 'A sha256: digest i
 // repeated over the same state allocates the same one.
 
 /** `cf-0001`, one more than the CheckFindings the state holds. */
-export const checkFindingIdSchema = z.string().regex(/^cf-\d{4,}$/);
+export const descriptiveCheckFindingIdSchema = z.string().regex(/^finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, 'A finding:<descriptive-name> ID');
+export const draftCheckFindingKeySchema = z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/, 'A draft:finding:<descriptive-name> key');
+export const checkFindingIdSchema = z.union([z.string().regex(/^cf-\d{4,}$/), descriptiveCheckFindingIdSchema]);
 export type CheckFindingId = z.infer<typeof checkFindingIdSchema>;
 /** `cfr-0001`, one more than the reports the state holds. */
 export const checkFindingReportIdSchema = z.string().regex(/^cfr-\d{4,}$/);
@@ -221,6 +224,8 @@ export const checkFindingReportInputSchema = z.object({
   producer: checkFindingProducerSchema,
   attempt: ref,
   reportKey: ref,
+  /** Author's local proposal on descriptive runs; absent in legacy deliveries. */
+  findingKey: draftCheckFindingKeySchema.optional(),
   contentHash: hashSchema,
   owner: checkFindingOwnerSchema,
   source: checkFindingSourceSchema,
@@ -435,7 +440,7 @@ export type CheckFindingCommand = z.infer<typeof checkFindingCommandSchema>;
 
 // Events.
 
-const version = z.literal(checkFindingEventVersion);
+const version = z.union([z.literal(checkFindingEventVersion), z.literal(descriptiveCheckFindingEventVersion)]);
 
 /** A new CheckFinding at revision 1 with its first report. */
 export const checkFindingOpenedDataSchema = z.object({
@@ -543,6 +548,7 @@ export const checkFindingRejectionCodeSchema = z.enum([
   'invalid-report',
   'report-key-conflict',
   'ambiguous-issue-key',
+  'finding-name-conflict',
   'unknown-check-finding',
   'unknown-report',
   'stale-revision',

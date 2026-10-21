@@ -15,6 +15,8 @@ export type ReviewGround = z.infer<typeof reviewGroundSchema>;
 
 /** One concern of a reviewer's submission, as the agent writes it. */
 export const reviewConcernSchema = z.object({
+  /** Assisted assessments may propose a finding name without using the autonomous review contract. */
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/).optional(),
   summary: z.string().min(1).max(4000),
   consequence: z.string().min(1).max(4000),
   rationale: z.string().min(1).max(4000),
@@ -28,6 +30,10 @@ export const reviewConcernSchema = z.object({
   ground: reviewGroundSchema.nullable(),
 }).strict();
 export type ReviewConcern = z.infer<typeof reviewConcernSchema>;
+/** A fresh run's reviewer proposes the accepted finding name in the ordinary review. */
+export const descriptiveReviewConcernSchema = reviewConcernSchema.extend({
+  findingKey: z.string().regex(/^draft:finding:[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/).describe('A local finding key, for example draft:finding:missing-world-companion-exports. An accepted finding ID such as finding:missing-world-companion-exports is invalid here.'),
+}).strict();
 
 /** A supported assessment, actionable concerns and meaningful limitations.
  * Legacy inspected/missing inventories remain readable but do not govern acceptance.
@@ -39,7 +45,10 @@ export const reviewSubmissionSchema = z.object({
   limitations: z.array(z.string().min(1).max(4000)).max(50).optional(),
   concerns: z.array(reviewConcernSchema).max(20),
 }).strict();
-export type ReviewSubmission = z.infer<typeof reviewSubmissionSchema>;
+export const descriptiveReviewSubmissionSchema = reviewSubmissionSchema.extend({
+  concerns: z.array(descriptiveReviewConcernSchema).max(20),
+}).strict();
+export type ReviewSubmission = z.infer<typeof reviewSubmissionSchema> | z.infer<typeof descriptiveReviewSubmissionSchema>;
 
 /** What an orientation session submits: the guidance it read, and what that guidance asks of a design. */
 export const orientationSubmissionSchema = z.object({

@@ -24,6 +24,7 @@ import {
 } from './contracts.js';
 
 const planStartSchema = z.object({ planId: planIdSchema, commandId: commandIdSchema,
+  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   protection: z.object({ explicitPaths: z.array(z.string()).optional(), excludedPaths: z.array(z.string()).optional(),
     guardedPaths: z.array(z.string()).optional(), additions: z.enum(['protect', 'allow']).optional() }).strict().optional(),
 }).strict();
@@ -153,7 +154,8 @@ export class AssistanceService {
   async planStart(input: PlanStartRequest): Promise<PlanStartResponse> {
     const request = planStartSchema.parse(input);
     return this.write(async () => {
-      const command = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId, execution: 'assisted', protection: request.protection };
+      const command = { commandId: request.commandId, expectedVersion: 0, type: 'plan-start', planId: request.planId, execution: 'assisted', protection: request.protection,
+        ...(request.identityContract === undefined || request.identityContract === 'legacy' ? {} : { identityContract: request.identityContract }) };
       const admitted = this.commands.admit(command);
       if (admitted.kind === 'repeat') {
         const original = [...this.stores.values()].find(store => store.job.jobId === admitted.receipt.jobId);
@@ -174,6 +176,7 @@ export class AssistanceService {
         schema: jobSchemaVersion, kind: 'assisted', planId: request.planId, jobId,
         createdAt: this.now().toISOString(), projectRoot: this.projectRoot,
         plan: { path: plan.path, storedAt: 'input/plan.md', sha256: planHash }, protection,
+        ...(request.identityContract === 'descriptive' ? { identityContract: 'descriptive' as const } : {}),
       };
       const accepted = this.commands.accept(command, admitted.contentHash, jobId, 1, this.now());
       const store = await AssistedStore.create(this.projectRoot, job, plan.markdown, accepted);

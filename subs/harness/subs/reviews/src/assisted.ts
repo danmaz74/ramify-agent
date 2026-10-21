@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { CandidateSource } from '../../evidence/src/git.js';
 import { schemaErrors, type SubmissionError, type SubmissionValidation } from '../../task-execution/src/submissions.js';
 import { prepareCandidateReview, type PreparedReview } from './preparation.js';
-import { reviewSubmissionSchema } from './interfaces/submissions.js';
+import { descriptiveReviewSubmissionSchema, reviewSubmissionSchema } from './interfaces/submissions.js';
 import { validateReview, type ReviewEvidence } from './submission.js';
 import { resolveChangedPath, resolveSnapshotPath, type CandidateSnapshot } from './snapshot.js';
 
@@ -28,8 +28,8 @@ const finalRequirementAnswerSchema = iterationRequirementAnswerSchema.extend({
     .describe('Accepted iteration review references listed in the task, for example assessments/as-0001/stages/review.json. The explanation states why each applies to this candidate. Other record or diff references are for inspection, not evidence.'),
 }).strict();
 
-function assistedReviewSchema<T extends z.ZodRawShape>(answer: z.ZodObject<T>) {
-  return reviewSubmissionSchema.extend({
+function assistedReviewSchema<T extends z.ZodRawShape>(answer: z.ZodObject<T>, identityContract: 'legacy' | 'descriptive' = 'legacy') {
+  return (identityContract === 'descriptive' ? descriptiveReviewSubmissionSchema : reviewSubmissionSchema).extend({
     codeAssessment: z.string().min(1).max(4000),
     scopeAssessment: z.string().min(1).max(4000),
     design: z.object({ needed: z.boolean(), reason: z.string().min(1).max(4000), assessment: z.string().min(1).max(4000) }).strict(),
@@ -41,15 +41,18 @@ function assistedReviewSchema<T extends z.ZodRawShape>(answer: z.ZodObject<T>) {
 
 /** A combined code/scope report with optional legacy inspection records; accepts both iteration and final submissions. */
 export const assistedReviewSubmissionSchema = assistedReviewSchema(finalRequirementAnswerSchema);
-export type AssistedReviewSubmission = z.infer<typeof assistedReviewSubmissionSchema>;
+export const descriptiveAssistedReviewSubmissionSchema = assistedReviewSchema(finalRequirementAnswerSchema, 'descriptive');
+export type AssistedReviewSubmission = z.infer<typeof assistedReviewSubmissionSchema> | z.infer<typeof descriptiveAssistedReviewSubmissionSchema>;
 
 /**
  * The submission shape declared to the reviewer. Only the final review offers evidenceRefs: an
  * iteration review has no accepted iteration evidence to cite, so offering the field there only
  * invites rejected submissions.
  */
-export function assistedReviewDeclarationSchema(kind: 'iteration' | 'final' | undefined) {
-  return kind === 'final' ? assistedReviewSubmissionSchema : assistedReviewSchema(iterationRequirementAnswerSchema);
+export function assistedReviewDeclarationSchema(kind: 'iteration' | 'final' | undefined, identityContract: 'legacy' | 'descriptive' = 'legacy') {
+  return kind === 'final'
+    ? identityContract === 'descriptive' ? descriptiveAssistedReviewSubmissionSchema : assistedReviewSubmissionSchema
+    : assistedReviewSchema(iterationRequirementAnswerSchema, identityContract);
 }
 
 export interface AssistedReviewBriefing {
@@ -99,11 +102,11 @@ export function assistedReviewMessage(input: AssistedReviewBriefing, diffPayload
 }
 
 /** Validate supplied acceptance answers and their candidate references without a coverage inventory. */
-export function validateAssistedReview(value: unknown, evidence: ReviewEvidence, requirements: readonly AssistedRequirement[], protectionPaths: readonly string[] = [], acceptedReviewRefs?: readonly string[]): SubmissionValidation<AssistedReviewSubmission> {
-  const parsed = assistedReviewSubmissionSchema.safeParse(value);
+export function validateAssistedReview(value: unknown, evidence: ReviewEvidence, requirements: readonly AssistedRequirement[], protectionPaths: readonly string[] = [], acceptedReviewRefs?: readonly string[], identityContract: 'legacy' | 'descriptive' = 'legacy'): SubmissionValidation<AssistedReviewSubmission> {
+  const parsed = (identityContract === 'descriptive' ? descriptiveAssistedReviewSubmissionSchema : assistedReviewSubmissionSchema).safeParse(value);
   if (!parsed.success) return { ok: false, errors: schemaErrors(parsed.error) };
   const report = parsed.data;
-  const legacy = validateReview({ inspected: report.inspected, missing: report.missing, concerns: report.concerns }, evidence);
+  const legacy = validateReview({ inspected: report.inspected, missing: report.missing, concerns: report.concerns }, evidence, identityContract);
   const errors: SubmissionError[] = legacy.ok ? [] : [...legacy.errors];
   const expected = new Set(requirements.map(item => item.ref));
   if (expected.size !== requirements.length) errors.push({ path: 'requirements', message: 'Acceptance references must have distinct IDs' });
@@ -136,6 +139,7 @@ export function validateAssistedReview(value: unknown, evidence: ReviewEvidence,
 }
 
 export interface AssistedReviewPreparation {
+  readonly identityContract?: 'legacy' | 'descriptive';
   readonly source: CandidateSource;
   readonly projectRoot: string;
   readonly briefing: AssistedReviewBriefing;
@@ -150,7 +154,7 @@ export async function prepareAssistedReview(input: AssistedReviewPreparation): P
     source: input.source, projectRoot: input.projectRoot, snapshot: input.briefing.snapshot,
     maxConcerns: input.maxConcerns, signal: input.signal, includeDiff: input.briefing.kind !== 'final',
     message: diff => assistedReviewMessage(input.briefing, diff),
-    validate: (value, evidence) => validateAssistedReview(value, evidence, input.briefing.requirements, input.briefing.protectionPaths, input.briefing.kind === 'final' ? input.briefing.finalContext?.acceptedReviewRefs : undefined),
+    validate: (value, evidence) => validateAssistedReview(value, evidence, input.briefing.requirements, input.briefing.protectionPaths, input.briefing.kind === 'final' ? input.briefing.finalContext?.acceptedReviewRefs : undefined, input.identityContract ?? 'legacy'),
   });
 }
 

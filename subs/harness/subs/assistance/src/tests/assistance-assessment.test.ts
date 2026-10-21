@@ -9,7 +9,7 @@ import { scriptedCandidates, type ScriptedCommit } from '../../../autonomous/sub
 import { decideCheckFindingChange } from '../../../check-findings/src/decide.js';
 import { validateReconciliationForExecution } from '../../../reviews/src/reconciliation.js';
 import type { AssistedReviewSubmission } from '../../../reviews/src/assisted.js';
-import { findingDetails, reportReviewConcerns } from '../findings.js';
+import { factualFindingKey, findingDetails, reportReviewConcerns } from '../findings.js';
 import { AssistanceService } from '../service.js';
 import { finalizeApproval } from '../approval.js';
 import { emptyCheckFindingState } from '../../../check-findings/src/replay.js';
@@ -31,7 +31,7 @@ const outcome = async (service: AssistanceService, jobId: string, assessmentId: 
   return detail.outcome!;
 };
 
-async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<AssessmentDependencies, 'candidates'>, planMarkdown = '# Plan\nThe feature returns 2.\n') {
+async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<AssessmentDependencies, 'candidates'>, planMarkdown = '# Plan\nThe feature returns 2.\n', identityContract: 'legacy' | 'descriptive' = 'legacy') {
   const root = await mkdtemp(join(tmpdir(), 'assistance-assessment-')); roots.push(root);
   await mkdir(join(root, 'plans', 'sample'), { recursive: true });
   await writeFile(join(root, 'plans', 'sample', 'plan.md'), planMarkdown);
@@ -39,7 +39,7 @@ async function setup(commits: Record<string, ScriptedCommit>, deps: Omit<Assessm
   const service = await AssistanceService.open({ projectRoot: root, registrationProtection: async () => protection,
     resolveCommit: async (_root, revision) => revision === 'HEAD' ? baseline : revision, currentHead: async () => baseline, isCleanRepository: async () => true, assessor: createAssessor({ ...deps, candidates }) });
   services.push(service);
-  const job = await service.planStart({ planId: 'sample', commandId: 'start' });
+  const job = await service.planStart({ planId: 'sample', commandId: 'start', ...(identityContract === 'descriptive' ? { identityContract } : {}) });
   const assess = async (candidate: string, base: string, commandId: string, extra: Record<string, unknown> = {}) => {
     const admitted = await service.iterationAssess({ planId: 'sample', jobId: job.jobId, base, candidate,
       kind: 'iteration', brief: 'Implement the feature.', acceptance: ['The feature returns 2.'], requirementDocuments: [], commandId, ...extra });
@@ -73,6 +73,58 @@ afterEach(async () => {
 });
 
 describe('assisted assessment pipeline with real service records', () => {
+  it('derives a descriptive factual finding from the failed check identity and reloads it', async () => {
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = { operations: unusedOperations,
+      audit: async input => audit(input.candidateCommit, 'failed') };
+    const { service, job, assess, candidates } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) },
+      dependencies, '# Plan\nThe feature returns 2.\n', 'descriptive');
+    const expected = factualFindingKey('check:audit', 'configured-audit').replace(/^draft:/, '');
+    expect(expected).toMatch(/^finding:audit-configured-audit-[0-9a-f]{12}$/u);
+    expect((await assess(first, baseline, 'failed-check')).outcome.gate).toBe('action-required');
+    expect(service.findings('sample', job.jobId)).toMatchObject([{ id: expected }]);
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(reopened.findings('sample', job.jobId)).toMatchObject([{ id: expected }]);
+  });
+  it('reads retained evidence and reconciles a named review finding across reload', async () => {
+    const namedId = 'finding:feature-returns-one';
+    const dependencies: Omit<AssessmentDependencies, 'candidates'> = {
+      operations: unusedOperations, audit: async input => audit(input.candidateCommit),
+      review: async input => {
+        const tool = input.prepared.tools.definitions.find(entry => entry.name === 'assessment_evidence')!;
+        const listed = JSON.parse((await tool.execute({}, new AbortController().signal)).text) as { entries: Array<{ ref: string }> };
+        const auditRef = listed.entries.find(entry => entry.ref.endsWith('/audit.json'))?.ref;
+        expect(auditRef).toBeDefined();
+        const evidence = JSON.parse((await tool.execute({ ref: auditRef }, new AbortController().signal)).text) as { content: string };
+        expect(evidence.content).toContain('configured audit passed');
+        const original = reviewReport(input.candidate, true);
+        const proposed = { ...original, concerns: original.concerns.map(concern => ({ ...concern,
+          findingKey: 'draft:finding:feature-returns-one' })) };
+        const validated = input.prepared.validate(proposed);
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'named-review', eventCount: 1 };
+      },
+      reconcile: async input => {
+        expect(input.message).toContain(namedId);
+        const validated = await input.submission.validate({ relations: [], dispositions: [{ checkFinding: namedId,
+          rationale: 'The returned value must be corrected.', communication: { mode: 'quiet' }, action: { action: 'repair' } }],
+          next: { kind: 'correct', goal: 'Return 2.' }, brief: 'Correct the feature result.' });
+        expect(validated).toMatchObject({ ok: true });
+        if (!validated.ok) throw new Error(JSON.stringify(validated.errors));
+        return { status: 'submitted', value: validated.value, operationId: input.operationId, sessionId: 'named-reconcile', eventCount: 1 };
+      },
+    };
+    const { service, job, candidates, assess } = await setup({ [baseline]: source('0', baseline), [first]: source('1', baseline) },
+      dependencies, '# Plan\nThe feature returns 2.\n', 'descriptive');
+    expect((await assess(first, baseline, 'named-assessment')).outcome.gate).toBe('action-required');
+    expect(service.findings('sample', job.jobId)).toMatchObject([{ id: namedId, reason: 'repair-planned' }]);
+    await service.close();
+    const reopened = await AssistanceService.open({ projectRoot: service.projectRoot, assessor: createAssessor({ ...dependencies, candidates }) });
+    services.push(reopened);
+    expect(reopened.findings('sample', job.jobId)).toMatchObject([{ id: namedId, reason: 'repair-planned' }]);
+  });
   it.each(['stale-decision', 'stale-relation', 'committed'] as const)('resumes accepted reconciliation without replaying a %s on a later revision', async scenario => {
     const root = await mkdtemp(join(tmpdir(), 'assistance-reconciliation-resume-')); roots.push(root);
     await mkdir(join(root, 'plans/sample'), { recursive: true });

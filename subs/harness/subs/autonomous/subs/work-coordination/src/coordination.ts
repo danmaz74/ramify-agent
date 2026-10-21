@@ -391,11 +391,11 @@ import { acceptDecision } from './architecture/accept.js';
 import { briefText, type GlobalContext } from './architecture/context.js';
 import { architectureLayout, architectureSchemas, globalDecisionId, localDecisionId, descriptiveLocalDecisionId, descriptivePlacementRequestId, placementRequestSchema, requestId, type PlacementDecision, type PlacementRequest } from './architecture/records.js';
 import { forkMessage, unresolvedForkMessage } from './architecture/session.js';
-import { defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation, planDeviationId, planDeviationSchema, unresolvedRequestId, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest } from '../../acceptance/src/deviations/records.js';
+import { defaultMaxPlanDeviations, deviationLayout, environmentProblemId, environmentProblemSchema, packageDeviation, planDeviationId, planDeviationSchema, unresolvedRequestId, descriptiveUnresolvedRequestId, unresolvedRequestSchema, type DeviationBody, type EnvironmentBody, type EnvironmentProblem, type PlanDeviation, type UnresolvedRequest } from '../../acceptance/src/deviations/records.js';
 import { deviationCommands } from '../../acceptance/src/deviations/finding.js';
 
 import { environmentCommands, environmentOptions } from '../../acceptance/src/deviations/environment.js';
-import { forkJsonSchema, forkSubmissionSchema, forkToolName, validateFork, type ForkSubmission, type PlacementRequestBody } from './architecture/submission.js';
+import { forkJsonSchema, descriptiveForkJsonSchema, forkSubmissionSchema, descriptiveForkSubmissionSchema, forkToolName, validateFork, type ForkSubmission, type PlacementRequestBody } from './architecture/submission.js';
 import { ContractPublicationError, registerContract, registrationNeeded, executionRetirements, type AttachedConsumer } from './contracts/accept.js';
 import { cycleClosedBy, cycleIdentity, type DependencyCycle, type DependencyEdge } from './contracts/graph.js';
 import { fakeNamingViolations, type NamedFile } from './contracts/naming.js';
@@ -2117,7 +2117,9 @@ export class WorkCoordination {
     const started = [...this.events('invocation-started')].reverse().find(event =>
       event.data.role === 'global-fork' && event.data.work.request === request);
     if (started === undefined || this.events('fork-returned-partial').some(event =>
-      event.data.request === request && event.data.invocation === started.data.invocation)) return undefined;
+      event.data.request === request && event.data.invocation === started.data.invocation)
+      || this.events('fork-name-rejected').some(event =>
+        event.data.request === request && event.data.invocation === started.data.invocation)) return undefined;
     const ended = this.events('invocation-ended').find(event => event.data.invocation === started.data.invocation);
     if (ended?.data.ended !== 'submitted' || ended.data.submission === null) return undefined;
     const priorView = [...this.events('view-refreshed')].reverse().find(event =>
@@ -2136,8 +2138,9 @@ export class WorkCoordination {
     }
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
-    const parsed = forkSubmissionSchema.safeParse(body);
-    if (raw.schema !== 'ramify-agent.fork-submission/1' || !parsed.success) {
+    const descriptive = this.input.record.identityContract === 'descriptive' && raw.schema === 'ramify-agent.fork-submission/2';
+    const parsed = (descriptive ? descriptiveForkSubmissionSchema : forkSubmissionSchema).safeParse(body);
+    if (raw.schema !== (descriptive ? 'ramify-agent.fork-submission/2' : 'ramify-agent.fork-submission/1') || !parsed.success) {
       await this.ports.fail('recovery-exhausted', `Fork of ${request} has an invalid accepted result`);
       return null;
     }
@@ -2157,8 +2160,9 @@ export class WorkCoordination {
     }
     const raw = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
     const { schema: _schema, ...body } = raw;
-    const parsed = forkSubmissionSchema.safeParse(body);
-    if (raw.schema !== 'ramify-agent.fork-submission/1' || !parsed.success || parsed.data.kind !== 'partial') {
+    const descriptive = this.input.record.identityContract === 'descriptive' && raw.schema === 'ramify-agent.fork-submission/2';
+    const parsed = (descriptive ? descriptiveForkSubmissionSchema : forkSubmissionSchema).safeParse(body);
+    if (raw.schema !== (descriptive ? 'ramify-agent.fork-submission/2' : 'ramify-agent.fork-submission/1') || !parsed.success || parsed.data.kind !== 'partial') {
       throw new Error(`The partial fork of ${request} has invalid accepted evidence`);
     }
     return { attempt: partial.data.retry, findings: [...parsed.data.findings], gaps: [...parsed.data.gaps] };
@@ -2442,9 +2446,11 @@ export class WorkCoordination {
     }
     // Unresolved requests retain their own stable identities across recovery.
 
-    const id = existingId ?? unresolvedRequestId(this.events('unresolved-requested').length + 1);
+    const count = this.events('unresolved-requested').filter(event => event.data.workItem === item.id).length + 1;
+    const id = existingId ?? (this.input.record.identityContract === 'descriptive'
+      ? descriptiveUnresolvedRequestId(item.id, count) : unresolvedRequestId(this.events('unresolved-requested').length + 1));
     const request = existingId === undefined ? unresolvedRequestSchema.parse({
-      schema: 'ramify-agent.unresolved-request/1',
+      schema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.unresolved-request/2' : 'ramify-agent.unresolved-request/1',
       id,
       workItem: item.id,
       requester: item.module,
@@ -2547,6 +2553,7 @@ export class WorkCoordination {
           deviations: this.deviationsOf().length,
           deviationLimit: this.deviationLimit(),
           environmentProblems: this.environmentProblemsOf(),
+          nameRejection: this.events('fork-name-rejected').filter(event => event.data.request === id).at(-1)?.data,
           view,
           ...(unavailable === null ? {} : { viewUnavailable: unavailable }),
           registry: current.registry,
@@ -2563,15 +2570,33 @@ export class WorkCoordination {
         keep: () => finished('not-kept'),
         toolName: forkToolName,
         description: 'End this fork with its answer to the unresolved request: a placement decision, a plan deviation, an environment problem, nothing possible, or the findings and gaps of a fork that could not decide. The harness validates it; an invalid submission is returned with every error and its path.',
-        inputSchema: forkJsonSchema,
-        submissionSchema: 'ramify-agent.fork-submission/1',
+        inputSchema: this.input.record.identityContract === 'descriptive' ? descriptiveForkJsonSchema : forkJsonSchema,
+        submissionSchema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.fork-submission/2' : 'ramify-agent.fork-submission/1',
         validate: async input => {
           const checked = validateFork(input, placementEvidenceOf(current, index), {
           kind: 'unresolved',
           elements: new Set(workElements.filter(element => !element.startsWith('ctx-'))),
           workItems: new Set(current.workItems.map(entry => entry.id)),
           scenarios: new Map(tracked.records.map(record => [record.id, tracked.states.get(record.id) ?? 'pending'])),
-          });
+          }, this.input.record.identityContract ?? 'legacy');
+          if (checked.ok && checked.value.kind === 'deviation' && this.input.record.identityContract === 'descriptive'
+            && 'deviationKey' in checked.value.deviation) {
+            const proposed = checked.value.deviation.deviationKey.slice('draft:'.length);
+            const prior = this.events('plan-deviation-recorded').find(event => event.data.deviation === proposed);
+            const nonfunctional = this.events('nonfunctional-deviation-recorded').find(event => event.data.deviation === proposed);
+            if (prior !== undefined || nonfunctional !== undefined) return { ok: false, errors: [{ path: 'deviation.deviationKey',
+              message: `"${proposed}" is already an accepted plan deviation; propose a distinct name for this request`,
+              expected: 'an unused draft:plan-deviation:<subject-name> in this run' }] };
+            const finding = checked.value.deviation.findingKey.slice('draft:'.length);
+            if (this.observe().findings.findings.has(finding)) return { ok: false, errors: [{ path: 'deviation.findingKey',
+              message: `"${finding}" is already an accepted finding; propose a distinct name for this deviation`,
+              expected: 'an unused draft:finding:<subject-name> in this run' }] };
+          }
+          if (checked.ok && checked.value.kind === 'environment' && this.input.record.identityContract === 'descriptive' && 'problemKey' in checked.value) {
+            const proposed = checked.value.problemKey.slice('draft:'.length);
+            const prior = this.events('environment-reported').find(event => event.data.problem === proposed);
+            if (prior !== undefined) return { ok: false, errors: [{ path: 'problemKey', message: `"${proposed}" is already the environment problem of ${prior.data.request}; propose a distinct name for this request`, expected: 'an unused draft:environment-problem:<subject-name> in this run' }] };
+          }
           if (!checked.ok || checked.value.kind !== 'deviation' || checked.value.deviation.scenarios.length === 0) return checked;
           try { await this.ports.gates.validateFeatureTargets(this.ports.gates.expectedFeatures()); }
           catch (error) {
@@ -2616,10 +2641,18 @@ export class WorkCoordination {
         return null;
       }
       if (value.kind === 'deviation') {
-        return this.recordDeviation(item, id, result.id, value.deviation, { path: planFile, text: plan }, catalog);
+        const accepted = await this.recordDeviation(item, id, result.id, value.deviation, { path: planFile, text: plan }, catalog);
+        if (accepted?.kind === 'retry') {
+          await this.ports.write({ type: 'fork-name-rejected', data: { request: id, invocation: result.id,
+            field: accepted.field, message: accepted.reason } });
+          continue;
+        }
+        return accepted;
       }
       if (value.kind === 'environment') {
-        return this.reportEnvironment(item, request, result.id, value);
+        const reported = await this.reportEnvironment(item, request, result.id, value);
+        if (reported === 'retry-name') continue;
+        return reported;
       }
 
       // A placement fix: the evidence must still be what the fork decided on.
@@ -2653,10 +2686,11 @@ export class WorkCoordination {
     body: DeviationBody,
     plan: { readonly path: string; readonly text: string },
     catalog: ElementCatalog,
-  ): Promise<UnresolvedResolution | null> {
+  ): Promise<UnresolvedResolution | { readonly kind: 'retry'; readonly field: string; readonly reason: string } | null> {
     const recorded = this.events('plan-deviation-recorded').length;
-    const held = recorded >= this.deviationLimit();
-    const id = planDeviationId(recorded + 1);
+    let held = recorded >= this.deviationLimit();
+    const descriptive = this.input.record.identityContract === 'descriptive';
+    const id = descriptive && 'deviationKey' in body ? body.deviationKey.slice('draft:'.length) : planDeviationId(recorded + 1);
     const current = this.observe().records;
     const workItems = [...new Set([item.id, ...body.workItems])];
     const modules = [...new Set(workItems.flatMap(workItem => {
@@ -2672,8 +2706,12 @@ export class WorkCoordination {
     let deviation: PlanDeviation | undefined;
     const committed = await this.ports.commitFinding(({ history, state }) => {
       if (eventsOf(history.events, 'plan-deviation-recorded').some(event => event.data.request === request)) return { stale: `${request} is already answered with a deviation` };
+      held = eventsOf(history.events, 'plan-deviation-recorded').length >= this.deviationLimit();
+      if (descriptive && (eventsOf(history.events, 'plan-deviation-recorded').some(event => event.data.deviation === id)
+        || eventsOf(history.events, 'nonfunctional-deviation-recorded').some(event => event.data.deviation === id)))
+        return { stale: `deviation.deviationKey ${id} conflicts with an accepted plan deviation; propose another descriptive name` };
       const record = planDeviationSchema.parse({
-        schema: 'ramify-agent.plan-deviation/1',
+        schema: descriptive ? 'ramify-agent.plan-deviation/2' : 'ramify-agent.plan-deviation/1',
         id,
         request,
         workItem: item.id,
@@ -2690,7 +2728,7 @@ export class WorkCoordination {
         workItems,
         modules,
         scenarios,
-        checkFinding: nextCheckFinding(state),
+        checkFinding: descriptive && 'findingKey' in body ? body.findingKey.slice('draft:'.length) : nextCheckFinding(state),
         held,
       } satisfies PlanDeviation);
       deviation = record;
@@ -2706,6 +2744,10 @@ export class WorkCoordination {
       };
     }, this.ports.now());
     if (committed.kind === 'refused' && committed.refusal.reason === 'run-ended') return null;
+    if (descriptive && committed.kind === 'refused' && (committed.refusal.reason === 'stale-basis'
+      || (committed.refusal.reason === 'check-finding' && committed.refusal.rejection.code === 'finding-name-conflict'))) {
+      return { kind: 'retry', field: committed.refusal.reason === 'check-finding' ? 'deviation.findingKey' : 'deviation.deviationKey', reason: committed.refusal.message };
+    }
     if (committed.kind !== 'committed' || deviation === undefined) {
       await this.ports.fail('internal', `Plan deviation ${id} of ${request} could not be recorded: ${committed.kind === 'refused' ? committed.refusal.message : 'it was already recorded'}`);
       return null;
@@ -2728,21 +2770,26 @@ export class WorkCoordination {
     request: UnresolvedRequest,
     invocation: string,
     body: EnvironmentBody,
-  ): Promise<UnresolvedResolution | null> {
-    const id = environmentProblemId(this.events('environment-reported').length + 1);
+  ): Promise<UnresolvedResolution | 'retry-name' | null> {
+    const id = this.input.record.identityContract === 'descriptive' && 'problemKey' in body
+      ? body.problemKey.slice('draft:'.length)
+      : environmentProblemId(this.events('environment-reported').length + 1);
     let problem: EnvironmentProblem | undefined;
     const committed = await this.ports.commitFinding(({ history, state }) => {
       if (eventsOf(history.events, 'environment-reported').some(event => event.data.request === request.id)) return { stale: `${request.id} is already answered with an environment problem` };
+      if (eventsOf(history.events, 'environment-reported').some(event => event.data.problem === id)) return { stale: `${id} is already an accepted environment problem in this run` };
       const record = environmentProblemSchema.parse({
-        schema: 'ramify-agent.environment-problem/1',
+        schema: this.input.record.identityContract === 'descriptive' ? 'ramify-agent.environment-problem/2' : 'ramify-agent.environment-problem/1',
         id,
         request: request.id,
         workItem: item.id,
         invocation,
         diagnosis: body.diagnosis,
         suggestion: body.suggestion,
-        checkFinding: nextCheckFinding(state),
-      } satisfies EnvironmentProblem);
+        ...(this.input.record.identityContract === 'descriptive' && 'findingKey' in body ? { findingKey: body.findingKey } : {}),
+        checkFinding: this.input.record.identityContract === 'descriptive' && 'findingKey' in body
+          ? body.findingKey.slice('draft:'.length) : nextCheckFinding(state),
+      });
       problem = record;
       return {
         commands: environmentCommands(state, record, request, item.module),
@@ -2756,6 +2803,19 @@ export class WorkCoordination {
       };
     }, this.ports.now());
     if (committed.kind === 'refused' && committed.refusal.reason === 'run-ended') return null;
+    if (this.input.record.identityContract === 'descriptive' && committed.kind === 'refused') {
+      const refusal = committed.refusal;
+      const field = refusal.reason === 'stale-basis' && refusal.message.includes(id)
+        ? 'problemKey'
+        : refusal.reason === 'check-finding' && refusal.rejection.code === 'finding-name-conflict'
+          ? 'findingKey' : null;
+      if (field !== null) {
+        await this.ports.write({ type: 'fork-name-rejected', data: {
+          request: request.id, invocation, field, message: refusal.message,
+        } });
+        return 'retry-name';
+      }
+    }
     if (committed.kind !== 'committed' || problem === undefined) {
       await this.ports.fail('internal', `Environment problem ${id} of ${request.id} could not be recorded: ${committed.kind === 'refused' ? committed.refusal.message : 'it was already recorded'}`);
       return null;

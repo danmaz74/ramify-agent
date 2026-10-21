@@ -1,4 +1,4 @@
-import { reviewSubmissionSchema } from '../../../../../reviews/src/interfaces/submissions.js';
+import { descriptiveReviewSubmissionSchema, reviewSubmissionSchema } from '../../../../../reviews/src/interfaces/submissions.js';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { checkFindingIdSchema } from '../../../../../check-findings/src/interfaces/check-findings.js';
@@ -92,7 +92,7 @@ const missingSchema = z.array(z.object({ path: text, reason: text }).strict());
 
 /** Why an attempt did not verify its scope. None of these is a clean review. */
 export const notVerifiedReasonSchema = z.enum([
-  'invalid-output', 'unavailable', 'timed-out', 'execution-failed', 'deadline',
+  'invalid-output', 'name-conflict', 'unavailable', 'timed-out', 'execution-failed', 'deadline',
   'queue-overflow', 'no-time-before-deadline', 'stopped',
 ]);
 export type NotVerifiedReason = z.infer<typeof notVerifiedReasonSchema>;
@@ -133,7 +133,11 @@ export const reviewSubmissionRecordSchema = reviewSubmissionSchema.extend({
   schema: z.literal('ramify-agent.review-submission/1'),
   attempt: reviewAttemptIdSchema,
 }).strict();
-export type ReviewSubmissionRecord = z.infer<typeof reviewSubmissionRecordSchema>;
+export const descriptiveReviewSubmissionRecordSchema = descriptiveReviewSubmissionSchema.extend({
+  schema: z.literal('ramify-agent.review-submission/2'),
+  attempt: reviewAttemptIdSchema,
+}).strict();
+export type ReviewSubmissionRecord = z.infer<typeof reviewSubmissionRecordSchema> | z.infer<typeof descriptiveReviewSubmissionRecordSchema>;
 
 // The events' data. The run log imports these.
 

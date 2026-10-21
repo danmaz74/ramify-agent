@@ -169,4 +169,17 @@ describe('a reviewer submission', () => {
     ]) expect(validateReview(value, evidence).ok).toBe(false);
     expect(validateReview({ concerns: [concern('src/gone.ts')] }, evidence).ok).toBe(true);
   });
+
+  test('descriptive reviews require distinct local finding keys and keep legacy submissions readable', async () => {
+    const { snapshot: candidate } = await snapshot();
+    const evidence = { snapshot: candidate, inspected: new Set<string>(), read: new Map<string, string>(), maxConcerns: 2 };
+    const named = { ...concern('src/a.ts'), findingKey: 'draft:finding:missing-companion-export' };
+    expect(validateReview({ concerns: [named] }, evidence, 'descriptive').ok).toBe(true);
+    expect(validateReview({ concerns: [concern('src/a.ts')] }, evidence, 'legacy').ok).toBe(true);
+    expect(validateReview({ concerns: [concern('src/a.ts')] }, evidence, 'descriptive')).toMatchObject({ ok: false });
+    expect(validateReview({ concerns: [{ ...named, findingKey: 'finding:missing-companion-export' }] }, evidence, 'descriptive')).toMatchObject({ ok: false });
+    expect(validateReview({ concerns: [named, named] }, evidence, 'descriptive')).toMatchObject({
+      ok: false, errors: [expect.objectContaining({ path: 'concerns.1.findingKey' })],
+    });
+  });
 });
