@@ -1941,7 +1941,8 @@ export class AutonomousRunService {
       baseline: baseline.reference,
       // The plan's own scenarios, extracted once from the captured bytes. A
       // block that does not parse is a limitation, never a refusal.
-      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured), undefined, identityContract),
+      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured),
+        identityContract === 'descriptive' ? capturedDocuments.manifest.root : undefined, identityContract),
       reviewStop,
       ...(breakpoint === undefined ? {} : { breakpoint }),
     });

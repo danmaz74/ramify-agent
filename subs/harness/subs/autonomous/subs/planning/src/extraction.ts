@@ -8,6 +8,7 @@ import {
   type ElementCatalog, type ElementKind,
 } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import { extractPlanScenarios, type PlanScenario } from '../../../../scenarios/src/extraction.js';
+import { nonBehavioralAcceptanceSchema } from '../../../../scenarios/src/form.js';
 import type { SubmissionError, SubmissionValidation } from '../../../../task-execution/src/submissions.js';
 import { incorporationSchema, submittedIncorporationSchema, type Incorporation } from './evidence-contracts.js';
 import type { CatalogFinding } from './records.js';
@@ -63,6 +64,8 @@ export const checkSubmissionSchema = z.object({
   /** Entries whose citations change, with their complete new lists. */
   entries: z.array(z.object({
     capability: text, requirementRefs: citationList, acceptanceRefs: citationList, contextRefs: citationList,
+    /** Complete declarations when a correction changes non-behavioral acceptance. */
+    nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema).optional(),
   }).strict()),
   /** Scenarios whose citations change, by the architect's scenario key, with their complete new list. */
   scenarios: z.array(z.object({ key: text, refs: citationList }).strict()),
@@ -86,11 +89,19 @@ const descriptiveCitation = (family: 'functionalRequirement' | 'context') => {
 };
 const functionalCitation = descriptiveCitation('functionalRequirement');
 const contextCitation = descriptiveCitation('context');
+const descriptiveNonBehavioralAcceptance = z.object({
+  functionalAcceptanceCitation: functionalCitation,
+  kind: z.literal('non-behavioral'),
+  test: text,
+}).strict();
 export const descriptiveCheckSubmissionSchema = z.object({
   corrections: z.array(descriptiveCorrectionSchema),
   entries: z.array(z.object({ capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
     functionalRequirementCitations: z.array(functionalCitation), functionalAcceptanceCitations: z.array(functionalCitation),
-    contextCitations: z.array(contextCitation) }).strict()),
+    contextCitations: z.array(contextCitation),
+    /** Complete declarations, including registered test identities, for this corrected entry. */
+    nonBehavioralAcceptance: z.array(descriptiveNonBehavioralAcceptance),
+  }).strict()),
   scenarios: z.array(z.object({ scenarioKey: z.string().regex(/^draft:scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/),
     functionalAcceptanceCitations: z.array(functionalCitation) }).strict()),
 }).strict();
@@ -101,6 +112,9 @@ export function normalizeDescriptiveCheck(value: DescriptiveCheckSubmission): Ch
   return { corrections: value.corrections, entries: value.entries.map(entry => ({
     capability: entry.capabilityId.slice('capability:'.length), requirementRefs: entry.functionalRequirementCitations.map(citation),
     acceptanceRefs: entry.functionalAcceptanceCitations.map(citation), contextRefs: entry.contextCitations.map(citation),
+    nonBehavioralAcceptance: entry.nonBehavioralAcceptance.map(item => ({
+      ref: citation(item.functionalAcceptanceCitation), kind: item.kind, test: item.test,
+    })),
   })), scenarios: value.scenarios.map(scenario => ({ key: scenario.scenarioKey, refs: scenario.functionalAcceptanceCitations.map(citation) })) };
 }
 
@@ -191,6 +205,9 @@ export function applyCheck(state: CheckState, document: string, invocation: stri
       requirementRefs: resolve(entry.requirementRefs, `entries.${index}.requirementRefs`),
       acceptanceRefs: resolve(entry.acceptanceRefs, `entries.${index}.acceptanceRefs`),
       contextRefs: resolve(entry.contextRefs, `entries.${index}.contextRefs`),
+      ...(entry.nonBehavioralAcceptance === undefined ? {} : { nonBehavioralAcceptance: entry.nonBehavioralAcceptance.map((item, position) => ({
+        ...item, ref: resolve([item.ref], `entries.${index}.nonBehavioralAcceptance.${position}.ref`)[0]!,
+      })) }),
     }] as const;
   }));
   const keys = new Set(state.analysis.scenarios.map(scenario => scenario.key));
@@ -341,7 +358,8 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
   if ('unavailable' in rendered) throw new Error(`The catalog cannot render its own elements: ${rendered.unavailable.missing.join(', ')}`);
   const cited = new Set(ids);
   const plan = inputs.manifest.documents.find(item => item.id === document)?.kind === 'plan';
-  const entries = state.analysis.entries.filter(entry => [...entry.requirementRefs, ...entry.acceptanceRefs, ...entry.contextRefs].some(id => cited.has(id)));
+  const entries = state.analysis.entries.filter(entry => [...entry.requirementRefs, ...entry.acceptanceRefs, ...entry.contextRefs,
+    ...(entry.nonBehavioralAcceptance?.map(item => item.ref) ?? [])].some(id => cited.has(id)));
   const scenarios = state.analysis.scenarios.filter(scenario => (scenario.refs ?? []).some(id => cited.has(id)));
   const origins = planScenarios.filter(scenario => (scenario.document ?? inputs.manifest.root) === document);
   return [
@@ -359,7 +377,7 @@ export function checkMessage(inputs: ExtractionInputs, document: string, state: 
       })),
       '', '# The entries and scenarios that cite them', '',
       ...(entries.length === 0 ? ['None.'] : entries.map(entry =>
-        `- Entry ${entry.capability}: ${entry.description} Requirements: ${entry.requirementRefs.join(', ') || 'none'}; acceptance: ${entry.acceptanceRefs.join(', ') || 'none'}; context: ${entry.contextRefs.join(', ') || 'none'}.`)),
+        `- Entry ${entry.capability}: ${entry.description} Requirements: ${entry.requirementRefs.join(', ') || 'none'}; acceptance: ${entry.acceptanceRefs.join(', ') || 'none'}; context: ${entry.contextRefs.join(', ') || 'none'}; non-behavioral acceptance: ${entry.nonBehavioralAcceptance?.map(item => `${item.ref} (registered test ${item.test})`).join(', ') || 'none'}.`)),
       ...scenarios.map(scenario => `- Scenario ${scenario.key} of ${scenario.entry}: cites ${(scenario.refs ?? []).join(', ')}.`)] : []),
     '', `Submit with \`${checkToolName}\`; an empty \`corrections\` list says the reading is faithful.`,
   ].join('\n');
