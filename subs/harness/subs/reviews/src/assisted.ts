@@ -13,27 +13,44 @@ export interface AssistedRequirement {
   readonly text: string;
 }
 
-const requirementAnswerSchema = z.object({
+const iterationRequirementAnswerSchema = z.object({
   ref: z.string().min(1),
   outcome: z.enum(['met', 'unmet', 'uncertain']),
   explanation: z.string().min(1).max(4000),
   evidencePaths: z.array(z.string().min(1)).max(50),
-  /** Final review may cite actual accepted iteration reports; explanation states why they apply. */
-  evidenceRefs: z.array(z.string().min(1)).max(50).optional(),
   /** All other obligations are met; only these factual protection choices remain. */
   pendingProtection: z.array(z.string().min(1)).min(1).max(50).optional(),
 }).strict();
 
-/** A combined code/scope report with optional legacy inspection records. */
-export const assistedReviewSubmissionSchema = reviewSubmissionSchema.extend({
-  codeAssessment: z.string().min(1).max(4000),
-  scopeAssessment: z.string().min(1).max(4000),
-  design: z.object({ needed: z.boolean(), reason: z.string().min(1).max(4000), assessment: z.string().min(1).max(4000) }).strict(),
-  requirements: z.array(requirementAnswerSchema).max(500),
-  /** Legacy limitation prose; retained without imposing an automatic coverage gate. */
-  coverageGap: z.string().min(1).max(4000).nullable().optional(),
+/** Final review may cite actual accepted iteration reports; explanation states why they apply. */
+const finalRequirementAnswerSchema = iterationRequirementAnswerSchema.extend({
+  evidenceRefs: z.array(z.string().min(1)).max(50).optional()
+    .describe('Accepted iteration review references listed in the task, for example assessments/as-0001/stages/review.json. The explanation states why each applies to this candidate. Other record or diff references are for inspection, not evidence.'),
 }).strict();
+
+function assistedReviewSchema<T extends z.ZodRawShape>(answer: z.ZodObject<T>) {
+  return reviewSubmissionSchema.extend({
+    codeAssessment: z.string().min(1).max(4000),
+    scopeAssessment: z.string().min(1).max(4000),
+    design: z.object({ needed: z.boolean(), reason: z.string().min(1).max(4000), assessment: z.string().min(1).max(4000) }).strict(),
+    requirements: z.array(answer).max(500),
+    /** Legacy limitation prose; retained without imposing an automatic coverage gate. */
+    coverageGap: z.string().min(1).max(4000).nullable().optional(),
+  }).strict();
+}
+
+/** A combined code/scope report with optional legacy inspection records; accepts both iteration and final submissions. */
+export const assistedReviewSubmissionSchema = assistedReviewSchema(finalRequirementAnswerSchema);
 export type AssistedReviewSubmission = z.infer<typeof assistedReviewSubmissionSchema>;
+
+/**
+ * The submission shape declared to the reviewer. Only the final review offers evidenceRefs: an
+ * iteration review has no accepted iteration evidence to cite, so offering the field there only
+ * invites rejected submissions.
+ */
+export function assistedReviewDeclarationSchema(kind: 'iteration' | 'final' | undefined) {
+  return kind === 'final' ? assistedReviewSubmissionSchema : assistedReviewSchema(iterationRequirementAnswerSchema);
+}
 
 export interface AssistedReviewBriefing {
   readonly id: string;
@@ -98,7 +115,9 @@ export function validateAssistedReview(value: unknown, evidence: ReviewEvidence,
     seen.add(answer.ref);
     if (answer.pendingProtection && (answer.outcome !== 'unmet' || answer.pendingProtection.some(path => !protectionPaths.includes(path))))
       errors.push({ path: `${where}.pendingProtection`, message: 'Pending protection requires an unmet answer and exact factual unauthorized paths; all other obligations must be satisfied' });
-    for (const [at, ref] of (answer.evidenceRefs ?? []).entries()) {
+    if (answer.evidenceRefs !== undefined && acceptedReviewRefs === undefined)
+      errors.push({ path: `${where}.evidenceRefs`, message: 'evidenceRefs applies only to a final assessment; omit it and cite candidate evidencePaths' });
+    else for (const [at, ref] of (answer.evidenceRefs ?? []).entries()) {
       if (!acceptedReviewRefs?.includes(ref)) errors.push({ path: `${where}.evidenceRefs.${at}`, message: 'Reference must identify an available, completed, accepted iteration review supplied for this final assessment' });
     }
     if ((answer.outcome === 'met' || answer.pendingProtection) && answer.evidencePaths.length === 0

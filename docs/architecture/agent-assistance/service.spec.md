@@ -136,7 +136,9 @@ are available through ordinary inspection and `assessment_evidence`.
 Completed, successfully submitted iteration reviews may support requirement
 answers through optional `evidenceRefs`; `explanation` states why they apply to the
 final candidate. References must name supplied accepted review stage records from
-before this assessment. Final, future, interrupted, unavailable or unsubmitted
+before this assessment. Only the final review's submission tool declares
+`evidenceRefs`; an iteration review that names it is rejected as final-only, since
+no accepted iteration evidence exists for it to cite. Final, future, interrupted, unavailable or unsubmitted
 reviews cannot be invented as accepted iteration evidence. An action-required
 assessment can supply accepted review evidence while its unmet/uncertain answers
 and protection status remain explicit; accepted submission does not mean the plan

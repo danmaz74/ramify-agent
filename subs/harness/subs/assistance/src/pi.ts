@@ -4,7 +4,7 @@ import type { SessionOperations, SessionExecutionPolicy, SessionTaskInput, Sessi
 import type { SubmissionValidation } from '../../task-execution/src/submissions.js';
 import { rejectionAnswer } from '../../task-execution/src/submissions.js';
 import type { AssistedReviewSubmission } from '../../reviews/src/assisted.js';
-import { assistedReviewSubmissionSchema } from '../../reviews/src/assisted.js';
+import { assistedReviewDeclarationSchema } from '../../reviews/src/assisted.js';
 import type { PreparedReview } from '../../reviews/src/preparation.js';
 import { z } from 'zod';
 
@@ -108,6 +108,6 @@ export function runAssistedPiReview(input: AssistedPiReviewInput): Promise<PiAss
       ? 'You assess final plan completeness, cross-iteration integration, remaining fixed/nonfunctional obligations and architectural quality. Reuse accepted iteration evidence with explained applicability; revisit behavior for later changes, conflicting evidence, unresolved limitations or concrete integration concerns. Avoid unnecessary complexity and preserve clean modularity. Raise architectural findings only for concrete practical consequences and propose the smallest useful correction, avoiding speculative redesign or settled issues without new evidence. Full records, source and individual/cumulative diffs are available on demand. Do not edit source. Preserve genuine uncertainty, unmet requirements and exact protection authority. Submit only through submit_assisted_review.'
       : 'You are an independent reviewer of one pinned candidate. Review code and intended scope together. Use the supplied candidate inspection tools, including shell. Select relevant inspection and report meaningful limitations without an exhaustive file inventory. Do not edit source. A claim about an audit is limited to the factual audit status in the task. Answer each acceptance reference, including absent implementation. Submit only through submit_assisted_review.',
     submission: { name: 'submit_assisted_review', description: input.kind === 'final' ? 'Submit the final plan completeness, integration, architecture and remaining-obligation assessment.' : 'Submit the combined code, scope, design-need and acceptance coverage report.',
-      inputSchema: z.toJSONSchema(assistedReviewSubmissionSchema, { io: 'input' }) as JsonSchema, validate: input.prepared.validate },
+      inputSchema: z.toJSONSchema(assistedReviewDeclarationSchema(input.kind), { io: 'input' }) as JsonSchema, validate: input.prepared.validate },
   });
 }

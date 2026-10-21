@@ -53,6 +53,24 @@ describe('assisted Pi assessment', () => {
     const recorded = JSON.stringify((await store.read(base.runId, 'operation:final-review'))?.body);
     for (const phrase of ['final plan completeness', 'cross-iteration integration', 'architectural quality', 'smallest useful correction', 'accepted iteration evidence']) expect(recorded).toContain(phrase);
     expect(recorded).not.toContain('Review code and intended scope together.');
+    expect(recorded).toContain('evidenceRefs');
+  });
+
+  it('declares no evidenceRefs field to an iteration review', async () => {
+    const store = memoryStore();
+    const report = { concerns: [], codeAssessment: 'Code holds.', scopeAssessment: 'Scope complete.',
+      design: { needed: false, reason: 'No boundary change.', assessment: 'Boundaries preserved.' }, requirements: [] };
+    const operations = createSessionOperations({ sessionStore: store, driver: createScriptedSessionDriver([{ kind: 'submit', input: report }]) });
+    const result = await runAssistedPiReview({ runId: base.runId, operationId: 'iteration-review', projectRoot: base.projectRoot,
+      candidate: base.candidate, tree: base.tree, operations, prepared: {
+        message: 'Combined code and scope review.', candidateDiff: 'diff', tools: { definitions: [], read: () => new Map(), inspected: () => new Set(), denials: () => [] },
+        validate: value => { const checked = assistedReviewSubmissionSchema.safeParse(value); return checked.success
+          ? { ok: true, value: checked.data } : { ok: false, errors: [{ path: 'report', message: 'Invalid report' }] }; },
+      } });
+    expect(result.status).toBe('submitted');
+    const recorded = JSON.stringify((await store.read(base.runId, 'operation:iteration-review'))?.body);
+    expect(recorded).toContain('submit_assisted_review');
+    expect(recorded).not.toContain('evidenceRefs');
   });
 
   it('runs read-only snapshot tools, returns only a validated submission and retains operation evidence', async () => {
