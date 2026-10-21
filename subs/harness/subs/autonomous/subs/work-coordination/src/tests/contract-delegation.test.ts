@@ -7,7 +7,7 @@ import { scriptedCandidates } from '../../../acceptance/src/tests/helpers/candid
 import { copyFixture } from '../../../../../../src/tests/helpers/fixture.js';
 import { localDecision, registryChange } from './helpers/placement.js';
 import { addModule, assign, byRole, completionProposed, installMiniRunner, outline, submit, treeInputs, write } from '../../../../../../src/tests/helpers/iterations.js';
-import { onlyRun, openRuns, runEventsOnDisk, runPath, startRun } from '../../../../../../src/tests/helpers/runs.js';
+import { freeze, onlyRun, openRuns, runEventsOnDisk, runPath, staleCrashLock, startRun } from '../../../../../../src/tests/helpers/runs.js';
 import { accepted, added, answeredGit, modified, unchanged, type CommitResponse, scenariosCommitted } from './helpers/contracts-git.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import type { RunEvent } from '../../../../src/run/log.js';
@@ -16,6 +16,7 @@ import { workLayout, type WorkItem } from '../work/records.js';
 import { iterationLayout, type IterationResult } from '../work/iterations.js';
 import { runLayout } from '../../../../src/run/records.js';
 import type { GateAttempt } from '../../../acceptance/src/checks/records.js';
+import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 
 vi.mock('node:child_process', async original =>
   (await import('../../../../../../src/tests/helpers/process-guard.js')).guardedChildProcess(await original<typeof import('node:child_process')>()));
@@ -292,6 +293,89 @@ async function readJson<T>(root: string, runId: string, path: string): Promise<T
 }
 
 describe('P1: one consumer delegates, resumes after provider conformance and verifies against the real provider', () => {
+  test('restart after a passed contract gate reuses its writer and registers the agreement once', async () => {
+    const root = await target();
+    const tree = 'a'.repeat(40);
+    const commits = delegationCommits('wi-001.i03');
+    const git = answeredGit(root, { head: 'revision-00', commits: [scenariosCommitted('review-notes'), ...commits],
+      previews: ['revision-01', 'revision-03', 'revision-03', 'revision-03', 'revision-03']
+        .map(head => ({ repositoryRoot: root, head, tree })) });
+    const candidates = scriptedCandidates(root, {
+      'revision-01': { tree, base: 'scenarios-of-review-notes', files: {}, changes: [] },
+      'revision-03': { tree, base: 'revision-02', files: {}, changes: [] },
+    });
+    const passing = passingAudit();
+    const audited: string[] = [];
+    const configuredAudit = { read: passing.read, async run(input: Parameters<typeof passing.run>[0]) {
+      audited.push(input.attemptId);
+      return passing.run(input);
+    } };
+    let crashed!: () => void;
+    const atCut = new Promise<void>(resolve => { crashed = resolve; });
+    let frozen = false;
+    const first = await openRuns(root, {
+      script: byRole({
+        'initial-architect': [submit(analysis([entry('review-notes', consumer)]))],
+        'local-architect': [submit({ ...assign(consumer, {}, outline()), localDecisions: [placeTheLimit] })],
+        engineer: [submit(contractNeeded)],
+        'contract-engineer': [submit(establishedContract, ...contractWrites)],
+      }), inputs: treeInputs(), git, candidates, configuredAudit,
+      afterWrite: async (write, runId) => {
+        if (frozen) return freeze();
+        if (write !== 'gate-committed') return;
+        const log = await events(root, runId);
+        if (!log.some(event => event.type === 'gate-attempted' && event.data.checkpoint === 'contract' && event.data.verdict === 'passed')) return;
+        frozen = true;
+        crashed();
+        return freeze();
+      },
+    });
+    const receipt = await first.service.execute(startRun('review-notes'));
+    await atCut;
+    const before = await events(root, receipt.jobId);
+    const contractGate = before.find((event): event is Extract<RunEvent, { type: 'gate-attempted' }> =>
+      event.type === 'gate-attempted' && event.data.checkpoint === 'contract')!;
+    expect(before.some(event => event.type === 'contract-registered')).toBe(false);
+    expect(audited.filter(id => id === contractGate.data.gate)).toHaveLength(1);
+    await staleCrashLock(root);
+    const restarted = await openRuns(root, {
+      script: byRole({
+        'local-architect': [
+          submit({ kind: 'yield-for-providers', requirements: ['rq-001'], summary: 'The consumer waits for the real limit.' }),
+          submit(assign(provider, {}, outline({ changes: 'Implement the agreed limit.' }))),
+          submit(requestCompletion()),
+          submit(assign(consumer, { kind: 'verification', goal: 'Replace the fake with the real note limit.' })),
+          submit(requestCompletion()),
+        ],
+        engineer: [
+          submit(completionProposed('The real note limit is implemented.'),
+            write(join(root, providerDirectory, 'src/note-limit.ts'), realProvider),
+            write(join(root, providerDirectory, 'src/tests/note-limit.subjects.ts'), bothSubjects)),
+          submit(completionProposed('The consumer uses the real note limit.'),
+            write(join(root, consumerDirectory, 'src/notes.ts'), verified)),
+        ],
+        'contract-engineer': [[{ kind: 'end', message: 'A second contract writer must not start.' }]],
+      }), inputs: treeInputs(), git, candidates, configuredAudit,
+    });
+    cleanups.push(() => restarted.service.close());
+    await restarted.service.settled('review-notes', receipt.jobId);
+    const after = await events(root, receipt.jobId);
+    expect(onlyRun(restarted.service, 'review-notes').state, JSON.stringify(onlyRun(restarted.service, 'review-notes').failure)).toBe('completed');
+    expect(after.filter(event => event.type === 'invocation-started' && event.data.role === 'contract-engineer')).toHaveLength(1);
+    expect(after.filter(event => event.type === 'gate-attempted' && event.data.checkpoint === 'contract')).toEqual([contractGate]);
+    expect(audited.filter(id => id === contractGate.data.gate)).toHaveLength(1);
+    expect(after.filter(event => event.type === 'contract-registered')).toHaveLength(1);
+    expect(after.filter(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i02')).toHaveLength(1);
+    expect(after.filter(event => event.type === 'provider-conformed')).toHaveLength(1);
+    expect(after.filter(event => event.type === 'requirement-verified')).toHaveLength(1);
+    expect(git.minted()).toEqual(['scenarios-of-review-notes', 'revision-01', 'revision-02', 'revision-03']);
+    git.assertAnswered();
+    await restarted.service.close(); cleanups.pop();
+    const again = await openRuns(root, { git, candidates, configuredAudit });
+    cleanups.push(() => again.service.close());
+    expect(await events(root, receipt.jobId)).toEqual(after);
+    expect(audited.filter(id => id === contractGate.data.gate)).toHaveLength(1);
+  }, 60_000);
   test('the delegation runs end to end and only the real provider closes it', async () => {
     const root = await target();
     const { service, runId, git } = await run(root, {

@@ -2929,7 +2929,10 @@ export class AutonomousRunService {
           && !run.log.all('contract-requested').some(contract => contract.data.requestedBy === assigned.data.iteration
             && !committedRecords(run.log.ledger.replay()).results.has(contract.data.iteration)))
         || run.log.all('gate-attempted').some(attempt => { const gate = gateAttemptSchema.safeParse(this.committedBody(run, runLayout.gate(attempt.data.gate))); return gate.success && gate.data.proposedBy === event.data.invocation && gate.data.verdict !== 'passed'; })))
-      && !(['engineer', 'contract-engineer'].includes(request.role) && run.log.all('gate-attempted').some(attempt => {
+      // The ordinary engineer closes a passed gate directly and must repair a
+      // failed one with a new submission. Contract sessions still replay a
+      // passed submission to finish registration against that retained gate.
+      && !(request.role === 'engineer' && run.log.all('gate-attempted').some(attempt => {
         const gate = gateAttemptSchema.safeParse(this.committedBody(run, runLayout.gate(attempt.data.gate)));
         return gate.success && gate.data.proposedBy === event.data.invocation;
       }))
