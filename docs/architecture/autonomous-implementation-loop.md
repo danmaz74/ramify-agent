@@ -877,8 +877,10 @@ coverage and unavailable reasons. Included child subtrees are included in this
 preparation. Architect-view metadata cannot certify these views.
 
 The common gate commits the candidate before checking it. A commit records a
-candidate, not an accepted iteration. A passing gate closes the ordinary result
-and schedules ordinary reviews; explicit partial work remains partial. Task
+candidate, not an accepted iteration. It requests eligible semantic reviews
+on that candidate while the configured audit runs. A passing gate closes the
+ordinary result; a failed gate retains its candidate's settled reviews before
+the repair handback. Explicit partial work remains partial. Task
 completion uses the common project-check and review-reconciliation machinery,
 then returns to the suspended consumer assignment. It does not complete the
 consumer's broader goal or a provider's independently queued entry.
@@ -909,10 +911,10 @@ It uses the existing placement and delegation rules when another owner is
 needed; the failure does not authorize a module engineer to expand its own writes.
 
 ```text
-engineering -> completion requested -> checking -> accepted iteration result
+engineering -> candidate prepared -> audit and semantic review
                     ^                    |
-                    |                    +-> failures -> engineer repairs
-                    +---------------------------------------+
+                    |                    +-> passing audit -> accepted iteration result
+                    +--------------------+-> failed audit and settled review -> engineer repairs
 
 work-item completion requested -> global checking -> completed work item
                                      |

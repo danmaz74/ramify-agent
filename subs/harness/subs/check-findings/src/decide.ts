@@ -64,11 +64,14 @@ function decideReport(state: CheckFindingState, report: CheckFindingReportInput)
   if (report.observation.kind === 'check-failed' && report.verification.kind !== 'check') {
     return reject('invalid-report', 'a failed check is verified by a check of its obligation');
   }
+  if (report.observation.kind === 'audit-instability' && (report.verification.kind !== 'assessment' || report.judgment !== null)) {
+    return reject('invalid-report', 'provider-established test instability requires assessment of its origin');
+  }
   if (report.verification.kind === 'check' && report.verification.producer !== report.producer) {
     return reject('invalid-report', `a ${report.producer} report cannot name ${report.verification.producer} as the producer that verifies it`);
   }
-  if ((report.observation.kind === 'check-failed') !== (report.credibility === 'objective')) {
-    return reject('invalid-report', 'a failed check is objective, and a review concern is credited by its ground');
+  if ((report.observation.kind === 'check-failed' || report.observation.kind === 'audit-instability') !== (report.credibility === 'objective')) {
+    return reject('invalid-report', 'a failed check or provider-established instability is objective, and a review concern is credited by its ground');
   }
   if (report.observation.kind === 'review-concern' && (report.judgment?.ground === null) !== (report.credibility === 'ungrounded')) {
     return reject('invalid-report', 'a review concern is ungrounded exactly when its judgment names no ground');

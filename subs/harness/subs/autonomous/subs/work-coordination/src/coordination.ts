@@ -104,7 +104,7 @@ import { ObservationLog } from '../../../../task-execution/src/observations.js';
 
 import { declaredModuleDirectories } from '../../../../../src/run/project-config.js';
 import { assertScratchSafe } from './work/scratch.js';
-import { gateAttemptSchema } from '../../acceptance/src/gate-records.js';
+import { gateAttemptSchema, gateOperationSchema } from '../../acceptance/src/gate-records.js';
 import { runDirectory } from '../../../src/run/records.js';
 import { measurementSnapshotSchema, snapshotId, type MeasurementSnapshot } from '../../../../kpi/src/run-records.js';
 import { runLayout, type RunPolicy, type RunRecord } from '../../../src/run/records.js';
@@ -189,7 +189,7 @@ import { replayCapabilityState } from './capability/state.js';
 
 
 
-import { reviewLayout } from '../../acceptance/src/reviews/records.js';
+import { reviewAttemptSchema, reviewLayout } from '../../acceptance/src/reviews/records.js';
 
 
 
@@ -595,6 +595,8 @@ export interface CoordinationPorts {
  readonly notify: () => void;
  readonly changed: () => Promise<void>;
  readonly wakeReviews: () => void;
+ readonly settleIterationReviews: (iteration: string, candidate: string) => Promise<boolean>;
+ readonly reportGateInstability: (gate: GateAttempt) => Promise<void>;
  readonly sessionState: (session: SessionId) => SessionState | undefined;
  readonly hasSessionPoint: (agent: AgentPort, runId: string, point: string) => Promise<boolean>;
  readonly appendSession: (agent: AgentPort, ...args: Parameters<HarnessSessionOperations['append']>) => ReturnType<HarnessSessionOperations['append']>;
@@ -4701,6 +4703,15 @@ export class WorkCoordination {
     let repairRound = priorGates.filter(gate => gate.next === 'repair').length;
     let attempt = originalContractInvocation ? priorStarts.length - 1 : priorStarts.length;
     const priorRepair = [...priorGates].reverse().find(gate => gate.next === 'repair');
+    const priorFailedCandidate = [...priorGates].reverse().find(gate => gate.verdict !== 'passed');
+    if (priorFailedCandidate !== undefined) {
+      const prepared = this.events('iteration-candidate-prepared').find(event => event.data.gate === priorFailedCandidate.id);
+      if (prepared !== undefined) {
+        await this.ports.handling.requestReviews({ workItem: prepared.data.workItem, iteration: prepared.data.iteration,
+          gate: prepared.data.gate, commit: prepared.data.candidate, base: prepared.data.base });
+        if (!await this.ports.settleIterationReviews(assignment.id, prepared.data.candidate)) return null;
+      }
+    }
     if (priorRepair) failedGate = await this.ports.diagnosticsOf(priorRepair);
     if (latestStart) {
       const outcome = this.ports.effectiveInvocationOutcome(latestStart.data.invocation);
@@ -5372,12 +5383,16 @@ export class WorkCoordination {
     return { group, submission: parsed.data };
   }
 
-  /** A reviewer may precede result closure; its exact passing gate identifies the proposal. */
+  /** A reviewer may precede both gate settlement and result closure. */
   async engineerStartingPoints(assignment: IterationAssignment, result?: IterationResult, gateId?: string, candidate?: string): Promise<StartingPointGroup> {
     const gate = gateAttemptSchema.safeParse(this.ports.committedBody(runLayout.gate(gateId ?? result?.gate ?? '')));
+    const prepared = this.events('iteration-candidate-prepared').find(event => event.data.gate === gateId
+      && event.data.iteration === assignment.id && (candidate === undefined || event.data.candidate === candidate));
+    const operation = gateOperationSchema.safeParse(this.ports.committedBody(runLayout.gateOperation(gateId ?? '')));
     const matches = gate.success && gate.data.subject.iteration === assignment.id
-      && (candidate === undefined || (gate.data.verdict === 'passed' && gate.data.commit === candidate));
-    const invocation = matches ? gate.data.proposedBy ?? undefined : result?.invocations.at(-1);
+      && (candidate === undefined || prepared !== undefined);
+    const invocation = matches ? gate.data.proposedBy ?? undefined
+      : prepared !== undefined && operation.success ? operation.data.request.proposedBy ?? undefined : result?.invocations.at(-1);
     const records = this.observe().records;
     const record = invocation === undefined ? undefined : records.invocations.get(invocation);
     const outcome = invocation === undefined ? undefined : records.outcomes.get(invocation);
@@ -5392,8 +5407,8 @@ export class WorkCoordination {
         } catch { /* An unavailable optional hint leaves the ordinary review intact. */ }
       }
     }
-    const boundary = result?.commit ?? (matches ? gate.data.commit : null) ?? outcome?.candidateAfter ?? record?.candidateBefore ?? record?.base;
-    return { origin: { producer: result === undefined ? 'engineer completion proposal at passing gate' : `engineer ${result.outcome} result`,
+    const boundary = result?.commit ?? prepared?.data.candidate ?? (matches ? gate.data.commit : null) ?? outcome?.candidateAfter ?? record?.candidateBefore ?? record?.base;
+    return { origin: { producer: result === undefined ? 'engineer completion proposal at prepared candidate' : `engineer ${result.outcome} result`,
       workItem: assignment.workItem, iteration: assignment.id, ...(invocation === undefined ? {} : { invocation }),
       ...(boundary === undefined ? {} : { boundary }),
       ...(assignment.coordination?.kind === 'capability-task' ? { capabilityTask: assignment.coordination.id } : {}) }, points };
@@ -5706,6 +5721,7 @@ export class WorkCoordination {
       const parsed = gateAttemptSchema.safeParse(this.ports.committedBody(runLayout.gate(event.data.gate)));
       return parsed.success && parsed.data.subject.iteration === assignment.id ? [parsed.data] : [];
     });
+    for (const gate of priorGates) await this.ports.reportGateInstability(gate);
     let replay: InvocationResult<EngineerSubmission> | undefined;
     let resourceRestartPredecessor: string | undefined;
     const latestStart = priorStarts.at(-1);
@@ -5742,7 +5758,7 @@ export class WorkCoordination {
     let attempt = priorStarts.length;
     let guidancePending = resume?.guidance;
     const priorRepair = [...priorGates].reverse().find(gate => gate.next === 'repair');
-    if (priorRepair !== undefined) failedGate = await this.ports.acceptance.diagnosticsOf(priorRepair);
+    if (priorRepair !== undefined) failedGate = await this.combinedGateDiagnostics(priorRepair);
     if (priorGates.length > 0) firstCause = { gate: priorGates[0]!.id, cause: priorGates[0]!.cause };
 
     // Closing the iteration closes the work of a session still kept for it.
@@ -6033,6 +6049,12 @@ export class WorkCoordination {
         if (gate === null) return null;
         firstCause ??= { gate: gate.id, cause: gate.cause };
 
+        // The audit result is already retained; collect the same candidate's
+        // semantic review before choosing its repair handback.
+        const preparedCandidate = this.events('iteration-candidate-prepared').find(event => event.data.gate === gate.id);
+        if (gate.verdict !== 'passed' && preparedCandidate !== undefined
+          && !await this.ports.settleIterationReviews(assignment.id, preparedCandidate.data.candidate)) return null;
+
         if (gate.verdict === 'passed') {
           findings.push(...proposal.findings);
           const closed = await this.ports.handling.closeIteration(item, number, assignment, {
@@ -6077,15 +6099,29 @@ export class WorkCoordination {
           // What failed and what it reported travel with the outcome: a
           // cause alone was read as a write outside the assignment, the
           // architect narrowed the file list, and the same failure returned.
-          const returnedGate = await this.ports.acceptance.diagnosticsOf(gate, 'local-architect');
+          const returnedGate = await this.combinedGateDiagnostics(gate, 'local-architect');
           return { ...await close(gate.cause === 'check-failed' ? 'partial' : 'unsuitable'), returnedGate };
         }
         // One repair round: the rerun runs the gate's complete required set.
         repairRound += 1;
-        failedGate = await this.ports.acceptance.diagnosticsOf(gate);
+        failedGate = await this.combinedGateDiagnostics(gate);
         break;
       }
     }
+  }
+
+  /** Keep audit diagnostics and the same candidate's semantic result together at repair handback. */
+  private async combinedGateDiagnostics(gate: GateAttempt, audience: 'engineer' | 'local-architect' = 'engineer') {
+    const diagnostic = await this.ports.acceptance.diagnosticsOf(gate, audience);
+    const requests = this.events('review-request-recorded').filter(event => event.data.gate === gate.id);
+    const semantic = requests.map(request => {
+      const finished = this.events('review-attempt-finished').filter(event => event.data.request === request.data.request && event.data.settles).at(-1);
+      const record = finished === undefined ? null : reviewAttemptSchema.safeParse(this.ports.committedBody(reviewLayout.attempt(finished.data.attempt)));
+      const ids = record?.success ? record.data.checkFindings : [];
+      const concerns = ids.map(id => this.observe().findings.findings.get(id)?.reports.at(-1)?.observation.summary ?? id);
+      return `${request.data.kind} review of candidate ${request.data.candidate}: ${finished?.data.result ?? 'pending'}${concerns.length === 0 ? '; no recorded concerns' : `; concerns: ${concerns.join('; ')}`}`;
+    });
+    return { ...diagnostic, summary: [...diagnostic.summary, ...semantic] };
   }
 
   private async engineerStepInputs(collected: {

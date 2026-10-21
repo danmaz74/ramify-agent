@@ -12,8 +12,8 @@ export type { ReviewGround, ReviewConcern, ReviewSubmission, OrientationSubmissi
 
 /*
  * The durable records of iteration reviews (Plan 12 appendix §3). A request
- * is one review question over one audited candidate, recorded once per key
- * before the driver passes the iteration. An attempt is one execution of
+ * is one review question over one prepared candidate, recorded once per key
+ * before the configured audit completes. An attempt is one execution of
  * it, and only its terminal record is committed: a queued attempt is the
  * durable request without a settling attempt, and a running one has its
  * start and no finish. The CheckFindings a finished attempt promotes travel
@@ -53,14 +53,14 @@ export const forkPointSchema = z.discriminatedUnion('kind', [
 ]);
 export type ForkPoint = z.infer<typeof forkPointSchema>;
 
-/** One review question over one audited candidate, immutable once recorded. */
+/** One review question over one prepared candidate, immutable once recorded. */
 export const reviewRequestSchema = z.object({
   schema: z.literal('ramify-agent.review-request/1'),
   id: reviewRequestIdSchema,
   /** One request per key. */
   key: z.object({
     iteration: text,
-    /** The audited commit of the passing iteration gate. */
+    /** The prepared source commit of the iteration candidate. */
     candidate: text,
     kind: reviewKindSchema,
     policy: z.literal(reviewPolicyVersion),
@@ -70,7 +70,7 @@ export const reviewRequestSchema = z.object({
   assignment: text,
   /** The accepted source boundary the iteration started from, which the candidate diff is taken against. */
   base: text,
-  /** The passing gate attempt. */
+  /** The gate attempt that prepared this candidate. */
   gate: text,
   /** The candidate's tree, as Git names it. */
   tree: text,

@@ -44,7 +44,7 @@ import type { RunWrite } from '../../../src/run/log.js';
  * What the harness records after an accepted submission, as far as it is a
  * function of records: the obligations an architect reported, the bindings
  * a module engineer proposed, an iteration's close and the review requests an
- * accepted iteration owes. An implementation run and a manual run's `after`
+ * prepared iteration owes. An implementation run and a manual run's `after`
  * share it; each names, through its host, how it writes and fails, and what
  * only it can supply: a correction's close, a package citation and the
  * identity a design orientation is keyed by.
@@ -99,14 +99,14 @@ export class AfterHandling {
   private path(relative: string): string { return join(this.host.identity.directory, relative); }
 
   /**
-   * Records every review request owed for one accepted iteration, once per
-   * key, before the driver passes it. The candidate's tree is read first,
+   * Records every review request owed for one prepared iteration candidate,
+   * once per key. The candidate's tree is read first,
    * outside the mutex; the key is checked and the identifier counted under
    * it. Answers the requests it recorded: none for a key already recorded,
    * a run that has ended, or a candidate whose tree cannot be read, which
    * is warned about.
    */
-  async requestReviews(closed: { readonly workItem: string; readonly iteration: string; readonly gate: string; readonly commit: string }): Promise<string[]> {
+  async requestReviews(closed: { readonly workItem: string; readonly iteration: string; readonly gate: string; readonly commit: string; readonly base?: string }): Promise<string[]> {
     const policy = this.observe().policy.reviews;
     if (policy === undefined) return [];
     const assigned = this.events('iteration-assigned').find(event => event.data.iteration === closed.iteration)
@@ -128,7 +128,7 @@ export class AfterHandling {
       this.host.warn(`Run ${this.host.identity.jobId}: no review of ${closed.iteration} was requested; the tree of ${closed.commit} could not be read: ${message(error)}`);
       return [];
     }
-    const base = this.host.gates.acceptedBefore(closed.gate);
+    const base = closed.base ?? this.host.gates.acceptedBefore(closed.gate);
     const assignment = iterationLayout.assignment(closed.workItem, number);
     // Each question's captured inputs are read before the mutex, as the tree is.
     const inputs = new Map<ReviewKind, ReviewInputs>();

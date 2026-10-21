@@ -484,12 +484,10 @@ export class Acceptance {
         || assignment.data.gate.tests.subtrees.some(owner => module.id === owner || module.id.startsWith(`${owner}/`)))
         .map(module => posix.join(module.directory, 'src/tests')),
     } : null;
-    const checkFindings = knownFindingSummary({ ...this.observe().findings, findings: new Map([...this.observe().findings.findings].filter(([, entry]) => sameWorkItem(entry.owner, request.workItem))) });
-    const auditConfiguration = this.input.record.auditConfiguration;
-    const originalBaseline = auditConfiguration && 'config' in auditConfiguration ? auditConfiguration.config.sourceCommit : null;
-    const setup = [kind === 'design' ? '' : await this.ports.coordination.checkInputSection(snapshot),
-      `Original plan/execution baseline: ${originalBaseline ?? 'unavailable; preserve uncertainty about test origin'}. The iteration diff base is not the origin boundary. Inspect relevant original test source with Git through shell when needed.`,
-      `Retained gate/audit evidence: ${this.path(runLayout.gate(request.gate))}. Read the receipt and its provider evidence references for warning dispositions and current or retained instability; preserve the recorded verdict.`].filter(Boolean).join('\n');
+    const checkFindings = knownFindingSummary({ ...this.observe().findings, findings: new Map([...this.observe().findings.findings].filter(([, entry]) =>
+      sameWorkItem(entry.owner, request.workItem) && entry.verification.kind === 'assessment'
+      && !entry.reports.some(report => report.observation.kind === 'audit-instability' || report.producer === 'review:test-reliability'))) });
+    const setup = [kind === 'design' ? '' : await this.ports.coordination.checkInputSection(snapshot)].filter(Boolean).join('\n');
     const planDocument = snapshot.entries.get(planPath(this.input.record.planId))?.kind === 'file' ? planPath(this.input.record.planId) : null;
     let prepared: PreparedReview;
     const preparation = new AbortController();
@@ -892,6 +890,21 @@ export class Acceptance {
     }
   }
 
+  /** A failed candidate keeps its own review result before the repair handback. */
+  async settleIterationReviews(iteration: string, candidate: string): Promise<boolean> {
+    const queue = this.reviews;
+    if (this.observe().policy.reviews === undefined || queue === undefined) return !this.ports.ignoring();
+    for (;;) {
+      if (this.ports.ignoring()) return false;
+      const ended = queue.changed();
+      const stopped = this.ports.changed();
+      if (unsettledRequests(this.observe().history.events).every(request =>
+        request.iteration !== iteration || request.candidate !== candidate)) return true;
+      queue.wake();
+      await Promise.race([ended, stopped]);
+    }
+  }
+
   private basisState(workItem: string): {
     readonly requests: BasisRequest[];
     readonly unsettled: string[];
@@ -1118,6 +1131,8 @@ export class Acceptance {
     });
     return {
       basis,
+      originalBaseline: this.input.record.auditConfiguration && 'config' in this.input.record.auditConfiguration
+        ? this.input.record.auditConfiguration.config.sourceCommit : null,
       module: item.module,
       owner: owner.role === 'capability-architect' ? 'capability task' : 'work item',
       ...(owner.role === 'capability-architect' ? { capabilityContext: { consumer: item.module, provider: owner.provider ?? 'unknown' } } : {}),
@@ -1174,6 +1189,11 @@ export class Acceptance {
           workItem: owner.id,
           module: item.module,
           attention,
+          unstableTests: new Map([...attention.keys()].flatMap(id => {
+            const finding = state.findings.get(id);
+            const observed = finding?.reports.find(report => report.observation.kind === 'audit-instability');
+            return observed?.source.kind === 'tree' ? [[id, { observedTree: observed.source.id }] as const] : [];
+          })),
           unavailableReviews: basis.requests.some(request => request.result === 'not-verified'),
           held,
           actor: { kind: 'agent', role: owner.role, invocation: invocation ?? 'none' },

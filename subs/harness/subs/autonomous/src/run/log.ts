@@ -614,6 +614,9 @@ export const runEventSchema = z.discriminatedUnion('type', [
   event('compaction-reviewed', z.object({ invocation: text, ordinal: z.int().positive(), reviewer: text,
     action: z.enum(['continue', 'handoff']), reason: text }).strict()),
   event('gate-committing', z.object({ gate: text, checkpoint: text }).strict()),
+  event('iteration-candidate-prepared', z.object({ gate: text, workItem: text, iteration: text,
+    candidate: text, tree: text, base: text }).strict()),
+  event('gate-audit-started', z.object({ gate: text, checkpoint: text, candidate: text }).strict()),
   /**
    * One command of a running gate started, readiness's included: its kind
    * and its place among the gate's commands, counted from one, so a reader
@@ -658,9 +661,8 @@ export const runEventSchema = z.discriminatedUnion('type', [
     checkFindings: checkFindingEventsField.min(1),
   }).strict()),
   /**
-   * Commits one `ReviewRequest`: a review question over the audited
-   * candidate of an iteration that closed accepted, recorded before the
-   * driver passes it, or by recovery from that `iteration-closed`.
+   * Commits one `ReviewRequest`: a review question over a prepared
+   * iteration candidate, recorded before its audit completes.
    */
   event('review-request-recorded', reviewRequestRecordedDataSchema),
   /** A review attempt's reader session is about to start; the invocation is already started. */

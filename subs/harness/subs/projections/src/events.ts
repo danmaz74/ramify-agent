@@ -279,6 +279,12 @@ function describe(event: RunEvent): [string, Ref[]] {
       return [`Gate ${event.data.gate} (${event.data.checkpoint}) started`, ref('gate', event.data.gate)];
     case 'gate-committing':
       return [`Gate ${event.data.gate} (${event.data.checkpoint}) is committing before audit`, ref('gate', event.data.gate)];
+    case 'iteration-candidate-prepared':
+      return [`Iteration ${event.data.iteration} candidate ${event.data.candidate} is prepared for audit and review`,
+        [...ref('gate', event.data.gate), ...ref('work-item', event.data.workItem)]];
+    case 'gate-audit-started':
+      return [`Gate ${event.data.gate} (${event.data.checkpoint}) started its configured audit of ${event.data.candidate}`,
+        ref('gate', event.data.gate)];
     case 'gate-command-started':
       return [
         `Gate ${event.data.gate} (${event.data.checkpoint}): ${commandLabels[event.data.kind]}${event.data.name === undefined ? '' : ` "${event.data.name}"`} started, command ${event.data.position} of ${event.data.total}`,

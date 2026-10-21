@@ -1,4 +1,4 @@
-import { sourceTestQualityGuidance, testReliabilityGuidance } from './test-reliability.js';
+import { sourceTestQualityGuidance } from './test-reliability.js';
 import { deviationNotice } from '../../plan-evidence/src/interfaces/catalog.js';
 import type { CapturedInput } from './inputs.js';
 import type { CandidateSnapshot } from './snapshot.js';
@@ -8,7 +8,7 @@ import type { CandidateSnapshot } from './snapshot.js';
  * intent as its assignment states it, the changed paths, the question's own
  * captured inputs and the CheckFindings its work item already holds, which
  * a concern may suggest it repeats. Everything here is read from committed
- * records and the audited candidate.
+ * records and the prepared candidate.
  *
  * The message is the complete input of its question whether the session
  * forked or started fresh: a fork adds the history of the point it forked,
@@ -79,7 +79,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     '',
     'The request\'s assignment path identifies a record in the harness run directory. Use the assignment intent below; that record is not a candidate file readable with snapshot tools.',
     '',
-    sourceTestQualityGuidance, '', testReliabilityGuidance, '',
+    sourceTestQualityGuidance, '',
     '## The iteration',
     '',
     ...(assignment === null
@@ -131,7 +131,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     '',
   );
   if (briefing.diffPayload !== undefined) lines.push(briefing.diffPayload, '');
-  lines.push('Use the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The audited diff includes harness-produced changes; no feature or pending-tag patch is hidden.', '');
+  lines.push('Use the supplied changed-path list and complete patches delivered in this message. Fetch a relevant patch with snapshot_diff only when it is not supplied, and inspect the source required to judge it. List paths with snapshot_diff only if the supplied list is unavailable. The candidate diff includes harness-produced changes; no feature or pending-tag patch is hidden.', '');
   if (briefing.setup) lines.push(briefing.setup, '');
   if (assignment !== null && kind !== 'design') {
     const testAreas = assignment.testAreas.filter(area => snapshot.directories.has(area));
@@ -139,7 +139,7 @@ export function reviewMessage(briefing: ReviewMessageInputs): string {
     if (testAreas.length > 0) lines.push('## Candidate test pointers', '',
       `The candidate's test ${testAreas.length === 1 ? `area for this module is ${areas[0]}` : `areas for these modules are ${areas.slice(0, -1).join(', ')} and ${areas.at(-1)}`}. Read a file there when a concern needs it${briefing.diffPayload === undefined ? '.' : '; the patches above already show the changed tests.'}`, '');
   }
-  for (const binding of briefing.pendingBindings ?? []) lines.push(`Harness pending-tag binding: ${binding.scenario} in ${binding.path}, exact candidate sha256 ${binding.sha256}, accepted producer ${binding.invocation}, submission ${binding.submission}. This attribution supplies provenance; review the actual audited patch.`, '');
+  for (const binding of briefing.pendingBindings ?? []) lines.push(`Harness pending-tag binding: ${binding.scenario} in ${binding.path}, exact candidate sha256 ${binding.sha256}, accepted producer ${binding.invocation}, submission ${binding.submission}. This attribution supplies provenance; review the actual candidate patch.`, '');
   if (briefing.checkFindings.length > 0) {
     lines.push('## CheckFindings this work item already holds', '');
     lines.push('Avoid repeating unchanged issues. Explain meaningful changed circumstances when raising an existing issue again. This bounded summary retains dispositions and rationales; full records remain available on demand.', '');

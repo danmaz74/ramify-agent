@@ -62,6 +62,8 @@ import type { CheckFindingCommand, CheckFindingQueryInput, CheckFindingSelection
 import type { CheckFindingCause } from '../../../../src/check-findings/records.js';
 import { checkFindingStateOf } from '../../../../src/check-findings/state.js';
 import { commitCheckFindingChange, decideCheckFindingTransaction, type CheckFindingBuild, type CheckFindingCommit } from '../../../../src/check-findings/transition.js';
+import { reportCommand } from '../../../../src/check-findings/report.js';
+import { configuredAuditInstabilityObservations } from '../../../audit/src/check-execution.js';
 import { reconciliationAssessmentSchema, reconciliationLayout } from '../../subs/acceptance/src/reviews/reconciliation.js';
 
 
@@ -189,6 +191,7 @@ import { declaredModuleDirectories } from '../../../../src/run/project-config.js
 
 import { assertScratchSafe } from '../../subs/work-coordination/src/work/scratch.js';
 import { gateAttemptSchema, type GateOperation } from '../../subs/acceptance/src/gate-records.js';
+import type { GateAttempt } from '../../subs/acceptance/src/checks/records.js';
 import { runDirectory } from './records.js';
 import { measurementSnapshotSchema, snapshotId, type MeasurementSnapshot } from '../../../kpi/src/run-records.js';
 import { runLayout, runRecordSchema, runSchemas, type RunPolicy, type RunRecord } from './records.js';
@@ -567,6 +570,8 @@ export class AutonomousRunService {
       renderInvocationTranscript: async (session, invocation) => { await this.transcriptOf(run, session).drain(); const read = await readTranscript(run.path(runLayout.transcript(session))); return renderTranscript(read.entries, invocation, body => readBody(run.directory, run.store, body)); },
       operations: agent => this.operations(agent),
       observe, notify: () => run.notify(), changed: () => run.changed(), wakeReviews: () => this.acceptance(run).wakeReviews(),
+      settleIterationReviews: (iteration, candidate) => this.acceptance(run).settleIterationReviews(iteration, candidate),
+      reportGateInstability: gate => this.reportGateInstability(run, gate),
       sessionState: session => this.sessionsOf(run)?.get(session)?.state,
       hasSessionPoint: async (agent, runId, point) => (await this.operations(agent)).hasPoint(runId, point),
       appendSession: async (agent, ...args) => (await this.operations(agent)).append(...args),
@@ -724,6 +729,30 @@ export class AutonomousRunService {
       write: (input, records) => service.write(run, input, records),
       afterWrite: (write, runId) => service.afterWrite(write, runId),
       warn: text => service.warn(text),
+      iterationCandidatePrepared: async candidate => {
+        const assignment = committedRecords(coordinationHistory(run.log).lines).assignments.get(candidate.iteration);
+        const reviewOwner = assignment?.coordination?.kind === 'capability-task'
+          ? assignment.coordination.id : candidate.workItem;
+        const retained = run.log.all('iteration-candidate-prepared').find(event => event.data.gate === candidate.gate);
+        if (retained !== undefined && (retained.data.candidate !== candidate.commit || retained.data.tree !== candidate.tree
+          || retained.data.base !== candidate.base || retained.data.workItem !== reviewOwner))
+          throw new Error(`Gate ${candidate.gate} candidate changed after preparation`);
+        if (retained === undefined) {
+          const written = await service.write(run, { type: 'iteration-candidate-prepared', data: {
+            gate: candidate.gate, workItem: reviewOwner, iteration: candidate.iteration,
+            candidate: candidate.commit, tree: candidate.tree, base: candidate.base,
+          } });
+          if (written === 'ended') return;
+        }
+      },
+      scheduleIterationReviews: async candidate => {
+        const retained = run.log.all('iteration-candidate-prepared').find(event => event.data.gate === candidate.gate);
+        if (retained === undefined || retained.data.candidate !== candidate.commit || retained.data.base !== candidate.base)
+          throw new Error(`Gate ${candidate.gate} has no retained candidate for review scheduling`);
+        await service.handling(run).requestReviews({ workItem: retained.data.workItem, iteration: candidate.iteration,
+          gate: candidate.gate, commit: candidate.commit, base: candidate.base });
+      },
+      reportInstability: attempt => service.reportGateInstability(run, attempt),
       harnessFiles: () => service.coordination(run).harnessFiles(),
       importedCommitReceipt: async (request) => {
         const effect = run.restartImport?.recognizedEffects.find(receipt => receipt.checkpoint === request.checkpoint && receipt.subjectWorkItem === request.subject?.workItem && receipt.commit === request.head);
@@ -1699,6 +1728,35 @@ export class AutonomousRunService {
    */
   private async commitCheckFindings(run: Run, build: CheckFindingBuild): Promise<CheckFindingCommit> {
     return await commitCheckFindingChange(run, build, this.now());
+  }
+
+  /** Preserve one assessment question per unstable test, keyed across reused audit receipts. */
+  private async reportGateInstability(run: Run, gate: GateAttempt): Promise<void> {
+    if (gate.checkpoint !== 'iteration' || gate.subject.workItem === undefined) return;
+    const prepared = run.log.all('iteration-candidate-prepared').find(event => event.data.gate === gate.id);
+    if (prepared === undefined) return;
+    const observations = configuredAuditInstabilityObservations(gate.provider?.result);
+    for (const observation of observations) {
+      const summary = `Audit established instability in ${observation.path ?? 'an unidentified test'}; determine this test's origin against the original execution baseline`;
+      const report = reportCommand({
+        producer: 'check:audit-instability', attempt: gate.id, reportKey: observation.key,
+        owner: { kind: 'work-item', workItem: prepared.data.workItem },
+        source: { kind: 'tree', id: prepared.data.tree }, issueKey: `test-instability:${observation.key}`,
+        verification: { kind: 'assessment' },
+        observation: { kind: 'audit-instability', summary,
+          evidence: [{ kind: 'gate-audit', ref: runLayout.gate(gate.id), hash: null },
+            ...(gate.evidence === null ? [] : [{ kind: 'audit-report', ref: gate.evidence.reportCommit, hash: null }])],
+          locations: observation.path === null ? [] : [{ path: observation.path, startLine: null, endLine: null }] },
+        judgment: null, suggests: null, credibility: 'objective', modules: [],
+      });
+      const committed = await this.commitCheckFindings(run, () => ({ commands: [report],
+        compose: decided => ({ event: { type: 'check-findings-recorded', data: {
+          cause: { kind: 'producer', producer: 'check:audit-instability', attempt: gate.id }, checkFindings: [...decided.events],
+        } } }),
+      }));
+      if (committed.kind === 'refused') throw new Error(`Audit instability of gate ${gate.id} could not be recorded: ${committed.refusal.message}`);
+      if (committed.kind === 'committed') run.notify();
+    }
   }
 
   /** The runs of one plan, newest first, as `committed` answers each. */

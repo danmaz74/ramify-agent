@@ -168,8 +168,9 @@ export type CheckFindingReportCredibility = z.infer<typeof checkFindingReportCre
 // Reports.
 
 /**
- * What was observed: a failed check execution, a concern a reviewer
- * asserted, or a plan deviation: the run does something other than a
+ * What was observed: a failed check execution, provider-established test
+ * instability needing origin assessment, a concern a reviewer asserted,
+ * or a plan deviation: the run does something other than a
  * requirement of its plan states, because the requirement cannot be met as
  * written. A plan deviation is the person's to accept or reject; it holds
  * no work item and no gate. An environment problem is the plan
@@ -177,7 +178,7 @@ export type CheckFindingReportCredibility = z.infer<typeof checkFindingReportCre
  * runs, not in the plan or the architecture; the person resumes the run
  * or ends it.
  */
-export const checkFindingObservationKindSchema = z.enum(['check-failed', 'review-concern', 'plan-deviation', 'environment-problem']);
+export const checkFindingObservationKindSchema = z.enum(['check-failed', 'audit-instability', 'review-concern', 'plan-deviation', 'environment-problem']);
 export type CheckFindingObservationKind = z.infer<typeof checkFindingObservationKindSchema>;
 
 export const checkFindingObservationSchema = z.object({
@@ -213,7 +214,7 @@ export type CheckFindingJudgment = z.infer<typeof checkFindingJudgmentSchema>;
  * and verification obligation; `suggests` is a reviewer's hint of an existing
  * CheckFinding and never attaches the report. `credibility` and `modules` are
  * the harness's: the provenance class of the judgment's ground (`objective`
- * for a failed check), and the modules that own the report's locations on
+ * for a failed check or provider-established instability), and the modules that own the report's locations on
  * its own source, else the owner work item's module. They never form
  * identity.
  */

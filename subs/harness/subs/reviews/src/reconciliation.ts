@@ -80,6 +80,14 @@ export const reconciliationSubmissionSchema = z.object({
     risk: checkFindingRiskSchema.optional(),
     action: reconciliationActionSchema,
   }).strict()).max(100),
+  /** Origin judgments for provider-established unstable tests in the attention set. */
+  testOrigins: z.array(z.object({
+    checkFinding: checkFindingIdSchema,
+    origin: z.enum(['existing', 'added', 'unknown']),
+    basis: prose,
+    /** Source and intended coverage inspected before closing an added-test repair. */
+    coverageEvidence: prose.optional(),
+  }).strict()).max(100).optional(),
   /** What the work item does next. */
   next: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('complete') }).strict(),
@@ -117,6 +125,7 @@ export interface ExecutionReconciliationContext  {
   /** Actual unavailable advisory review results permit an explicit verification assignment without a finding. */
   readonly unavailableReviews?: boolean;
   readonly attention: ReadonlyMap<CheckFindingId, AttentionEntry>;
+  readonly unstableTests?: ReadonlyMap<CheckFindingId, { readonly observedTree: string }>;
   readonly held: ReadonlyMap<CheckFindingId, number>;
   readonly actor: CheckFindingActor;
   readonly source: CheckFindingSource;
@@ -164,6 +173,28 @@ export async function validateReconciliationForExecution(input: unknown, context
   });
 
   const disposed = new Map<CheckFindingId, number>();
+  const origins = new Map((submission.testOrigins ?? []).map(entry => [entry.checkFinding, entry]));
+  for (const [id, unstable] of context.unstableTests ?? []) {
+    const origin = origins.get(id);
+    const disposition = submission.dispositions.find(entry => entry.checkFinding === id);
+    if (origin === undefined) {
+      errors.push({ path: 'testOrigins', message: `${id} needs an origin judgment against the original execution baseline`, expected: 'existing, added or unknown with evidence' });
+      continue;
+    }
+    if (disposition === undefined) continue;
+    const action = disposition.action.action;
+    if (origin.origin === 'existing' && action === 'repair')
+      errors.push({ path: 'dispositions', message: `${id} is an existing unstable test and creates no repair assignment`, expected: 'a non-repair disposition preserving the audit verdict' });
+    if (origin.origin === 'unknown' && action !== 'leave')
+      errors.push({ path: 'dispositions', message: `${id} has unknown origin and must remain qualified uncertainty`, expected: 'leave' });
+    if (origin.origin === 'added' && action !== 'repair' && action !== 'fixed')
+      errors.push({ path: 'dispositions', message: `${id} is an added unstable test whose reliable coverage is required`, expected: 'repair or verified fixed' });
+    if (origin.origin === 'added' && action === 'fixed' &&
+      (origin.coverageEvidence === undefined || context.source.kind !== 'tree' || context.source.id === unstable.observedTree))
+      errors.push({ path: 'testOrigins', message: `${id} requires a later candidate and semantic evidence that reliable coverage was preserved`, expected: 'coverageEvidence on a later source tree' });
+  }
+  for (const origin of submission.testOrigins ?? []) if (!context.unstableTests?.has(origin.checkFinding))
+    errors.push({ path: 'testOrigins', message: `${origin.checkFinding} is not a provider-established unstable test in this attention set`, expected: 'an unstable-test finding' });
   submission.dispositions.forEach((disposition, index) => {
     const where = `dispositions.${index}`;
     const entry = context.attention.get(disposition.checkFinding);

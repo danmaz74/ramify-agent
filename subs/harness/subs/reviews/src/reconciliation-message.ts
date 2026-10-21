@@ -33,6 +33,7 @@ export interface ReconciliationFacts extends ReconciliationFactsContent {
   readonly owner: string;
   readonly round: number;
   readonly source: { readonly commit: string; readonly tree: string };
+  readonly originalBaseline?: string | null;
   readonly introduction: string;
   readonly authority: string;
   readonly context?: string;
@@ -47,11 +48,13 @@ export function reconciliationFactsMessage(packet: ReconciliationFacts): string 
     '## Source',
     '',
     `The candidate source is \`${packet.source.commit}\` (tree \`${packet.source.tree}\`). Start with the reviewed patch and its canonical changed-path list, then read the source each concern requires. Retain harness-produced changes in the audited diff; producer attribution never hides a patch.`,
+    ...(packet.originalBaseline === undefined ? [] : [`Original execution baseline for test origin: ${packet.originalBaseline === null ? 'unavailable; preserve uncertainty' : `\`${packet.originalBaseline}\``}. Compare individual tests against it, including additions within existing files and earlier iterations.`]),
     '',
     '## This round',
     '',
     'Discretionary suggestions may be waived or deferred with a short rationale; no user approval is needed for ordinary architect decisions. Actual unmet requirements and failed required checks retain their meaning. A correction may be planned for any signal. Reconsider repeated attempts against the latest evidence: change an ineffective approach, continue useful work, or end refinement when the requirements are satisfied and further benefit is too small.',
     testReliabilityGuidance,
+    'For each provider-established audit-instability finding in the attention set, submit testOrigins with an individual existing, added or unknown judgment and its source evidence. An existing test needs no repair assignment. Unknown origin stays open. An added test requires repair; close it only on a later candidate after inspecting reliable coverage, and name that coverage in coverageEvidence. The audit verdict remains authoritative.',
     packet.authority,
     '',
     '## Review coverage',

@@ -98,14 +98,17 @@ describe('CF05: readers beside the writer, confined to the audited candidate', (
     const { service, runId, events, agent } = run;
     expect(onlyRun(service, plan).state).toBe('completed');
 
-    // One request per accepted iteration, recorded before the driver passed it.
+    // One request per prepared iteration candidate, before its gate settles.
     const requests = eventsOf(events, 'review-request-recorded');
     expect(requests.map(event => [event.data.request, event.data.iteration, event.data.kind, event.data.candidate]))
       .toEqual([['rq-0001', 'wi-001.i01', 'code', 'revision-01'], ['rq-0002', 'wi-001.i02', 'code', 'revision-02'], ['rq-0003', 'wi-001.i03', 'code', 'revision-03']]);
     for (const request of requests) {
       const closed = events.find(event => event.type === 'iteration-closed' && event.data.iteration === request.data.iteration)!;
+      const prepared = events.find(event => event.type === 'iteration-candidate-prepared' && event.data.iteration === request.data.iteration)!;
+      const attempted = events.find(event => event.type === 'gate-attempted' && event.data.gate === request.data.gate)!;
       const next = events.find(event => event.sequence > closed.sequence && (event.type === 'iteration-assigned' || event.type === 'outline-revised'))!;
-      expect(closed.sequence).toBeLessThan(request.sequence);
+      expect(prepared.sequence).toBeLessThan(request.sequence);
+      expect(request.sequence).toBeLessThan(attempted.sequence);
       expect(request.sequence).toBeLessThan(next.sequence);
     }
     const request = JSON.parse(await readFile(runPath(root, plan, runId, reviewLayout.request('rq-0002')), 'utf8'));

@@ -407,8 +407,10 @@ the run. Nothing is placed and no deviation is recorded.
 
 ```mermaid
 flowchart TD
-    G[Passing iteration gate] --> Q[Record frozen review requests]
-    Q --> N[Continue architect and next iteration]
+    G[Prepared iteration candidate] --> Q[Record frozen review requests]
+    G --> V[Configured audit]
+    V --> N[Passing gate advances architect and next iteration]
+    V --> H[Failed gate collects candidate review before repair handback]
     Q --> R[Bounded background reviewers]
     R --> A[Record attempt and actionable CheckFindings]
     N --> C[Work-item completion request]
@@ -431,13 +433,13 @@ flowchart TD
 
 ### Review requests and execution
 
-For each eligible passing iteration, record enabled code, scope and design
-review requests before the driver advances past the iteration. A request
-captures the assignment reference, iteration base, audited candidate and tree,
+For each eligible prepared iteration candidate, record enabled code, scope and design
+review requests before its configured audit completes. A request
+captures the assignment reference, iteration base, candidate commit and tree,
 gate, selected requirement and guidance revisions, review kind, prompt/policy
-version, and intended session fork point. Recovery must derive missing
-requests idempotently from passed iterations; a crash between gate recording
-and scheduling must not silently omit review.
+version, and intended session fork point. Recovery reuses the prepared candidate
+and derives missing requests idempotently. A failed audit preserves its review
+result; neither result changes the accepted source on its own.
 
 Use one reviewer role with kind-specific inputs and structured output. The
 reviewer reads evidence and submits concerns; it cannot edit the project,
@@ -526,7 +528,7 @@ fork behavior with an isolated snapshot needs a focused implementation probe.
 ### Reconciliation and repairs
 
 The batch boundary is a **module work item**. Before its completion gate,
-settle all review requests belonging to that item's completed iterations.
+settle all review requests belonging to that item's prepared iterations.
 At a deadline, durably finish unfinished attempts as not verified and fence
 their results; stop the corresponding sessions and retain cleanup ownership
 until they settle. Best-effort policy may proceed with a recorded review gap.

@@ -70,6 +70,14 @@ export interface GateHost extends AcceptanceJournal {
   /** Authenticated source commit effects can survive a lost acknowledgement;
    * their source verdict never substitutes for this gate's qualification. */
   importedCommitReceipt?(request: CheckpointRequest): Promise<{ readonly commit: string; readonly tree: string } | undefined>;
+  /** Retain an iteration candidate once its source commit exists. */
+  iterationCandidatePrepared?(candidate: { readonly gate: string; readonly workItem: string; readonly iteration: string;
+    readonly commit: string; readonly tree: string; readonly base: string }): Promise<void>;
+  /** Schedule semantic questions independently of configured audit execution. */
+  scheduleIterationReviews?(candidate: { readonly gate: string; readonly workItem: string; readonly iteration: string;
+    readonly commit: string; readonly base: string }): Promise<void>;
+  /** Promote provider-established instability after the audit receipt is durable. */
+  reportInstability?(attempt: GateAttempt): Promise<void>;
   /** Quiescent recovery and whole-run bounds govern dispatch, including a restored explicit group. */
   awaitGateAdmission?(): Promise<boolean>;
   /** Settled check execution pauses the accepted producer's pending gate, without rerunning that producer. */
@@ -460,6 +468,8 @@ export class CommittingGates {
       ...(this.observe().policy.recovery !== undefined && binding !== undefined ? { finalAssessment: {
         assessment: binding.assessment.id, candidate: binding.candidateId, tree: binding.assessment.candidate.tree,
       } } : {}) };
+    let scheduling: Promise<void> | undefined;
+    let schedulingError: unknown;
     const effect = this.host.effect<{ readonly attempt: GateAttempt }>({
       trackGate: true, key: `gate-commit:${identity.id}`,
 
@@ -509,6 +519,17 @@ export class CommittingGates {
         }
         await this.host.afterWrite('gate-committing', this.host.identity.jobId);
         const sourceCommit = commit ?? identity.head;
+        if (prepared.checkpoint === 'iteration' && identity.subject?.workItem !== undefined && identity.subject.iteration !== undefined) {
+          const candidate = { gate: identity.id, workItem: identity.subject.workItem,
+            iteration: identity.subject.iteration, commit: sourceCommit,
+            tree: await this.host.candidates.commitTree(this.host.projectRoot, sourceCommit),
+            base: acceptedCommit(this.observe().history.lines, this.host.identity.base) };
+          await this.host.iterationCandidatePrepared?.(candidate);
+          scheduling = this.host.scheduleIterationReviews?.(candidate).catch(error => { schedulingError = error; });
+        }
+        await this.host.write({ type: 'gate-audit-started', data: {
+          gate: identity.id, checkpoint: prepared.checkpoint, candidate: sourceCommit,
+        } });
         const attempt = await executeConfiguredGate(this.configuredGateAudit(), prepared, sourceCommit, commit,
           this.commandStarted(identity.id, prepared.checkpoint), this.commandWaiting(identity.id, prepared.checkpoint));
         if (attempt.audited !== null && attempt.audited !== sourceCommit) {
@@ -534,7 +555,11 @@ export class CommittingGates {
         ]);
       },
     });
-    return (await effect).attempt;
+    const settled = (await effect).attempt;
+    await scheduling;
+    if (schedulingError !== undefined) throw schedulingError;
+    if (settled.checkpoint === 'iteration') await this.host.reportInstability?.(settled);
+    return settled;
   }
 
   /**

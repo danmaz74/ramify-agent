@@ -18,6 +18,7 @@ export interface ReconciliationPacket extends ReconciliationFactsContent {
   readonly module: string;
   readonly owner?: 'work item' | 'capability task';
   readonly capabilityContext?: { readonly consumer: string; readonly provider: string };
+  readonly originalBaseline?: string | null;
 
 }
 

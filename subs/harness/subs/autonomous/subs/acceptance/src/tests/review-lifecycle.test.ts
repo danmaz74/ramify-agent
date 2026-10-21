@@ -10,7 +10,7 @@ import { createQuerySource } from '../../../../../../src/http/query-source.js';
 import { reviewLayout } from '../reviews/records.js';
 import { snapshotToolNames } from '../../../../../reviews/src/snapshot.js';
 import { scriptedCandidates, testReviewPolicy } from './helpers/candidates.js';
-import { passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
+import { mappedAudit, passingAudit } from '../../../../../../src/tests/helpers/direct-check-execution.js';
 import { expectNoProcesses, forgetExternalTools } from '../../../../../../src/tests/helpers/external-tools.js';
 import { completionProposed, submit, write } from '../../../../../../src/tests/helpers/iterations.js';
 import { disposition, reconcile, submission } from '../../../../../../src/tests/helpers/check-findings-composition.js';
@@ -218,7 +218,7 @@ describe('CF04: an unscheduled review', () => {
 });
 
 describe('CF06: a crash around a review is recovered exactly once', () => {
-  test('a reopen without an execution agent preserves the accepted gate pending ordinary review scheduling', async () => {
+  test('a reopen without an execution agent retains the already requested candidate review', async () => {
     const root = await reviewTarget(cleanups);
     const crashed = gate();
     let frozen = false;
@@ -236,18 +236,19 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
     });
     await crashed.opened;
     const before = await settledLog(root, run.runId);
-    expect(before.at(-1)).toMatchObject({ type: 'iteration-closed', data: { iteration: 'wi-001.i01', outcome: 'accepted' } });
-    expect(before.some(event => event.type === 'review-request-recorded')).toBe(false);
+    expect(before.some(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01')).toBe(true);
+    expect(eventsOf(before, 'review-request-recorded')).toHaveLength(1);
     await staleCrashLock(root);
 
     const restarted = await restart(root);
     expect(restarted.agent).toBeUndefined();
     expect(restarted.recovery.reviews).toEqual([]);
     const after = await runEventsOnDisk(root, plan, run.runId);
-    expect(after).toEqual(before);
+    expect(after.slice(0, before.length)).toEqual(before);
+    expect(after.slice(before.length).map(event => event.type)).toEqual(['invocation-ended']);
     expect(eventsOf(after, 'iteration-closed')[0]!.data).toMatchObject({ iteration: 'wi-001.i01', outcome: 'accepted' });
-    expect(eventsOf(after, 'review-request-recorded')).toEqual([]);
-    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 0 });
+    expect(eventsOf(after, 'review-request-recorded')).toEqual(eventsOf(before, 'review-request-recorded'));
+    expect(restarted.service.reviews(plan, run.runId)!.coverage).toMatchObject({ requested: 1 });
 
     // A second restart finds nothing owed and changes nothing.
     await restarted.service.close();
@@ -329,6 +330,133 @@ describe('CF06: a crash around a review is recovered exactly once', () => {
 });
 
 describe('the gate audit and the run mutex', () => {
+  test('a failed audit retains a clean review before returning repair work', async () => {
+    const root = await reviewTarget(cleanups);
+    const release = gate();
+    const audit = mappedAudit(({ context, check }) => context.attemptId === 'ga-0002' && check.kind === 'tests'
+      ? { outcome: { kind: 'completed', exitCode: 1 }, stdout: 'scripted failure' } : {});
+    const run = await reviewRun(root, cleanups, {
+      detached: true, configuredAudit: audit, engineer: engineers(),
+      reviewers: { 'rq-0001': [{ kind: 'await', until: () => release.opened }, ...clean(store)] },
+    });
+    cleanups.push(() => run.service.close());
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'gate-attempted' && event.data.gate === 'ga-0002'), 5_000);
+    const during = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(during, 'gate-attempted').find(event => event.data.gate === 'ga-0002')?.data.verdict).toBe('failed');
+    expect(during.some(event => event.type === 'review-request-recorded' && event.data.candidate === 'revision-01')).toBe(true);
+    expect(during.some(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i01')).toBe(false);
+    release.open();
+    await run.service.settled(plan, run.runId);
+    const events = await runEventsOnDisk(root, plan, run.runId);
+    const reviewed = eventsOf(events, 'review-attempt-finished').find(event => event.data.request === 'rq-0001')!;
+    const nextEngineer = events.find(event => event.type === 'invocation-started' && event.data.role === 'engineer'
+      && event.sequence > events.find(entry => entry.type === 'gate-attempted' && entry.data.gate === 'ga-0002')!.sequence);
+    expect(reviewed.data.result).toBe('complete');
+    expect(nextEngineer).toBeDefined();
+    expect(reviewed.sequence).toBeLessThan(nextEngineer!.sequence);
+    expect(run.agent!.sessions.filter(session => session.spec.role === 'engineer').at(-1)?.spec.prompt)
+      .toContain('review of candidate revision-01: complete');
+  }, 60_000);
+
+  test('a later failed candidate is reviewed against the earlier accepted source', async () => {
+    const root = await reviewTarget(cleanups);
+    const release = gate();
+    const audit = mappedAudit(({ context, check }) => context.attemptId === 'ga-0003' && check.kind === 'tests'
+      ? { outcome: { kind: 'completed', exitCode: 1 }, stdout: 'scripted later failure' } : {});
+    const run = await reviewRun(root, cleanups, {
+      detached: true, configuredAudit: audit, engineer: engineers(),
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': [{ kind: 'await', until: () => release.opened }, ...clean(limit)] },
+    });
+    cleanups.push(() => run.service.close());
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'gate-attempted' && event.data.gate === 'ga-0003'), 5_000);
+    const during = await runEventsOnDisk(root, plan, run.runId);
+    expect(eventsOf(during, 'iteration-candidate-prepared').find(event => event.data.gate === 'ga-0003')?.data)
+      .toMatchObject({ candidate: 'revision-02', base: 'revision-01', tree: 'tree-02' });
+    expect(eventsOf(during, 'gate-attempted').find(event => event.data.gate === 'ga-0003')?.data.verdict).toBe('failed');
+    expect(during.some(event => event.type === 'review-request-recorded' && event.data.candidate === 'revision-02')).toBe(true);
+    expect(during.some(event => event.type === 'iteration-closed' && event.data.iteration === 'wi-001.i02')).toBe(false);
+    release.open();
+    await run.service.settled(plan, run.runId);
+    const events = await runEventsOnDisk(root, plan, run.runId);
+    const reviewed = eventsOf(events, 'review-attempt-finished').find(event => event.data.request === 'rq-0002')!;
+    const nextEngineer = events.find(event => event.type === 'invocation-started' && event.data.role === 'engineer'
+      && event.sequence > events.find(entry => entry.type === 'gate-attempted' && entry.data.gate === 'ga-0003')!.sequence);
+    expect(reviewed.data.result).toBe('complete');
+    expect(nextEngineer).toBeDefined();
+    expect(reviewed.sequence).toBeLessThan(nextEngineer!.sequence);
+  }, 60_000);
+
+  test('a passing audit warning reaches reconciliation after a clean candidate review', async () => {
+    const root = await reviewTarget(cleanups);
+    const passing = passingAudit();
+    const warningAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      const result = await passing.run(input);
+      if (input.attemptId !== 'ga-0002') return result;
+      const provider = result.provider as { summary: Record<string, unknown> };
+      const entry = { checkId: 'tests', command: 'vitest', runner: 'vitest', project: 'node',
+        path: `${notesDirectory}/src/tests/notes.test.ts`, kind: 'test', testId: 'the note limit' };
+      return { ...result, provider: { ...provider, summary: { ...provider.summary,
+        warningDispositions: [{ entry, basis: 'retained-instability' }], flakinessPolicy: { onFailure: 'warning' },
+      } } };
+    } };
+    const run = await reviewRun(root, cleanups, {
+      configuredAudit: warningAudit, engineer: engineers(),
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
+      reconcilers: { 'wi-001.rc01': reconcile({ ...submission([
+        disposition('cf-0001', { action: 'waive', uncertainty: 'Existing test instability remains in the audit evidence.' }),
+      ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'added',
+        basis: 'A mistaken origin claim.' }] }, { ...submission([
+        disposition('cf-0001', { action: 'waive', uncertainty: 'Existing test instability remains in the audit evidence.' }),
+      ], { kind: 'complete' }), testOrigins: [{ checkFinding: 'cf-0001', origin: 'existing',
+        basis: 'The exact test is present in the original execution baseline.' }] }) },
+    });
+    expect(onlyRun(run.service, plan).state, JSON.stringify(eventsOf(run.events, 'job-failed'))).toBe('completed');
+    const finding = run.service.checkFindings(plan, run.runId, { kind: 'detail', checkFinding: 'cf-0001' });
+    expect(finding?.ok && finding.view.kind === 'detail' ? finding.view.reports.items[0] : null)
+      .toMatchObject({ observation: { kind: 'audit-instability' }, source: { kind: 'tree', id: 'tree-01' } });
+    expect(eventsOf(run.events, 'reconciliation-assessed')).toHaveLength(1);
+    const prompt = run.agent!.sessions.find(session => session.spec.submission.name === 'submit_reconciliation')!.spec.prompt;
+    expect(prompt).toContain('Original execution baseline for test origin:');
+    expect(prompt).toContain(runLayout.gate('ga-0002'));
+    expect(run.agent!.sessions.find(session => session.spec.submission.name === 'submit_reconciliation')!.verdicts)
+      .toMatchObject([{ accepted: false }, { accepted: true }]);
+    run.git.assertComplete();
+  }, 60_000);
+
+  test('the first candidate starts review while its own audit is still running', async () => {
+    const root = await reviewTarget(cleanups);
+    const auditing = gate(); const release = gate();
+    const passing = passingAudit();
+    const slowAudit: ConfiguredAuditPort = { read: passing.read, async run(input) {
+      if (input.attemptId === 'ga-0002') { auditing.open(); await release.opened; }
+      return passing.run(input);
+    } };
+    const run = await reviewRun(root, cleanups, {
+      detached: true, configuredAudit: slowAudit, engineer: engineers(),
+      reviewers: { 'rq-0001': clean(store), 'rq-0002': clean(limit), 'rq-0003': clean(store) },
+    });
+    cleanups.push(() => run.service.close());
+    await auditing.opened;
+    await until(async () => (await runEventsOnDisk(root, plan, run.runId)).some(event =>
+      event.type === 'review-attempt-finished' && event.data.request === 'rq-0001'), 5_000);
+    const during = await runEventsOnDisk(root, plan, run.runId);
+    const prepared = during.find(event => event.type === 'iteration-candidate-prepared' && event.data.gate === 'ga-0002')!;
+    const requested = during.find(event => event.type === 'review-request-recorded' && event.data.request === 'rq-0001')!;
+    const reviewed = during.find(event => event.type === 'review-attempt-finished' && event.data.request === 'rq-0001')!;
+    expect(prepared.data).toMatchObject({ candidate: 'revision-01', base: 'scenarios-00', tree: 'tree-01' });
+    expect(prepared.sequence).toBeLessThan(requested.sequence);
+    expect(requested.sequence).toBeLessThan(reviewed.sequence);
+    expect(during.some(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0002')).toBe(false);
+    release.open();
+    await run.service.settled(plan, run.runId);
+    const events = await runEventsOnDisk(root, plan, run.runId);
+    expect(events.find(event => event.type === 'gate-attempted' && event.data.gate === 'ga-0002')!.sequence).toBeGreaterThan(reviewed.sequence);
+    expect(onlyRun(run.service, plan).state).toBe('completed');
+    run.git.assertComplete();
+  }, 60_000);
+
   test('a reader\'s result is committed while the next iteration\'s audit is still running', async () => {
     const root = await reviewTarget(cleanups);
     const auditing = gate();
