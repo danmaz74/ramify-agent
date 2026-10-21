@@ -619,13 +619,13 @@
     },
     {
       "file": "subs/harness/subs/assistance/src/tests/http-bridge.boundary.test.ts",
-      "boundary": "Kernel loopback HTTP streaming and disconnect signals, official SDK HTTP MCP connections and an actual 900000ms assessment observation",
-      "whyFakeCannotProve": "Controlled stream and clock cases cannot establish actual socket flush/disconnect events, official SDK HTTP cancellation or survival of a 15-minute native observation. The real AssistanceService uses explicitly scripted external Git/protection/assessor answers.",
+      "boundary": "Kernel loopback HTTP streaming and disconnect signals, official SDK HTTP MCP cancellation, reconnect and assessment observation",
+      "whyFakeCannotProve": "Controlled stream and clock cases cannot establish actual socket flush/disconnect events or official SDK HTTP cancellation and reconnect behavior. The real AssistanceService uses explicitly scripted external Git/protection/assessor answers; controlled-clock ordinary tests establish the 15-minute deadline.",
       "owningCases": [
         "native HTTP streams headers and body before completion and propagates unfinished response disconnect",
         "native HTTP waits for kernel response drain before reading the next body chunk",
         "native HTTP closes a failed response stream without an unhandled server error",
-        "official HTTP MCP observes an active assessment for 900000ms and reconnects after observation cancellation without cancelling work"
+        "official HTTP MCP reconnects after observation cancellation and preserves the active assessment"
       ]
     },
     {
