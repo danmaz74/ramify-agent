@@ -399,6 +399,7 @@ export function assignmentErrors(body: AssignmentBody, evidence: AssignmentEvide
   body.externalCapabilities.forEach((capability, position) => {
     const registered = (evidence.registryReferences ?? evidence.registry).get(capability.capability);
     if (registered === undefined) {
+      if (evidence.index === null && !capability.capability.startsWith('capability:')) return;
       errors.push({
         path: `assignment.externalCapabilities.${position}.capability`,
         message: `The registry has no entry for "${capability.capability}"`,

@@ -388,6 +388,9 @@ function outlineErrors(
     known(entry.owner, `outline.reuse.${index}.owner`);
     const registered = registryReferences.get(entry.capability);
     if (registered === undefined) {
+      // Historical runs could validate reuse without an architect view or a
+      // registry snapshot. Descriptive accepted IDs still need a real entry.
+      if (evidence.index === null && !entry.capability.startsWith('capability:')) return;
       errors.push({ path: `outline.reuse.${index}.capability`, message: `The registry has no entry for "${entry.capability}"`,
         expected: 'an accepted capability of this run or a registration in this submission' });
       return;

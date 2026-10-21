@@ -252,8 +252,26 @@ describe('the rules the schema cannot hold', () => {
   });
 
   test('without a view the rules that need one are not applied', () => {
-    const result = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'send-email', owner: 'shop/nowhere', role: 'provider' }] }), { index: null, registry: new Map() });
+    const noView = { index: null, registry: new Map() };
+    const result = validateLocalArchitect(requestCompletion({ reuse: [{ capability: 'send-email', owner: 'shop/nowhere', role: 'provider' }] }), noView);
     expect(result.ok).toBe(true);
+    const legacyAssignment = validateLocalArchitect(assign('shop/orders', { externalCapabilities: [
+      { capability: 'send-email', owner: 'shop/nowhere', role: 'request' },
+    ] }, outline()), noView);
+    expect(legacyAssignment.ok, JSON.stringify(legacyAssignment)).toBe(true);
+
+    const descriptive = validateLocalArchitect(requestCompletion({ reuse: [
+      { capability: 'capability:send-email', owner: 'shop/nowhere', role: 'request' },
+    ] }), noView);
+    expect(descriptive.ok).toBe(false);
+    if (descriptive.ok) return;
+    expect(descriptive.errors.map(error => error.path)).toEqual(['outline.reuse.0.capability']);
+    const descriptiveAssignment = validateLocalArchitect(assign('shop/orders', { externalCapabilities: [
+      { capability: 'capability:send-email', owner: 'shop/nowhere', role: 'request' },
+    ] }, outline()), noView);
+    expect(descriptiveAssignment.ok).toBe(false);
+    if (descriptiveAssignment.ok) return;
+    expect(descriptiveAssignment.errors.map(error => error.path)).toEqual(['assignment.externalCapabilities.0.capability']);
   });
 });
 
