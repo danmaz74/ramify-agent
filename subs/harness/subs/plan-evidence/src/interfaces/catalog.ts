@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import type { DocumentManifest } from './contracts.js';
+import type { DocumentManifest, IdentityContract } from './contracts.js';
+export type { IdentityContract } from './contracts.js';
 
 /*
  * The element catalog of Plan 14 and its one package creator. An element is
@@ -12,7 +13,7 @@ import type { DocumentManifest } from './contracts.js';
 
 const text = z.string().min(1);
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
-const documentId = z.string().regex(/^doc-\d{3,}$/);
+const documentId = z.string().regex(/^(?:doc-\d{3,}|document:[a-z0-9]+(?:-[a-z0-9]+)*)$/);
 
 /** The five kinds, in the order a package renders them. */
 export const elementKinds = ['context', 'functional', 'non-functional', 'fixed', 'recommendation'] as const;
@@ -22,14 +23,21 @@ export type ElementKind = typeof elementKinds[number];
 export const elementPrefixes = {
   context: 'ctx', functional: 'fr', 'non-functional': 'nfr', fixed: 'fix', recommendation: 'rec',
 } as const satisfies Record<ElementKind, string>;
+export const descriptiveElementNamespaces = {
+  context: 'context', functional: 'functional-requirement', 'non-functional': 'non-functional-requirement',
+  fixed: 'fixed-requirement', recommendation: 'recommendation',
+} as const satisfies Record<ElementKind, string>;
+const descriptiveElementId = /^(?:context|functional-requirement|non-functional-requirement|fixed-requirement|recommendation):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const draftElementKey = /^draft:(?:context|functional-requirement|non-functional-requirement|fixed-requirement|recommendation):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+export const descriptiveElementIdSchema = z.string().regex(descriptiveElementId);
 
 /** The captured document kinds an element of each kind may be read from. */
 const elementSources: Record<ElementKind, readonly ('plan' | 'principle')[]> = {
   context: ['plan'], functional: ['plan'], 'non-functional': ['plan'], fixed: ['principle'], recommendation: ['plan', 'principle'],
 };
 
-export const elementIdSchema = z.string().regex(/^(ctx|fr|nfr|fix|rec)-\d{3,}$/);
-export const planDeviationIdSchema = z.string().regex(/^pd-\d{3,}$/);
+export const elementIdSchema = z.string().refine(id => /^(ctx|fr|nfr|fix|rec)-\d{3,}$/.test(id) || descriptiveElementId.test(id), 'an element ID is required');
+export const planDeviationIdSchema = z.string().regex(/^(?:pd-\d{3,}|plan-deviation:[a-z0-9]+(?:-[a-z0-9]+)*)$/);
 
 export const elementConditionSchema = z.object({ text, source: z.enum(['stated', 'inferred']) }).strict();
 
@@ -47,7 +55,7 @@ const elementBodySchema = z.object({
 }).strict();
 
 export const catalogElementSchema = elementBodySchema.extend({ id: elementIdSchema }).strict().superRefine((element, ctx) => {
-  if (!element.id.startsWith(`${elementPrefixes[element.kind]}-`)) {
+  if (!element.id.startsWith(`${elementPrefixes[element.kind]}-`) && !element.id.startsWith(`${descriptiveElementNamespaces[element.kind]}:`)) {
     ctx.addIssue({ code: 'custom', path: ['id'], message: 'ID prefix disagrees with kind' });
   }
 });
@@ -61,30 +69,54 @@ export const submittedElementSchema = elementBodySchema.extend({
   key: text.refine(key => !elementIdSchema.safeParse(key).success, 'a submission-local key cannot take the form of an element ID'),
 }).strict();
 export type SubmittedElement = z.infer<typeof submittedElementSchema>;
+export const descriptiveSubmittedElementSchema = elementBodySchema.extend({
+  key: z.string().regex(draftElementKey, 'a draft:<kind namespace>:<name> key is required'),
+}).strict().superRefine((element, ctx) => {
+  if (!element.key.startsWith(`draft:${descriptiveElementNamespaces[element.kind]}:`))
+    ctx.addIssue({ code: 'custom', path: ['key'], message: `a ${element.kind} element requires draft:${descriptiveElementNamespaces[element.kind]}:<name>` });
+});
 
 /** The captured documents elements may name, with the path a package renders. */
 export const catalogDocumentSchema = z.object({ id: documentId, path: text, kind: z.enum(['plan', 'principle']) }).strict();
 
 export const elementCatalogSchema = z.object({
-  schema: z.literal('ramify-agent.element-catalog/1'),
+  schema: z.enum(['ramify-agent.element-catalog/1', 'ramify-agent.element-catalog/2']),
   /** The SHA-256 of the captured document manifest the elements were read from. */
   manifestHash: sha256,
   documents: z.array(catalogDocumentSchema).min(1),
   elements: z.array(catalogElementSchema),
   /** IDs a correction retired; never issued again and never rendered. */
   retired: z.array(elementIdSchema),
+  /** Descriptive correction lineage; omitted on historical catalogs. */
+  replacements: z.array(z.object({ retired: elementIdSchema, with: z.array(elementIdSchema).min(1) }).strict()).optional(),
 }).strict().superRefine((catalog, ctx) => {
+  const descriptive = catalog.schema.endsWith('/2');
   const documents = new Map(catalog.documents.map(document => [document.id, document]));
+  catalog.documents.forEach((document, index) => {
+    if (descriptive !== document.id.startsWith('document:')) ctx.addIssue({ code: 'custom', path: ['documents', index, 'id'], message: 'document ID disagrees with catalog contract' });
+  });
   const ids = new Set<string>();
   catalog.elements.forEach((element, index) => {
+    if (descriptive !== descriptiveElementId.test(element.id)) ctx.addIssue({ code: 'custom', path: ['elements', index, 'id'], message: 'element ID disagrees with catalog contract' });
     if (ids.has(element.id)) ctx.addIssue({ code: 'custom', path: ['elements', index, 'id'], message: 'duplicate element ID' });
     ids.add(element.id);
     const problem = documentProblem(element, documents);
     if (problem) ctx.addIssue({ code: 'custom', path: ['elements', index, 'document'], message: problem });
   });
   catalog.retired.forEach((id, index) => {
+    if (descriptive !== descriptiveElementId.test(id)) ctx.addIssue({ code: 'custom', path: ['retired', index], message: 'retired ID disagrees with catalog contract' });
     if (ids.has(id)) ctx.addIssue({ code: 'custom', path: ['retired', index], message: 'duplicate or active retired ID' });
     ids.add(id);
+  });
+  const retiredSet = new Set(catalog.retired);
+  const lineage = new Set<string>();
+  catalog.replacements?.forEach((relationship, index) => {
+    if (lineage.has(relationship.retired)) ctx.addIssue({ code: 'custom', path: ['replacements', index, 'retired'], message: 'retired ID has multiple replacement relationships' });
+    lineage.add(relationship.retired);
+    if (!retiredSet.has(relationship.retired)) ctx.addIssue({ code: 'custom', path: ['replacements', index, 'retired'], message: 'replacement source is not retired' });
+    relationship.with.forEach((id, replacementIndex) => {
+      if (!ids.has(id) || id === relationship.retired) ctx.addIssue({ code: 'custom', path: ['replacements', index, 'with', replacementIndex], message: 'replacement must be a distinct issued element' });
+    });
   });
 });
 export type ElementCatalog = z.infer<typeof elementCatalogSchema>;
@@ -102,9 +134,10 @@ function documentProblem(
 }
 
 /** An empty catalog over a run's captured documents, before the first extraction is accepted. */
-export function openElementCatalog(manifestHash: string, manifest: DocumentManifest): ElementCatalog {
+export function openElementCatalog(manifestHash: string, manifest: DocumentManifest, identityContract: IdentityContract = 'legacy'): ElementCatalog {
+  if (identityContract === 'descriptive' !== manifest.schema.endsWith('/2')) throw new Error('Document manifest and catalog identity contracts disagree');
   return elementCatalogSchema.parse({
-    schema: 'ramify-agent.element-catalog/1', manifestHash,
+    schema: identityContract === 'legacy' ? 'ramify-agent.element-catalog/1' : 'ramify-agent.element-catalog/2', manifestHash,
     documents: manifest.documents.map(({ id, path, kind }) => ({ id, path, kind })),
     elements: [], retired: [],
   });
@@ -122,6 +155,7 @@ export type ElementAcceptance =
  * are checked against submitted keys/active IDs before assigning any ID.
  */
 export function acceptElements(catalog: ElementCatalog, submission: readonly unknown[], references: readonly ElementReferenceList[] = []): ElementAcceptance {
+  const descriptive = catalog.schema.endsWith('/2');
   const errors: string[] = [];
   const documents = new Map(catalog.documents.map(document => [document.id, document]));
   const keys = new Set<string>();
@@ -136,19 +170,32 @@ export function acceptElements(catalog: ElementCatalog, submission: readonly unk
     }
     const element = parsed.data;
     submitted.push(element);
+    if (descriptive && (!draftElementKey.test(element.key) || !element.key.startsWith(`draft:${descriptiveElementNamespaces[element.kind]}:`))) {
+      errors.push(`${index}.key: ${JSON.stringify(element.key)} must be a draft:${descriptiveElementNamespaces[element.kind]}:<name> key`);
+    }
     if (keys.has(element.key)) errors.push(`${index}.key: duplicate submission-local key ${element.key}`);
     keys.add(element.key);
     const problem = documentProblem(element, documents);
     if (problem) errors.push(`${index}.document: ${problem}${named}`);
   });
   errors.push(...validateElementReferences(references, catalog, submitted));
+  if (descriptive) {
+    const existing = new Set([...catalog.elements.map(element => element.id), ...catalog.retired]);
+    const proposed = new Set<string>();
+    submitted.forEach((element, index) => {
+      const id = element.key.slice('draft:'.length);
+      if (existing.has(id)) errors.push(`${index}.key: ${JSON.stringify(element.key)} collides with accepted or retired ${id}; choose a meaningful qualifier`);
+      if (proposed.has(id)) errors.push(`${index}.key: ${JSON.stringify(element.key)} duplicates another proposal in this submission`);
+      proposed.add(id);
+    });
+  }
   if (errors.length > 0) return { ok: false, errors };
   const next = new Map(elementKinds.map(kind => [kind, highestNumber(catalog, kind) + 1]));
   const ids = new Map<string, string>();
   const accepted = submitted.map(({ key, ...body }) => {
     const number = next.get(body.kind)!;
     next.set(body.kind, number + 1);
-    const id = `${elementPrefixes[body.kind]}-${String(number).padStart(3, '0')}`;
+    const id = descriptive ? key.slice('draft:'.length) : `${elementPrefixes[body.kind]}-${String(number).padStart(3, '0')}`;
     ids.set(key, id);
     return { id, ...body };
   });
@@ -163,6 +210,8 @@ export interface CatalogRevision {
   readonly rewrite: readonly ElementRewrite[];
   /** Elements a split or merge replaces: removed, retired and never issued again. */
   readonly retire: readonly string[];
+  /** For descriptive catalogs, one relationship per retired ID; values are new local keys or retained IDs. */
+  readonly replacements?: readonly { readonly retired: string; readonly with: readonly string[] }[];
   /** New elements, keyed like any submission, numbered past the retired IDs. */
   readonly add: readonly unknown[];
   /** Re-citations checked against retained elements and new local keys before any new IDs. */
@@ -199,13 +248,33 @@ export function reviseCatalog(catalog: ElementCatalog, revision: CatalogRevision
   });
   if (errors.length > 0) return { ok: false, errors };
   const retired = new Set(revision.retire);
-  const corrected = elementCatalogSchema.parse({
+  const corrected = elementCatalogSchema.safeParse({
     ...catalog,
     elements: catalog.elements.filter(element => !retired.has(element.id)).map(element => rewritten.get(element.id) ?? element),
     retired: [...catalog.retired, ...revision.retire],
   });
-  const added = acceptElements(corrected, revision.add, revision.references);
-  return added.ok ? added : { ok: false, errors: added.errors.map(error => /^\d+(?:\.|:)/.test(error) ? `add.${error}` : error) };
+  // The new relationships are checked only after their new elements have names.
+  const interim = catalog.schema.endsWith('/2') && revision.retire.length > 0
+    ? { ...catalog, elements: catalog.elements.filter(element => !retired.has(element.id)).map(element => rewritten.get(element.id) ?? element), retired: [...catalog.retired, ...revision.retire] }
+    : corrected.success ? corrected.data : undefined;
+  if (!interim) return { ok: false, errors: corrected.success ? ['catalog correction is invalid'] : corrected.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`) };
+  const added = acceptElements(interim, revision.add, revision.references);
+  if (!added.ok) return { ok: false, errors: added.errors.map(error => /^\d+(?:\.|:)/.test(error) ? `add.${error}` : error) };
+  if (!catalog.schema.endsWith('/2')) return added;
+  const relationships = revision.replacements ?? [];
+  const relationshipErrors: string[] = [];
+  for (const [index, id] of revision.retire.entries()) {
+    if (relationships.filter(item => item.retired === id).length !== 1) relationshipErrors.push(`replacements.${index}: retired ${id} requires exactly one replacement relationship`);
+  }
+  for (const [index, relationship] of relationships.entries()) {
+    if (!retired.has(relationship.retired)) relationshipErrors.push(`replacements.${index}.retired: ${relationship.retired} is not retired by this correction`);
+  }
+  const resolved = relationships.map(relationship => ({ retired: relationship.retired,
+    with: relationship.with.map(id => added.ids.get(id) ?? id) }));
+  const completed = elementCatalogSchema.safeParse({ ...added.catalog, replacements: [...(catalog.replacements ?? []), ...resolved] });
+  if (!completed.success) relationshipErrors.push(...completed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`));
+  if (relationshipErrors.length > 0 || !completed.success) return { ok: false, errors: relationshipErrors };
+  return { ...added, catalog: completed.data };
 }
 
 function highestNumber(catalog: ElementCatalog, kind: ElementKind): number {
@@ -220,6 +289,8 @@ export interface ElementReferenceList {
   readonly path: string;
   readonly citations: readonly string[];
   readonly allowedKinds: readonly ElementKind[];
+  /** Descriptive contracts distinguish same-submission keys from accepted IDs. */
+  readonly stage?: 'draft' | 'accepted' | 'mixed';
 }
 
 /** Validate local keys/active IDs in their submitted terms, before assigning any IDs. */
@@ -233,6 +304,19 @@ export function validateElementReferences(
   return references.flatMap(field => field.citations.flatMap((citation, index) => {
     const kind = kinds.get(citation);
     const at = `${field.path}.${index}`;
+    if (catalog.schema.endsWith('/2')) {
+      const expected = field.allowedKinds.map(item => descriptiveElementNamespaces[item]).join(' or ');
+      const stage = field.stage ?? 'mixed';
+      const isDraft = citation.startsWith('draft:');
+      if (stage === 'draft' && !isDraft) return [`${at}: ${JSON.stringify(citation)} is an accepted ID or wrong-stage reference; this field requires a local draft:${expected}:<name> key from this submission`];
+      if (stage === 'accepted' && isDraft) return [`${at}: ${JSON.stringify(citation)} is a draft key; this field requires an accepted ${expected}:<name> ID from this run's catalog`];
+      if (kind === undefined) {
+        const retired = catalog.retired.includes(citation);
+        return [`${at}: ${JSON.stringify(citation)} is ${retired ? 'retired' : 'unknown or foreign to this run'}; this field requires ${stage === 'draft' ? 'a key from this submission' : 'an active reference from this run catalog'} in ${expected}`];
+      }
+      if (!field.allowedKinds.includes(kind)) return [`${at}: ${JSON.stringify(citation)} is ${descriptiveElementNamespaces[kind]}; this field requires ${expected} from ${isDraft ? 'this submission' : 'this run catalog'}`];
+      return [];
+    }
     if (kind === undefined) return [`${at}: unknown element reference ${JSON.stringify(citation)}`];
     if (!field.allowedKinds.includes(kind)) return [`${at}: reference ${JSON.stringify(citation)} is ${kind}; expected ${field.allowedKinds.join(' or ') || 'no element kinds'}`];
     return [];

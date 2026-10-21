@@ -27,7 +27,7 @@ export type WorkItemId = string;
 export const workItemId = (count: number): WorkItemId => `wi-${String(count).padStart(3, '0')}`;
 
 export const workItemSchema = z.object({
-  schema: z.literal('ramify-agent.work-item/1'),
+  schema: z.enum(['ramify-agent.work-item/1', 'ramify-agent.work-item/2']),
   id: text,
   module: modulePathSchema,
   /**
@@ -36,7 +36,7 @@ export const workItemSchema = z.object({
    * no capability of its own.
    */
   origin: z.union([
-    z.object({ entry: slugSchema }).strict(),
+    z.object({ entry: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]) }).strict(),
     z.object({ obligation: recordRefSchema }).strict(),
     z.object({ verification: recordRefSchema }).strict(),
     z.object({ integration: scenarioIdSchema }).strict(),
@@ -51,9 +51,20 @@ export const workItemSchema = z.object({
   acceptanceRefs: z.array(elementIdSchema),
   /** The context elements a reader needs to understand it. */
   contextRefs: z.array(elementIdSchema),
+  /** Explicit accepted references on descriptive records; legacy fields remain for current work readers. */
+  functionalRequirementIds: z.array(elementIdSchema).optional(),
+  functionalAcceptanceIds: z.array(elementIdSchema).optional(),
+  contextIds: z.array(elementIdSchema).optional(),
   /** The work item whose yield started this one; the depth-first stack. */
   startedFor: text.nullable(),
-}).strict();
+}).strict().superRefine((item, ctx) => {
+  if (item.schema === 'ramify-agent.work-item/2') {
+    if (!/^work-item:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(item.id)) ctx.addIssue({ code: 'custom', path: ['id'], message: 'a work-item:<name> ID is required' });
+    for (const field of ['functionalRequirementIds', 'functionalAcceptanceIds', 'contextIds'] as const) {
+      if (item[field] === undefined) ctx.addIssue({ code: 'custom', path: [field], message: 'an explicit accepted reference list is required' });
+    }
+  }
+});
 export type WorkItem = z.infer<typeof workItemSchema>;
 
 /** The kind of a work item's origin, as `work-item-started` and the projections name it. */
@@ -108,9 +119,9 @@ export type WorkItemOutline = z.infer<typeof workItemOutlineSchema>;
 
 /** Where a work item's records are materialized, relative to the run's directory. */
 export const workLayout = {
-  item: (id: WorkItemId): string => join('work-items', id, 'item.json'),
-  outline: (id: WorkItemId, revision: number): string => join('work-items', id, 'outline', `${revision}.json`),
-  directory: (id: WorkItemId): string => join('work-items', id),
+  item: (id: WorkItemId): string => join('work-items', encodeURIComponent(id).replace(/:/g, '%3A'), 'item.json'),
+  outline: (id: WorkItemId, revision: number): string => join('work-items', encodeURIComponent(id).replace(/:/g, '%3A'), 'outline', `${revision}.json`),
+  directory: (id: WorkItemId): string => join('work-items', encodeURIComponent(id).replace(/:/g, '%3A')),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */

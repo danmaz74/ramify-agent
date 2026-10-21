@@ -11,13 +11,20 @@ import { dedent, indentOf, parseGherkin, scenariosOf, shift, sourceLines } from 
  */
 
 const lineRangeSchema = z.tuple([z.int().positive(), z.int().positive()]);
+const planScenarioId = /^(?:ps-\d{2,}|plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*)$/;
+const documentId = /^(?:doc-\d{3,}|document:[a-z0-9]+(?:-[a-z0-9]+)*)$/;
+export type ScenarioIdentityContract = 'legacy' | 'descriptive';
+export function descriptiveSlug(value: string): string {
+  return value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'scenario';
+}
 
 /** One scenario of the plan, as the harness extracted it. Its authority is the plan's. */
 export const planScenarioSchema = z.object({
   /** `ps-01`, `ps-02`, … in document order. */
-  id: z.string().regex(/^ps-\d{2,}$/),
+  id: z.string().regex(planScenarioId),
   /** Absent on an old single-plan run; its source is doc-001. */
-  document: z.string().regex(/^doc-\d{3,}$/).optional(),
+  document: z.string().regex(documentId).optional(),
   name: z.string(),
   /** Whether it is a `Scenario Outline` with examples. */
   outline: z.boolean(),
@@ -37,7 +44,7 @@ export type PlanScenario = z.infer<typeof planScenarioSchema>;
 /** A `gherkin` block that did not parse, with the parser's message and the block's lines. */
 export const planScenarioLimitationSchema = z.object({
   kind: z.literal('unparsable-gherkin'),
-  document: z.string().regex(/^doc-\d{3,}$/).optional(),
+  document: z.string().regex(documentId).optional(),
   /** The 1-based lines of the plan from the opening fence to the closing one. */
   lines: lineRangeSchema,
   message: z.string().min(1),
@@ -46,9 +53,17 @@ export type PlanScenarioLimitation = z.infer<typeof planScenarioLimitationSchema
 
 /** What plan capture records. */
 export const planScenarioExtractionSchema = z.object({
+  /** Absent on historical extractions; required for a descriptive extraction. */
+  schema: z.literal('ramify-agent.plan-scenario-extraction/2').optional(),
   scenarios: z.array(planScenarioSchema),
   limitations: z.array(planScenarioLimitationSchema),
-}).strict();
+}).strict().superRefine((extraction, ctx) => {
+  const descriptive = extraction.schema !== undefined;
+  extraction.scenarios.forEach((scenario, index) => {
+    if (descriptive !== scenario.id.startsWith('plan-scenario:'))
+      ctx.addIssue({ code: 'custom', path: ['scenarios', index, 'id'], message: 'plan scenario ID disagrees with extraction contract' });
+  });
+});
 export type PlanScenarioExtraction = z.infer<typeof planScenarioExtractionSchema>;
 
 /** A fenced block of the plan: its info string's first word, the fence lines and the content. */
@@ -63,7 +78,7 @@ interface FencedBlock {
 }
 
 /** Every plan scenario and every unparsable `gherkin` block of a Markdown plan. */
-export function extractPlanScenarios(plan: string, document?: string): PlanScenarioExtraction {
+export function extractPlanScenarios(plan: string, document?: string, identityContract: ScenarioIdentityContract = 'legacy'): PlanScenarioExtraction {
   const scenarios: PlanScenario[] = [];
   const limitations: PlanScenarioLimitation[] = [];
   for (const block of fencedBlocks(plan.split('\n'))) {
@@ -77,11 +92,13 @@ export function extractPlanScenarios(plan: string, document?: string): PlanScena
       scenarios.push({ ...scenario, ...(document === undefined ? {} : { document }), id: `ps-${String(scenarios.length + 1).padStart(2, '0')}` });
     }
   }
-  return { scenarios, limitations };
+  return identityContract === 'descriptive'
+    ? { schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: namePlanScenarios(scenarios), limitations }
+    : { scenarios, limitations };
 }
 
 /** Extract only the documents selected by incorporation, with one run-wide ID sequence. */
-export function extractDocumentScenarios(documents: readonly { readonly id: string; readonly text: string }[]): PlanScenarioExtraction {
+export function extractDocumentScenarios(documents: readonly { readonly id: string; readonly text: string }[], identityContract: ScenarioIdentityContract = 'legacy'): PlanScenarioExtraction {
   const scenarios: PlanScenario[] = [];
   const limitations: PlanScenarioLimitation[] = [];
   for (const document of documents) {
@@ -89,7 +106,25 @@ export function extractDocumentScenarios(documents: readonly { readonly id: stri
     for (const scenario of extracted.scenarios) scenarios.push({ ...scenario, id: `ps-${String(scenarios.length + 1).padStart(2, '0')}` });
     limitations.push(...extracted.limitations);
   }
-  return { scenarios, limitations };
+  return identityContract === 'descriptive'
+    ? { schema: 'ramify-agent.plan-scenario-extraction/2', scenarios: namePlanScenarios(scenarios), limitations }
+    : { scenarios, limitations };
+}
+
+function namePlanScenarios(scenarios: readonly PlanScenario[]): PlanScenario[] {
+  const counts = new Map<string, number>();
+  scenarios.forEach(scenario => { const name = descriptiveSlug(scenario.name); counts.set(name, (counts.get(name) ?? 0) + 1); });
+  return scenarios.map(scenario => {
+    const name = descriptiveSlug(scenario.name);
+    const discriminator = counts.get(name)! > 1 ? `-${stableSourceSuffix(`${scenario.document ?? 'root'}:${scenario.lines[0]}:${scenario.lines[1]}`)}` : '';
+    return { ...scenario, id: `plan-scenario:${name}${discriminator}` };
+  });
+}
+
+function stableSourceSuffix(source: string): string {
+  let value = 2166136261;
+  for (const character of source) value = Math.imul(value ^ character.charCodeAt(0), 16777619);
+  return (value >>> 0).toString(16).padStart(8, '0');
 }
 
 type BlockScenario = Omit<PlanScenario, 'id'>;

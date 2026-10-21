@@ -183,6 +183,8 @@ export type RunPolicy = z.infer<typeof runPolicySchema>;
 /** The version a project's `ramify-agent.json` declares. */
 export const runRecordSchema = z.object({
   schema: z.literal(jobSchemaVersion),
+  /** Absent in historical runs. New runs record the identity contract at capture. */
+  identityContract: z.enum(['legacy', 'descriptive']).optional(),
   jobId: jobIdSchema,
   planId: planIdSchema,
   kind: z.literal('implementation'),
@@ -303,7 +305,7 @@ export const runLayout = {
   promptManifest: join('prompts', 'manifest.json'),
   entries: join('analysis', 'entries.json'),
   /** One tracked scenario, `sc-001`, committed by `analysis-accepted` and immutable. */
-  scenario: (id: string): string => join('scenarios', `${id}.json`),
+  scenario: (id: string): string => join('scenarios', `${encodeURIComponent(id).replace(/:/g, '%3A')}.json`),
   readiness: (attempt: number): string => join('readiness', readinessDirectory(attempt), 'attempt.json'),
   readinessOutput: (attempt: number): string => join('readiness', readinessDirectory(attempt)),
   operationRecovery: (id: string, revision = 1): string => join('operation-recoveries', id, `${revision}.json`),
@@ -344,8 +346,11 @@ export const runLayout = {
 export const runSchemas = {
   run: { schema: jobSchemaVersion, body: runRecordSchema },
   documents: { schema: 'ramify-agent.document-manifest/1', body: documentManifestSchema },
+  documentsDescriptive: { schema: 'ramify-agent.document-manifest/2', body: documentManifestSchema },
   catalog: { schema: 'ramify-agent.element-catalog/1', body: elementCatalogSchema },
+  catalogDescriptive: { schema: 'ramify-agent.element-catalog/2', body: elementCatalogSchema },
   incorporation: { schema: 'ramify-agent.document-incorporation/2', body: incorporationSchema },
+  incorporationDescriptive: { schema: 'ramify-agent.document-incorporation/3', body: incorporationSchema },
   selection: { schema: 'ramify-agent.context-selection/2', body: contextSelectionSchema },
   preparedCandidate: { schema: 'ramify-agent.prepared-candidate/1', body: preparedCandidateSchema },
   assessment: { schema: 'ramify-agent.nonfunctional-assessment/1', body: assessmentSchema },
@@ -354,7 +359,9 @@ export const runSchemas = {
   nonfunctionalDeviation: { schema: 'ramify-agent.nonfunctional-deviation/1', body: nonfunctionalDeviationSchema },
   promptManifest: { schema: 'ramify-agent.prompt-manifest/1', body: promptPackageManifestSchema },
   entries: { schema: 'ramify-agent.entry-assignments/1', body: entryAssignmentsSchema },
+  entriesDescriptive: { schema: 'ramify-agent.entry-assignments/2', body: entryAssignmentsSchema },
   scenario: { schema: 'ramify-agent.scenario/1', body: scenarioRecordSchema },
+  scenarioDescriptive: { schema: 'ramify-agent.scenario/2', body: scenarioRecordSchema },
   readiness: { schema: 'ramify-agent.readiness-attempt/1', body: readinessAttemptSchema },
   operationRecovery: { schema: 'ramify-agent.operation-recovery/1', body: operationRecoverySchema },
   recovery: { schema: 'ramify-agent.infrastructure-recovery/1', body: infrastructureRecoverySchema },

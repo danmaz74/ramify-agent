@@ -170,7 +170,21 @@ compares itself, never to a reading:
   and an ID, so every consumer receives the same bytes for the same ID.
 - Validity: an assignment that cites an ID the catalog does not hold is
   rejected on acceptance, with the path of the bad citation. That is the
-  one validator this catalog needs.
+  original validator for legacy citations.
+
+For a run using the descriptive identity contract, captured documents use
+`document:<name>` and the five element kinds use `context:<name>`,
+`functional-requirement:<name>`, `non-functional-requirement:<name>`,
+`fixed-requirement:<name>` and `recommendation:<name>`. Names are lowercase
+kebab case. An author proposes `draft:<namespace>:<name>` in its ordinary
+submission; acceptance removes `draft:` to form the actual catalog ID. The
+harness rejects duplicate names in a submission and names already accepted or
+retired in that run. It preserves the complete text, conditions, uncertainty
+and source document when doing so. A legacy run retains numbered IDs and its
+existing submission fields; its frozen bytes are unchanged. Descriptive
+catalogs and document manifests identify their contract with schema version
+`/2`; incorporation uses `/3`, while legacy records retain their original
+versions.
 
 ## How a non-functional package is generated, and when
 

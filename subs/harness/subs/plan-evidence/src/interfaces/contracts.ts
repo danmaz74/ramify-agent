@@ -3,7 +3,10 @@ import { z } from 'zod';
 
 const text = z.string().min(1);
 const sha256 = z.string().regex(/^[0-9a-f]{64}$/);
-const documentId = z.string().regex(/^doc-\d{3,}$/);
+export type IdentityContract = 'legacy' | 'descriptive';
+const legacyDocumentId = /^doc-\d{3,}$/;
+const descriptiveDocumentId = /^document:[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const documentId = z.string().refine(id => legacyDocumentId.test(id) || descriptiveDocumentId.test(id), 'a document ID is required');
 const projectPath = z.string().min(1).refine(path =>
   !path.startsWith('/') && !path.includes('\\') && !/^[A-Za-z]:/.test(path) &&
   path.split('/').every(segment => segment !== '' && segment !== '.' && segment !== '..'),
@@ -34,7 +37,7 @@ export const missingDocumentSchema = z.object({
 }).strict();
 
 export const documentManifestSchema = z.object({
-  schema: z.literal('ramify-agent.document-manifest/1'),
+  schema: z.enum(['ramify-agent.document-manifest/1', 'ramify-agent.document-manifest/2']),
   root: documentId,
   documents: z.array(capturedDocumentSchema).min(1),
   missing: z.array(missingDocumentSchema),
@@ -44,14 +47,17 @@ export const documentManifestSchema = z.object({
     unreadable: z.array(z.object({ path: z.union([projectPath, z.literal('.')]), reason: text }).strict()),
   }).strict(),
 }).strict().superRefine((value, ctx) => {
+  const pattern = value.schema.endsWith('/2') ? descriptiveDocumentId : legacyDocumentId;
   const ids = new Set<string>();
   const paths = new Set<string>();
   value.documents.forEach((document, index) => {
+    if (!pattern.test(document.id)) ctx.addIssue({ code: 'custom', path: ['documents', index, 'id'], message: `document ID must use ${value.schema.endsWith('/2') ? 'document:<name>' : 'doc-NNN'}` });
     if (ids.has(document.id)) ctx.addIssue({ code: 'custom', path: ['documents', index, 'id'], message: 'duplicate document ID' });
     if (paths.has(document.path)) ctx.addIssue({ code: 'custom', path: ['documents', index, 'path'], message: 'duplicate canonical path' });
     ids.add(document.id);
     paths.add(document.path);
   });
+  if (!pattern.test(value.root)) ctx.addIssue({ code: 'custom', path: ['root'], message: 'root ID disagrees with manifest contract' });
   if (value.documents[0]?.id !== value.root || !/^plans\/[^/]+\/plan\.md$/.test(value.documents[0]?.path ?? '')) {
     ctx.addIssue({ code: 'custom', path: ['root'], message: 'the root plan must be the first document at plans/<id>/plan.md' });
   }

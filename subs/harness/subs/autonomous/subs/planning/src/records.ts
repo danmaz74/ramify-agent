@@ -39,7 +39,7 @@ export const moduleProposalSchema = z.object({
 export type ModuleProposal = z.infer<typeof moduleProposalSchema>;
 
 export const entryAssignmentsSchema = z.object({
-  schema: z.literal('ramify-agent.entry-assignments/1'),
+  schema: z.enum(['ramify-agent.entry-assignments/1', 'ramify-agent.entry-assignments/2']),
   view: viewIdentitySchema,
   entries: z.array(z.object({
     capability: text,
@@ -49,10 +49,21 @@ export const entryAssignmentsSchema = z.object({
     requirementRefs: z.array(elementIdSchema),
     acceptanceRefs: z.array(elementIdSchema),
     contextRefs: z.array(elementIdSchema),
+    capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+    functionalRequirementIds: z.array(elementIdSchema).optional(),
+    functionalAcceptanceIds: z.array(elementIdSchema).optional(),
+    contextIds: z.array(elementIdSchema).optional(),
     citations: z.array(citationSchema),
     nonBehavioralAcceptance: z.array(nonBehavioralAcceptanceSchema).optional(),
   }).strict()),
-}).strict();
+}).strict().superRefine((record, ctx) => {
+  if (record.schema !== 'ramify-agent.entry-assignments/2') return;
+  record.entries.forEach((entry, index) => {
+    for (const field of ['capabilityId', 'functionalRequirementIds', 'functionalAcceptanceIds', 'contextIds'] as const) {
+      if (entry[field] === undefined) ctx.addIssue({ code: 'custom', path: ['entries', index, field], message: 'descriptive records require explicit accepted references' });
+    }
+  });
+});
 export type EntryAssignments = z.infer<typeof entryAssignmentsSchema>;
 
 
@@ -78,12 +89,12 @@ export const hypothesisChangeSchema = z.enum(['reuse', 'create', 'create-by-extr
 export type HypothesisChange = z.infer<typeof hypothesisChangeSchema>;
 
 export const hypothesisSchema = z.object({
-  schema: z.literal('ramify-agent.hypothesis/1'),
-  id: slugSchema,
+  schema: z.enum(['ramify-agent.hypothesis/1', 'ramify-agent.hypothesis/2']),
+  id: z.union([slugSchema, z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
   revision: z.int().positive(),
   standing: z.enum(['tentative', 'confirmed', 'superseded']),
   /** The forecast capability. It is not a registry entry. */
-  capability: slugSchema,
+  capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
   change: hypothesisChangeSchema,
   /**
    * Whether implementing the forecast capability is expected to change
@@ -96,7 +107,7 @@ export const hypothesisSchema = z.object({
   /** Which module architects receive it, beside the anticipated consumers. */
   involvedModules: z.array(modulePathSchema),
   /** Forecast dependency links, all tentative. */
-  dependsOn: z.array(slugSchema),
+  dependsOn: z.array(z.union([slugSchema, z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)])),
   confidence: z.enum(['low', 'medium', 'high']),
   rationale: text,
   assumptions: z.array(z.string()),
@@ -107,14 +118,14 @@ export const hypothesisSchema = z.object({
     z.object({ initial: text }).strict(),
     z.object({ decision: text, reason: text }).strict(),
   ]),
-  supersededBy: slugSchema.optional(),
+  supersededBy: z.union([slugSchema, z.string().regex(/^hypothesis:[a-z0-9]+(?:-[a-z0-9]+)*$/)]).optional(),
   confirmedBy: text.optional(),
 }).strict();
 export type Hypothesis = z.infer<typeof hypothesisSchema>;
 
 export const registryEntrySchema = z.object({
-  schema: z.literal('ramify-agent.capability/1'),
-  capability: slugSchema,
+  schema: z.enum(['ramify-agent.capability/1', 'ramify-agent.capability/2']),
+  capability: z.union([slugSchema, z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/)]),
   revision: z.int().positive(),
   behavior: text,
   owner: modulePathSchema,
@@ -164,8 +175,8 @@ export type CatalogFinding = z.infer<typeof catalogFindingSchema>;
 
 /** Where the analysis's records are materialized, relative to the run's directory. */
 export const analysisLayout = {
-  hypothesis: (id: string, revision: number): string => join('hypotheses', id, `${revision}.json`),
-  registry: (capability: string, revision: number): string => join('registry', capability, `${revision}.json`),
+  hypothesis: (id: string, revision: number): string => join('hypotheses', encodeURIComponent(id).replace(/:/g, '%3A'), `${revision}.json`),
+  registry: (capability: string, revision: number): string => join('registry', encodeURIComponent(capability).replace(/:/g, '%3A'), `${revision}.json`),
 } as const;
 
 /** The schema literal of each kind, for a reader that answers unsupported version. */

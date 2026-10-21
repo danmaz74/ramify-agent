@@ -35,6 +35,19 @@ test('captures nested, linked and extensionless text once with exact bytes and s
   expect(found.manifest.documents[0]!.sha256).toMatch(/^[0-9a-f]{64}$/);
 });
 
+test('descriptive capture uses stable document IDs and encoded stored paths', async () => {
+  const root = await fixture();
+  await put(root, 'plans/p/plan.md', '# P\n');
+  await put(root, 'plans/p/companion.md', '# Companion\n');
+  const first = await discoverDocuments(root, 'p', revision, undefined, undefined, 'descriptive');
+  const again = await discoverDocuments(root, 'p', revision, undefined, undefined, 'descriptive');
+  expect(first.manifest).toEqual(again.manifest);
+  expect(first.manifest).toMatchObject({ schema: 'ramify-agent.document-manifest/2', root: 'document:p-plan' });
+  expect(first.manifest.documents.map(document => document.id)).toEqual(['document:p-plan', 'document:p-companion']);
+  expect(first.manifest.documents[1]!.storedAt).toBe('input/documents/document%3Ap-companion.bin');
+  expect(first.bytes.get('document:p-plan')).toEqual(await readFile(join(root, 'plans/p/plan.md')));
+});
+
 test('follows reference-style links and balanced or escaped parentheses', async () => {
   const root = await fixture();
   await put(root, 'plans/p/plan.md', '# P\n[rules][r] [one](a(b).md) [two](c\\(d\\).md)\n\n[r]: ../shared/rules.yaml\n');

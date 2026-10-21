@@ -29,9 +29,14 @@ const supported: Readonly<Record<string, string>> = Object.fromEntries([
   'ramify-agent.capability-request/1', 'ramify-agent.capability-task/1', 'ramify-agent.capability-plan/1',
   'ramify-agent.capability-exchange/1', 'ramify-agent.capability-handback/1',
 ].map(schema => [schema.replace(/\/\d+$/, ''), schema]));
+const alsoSupported = new Set([
+  'ramify-agent.hypothesis/2', 'ramify-agent.capability/2', 'ramify-agent.work-item/2',
+  'ramify-agent.entry-assignments/2', 'ramify-agent.scenario/2',
+]);
 
 export function unsupportedCommittedVersion(declared: unknown): string | null {
   if (typeof declared !== 'string') return null;
+  if (alsoSupported.has(declared)) return null;
   const expected = supported[declared.replace(/\/\d+$/, '')];
   return expected === undefined || expected === declared ? null : expected;
 }
@@ -55,10 +60,12 @@ const schemas: Readonly<Record<string, z.ZodType>> = {
   'ramify-agent.gate-attempt/3': gateAttemptSchema,
   'ramify-agent.gate-audit-outcome/1': gateAuditOutcomeSchema,
   'ramify-agent.hypothesis/1': hypothesisSchema,
+  'ramify-agent.hypothesis/2': hypothesisSchema,
   'ramify-agent.work-item-outline/1': workItemOutlineSchema,
   'ramify-agent.iteration-assignment/1': iterationAssignmentSchema,
   'ramify-agent.contract/2': contractRecordSchema,
   'ramify-agent.entry-assignments/1': entryAssignmentsSchema,
+  'ramify-agent.entry-assignments/2': entryAssignmentsSchema,
 };
 
 /** Preserve general committed-record admission before repair command effects. */

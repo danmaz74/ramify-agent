@@ -8,12 +8,12 @@ export function planningRecords(entries: readonly ReplayedLine[]): PlanningRecor
   const registry = new Map<string, RegistryEntry>();
   for (const line of entries) for (const record of line.transaction.records) {
     const declared = typeof record.body === 'object' && record.body !== null ? (record.body as { schema?: unknown }).schema : undefined;
-    if (declared === 'ramify-agent.entry-assignments/1') acceptedEntries = parseCommittedRecord(entryAssignmentsSchema, record.body, record.path);
-    else if (declared === 'ramify-agent.hypothesis/1') {
+    if (declared === 'ramify-agent.entry-assignments/1' || declared === 'ramify-agent.entry-assignments/2') acceptedEntries = parseCommittedRecord(entryAssignmentsSchema, record.body, record.path);
+    else if (declared === 'ramify-agent.hypothesis/1' || declared === 'ramify-agent.hypothesis/2') {
       const value = parseCommittedRecord(hypothesisSchema, record.body, record.path);
       const current = hypotheses.get(value.id);
       if (current === undefined || value.revision >= current.revision) hypotheses.set(value.id, value);
-    } else if (declared === 'ramify-agent.capability/1') {
+    } else if (declared === 'ramify-agent.capability/1' || declared === 'ramify-agent.capability/2') {
       const value = parseCommittedRecord(registryEntrySchema, record.body, record.path);
       const current = registry.get(value.capability);
       if (current === undefined || value.revision >= current.revision) registry.set(value.capability, value);

@@ -51,7 +51,7 @@ export function briefed(record: ScenarioRecord, state: ScenarioState): BriefedSc
 export function scenarioBodyLines(scenario: BriefedScenario, packages: readonly string[] = []): string[] {
   const quoted = scenario.source.map(line => line === '' ? '>' : `> ${line}`).join('\n');
   const supplied = (scenario.citedElements ?? []).filter(id => packages.some(pkg => {
-    if (!/^fr-\d{3,}$/u.test(id)) return false;
+    if (!/^(?:fr-\d{3,}|functional-requirement:[a-z0-9]+(?:-[a-z0-9]+)*)$/u.test(id)) return false;
     const heading = new RegExp(`^### ${id}: [^\\n]*\\n`, 'mu').exec(pkg);
     if (!heading) return false;
     const start = heading.index + heading[0].length;

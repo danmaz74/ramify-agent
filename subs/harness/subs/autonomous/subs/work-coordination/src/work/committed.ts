@@ -54,7 +54,8 @@ export function coordinationRecords(entries: readonly ReplayedLine[]): Coordinat
         ? (record.body as { schema?: unknown }).schema
         : undefined;
       switch (declared) {
-        case 'ramify-agent.work-item/1': {
+        case 'ramify-agent.work-item/1':
+        case 'ramify-agent.work-item/2': {
           const value = parseCommittedRecord(workItemSchema, record.body, record.path);
           workItems.set(value.id, value);
           break;

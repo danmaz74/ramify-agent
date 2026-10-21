@@ -374,6 +374,24 @@ origin, sub-scenarios or parent, name, source lines and a hash of those lines.
 An integration scenario's owner is the lowest common ancestor of its
 sub-scenarios' owners. Text is frozen from here on.
 
+Under the descriptive identity contract, capture assigns each plan origin a
+`plan-scenario:<name>` ID from its scenario name. Equal names in distinct
+source locations receive stable source discriminators. The extraction records
+`ramify-agent.plan-scenario-extraction/2`; historical extractions retain their
+original shape. Initial analysis uses
+`scenarioKey: draft:scenario:<name>` and
+`entryCapabilityKey: draft:capability:<name>` for same-submission references,
+`planScenarioId` for a captured origin, `partOfPlanScenarioId` for a derived
+sub-scenario and `functionalAcceptanceKeys` for its local catalog citations.
+Integration scenarios use `planScenarioId` and `subScenarioKeys`. Ordinary
+acceptance records `scenario:<name>` as the actual registered ID and
+`ramify-agent.scenario/2` as the record schema. Feature tags encode that ID as
+`@ramify-scenario-<name>`; the tag parser restores the colon form. Descriptive
+entry identities are percent encoded in feature filenames. The legacy
+`ps-NN`, `sc-NNN`, submission fields, records and feature tags continue for
+legacy runs. Both contracts retain the same form rules, source lines,
+ownership, state and completion authority.
+
 The analysis procedure for the plan architect gains the corresponding
 steps: read the plan scenarios first, since their `When` steps name what the
 outside does; match them to entries; decompose integration scenarios by

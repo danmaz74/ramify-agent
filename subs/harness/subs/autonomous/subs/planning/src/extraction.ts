@@ -4,11 +4,12 @@ import type { JsonSchema } from '../../../../agent/src/interfaces/port.js';
 import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import {
   acceptElements, createPackage, elementRewriteSchema, resolveCitations, reviseCatalog, submittedElementSchema,
+  descriptiveSubmittedElementSchema,
   type ElementCatalog, type ElementKind,
 } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import { extractPlanScenarios, type PlanScenario } from '../../../../scenarios/src/extraction.js';
 import type { SubmissionError, SubmissionValidation } from '../../../../task-execution/src/submissions.js';
-import { incorporationSchema, type Incorporation } from './evidence-contracts.js';
+import { incorporationSchema, submittedIncorporationSchema, type Incorporation } from './evidence-contracts.js';
 import type { CatalogFinding } from './records.js';
 import { analysisCitationErrors, analysisElementReferences, scenarioFormOf, type AnalysisEvidence, type ResolvedAnalysis } from './submission.js';
 
@@ -28,17 +29,21 @@ export const intakeSubmissionSchema = z.object({
   /** The plan's goal in a few sentences, close to its own words; each principles extraction reads it. */
   goal: text,
   elements: z.array(submittedElementSchema),
-  incorporation: incorporationSchema.omit({ schema: true }),
+  incorporation: submittedIncorporationSchema,
 }).strict();
 export type IntakeSubmission = z.infer<typeof intakeSubmissionSchema>;
 export const intakeToolName = 'submit_intake';
 export const intakeJsonSchema = z.toJSONSchema(intakeSubmissionSchema) as JsonSchema;
+export const descriptiveIntakeSubmissionSchema = intakeSubmissionSchema.extend({ elements: z.array(descriptiveSubmittedElementSchema) }).strict();
+export const descriptiveIntakeJsonSchema = z.toJSONSchema(descriptiveIntakeSubmissionSchema) as JsonSchema;
 
 /** One principles document's fixed requirements and recommendations that bear on this plan. */
 export const principleSubmissionSchema = z.object({ elements: z.array(submittedElementSchema) }).strict();
 export type PrincipleSubmission = z.infer<typeof principleSubmissionSchema>;
 export const principleToolName = 'submit_principle_elements';
 export const principleJsonSchema = z.toJSONSchema(principleSubmissionSchema) as JsonSchema;
+export const descriptivePrincipleSubmissionSchema = principleSubmissionSchema.extend({ elements: z.array(descriptiveSubmittedElementSchema) }).strict();
+export const descriptivePrincipleJsonSchema = z.toJSONSchema(descriptivePrincipleSubmissionSchema) as JsonSchema;
 
 const citationList = z.array(text);
 
@@ -65,6 +70,39 @@ export const checkSubmissionSchema = z.object({
 export type CheckSubmission = z.infer<typeof checkSubmissionSchema>;
 export const checkToolName = 'submit_catalog_check';
 export const checkJsonSchema = z.toJSONSchema(checkSubmissionSchema) as JsonSchema;
+const descriptiveCorrectionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('add'), reason: text, elements: z.array(descriptiveSubmittedElementSchema).min(1) }).strict(),
+  z.object({ action: z.literal('rewrite'), reason: text, element: elementRewriteSchema }).strict(),
+  z.object({ action: z.literal('replace'), reason: text, retire: z.array(text).min(1), elements: z.array(descriptiveSubmittedElementSchema) }).strict(),
+]);
+const descriptiveCitation = (family: 'functionalRequirement' | 'context') => {
+  const namespace = family === 'context' ? 'context' : 'functional-requirement';
+  const accepted = z.string().regex(new RegExp(`^${namespace}:[a-z0-9]+(?:-[a-z0-9]+)*$`));
+  const draft = z.string().regex(new RegExp(`^draft:${namespace}:[a-z0-9]+(?:-[a-z0-9]+)*$`));
+  return z.union([
+    z.object({ [`${family}Id`]: accepted }).strict(),
+    z.object({ [`${family}Key`]: draft }).strict(),
+  ]);
+};
+const functionalCitation = descriptiveCitation('functionalRequirement');
+const contextCitation = descriptiveCitation('context');
+export const descriptiveCheckSubmissionSchema = z.object({
+  corrections: z.array(descriptiveCorrectionSchema),
+  entries: z.array(z.object({ capabilityId: z.string().regex(/^capability:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    functionalRequirementCitations: z.array(functionalCitation), functionalAcceptanceCitations: z.array(functionalCitation),
+    contextCitations: z.array(contextCitation) }).strict()),
+  scenarios: z.array(z.object({ scenarioKey: z.string().regex(/^draft:scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    functionalAcceptanceCitations: z.array(functionalCitation) }).strict()),
+}).strict();
+export type DescriptiveCheckSubmission = z.infer<typeof descriptiveCheckSubmissionSchema>;
+export const descriptiveCheckJsonSchema = z.toJSONSchema(descriptiveCheckSubmissionSchema) as JsonSchema;
+export function normalizeDescriptiveCheck(value: DescriptiveCheckSubmission): CheckSubmission {
+  const citation = (value: Record<string, string>) => Object.values(value)[0]!;
+  return { corrections: value.corrections, entries: value.entries.map(entry => ({
+    capability: entry.capabilityId.slice('capability:'.length), requirementRefs: entry.functionalRequirementCitations.map(citation),
+    acceptanceRefs: entry.functionalAcceptanceCitations.map(citation), contextRefs: entry.contextCitations.map(citation),
+  })), scenarios: value.scenarios.map(scenario => ({ key: scenario.scenarioKey, refs: scenario.functionalAcceptanceCitations.map(citation) })) };
+}
 
 export type Accepted<T> = { readonly ok: true } & T | { readonly ok: false; readonly errors: readonly SubmissionError[] };
 
@@ -78,7 +116,10 @@ export function acceptIntake(catalog: ElementCatalog, manifest: DocumentManifest
   if (errors.length > 0) return { ok: false, errors };
   const accepted = acceptElements(catalog, value.elements);
   if (!accepted.ok) return { ok: false, errors: accepted.errors.map(error => toError('elements', error)) };
-  return { ok: true, catalog: accepted.catalog, incorporation: incorporationSchema.parse({ schema: 'ramify-agent.document-incorporation/2', ...value.incorporation }) };
+  return { ok: true, catalog: accepted.catalog, incorporation: incorporationSchema.parse({
+    schema: catalog.schema.endsWith('/2') ? 'ramify-agent.document-incorporation/3' : 'ramify-agent.document-incorporation/2',
+    ...value.incorporation,
+  }) };
 }
 
 /** One principles document's elements, which must all be read from it. */
@@ -126,7 +167,13 @@ export function applyCheck(state: CheckState, document: string, invocation: stri
     });
   });
   if (errors.length > 0) return { ok: false, errors };
-  const revised = reviseCatalog(state.catalog, { rewrite, retire, add: added, references: analysisElementReferences({ entries: value.entries.map(entry => ({ ...entry, description: '', owner: '', citations: [] })), scenarios: value.scenarios.map(scenario => ({ ...scenario, entry: '', origin: { kind: 'architect' as const }, gherkin: '' })) }) });
+  const replacements = state.catalog.schema.endsWith('/2')
+    ? value.corrections.filter(correction => correction.action === 'replace').flatMap(correction =>
+      correction.retire.map(retired => ({ retired, with: correction.elements.map(element => element.key) })))
+    : undefined;
+  const revised = reviseCatalog(state.catalog, { rewrite, retire, add: added, ...(replacements === undefined ? {} : { replacements }),
+    references: analysisElementReferences({ entries: value.entries.map(entry => ({ ...entry, description: '', owner: '', citations: [] })),
+      scenarios: value.scenarios.map(scenario => ({ ...scenario, entry: '', origin: { kind: 'architect' as const }, gherkin: '' })) }) });
   if (!revised.ok) return { ok: false, errors: revised.errors.map(error => toError(error.startsWith('entries.') || error.startsWith('scenarios.') ? '' : 'corrections', error)) };
 
   const active = new Set(revised.catalog.elements.map(element => element.id));

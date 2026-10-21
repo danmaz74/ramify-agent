@@ -19,7 +19,53 @@ import { comparableSteps, dedent, normalizedText, parseGherkin, scenariosOf, sou
 export const scenarioElementRefSchema = z.string().min(1);
 export type ScenarioElementRef = z.infer<typeof scenarioElementRefSchema>;
 
-const planScenarioIdSchema = z.string().regex(/^ps-\d{2,}$/, 'A plan scenario ID, such as "ps-01"');
+const planScenarioIdSchema = z.string().regex(/^(?:ps-\d{2,}|plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*)$/, 'A plan scenario ID, such as "plan-scenario:reject-missing-predecessor"');
+
+const descriptiveScenarioKey = z.string().regex(/^draft:scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const descriptiveCapabilityKey = z.string().regex(/^draft:capability:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const descriptiveFunctionalKey = z.string().regex(/^draft:functional-requirement:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const descriptivePlanScenarioId = z.string().regex(/^plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*$/);
+
+/** The author-facing scenario fields of a descriptive initial analysis. */
+export const descriptiveScenarioSubmissionSchema = z.object({
+  scenarioKey: descriptiveScenarioKey.describe('New local scenario key, for example draft:scenario:reject-missing-predecessor. An accepted scenario:... ID is invalid here.'),
+  entryCapabilityKey: descriptiveCapabilityKey.describe('A key from entries[].capabilityKey in this submission, for example draft:capability:add-revision-preview. An accepted capability:... ID is invalid here.'),
+  origin: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('plan'), planScenarioId: descriptivePlanScenarioId.describe('An accepted plan-scenario:<name> ID from the captured plan scenario list. A draft:scenario key is invalid here.') }).strict(),
+    z.object({ kind: z.literal('architect') }).strict(),
+  ]),
+  partOfPlanScenarioId: descriptivePlanScenarioId.describe('The accepted plan-scenario:<name> ID of the integration origin; a scenario key is invalid.').optional(),
+  functionalAcceptanceKeys: z.array(descriptiveFunctionalKey).describe('Local functional keys from elements[].key in this submission; for example draft:functional-requirement:reject-unknown-predecessor. An accepted ID is invalid.').optional(),
+  gherkin: z.string().min(1).optional(),
+}).strict().superRefine((scenario, ctx) => {
+  if (scenario.origin.kind === 'architect' && scenario.gherkin === undefined)
+    ctx.addIssue({ code: 'custom', path: ['gherkin'], message: 'an architect scenario requires its Gherkin' });
+});
+export const descriptiveIntegrationScenarioSubmissionSchema = z.object({
+  planScenarioId: descriptivePlanScenarioId.describe('An accepted plan-scenario:<name> ID from the captured plan scenario list; a draft key is invalid.'),
+  subScenarioKeys: z.array(descriptiveScenarioKey).describe('Keys of scenarios[].scenarioKey in this submission, such as draft:scenario:reject-missing-predecessor; accepted IDs are invalid.'),
+}).strict();
+export const descriptiveScenarioFormSubmissionSchema = z.object({
+  scenarios: z.array(descriptiveScenarioSubmissionSchema),
+  integrationScenarios: z.array(descriptiveIntegrationScenarioSubmissionSchema),
+}).strict();
+export type DescriptiveScenarioFormSubmission = z.infer<typeof descriptiveScenarioFormSubmissionSchema>;
+
+/** Translate only field names; the validator still applies the same form rules. */
+export function normalizeDescriptiveScenarioForm(submission: DescriptiveScenarioFormSubmission): ScenarioFormSubmission {
+  return {
+    scenarios: submission.scenarios.map(scenario => ({
+      key: scenario.scenarioKey, entry: scenario.entryCapabilityKey,
+      origin: scenario.origin.kind === 'plan' ? { kind: 'plan' as const, planScenario: scenario.origin.planScenarioId } : { kind: 'architect' as const },
+      ...(scenario.partOfPlanScenarioId === undefined ? {} : { partOf: scenario.partOfPlanScenarioId }),
+      ...(scenario.functionalAcceptanceKeys === undefined ? {} : { refs: scenario.functionalAcceptanceKeys }),
+      ...(scenario.gherkin === undefined ? {} : { gherkin: scenario.gherkin }),
+    })),
+    integrationScenarios: submission.integrationScenarios.map(integration => ({
+      planScenario: integration.planScenarioId, subScenarios: integration.subScenarioKeys,
+    })),
+  };
+}
 
 /** Where a submitted scenario comes from. */
 export const scenarioOriginSubmissionSchema = z.discriminatedUnion('kind', [

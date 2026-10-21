@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { scenarioElementRefSchema, type AcceptedScenarioForm } from './form.js';
+import { descriptiveSlug, type ScenarioIdentityContract } from './extraction.js';
 
 /*
  * The scenario record, `ramify-agent.scenario/1`, and the numbering that
@@ -11,13 +12,13 @@ import { scenarioElementRefSchema, type AcceptedScenarioForm } from './form.js';
  * except that a placement revision revises its `file`.
  */
 
-export const scenarioIdSchema = z.string().regex(/^sc-\d{3,}$/, 'A scenario ID, such as "sc-001"');
+export const scenarioIdSchema = z.string().regex(/^(?:sc-\d{3,}|scenario:[a-z0-9]+(?:-[a-z0-9]+)*)$/, 'A scenario ID, such as "scenario:reject-missing-predecessor"');
 export type ScenarioId = z.infer<typeof scenarioIdSchema>;
 
 const lineRangeSchema = z.tuple([z.int().positive(), z.int().positive()]);
 
 export const scenarioRecordSchema = z.object({
-  schema: z.literal('ramify-agent.scenario/1'),
+  schema: z.enum(['ramify-agent.scenario/1', 'ramify-agent.scenario/2']),
   id: scenarioIdSchema,
   kind: z.enum(['entry', 'integration']),
   /** The entry capability; `null` for an integration scenario. */
@@ -25,7 +26,7 @@ export const scenarioRecordSchema = z.object({
   /** A module's declared-name path. */
   owner: z.string().min(1),
   origin: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('plan'), planScenario: z.string().regex(/^ps-\d{2,}$/), ref: z.object({ document: z.string().regex(/^doc-\d{3,}$/).optional(), lines: lineRangeSchema }).strict() }).strict(),
+    z.object({ kind: z.literal('plan'), planScenario: z.string().regex(/^(?:ps-\d{2,}|plan-scenario:[a-z0-9]+(?:-[a-z0-9]+)*)$/), ref: z.object({ document: z.string().regex(/^(?:doc-\d{3,}|document:[a-z0-9]+(?:-[a-z0-9]+)*)$/).optional(), lines: lineRangeSchema }).strict() }).strict(),
     z.object({ kind: z.literal('architect'), refs: z.array(scenarioElementRefSchema) }).strict(),
   ]),
   /** Accepted catalog citations; absent on historical records. */
@@ -41,7 +42,13 @@ export const scenarioRecordSchema = z.object({
   hash: z.string().regex(/^sha256:[0-9a-f]{64}$/),
   /** The project-relative path of the feature file that carries it. */
   file: z.string().min(1),
-}).strict();
+}).strict().superRefine((record, ctx) => {
+  const descriptive = record.schema.endsWith('/2');
+  if (descriptive !== record.id.startsWith('scenario:'))
+    ctx.addIssue({ code: 'custom', path: ['id'], message: 'scenario ID disagrees with record contract' });
+  if (record.origin.kind === 'plan' && descriptive !== record.origin.planScenario.startsWith('plan-scenario:'))
+    ctx.addIssue({ code: 'custom', path: ['origin', 'planScenario'], message: 'plan origin disagrees with record contract' });
+});
 export type ScenarioRecord = z.infer<typeof scenarioRecordSchema>;
 
 /** Where a module keeps its tests: its directory, and whether its header classifies it as testing. */
@@ -61,6 +68,7 @@ export interface ScenarioIdContext {
   readonly entries: readonly { readonly capability: string; readonly owner: string }[];
   /** Every module an owner or a common ancestor can be, proposed ones included. */
   readonly modules: readonly ScenarioModule[];
+  readonly identityContract?: ScenarioIdentityContract;
 }
 
 export interface AssignedScenarios {
@@ -119,15 +127,23 @@ export function assignScenarioIds(form: AcceptedScenarioForm, context: ScenarioI
     return owner;
   };
 
+  const descriptive = context.identityContract === 'descriptive';
+  const preferred = [
+    ...form.scenarios.map(scenario => scenario.key.startsWith('draft:scenario:') ? scenario.key.slice('draft:scenario:'.length) : descriptiveSlug(scenario.name)),
+    ...form.integrations.map(integration => descriptiveSlug(integration.name)),
+  ];
+  const counts = new Map<string, number>();
+  preferred.forEach(name => counts.set(name, (counts.get(name) ?? 0) + 1));
+  const descriptiveId = (name: string, source: string): ScenarioId => `scenario:${name}${counts.get(name)! > 1 ? `-${createHash('sha256').update(source).digest('hex').slice(0, 8)}` : ''}`;
   const idsByKey = new Map<string, ScenarioId>();
-  form.scenarios.forEach((scenario, index) => idsByKey.set(scenario.key, scenarioIdOf(index + 1)));
+  form.scenarios.forEach((scenario, index) => idsByKey.set(scenario.key, descriptive ? descriptiveId(preferred[index]!, `${scenario.origin.kind}:${scenario.key}:${scenario.source.join('\n')}`) : scenarioIdOf(index + 1)));
   const idsByPlanScenario = new Map<string, ScenarioId>();
-  form.integrations.forEach((integration, index) => idsByPlanScenario.set(integration.planScenario, scenarioIdOf(form.scenarios.length + index + 1)));
+  form.integrations.forEach((integration, index) => idsByPlanScenario.set(integration.planScenario, descriptive ? descriptiveId(preferred[form.scenarios.length + index]!, `${integration.planScenario}:${integration.source.join('\n')}`) : scenarioIdOf(form.scenarios.length + index + 1)));
 
   const entryRecords = form.scenarios.map((scenario): ScenarioRecord => {
     const owner = ownerOf(scenario.entry);
     return {
-      schema: 'ramify-agent.scenario/1',
+      schema: descriptive ? 'ramify-agent.scenario/2' : 'ramify-agent.scenario/1',
       id: idsByKey.get(scenario.key)!,
       kind: 'entry',
       entry: scenario.entry,
@@ -140,7 +156,7 @@ export function assignScenarioIds(form: AcceptedScenarioForm, context: ScenarioI
       name: scenario.name,
       source: [...scenario.source],
       hash: scenarioSourceHash(scenario.source),
-      file: `${featureDirectoryOf(moduleOf(owner), context.planId)}/${scenario.entry}.feature`,
+      file: `${featureDirectoryOf(moduleOf(owner), context.planId)}/${descriptive ? encodeURIComponent(scenario.entry) : scenario.entry}.feature`,
     };
   });
 
@@ -148,7 +164,7 @@ export function assignScenarioIds(form: AcceptedScenarioForm, context: ScenarioI
   const integrationRecords = form.integrations.map((integration): ScenarioRecord => {
     const owner = lowestCommonAncestor(integration.subScenarios.map((key) => ownerOf(byKey.get(key)!.entry)));
     return {
-      schema: 'ramify-agent.scenario/1',
+      schema: descriptive ? 'ramify-agent.scenario/2' : 'ramify-agent.scenario/1',
       id: idsByPlanScenario.get(integration.planScenario)!,
       kind: 'integration',
       entry: null,

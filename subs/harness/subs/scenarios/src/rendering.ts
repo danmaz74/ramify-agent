@@ -30,13 +30,15 @@ export const pendingTag: string = '@ramify-pending';
 
 /** `@ramify-sc-001` for `sc-001`. */
 export function identityTagOf(id: string): string {
-  return `@ramify-${id}`;
+  return id.startsWith('scenario:') ? `@ramify-scenario-${id.slice('scenario:'.length)}` : `@ramify-${id}`;
 }
 
 /** The identity tag's scenario ID, or `null` for any other tag. */
 export function scenarioIdOfTag(tag: string): string | null {
-  const match = /^@ramify-(sc-\d{3,})$/.exec(tag);
-  return match ? match[1]! : null;
+  const legacy = /^@ramify-(sc-\d{3,})$/.exec(tag);
+  if (legacy) return legacy[1]!;
+  const descriptive = /^@ramify-scenario-([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(tag);
+  return descriptive ? `scenario:${descriptive[1]}` : null;
 }
 
 const width = 78;

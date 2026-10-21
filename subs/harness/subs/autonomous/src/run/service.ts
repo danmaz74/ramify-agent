@@ -97,7 +97,7 @@ import { declaredSchemaOf, jobSchemaVersion, listJobDirectories, newJobId, planS
 import { ensureStateDirectory } from '../../../../src/store/state-directory.js';
 import { readPlan } from '../../../../src/plans/discover.js';
 import { discoverDocuments } from '../../../plan-evidence/src/discovery.js';
-import { verifyDocumentBytes } from '../../../plan-evidence/src/interfaces/contracts.js';
+import { verifyDocumentBytes, type IdentityContract } from '../../../plan-evidence/src/interfaces/contracts.js';
 
 
 
@@ -224,6 +224,8 @@ import { processGroupIdentity } from '../../../evidence/src/run-command.js';
 
 /** One durable boundary a test can freeze the run at, as a crash would. */
 export interface RunServiceOptions {
+  /** Explicit run format for scripted qualification; installed production capture remains legacy until full integration. */
+  readonly identityContract?: IdentityContract | undefined;
   /** External command execution. Tests script outcomes; actual process tests use the default. */
   readonly commandExecution?: CommandRunner | undefined;
   readonly projectRoot: string;
@@ -852,6 +854,7 @@ export class AutonomousRunService {
    */
   static async open(options: RunServiceOptions): Promise<{ service: AutonomousRunService; recovery: RunRecoveryReport }> {
     if (options.policy !== undefined) throw new Error('Production run policy is fixed; a caller cannot inject a policy');
+    if (options.identityContract === 'descriptive') throw new Error('Descriptive run capture is unavailable until its remaining producers and consumers are integrated');
     const service = new AutonomousRunService(options, createCapabilityWorkflow());
     const recovery = await service.load();
     return { service, recovery };
@@ -1874,7 +1877,8 @@ export class AutonomousRunService {
     await ensureStateDirectory(planStateDirectory(this.projectRoot, planId), { gitignore: true });
     const captured = await capturePlan(this.projectRoot, planId);
     const inputs = await this.captureInputs(captured);
-    const capturedDocuments = await discoverDocuments(this.projectRoot, planId, inputs.manifest.source ?? { commit: null, dirty: false })
+    const identityContract = this.options.identityContract ?? 'legacy';
+    const capturedDocuments = await discoverDocuments(this.projectRoot, planId, inputs.manifest.source ?? { commit: null, dirty: false }, undefined, undefined, identityContract)
       .catch((error: unknown) => { throw new CommandRejection('unreadable', `Plan evidence cannot be captured: ${message(error)}`); });
     if (!Buffer.from(capturedDocuments.bytes.get(capturedDocuments.manifest.root)!).equals(Buffer.from(captured))) {
       throw new CommandRejection('inputs-changed', 'The root plan changed during input capture');
@@ -1922,6 +1926,7 @@ export class AutonomousRunService {
       : undefined;
     const record = runRecordSchema.parse({
       schema: jobSchemaVersion,
+      identityContract,
       jobId: runId,
       planId,
       kind: 'implementation',
@@ -1936,7 +1941,7 @@ export class AutonomousRunService {
       baseline: baseline.reference,
       // The plan's own scenarios, extracted once from the captured bytes. A
       // block that does not parse is a limitation, never a refusal.
-      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured)),
+      planScenarios: extractPlanScenarios(new TextDecoder().decode(captured), undefined, identityContract),
       reviewStop,
       ...(breakpoint === undefined ? {} : { breakpoint }),
     });
@@ -3118,6 +3123,7 @@ export class AutonomousRunService {
     }
     return performInitialAnalysis({
       projectRoot: this.projectRoot, directory: run.directory, planId: run.record.planId,
+      identityContract: run.record.identityContract ?? 'legacy',
       manifest: run.record.manifest, planScenarios: run.record.planScenarios.scenarios, index: run.index, baseline,
       baselineMeasurement: run.record.baseline && 'measurement' in run.record.baseline ? run.record.baseline.measurement : null,
       capturedPlanPath: this.coordination(run).capturedPlanPath(), rootModule: this.options.rootModule ?? rootModuleOf(run.index) ?? rootModuleOfSnapshot(baseline) ?? 'root',

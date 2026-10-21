@@ -44,6 +44,28 @@ Historical evidence retains the names actually recorded. The toolkit's
 module-architect skill and its glossary retain their upstream terminology under
 the snapshot's [provenance](../skills/module-architect/PROVENANCE.md).
 
+### Run Identity Contract
+
+An implementation run records its identity contract at capture. An absent
+contract denotes a legacy run. Legacy continuation uses its numbered catalog,
+scenario and work identities and its original submission fields; accepted
+records, features and reports are read without rewriting their bytes. The
+installed fresh-run default remains legacy until every producer and consumer
+of the descriptive contract is compatible.
+
+Under the descriptive contract, initial analysis proposes draft keys for
+functional requirements, context, entry capabilities, hypotheses and scenarios
+in its ordinary submission. The harness validates the complete submission and
+commits the accepted catalog, entry assignments, hypotheses, capability records,
+initial work items and scenarios in one accepted transition. New submission
+fields identify their reference family and stage. The accepted records carry
+the namespace and descriptive name as their actual ID; no registration call or
+reservation state precedes acceptance. Catalog replacement records retirement
+and replacement relationships under the catalog checker's existing authority.
+The [catalog specification](architecture/plan-context-catalog.spec.md) and
+[scenario contract](architecture/acceptance-scenarios.md) define their source
+and wording authority in both formats.
+
 ### Forecast Early; Decide with Current Evidence
 
 When a concrete need arises, reuse the responsible agent's oriented context

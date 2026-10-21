@@ -8,6 +8,7 @@ import { applyScenarioEvent, initialScenarioStates, scenarioEventTypes, type Sce
 import { resolveContainedPath } from '../../../../../src/guard/resolve-contained-path.js';
 import { runTrailer } from './gates.js';
 import { entryAssignmentsSchema } from '../../planning/src/records.js';
+import { runLayout } from '../../../src/run/records.js';
 
 /*
  * The tracked feature files of one run, architecture §5 and §12.
@@ -73,15 +74,15 @@ function replayScenarios(lines: readonly ScenarioLedgerLine[]): TrackedScenarios
   for (const line of lines) {
     for (const record of line.transaction.records) {
       const schema = (record.body as { schema?: unknown } | null)?.schema;
-      if (schema === 'ramify-agent.scenario/1') {
+      if (schema === 'ramify-agent.scenario/1' || schema === 'ramify-agent.scenario/2') {
         // A plan deviation's rewording revises a record in place: the latest wins.
         const scenario = scenarioRecordSchema.parse(record.body);
         const at = records.findIndex(held => held.id === scenario.id);
         if (at < 0) records.push(scenario);
         else records[at] = scenario;
       }
-      if (schema === 'ramify-agent.entry-assignments/1') {
-        entries = entryAssignmentsSchema.parse(record.body).entries.map(entry => ({ capability: entry.capability, description: entry.description }));
+      if (schema === 'ramify-agent.entry-assignments/1' || schema === 'ramify-agent.entry-assignments/2') {
+        entries = entryAssignmentsSchema.parse(record.body).entries.map(entry => ({ capability: entry.capabilityId ?? entry.capability, description: entry.description }));
       }
     }
     const event = line.transaction.event as { readonly type: string };
@@ -110,7 +111,7 @@ export interface IncompleteScenario {
  */
 export function incompleteScenarios(tracked: TrackedScenarios): IncompleteScenario[] {
   return tracked.records
-    .map(record => ({ id: record.id, entry: record.entry, state: tracked.states.get(record.id) ?? 'pending', evidence: join('scenarios', `${record.id}.json`) }))
+    .map(record => ({ id: record.id, entry: record.entry, state: tracked.states.get(record.id) ?? 'pending', evidence: runLayout.scenario(record.id) }))
     .filter(scenario => scenario.state !== 'done');
 }
 

@@ -171,7 +171,8 @@ export function incorporatedExtraction(evidence: Pick<AnalysisEvidence, 'incorpo
   if (documents === undefined || incorporation === undefined) return { scenarios: [...evidence.planScenarios ?? []], limitations: [] };
   return extractDocumentScenarios(documents.manifest.documents
     .filter(document => document.kind === 'plan' && incorporation.documents.some(choice => choice.document === document.id && choice.scenarios))
-    .map(document => ({ id: document.id, text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(documents.bytes.get(document.id)!) })));
+    .map(document => ({ id: document.id, text: new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(documents.bytes.get(document.id)!) })),
+    documents.manifest.schema.endsWith('/2') ? 'descriptive' : 'legacy');
 }
 
 /** The kinds each citation of an analysis must name. */

@@ -15,6 +15,7 @@ import { scenarioFormOf, type ResolvedAnalysis } from './submission.js';
 import type { DocumentManifest } from '../../../../plan-evidence/src/interfaces/contracts.js';
 import type { ElementCatalog } from '../../../../plan-evidence/src/interfaces/catalog.js';
 import type { Incorporation } from './evidence-contracts.js';
+import type { IdentityContract } from '../../../../plan-evidence/src/interfaces/contracts.js';
 
 /*
  * What one accepted initial analysis commits, in the single
@@ -46,6 +47,7 @@ export interface AcceptedAnalysis {
 
 /** What acceptance reads beyond the submission. */
 export interface AnalysisAcceptanceContext {
+  readonly identityContract?: IdentityContract;
   readonly invocation: string;
   readonly view: InputManifest['architectView'];
   readonly planId: string;
@@ -66,23 +68,29 @@ export interface AnalysisAcceptanceContext {
  * derives the same records with the same IDs.
  */
 export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAcceptanceContext): AcceptedAnalysis {
+  const descriptive = context.identityContract === 'descriptive';
+  const capabilityId = (name: string) => descriptive ? `capability:${name}` : name;
+  const hypothesisId = (name: string) => descriptive ? `hypothesis:${name}` : name;
   const entries = entryAssignmentsSchema.parse({
-    schema: 'ramify-agent.entry-assignments/1',
+    schema: descriptive ? 'ramify-agent.entry-assignments/2' : 'ramify-agent.entry-assignments/1',
     view: context.view,
-    entries: submission.entries,
-  } satisfies EntryAssignments);
+    entries: submission.entries.map(entry => descriptive ? { ...entry, capabilityId: capabilityId(entry.capability),
+      functionalRequirementIds: entry.requirementRefs, functionalAcceptanceIds: entry.acceptanceRefs, contextIds: entry.contextRefs } : entry),
+  });
 
   const hypotheses = submission.hypotheses.map(hypothesis => hypothesisSchema.parse({
-    schema: 'ramify-agent.hypothesis/1',
+    schema: descriptive ? 'ramify-agent.hypothesis/2' : 'ramify-agent.hypothesis/1',
     revision: 1,
     standing: 'tentative',
     ...hypothesis,
+    id: hypothesisId(hypothesis.id), capability: capabilityId(hypothesis.capability),
+    dependsOn: hypothesis.dependsOn.map(hypothesisId),
     cause: { initial: context.invocation },
-  } satisfies Hypothesis));
+  }));
 
   const registry = submission.entries.map(entry => registryEntrySchema.parse({
-    schema: 'ramify-agent.capability/1',
-    capability: entry.capability,
+    schema: descriptive ? 'ramify-agent.capability/2' : 'ramify-agent.capability/1',
+    capability: capabilityId(entry.capability),
     revision: 1,
     behavior: entry.description,
     owner: entry.owner,
@@ -90,19 +98,20 @@ export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAc
     origin: 'entry',
     decision: null,
     consumers: [],
-  } satisfies RegistryEntry));
+  }));
 
   const workItems = submission.entries.map((entry, index) => workItemSchema.parse({
-    schema: 'ramify-agent.work-item/1',
-    id: workItemId(index + 1),
+    schema: descriptive ? 'ramify-agent.work-item/2' : 'ramify-agent.work-item/1',
+    id: descriptive ? `work-item:${entry.capability}` : workItemId(index + 1),
     module: entry.owner,
-    origin: { entry: entry.capability },
+    origin: { entry: capabilityId(entry.capability) },
     goal: entry.description,
     requirementRefs: entry.requirementRefs,
     acceptanceRefs: entry.acceptanceRefs,
     contextRefs: entry.contextRefs,
+    ...(descriptive ? { functionalRequirementIds: entry.requirementRefs, functionalAcceptanceIds: entry.acceptanceRefs, contextIds: entry.contextRefs } : {}),
     startedFor: null,
-  } satisfies WorkItem));
+  }));
 
   // The validation that accepted the submission applied the same rules, so
   // a rejection here is the harness disagreeing with itself.
@@ -110,10 +119,13 @@ export function acceptAnalysis(submission: ResolvedAnalysis, context: AnalysisAc
     index: context.index, catalog: context.catalog, incorporation: context.incorporation, planScenarios: context.planScenarios, documents: context.documents,
   });
   if (!form.ok) throw new Error(`An accepted analysis breaks a scenario form rule: ${form.message}`);
-  const assigned = assignScenarioIds(form.form, {
+  const assigned = assignScenarioIds(descriptive ? {
+    ...form.form, scenarios: form.form.scenarios.map(scenario => ({ ...scenario, entry: capabilityId(scenario.entry) })),
+  } : form.form, {
     planId: context.planId,
-    entries: submission.entries.map(entry => ({ capability: entry.capability, owner: entry.owner })),
+    entries: submission.entries.map(entry => ({ capability: capabilityId(entry.capability), owner: entry.owner })),
     modules: scenarioModulesOf(submission, context.index),
+    identityContract: context.identityContract,
   });
   const scenarios = assigned.records.map((record, index) => scenarioRecordSchema.parse({ ...record,
     ...(record.kind === 'entry' ? { citedElements: submission.scenarios[index]!.refs ?? [] } : {}),
